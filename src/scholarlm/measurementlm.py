@@ -206,10 +206,11 @@ class MeasurementLM:
 
         measurement_data = []
         for i, resp in enumerate(response_validated):
-            if resp['answer'] == True:
-                measurement_data.append(
-                    self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
-                )
+            # REMOVING FILTER HERE!
+            #if resp['answer'] == True:
+            measurement_data.append(
+                self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
+            )
 
         return measurement_data
     
