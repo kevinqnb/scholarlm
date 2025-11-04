@@ -8,3 +8,4 @@ examples/basics_vllm.py
 experiments/pond.py
 experiments/out/*
 *.sh
+data/*.csv
