@@ -73,9 +73,7 @@ class MeasurementLM:
             instructions = (
                 f"You are an expert at identifying relevant information in scientific texts. "
                 f"Determine if the given context contains any relevant information. "
-                f"Respond using a JSON object with a single key 'answer' and a boolean value "
-                f"indicating relevance (true for relevant, false for irrelevant). "
-                f"Example: {{\"answer\": false}}"
+                f"Respond 'true' if the context is relevant and 'false' if it is not. "
             )
             context = datapoint['context']
             query = "Is the context relevant to measuring or identifying " + f"{', '.join(self.item_description)}?"
@@ -86,7 +84,9 @@ class MeasurementLM:
                 {"role": "user", "content": prompt}]
             )
 
-        guided_decoding_params = GuidedDecodingParams(json=BooleanResponse.model_json_schema())
+        guided_decoding_params = GuidedDecodingParams(
+            choice = ['true', 'false']
+        )
         sampling_params = SamplingParams(
             **self.sampling_params,
             guided_decoding=guided_decoding_params
@@ -94,13 +94,14 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_validated = [
-            response_validator(BooleanResponse, r) for r in response_texts
-        ]
+        #response_validated = [
+        #    response_validator(BooleanResponse, r) for r in response_texts
+        #]
 
         filtered_data = []
-        for i, resp in enumerate(response_validated):
-            if resp['answer'] == True:
+        for i, resp in enumerate(response_texts):
+            #if resp['answer'] == True:
+            if resp == 'true':
                 filtered_data.append(self.data[i])
         
         return filtered_data
@@ -121,7 +122,7 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             instructions = identification_prompt
             context = datapoint['context']
-            query = "Identify the items mentioned in the context."
+            query = "Follow the instructions to identify the items mentioned in the context: "
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
@@ -175,11 +176,8 @@ class MeasurementLM:
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for your data collection. "
                     f"You will be given a context from a research paper, along with a description of a feature to be evaluated for a specific entity. "
                     f"Your task is to determine if the context contains valued information for that feature and entity. "
-                    f"Respond using a JSON object with a single key 'answer' and a boolean value "
-                    f"indicating relevance (true for relevant, false for irrelevant). "
-                    f"Example: {{\"answer\": false}} "
-                    f"Respond true only if the context explicity provides specific data for the feature and entity in question. "
-                    f"Respond false if the context does not explicity provide data, or if it only reports aggregate statistics, a range of values, an inequality, or other ambiguous information."
+                    f"Respond 'true' only if the context explicity provides specific data for the feature and entity in question. "
+                    f"Respond 'false' if the context does not explicity provide data, or if it only reports aggregate statistics, a range of values, an inequality, or other ambiguous information."
                 )
                 context = datapoint['context']
                 query = "Does the context contain data for " + f"{m_description}  the entity {item}?"
@@ -192,7 +190,9 @@ class MeasurementLM:
                 message_measurement_types.append(m)
                 message_data_ids.append(i)
 
-        guided_decoding_params = GuidedDecodingParams(json=BooleanResponse.model_json_schema())
+        guided_decoding_params = GuidedDecodingParams(
+            choice = ['true', 'false']
+        )
         sampling_params = SamplingParams(
             **self.sampling_params,
             guided_decoding=guided_decoding_params
@@ -200,13 +200,14 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_validated = [
-            response_validator(BooleanResponse, r) for r in response_texts
-        ]
+        #response_validated = [
+        #    response_validator(BooleanResponse, r) for r in response_texts
+        #]
 
         measurement_data = []
-        for i, resp in enumerate(response_validated):
-            if resp['answer'] == True:
+        for i, resp in enumerate(response_texts):
+            #if resp['answer'] == True:
+            if resp == 'true':
                 measurement_data.append(
                     self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
                 )
@@ -228,9 +229,10 @@ class MeasurementLM:
             item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement']}
             measurement = datapoint['measurement']
             instructions = (
-                f"You are an expert in extracting precise data from scientific texts. "
-                f"A value is an individual numeric or textual measurement explicitly mentioned in the context. "
-                f"Given a requested feature type and an entity description, extract the corresponding value from the provided context. "
+                f"You are an expert in extracting precise numerical data from user provided, scientific text. "
+                f"A value is a single numerical measurement explicitly mentioned in the context. "
+                f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
+                f"Your task is to extract the corresponding value from the provided context. "
                 f"Copy the value exactly as it appears in the context. "
                 f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
                 f"Respond 'None' if the requested information is not explicitly available in the given context."
@@ -385,6 +387,7 @@ class MeasurementLM:
         """        
         messages = []
         message_data_ids = []
+        sampling_params = []
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement', 'value']}
             measurement = datapoint['measurement']
@@ -394,7 +397,8 @@ class MeasurementLM:
             available_units = self.measurement_schema.model_fields[measurement].json_schema_extra.get('units', None)
 
             if available_units is not None:
-                units_str = ', '.join(available_units + ['other'])
+                units_list = available_units + ['other']
+                units_str = ', '.join(units_list)
                 instructions = (
                     f"You are an expert in data collection and scientific measurements. "
                     f"You will be given context from a research paper, along with a description of a measurement value and the entity it was reported for. "
@@ -417,10 +421,15 @@ class MeasurementLM:
                     {"role": "user", "content": prompt}]
                 )
                 message_data_ids.append(i)
+                guided_decoding_params = GuidedDecodingParams(
+                    choice = units_list
+                )
+                params = SamplingParams(
+                    **self.sampling_params,
+                    guided_decoding=guided_decoding_params
+                )
+                sampling_params.append(params)
 
-        sampling_params = SamplingParams(
-            **self.sampling_params
-        )
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_units = [r.outputs[0].text for r in responses]
         
@@ -450,11 +459,8 @@ class MeasurementLM:
                 f"You are an expert in discerning whether or not a given data point is textually accurate. "
                 f"You will be given a context from a research paper, along with a data point that is assumed to be extracted from it. "
                 f"Your task is to determine if the data point is supported by evidence in the context. "
-                f"Respond using a JSON object with a single key 'answer' and a boolean value "
-                f"indicating relevance (true for relevant, false for irrelevant). "
-                f"Example: {{\"answer\": false}} "
-                f"Respond true only if the context explicity provides evidence for the data point. "
-                f"Respond false otherwise."
+                f"Respond 'true' only if the context explicity provides evidence for the data point. "
+                f"Respond 'false' otherwise."
             )
             context = datapoint['context']
             query = f"Does the given context support the data point: {item}?"
@@ -465,7 +471,9 @@ class MeasurementLM:
                 {"role": "user","content": prompt}]
             )
 
-        guided_decoding_params = GuidedDecodingParams(json=BooleanResponse.model_json_schema())
+        guided_decoding_params = GuidedDecodingParams(
+            choice = ['true', 'false']
+        )
         sampling_params = SamplingParams(
             **self.sampling_params,
             guided_decoding=guided_decoding_params
@@ -473,13 +481,14 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_validated = [
-            response_validator(BooleanResponse, r) for r in response_texts
-        ]
+        #response_validated = [
+        #    response_validator(BooleanResponse, r) for r in response_texts
+        #]
 
         judged_data = [datapoint for datapoint in self.data]
-        for i, resp in enumerate(response_validated):
-            judged_data[i]['judgement'] = resp['answer']
+        #for i, resp in enumerate(response_validated):
+        for i, resp in enumerate(response_texts):
+            judged_data[i]['judgement'] = resp
 
         return judged_data
 

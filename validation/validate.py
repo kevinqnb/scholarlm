@@ -9,7 +9,7 @@ load_dotenv()
 ####################################################################################################
 # --- Load Data ---
 
-filename = "../data/pond_test_choices.csv"
+filename = "../data/pond_test_identification.csv"
 outfile = "../data/pond_.csv"
 
 n_sample = 100
