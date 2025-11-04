@@ -173,10 +173,10 @@ class MeasurementLM:
             for i, datapoint in enumerate(self.data):
                 item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id']}
                 instructions = (
-                    f"You are an expert in discerning whether or not a given piece of scientific text is relevant for your data collection. "
-                    f"You will be given a context from a research paper, along with a description of a feature to be evaluated for a specific entity. "
-                    f"Your task is to determine if the context contains valued information for that feature and entity. "
-                    f"Respond 'true' only if the context explicity provides specific data for the feature and entity in question. "
+                    f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
+                    f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
+                    f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
+                    f"Respond 'true' only if the context explicity provides a numerical measurement for the given feature, with respect to the entity in question. "
                     f"Respond 'false' if the context does not explicity provide data, or if it only reports aggregate statistics, a range of values, an inequality, or other ambiguous information."
                 )
                 context = datapoint['context']
@@ -265,116 +265,7 @@ class MeasurementLM:
                 )
 
         return measured_data
-
-    '''
-    def _separate_units(self):
-        """
-        Separates units from the extracted measurements.
-
-        Args:
-
-        Returns:
-
-        """        
-        messages = []
-        message_data_ids = []
-        for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement', 'value']}
-            measurement = datapoint['measurement']
-            measurement_val = datapoint['value']
-            measurement_description = self.measurement_schema.model_fields[measurement].description
-            available_units = self.measurement_schema.model_fields[measurement].json_schema_extra.get('units', None)
-
-            if available_units is not None:
-                instructions = (
-                    f"You are an expert in data collection and scientific measurements. "
-                    f"Given a data point, your task is to separate the value from its unit of measurement. "
-                    f"For example, in the data point '5.6 meters', '5.6' is the value and 'meters' is the unit. "
-                    f"If the data point does not explicitly include a unit, respond with 'None' as the unit. "
-                    f"Otherwise, copy the value and the unit exactly as they appear.\n\n"
-                    f"Your response should be formatted as a JSON object with two keys: 'value' and 'unit'. "
-                    f"Example: {{'value': 5.6, 'unit': 'meters'}} "
-                    f"or {{'value': 5.6, 'unit': 'None'}}"
-                )
-                context = datapoint['value']
-                query = "Separate the value and unit from the given data point."
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Data Point:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user", "content": prompt}]
-                )
-                message_data_ids.append(i)
-
-        guided_decoding_params = GuidedDecodingParams(json=DataPointResponse.model_json_schema())
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-        response_validated = [
-            response_validator(DataPointResponse, r) for r in response_texts
-        ]
-        
-        separated_data = [datapoint for datapoint in self.data]
-        for i, resp in enumerate(response_validated):
-            separated_data[message_data_ids[i]]['value'] = resp['value']
-            separated_data[message_data_ids[i]]['units'] = resp['units']
-
-        return separated_data
     
-
-    def _standardize(self):
-        """
-        Gives standardized units to the extracted measurements.
-
-        Args:
-
-        Returns:
-            
-        """        
-        messages = []
-        message_data_ids = []
-        for i, datapoint in enumerate(self.data):
-            measurement = datapoint['measurement']
-            available_units = self.measurement_schema.model_fields[measurement].json_schema_extra.get('units', None)
-
-            if available_units is not None:
-                instructions = (
-                    f"You are an expert in data collection and scientific measurements. "
-                    f"Given a data point, your task is to standardize the format for its unit of measurement by choosing from a list of available options. "
-                    f"For example, if the data point is '5.6 meters' and your options are 'm', 'km', 'ft', or 'other', the correct standardized choice would be 'm'. "
-                    f"If the data point's unit of measurement is 'None' or null to begin with, simply respond 'None'. "
-                    f"Respond with only the standardized unit exactly as it appears in the list of available options. "
-                    f"Do not include any additional text or explanation in your response."
-                )
-                context = f"{{value: {datapoint['value']}, unit: {datapoint['units']}}}"
-                query = (
-                    f"Determine the best standardized unit for the given data point from among the "
-                    f"following choices: {available_units}."
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Data Point:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user", "content": prompt}]
-                )
-                message_data_ids.append(i)
-
-        #guided_decoding_params = GuidedDecodingParams()
-        sampling_params = SamplingParams(
-            **self.sampling_params
-        )
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_units = [r.outputs[0].text for r in responses]
-        
-        standardized_data = [datapoint for datapoint in self.data]
-        for i, resp in enumerate(response_units):
-            standardized_data[message_data_ids[i]]['units'] = resp.strip()
-
-        return standardized_data
-    '''
 
     def _standardize(self):
         """
