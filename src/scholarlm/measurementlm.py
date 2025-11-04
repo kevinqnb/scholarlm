@@ -206,11 +206,10 @@ class MeasurementLM:
 
         measurement_data = []
         for i, resp in enumerate(response_validated):
-            # REMOVING FILTER HERE!
-            #if resp['answer'] == True:
-            measurement_data.append(
-                self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
-            )
+            if resp['answer'] == True:
+                measurement_data.append(
+                    self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
+                )
 
         return measurement_data
     
@@ -240,7 +239,7 @@ class MeasurementLM:
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             messages.append((instructions, context, query))
 
-        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k != 'max_tokens'}
+        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed']}
         ctxlm_params['max_new_tokens'] = 20
         ctxlm = ContextLM(
             model_name="meta-llama/Llama-3.1-8B-Instruct",

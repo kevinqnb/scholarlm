@@ -75,8 +75,11 @@ class ContextLM:
         model_name (str): The name of the model to load from NNsight or huggingface.
         top_k (float): The fraction of context tokens with largest attention weight to 
             compare generated tokens with (for external context score). Default is 0.1 (10%).
-        max_new_tokens (int): The maximum number of new tokens to generate. Default is 50.
+        sampling_params (dict): A dictionary of sampling parameters to pass to the
+            NNsight LanguageModel generate method. Default is {}.
         nnsight_kwargs (dict): Additional keyword arguments to pass to the NNsight LanguageModel.
+        return_full_output (bool): Whether to return full per-layer and per-head scores
+            in the output dictionary. Default is False.
         verbose (bool): Whether to print verbose output during generation. Default is False.
     """
     def __init__(
