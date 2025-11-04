@@ -9,8 +9,8 @@ load_dotenv()
 ####################################################################################################
 # --- Load Data ---
 
-filename = "../data/pond_results4.csv"
-outfile = "../data/pond_results4_validated.csv"
+filename = "../data/pond_test_choices.csv"
+outfile = "../data/pond_.csv"
 
 n_sample = 100
 
@@ -18,7 +18,7 @@ n_sample = 100
 df = pd.read_csv(filename)
 ignore_measurements = ['latitude', 'longitude'] # Ignoring these because they are not in the original dataset
 df = df.loc[~df.measurement.isin(ignore_measurements)]
-df = df.sample(n=n_sample, random_state=42)
+#df = df.sample(n=n_sample, random_state=42)
 df = df.sort_values(by=['title', 'chunk_id'])
 df = df.reset_index(drop=True)
 
@@ -101,7 +101,7 @@ def save_results():
         validated_df['identification_status'] = st.session_state.identification_results
         validated_df['unit_status'] = st.session_state.unit_results
         validated_df['validation_status'] = st.session_state.validation_results
-        validated_df.to_csv(outfile, index=False)
+        #validated_df.to_csv(outfile, index=False)
     else:
         st.error("Error: Mismatch in result lengths. Cannot save results.")
 
@@ -133,7 +133,7 @@ if st.session_state.current_index < dataset_len:
     st.write("### Q2: Are the units correct for this data point?")
     q2_answered = len(st.session_state.unit_results) > current_idx
     
-    col_unit1, col_unit2 = st.columns(2)
+    col_unit1, col_unit2, col_unit3 = st.columns(3)
     with col_unit1:
         if st.button("Yes", key="unit_yes_btn", disabled=q2_answered):
             record_unit(True)
@@ -141,6 +141,10 @@ if st.session_state.current_index < dataset_len:
     with col_unit2:
         if st.button("No", key="unit_no_btn", disabled=q2_answered):
             record_unit(False)
+            st.rerun()
+    with col_unit3:
+        if st.button("N/A", key="unit_na_btn", disabled=q2_answered):
+            record_unit(None)
             st.rerun()
             
     if q2_answered:
