@@ -44,9 +44,9 @@ class MarkdownDocuments:
 
         Args:
             document_info (list[dict[str, dict]]): A list to store metadata about each document. 
-            Each item in the list is a dictionary with a single key-value pair, where the key is 
-            the document's filename and the value is another dictionary containing key-value
-            metadata, e.g. {'author': 'et al', 'title': 'xyz', 'date': '2028'}.
+                Each item in the list is a dictionary with a single key-value pair, where the key is 
+                the document's filename and the value is another dictionary containing key-value
+                metadata, e.g. {'author': 'et al', 'title': 'xyz', 'date': '2028'}.
         """
         self.document_info += document_info
         for doc_meta in document_info:
@@ -79,9 +79,9 @@ class MarkdownDocuments:
                 doc_chunks = [chunk.replace(sep, "") for chunk in doc_chunks]
 
             doc_chunks = [t.strip() for t in doc_chunks if len(t.strip()) > 0]
-            self.chunks += doc_chunks
-            self.chunk_labels += [doc_index] * len(doc_chunks)
+            self.chunks += [doc_chunks]
+            #self.chunk_labels += [doc_index] * len(doc_chunks)
 
-        return self.chunks, self.chunk_labels
+        return self.chunks #, self.chunk_labels
 
 

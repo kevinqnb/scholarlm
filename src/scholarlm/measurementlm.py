@@ -94,13 +94,9 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        #response_validated = [
-        #    response_validator(BooleanResponse, r) for r in response_texts
-        #]
 
         filtered_data = []
         for i, resp in enumerate(response_texts):
-            #if resp['answer'] == True:
             if resp == 'true':
                 filtered_data.append(self.data[i])
         
@@ -150,10 +146,17 @@ class MeasurementLM:
 
         itemized_data = []
         for i, resp in enumerate(response_validated):
-            for item in resp['items']:
-                itemized_data.append(self.data[i] | item)
+            # Copy items found from each chunk across the rest of their corresponding paper
+            paper_id = self.data[i]['paper_id']
+            paper_data = [d for d in self.data if d['paper_id'] == paper_id]
+            for datapoint in paper_data:
+                for item in resp['items']:
+                    itemized_data.append(datapoint | item)
 
-        return itemized_data
+        # De-duplicate itemized data points
+        unique_itemized_data = [dict(s) for s in {frozenset(d.items()) for d in itemized_data}]
+
+        return unique_itemized_data
     
 
     def _measurements_filter(self):
@@ -176,8 +179,9 @@ class MeasurementLM:
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
                     f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
                     f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
-                    f"Respond 'true' only if the context explicity provides a numerical measurement for the given feature, with respect to the entity in question. "
-                    f"Respond 'false' if the context does not explicity provide data, or if it only reports aggregate statistics, a range of values, an inequality, or other ambiguous information."
+                    f"Respond 'false' if the the given entity or feature do not appear in the context. "
+                    f"Respond 'false' if the context does not explicity provide data for the given feature and entity, or if it only reports aggregate statistics, a range of values, or an inequality. "
+                    f"Respond 'true' only if the context explicity provides a distinct numerical measurement for the given feature, with respect to the entity in question. "
                 )
                 context = datapoint['context']
                 query = "Does the context contain data for " + f"{m_description}  the entity {item}?"
@@ -200,13 +204,9 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        #response_validated = [
-        #    response_validator(BooleanResponse, r) for r in response_texts
-        #]
 
         measurement_data = []
         for i, resp in enumerate(response_texts):
-            #if resp['answer'] == True:
             if resp == 'true':
                 measurement_data.append(
                     self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
@@ -372,12 +372,8 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        #response_validated = [
-        #    response_validator(BooleanResponse, r) for r in response_texts
-        #]
 
         judged_data = [datapoint for datapoint in self.data]
-        #for i, resp in enumerate(response_validated):
         for i, resp in enumerate(response_texts):
             judged_data[i]['judgement'] = resp
 
@@ -386,7 +382,7 @@ class MeasurementLM:
 
     def fit(
         self,
-        chunks : list[str],
+        chunks : list[list[str]],
     ):
         """
         Fits the MeasurementLM to the provided text chunks by filtering, identifying items, 
@@ -397,7 +393,11 @@ class MeasurementLM:
         Returns:
             measurements (list[dict]): A list of measurements extracted for identified items.
         """
-        self.data = [{'chunk_id': i, 'context' : c} for i, c in enumerate(chunks)]
+        self.data = []
+        for i in range(len(chunks)):
+            for j in range(len(chunks[i])):
+                self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
+
         self.data = self._filter()
         self.data = self._identify()
         self.data = self._measurements_filter()
