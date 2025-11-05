@@ -141,17 +141,19 @@ class MeasurementLM:
             try:
                 resp_validated = response_validator(self.identification_schema, r)
             except:
+                print("Validation error in identification response, assigning empty items list.")
                 resp_validated = {'items': []}
             response_validated.append(resp_validated)
 
         itemized_data = []
         for i, resp in enumerate(response_validated):
             # Copy items found from each chunk across the rest of their corresponding paper
-            paper_id = self.data[i]['paper_id']
-            paper_data = [d for d in self.data if d['paper_id'] == paper_id]
-            for datapoint in paper_data:
-                for item in resp['items']:
-                    itemized_data.append(datapoint | item)
+            #paper_id = self.data[i]['paper_id']
+            #paper_data = [d for d in self.data if d['paper_id'] == paper_id]
+            #for datapoint in paper_data:
+            datapoint = self.data[i]
+            for item in resp['items']:
+                itemized_data.append(datapoint | item)
 
         # De-duplicate itemized data points
         unique_itemized_data = [dict(s) for s in {frozenset(d.items()) for d in itemized_data}]
@@ -241,7 +243,8 @@ class MeasurementLM:
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             messages.append((instructions, context, query))
 
-        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed']}
+        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature']}
+        ctxlm_params['do_sample'] = False
         ctxlm_params['max_new_tokens'] = 20
         ctxlm = ContextLM(
             model_name="meta-llama/Llama-3.1-8B-Instruct",
@@ -395,8 +398,9 @@ class MeasurementLM:
         """
         self.data = []
         for i in range(len(chunks)):
-            for j in range(len(chunks[i])):
-                self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
+            self.data.append({'chunk_id': i, 'context' : chunks[i]})
+            #for j in range(len(chunks[i])):
+            #    self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
 
         self.data = self._filter()
         self.data = self._identify()

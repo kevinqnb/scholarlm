@@ -79,8 +79,8 @@ class MarkdownDocuments:
                 doc_chunks = [chunk.replace(sep, "") for chunk in doc_chunks]
 
             doc_chunks = [t.strip() for t in doc_chunks if len(t.strip()) > 0]
-            self.chunks += [doc_chunks]
-            #self.chunk_labels += [doc_index] * len(doc_chunks)
+            self.chunks += doc_chunks
+            self.chunk_labels += [doc_index] * len(doc_chunks)
 
         return self.chunks #, self.chunk_labels
 
