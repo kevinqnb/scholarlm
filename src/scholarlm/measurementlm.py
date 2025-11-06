@@ -243,7 +243,7 @@ class MeasurementLM:
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             messages.append((instructions, context, query))
 
-        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature']}
+        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
         ctxlm_params['do_sample'] = False
         ctxlm_params['max_new_tokens'] = 20
         ctxlm = ContextLM(

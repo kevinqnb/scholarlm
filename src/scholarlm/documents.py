@@ -44,7 +44,7 @@ class MarkdownDocuments:
 
         Args:
             document_info (list[dict[str, dict]]): A list to store metadata about each document. 
-                Each item in the list is a dictionary with a single key-value pair, where the key is 
+                Each item in the list is a dictionary with a single key-value pair, where the key is
                 the document's filename and the value is another dictionary containing key-value
                 metadata, e.g. {'author': 'et al', 'title': 'xyz', 'date': '2028'}.
         """
