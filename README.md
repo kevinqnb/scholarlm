@@ -2,7 +2,16 @@
 
 **Parse and analyze scientific research papers with large language models using mechanistic interpretability.**
 
-ScholarLM is a Python library that combines document processing with advanced language model analysis to extract insights from scientific papers. Built on top of [NNsight](https://github.com/ndif-ai/nnsight), it provides tools for detecting hallucinations in retrieval-augmented generation (RAG) systems and analyzing how language models process contextual information.
+*Please note:* This project is a work in progress. 
+
+This library implements a system for extracting insights from scientific papers (which are in the form of pdfs) using large language models.
+Specifically, we apply local and open source LLMs towards organized tasks for:
+* Document OCR: translating pdf images into markdown, and splitting into paragraph sized chunks.
+* Document extraction: systematically collecting data points from chunks of markdown text. 
+* Hallucination detection: mechanistic intervention on model activations to detect and prevent hallucinated responses. 
+
+Our focus is on using small, local models for OCR and text generation tasks, and this library is designed to be compatible 
+with any such model of your choosing. 
 
 ### Installation
 
@@ -41,7 +50,7 @@ print(f"Parametric Score: {result['parametric_score']:.4f}")
 print(f"Context Score: {result['context_score']:.4f}")
 ```
 
-## Core Concepts
+## References
 
 ScholarLM implements external context and parametric knowledge score methods from:
 > Sun, Zhongxiang, et al. "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation via Mechanistic Interpretability." ICLR. 2025.
