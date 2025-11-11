@@ -99,6 +99,7 @@ class ContextLM:
         self.verbose = verbose
 
         self.llm = LanguageModel(model_name, **nnsight_kwargs)
+        print(self.llm)
         self.tokenizer = self.llm.tokenizer
         if self.tokenizer.pad_token is None:
             self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
@@ -150,7 +151,6 @@ class ContextLM:
         )
 
         # If key,value matrices are grouped, repeat to match number of heads
-        #n_kv_groups = layer.self_attn.num_key_value_groups
         key_states = key_states.repeat_interleave(self.n_heads // key_states.shape[1], dim=1)
 
         if key_cache is None:
@@ -230,6 +230,39 @@ class ContextLM:
         return jensen_shannon_divergence(input_probs, output_probs)
     
 
+    def compute_copying_score(
+        self,
+        attn_weights: torch.Tensor,
+        out_weights: torch.Tensor,
+        value_weights: torch.Tensor,
+        token_hidden_states: torch.Tensor, 
+        context_token_indices: torch.Tensor
+    ):
+        """
+        Compute a copying score based on attention weights, overlap matrix, and token hidden states.
+
+        Args:
+            attn_weights (torch.Tensor): The attention weights tensor.
+            ov_matrix (torch.Tensor): The overlap matrix tensor.
+            token_hidden_states (torch.Tensor): The token hidden states tensor.
+        Returns:
+            float: The computed copying score.
+        """
+        out_weights = out_weights.view(-1, self.head_dim, self.llm.config.hidden_size).transpose(1, 2)
+        value_weights = value_weights.view(-1, self.llm.config.hidden_size, self.head_dim).transpose(1, 2)
+        value_weights = value_weights.repeat_interleave(self.n_heads // value_weights.shape[0], dim=0)
+        W_OV = torch.matmul(out_weights, value_weights)
+
+        token_hidden_states = token_hidden_states[:, :attn_weights.shape[-1], :].transpose(1,2)
+        attn_weights = attn_weights[-1,:,:,:].transpose(1,2)
+        v = torch.matmul(token_hidden_states, attn_weights)
+        vc = torch.matmul(token_hidden_states[:, :, context_token_indices], attn_weights[:, context_token_indices, :])
+        Wv = torch.matmul(W_OV, v)
+        copying_score = F.cosine_similarity(Wv, vc, dim=1)
+        copying_score = copying_score[:, -1]
+        return copying_score
+    
+
     def generate(
         self,
         instructions: str,
@@ -258,16 +291,23 @@ class ContextLM:
             instructions, context, query, self.tokenizer
         )
         #k = math.ceil(self.top_k * len(context_token_indices))
-        k = self.top_k
+        prompt_len = len(tokenized_prompt)
+        k = min(self.top_k, len(context_token_indices))
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             # Cache key matrices and context embeddings to use for external context score computation
             key_cache = [None] * len(self.llm.model.layers)
+
             context_top_indices = torch.zeros(
                 (self.max_new_tokens, self.n_layers, 1, self.n_heads, 1, k),
                 dtype = torch.long
             ).save()
+
             context_emb = torch.zeros(
                 (len(context_token_indices), self.llm.config.hidden_size)
+            ).save()
+
+            layer_inputs = torch.zeros(
+                self.n_layers, prompt_len + self.max_new_tokens - 1, self.llm.config.hidden_size
             ).save()
 
             # Record external context scores
@@ -280,6 +320,16 @@ class ContextLM:
                 (self.max_new_tokens, self.n_layers)
             ).save()
 
+            # Record copying scores
+            copying_scores = torch.zeros(
+                (self.max_new_tokens, self.n_layers, self.n_heads)
+            ).save()
+
+            # Record layer hidden states
+            layer_hidden_states = torch.zeros(
+                (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size)
+            ).save()
+
             # Record the response tokens
             response_tokens = torch.full(
                 size = (self.max_new_tokens,),
@@ -287,44 +337,68 @@ class ContextLM:
             ).save()
 
             with tracer.iter[:] as token_idx:
-                for layer_idx, layer in enumerate(self.llm.model.layers):
-                    # Compute attention weights:
-                    position = layer.self_attn.inputs[1]['position_embeddings']
-                    attention_mask = layer.self_attn.inputs[1]['attention_mask']
+                if self.return_full_output:
+                    for layer_idx, layer in enumerate(self.llm.model.layers):
+                        layer_input = layer.input[-1, :, :]
+                        
+                        if token_idx == 0:
+                            layer_inputs[layer_idx, :prompt_len, :] = layer_input
+                        else:
+                            layer_inputs[layer_idx, prompt_len + token_idx - 1: prompt_len + token_idx, :] = layer_input
 
-                    query_states = layer.self_attn.q_proj.output
-                    key_states = layer.self_attn.k_proj.output
+                        # Compute attention weights:
+                        position = layer.self_attn.inputs[1]['position_embeddings']
+                        attention_mask = layer.self_attn.inputs[1]['attention_mask']
 
-                    attn_weights, updated_key_cache = self.compute_attention(
-                        query_states, key_states, key_cache[layer_idx], position, attention_mask
+                        query_states = layer.self_attn.q_proj.output
+                        key_states = layer.self_attn.k_proj.output
+                        out_weights = layer.self_attn.o_proj.weight
+                        value_weights = layer.self_attn.v_proj.weight
+
+                        attn_weights, updated_key_cache = self.compute_attention(
+                            query_states, key_states, key_cache[layer_idx], position, attention_mask
+                        )
+                        key_cache[layer_idx] = updated_key_cache
+
+                        # Find top-k context indices for each head
+                        context_attn_weights = attn_weights[:, :, :, context_token_indices]
+
+                        layer_context_top_values, layer_context_top_indices = torch.topk(
+                            context_attn_weights, k=k, dim=-1
+                        )
+                        context_top_indices[token_idx, layer_idx, :, :, :, :] = layer_context_top_indices
+
+                        # Compute parametric knowledge score
+                        parametric_knowledge_scores[token_idx, layer_idx] = self.compute_parametric_knowledge_score(
+                            layer.mlp.input, layer.mlp.output
+                        )
+
+                        out_weights = layer.self_attn.o_proj.weight
+                        value_weights = layer.self_attn.v_proj.weight
+
+                        # Compute copying score
+                        copying_scores[token_idx, layer_idx, :] = self.compute_copying_score(
+                            attn_weights = attn_weights,
+                            out_weights = out_weights,
+                            value_weights = value_weights,
+                            token_hidden_states = layer_inputs,
+                            context_token_indices = context_token_indices
+                        )
+                        
+
+                        # Record layer response hidden states
+                        layer_hidden_states[token_idx, layer_idx, :] = layer.output[:, -1, :]
+
+                    
+                    # Last layer embeddings for context and current token:
+                    if token_idx == 0:
+                        context_emb[:,:] = self.llm.model.output.last_hidden_state[:, context_token_indices, :]
+                    last_token_emb = self.llm.model.output.last_hidden_state[:, -1, :].cpu()
+
+                    # Compute external context score:
+                    external_context_scores[token_idx, :, :] = self.compute_external_context_score(
+                        last_token_emb, context_emb, context_top_indices[token_idx, :, :, :, :, :]
                     )
-                    key_cache[layer_idx] = updated_key_cache
-
-                    # Find top-k context indices for each head
-                    context_attn_weights = attn_weights[:, :, :, context_token_indices]
-
-                    #print("ContextLM Attentions:")
-                    #print(context_attn_weights)
-
-                    layer_context_top_values, layer_context_top_indices = torch.topk(
-                        context_attn_weights, k=k, dim=-1
-                    )
-                    context_top_indices[token_idx, layer_idx, :, :, :, :] = layer_context_top_indices
-
-                    # Compute parametric knowledge score as the probability of the correct answer
-                    parametric_knowledge_scores[token_idx, layer_idx] = self.compute_parametric_knowledge_score(
-                        layer.mlp.input, layer.mlp.output
-                    )
-                
-                # Last layer embeddings for context and current token:
-                if token_idx == 0:
-                    context_emb[:,:] = self.llm.model.output.last_hidden_state[:, context_token_indices, :]
-                last_token_emb = self.llm.model.output.last_hidden_state[:, -1, :].cpu()
-
-                # Compute external context score:
-                external_context_scores[token_idx, :, :] = self.compute_external_context_score(
-                    last_token_emb, context_emb, context_top_indices[token_idx, :, :, :, :, :]
-                )
 
                 # Compute response tokens:
                 response_tokens[token_idx] = self.llm.output["logits"][0, -1, :].argmax(dim=-1)
@@ -332,15 +406,19 @@ class ContextLM:
 
         response = self.llm.tokenizer.decode(response_tokens.cpu(), skip_special_tokens=True)
 
-        # Average scores over response tokens:
-        avg_parametric_knowledge_scores = parametric_knowledge_scores.mean(dim=0)
-        avg_parametric_knowledge_scores = avg_parametric_knowledge_scores.cpu().detach().numpy()
-        self.parametric_score_arrays.append(avg_parametric_knowledge_scores)
-        avg_external_context_scores = external_context_scores.mean(dim=0)
-        avg_external_context_scores = avg_external_context_scores.cpu().detach().numpy()
-        self.context_score_array.append(avg_external_context_scores)
-
         if self.return_full_output:
+            # Average scores over response tokens:
+            avg_parametric_knowledge_scores = parametric_knowledge_scores.mean(dim=0)
+            avg_parametric_knowledge_scores = avg_parametric_knowledge_scores.cpu().detach().numpy()
+            self.parametric_score_arrays.append(avg_parametric_knowledge_scores)
+            avg_external_context_scores = external_context_scores.mean(dim=0)
+            avg_external_context_scores = avg_external_context_scores.cpu().detach().numpy()
+            self.context_score_array.append(avg_external_context_scores)
+
+            # Get last token hidden states
+            layer_hidden_states = layer_hidden_states.cpu().detach().numpy()
+            last_token_hidden_states = layer_hidden_states[-1, :, :]
+
             parametric_score_dict = {
                 f"parametric_l{layer_idx}": avg_parametric_knowledge_scores[layer_idx]
                 for layer_idx in range(self.n_layers)
@@ -350,16 +428,25 @@ class ContextLM:
                 for layer_idx, head_idx in 
                 [(l, h) for l in range(self.n_layers) for h in range(self.n_heads)]
             }
+            linear_probe_dict = {
+                f"probe_l{layer_idx}": last_token_hidden_states[layer_idx]
+                for layer_idx in range(self.n_layers)
+            }
+            copying_score_dict = {
+                f"copying_l{layer_idx}h{head_idx}": copying_scores[-1, layer_idx, head_idx].cpu().detach().numpy()
+                for layer_idx, head_idx in 
+                [(l, h) for l in range(self.n_layers) for h in range(self.n_heads)]
+            }
             response_dict = {
                 "response": response,
                 "parametric_score": parametric_score_dict,
-                "context_score": external_context_score_dict
+                "context_score": external_context_score_dict,
+                "linear_probe": linear_probe_dict,
+                "copying_score": copying_score_dict
             }
         else:
             response_dict = {
                 "response": response,
-                "parametric_score": avg_parametric_knowledge_scores.sum(),
-                "context_score": avg_external_context_scores.sum()
             }
 
         return response_dict

@@ -123,11 +123,11 @@ class DocumentLM:
             for (item,_) in result.document.iterate_items():
                 if item.label == DocItemLabel.TEXT or item.label == DocItemLabel.TABLE:
                     doc_chunks.append(item)
-                if item.label == DocItemLabel.TABLE:
-                    print("TABLE:")
-                    print(item)
-                    print()
-                    print()
+                #if item.label == DocItemLabel.TABLE:
+                #    print("TABLE:")
+                #    print(item)
+                #    print()
+                #    print()
             docling_chunks.append(doc_chunks)
 
         self.docling_documents = docling_documents
@@ -227,32 +227,36 @@ class DocumentLM:
         for i, doc in enumerate(self.docling_documents):
             for j, chunk in enumerate(self.docling_chunks[i]):
                 #item = chunk.meta.doc_items[0]
-                item = chunk
-                img = item.get_image(doc = doc)
-                if img.mode == "RGBA":
-                    img = img.convert("RGB")
+                try:
+                    item = chunk
+                    img = item.get_image(doc = doc)
+                    if img.mode == "RGBA":
+                        img = img.convert("RGB")
 
-                base64_image = encode_pil_image(img)
-                image_data_uri = f'data:image/png;base64,{base64_image}'
-                message = [
-                    {"role": "system", "content": self.ocr_prompt},
-                    {
-                        "role": "user",
-                        "content": [{
-                            "type": "image_url",
-                            "image_url": {
-                            "url": image_data_uri
-                            }
-                        }],
-                    },
-                ]
-                messages.append(message)
-                message_paper_ids.append(i)
-                #heading = chunk.meta.headings[0] if chunk.meta.headings is not None else ""
-                #caption = chunk.meta.captions[0] if chunk.meta.captions is not None else ""
-                heading = ""
-                caption = item.caption_text(doc = doc) if item.label == DocItemLabel.TABLE else ""
-                supplementary_text.append({'heading': heading, 'caption': caption})
+                    base64_image = encode_pil_image(img)
+                    image_data_uri = f'data:image/png;base64,{base64_image}'
+                    message = [
+                        {"role": "system", "content": self.ocr_prompt},
+                        {
+                            "role": "user",
+                            "content": [{
+                                "type": "image_url",
+                                "image_url": {
+                                "url": image_data_uri
+                                }
+                            }],
+                        },
+                    ]
+                    messages.append(message)
+                    message_paper_ids.append(i)
+                    #heading = chunk.meta.headings[0] if chunk.meta.headings is not None else ""
+                    #caption = chunk.meta.captions[0] if chunk.meta.captions is not None else ""
+                    heading = ""
+                    caption = item.caption_text(doc = doc) if item.label == DocItemLabel.TABLE else ""
+                    supplementary_text.append({'heading': heading, 'caption': caption})
+                except Exception as e:
+                    print(f"Bounding box error for document {i}, chunk {j}: {e}")
+                    continue
         
         responses = self.vlm.chat(messages = messages, sampling_params = self.sampling_params)
         response_markdown = [r.outputs[0].text for r in responses]

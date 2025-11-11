@@ -43,6 +43,7 @@ class MeasurementLM:
         identification_schema: dict[str, str],
         measurement_schema: dict[str, str],
         sampling_params: dict[str, any] = None,
+        return_full_output: bool = False,
     ):
         self.model_name = model_name
         self.item_description = item_description
@@ -55,6 +56,7 @@ class MeasurementLM:
             "repetition_penalty" : 1.0,
             "max_tokens" : 2048,
         } | sampling_params
+        self.return_full_output = return_full_output
 
         self.llm = LLM(model=model_name)
 
@@ -250,7 +252,7 @@ class MeasurementLM:
             model_name="meta-llama/Llama-3.1-8B-Instruct",
             top_k = 10,
             sampling_params=ctxlm_params,
-            return_full_output=True,
+            return_full_output=self.return_full_output,
             verbose = False
         )
         measurement_responses = ctxlm.predict(messages)
@@ -260,11 +262,11 @@ class MeasurementLM:
             if response_dict['response'].strip().lower() != 'none':
                 measured_data.append(
                     self.data[i] | 
-                    {
-                        'value': response_dict['response']
-                        #'context_score': response_dict['context_score'],
-                        #'parametric_score': response_dict['parametric_score']
-                    } | response_dict['context_score'] | response_dict['parametric_score']
+                    {'value': response_dict['response']} |
+                    response_dict.get('context_score', {}) |
+                    response_dict.get('parametric_score', {}) |
+                    response_dict.get('copying_score', {}) |
+                    response_dict.get('linear_probe', {})
                 )
 
         return measured_data

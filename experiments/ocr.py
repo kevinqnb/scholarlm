@@ -26,7 +26,7 @@ for f in pdf_files:
     filepath = os.path.join(pdf_directory, f)
     filepaths.append(filepath)
 
-#filepaths = filepaths[7:8]
+#filepaths = filepaths[-1:]
 
 doclm = DocumentLM(
     model = "allenai/olmOCR-2-7B-1025-FP8",
