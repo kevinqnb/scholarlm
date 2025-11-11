@@ -67,6 +67,23 @@ def get_foldernames_in_directory(
 ####################################################################################################
 
 
+def encode_pil_image(pil_image):
+    """
+    Encode a PIL image to a base64 string.
+
+    Args:
+        pil_image (PIL.Image): The PIL image to encode. 
+
+    Returns:
+        str: The base64 encoded string of the image.
+    """
+    buffered = BytesIO()
+    pil_image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+####################################################################################################
+
 def tokenize(
     instructions : str,
     context : str,

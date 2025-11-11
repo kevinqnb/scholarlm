@@ -398,9 +398,9 @@ class MeasurementLM:
         """
         self.data = []
         for i in range(len(chunks)):
-            self.data.append({'chunk_id': i, 'context' : chunks[i]})
-            #for j in range(len(chunks[i])):
-            #    self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
+            #self.data.append({'chunk_id': i, 'context' : chunks[i]})
+            for j in range(len(chunks[i])):
+                self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
 
         self.data = self._filter()
         self.data = self._identify()
