@@ -39,6 +39,11 @@ start_time = time.time()
 responses = llm.predict(prompts)
 end_time = time.time()
 print(f"Time taken for {len(prompts)} prompts: {end_time - start_time} seconds")
-print(responses[0]['linear_probe'])
+print("Responses:")
+print("Linear Probe: ")
+print(responses[0]['linear_probes'])
+print()
+print("Copying Scores: ")
+print(responses[0]['copying_scores'])
 
 ####################################################################################################

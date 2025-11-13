@@ -178,7 +178,7 @@ class MeasurementLM:
         for m in self.measurement_schema.model_fields.keys():
             m_description = self.measurement_schema.model_fields[m].description
             for i, datapoint in enumerate(self.data):
-                item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id']}
+                item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id']}
                 instructions = (
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
                     f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
@@ -230,7 +230,7 @@ class MeasurementLM:
         """
         messages = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement', 'paper_id']}
             measurement = datapoint['measurement']
             instructions = (
                 f"You are an expert in extracting precise numerical data from user provided, scientific text. "
@@ -262,11 +262,63 @@ class MeasurementLM:
             if response_dict['response'].strip().lower() != 'none':
                 measured_data.append(
                     self.data[i] | 
-                    {'value': response_dict['response']} |
-                    response_dict.get('context_score', {}) |
-                    response_dict.get('parametric_score', {}) |
-                    response_dict.get('copying_score', {}) |
-                    response_dict.get('linear_probe', {})
+                    {
+                        'value': response_dict['response'],
+                        'context_scores' : response_dict.get('context_scores', {}),
+                        'parametric_scores' : response_dict.get('parametric_scores', {}),
+                        'copying_scores' : response_dict.get('copying_scores', {}),
+                        'linear_probes' : response_dict.get('linear_probes', {})
+                    }
+                )
+
+        return measured_data
+    
+
+    def _measure_vllm(self):
+        """
+        Extracts measurements from the text chunks for the identified items.
+
+        Args:
+
+        Returns:
+            
+        """
+        messages = []
+        for i, datapoint in enumerate(self.data):
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id','paper_id', 'measurement']}
+            measurement = datapoint['measurement']
+            instructions = (
+                f"You are an expert in extracting precise numerical data from user provided, scientific text. "
+                f"A value is a single numerical measurement explicitly mentioned in the context. "
+                f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
+                f"Your task is to extract the corresponding value from the provided context. "
+                f"Copy the value exactly as it appears in the context. "
+                f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
+                f"Respond 'None' if the requested information is not explicitly available in the given context."
+            )
+            context = datapoint['context']
+            query = "Extract the value of " + f"{measurement} for the entity {item}."
+            prompt = (
+                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+            messages.append([
+                {"role": "user","content": prompt}]
+            )
+
+        mlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
+        mlm_params['temperature'] = 0.0
+        mlm_params['max_tokens'] = 20
+        sampling_params = SamplingParams(
+            **mlm_params
+        )
+
+        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
+        response_texts = [r.outputs[0].text for r in responses]
+        measured_data = []
+        for i, resp in enumerate(response_texts):
+            if resp.strip().lower() != 'none':
+                measured_data.append(
+                    self.data[i] | {'value': resp}
                 )
 
         return measured_data
@@ -285,7 +337,7 @@ class MeasurementLM:
         message_data_ids = []
         sampling_params = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement', 'value']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id', 'measurement', 'value', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
             measurement = datapoint['measurement']
             measurement_val = datapoint['value']
 
@@ -350,7 +402,7 @@ class MeasurementLM:
         message_data_ids = []
 
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
             instructions = (
                 f"You are an expert in discerning whether or not a given data point is textually accurate. "
                 f"You will be given a context from a research paper, along with a data point that is assumed to be extracted from it. "
@@ -407,8 +459,10 @@ class MeasurementLM:
         self.data = self._filter()
         self.data = self._identify()
         self.data = self._measurements_filter()
-        self.data = self._measure()
-        #self.data = self._separate_units()
+        if self.return_full_output:
+            self.data = self._measure()
+        else:
+            self.data = self._measure_vllm()
         self.data = self._standardize()
         self.data = self._judge()
 

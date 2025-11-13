@@ -5,7 +5,7 @@ from pdf2image import convert_from_path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from transformers import AutoProcessor
 from vllm import LLM, SamplingParams
-from .utils import encode_pil_image
+from .utils import encode_pil_image, correct_image_orientation
 
 # Docling imports
 from docling_core.types.doc import DoclingDocument
@@ -16,6 +16,7 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     TableFormerMode,
     RapidOcrOptions,
+    TesseractCliOcrOptions
 )
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -93,6 +94,7 @@ class DocumentLM:
                 num_threads=8, device=AcceleratorDevice.CPU
             )
             ocr_options = RapidOcrOptions(force_full_page_ocr=True)
+            #ocr_options = TesseractCliOcrOptions(force_full_page_ocr=True)
             pipeline_options = PdfPipelineOptions(
                 do_table_structure=True,
                 do_formula_enrichment=True,
@@ -232,6 +234,12 @@ class DocumentLM:
                     img = item.get_image(doc = doc)
                     if img.mode == "RGBA":
                         img = img.convert("RGB")
+                    try:
+                        img = correct_image_orientation(img)
+                    except Exception as e:
+                        print(f"Orientation correction error for document {i}, chunk {j}: {e}")
+                        pass
+                    
 
                     base64_image = encode_pil_image(img)
                     image_data_uri = f'data:image/png;base64,{base64_image}'
@@ -347,6 +355,13 @@ class DocumentLM:
                 img = item.get_image(doc = doc)
                 if img.mode == "RGBA":
                     img = img.convert("RGB")
+
+                try:
+                    img = correct_image_orientation(img)
+                except Exception as e:
+                    print(f"Orientation correction error for document {i}, chunk {j}: {e}")
+                    pass
+                
                 image_save_path = os.path.join(doc_folderpath, f'chunk_{j}.png')
                 img.save(image_save_path)
 

@@ -4,6 +4,8 @@ from io import BytesIO
 import pandas as pd
 import torch
 from typing import Callable
+from PIL import Image
+import pytesseract
 
 
 ####################################################################################################
@@ -182,5 +184,34 @@ def jensen_shannon_divergence(
     jsd = 0.5 * (kl_pm + kl_qm)
     return jsd
 
+
+####################################################################################################
+
+
+def correct_image_orientation(pil_image):
+    """
+    Detects orientation of a PIL image using Tesseract OSD and returns a rotated image corrected to upright.
+
+    Args:
+        pil_image (PIL.Image.Image): Input image
+
+    Returns:
+        PIL.Image.Image: Upright-corrected image
+    """
+    osd_output = pytesseract.image_to_osd(pil_image)
+    
+    # Parse the rotation angle from OSD output
+    rotate_angle = 0
+    for line in osd_output.splitlines():
+        if "Rotate" in line:
+            rotate_angle = int(line.split(":")[-1].strip())
+            break
+
+    if rotate_angle == 0:
+        return pil_image
+    else:
+        corrected_image = pil_image.rotate(-rotate_angle, expand=True)
+        return corrected_image
+    
 
 ####################################################################################################

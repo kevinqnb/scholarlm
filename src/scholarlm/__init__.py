@@ -9,5 +9,6 @@ from .utils import (
     get_foldernames_in_directory,
     encode_pil_image,
     tokenize,
-    jensen_shannon_divergence
+    jensen_shannon_divergence,
+    correct_image_orientation,
 )
