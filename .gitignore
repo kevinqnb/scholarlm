@@ -10,3 +10,5 @@ experiments/pond.py
 experiments/out/*
 *.sh
 data/*.csv
+data/*.npz
+data/*/*.npz

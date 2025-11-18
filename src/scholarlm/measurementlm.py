@@ -3,7 +3,7 @@ import pandas as pd
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 
-from .contextlm import ContextLM
+from .contextlm2 import ContextLM2
 
 
 def response_validator(response_structure, response):
@@ -248,12 +248,13 @@ class MeasurementLM:
         ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
         ctxlm_params['do_sample'] = False
         ctxlm_params['max_new_tokens'] = 20
-        ctxlm = ContextLM(
+        ctxlm = ContextLM2(
             model_name="meta-llama/Llama-3.1-8B-Instruct",
             top_k = 10,
             sampling_params=ctxlm_params,
-            return_full_output=self.return_full_output,
-            verbose = False
+            return_full_output=False,
+            verbose = False,
+            cache_output_dir="data/pond_results_10_v1_full"
         )
         measurement_responses = ctxlm.predict(messages)
 
@@ -264,10 +265,10 @@ class MeasurementLM:
                     self.data[i] | 
                     {
                         'value': response_dict['response'],
-                        'context_scores' : response_dict.get('context_scores', {}),
-                        'parametric_scores' : response_dict.get('parametric_scores', {}),
-                        'copying_scores' : response_dict.get('copying_scores', {}),
-                        'linear_probes' : response_dict.get('linear_probes', {})
+                        #'context_scores' : response_dict.get('context_scores', {}),
+                        #'parametric_scores' : response_dict.get('parametric_scores', {}),
+                        #'copying_scores' : response_dict.get('copying_scores', {}),
+                        #'linear_probes' : response_dict.get('linear_probes', {})
                     }
                 )
 

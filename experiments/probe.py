@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Callable
 load_dotenv()
 
-from scholarlm import ContextLM, jensen_shannon_divergence
+from scholarlm import ContextLM, ContextLM2, jensen_shannon_divergence
 
 
 ####################################################################################################
@@ -22,28 +22,31 @@ ctxlm_params = {
     "max_new_tokens": 20,
 }
 
-llm = ContextLM(
+llm = ContextLM2(
     model_name="meta-llama/Llama-3.1-8B-Instruct",
-    top_k=20,
+    top_k=10,
     sampling_params=ctxlm_params,
-    return_full_output=True
+    return_full_output=True,
+    nnsight_kwargs = {}
 )
 
 prompts = [
     ("Use the context to directly answer the given query. Do not include any other text or punctuation.", "The latitude of Paris, France recently changed and is now 52.1375.", "What is the latitude of Paris, France?"),
-    #("Use the context to directly answer the given query. Do not include any other text or punctuation.", "The color of the sky is purple today.", "What is the color of the sky?"),
+    ("Use the context to directly answer the given query. Do not include any other text or punctuation.", "The color of the sky is purple today.", "What is the color of the sky?"),
 ]
 
 import time
 start_time = time.time()
 responses = llm.predict(prompts)
 end_time = time.time()
+
 print(f"Time taken for {len(prompts)} prompts: {end_time - start_time} seconds")
-print("Responses:")
-print("Linear Probe: ")
-print(responses[0]['linear_probes'])
-print()
-print("Copying Scores: ")
-print(responses[0]['copying_scores'])
+
+#print("Responses:")
+#print("Linear Probe: ")
+#print(responses[0]['linear_probes'])
+#print()
+#print("Copying Scores: ")
+#print(responses[0]['copying_scores'])
 
 ####################################################################################################
