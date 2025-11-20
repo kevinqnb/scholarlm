@@ -9,6 +9,8 @@ from scholarlm.utils import get_filenames_in_directory
 # OlmOCR specfic prompt:
 from olmocr.prompts import build_no_anchoring_v4_yaml_prompt as olmocr_prompt
 
+task_id = int(os.getenv('SGE_TASK_ID'))
+
 main_directory = os.getenv("POND_PATH")
 pdf_directory = os.getenv("POND_PDF_PATH")
 md_directory = os.getenv("POND_MARKDOWN_PATH")
@@ -21,13 +23,16 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 pdf_files = get_filenames_in_directory(pdf_directory, ignore = [".DS_Store"])
 pdf_files.sort()
+
+pdf_files = pdf_files[(task_id - 1)*22 : min(task_id*22, len(pdf_files))]
+
 filepaths = []
 for f in pdf_files:
     filepath = os.path.join(pdf_directory, f)
     filepaths.append(filepath)
 
-filepaths = filepaths[:10]
-print(filepaths)
+#filepaths = filepaths[:10]
+#print(filepaths)
 
 doclm = DocumentLM(
     model = "allenai/olmOCR-2-7B-1025-FP8",
@@ -36,8 +41,14 @@ doclm = DocumentLM(
     sampling_params = {"temperature": 0.1, "max_tokens": 8192},
 )
 
-doclm.fit(filepaths)
+doclm.filepaths = filepaths
+doclm.chunk()
 doclm.save_images(image_directory)
+chunks = doclm.ocr_read()
 doclm.save_chunks(text_directory)
+
+#doclm.fit(filepaths)
+#doclm.save_images(image_directory)
+#doclm.save_chunks(text_directory)
 
 

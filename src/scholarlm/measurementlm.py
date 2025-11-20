@@ -235,11 +235,12 @@ class MeasurementLM:
             instructions = (
                 f"You are an expert in extracting precise numerical data from user provided, scientific text. "
                 f"A value is a single numerical measurement explicitly mentioned in the context. "
+                f"A value is NOT an aggregate statistic, range of values, inequality, or general description. "
                 f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
                 f"Your task is to extract the corresponding value from the provided context. "
                 f"Copy the value exactly as it appears in the context. "
                 f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-                f"Respond 'None' if the requested information is not explicitly available in the given context."
+                f"Respond 'None' if the requested information is not explicitly available in the given context, or if the context's information does not satisfy the instructions."
             )
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
@@ -259,16 +260,26 @@ class MeasurementLM:
         measurement_responses = ctxlm.predict(messages)
 
         measured_data = []
+        '''
         for i,response_dict in enumerate(measurement_responses):
             if response_dict['response'].strip().lower() != 'none':
                 measured_data.append(
                     self.data[i] | 
                     {
                         'value': response_dict['response'],
-                        #'context_scores' : response_dict.get('context_scores', {}),
-                        #'parametric_scores' : response_dict.get('parametric_scores', {}),
-                        #'copying_scores' : response_dict.get('copying_scores', {}),
-                        #'linear_probes' : response_dict.get('linear_probes', {})
+                        'context_scores' : response_dict.get('context_scores', {}),
+                        'parametric_scores' : response_dict.get('parametric_scores', {}),
+                        'copying_scores' : response_dict.get('copying_scores', {}),
+                        'linear_probes' : response_dict.get('linear_probes', {})
+                    }
+                )
+        '''
+        for i, response in enumerate(measurement_responses):
+            if response.strip().lower() != 'none':
+                measured_data.append(
+                    self.data[i] | 
+                    {
+                        'value': response,
                     }
                 )
 
@@ -291,11 +302,12 @@ class MeasurementLM:
             instructions = (
                 f"You are an expert in extracting precise numerical data from user provided, scientific text. "
                 f"A value is a single numerical measurement explicitly mentioned in the context. "
+                f"A value is NOT an aggregate statistic, range of values, inequality, or general description. "
                 f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
                 f"Your task is to extract the corresponding value from the provided context. "
                 f"Copy the value exactly as it appears in the context. "
                 f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-                f"Respond 'None' if the requested information is not explicitly available in the given context."
+                f"Respond 'None' if the requested information is not explicitly available in the given context, or if the context's information does not satisfy the instructions."
             )
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
@@ -405,14 +417,16 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
             instructions = (
-                f"You are an expert in discerning whether or not a given data point is textually accurate. "
-                f"You will be given a context from a research paper, along with a data point that is assumed to be extracted from it. "
-                f"Your task is to determine if the data point is supported by evidence in the context. "
-                f"Respond 'true' only if the context explicity provides evidence for the data point. "
-                f"Respond 'false' otherwise."
+                f"You are an expert in discerning textual accuracy for a data point extracted by an large language model. "
+                f"You will be given context from a research paper, and asked to classify its relation to the extracted data point using the following categories:\n"
+                f"hallucination: The extracted data point's 'value' feature does not explicity appear within the context.\n"
+                f"disorientation: The data point appears to be derived from the context, but is incorrectly attributed to the given entity or measurement type.\n"
+                f"deviation: The data point is generally supported by the context, but the given value is an aggregate statistic, range of values, inequality, or non-numerical description rather than a direct measurement.\n"
+                f"valid: The data point is a direct measurement which is explicity supported by the context, and is made with respect to the correct entity and measurement type.\n\n"
+                f"Respond by choosing the category which best describes the data point's relation to the given context."
             )
             context = datapoint['context']
-            query = f"Does the given context support the data point: {item}?"
+            query = f"Given the context, which category best describes the following data point?: {item}?"
             prompt = (
             f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
@@ -421,7 +435,7 @@ class MeasurementLM:
             )
 
         guided_decoding_params = GuidedDecodingParams(
-            choice = ['true', 'false']
+            choice = ['hallucination', 'disorientation', 'deviation', 'valid']
         )
         sampling_params = SamplingParams(
             **self.sampling_params,

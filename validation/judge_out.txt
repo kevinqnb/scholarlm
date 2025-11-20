@@ -1,0 +1,74 @@
+INFO 11-18 14:30:48 [__init__.py:216] Automatically detected platform cuda.
+INFO 11-18 15:30:57 [__init__.py:216] Automatically detected platform cuda.
+INFO 11-18 15:49:01 [__init__.py:216] Automatically detected platform cuda.
+INFO 11-18 15:59:04 [__init__.py:216] Automatically detected platform cuda.
+INFO 11-19 04:40:58 [__init__.py:216] Automatically detected platform cuda.
+INFO 11-19 08:01:47 [__init__.py:220] No platform detected, vLLM is running on UnspecifiedPlatform
+WARNING 11-19 08:01:51 [_custom_ops.py:20] Failed to import from vllm._C with ImportError('libcuda.so.1: cannot open shared object file: No such file or directory')
+Building in-memory batch input...
+Uploading batch input file...
+INFO 11-19 12:40:54 [__init__.py:216] Automatically detected platform cuda.
+Building in-memory batch input...
+Uploading batch input file...
+INFO 11-19 17:34:03 [__init__.py:216] Automatically detected platform cuda.
+
+============================================================
+Starting batch processing with 1000 total chats
+Max batch size: 150 MB
+Max concurrent batches: 3
+============================================================
+
+
+Split into 6 batches:
+  Batch 1: 201 chats
+  Batch 2: 163 chats
+  Batch 3: 169 chats
+  Batch 4: 166 chats
+  Batch 5: 202 chats
+  Batch 6: 99 chats
+
+[Batch 1] Building batch input with 201 chats...
+
+[Batch 2] Building batch input with 163 chats...
+
+[Batch 3] Building batch input with 169 chats...
+[Batch 3] Size: 149.96 MB
+[Batch 3] Uploading batch input file...
+[Batch 2] Size: 149.99 MB
+[Batch 2] Uploading batch input file...
+[Batch 1] Size: 149.83 MB
+[Batch 1] Uploading batch input file...
+[Batch 2] Creating batch job...
+[Batch 1] Creating batch job...
+[Batch 3] Creating batch job...
+INFO 11-19 17:52:15 [__init__.py:216] Automatically detected platform cuda.
+
+============================================================
+Starting batch processing with 1000 total chats
+Max batch size: 150 MB
+Max concurrent batches: 3
+============================================================
+
+
+Split into 6 batches:
+  Batch 1: 201 chats
+  Batch 2: 163 chats
+  Batch 3: 169 chats
+  Batch 4: 166 chats
+  Batch 5: 202 chats
+  Batch 6: 99 chats
+
+[Batch 1] Building batch input with 201 chats...
+
+[Batch 2] Building batch input with 163 chats...
+
+[Batch 3] Building batch input with 169 chats...
+[Batch 3] Size: 149.96 MB
+[Batch 3] Uploading batch input file...
+[Batch 1] Size: 149.83 MB
+[Batch 1] Uploading batch input file...
+[Batch 2] Size: 149.99 MB
+[Batch 2] Uploading batch input file...
+[Batch 3] Creating batch job...
+[Batch 2] Creating batch job...
+[Batch 1] Creating batch job...

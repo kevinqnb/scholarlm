@@ -8,6 +8,8 @@ load_dotenv()
 from scholarlm import DocumentLM, MeasurementLM #, ContextLM 
 from scholarlm.utils import get_filenames_in_directory
 
+task_id = int(os.getenv('SGE_TASK_ID'))
+
 # (try to) set seeds for reproducibility
 import random
 import torch
@@ -26,7 +28,14 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
 text_files.sort()
-text_files = text_files[:10]
+
+n = len(text_files)
+m = n // 3
+start = m * (task_id - 1)
+end = m * task_id if task_id < 3 else n
+text_files = text_files[start:end]
+
+#text_files = text_files[:10]
 text_filepaths = []
 text_info = []
 for f in text_files:
@@ -123,7 +132,7 @@ measurementlm = MeasurementLM(
         "max_tokens" : 4096,
         "seed": 342,
     },
-    return_full_output=True
+    return_full_output=False
 )
 
 
@@ -137,7 +146,7 @@ for datapoint in data:
     )
 
 
-outfile = f"data/pond_results_10_papers_v1.json"
+outfile = f"data/pond_results_10_papers_v1_vllm_{task_id}.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4)
 #df = pd.DataFrame(dataset)

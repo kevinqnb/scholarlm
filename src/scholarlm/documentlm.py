@@ -350,20 +350,24 @@ class DocumentLM:
             doc_folderpath = os.path.join(folderpath, base_filename)
             os.makedirs(doc_folderpath, exist_ok=True)
             for j, chunk in enumerate(self.docling_chunks[i]):
-                #item = chunk.meta.doc_items[0]
-                item = chunk
-                img = item.get_image(doc = doc)
-                if img.mode == "RGBA":
-                    img = img.convert("RGB")
-
                 try:
-                    img = correct_image_orientation(img)
+                    #item = chunk.meta.doc_items[0]
+                    item = chunk
+                    img = item.get_image(doc = doc)
+                    if img.mode == "RGBA":
+                        img = img.convert("RGB")
+
+                    try:
+                        img = correct_image_orientation(img)
+                    except Exception as e:
+                        print(f"Orientation correction error for document {i}, chunk {j}: {e}")
+                        pass
+                    
+                    image_save_path = os.path.join(doc_folderpath, f'chunk_{j}.png')
+                    img.save(image_save_path)
                 except Exception as e:
-                    print(f"Orientation correction error for document {i}, chunk {j}: {e}")
-                    pass
-                
-                image_save_path = os.path.join(doc_folderpath, f'chunk_{j}.png')
-                img.save(image_save_path)
+                    print(f"Bounding box error for document {i}, chunk {j}: {e} while saving!!")
+                    continue
 
             '''
             for j, table in enumerate(doc.tables):
