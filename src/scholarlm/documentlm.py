@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import warnings
 from pdf2image import convert_from_path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from transformers import AutoProcessor
@@ -16,7 +17,8 @@ from docling.datamodel.pipeline_options import (
     PdfPipelineOptions,
     TableFormerMode,
     RapidOcrOptions,
-    TesseractCliOcrOptions
+    TesseractCliOcrOptions,
+    EasyOcrOptions,
 )
 from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -95,6 +97,7 @@ class DocumentLM:
             )
             ocr_options = RapidOcrOptions(force_full_page_ocr=True)
             #ocr_options = TesseractCliOcrOptions(force_full_page_ocr=True)
+            #ocr_options = EasyOcrOptions(force_full_page_ocr=True)
             pipeline_options = PdfPipelineOptions(
                 do_table_structure=True,
                 do_formula_enrichment=True,
@@ -117,23 +120,21 @@ class DocumentLM:
             )
             result = converter.convert(filepath)
             docling_documents.append(result.document)
-            #chunker = HierarchicalChunker()
-            #chunks = chunker.chunk(dl_doc = result.document)
-            #docling_chunks.append([c for c in chunks])
 
-            doc_chunks = []
-            for (item,_) in result.document.iterate_items():
+            doc_chunks = {}
+            for j, (item,_) in enumerate(result.document.iterate_items()):
                 if item.label == DocItemLabel.TEXT or item.label == DocItemLabel.TABLE:
-                    doc_chunks.append(item)
-                #if item.label == DocItemLabel.TABLE:
-                #    print("TABLE:")
-                #    print(item)
-                #    print()
-                #    print()
+                    #doc_chunks.append(item)
+                    doc_chunks[j] = item
+
+                    if item.label == DocItemLabel.TABLE:
+                        import pdb; pdb.set_trace()
+
             docling_chunks.append(doc_chunks)
 
         self.docling_documents = docling_documents
         self.docling_chunks = docling_chunks
+
 
     '''
     def chunk(self):
@@ -224,21 +225,22 @@ class DocumentLM:
                 paragraph sized pieces of text.
         """
         messages = []
-        message_paper_ids = []
+        message_ids = []
         supplementary_text = []
         for i, doc in enumerate(self.docling_documents):
-            for j, chunk in enumerate(self.docling_chunks[i]):
-                #item = chunk.meta.doc_items[0]
+            for j, chunk in self.docling_chunks[i].items():
+                item = chunk
                 try:
-                    item = chunk
                     img = item.get_image(doc = doc)
+                    #import pdb; pdb.set_trace()
                     if img.mode == "RGBA":
                         img = img.convert("RGB")
                     try:
                         img = correct_image_orientation(img)
                     except Exception as e:
-                        print(f"Orientation correction error for document {i}, chunk {j}: {e}")
-                        pass
+                        warnings.warn(f"Orientation correction for document {i} chunk {j} failed, proceeding without orientation correction.")
+                        print(e)
+                        print()
                     
 
                     base64_image = encode_pil_image(img)
@@ -256,20 +258,23 @@ class DocumentLM:
                         },
                     ]
                     messages.append(message)
-                    message_paper_ids.append(i)
+                    message_ids.append((i,j))
                     #heading = chunk.meta.headings[0] if chunk.meta.headings is not None else ""
                     #caption = chunk.meta.captions[0] if chunk.meta.captions is not None else ""
                     heading = ""
                     caption = item.caption_text(doc = doc) if item.label == DocItemLabel.TABLE else ""
                     supplementary_text.append({'heading': heading, 'caption': caption})
                 except Exception as e:
+                    print()
                     print(f"Bounding box error for document {i}, chunk {j}: {e}")
-                    continue
+                    print(item.prov[0].bbox)
+                    print()
         
         responses = self.vlm.chat(messages = messages, sampling_params = self.sampling_params)
         response_markdown = [r.outputs[0].text for r in responses]
-        chunks = [[] for _ in range(len(self.docling_documents))]
-        for msg_idx, paper_idx in enumerate(message_paper_ids):
+        chunks = [{} for _ in range(len(self.docling_documents))]
+        for msg_idx, msg_ids in enumerate(message_ids):
+            paper_id, chunk_id = msg_ids
             # Remove any front-matter from the markdown
             cleaned_markdown = re.sub(r"^---[\s\S]*?---\s*", "", response_markdown[msg_idx])
             suplemented_markdown = (
@@ -277,7 +282,7 @@ class DocumentLM:
                 cleaned_markdown + "\n\n" + 
                 supplementary_text[msg_idx]['caption']
             )
-            chunks[paper_idx].append(suplemented_markdown)
+            chunks[paper_id][chunk_id] = suplemented_markdown
 
         self.chunks = chunks
         return chunks
@@ -349,7 +354,17 @@ class DocumentLM:
             base_filename = os.path.basename(filename).replace('.pdf', '')
             doc_folderpath = os.path.join(folderpath, base_filename)
             os.makedirs(doc_folderpath, exist_ok=True)
-            for j, chunk in enumerate(self.docling_chunks[i]):
+
+            # Remove any existing images in the folder (if this has been run previously..)
+            for existing_file in os.listdir(doc_folderpath):
+                if existing_file.startswith('chunk_') and existing_file.endswith('.png'):
+                    file_path = os.path.join(doc_folderpath, existing_file)
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        print(f"Error deleting file {file_path}: {e}")
+
+            for j, chunk in self.docling_chunks[i].items():
                 try:
                     #item = chunk.meta.doc_items[0]
                     item = chunk
@@ -360,14 +375,16 @@ class DocumentLM:
                     try:
                         img = correct_image_orientation(img)
                     except Exception as e:
-                        print(f"Orientation correction error for document {i}, chunk {j}: {e}")
+                        #warnings.warn(f"Orientation correction for document {i} chunk{j} failed, proceeding without orientation correction.")
                         pass
-                    
+
                     image_save_path = os.path.join(doc_folderpath, f'chunk_{j}.png')
                     img.save(image_save_path)
                 except Exception as e:
-                    print(f"Bounding box error for document {i}, chunk {j}: {e} while saving!!")
-                    continue
+                    print()
+                    print(f"Bounding box error for document {i}, chunk {j}: {e}")
+                    print(item.prov[0].bbox)
+                    print()
 
             '''
             for j, table in enumerate(doc.tables):
