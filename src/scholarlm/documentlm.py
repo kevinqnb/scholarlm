@@ -127,8 +127,8 @@ class DocumentLM:
                     #doc_chunks.append(item)
                     doc_chunks[j] = item
 
-                    if item.label == DocItemLabel.TABLE:
-                        import pdb; pdb.set_trace()
+                    #if item.label == DocItemLabel.TABLE:
+                    #    import pdb; pdb.set_trace()
 
             docling_chunks.append(doc_chunks)
 
@@ -212,7 +212,7 @@ class DocumentLM:
         self.docling_chunks = docling_chunks
         '''
     
-
+    '''
     def ocr_read(self) -> list[list[str]]:
         """
         Load pdf documents using OCR, based on provided metadata.
@@ -286,6 +286,63 @@ class DocumentLM:
 
         self.chunks = chunks
         return chunks
+    '''
+    
+
+    def ocr_read(self) -> list[list[str]]:
+        """
+        Load pdf documents using OCR.
+
+        Args:
+
+        Returns:
+            chunks (list[list[str]]): A 2d list of text chunks derived from the documents. Each sublist
+                corresponds to a single document, and items within it correspond to a page of 
+                text.
+        """
+        messages = []
+        message_ids = []
+        for i, filepath in enumerate(self.filepaths):
+            images = convert_from_path(filepath, dpi=300)
+            for j, img in enumerate(images):
+                if img.mode == "RGBA":
+                    img = img.convert("RGB")
+
+                try:
+                    img = correct_image_orientation(img)
+                except Exception as e:
+                    warnings.warn(f"Orientation correction for document {filepath} page {j} failed, proceeding without orientation correction.")
+                    print(e)
+                    print()
+
+                base64_image = encode_pil_image(img)
+                image_data_uri = f'data:image/png;base64,{base64_image}'
+                message = [
+                    {"role": "system", "content": self.ocr_prompt},
+                    {
+                        "role": "user",
+                        "content": [{
+                            "type": "image_url",
+                            "image_url": {
+                            "url": image_data_uri
+                            }
+                        }],
+                    },
+                ]
+                messages.append(message)
+                message_ids.append((i,j))
+
+        responses = self.vlm.chat(messages = messages, sampling_params = self.sampling_params)
+        response_markdown = [r.outputs[0].text for r in responses]
+        chunks = [{} for _ in range(len(self.docling_documents))]
+        for msg_idx, msg_ids in enumerate(message_ids):
+            paper_id, chunk_id = msg_ids
+            # Remove any front-matter from the markdown
+            cleaned_markdown = re.sub(r"^---[\s\S]*?---\s*", "", response_markdown[msg_idx])
+            chunks[paper_id][chunk_id] = cleaned_markdown
+
+        self.chunks = chunks
+        return chunks
 
 
     def read(self) -> list[list[str]]:
@@ -320,7 +377,7 @@ class DocumentLM:
         """
         self.filepaths = filepaths
         if self.ocr:
-            self.chunk()
+            #self.chunk()
             chunks = self.ocr_read()
         else:
             chunks = self.read()
@@ -339,7 +396,7 @@ class DocumentLM:
             base_filename = os.path.basename(filename).replace('.pdf', '.json')
             save_path = os.path.join(folderpath, base_filename)
             with open(save_path, 'w', encoding='utf-8') as file:
-                json.dump(doc_chunks, file)
+                json.dump(doc_chunks, file, ensure_ascii=False)
 
 
     def save_images(self, folderpath: str):

@@ -114,7 +114,11 @@ class MeasurementLM:
         Returns:
             
         """
-        identification_schema_json = self.identification_schema.model_json_schema()
+        class IdentificationList(BaseModel):
+            items: list[self.identification_schema]
+
+        #identification_schema_json = self.identification_schema.model_json_schema()
+        identification_list_json = IdentificationList.model_json_schema()
         identification_prompt = self.identification_schema.model_config['prompt']
         messages = []
         for i, datapoint in enumerate(self.data):
@@ -129,7 +133,7 @@ class MeasurementLM:
             )
 
         guided_decoding_params = GuidedDecodingParams(
-            json=identification_schema_json
+            json=identification_list_json
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
@@ -141,26 +145,146 @@ class MeasurementLM:
         response_validated = []
         for r in response_texts:
             try:
-                resp_validated = response_validator(self.identification_schema, r)
+                resp_validated = response_validator(IdentificationList, r)
             except:
-                print("Validation error in identification response, assigning empty items list.")
+                print("Validation error in identification response.")
                 resp_validated = {'items': []}
             response_validated.append(resp_validated)
 
-        itemized_data = []
+        # Collect all items across each paper
+        paper_items = {}
         for i, resp in enumerate(response_validated):
-            # Copy items found from each chunk across the rest of their corresponding paper
-            #paper_id = self.data[i]['paper_id']
-            #paper_data = [d for d in self.data if d['paper_id'] == paper_id]
-            #for datapoint in paper_data:
             datapoint = self.data[i]
+            document_id = datapoint['document_id']
             for item in resp['items']:
+                #itemized_data.append(datapoint | item)
+                if document_id not in paper_items:
+                    paper_items[document_id] = []
+                
+                if not any(item == added_item for added_item in paper_items[document_id]):
+                    paper_items[document_id].append(item)
+
+
+        # De-duplicate items within each paper
+        for doc_id, doc_items in paper_items.items():
+            unique_items = self._deduplicate(doc_items)
+            paper_items[doc_id] = unique_items
+
+        itemized_data = []
+        for i, datapoint in enumerate(self.data):
+            document_id = datapoint['document_id']
+            for item in paper_items.get(document_id, []):
                 itemized_data.append(datapoint | item)
 
         # De-duplicate itemized data points
-        unique_itemized_data = [dict(s) for s in {frozenset(d.items()) for d in itemized_data}]
+        #unique_itemized_data = [dict(s) for s in {frozenset(d.items()) for d in itemized_data}]
 
-        return unique_itemized_data
+        #return unique_itemized_data
+        return itemized_data
+    
+
+    def _deduplicate(self, items: list[dict]):
+        """
+        De-duplicates a list of dictionaries.
+
+        Args:
+            items (list[dict]): A list of dictionaries to be de-duplicated.
+        Returns:
+            unique_items (list[dict]): A de-duplicated list of dictionaries.
+        """
+        matches = {}
+        for i, item in enumerate(items):
+            item_name = item.get('name', None)
+            if item_name is not None and item_name is not 'None':
+                if item_name not in matches:
+                    matches[item_name] = [item]
+                else:
+                    matches[item_name].append(item)
+
+        unique_items = []
+        for name, name_items in matches.items():
+            uitem = {}
+            for feature in self.identification_schema.model_fields.keys():
+                feature_values = [ni.get(feature, None) for ni in name_items if ni.get(feature, None) is not None and ni.get(feature, None) != 'None']
+                if len(feature_values) > 0:
+                    consensus_value = max(set(feature_values), key=feature_values.count)
+                    uitem[feature] = consensus_value
+                else:
+                    uitem[feature] = 'None'
+            unique_items.append(uitem)
+
+        return unique_items
+
+
+    
+    '''
+    def _deduplicate(self, items: list[dict]):
+        """
+        De-duplicates a list of dictionaries.
+
+        Args:
+            items (list[dict]): A list of dictionaries to be de-duplicated.
+        Returns:
+            unique_items (list[dict]): A de-duplicated list of dictionaries.
+        """
+        class IdentificationList(BaseModel):
+            items: list[self.identification_schema]
+
+        instructions = (
+            f"You are an expert in data processing and collection. "
+            f"Given a list of entities described by a common set of attributes, your task is to "
+            f"identify the set of unique entities by consolidating and removing any duplicates. "
+            f"Two entities are considered exact duplicates if they share identical values for all attributes. "
+            f"Duplicates, however, may also have minor variations in certain attributes due to differences in formatting, "
+            f"abbreviations, or reporting errors. Likewise, some entities may be missing values for certain "
+            f"attributes, but can still be considered duplicates if the available information matches closely enough. "
+            f"To determine if two entities are duplicates, consider the overall similarity of their attributes, "
+            f"and use your best judgement by taking into account potential variations and missing data. "
+            f"For a set of duplicate entities, retain only a single representative entity in the final output. "
+            f"This representative entity should ideally contain the most complete and accurate information available among the duplicates. "
+            f"Do NOT add any new attributes or information that is not already present in the provided entities. "
+            f"Do NOT infer or fabricate any values. "
+            f"Do NOT remove entities which are not duplicates. "
+            f"You will be provided with a list of entities in JSON format, and your task is to return the list of unique entities with duplicates removed "
+            f"in the same format. "
+        )
+        context = f"The list of entities is as follows: {items}"
+        print(context)
+        print()
+        query = "Identify and return the list of unique entities from the provided list."
+        prompt = (
+            f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+        )
+        message = [
+            {"role": "user","content": prompt}
+        ]
+        #identification_schema_json = self.identification_schema.model_json_schema()
+        identification_list_json = IdentificationList.model_json_schema()
+        guided_decoding_params = GuidedDecodingParams(
+            #json=identification_schema_json
+            json=identification_list_json
+        )
+        sampling_params = SamplingParams(
+            **self.sampling_params,
+            guided_decoding=guided_decoding_params
+        )
+
+        responses = self.llm.chat(messages = message, sampling_params = sampling_params)
+        response_text = responses[0].outputs[0].text
+        try:
+            #resp_validated = response_validator(self.identification_schema, response_text)
+            resp_validated = response_validator(IdentificationList, response_text)
+        except:
+            print("Validation error in identification response, reverting to original list.")
+            resp_validated = {'items': items}
+
+        unique_items = resp_validated['items']
+        print(f"Reduced {len(items)} items to {len(unique_items)} unique items.")
+        print(unique_items)
+        print()
+        print()
+        return unique_items
+    '''
     
 
     def _measurements_filter(self):
@@ -178,14 +302,17 @@ class MeasurementLM:
         for m in self.measurement_schema.model_fields.keys():
             m_description = self.measurement_schema.model_fields[m].description
             for i, datapoint in enumerate(self.data):
-                item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id']}
+                item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id']}
                 instructions = (
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
                     f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
                     f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
-                    f"Respond 'false' if the the given entity or feature do not appear in the context. "
-                    f"Respond 'false' if the context does not explicity provide data for the given feature and entity, or if it only reports aggregate statistics, a range of values, or an inequality. "
-                    f"Respond 'true' only if the context explicity provides a distinct numerical measurement for the given feature, with respect to the entity in question. "
+                    f"Respond 'false' if the the given entity or measurement feature do not appear in the context. "
+                    f"Respond 'false' if the context does not explicity provide data for the given feature and entity. "
+                    f"Respond 'false' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
+                    f"Respond 'false' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+                    f"Respond 'false' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+                    f"Respond 'true' only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
                 )
                 context = datapoint['context']
                 query = "Does the context contain data for " + f"{m_description}  the entity {item}?"
@@ -213,7 +340,7 @@ class MeasurementLM:
         for i, resp in enumerate(response_texts):
             if resp == 'true':
                 measurement_data.append(
-                    self.data[message_data_ids[i]] | {'measurement': message_measurement_types[i]}
+                    self.data[message_data_ids[i]] | {'measurement_id': i, 'measurement': message_measurement_types[i]}
                 )
 
         return measurement_data
@@ -228,20 +355,24 @@ class MeasurementLM:
         Returns:
             
         """
+        instructions = (
+            f"You are an expert in extracting precise numerical data from user provided, scientific text. "
+            f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
+            f"Your task is to extract the corresponding value if it appears in the provided context. "
+            f"Respond 'None' if the the given entity or measurement feature do not appear in the context. "
+            f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
+            f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
+            f"Respond 'None' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+            f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
+            f"Copy the value exactly as it appears in the context. "
+            f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
+            f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
+        )
         messages = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'measurement', 'paper_id']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'measurement', 'measurement_id']}
             measurement = datapoint['measurement']
-            instructions = (
-                f"You are an expert in extracting precise numerical data from user provided, scientific text. "
-                f"A value is a single numerical measurement explicitly mentioned in the context. "
-                f"A value is NOT an aggregate statistic, range of values, inequality, or general description. "
-                f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
-                f"Your task is to extract the corresponding value from the provided context. "
-                f"Copy the value exactly as it appears in the context. "
-                f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-                f"Respond 'None' if the requested information is not explicitly available in the given context, or if the context's information does not satisfy the instructions."
-            )
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             messages.append((instructions, context, query))
@@ -255,7 +386,7 @@ class MeasurementLM:
             sampling_params=ctxlm_params,
             return_full_output=False,
             verbose = False,
-            cache_output_dir="data/pond_results_10_v1_full"
+            cache_output_dir="data/pond_adversarial_test" # REMEMBER THAT THIS IS HARDCODED RIGHT NOW
         )
         measurement_responses = ctxlm.predict(messages)
 
@@ -295,20 +426,23 @@ class MeasurementLM:
         Returns:
             
         """
+        instructions = (
+            f"You are an expert in extracting precise numerical data from user provided, scientific text. "
+            f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
+            f"Your task is to extract the corresponding value if it appears in the provided context. "
+            f"Respond 'None' if the the given entity or measurement feature do not appear in the context. "
+            f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
+            f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
+            f"Respond 'None' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+            f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
+            f"Copy the value exactly as it appears in the context. "
+            f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
+        )
         messages = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id','paper_id', 'measurement']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id','document_id', 'measurement']}
             measurement = datapoint['measurement']
-            instructions = (
-                f"You are an expert in extracting precise numerical data from user provided, scientific text. "
-                f"A value is a single numerical measurement explicitly mentioned in the context. "
-                f"A value is NOT an aggregate statistic, range of values, inequality, or general description. "
-                f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
-                f"Your task is to extract the corresponding value from the provided context. "
-                f"Copy the value exactly as it appears in the context. "
-                f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-                f"Respond 'None' if the requested information is not explicitly available in the given context, or if the context's information does not satisfy the instructions."
-            )
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             prompt = (
@@ -345,12 +479,20 @@ class MeasurementLM:
 
         Returns:
             
-        """        
+        """
+        instructions = (
+            f"You are an expert in data collection and scientific measurements. "
+            f"You will be given context from a research paper, along with a description of a measurement value and the feature and entity it was reported for. "
+            f"Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of given unit options. "
+            f"To ensure units follow standard formatting conventions, your response should be limited to options from among the given list. "
+            f"If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context. "
+            f"Your response should include the unit only, do not include any additional explanation or text. "
+        )        
         messages = []
         message_data_ids = []
         sampling_params = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id', 'measurement', 'value', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'measurement', 'value', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
             measurement = datapoint['measurement']
             measurement_val = datapoint['value']
 
@@ -358,16 +500,7 @@ class MeasurementLM:
             available_units = self.measurement_schema.model_fields[measurement].json_schema_extra.get('units', None)
 
             if available_units is not None:
-                units_list = available_units + ['other']
-                units_str = ', '.join(units_list)
-                instructions = (
-                    f"You are an expert in data collection and scientific measurements. "
-                    f"You will be given context from a research paper, along with a description of a measurement value and the entity it was reported for. "
-                    f"Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of available options. "
-                    f"To ensure units follow standard formatting conventions, your response should be limited to options from among the given list. "
-                    f"If none of the options fit with what is seen in the context, respond with the unit 'other'. "
-                    f"Your response should include the unit only, do not include any additional explanation or text.\n\n"
-                )
+                units_list = available_units #+ ['other']
                 context = datapoint['context']
                 query = (
                     f"Entity measured: {item}\n"
@@ -382,12 +515,12 @@ class MeasurementLM:
                     {"role": "user", "content": prompt}]
                 )
                 message_data_ids.append(i)
-                guided_decoding_params = GuidedDecodingParams(
-                    choice = units_list
-                )
+                #guided_decoding_params = GuidedDecodingParams(
+                #    choice = units_list
+                #)
                 params = SamplingParams(
                     **self.sampling_params,
-                    guided_decoding=guided_decoding_params
+                    #guided_decoding=guided_decoding_params
                 )
                 sampling_params.append(params)
 
@@ -415,7 +548,7 @@ class MeasurementLM:
         message_data_ids = []
 
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'paper_id', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
+            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
             instructions = (
                 f"You are an expert in discerning textual accuracy for a data point extracted by an large language model. "
                 f"You will be given context from a research paper, and asked to classify its relation to the extracted data point using the following categories:\n"
@@ -468,8 +601,8 @@ class MeasurementLM:
         self.data = []
         for i in range(len(chunks)):
             #self.data.append({'chunk_id': i, 'context' : chunks[i]})
-            for j in range(len(chunks[i])):
-                self.data.append({'paper_id': i, 'chunk_id': j, 'context' : chunks[i][j]})
+            for j, chunk in chunks[i].items():
+                self.data.append({'document_id': i, 'chunk_id': j, 'context' : chunk})
 
         self.data = self._filter()
         self.data = self._identify()
@@ -479,7 +612,7 @@ class MeasurementLM:
         else:
             self.data = self._measure_vllm()
         self.data = self._standardize()
-        self.data = self._judge()
+        #self.data = self._judge()
 
         return self.data
     

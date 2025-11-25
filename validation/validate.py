@@ -17,8 +17,8 @@ image_folders.sort()
 ####################################################################################################
 # --- Load Data ---
 
-filename = "../data/pond_results_10_papers_v1_vllm_validated_gemma.json"
-outfile = "../data/pond_results_10_papers_v1_vllm_validated_manual.json"
+filename = "../data/pond_adversarial_test_paged.json"
+outfile = "../data/pond_adversarial_test_paged_validated.json"
 
 n_sample = 100
 
@@ -33,10 +33,10 @@ result_dict = [{'units': None} | entry for entry in result_dict]
 
 random.seed(42)
 result_dict_sample = random.sample(result_dict, k=n_sample)
-result_dict_sample = sorted(result_dict_sample, key=lambda x: (x['paper_id'], x['chunk_id']))
+result_dict_sample = sorted(result_dict_sample, key=lambda x: (x['document_id'], x['chunk_id']))
 
 #drops = ['context', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']
-display = ['paper_id', 'chunk_id', 'title', 'author', 'year', 'name', 'location', 'date', 'ecosystem', 'measurement', 'value', 'units', 'judgement']
+display = ['document_id', 'chunk_id', 'title', 'author', 'year', 'name', 'location', 'date', 'ecosystem', 'measurement', 'value', 'units']#, 'judgement']
 result_dict_data_points = [{feature: entry[feature] for feature in display} for entry in result_dict_sample]
 markdown_content = [entry['context'] for entry in result_dict_sample]
 
@@ -110,9 +110,9 @@ def save_results():
 # --- Display Current Data Point ---
 if st.session_state.current_index < dataset_len:
     current_item = st.session_state.dataset[st.session_state.current_index]
-    paper_id = current_item['data']['paper_id']
+    document_id = current_item['data']['document_id']
     chunk_id = current_item['data']['chunk_id']
-    image_path = os.path.join(image_directory, image_folders[paper_id], f"chunk_{chunk_id}.png")
+    image_path = os.path.join(image_directory, image_folders[document_id], f"chunk_{chunk_id}.png")
 
     st.subheader(f"Data Point {st.session_state.current_index + 1} of {dataset_len}")
 
@@ -122,7 +122,7 @@ if st.session_state.current_index < dataset_len:
 
     with col1:
         st.warning("Image:")
-        st.image(image_path, caption=f"Paper: {image_folders[paper_id]}, Chunk ID: {chunk_id}")#, use_column_width=True)
+        #st.image(image_path, caption=f"Paper: {image_folders[document_id]}, Chunk ID: {chunk_id}")#, use_column_width=True)
         st.warning("Markdown Text:")
         st.markdown(current_item['markdown_text'])
 
