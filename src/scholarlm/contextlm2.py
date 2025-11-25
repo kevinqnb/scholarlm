@@ -39,7 +39,7 @@ class ContextLM2:
         nnsight_kwargs : dict = {},
         return_full_output : bool = False,
         verbose : bool = False,
-        cache_output_dir : str = None
+        #cache_output_dir : str = None
     ):
         self.model_name = model_name
         self.top_k = top_k
@@ -47,9 +47,9 @@ class ContextLM2:
         self.max_new_tokens = self.sampling_params['max_new_tokens']
         self.return_full_output = return_full_output
         self.verbose = verbose
-        self.cache_output_dir = cache_output_dir
-        if self.cache_output_dir is not None:
-            os.makedirs(self.cache_output_dir, exist_ok=True)
+        #self.cache_output_dir = cache_output_dir
+        #if self.cache_output_dir is not None:
+        #    os.makedirs(self.cache_output_dir, exist_ok=True)
 
         self.llm = StandardizedTransformer(model_name, enable_attention_probs=True, **nnsight_kwargs)
         self.tokenizer = self.llm.tokenizer
@@ -57,6 +57,7 @@ class ContextLM2:
             self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
         self.n_layers = len(self.llm.model.layers)
         self.n_heads = self.llm.config.num_attention_heads
+        self.n_kv_heads = self.llm.config.num_key_value_heads
         self.head_dim = self.llm.config.hidden_size // self.n_heads
 
         self.responses = []
@@ -89,10 +90,11 @@ class ContextLM2:
             (len(response_embeddings), self.n_layers, self.n_heads)
         )
 
-        for layer_idx, attn_probs in enumerate(attention_probabilities):
-            for head_idx in range(self.n_heads):
-                for token_idx in range(len(response_embeddings)):
-                    attn_weights = attn_probs[token_idx][head_idx, context_indices]  # Shape: [seq_len]
+        for token_idx, attn_probs in enumerate(attention_probabilities):
+            for layer_idx in range(self.n_layers):
+                A = attn_probs[layer_idx]
+                for head_idx in range(self.n_heads):
+                    attn_weights = A[head_idx, context_indices]  # Shape: [seq_len]
                     top_k_indices = torch.topk(attn_weights, k).indices.cpu()  # Indices of top-k context tokens
                     top_k_emb = context_embeddings[top_k_indices]  # Shape: [k, hidden_size]
                     mean_top_k_emb = torch.mean(top_k_emb, dim=0)  # Shape: [hidden_size]
@@ -152,22 +154,28 @@ class ContextLM2:
         """
         copying_scores = torch.zeros((self.n_layers, self.n_heads))
         for layer_idx, layer in enumerate(self.llm.model.layers):
-            out_weights = layer.self_attn.o_proj.weight
-            value_weights = layer.self_attn.v_proj.weight
-            out_weights = out_weights.view(-1, self.head_dim, self.llm.config.hidden_size).transpose(1, 2)
-            value_weights = value_weights.view(-1, self.llm.config.hidden_size, self.head_dim).transpose(1, 2)
-            value_weights = value_weights.repeat_interleave(self.n_heads // value_weights.shape[0], dim=0)
-            W_OV = torch.matmul(out_weights, value_weights)
+            out_weights = layer.self_attn.o_proj.weight # Shape: [D, H * D_head]
+            value_weights = layer.self_attn.v_proj.weight # Shape: [H_kv * D_head, D]
 
-            X = layer_inputs[layer_idx, :, :]
-            XC = layer_inputs[layer_idx, context_token_indices, :]
+            A = attention_probabilities[0][layer_idx].cuda() # Shape: [H, N] (last token attentions at each head)
+            X = layer_inputs[layer_idx, :, :] # Shape: [N, D]
+            XC = layer_inputs[layer_idx, context_token_indices, :] # Shape: [N_ctx, D]
 
             for head_idx in range(self.n_heads):
-                attn_weights = attention_probabilities[-1][layer_idx][head_idx, :]
-                v = torch.matmul(X.transpose(0,1), attn_weights)
-                vc = torch.matmul(XC.transpose(0,1), attn_weights[context_token_indices])
-                Wv = torch.matmul(W_OV[head_idx], v)
-                copying_score = F.cosine_similarity(Wv, vc, dim=0)
+                # Self attention
+                a = A[head_idx, :]
+                Xa = torch.matmul(X.transpose(0,1), a) # Shape: [D]
+                XCa = torch.matmul(XC.transpose(0,1), a[context_token_indices]) # Shape: [D]
+
+                # OV matrix
+                kv_head_idx = head_idx % self.n_kv_heads
+                O = out_weights[:, head_idx * self.head_dim : (head_idx + 1) * self.head_dim] # Shape: [D, D_head]
+                V = value_weights[kv_head_idx * self.head_dim : (kv_head_idx + 1) * self.head_dim, :] # Shape: [D_head, D]
+                W_OV = torch.matmul(O, V) # Shape: [D, D]
+
+                # Compare full head output to self-attended context
+                W_OV_Xa = torch.matmul(W_OV, Xa) # Shape: [D]
+                copying_score = F.cosine_similarity(W_OV_Xa, XCa, dim=0)
                 copying_scores[layer_idx, head_idx] = copying_score
                 
         return copying_scores
@@ -205,10 +213,12 @@ class ContextLM2:
 
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             layer_inputs = torch.zeros(
-                self.n_layers, prompt_len + self.max_new_tokens - 1, self.llm.config.hidden_size, device=self.llm.device
+                self.n_layers, prompt_len, self.llm.config.hidden_size, device=self.llm.device
             ).save()
 
-            attention_probabilities = ([[None] * len(self.llm.model.layers)] * self.max_new_tokens).save()
+            attention_probabilities = (
+                [[None for _ in range(len(self.llm.model.layers))] for _ in range(self.max_new_tokens)]
+            ).save()
 
             mlp_inputs = torch.zeros(
                 size = (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size), device=self.llm.device
@@ -236,13 +246,11 @@ class ContextLM2:
                     # Cache layer inputs
                     layer_input = self.llm.layers_input[layer_idx]
                     if token_idx == 0:
-                        layer_inputs[layer_idx, :prompt_len, :] = layer_input
-                    else:
-                        layer_inputs[layer_idx, prompt_len + token_idx - 1: prompt_len + token_idx, :] = layer_input
-
+                        layer_inputs[layer_idx, :, :] = layer_input
+                    
                     # Attention shape: [batch_size, num_heads, seq_len, seq_len]
-                    attention_probabilities[token_idx][layer_idx] = self.llm.attention_probabilities[layer_idx][-1,:,-1,:].save()
-
+                    attention_probabilities[token_idx][layer_idx] = self.llm.attention_probabilities[layer_idx][-1,:,-1,:].cpu()
+                    
                     # Cache MLP inputs and outputs for this layer
                     mlp_inputs[token_idx, layer_idx, :] = self.llm.mlps_input[layer_idx][-1, -1, :]
                     mlp_outputs[token_idx, layer_idx, :] = self.llm.mlps_output[layer_idx][-1, -1, :]
@@ -252,7 +260,7 @@ class ContextLM2:
                     context_embeddings[:,:] = self.llm.model.output.last_hidden_state[-1, context_token_indices, :]
 
                 response_embeddings[token_idx, :] = self.llm.model.output.last_hidden_state[-1, -1, :]
-
+                
                 # Compute response tokens:
                 response_tokens[token_idx] = self.llm.logits[0, -1, :].argmax().save()
 
@@ -264,30 +272,30 @@ class ContextLM2:
 
         n_generated = np.sum(response_tokens.cpu().numpy() != self.tokenizer.pad_token_id)
 
-        # Linear probe
-        response_dict['linear_probes'] = response_embeddings[:n_generated, :].cpu().numpy()
+        if self.return_full_output:
+            # Linear probe
+            response_dict['linear_probes'] = response_embeddings[:n_generated, :].cpu().numpy()
 
-        # External context scores
-        response_dict['context_scores'] = self.compute_external_context_score(
-            response_embeddings[:n_generated, :],
-            context_embeddings,
-            context_token_indices,
-            attention_probabilities
-        ).cpu().numpy()
+            # External context scores
+            response_dict['context_scores'] = self.compute_external_context_score(
+                response_embeddings[:n_generated, :],
+                context_embeddings,
+                context_token_indices,
+                attention_probabilities[:n_generated]
+            ).cpu().numpy()
 
-        # Parametric knowledge scores
-        response_dict['parametric_scores'] = self.compute_parametric_knowledge_score(
-            mlp_inputs[:n_generated, :, :],
-            mlp_outputs[:n_generated, :, :]
-        )
+            # Parametric knowledge scores
+            response_dict['parametric_scores'] = self.compute_parametric_knowledge_score(
+                mlp_inputs[:n_generated, :, :],
+                mlp_outputs[:n_generated, :, :]
+            )
 
-        # Copying scores
-        response_dict['copying_scores'] = self.compute_copying_score(
-            # SOMETHING IS WEIRD HERE!!
-            layer_inputs[:, : prompt_len + n_generated, :],
-            context_token_indices,
-            attention_probabilities,
-        ).detach().cpu().numpy()
+            # Copying scores
+            response_dict['copying_scores'] = self.compute_copying_score(
+                layer_inputs,
+                context_token_indices,
+                attention_probabilities,
+            ).detach().cpu().numpy()
 
         return response_dict
 
@@ -310,20 +318,9 @@ class ContextLM2:
                 'context_score' (float): The summed external context score.
         """
         responses = []
-        #for instructions, context, query in tqdm(prompts):
         for i, (instructions, context, query) in enumerate(tqdm(prompts)):
             response_dict = self.generate(instructions, context, query)
-            responses.append(response_dict['response'])
-            if self.cache_output_dir is not None:
-
-                outfile = "{}/response_{}.npz".format(self.cache_output_dir, i)
-                np.savez_compressed(
-                    outfile,
-                    parametric_scores = response_dict['parametric_scores'],
-                    context_scores = response_dict['context_scores'],
-                    copying_scores = response_dict['copying_scores'],
-                    linear_probes = response_dict['linear_probes']
-                )
+            responses.append(response_dict)
 
         return responses
     

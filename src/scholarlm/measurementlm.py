@@ -27,11 +27,10 @@ class MeasurementLM:
     Args:
         model_name (str): The name or path of the pre-trained language model from the huggingface 
             collection.
-        item_description (str): Main description for the items to be measured.
-        identification_schema (dict[str, str]): A dictionary defining the identification schema, 
-            where keys are the measurement identifiers and values are their descriptions.
-        measurement_schema (dict[str, str]): A dictionary defining the measurement schema, 
-            where keys are
+        sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
+        identification_prompt (str): A string containing the prompt instructions for item identification.
+        identification_schema (BaseModel): A Pydantic BaseModel defining the identification schema. 
+        measurement_schema (BaseModel): A Pydantic BaseModel defining the measurement schema.
 
     Attributes:
 
@@ -39,16 +38,13 @@ class MeasurementLM:
     def __init__(
         self,
         model_name: str,
-        item_description: str,
-        identification_schema: dict[str, str],
-        measurement_schema: dict[str, str],
-        sampling_params: dict[str, any] = None,
+        identification_prompt: str,
+        identification_schema: BaseModel,
+        measurement_schema: BaseModel,
+        sampling_params: dict[str, any] = {},
         return_full_output: bool = False,
     ):
         self.model_name = model_name
-        self.item_description = item_description
-        self.identification_schema = identification_schema
-        self.measurement_schema = measurement_schema
         self.sampling_params = {
             "temperature" : 0.90,
             "top_p" : 0.95,
@@ -56,6 +52,14 @@ class MeasurementLM:
             "repetition_penalty" : 1.0,
             "max_tokens" : 2048,
         } | sampling_params
+        self.identification_prompt = identification_prompt
+        self.identification_schema = identification_schema
+        self.entity_description = identification_schema.model_config['entity_description']
+        self.primary_identifier = identification_schema.model_config['primary_identifier']
+
+        assert self.primary_identifier in identification_schema.model_fields.keys(), "Primary identifier must be a valid field in the identification schema."
+
+        self.measurement_schema = measurement_schema
         self.return_full_output = return_full_output
 
         self.llm = LLM(model=model_name)
@@ -78,7 +82,7 @@ class MeasurementLM:
                 f"Respond 'true' if the context is relevant and 'false' if it is not. "
             )
             context = datapoint['context']
-            query = "Is the context relevant to measuring or identifying " + f"{', '.join(self.item_description)}?"
+            query = "Is the context relevant to measuring or identifying " + f"{', '.join(self.entity_description)}?"
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
@@ -176,10 +180,6 @@ class MeasurementLM:
             for item in paper_items.get(document_id, []):
                 itemized_data.append(datapoint | item)
 
-        # De-duplicate itemized data points
-        #unique_itemized_data = [dict(s) for s in {frozenset(d.items()) for d in itemized_data}]
-
-        #return unique_itemized_data
         return itemized_data
     
 
@@ -194,18 +194,18 @@ class MeasurementLM:
         """
         matches = {}
         for i, item in enumerate(items):
-            item_name = item.get('name', None)
-            if item_name is not None and item_name is not 'None':
-                if item_name not in matches:
-                    matches[item_name] = [item]
+            item_id = item.get(self.primary_identifier, None)
+            if item_id is not None and item_id is not 'None':
+                if item_id not in matches:
+                    matches[item_id] = [item]
                 else:
-                    matches[item_name].append(item)
+                    matches[item_id].append(item)
 
         unique_items = []
-        for name, name_items in matches.items():
+        for id, id_items in matches.items():
             uitem = {}
             for feature in self.identification_schema.model_fields.keys():
-                feature_values = [ni.get(feature, None) for ni in name_items if ni.get(feature, None) is not None and ni.get(feature, None) != 'None']
+                feature_values = [x.get(feature, None) for x in id_items if x.get(feature, None) is not None and x.get(feature, None) != 'None']
                 if len(feature_values) > 0:
                     consensus_value = max(set(feature_values), key=feature_values.count)
                     uitem[feature] = consensus_value
@@ -315,7 +315,7 @@ class MeasurementLM:
                     f"Respond 'true' only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
                 )
                 context = datapoint['context']
-                query = "Does the context contain data for " + f"{m_description}  the entity {item}?"
+                query = f"Does the context contain data for {m_description} measured for the entity {item}?"
                 prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
                 )
@@ -371,7 +371,7 @@ class MeasurementLM:
         )
         messages = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'measurement', 'measurement_id']}
+            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
@@ -382,16 +382,13 @@ class MeasurementLM:
         ctxlm_params['max_new_tokens'] = 20
         ctxlm = ContextLM2(
             model_name="meta-llama/Llama-3.1-8B-Instruct",
-            top_k = 10,
+            top_k = 20,
             sampling_params=ctxlm_params,
-            return_full_output=False,
-            verbose = False,
-            cache_output_dir="data/pond_adversarial_test" # REMEMBER THAT THIS IS HARDCODED RIGHT NOW
+            return_full_output=True,
         )
         measurement_responses = ctxlm.predict(messages)
 
         measured_data = []
-        '''
         for i,response_dict in enumerate(measurement_responses):
             if response_dict['response'].strip().lower() != 'none':
                 measured_data.append(
@@ -402,15 +399,6 @@ class MeasurementLM:
                         'parametric_scores' : response_dict.get('parametric_scores', {}),
                         'copying_scores' : response_dict.get('copying_scores', {}),
                         'linear_probes' : response_dict.get('linear_probes', {})
-                    }
-                )
-        '''
-        for i, response in enumerate(measurement_responses):
-            if response.strip().lower() != 'none':
-                measured_data.append(
-                    self.data[i] | 
-                    {
-                        'value': response,
                     }
                 )
 
@@ -441,7 +429,7 @@ class MeasurementLM:
         )
         messages = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id','document_id', 'measurement']}
+            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
@@ -492,7 +480,7 @@ class MeasurementLM:
         message_data_ids = []
         sampling_params = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'measurement', 'value', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
+            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
             measurement_val = datapoint['value']
 
@@ -533,56 +521,6 @@ class MeasurementLM:
 
         return standardized_data
     
-
-    def _judge(self):
-        """
-        Filters the input items to retain only those relevant for measurements.
-
-        Args:
-            
-        Returns:
-            
-        """
-        messages = []
-        message_measurement_types = []
-        message_data_ids = []
-
-        for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']}
-            instructions = (
-                f"You are an expert in discerning textual accuracy for a data point extracted by an large language model. "
-                f"You will be given context from a research paper, and asked to classify its relation to the extracted data point using the following categories:\n"
-                f"hallucination: The extracted data point's 'value' feature does not explicity appear within the context.\n"
-                f"disorientation: The data point appears to be derived from the context, but is incorrectly attributed to the given entity or measurement type.\n"
-                f"deviation: The data point is generally supported by the context, but the given value is an aggregate statistic, range of values, inequality, or non-numerical description rather than a direct measurement.\n"
-                f"valid: The data point is a direct measurement which is explicity supported by the context, and is made with respect to the correct entity and measurement type.\n\n"
-                f"Respond by choosing the category which best describes the data point's relation to the given context."
-            )
-            context = datapoint['context']
-            query = f"Given the context, which category best describes the following data point?: {item}?"
-            prompt = (
-            f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-            )
-            messages.append([
-                {"role": "user","content": prompt}]
-            )
-
-        guided_decoding_params = GuidedDecodingParams(
-            choice = ['hallucination', 'disorientation', 'deviation', 'valid']
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-
-        judged_data = [datapoint for datapoint in self.data]
-        for i, resp in enumerate(response_texts):
-            judged_data[i]['judgement'] = resp
-
-        return judged_data
 
 
     def fit(

@@ -13,12 +13,18 @@ load_dotenv()
 
 from scholarlm import ContextLM, ContextLM2, jensen_shannon_divergence
 
+text_directory = os.getenv("POND_TEXT_PATH")
+filename = 'physical_and_chemical_limnological.json'
+filepath = os.path.join(text_directory, filename)
+with open(filepath, 'r', encoding='utf-8') as file:
+    doc_chunks = json.load(file)
+
 
 ####################################################################################################
 # Load model:
 
 ctxlm_params = {
-    "temperature": 0.1,
+    "do_sample": False,
     "max_new_tokens": 20,
 }
 
@@ -30,10 +36,48 @@ llm = ContextLM2(
     nnsight_kwargs = {}
 )
 
+instructions = (
+    f"You are an expert in extracting precise numerical data from user provided, scientific text. "
+    f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
+    f"Your task is to extract the corresponding value if it appears in the provided context. "
+    f"* Respond 'None' if the the given entity or measurement feature do not appear in the context. "
+    f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
+    f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
+    f"Respond 'None' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+    f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+    f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
+    f"Copy the value exactly as it appears in the context. "
+    f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
+    f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
+)
+
+context = doc_chunks["7"]
+
+entity = {"name": "BAJ", "date": "None", "location": "None", "ecosystem": "pond"}
+measurement = "pH"
+query = "Extract the value of " + f"{measurement} for the entity {entity}."
+
 prompts = [
-    ("Use the context to directly answer the given query. Do not include any other text or punctuation.", "The latitude of Paris, France recently changed and is now 52.1375.", "What is the latitude of Paris, France?"),
-    ("Use the context to directly answer the given query. Do not include any other text or punctuation.", "The color of the sky is purple today.", "What is the color of the sky?"),
+    (instructions, context, query)
 ]
+
+'''
+chat = [
+    {"role": "system", "content": instructions},
+    {"role": "user", "content": f"## Context:\n{context}\n\n## Query:\n{query}"},
+]
+tokenizer = llm.tokenizer
+formatted_chat = tokenizer.apply_chat_template(
+    chat, tokenize=False, add_generation_prompt=True
+)
+context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
+context_end = formatted_chat.index("\n\n## Query:")
+
+print("Formatted Chat Prompt:")
+print(formatted_chat[context_start:context_end])
+print()
+print("----")
+'''
 
 import time
 start_time = time.time()
@@ -41,6 +85,12 @@ responses = llm.predict(prompts)
 end_time = time.time()
 
 print(f"Time taken for {len(prompts)} prompts: {end_time - start_time} seconds")
+
+print("Responses:")
+for i, response in enumerate(responses):
+    print(f"Prompt {i+1}:")
+    print(response)
+    print()
 
 #print("Responses:")
 #print("Linear Probe: ")

@@ -334,7 +334,7 @@ class DocumentLM:
 
         responses = self.vlm.chat(messages = messages, sampling_params = self.sampling_params)
         response_markdown = [r.outputs[0].text for r in responses]
-        chunks = [{} for _ in range(len(self.docling_documents))]
+        chunks = [{} for _ in range(len(self.filepaths))]
         for msg_idx, msg_ids in enumerate(message_ids):
             paper_id, chunk_id = msg_ids
             # Remove any front-matter from the markdown
@@ -396,7 +396,7 @@ class DocumentLM:
             base_filename = os.path.basename(filename).replace('.pdf', '.json')
             save_path = os.path.join(folderpath, base_filename)
             with open(save_path, 'w', encoding='utf-8') as file:
-                json.dump(doc_chunks, file, ensure_ascii=False)
+                json.dump(doc_chunks, file, ensure_ascii=False, indent=4)
 
 
     def save_images(self, folderpath: str):

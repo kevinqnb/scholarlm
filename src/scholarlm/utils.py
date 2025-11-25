@@ -110,8 +110,8 @@ def tokenize(
             4. A list of indices from tokenized_chat corresponding to the query.
     """
     chat = [
-        {"role": "system", "content": instructions},
-        {"role": "user", "content": f"## Context:\n{context}\n\n## Query:\n{query}"},
+        #{"role": "system", "content": instructions},
+        {"role": "user", "content": f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"},
     ]
     formatted_chat = tokenizer.apply_chat_template(
         chat, tokenize=False, add_generation_prompt=True
@@ -120,6 +120,7 @@ def tokenize(
         formatted_chat, return_offsets_mapping=True, add_special_tokens=False
     )
 
+    '''
     instruction_start, instruction_end = (
         formatted_chat.index(instructions), formatted_chat.index(instructions) + len(instructions)
     )
@@ -129,6 +130,13 @@ def tokenize(
     query_start, query_end = (
         formatted_chat.index(query), formatted_chat.index(query) + len(query)
     )
+    '''
+    instruction_start = formatted_chat.index("## Instructions:\n") + len("## Instructions:\n")
+    instruction_end = formatted_chat.index("\n\n## Context:")
+    context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
+    context_end = formatted_chat.index("\n\n## Query:")
+    query_start = formatted_chat.index("## Query:\n") + len("## Query:\n")
+    query_end = query_start + len(query) 
 
     instruction_tokens = [
         i for i, (s, e) in enumerate(tokenized_chat["offset_mapping"])
