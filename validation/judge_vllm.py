@@ -17,7 +17,14 @@ from openai import RateLimitError, APIError
 from dotenv import load_dotenv
 load_dotenv()
 
-from scholarlm.utils import get_filenames_in_directory, encode_pil_image
+from scholarlm.utils import get_filenames_in_directory
+
+# (try to) set seeds for reproducibility
+import random
+import torch
+random.seed(342)
+torch.manual_seed(342)
+torch.cuda.manual_seed(342)
 
 
 main_directory = os.getenv("POND_PATH")
@@ -37,7 +44,7 @@ filenames = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
 filenames = [f.replace('.json', '') for f in filenames]
 filenames.sort()
 
-input_file = "data/pond_results_10_papers_v1_vllm.json"
+input_file = "data/pond_adversarial_llama_full.json"
 
 with open(input_file, "r") as f:
     result_dict = json.load(f)
@@ -59,9 +66,6 @@ instructions = (
 
 messages = []
 for i, entry in enumerate(result_dict):
-    paper_id = entry['paper_id']
-    chunk_id = entry['chunk_id']
-    img_filename = os.path.join(image_directory, filenames[paper_id], f"chunk_{chunk_id}.png")
     context = entry.get('context', None)
     datapoint = {
         "name": entry['name'],
@@ -74,16 +78,13 @@ for i, entry in enumerate(result_dict):
     if entry.get('units', None) is not None:
         datapoint['units'] = entry['units']
 
-    #img = Image.open(img_filename)
-    #img_encoded = encode_pil_image(img)
-
     prompt = (
         f"## OCR Text:\n"
         f"{context}\n\n"
         f"## Extracted Data Point:\n"
         f"{json.dumps(datapoint)}\n\n"
         f"## Query:\n"
-        f"Given the image and OCR text, which category best describes the extracted data point?"
+        f"Given the OCR text, which category best describes the extracted data point?"
     )
 
     message = [
@@ -91,7 +92,6 @@ for i, entry in enumerate(result_dict):
         {
             "role": "user",
             "content": [
-                #{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_encoded}"}},
                 {"type": "text", "text": prompt},
             ],
         },
@@ -100,21 +100,21 @@ for i, entry in enumerate(result_dict):
     messages.append(message)
 
 
-
-model = "gaunernst/gemma-3-27b-it-int4-awq"
+model = "cyankiwi/Olmo-3-32B-Think-AWQ-4bit"
 llm = LLM(model=model)
 guided_decoding_params = GuidedDecodingParams(
-    choice = ['hallucination', 'ocr_error', 'disorientation', 'deviation', 'valid'],
+    choice = ['hallucination', 'disorientation', 'deviation', 'valid'],
 )
 sampling_params = SamplingParams(
-    temperature = 0.0,
-    guided_decoding=guided_decoding_params
+    temperature=0.0,
+    guided_decoding=guided_decoding_params,
+    seed=342
 )
 
 responses = llm.chat(messages = messages, sampling_params = sampling_params)
 responses = [r.outputs[0].text for r in responses]
 
-output_file = "data/pond_results_10_papers_v1_vllm_validated_gemma.json"
+output_file = "data/pond_adversarial_judged.json"
 with open(output_file, "w") as f:
     output_data = []
     for entry, response in zip(result_dict, responses):

@@ -4,7 +4,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from scholarlm import DocumentLM, MeasurementLM #, ContextLM 
 from scholarlm.utils import get_filenames_in_directory
 
@@ -28,6 +28,7 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
 
+'''
 text_files = [
     'physical_and_chemical_limnological.json',
     'physical-chemical_influences.json',
@@ -40,19 +41,12 @@ text_files = [
     'diversity_of_macroinvertebrates.json',
     'impact_of_macrophytes.json'
 ]
-
-
-text_files.sort()
-
 '''
-n = len(text_files)
-m = n // 3
-start = m * (task_id - 1)
-end = m * task_id if task_id < 3 else n
-text_files = text_files[start:end]
-'''
+
+#text_files.sort()
 
 #text_files = text_files[:10]
+
 text_filepaths = []
 text_info = []
 for f in text_files:
@@ -65,13 +59,22 @@ for f in text_files:
     text_info.append(metadata)
 
 
-#doclm = DocumentLM(model = "allenai/olmOCR-2-7B-1025-FP8", ocr = False)
-#text_chunks = doclm.fit(text_filepaths)
+text_splitter = RecursiveCharacterTextSplitter(
+    separators = ["<table>"],
+    chunk_size = 15000,
+    chunk_overlap  = 100,
+)
 text_chunks = []
 for filepath in text_filepaths:
     with open(filepath, 'r', encoding='utf-8') as file:
         doc_chunks = json.load(file)
-        text_chunks.append(doc_chunks)
+        #text_chunks.append(doc_chunks)
+        split_chunks = {}
+        for page_id, chunk in doc_chunks.items():
+            chunk_texts = text_splitter.split_text(chunk)
+            split_chunks[page_id] = chunk_texts
+
+        text_chunks.append(split_chunks)
 
 
 identification_prompt = (
@@ -172,7 +175,7 @@ for datapoint in data:
     )
 
 
-outfile = f"data/pond_adversarial_test_paged.json"
+outfile = f"data/pond_page_chunks_vllm.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4)
 #df = pd.DataFrame(dataset)

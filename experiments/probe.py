@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Callable
 load_dotenv()
 
-from scholarlm import ContextLM, ContextLM2, jensen_shannon_divergence
+from scholarlm import ContextLM, ContextLM2, ContextLM3, jensen_shannon_divergence
 
 text_directory = os.getenv("POND_TEXT_PATH")
 filename = 'physical_and_chemical_limnological.json'
@@ -32,8 +32,9 @@ llm = ContextLM2(
     model_name="meta-llama/Llama-3.1-8B-Instruct",
     top_k=10,
     sampling_params=ctxlm_params,
-    return_full_output=True,
-    nnsight_kwargs = {}
+    #return_full_output=True,
+    nnsight_kwargs = {"torch_dtype": torch.bfloat16},
+    cache_dir="data/test_cache"
 )
 
 instructions = (
@@ -51,7 +52,7 @@ instructions = (
     f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
 )
 
-context = doc_chunks["7"]
+context = doc_chunks["6"]
 
 entity = {"name": "BAJ", "date": "None", "location": "None", "ecosystem": "pond"}
 measurement = "pH"
@@ -60,24 +61,6 @@ query = "Extract the value of " + f"{measurement} for the entity {entity}."
 prompts = [
     (instructions, context, query)
 ]
-
-'''
-chat = [
-    {"role": "system", "content": instructions},
-    {"role": "user", "content": f"## Context:\n{context}\n\n## Query:\n{query}"},
-]
-tokenizer = llm.tokenizer
-formatted_chat = tokenizer.apply_chat_template(
-    chat, tokenize=False, add_generation_prompt=True
-)
-context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
-context_end = formatted_chat.index("\n\n## Query:")
-
-print("Formatted Chat Prompt:")
-print(formatted_chat[context_start:context_end])
-print()
-print("----")
-'''
 
 import time
 start_time = time.time()
@@ -92,11 +75,12 @@ for i, response in enumerate(responses):
     print(response)
     print()
 
-#print("Responses:")
-#print("Linear Probe: ")
-#print(responses[0]['linear_probes'])
-#print()
-#print("Copying Scores: ")
-#print(responses[0]['copying_scores'])
+
+# Save responses to npz
+#import numpy as np
+#output_filepath = os.path.join("data", "probe.npz")
+#output_dict = entity | responses[0]
+#np.savez_compressed(output_filepath, **output_dict)
+
 
 ####################################################################################################

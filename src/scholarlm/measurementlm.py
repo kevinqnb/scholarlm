@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 import pandas as pd
+import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 
@@ -43,6 +44,7 @@ class MeasurementLM:
         measurement_schema: BaseModel,
         sampling_params: dict[str, any] = {},
         return_full_output: bool = False,
+        cache_dir: str | None = None,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -61,8 +63,22 @@ class MeasurementLM:
 
         self.measurement_schema = measurement_schema
         self.return_full_output = return_full_output
+        self.cache_dir = cache_dir
 
         self.llm = LLM(model=model_name)
+
+        '''
+        ctxlm_params = {k: v for k,v in sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
+        ctxlm_params['do_sample'] = False
+        ctxlm_params['max_new_tokens'] = 20
+        self.ctxlm = ContextLM2(
+            model_name="meta-llama/Llama-3.1-8B-Instruct",
+            top_k = 20,
+            sampling_params=ctxlm_params,
+            nnsight_kwargs = {"torch_dtype": torch.bfloat16},
+            cache_dir = self.cache_dir
+        )
+        '''
 
     
     def _filter(self):
@@ -123,10 +139,9 @@ class MeasurementLM:
 
         #identification_schema_json = self.identification_schema.model_json_schema()
         identification_list_json = IdentificationList.model_json_schema()
-        identification_prompt = self.identification_schema.model_config['prompt']
         messages = []
         for i, datapoint in enumerate(self.data):
-            instructions = identification_prompt
+            instructions = self.identification_prompt
             context = datapoint['context']
             query = "Follow the instructions to identify the items mentioned in the context: "
             prompt = (
@@ -302,7 +317,7 @@ class MeasurementLM:
         for m in self.measurement_schema.model_fields.keys():
             m_description = self.measurement_schema.model_fields[m].description
             for i, datapoint in enumerate(self.data):
-                item = {k: v for k,v in datapoint.items() if k not in ['context', 'chunk_id', 'document_id']}
+                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
                 instructions = (
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
                     f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
@@ -370,25 +385,28 @@ class MeasurementLM:
             f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
         )
         messages = []
+        message_ids = []
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
             context = datapoint['context']
             query = "Extract the value of " + f"{measurement} for the entity {item}."
             messages.append((instructions, context, query))
+            message_ids.append(datapoint['measurement_id'])
 
-        ctxlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
-        ctxlm_params['do_sample'] = False
-        ctxlm_params['max_new_tokens'] = 20
-        ctxlm = ContextLM2(
-            model_name="meta-llama/Llama-3.1-8B-Instruct",
-            top_k = 20,
-            sampling_params=ctxlm_params,
-            return_full_output=True,
-        )
-        measurement_responses = ctxlm.predict(messages)
+        measurement_responses = self.ctxlm.predict(messages, message_ids)
 
         measured_data = []
+        
+        for i, resp in enumerate(measurement_responses):
+            if resp.strip().lower() != 'none':
+                measured_data.append(
+                    self.data[i] | 
+                    {
+                        'value': resp
+                    }
+                )
+        '''
         for i,response_dict in enumerate(measurement_responses):
             if response_dict['response'].strip().lower() != 'none':
                 measured_data.append(
@@ -401,7 +419,7 @@ class MeasurementLM:
                         'linear_probes' : response_dict.get('linear_probes', {})
                     }
                 )
-
+        '''
         return measured_data
     
 
@@ -536,11 +554,18 @@ class MeasurementLM:
         Returns:
             measurements (list[dict]): A list of measurements extracted for identified items.
         """
+        '''
         self.data = []
         for i in range(len(chunks)):
             #self.data.append({'chunk_id': i, 'context' : chunks[i]})
             for j, chunk in chunks[i].items():
                 self.data.append({'document_id': i, 'chunk_id': j, 'context' : chunk})
+        '''
+        self.data = []
+        for i in range(len(chunks)):
+            for j, page_chunks in chunks[i].items():
+                for k, chunk in enumerate(page_chunks):
+                    self.data.append({'document_id': i, 'page_id': j, 'chunk_id': k, 'context' : chunk})
 
         self.data = self._filter()
         self.data = self._identify()

@@ -485,6 +485,10 @@ class ContextLM:
             response_dict = self.generate(instructions, context, query)
             responses.append(response_dict)
             self.responses.append(response_dict)
+            
+            # Clear CUDA cache if using GPU
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         return responses
     
