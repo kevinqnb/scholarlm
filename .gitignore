@@ -9,6 +9,7 @@ examples/basics2.py
 experiments/pond.py
 experiments/out/*
 *.sh
+data/*
 data/*.csv
 data/*.npz
 data/*/*.npz

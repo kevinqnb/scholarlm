@@ -359,32 +359,32 @@ class ContextLM2:
         errors = 0
         responses = []
         for i, (instructions, context, query) in enumerate(tqdm(prompts)):
-            try:
-                response_dict = self.generate(instructions, context, query)
+            #try:
+            response_dict = self.generate(instructions, context, query)
 
-                #responses.append(response_dict)
+            #responses.append(response_dict)
 
-                responses.append(response_dict['response'])
-                if self.cache_dir is not None:
-                    id = ids[i] if ids is not None else i
-                    outfile = "{}/{}.npz".format(self.cache_dir, id)
-                    np.savez_compressed(
-                        outfile,
-                        parametric_scores = response_dict['parametric_scores'],
-                        context_scores = response_dict['context_scores'],
-                        copying_scores = response_dict['copying_scores'],
-                        linear_probes = response_dict['linear_probes']
-                    )
-                
-                # Explicitly delete response_dict to free memory
-                del response_dict
-            except Exception as e:
-                print(f"Error generating response for prompt {i}")
-                print()
-                errors += 1
-                responses.append('None')
+            responses.append(response_dict['response'])
+            if self.cache_dir is not None:
+                id = ids[i] if ids is not None else i
+                outfile = "{}/{}.npz".format(self.cache_dir, id)
+                np.savez_compressed(
+                    outfile,
+                    parametric_scores = response_dict['parametric_scores'],
+                    context_scores = response_dict['context_scores'],
+                    copying_scores = response_dict['copying_scores'],
+                    linear_probes = response_dict['linear_probes']
+                )
+            
+            # Explicitly delete response_dict to free memory
+            del response_dict
+            #except Exception as e:
+            #    print(f"Error generating response for prompt {i}")
+            #    print()
+            #    errors += 1
+            #    responses.append('None')
 
-        print(f"Total errors: {errors} out of {len(prompts)}")
+        #print(f"Total errors: {errors} out of {len(prompts)}")
         return responses
     
 

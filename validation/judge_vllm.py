@@ -44,23 +44,23 @@ filenames = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
 filenames = [f.replace('.json', '') for f in filenames]
 filenames.sort()
 
-input_file = "data/pond_adversarial_llama_full.json"
+input_file = "data/pond_page_chunks_vllm_gemma.json"
 
 with open(input_file, "r") as f:
     result_dict = json.load(f)
 
 
 instructions = (
-    f"You are an expert in discerning accuracy for data extracted from research papers by large language models. "
-    f"First you will be given a passage of OCR generated text. "
-    f"You will then be given a data point which was extracted from the OCR text. "
-    f"Your task is to classify the extracted data point's relationship to the provided OCR text, using the following categories:\n"
-    f"hallucination: The extracted data point's 'value' feature does not explicity appear within the OCR text.\n"
-    f"disorientation: The data point's 'value' feature appears to be derived from the OCR text, but is incorrectly attributed to the given entity or measurement type.\n"
-    f"deviation: The data point's 'value' feauture is supported by the OCR text, but the given value is an aggregate statistic, range of values, inequality, non-numerical description, or a measurement for a collection of entities rather than a direct numerical measurement for a single entity.\n"
-    f"valid: The data point is a direct measurement which is explicity supported by the context, and is made with respect to the correct entity and measurement type.\n\n"
+    f"You are an expert in discerning accuracy for data extraction tasks given to large language models. "
+    f"You will be given context from a scientific research paper, along with a data point that "
+    f"a language model has generated upon being prompted to extract relevant data. "
+    f"Your task is to classify the extracted data point's relationship to the provided context, using the following categories:\n"
+    f"hallucination: The extracted data point's 'value' feature does not explicity appear within the context.\n"
+    f"disorientation: The extracted data point's 'value' feature explicity appears within the context, but is incorrectly attributed to the given entity or measurement type.\n"
+    f"deviation: The extracted data point's 'value' feauture explicity appears within the context and is correctly attributed to the given entity and measurement type, but the given value is an aggregate statistic, range of values, inequality, non-numerical description, or a measurement for a collection of entities rather than a direct numerical measurement for a single entity.\n"
+    f"valid: The extracted data point's 'value' feauture explicity appears within the context, is correctly attributed to the given entity and measurement type, and is a direct numerical measurement for a single entity.\n\n"
     f"Respond by choosing the category which best describes the data point's relation to the given context. "
-    f"Only respond with one of the following labels: hallucination, ocr_error, disorientation, deviation, valid. Do not include any other text or explanation in your response."
+    f"Only respond with one of the following labels: hallucination, disorientation, deviation, valid. Do not include any other text or explanation in your response."
 )
 
 
@@ -114,7 +114,7 @@ sampling_params = SamplingParams(
 responses = llm.chat(messages = messages, sampling_params = sampling_params)
 responses = [r.outputs[0].text for r in responses]
 
-output_file = "data/pond_adversarial_judged.json"
+output_file = "data/pond_page_chunks_vllm_gemma_judged.json"
 with open(output_file, "w") as f:
     output_data = []
     for entry, response in zip(result_dict, responses):

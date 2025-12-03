@@ -27,6 +27,7 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 
 text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
+text_files.sort()
 
 '''
 text_files = [
@@ -42,9 +43,6 @@ text_files = [
     'impact_of_macrophytes.json'
 ]
 '''
-
-#text_files.sort()
-
 #text_files = text_files[:10]
 
 text_filepaths = []
@@ -99,17 +97,9 @@ class IdentificationSchema(BaseModel):
     ecosystem: str | None
     model_config = {
         'title': 'Ecosystem Identifier',
-        'prompt': identification_prompt
+        'entity_description': 'ponds, lakes, or wetlands',
+        'primary_identifier': 'name'
     }
-
-'''
-class IdentificationSchema(BaseModel):
-    items: list[Identifier]
-    model_config = {
-        'title': 'Identification Model',
-        'prompt': identification_prompt
-    }
-'''
 
 class MeasurementSchema(BaseModel):
     latitude: float | None = Field(
@@ -151,7 +141,8 @@ class MeasurementSchema(BaseModel):
 
 measurementlm = MeasurementLM(
     model_name="gaunernst/gemma-3-27b-it-int4-awq",
-    item_description="ponds, lakes, or wetlands",
+    #model_name="meta-llama/Llama-3.1-8B-Instruct",
+    identification_prompt=identification_prompt,
     identification_schema=IdentificationSchema,
     measurement_schema=MeasurementSchema,
     sampling_params={
@@ -165,7 +156,27 @@ measurementlm = MeasurementLM(
 )
 
 
-data = measurementlm.fit(text_chunks)
+#data = measurementlm.fit(text_chunks)
+
+
+with open("data/pond_page_chunks_intermediate_fix.json", 'r') as f:
+    data = json.load(f)
+    
+measurementlm.data = data
+data = measurementlm._measure_vllm()
+
+'''
+outfile = f"data/pond_page_chunks_vllm_measured_llama.json"
+with open(outfile, 'w') as f:
+    json.dump(data, f, indent=4, ensure_ascii=False)
+'''
+
+#with open("data/pond_page_chunks_vllm_measured_llama.json", 'r') as f:
+#    data = json.load(f)
+
+measurementlm.data = data
+data = measurementlm._standardize()
+
 dataset = []
 for datapoint in data:
     document_id = datapoint['document_id']
@@ -175,9 +186,10 @@ for datapoint in data:
     )
 
 
-outfile = f"data/pond_page_chunks_vllm.json"
+outfile = f"data/pond_page_chunks_fix_vllm_gemma.json"
 with open(outfile, 'w') as f:
-    json.dump(dataset, f, indent=4)
+    json.dump(dataset, f, indent=4, ensure_ascii=False)
+
 #df = pd.DataFrame(dataset)
 #df.to_csv(outfile, index=False)
 

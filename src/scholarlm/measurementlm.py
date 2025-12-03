@@ -67,18 +67,18 @@ class MeasurementLM:
 
         self.llm = LLM(model=model_name)
 
-        '''
-        ctxlm_params = {k: v for k,v in sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
-        ctxlm_params['do_sample'] = False
-        ctxlm_params['max_new_tokens'] = 20
-        self.ctxlm = ContextLM2(
-            model_name="meta-llama/Llama-3.1-8B-Instruct",
-            top_k = 20,
-            sampling_params=ctxlm_params,
-            nnsight_kwargs = {"torch_dtype": torch.bfloat16},
-            cache_dir = self.cache_dir
-        )
-        '''
+        if self.return_full_output:
+            ctxlm_params = {k: v for k,v in sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
+            ctxlm_params['do_sample'] = False
+            ctxlm_params['max_new_tokens'] = 20
+            self.ctxlm = ContextLM2(
+                model_name="meta-llama/Llama-3.1-8B-Instruct",
+                top_k = 20,
+                sampling_params=ctxlm_params,
+                nnsight_kwargs = {"torch_dtype": torch.bfloat16},
+                cache_dir = self.cache_dir
+            )
+        
 
     
     def _filter(self):
@@ -98,7 +98,7 @@ class MeasurementLM:
                 f"Respond 'true' if the context is relevant and 'false' if it is not. "
             )
             context = datapoint['context']
-            query = "Is the context relevant to measuring or identifying " + f"{', '.join(self.entity_description)}?"
+            query = "Is the context relevant to measuring or identifying " + f"{self.entity_description}?"
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
@@ -143,7 +143,7 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             instructions = self.identification_prompt
             context = datapoint['context']
-            query = "Follow the instructions to identify the items mentioned in the context: "
+            query = "Follow the instructions to identify the items mentioned in the context."
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
@@ -210,7 +210,7 @@ class MeasurementLM:
         matches = {}
         for i, item in enumerate(items):
             item_id = item.get(self.primary_identifier, None)
-            if item_id is not None and item_id is not 'None':
+            if (item_id is not None) and (item_id != 'None'):
                 if item_id not in matches:
                     matches[item_id] = [item]
                 else:
@@ -322,11 +322,11 @@ class MeasurementLM:
                     f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
                     f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
                     f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
-                    f"Respond 'false' if the the given entity or measurement feature do not appear in the context. "
+                    f"Respond 'false' if the the given feature or entity do not appear in the context. "
                     f"Respond 'false' if the context does not explicity provide data for the given feature and entity. "
                     f"Respond 'false' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-                    f"Respond 'false' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-                    f"Respond 'false' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+                    f"Respond 'false' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+                    f"Respond 'false' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
                     f"Respond 'true' only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
                 )
                 context = datapoint['context']
@@ -374,11 +374,11 @@ class MeasurementLM:
             f"You are an expert in extracting precise numerical data from user provided, scientific text. "
             f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
             f"Your task is to extract the corresponding value if it appears in the provided context. "
-            f"Respond 'None' if the the given entity or measurement feature do not appear in the context. "
+            f"Respond 'None' if the the given feature or entity do not appear in the context. "
             f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
             f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-            f"Respond 'None' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+            f"Respond 'None' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
             f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
             f"Copy the value exactly as it appears in the context. "
             f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
@@ -436,14 +436,15 @@ class MeasurementLM:
             f"You are an expert in extracting precise numerical data from user provided, scientific text. "
             f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
             f"Your task is to extract the corresponding value if it appears in the provided context. "
-            f"Respond 'None' if the the given entity or measurement feature do not appear in the context. "
+            f"Respond 'None' if the the given feature or entity do not appear in the context. "
             f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
             f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-            f"Respond 'None' for if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical value. "
+            f"Respond 'None' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
             f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
             f"Copy the value exactly as it appears in the context. "
             f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
+            f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
         )
         messages = []
         for i, datapoint in enumerate(self.data):
@@ -488,7 +489,7 @@ class MeasurementLM:
         """
         instructions = (
             f"You are an expert in data collection and scientific measurements. "
-            f"You will be given context from a research paper, along with a description of a measurement value and the feature and entity it was reported for. "
+            f"You will be given context from a research paper, along with a description of a extracted measurement value and the feature and entity it was reported for. "
             f"Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of given unit options. "
             f"To ensure units follow standard formatting conventions, your response should be limited to options from among the given list. "
             f"If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context. "
