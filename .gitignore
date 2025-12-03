@@ -6,7 +6,6 @@ __pycache__/
 examples/basics.py
 examples/basics_vllm.py
 examples/basics2.py
-experiments/pond.py
 experiments/out/*
 *.sh
 data/*

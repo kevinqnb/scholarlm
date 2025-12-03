@@ -9,7 +9,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from scholarlm import DocumentLM, MeasurementLM #, ContextLM 
 from scholarlm.utils import get_filenames_in_directory
 
-task_id = int(os.getenv('SGE_TASK_ID')) - 1
+#task_id = int(os.getenv('SGE_TASK_ID')) - 1
 #available_jobs = [2,4,5,6,8,10]
 #task_id = available_jobs[task_id - 1]
 
@@ -146,69 +146,68 @@ measurementlm = MeasurementLM(
         "max_tokens" : 4096,
         "seed": 342,
     },
-    return_full_output=True,
-    cache_dir="data/pond_page_chunks2"
+    return_full_output=True, # THIS USES A SEPARATE INTERPRETABLE MODEL
+    cache_dir="data/pond_page_chunks_fix"
 )
+
+
+def filter_identify(text_chunks, outfile):
+    data = []
+    for i in range(len(text_chunks)):
+        for j, page_chunks in text_chunks[i].items():
+            for k, chunk in enumerate(page_chunks):
+                data.append({'document_id': i, 'page_id': j, 'chunk_id': k, 'context' : chunk})
+
+    measurementlm.data = data
+    data = measurementlm._filter()
+    measurementlm.data = data
+    data = measurementlm._identify()
+    measurementlm.data = data
+    data = measurementlm._measurements_filter()
+    measurementlm.data = data
+
+    # Save intermediate results
+    with open(outfile, 'w') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+def measure(infile, outfile):
+    with open(infile, 'r') as f:
+        data = json.load(f)
+        
+    measurementlm.data = data
+    data = measurementlm._measure()
+
+    with open(outfile, 'w') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+def standardize_and_save(infile, outfile):
+    with open(infile, 'r') as f:
+        data = json.load(f)
+
+    measurementlm.data = data
+    data = measurementlm._standardize()
+
+    dataset = []
+    for datapoint in data:
+        document_id = datapoint['document_id']
+        doc_metadata = text_info[document_id]
+        dataset.append(
+            doc_metadata | datapoint
+        )
+
+    with open(outfile, 'w') as f:
+        json.dump(dataset, f, indent=4, ensure_ascii=False)
 
 
 #data = measurementlm.fit(text_chunks)
 
-'''
-data = []
-for i in range(len(text_chunks)):
-    for j, page_chunks in text_chunks[i].items():
-        for k, chunk in enumerate(page_chunks):
-            data.append({'document_id': i, 'page_id': j, 'chunk_id': k, 'context' : chunk})
+outfile1 = "data/12_03_25/pond_page_chunks_intermediate_fix.json"
+filter_identify(text_chunks, outfile1)
 
-measurementlm.data = data
-data = measurementlm._filter()
-measurementlm.data = data
-data = measurementlm._identify()
-measurementlm.data = data
-data = measurementlm._measurements_filter()
-measurementlm.data = data
+outfile2 = "data/12_03_25/pond_page_chunks_measured_fix.json"
+measure(outfile1, outfile2)
 
-# Save intermediate results
-outfile = f"data/pond_page_chunks_intermediate_fix.json"
-with open(outfile, 'w') as f:
-    json.dump(data, f, indent=4, ensure_ascii=False)
-'''
-
-
-'''
-with open("data/pond_page_chunks_intermediate.json", 'r') as f:
-    data = json.load(f)
-
-data = [entry for i, entry in enumerate(data) if i % 4 == task_id]
-measurementlm.data = data
-data = measurementlm._measure()
-
-outfile = f"data/pond_page_chunks_measured_{task_id}.json"
-with open(outfile, 'w') as f:
-    json.dump(data, f, indent=4, ensure_ascii=False)
-'''
-
-data = []
-for i in range(4):
-    infile = f"data/pond_page_chunks_measured_{i}.json"
-    with open(infile, 'r') as f:
-        part_data = json.load(f)
-        data.extend(part_data)
-
-#with open("data/pond_page_chunks_intermediate2.json", 'r') as f:
-#    data = json.load(f)
-
-measurementlm.data = data
-data = measurementlm._standardize()
-
-dataset = []
-for datapoint in data:
-    doc_id = datapoint['document_id']
-    doc_metadata = text_info[doc_id]
-    dataset.append(
-        doc_metadata | datapoint
-    )
-
-outfile = f"data/pond_page_chunks2.json"
-with open(outfile, 'w') as f:
-    json.dump(dataset, f, indent=4, ensure_ascii=False)
+outfile3 = "data/12_03_25/pond_page_chunks_fix.json"
+standardize_and_save(outfile2, outfile3)
