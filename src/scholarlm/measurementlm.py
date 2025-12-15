@@ -15,9 +15,8 @@ def response_validator(response_structure, response):
 class BooleanResponse(BaseModel):
     answer: bool
 
-class DataPointResponse(BaseModel):
-    value: float | str | None
-    units: str | None
+class IntegerResponse(BaseModel):
+    value: int
 
 
 
@@ -45,6 +44,8 @@ class MeasurementLM:
         sampling_params: dict[str, any] = {},
         return_full_output: bool = False,
         cache_dir: str | None = None,
+        page_selection : bool = False,
+        use_llm : bool = True,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -64,8 +65,12 @@ class MeasurementLM:
         self.measurement_schema = measurement_schema
         self.return_full_output = return_full_output
         self.cache_dir = cache_dir
+        self.page_selection = page_selection
 
-        self.llm = LLM(model=model_name)
+        if use_llm:
+            self.llm = LLM(model=model_name)
+        else:
+            self.llm = None
 
         if self.return_full_output:
             ctxlm_params = {k: v for k,v in sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
@@ -73,9 +78,12 @@ class MeasurementLM:
             ctxlm_params['max_new_tokens'] = 20
             self.ctxlm = ContextLM2(
                 model_name="meta-llama/Llama-3.1-8B-Instruct",
+                #model_name = "meta-llama/Llama-3.1-8B",                            
+                #model_name="unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
                 top_k = 20,
                 sampling_params=ctxlm_params,
                 nnsight_kwargs = {"torch_dtype": torch.bfloat16},
+                #nnsight_kwargs = {"load_in_8bit": True},
                 cache_dir = self.cache_dir
             )
         
@@ -183,11 +191,12 @@ class MeasurementLM:
                 if not any(item == added_item for added_item in paper_items[document_id]):
                     paper_items[document_id].append(item)
 
-
+        '''
         # De-duplicate items within each paper
         for doc_id, doc_items in paper_items.items():
             unique_items = self._deduplicate(doc_items)
             paper_items[doc_id] = unique_items
+        '''
 
         itemized_data = []
         for i, datapoint in enumerate(self.data):
@@ -361,6 +370,176 @@ class MeasurementLM:
         return measurement_data
     
 
+
+    def _measurements_filter_by_page(self):
+        """
+        Filters the input items to retain only those relevant for measurements.
+
+        Args:
+            
+        Returns:
+            
+        """
+        messages = []
+        message_measurement_types = []
+        message_data_ids = []
+        for m in self.measurement_schema.model_fields.keys():
+            m_description = self.measurement_schema.model_fields[m].description
+            for i, datapoint in enumerate(self.data):
+                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+                instructions = (
+                    f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
+                    f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
+                    f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
+                    f"Respond with -1 if the the given feature or entity do not appear in the context. "
+                    f"Respond with -1 if the context does not explicity provide data for the given feature and entity. "
+                    f"Respond with -1 if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
+                    f"Respond with -1 if the data reported only contains values for parameter estimates or other statistical measures of fit. "
+                    f"Respond with -1 for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
+                    f"Respond with the integer page number where the measurement may be found, only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
+                    f"Page numbers can be found by searching for the <PAGE_X>...</PAGE_X> tags in the context. "
+                    f"Do not attempt to infer or guess page numbers. "
+                    f"Respond with -1 or the page number only, without any additional text or explanation. "
+                )
+                context = datapoint['context']
+                query = f"Does the context contain data for {m_description} measured for the entity {item}?"
+                prompt = (
+                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                messages.append([
+                    {"role": "user","content": prompt}]
+                )
+                message_measurement_types.append(m)
+                message_data_ids.append(i)
+
+
+        guided_decoding_params = GuidedDecodingParams(
+            json=IntegerResponse.model_json_schema()
+        )
+        sampling_params = SamplingParams(
+            **self.sampling_params,
+            guided_decoding=guided_decoding_params
+        )
+
+        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
+        response_texts = [r.outputs[0].text for r in responses]
+
+        measurement_data = []
+        for i, resp in enumerate(response_texts):
+            idx = message_data_ids[i]
+            try:
+                resp_validated = response_validator(IntegerResponse, resp)
+                page_id = resp_validated['value']
+            except:
+                print("Validation error in measurement page ID response.")
+                page_id = -1
+
+            if page_id != -1:
+                if self.page_selection:
+                    context = ''
+                    page_tag_start = f"<PAGE_{page_id}>"
+                    page_tag_end = f"</PAGE_{page_id}>"
+                    context_start_idx = self.data[idx]['context'].find(page_tag_start) + len(page_tag_start)
+                    context_end_idx = self.data[idx]['context'].find(page_tag_end)
+                    if context_start_idx == -1:
+                        print("Page tags not found in context.")
+                        context = self.data[idx]['context'].strip()
+                    elif context_end_idx == -1:
+                        context = self.data[idx]['context'][context_start_idx:].strip()
+                    else:
+                        context = self.data[idx]['context'][context_start_idx: context_end_idx].strip()
+
+                    measurement_data.append(
+                        self.data[idx] | 
+                        {'context': context} | {'page_id': page_id} |
+                        {'measurement_id': i, 'measurement': message_measurement_types[i]}
+                    )
+                else:
+                    measurement_data.append(
+                        self.data[idx] | 
+                        {'page_id': page_id} |
+                        {'measurement_id': i, 'measurement': message_measurement_types[i]}
+                    )
+
+        return measurement_data
+    
+
+    def _page_id(self):
+        """
+        Extracts measurements from the text chunks for the identified items.
+
+        Args:
+
+        Returns:
+            
+        """
+        instructions = (
+            f"You are an expert in finding data within research papers. "
+            f"You will be queried with a description of an specific entity to be measured, "
+            f"and asked to locate and identify the page number on which the measurement appears. "
+            f"Page numbers can be found by searching for the <PAGE_X>...</PAGE_X> tags in the context. "
+            f"Do not attempt to infer or guess page numbers. "
+            f"If the requested measurement does not appear in the context, respond with the number -1. "
+            f"Otherwise, respond with the integer page number only, without any additional text or explanation. "
+        )
+        fields = list(self.identification_schema.model_fields.keys()) + ['measurement']
+        messages = []
+        for i, datapoint in enumerate(self.data):
+            item = {k: v for k,v in datapoint.items() if k in fields}
+            item['measurement'] = self.measurement_schema.model_fields[datapoint['measurement']].description
+            context = datapoint['context']
+            query = f"Identify the page number which contains the measurement for the following datapoint: {item}."
+            prompt = (
+                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+            messages.append([
+                {"role": "user","content": prompt}]
+            )
+
+        guided_decoding_params = GuidedDecodingParams(
+            json=IntegerResponse.model_json_schema()
+        )
+        sampling_params = SamplingParams(
+            **self.sampling_params,
+            guided_decoding=guided_decoding_params
+        )
+
+        responses = self.llm.chat(
+            messages = messages,
+            sampling_params = sampling_params,
+        )
+        response_texts = [r.outputs[0].text for r in responses]
+        page_id_data = []
+        for i, resp in enumerate(response_texts):
+            try:
+                resp_validated = response_validator(IntegerResponse, resp)
+                page_id = resp_validated['value']
+            except:
+                print("Validation error in page ID response.")
+                page_id = -1
+            
+            # Isolate page in context
+            if page_id != -1:
+                if self.page_selection:
+                    context = ''
+                    page_tag_start = f"<PAGE_{page_id}>"
+                    page_tag_end = f"</PAGE_{page_id}>"
+                    context_start_idx = self.data[i]['context'].find(page_tag_start) + len(page_tag_start)
+                    context_end_idx = self.data[i]['context'].find(page_tag_end)
+                    context = self.data[i]['context'][context_start_idx: context_end_idx].strip()
+
+                    page_id_data.append(
+                        self.data[i] | {'page_id': page_id} | {'context': context}
+                    )
+
+                else:
+                    page_id_data.append(
+                    self.data[i] | {'page_id': page_id}
+                )
+
+        return page_id_data
+    
+
     def _measure(self):
         """
         Extracts measurements from the text chunks for the identified items.
@@ -379,6 +558,7 @@ class MeasurementLM:
             f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
             f"Respond 'None' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
             f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
+            f"Respond 'None' if the data is reported for a collection of entities rather than a single, specific entity. "
             f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
             f"Copy the value exactly as it appears in the context. "
             f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
@@ -389,8 +569,9 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
+            m_description = self.measurement_schema.model_fields[measurement].description
             context = datapoint['context']
-            query = "Extract the value of " + f"{measurement} for the entity {item}."
+            query = "Extract the value for the " + f"{m_description} of the entity {item}."
             messages.append((instructions, context, query))
             message_ids.append(datapoint['measurement_id'])
 
@@ -450,8 +631,9 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
             measurement = datapoint['measurement']
+            m_description = self.measurement_schema.model_fields[measurement].description
             context = datapoint['context']
-            query = "Extract the value of " + f"{measurement} for the entity {item}."
+            query = "Extract the value for the " + f"{m_description} of the entity {item}."
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
                 )
@@ -571,6 +753,7 @@ class MeasurementLM:
         self.data = self._filter()
         self.data = self._identify()
         self.data = self._measurements_filter()
+        self.data = self._page_id()
         if self.return_full_output:
             self.data = self._measure()
         else:

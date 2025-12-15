@@ -50,6 +50,9 @@ class ContextLM2:
         if self.cache_dir is not None:
             os.makedirs(self.cache_dir, exist_ok=True)
 
+        # Detect available GPUs and set up device allocation
+        self._setup_devices()
+        
         self.llm = StandardizedTransformer(model_name, enable_attention_probs=True, **nnsight_kwargs) #device_map={"": "cuda:1"})
         self.tokenizer = self.llm.tokenizer
         if self.tokenizer.pad_token is None:
@@ -63,6 +66,37 @@ class ContextLM2:
         self.parametric_score_arrays = []
         self.context_score_array = []
     
+
+    def _setup_devices(self):
+        """
+        Set up device allocation for LLM and tensors.
+        If multiple GPUs are available, use separate devices for LLM and tensors.
+        Otherwise, use the same device for both.
+        """
+        if torch.cuda.is_available():
+            num_gpus = torch.cuda.device_count()
+            if (num_gpus >= 2):
+                # Use different GPUs for LLM and tensors
+                self.llm_device = torch.device("cuda:0")
+                self.tensor_device = torch.device("cuda:1")
+                if self.verbose:
+                    print(f"Using {num_gpus} GPUs: LLM on cuda:0, tensors on cuda:1")
+            else:
+                # Single GPU: use same device for both
+                self.llm_device = torch.device("cuda:0")
+                self.tensor_device = torch.device("cuda:0")
+                if self.verbose:
+                    print(f"Using single GPU: cuda:0")
+        else:
+            # CPU fallback
+            self.llm_device = torch.device("cpu")
+            self.tensor_device = torch.device("cpu")
+            if self.verbose:
+                print("No GPU available, using CPU")
+
+        #self.tensor_device = torch.device("cpu")
+        
+
 
     def compute_external_context_score(
         self,
@@ -164,20 +198,21 @@ class ContextLM2:
         Returns:
             float: The computed copying score.
         """
-        device = self.llm.device
+        device = self.tensor_device
         # Ensure layer_inputs is on GPU if not already
-        if layer_inputs.device != device:
-            layer_inputs = layer_inputs.to(device=device)
+        
+        #if layer_inputs.device != device:
+        #    layer_inputs = layer_inputs.to(device=device)
         copying_scores = torch.zeros((self.n_layers, self.n_heads), device=device, dtype=torch.bfloat16)
         for layer_idx, layer in enumerate(self.llm.model.layers):
-            out_weights = layer.self_attn.o_proj.weight.detach() # Shape: [D, H * D_head]
-            value_weights = layer.self_attn.v_proj.weight.detach() # Shape: [H_kv * D_head, D]
+            out_weights = layer.self_attn.o_proj.weight.detach().to(device) # Shape: [D, H * D_head]
+            value_weights = layer.self_attn.v_proj.weight.detach().to(device) # Shape: [H_kv * D_head, D]
 
             # Attention probabilities should already be on GPU
             #A = attention_probabilities[0][layer_idx]
             A = attention_probabilities[0, layer_idx, :, :prompt_len]
-            if A.device != device:
-                A = A.to(device=device) # Shape: [H, N] (last token attentions at each head)
+            #if A.device != device:
+            #    A = A.to(device=device) # Shape: [H, N] (last token attentions at each head)
             X = layer_inputs[layer_idx, :, :] # Shape: [N, D]
             XC = layer_inputs[layer_idx, context_token_indices, :] # Shape: [N_ctx, D]
 
@@ -229,65 +264,85 @@ class ContextLM2:
             instructions, context, query, self.tokenizer
         )
         prompt_len = len(tokenized_prompt)
+        print("Prompt length (tokens):", prompt_len)
         k = min(self.top_k, len(context_token_indices))
-        device = self.llm.device
+        llm_device = self.llm.device
+        tensor_device = self.tensor_device
         response_dict = {}
 
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             layer_inputs = torch.zeros(
-                self.n_layers, prompt_len, self.llm.config.hidden_size, device=device, dtype=torch.bfloat16
+                self.n_layers, prompt_len, self.llm.config.hidden_size, device=tensor_device, dtype=torch.bfloat16
             ).save()
 
             attention_probabilities = torch.zeros(
                 size = (self.max_new_tokens, self.n_layers, self.n_heads, prompt_len + self.max_new_tokens),
-                device = device,
+                device = tensor_device,
                 dtype = torch.bfloat16
             ).save()
 
             mlp_inputs = torch.zeros(
-                size = (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size), device=device, dtype=torch.bfloat16
+                size = (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size), device=tensor_device, dtype=torch.bfloat16
             ).save()
 
             mlp_outputs = torch.zeros(
-                size = (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size), device=device, dtype=torch.bfloat16
+                size = (self.max_new_tokens, self.n_layers, self.llm.config.hidden_size), device=tensor_device, dtype=torch.bfloat16
             ).save()
 
             context_embeddings = torch.zeros(
-                (len(context_token_indices), self.llm.config.hidden_size), device=device, dtype=torch.bfloat16
+                (len(context_token_indices), self.llm.config.hidden_size), device=tensor_device, dtype=torch.bfloat16
             ).save()
 
             response_embeddings = torch.zeros(
-                (self.max_new_tokens, self.llm.config.hidden_size), device=device, dtype=torch.bfloat16
+                (self.max_new_tokens, self.llm.config.hidden_size), device=tensor_device, dtype=torch.bfloat16
             ).save()
 
             response_tokens = torch.full(
                 size = (self.max_new_tokens,),
                 fill_value = self.tokenizer.pad_token_id, # Fill with pad token initially
-                device = device,
+                device = tensor_device,
                 dtype=torch.long  # Token IDs should be integers
             ).save()
 
             with tracer.iter[:] as token_idx:
+                print(f"Generating token {token_idx + 1} / {self.max_new_tokens}")
+                print("Tensor Allocated:", torch.cuda.memory_allocated(tensor_device) / 1024**3, "GB")
+                print("Tensor Reserved: ", torch.cuda.memory_reserved(tensor_device) / 1024**3, "GB")
+                print("Tensor Total GPU memory: ", torch.cuda.get_device_properties(tensor_device).total_memory / (1024**3), "GB")
+                print("LLM Allocated:", torch.cuda.memory_allocated(llm_device) / 1024**3, "GB")
+                print("LLM Reserved: ", torch.cuda.memory_reserved(llm_device) / 1024**3, "GB")
+                print("LLM Total GPU memory: ", torch.cuda.get_device_properties(llm_device).total_memory / (1024**3), "GB")
+                print()
                 for layer_idx, layer in enumerate(self.llm.model.layers):
-                    # Cache layer inputs
+                    # Cache layer inputs - move to tensor device if different from LLM device
                     if token_idx == 0:
-                        layer_inputs[layer_idx, :, :] = self.llm.layers_input[layer_idx].detach()
+                        layer_inputs[layer_idx, :, :] = self.llm.layers_input[layer_idx].detach().to(tensor_device)
                     
-                    # Attention shape: [batch_size, num_heads, seq_len, seq_len]
-                    attention_probabilities[token_idx, layer_idx, :, :prompt_len + token_idx] = self.llm.attention_probabilities[layer_idx][-1,:,-1,:]
+                    # Attention shape: [batch_size, num_heads, seq_len, seq_len] - move to tensor device
+                    attention_probabilities[token_idx, layer_idx, :, :prompt_len + token_idx] = self.llm.attention_probabilities[layer_idx][-1,:,-1,:].to(tensor_device)
 
-                    # Cache MLP inputs and outputs for this layer
-                    mlp_inputs[token_idx, layer_idx, :] = self.llm.mlps_input[layer_idx][-1, -1, :]
-                    mlp_outputs[token_idx, layer_idx, :] = self.llm.mlps_output[layer_idx][-1, -1, :]
-
-                # Last layer embeddings for context and current token:
-                if token_idx == 0:
-                    context_embeddings[:,:] = self.llm.model.output.last_hidden_state[-1, context_token_indices, :]
-
-                response_embeddings[token_idx, :] = self.llm.model.output.last_hidden_state[-1, -1, :]
+                    # Cache MLP inputs and outputs for this layer - move to tensor device
+                    mlp_inputs[token_idx, layer_idx, :] = self.llm.mlps_input[layer_idx][-1, -1, :].detach().to(tensor_device)
+                    mlp_outputs[token_idx, layer_idx, :] = self.llm.mlps_output[layer_idx][-1, -1, :].detach().to(tensor_device)
                 
-                # Compute response tokens:
-                response_tokens[token_idx] = self.llm.logits[0, -1, :].argmax()
+                # Last layer embeddings for context and current token - move to tensor device
+                if token_idx == 0:
+                    context_embeddings[:,:] = self.llm.model.output.last_hidden_state[-1, context_token_indices, :].to(tensor_device)
+
+                response_embeddings[token_idx, :] = self.llm.model.output.last_hidden_state[-1, -1, :].to(tensor_device)
+                
+                # Compute response tokens - move to tensor device
+                response_tokens[token_idx] = self.llm.logits[0, -1, :].argmax().to(tensor_device)
+
+        
+        print("Generation complete.")
+        print("Tensor Allocated:", torch.cuda.memory_allocated(tensor_device) / 1024**3, "GB")
+        print("Tensor Reserved: ", torch.cuda.memory_reserved(tensor_device) / 1024**3, "GB")
+        print("Tensor Total GPU memory: ", torch.cuda.get_device_properties(tensor_device).total_memory / (1024**3), "GB")
+        print("LLM Allocated:", torch.cuda.memory_allocated(llm_device) / 1024**3, "GB")
+        print("LLM Reserved: ", torch.cuda.memory_reserved(llm_device) / 1024**3, "GB")
+        print("LLM Total GPU memory: ", torch.cuda.get_device_properties(llm_device).total_memory / (1024**3), "GB")
+        print()
 
 
         response = self.llm.tokenizer.decode(response_tokens.cpu(), skip_special_tokens=True)
@@ -326,7 +381,7 @@ class ContextLM2:
 
         # Explicitly delete large tensors to free memory after .save() references
         # This is important because .save() keeps references alive
-        del layer_inputs, attention_probabilities, mlp_inputs, mlp_outputs
+        del mlp_inputs, mlp_outputs, attention_probabilities, layer_inputs
         del context_embeddings, response_embeddings, response_tokens
         del tracer
         
@@ -362,8 +417,6 @@ class ContextLM2:
             #try:
             response_dict = self.generate(instructions, context, query)
 
-            #responses.append(response_dict)
-
             responses.append(response_dict['response'])
             if self.cache_dir is not None:
                 id = ids[i] if ids is not None else i
@@ -378,13 +431,7 @@ class ContextLM2:
             
             # Explicitly delete response_dict to free memory
             del response_dict
-            #except Exception as e:
-            #    print(f"Error generating response for prompt {i}")
-            #    print()
-            #    errors += 1
-            #    responses.append('None')
 
-        #print(f"Total errors: {errors} out of {len(prompts)}")
         return responses
     
 
@@ -404,7 +451,6 @@ class ContextLM2:
             parametric_scores = np.array(self.parametric_score_arrays),
             context_scores = np.array(self.context_score_array)
         )
-        
 
-        
-    
+
+

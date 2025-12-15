@@ -8,6 +8,8 @@ from .documentlm import DocumentLM
 
 from .measurementlm import MeasurementLM
 
+from .judge import JudgementLM
+
 from .utils import (
     get_filenames_in_directory,
     get_foldernames_in_directory,
