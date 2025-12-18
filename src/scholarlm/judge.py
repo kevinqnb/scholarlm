@@ -135,11 +135,14 @@ class JudgementLM:
 
             context = entry.get('context', None)
 
-            datapoint = {
+            entity = {
                 f: entry[f] for f in self.identification_schema.model_fields.keys()
             }
-            datapoint['measurement'] = self.measurement_schema.model_fields[entry['measurement']].description
-            datapoint['value'] = entry['value']
+            measurement = {
+                'measurement': self.measurement_schema.model_fields[entry['measurement']].description,
+                'value': entry['value']
+            }
+            measurement_names = entry.get('measurement_names', [])
 
             prompt = (
                 f'## Instructions:\n'
@@ -147,9 +150,13 @@ class JudgementLM:
                 f"## Context:\n"
                 f"{context}\n\n"
                 f"## Extracted Data Point:\n"
-                f"{json.dumps(datapoint)}\n\n"
+                f"Entity:\n"
+                f"{json.dumps(entity)}\n\n"
+                f"Measurement:\n"
+                f"{json.dumps(measurement)}\n\n"
                 f"## Query:\n"
-                f"Is the extracted data point\'s value correctly attributed to the given entity?"
+                f"Is the extracted measurement value correctly attributed to the given entity?"
+                f"Note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
             )
 
             messages.append([
@@ -210,6 +217,7 @@ class JudgementLM:
             }
             datapoint['measurement'] = self.measurement_schema.model_fields[entry['measurement']].description
             datapoint['value'] = entry['value']
+            measurement_names = entry.get('measurement_names', [])
 
             prompt = (
                 f'## Instructions:\n'
@@ -219,7 +227,8 @@ class JudgementLM:
                 f"## Extracted Data Point:\n"
                 f"{json.dumps(datapoint)}\n\n"
                 f"## Query:\n"
-                f"Does the extracted data point deviate from its given intstructions?"
+                f"Does the extracted data point deviate from its given intstructions?",
+                f"Note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
             )
 
             messages.append([

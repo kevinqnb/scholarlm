@@ -6,6 +6,9 @@ import torch
 from typing import Callable
 from PIL import Image
 import pytesseract
+from bs4 import BeautifulSoup
+import subprocess
+from pypdf import PdfReader
 
 
 ####################################################################################################
@@ -69,6 +72,132 @@ def get_foldernames_in_directory(
 ####################################################################################################
 
 
+def get_pdf_page_dimensions(pdf_path: str, page_num: int) -> tuple[float, float]:
+    """
+    Get PDF page dimensions in points using pdfinfo.
+    
+    Args:
+        pdf_path: Path to PDF file
+        page_num: Page number (1-indexed)
+    
+    Returns:
+        Tuple of (width, height) in points
+    """
+    result = subprocess.run(
+        ["pdfinfo", "-f", str(page_num), "-l", str(page_num), "-box", pdf_path],
+        capture_output=True,
+        text=True,
+        timeout=30
+    )
+    
+    if result.returncode != 0:
+        raise ValueError(f"pdfinfo failed:  {result.stderr}")
+    
+    # Parse MediaBox from output
+    for line in result.stdout.splitlines():
+        if "MediaBox" in line:
+            parts = line.split(":", 1)[1].strip().split()
+            if len(parts) >= 4:
+                x0, y0, x1, y1 = map(float, parts[:4])
+                width = x1 - x0
+                height = y1 - y0
+                return width, height
+    
+    raise ValueError("MediaBox not found in PDF info")
+
+
+####################################################################################################
+
+
+def load_pdf_page(
+    pdf_path: str,
+    page_num: int,
+    target_longest_dim: int = 2048
+) -> Image.Image:
+    """
+    Render a PDF page to a high-quality PIL Image.
+    
+    Args:
+        pdf_path: Path to PDF file
+        page_num:  Page number (1-indexed)
+        target_longest_dim: Target size for longest dimension in pixels
+    
+    Returns:
+        PIL Image object
+    """
+    # Get page dimensions
+    width, height = get_pdf_page_dimensions(pdf_path, page_num)
+    longest_dim = max(width, height)
+    
+    # Calculate DPI needed to achieve target pixel dimension
+    dpi = int(target_longest_dim * 72 / longest_dim)
+    
+    # Render PDF page to PNG using pdftoppm
+    result = subprocess.run(
+        [
+            "pdftoppm",
+            "-png",
+            "-f", str(page_num),
+            "-l", str(page_num),
+            "-r", str(dpi),
+            pdf_path
+        ],
+        capture_output=True,
+        timeout=120
+    )
+    
+    if result.returncode != 0:
+        raise RuntimeError(f"pdftoppm failed: {result.stderr.decode()}")
+    
+    # Convert PNG bytes to PIL Image
+    image = Image.open(BytesIO(result.stdout))
+    
+    # Ensure image is in RGB mode for VLM processing
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    return image
+
+
+####################################################################################################
+
+
+def correct_image_orientation(pil_image):
+    """
+    Detects orientation of a PIL image using Tesseract OSD and returns a rotated image corrected to upright.
+
+    Args:
+        pil_image (PIL.Image.Image): Input image
+
+    Returns:
+        PIL.Image.Image: Upright-corrected image
+    """
+    try:
+        osd_output = pytesseract.image_to_osd(pil_image)
+    
+        # Parse the rotation angle from OSD output
+        rotate_angle = 0
+        for line in osd_output.splitlines():
+            if "Rotate" in line:
+                rotate_angle = int(line.split(":")[-1].strip())
+                break
+
+    except pytesseract.TesseractError as e:
+        print(f"Tesseract OSD failed, proceeding without orientation correction.")
+        print(e)
+        print()
+        rotate_angle = 0
+    
+    if rotate_angle == 0:
+        return pil_image
+    else:
+        corrected_image = pil_image.rotate(-rotate_angle, expand=True)
+        return corrected_image
+
+
+####################################################################################################
+
+
 def encode_pil_image(pil_image):
     """
     Encode a PIL image to a base64 string.
@@ -85,6 +214,39 @@ def encode_pil_image(pil_image):
 
 
 ####################################################################################################
+
+
+def process_pdf(
+    pdf_path: str,
+    target_longest_dim: int = 2048
+) -> list[str]:
+    """
+    Process all pages of a PDF with orientation correction. 
+    Returns as a list of base64-encoded images for each page.
+    
+    Args:
+        pdf_path: Path to PDF file
+        target_longest_dim: Target size for longest dimension
+    
+    Returns:
+        List of base64-encoded strings for each page
+    """
+    # Count pages
+    reader = PdfReader(pdf_path)
+    num_pages = len(reader.pages)
+
+    results = []    
+    for page_num in range(1, num_pages + 1):
+        pil_image = load_pdf_page(pdf_path, page_num, target_longest_dim)
+        pil_image = correct_image_orientation(pil_image)
+        b64_image = encode_pil_image(pil_image)
+        results.append(b64_image)
+    
+    return results
+
+
+####################################################################################################
+
 
 def tokenize(
     instructions : str,
@@ -196,30 +358,70 @@ def jensen_shannon_divergence(
 ####################################################################################################
 
 
-def correct_image_orientation(pil_image):
+def table_extract(
+        table_df: pd.DataFrame,
+        row_indices: list[str],
+        column_indices: list[str]
+    ) -> any:
     """
-    Detects orientation of a PIL image using Tesseract OSD and returns a rotated image corrected to upright.
+    Extract a value from a pandas DataFrame based on specified row and column indices.
 
     Args:
-        pil_image (PIL.Image.Image): Input image
-
+        table_df (pd.DataFrame): The DataFrame to extract the value from.
+        row_indices (list[str]): A list of row index names to identify the target row.
+        column_indices (list[str]): A list of column index names to identify the target column.
     Returns:
-        PIL.Image.Image: Upright-corrected image
+        any: The extracted value from the DataFrame.
     """
-    osd_output = pytesseract.image_to_osd(pil_image)
-    
-    # Parse the rotation angle from OSD output
-    rotate_angle = 0
-    for line in osd_output.splitlines():
-        if "Rotate" in line:
-            rotate_angle = int(line.split(":")[-1].strip())
-            break
+    flattened_table = table_df.reset_index(drop = True).T.reset_index().T.reset_index(drop=True)
+    row_mask = ((flattened_table == val).sum(axis = 1) for i, val in enumerate(row_indices))
+    row_mask = pd.concat(row_mask, axis=1).all(axis=1)
+    row_idx = row_mask[row_mask].index[0]
+    column_mask = ((flattened_table == val).sum(axis = 0) for i, val in enumerate(column_indices))
+    column_mask = pd.concat(column_mask, axis=1).all(axis=1)
+    column_idx = column_mask[column_mask].index[0]
 
-    if rotate_angle == 0:
-        return pil_image
-    else:
-        corrected_image = pil_image.rotate(-rotate_angle, expand=True)
-        return corrected_image
+    return flattened_table.iat[row_idx, column_idx]
+
+
+####################################################################################################
+
+
+def add_row_names(html_string):
+    """
+    Add row names (indices) to all non-header rows in an HTML table.
     
+    Adds a <th> tag at the beginning of each row that doesn't already 
+    contain <th> tags, numbering them sequentially starting from 1.
+    
+    Args:
+        html_string: String containing HTML table
+        
+    Returns:
+        String containing table with row names added
+    """
+    soup = BeautifulSoup(html_string, 'html.parser')
+    table = soup.find('table')
+    
+    if not table:
+        return html_string
+    
+    rows = table.find_all('tr')
+    row_counter = 1
+    
+    for row in rows:
+        # Check if this row already has <th> tags (it's a header row)
+        if row.find('th'):
+            continue
+        
+        # This is a data row - add row index as first <th> cell
+        row_th = soup.new_tag('th')
+        row_th.string = f"row {row_counter}"
+        row.insert(0, row_th)
+        
+        row_counter += 1
+    
+    return table.prettify()
+
 
 ####################################################################################################

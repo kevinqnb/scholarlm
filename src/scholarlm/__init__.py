@@ -6,15 +6,24 @@ from .contextlm3 import ContextLM3
 
 from .documentlm import DocumentLM
 
+from .documentlm2 import DocumentLM2
+
 from .measurementlm import MeasurementLM
+
+from .measurementlm2 import MeasurementLM2
 
 from .judge import JudgementLM
 
 from .utils import (
     get_filenames_in_directory,
     get_foldernames_in_directory,
+    get_pdf_page_dimensions,
+    load_pdf_page,
+    correct_image_orientation,
     encode_pil_image,
+    process_pdf,
     tokenize,
     jensen_shannon_divergence,
-    correct_image_orientation,
+    table_extract,
+    add_row_names
 )

@@ -14,7 +14,7 @@ random.seed(342)
 torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
-task_id = int(os.getenv('SGE_TASK_ID')) - 1
+#task_id = int(os.getenv('SGE_TASK_ID')) - 1
 
 ####################################################################################################
 
@@ -72,8 +72,8 @@ class MeasurementSchema(BaseModel):
 ####################################################################################################
 
 
-#input_file = "data/12_11_25/pond.json"
-input_file = "data/12_10_25/pond_elicit.json"
+input_file = "data/12_17_25/ten_standardize2.json"
+#input_file = "data/12_10_25/pond_elicit.json"
 
 with open(input_file, "r") as f:
     result_dict = json.load(f)
@@ -96,8 +96,9 @@ judgelm = JudgementLM(
 
 judged_data = judgelm.fit(data = result_dict)
 
-#output_file = f"data/12_11_25/pond_judged_{task_id}.json"
-output_file = "data/12_10_25/pond_elicit_judged.json"
+#output_file = f"data/12_17_25/ten_judged_{task_id}.json"
+output_file = f"data/12_17_25/ten_judged.json"
+#output_file = "data/12_10_25/pond_elicit_judged.json"
 with open(output_file, "w") as f:
     json.dump(judged_data, f, indent=4, ensure_ascii=False)
 
