@@ -1,10 +1,24 @@
 from pydantic import BaseModel
+import numpy as np
 import pandas as pd
+import re
+from io import StringIO
 import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
-
-from .contextlm2 import ContextLM2
+from .contextlm import ContextLM
+from .instruction_prompts import (
+    IDENTIFY_MEASUREMENTS_RELEVANCE_INSTRUCTIONS,
+    IDENTIFY_MEASUREMENT_TERMS_INSTRUCTIONS,
+    IDENTIFY_ENTITY_ALIASES_INSTRUCTIONS,
+    PAGE_LOCATE_INSTRUCTIONS,
+    TABLE_LOCATE_INSTRUCTIONS,
+    MEASURE_VALUE_INSTRUCTIONS,
+    MEASURE_TABLE_ROW_INSTRUCTIONS,
+    MEASURE_TABLE_COLUMN_INSTRUCTIONS,
+    STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
+    STANDARDIZE_UNITS_INSTRUCTIONS,
+)
 
 
 def response_validator(response_structure, response):
@@ -12,12 +26,8 @@ def response_validator(response_structure, response):
     out_dict = pyd.model_dump()
     return out_dict
 
-class BooleanResponse(BaseModel):
-    answer: bool
-
-class IntegerResponse(BaseModel):
-    value: int
-
+class ListResponse(BaseModel):
+    items: list[str]
 
 
 class MeasurementLM:
@@ -42,10 +52,7 @@ class MeasurementLM:
         identification_schema: BaseModel,
         measurement_schema: BaseModel,
         sampling_params: dict[str, any] = {},
-        return_full_output: bool = False,
-        cache_dir: str | None = None,
-        page_selection : bool = False,
-        use_llm : bool = True,
+        probe: bool = False,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -63,56 +70,54 @@ class MeasurementLM:
         assert self.primary_identifier in identification_schema.model_fields.keys(), "Primary identifier must be a valid field in the identification schema."
 
         self.measurement_schema = measurement_schema
-        self.return_full_output = return_full_output
-        self.cache_dir = cache_dir
-        self.page_selection = page_selection
+        self.probe = probe
 
-        if use_llm:
-            self.llm = LLM(model=model_name)
+        if not self.probe:
+            self.llm = LLM(model=model_name, tensor_parallel_size=2)
         else:
-            self.llm = None
-
-        if self.return_full_output:
-            ctxlm_params = {k: v for k,v in sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
+            ctxlm_params = {
+                k: v for k,v in sampling_params.items() if k not in [
+                    'max_tokens', 'seed', 'temperature', 'stop'
+                ]
+            }
             ctxlm_params['do_sample'] = False
-            ctxlm_params['max_new_tokens'] = 20
-            self.ctxlm = ContextLM2(
+            ctxlm_params['max_new_tokens'] = 1
+            self.ctxlm = ContextLM(
                 model_name="meta-llama/Llama-3.1-8B-Instruct",
-                #model_name = "meta-llama/Llama-3.1-8B",                            
-                #model_name="unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
-                top_k = 20,
                 sampling_params=ctxlm_params,
                 nnsight_kwargs = {"torch_dtype": torch.bfloat16},
-                #nnsight_kwargs = {"load_in_8bit": True},
-                cache_dir = self.cache_dir
             )
         
 
     
-    def _filter(self):
+    def _identify_measurements(self):
         """
-        Filters the input text chunks to retain only those relevant to the item of interest.
+        Identifies measurements in the text based on the measurement schema.
 
         Args:
             
         Returns:
             
-        """        
+        """
+        instructions = IDENTIFY_MEASUREMENTS_RELEVANCE_INSTRUCTIONS
         messages = []
+        message_ids = []
         for i, datapoint in enumerate(self.data):
-            instructions = (
-                f"You are an expert at identifying relevant information in scientific texts. "
-                f"Determine if the given context contains any relevant information. "
-                f"Respond 'true' if the context is relevant and 'false' if it is not. "
-            )
-            context = datapoint['context']
-            query = "Is the context relevant to measuring or identifying " + f"{self.entity_description}?"
-            prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-            )
-            messages.append([
-                {"role": "user", "content": prompt}]
-            )
+            for measurement in self.measurement_schema.model_fields.keys():
+                measurement_description = self.measurement_schema.model_fields[measurement].description
+
+                context = datapoint['context']
+                query = (
+                    f"Is the context relevant to measuring or identifying "
+                    f"{measurement_description} for {self.entity_description}?"
+                )
+                prompt = (
+                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                messages.append([
+                    {"role": "user", "content": prompt}
+                ])
+                message_ids.append((i, measurement))
 
         guided_decoding_params = GuidedDecodingParams(
             choice = ['true', 'false']
@@ -121,21 +126,66 @@ class MeasurementLM:
             **self.sampling_params,
             guided_decoding=guided_decoding_params
         )
-
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
 
-        filtered_data = []
+        instructions2 = IDENTIFY_MEASUREMENT_TERMS_INSTRUCTIONS
+        messages2 = []
+        message_ids2 = []
         for i, resp in enumerate(response_texts):
+            idx, measurement = message_ids[i]
             if resp == 'true':
-                filtered_data.append(self.data[i])
-        
-        return filtered_data
+                datapoint = self.data[idx]
+                context = datapoint['context']
+                measurement_description = self.measurement_schema.model_fields[measurement].description
+                query = (
+                    f"Extract any terms that refer to "
+                    f"{measurement_description} in the given context. "
+                )
+                prompt = (
+                    f"## Instructions:\n{instructions2}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                messages2.append([
+                    {"role": "user", "content": prompt}]
+                )
+                message_ids2.append((idx, measurement))
+
+        guided_decoding_params = GuidedDecodingParams(
+            json=ListResponse.model_json_schema()
+        )
+        sampling_params = SamplingParams(
+            **self.sampling_params,
+            guided_decoding=guided_decoding_params
+        )
+        responses = self.llm.chat(messages = messages2, sampling_params = sampling_params)
+        response_texts = [r.outputs[0].text for r in responses]
+
+        identified_data_by_idx = {}
+        for i, resp in enumerate(response_texts):
+            idx, measurement = message_ids2[i]
+            datapoint = self.data[idx]
+            try:
+                alt_names = response_validator(ListResponse, resp)['items']
+                if idx not in identified_data_by_idx:
+                    identified_data_by_idx[idx] = {measurement: alt_names}
+                else:
+                    identified_data_by_idx[idx][measurement] = alt_names
+            except:
+                print("Error parsing alternative names response.")
+                identified_data_by_idx[idx] = {measurement: []}
+
+        identified_data = []
+        for idx in identified_data_by_idx:
+            identified_data.append(
+                self.data[idx] | {'measurement_names': identified_data_by_idx[idx]}
+            )
+
+        return identified_data
     
 
-    def _identify(self):
+    def _identify_entities(self):
         """
-        Identifies items in the text chunks based on the identification schema.
+        Identifies entities in the text based on the identification schema.
 
         Args:
             
@@ -169,339 +219,233 @@ class MeasurementLM:
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_validated = []
-        for r in response_texts:
+        entity_data = []
+        for i, r in enumerate(response_texts):
             try:
                 resp_validated = response_validator(IdentificationList, r)
             except:
                 print("Validation error in identification response.")
                 resp_validated = {'items': []}
-            response_validated.append(resp_validated)
 
-        # Collect all items across each paper
-        paper_items = {}
-        for i, resp in enumerate(response_validated):
-            datapoint = self.data[i]
-            document_id = datapoint['document_id']
-            for item in resp['items']:
-                #itemized_data.append(datapoint | item)
-                if document_id not in paper_items:
-                    paper_items[document_id] = []
-                
-                if not any(item == added_item for added_item in paper_items[document_id]):
-                    paper_items[document_id].append(item)
-
-        '''
-        # De-duplicate items within each paper
-        for doc_id, doc_items in paper_items.items():
-            unique_items = self._deduplicate(doc_items)
-            paper_items[doc_id] = unique_items
-        '''
-
-        itemized_data = []
-        for i, datapoint in enumerate(self.data):
-            document_id = datapoint['document_id']
-            for item in paper_items.get(document_id, []):
-                itemized_data.append(datapoint | item)
-
-        return itemized_data
-    
-
-    def _deduplicate(self, items: list[dict]):
-        """
-        De-duplicates a list of dictionaries.
-
-        Args:
-            items (list[dict]): A list of dictionaries to be de-duplicated.
-        Returns:
-            unique_items (list[dict]): A de-duplicated list of dictionaries.
-        """
-        matches = {}
-        for i, item in enumerate(items):
-            item_id = item.get(self.primary_identifier, None)
-            if (item_id is not None) and (item_id != 'None'):
-                if item_id not in matches:
-                    matches[item_id] = [item]
-                else:
-                    matches[item_id].append(item)
-
-        unique_items = []
-        for id, id_items in matches.items():
-            uitem = {}
-            for feature in self.identification_schema.model_fields.keys():
-                feature_values = [x.get(feature, None) for x in id_items if x.get(feature, None) is not None and x.get(feature, None) != 'None']
-                if len(feature_values) > 0:
-                    consensus_value = max(set(feature_values), key=feature_values.count)
-                    uitem[feature] = consensus_value
-                else:
-                    uitem[feature] = 'None'
-            unique_items.append(uitem)
-
-        return unique_items
+            for entity in resp_validated['items']:
+                entity_data.append(
+                    self.data[i] | entity
+                )
 
 
-    
-    '''
-    def _deduplicate(self, items: list[dict]):
-        """
-        De-duplicates a list of dictionaries.
+        instructions2 = IDENTIFY_ENTITY_ALIASES_INSTRUCTIONS
+        messages2 = []
+        message_ids2 = []
+        for i, datapoint in enumerate(entity_data):
+            context = datapoint['context']
+            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+            query = (
+                f"Extract any abbreviations or extended names that refer to "
+                f"{item} in the given context. "
+            )
+            prompt = (
+                f"## Instructions:\n{instructions2}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+            )
+            messages2.append([
+                {"role": "user", "content": prompt}]
+            )
+            message_ids2.append(i)
 
-        Args:
-            items (list[dict]): A list of dictionaries to be de-duplicated.
-        Returns:
-            unique_items (list[dict]): A de-duplicated list of dictionaries.
-        """
-        class IdentificationList(BaseModel):
-            items: list[self.identification_schema]
-
-        instructions = (
-            f"You are an expert in data processing and collection. "
-            f"Given a list of entities described by a common set of attributes, your task is to "
-            f"identify the set of unique entities by consolidating and removing any duplicates. "
-            f"Two entities are considered exact duplicates if they share identical values for all attributes. "
-            f"Duplicates, however, may also have minor variations in certain attributes due to differences in formatting, "
-            f"abbreviations, or reporting errors. Likewise, some entities may be missing values for certain "
-            f"attributes, but can still be considered duplicates if the available information matches closely enough. "
-            f"To determine if two entities are duplicates, consider the overall similarity of their attributes, "
-            f"and use your best judgement by taking into account potential variations and missing data. "
-            f"For a set of duplicate entities, retain only a single representative entity in the final output. "
-            f"This representative entity should ideally contain the most complete and accurate information available among the duplicates. "
-            f"Do NOT add any new attributes or information that is not already present in the provided entities. "
-            f"Do NOT infer or fabricate any values. "
-            f"Do NOT remove entities which are not duplicates. "
-            f"You will be provided with a list of entities in JSON format, and your task is to return the list of unique entities with duplicates removed "
-            f"in the same format. "
-        )
-        context = f"The list of entities is as follows: {items}"
-        print(context)
-        print()
-        query = "Identify and return the list of unique entities from the provided list."
-        prompt = (
-            f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-        )
-        message = [
-            {"role": "user","content": prompt}
-        ]
-        #identification_schema_json = self.identification_schema.model_json_schema()
-        identification_list_json = IdentificationList.model_json_schema()
         guided_decoding_params = GuidedDecodingParams(
-            #json=identification_schema_json
-            json=identification_list_json
+            json=ListResponse.model_json_schema()
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
             guided_decoding=guided_decoding_params
         )
+        responses = self.llm.chat(messages = messages2, sampling_params = sampling_params)
+        response_texts = [r.outputs[0].text for r in responses]
 
-        responses = self.llm.chat(messages = message, sampling_params = sampling_params)
-        response_text = responses[0].outputs[0].text
-        try:
-            #resp_validated = response_validator(self.identification_schema, response_text)
-            resp_validated = response_validator(IdentificationList, response_text)
-        except:
-            print("Validation error in identification response, reverting to original list.")
-            resp_validated = {'items': items}
+        finalized_entity_data = []
+        for i, resp in enumerate(response_texts):
+            datapoint = entity_data[message_ids2[i]]
+            try:
+                alt_names = response_validator(ListResponse, resp)['items']
+                finalized_entity_data.append(
+                    datapoint | {'entity_names': alt_names}
+                )
+            except:
+                print("Error parsing entity names response.")
+                finalized_entity_data.append(
+                    datapoint | {'entity_names': []}
+                )
 
-        unique_items = resp_validated['items']
-        print(f"Reduced {len(items)} items to {len(unique_items)} unique items.")
-        print(unique_items)
-        print()
-        print()
-        return unique_items
-    '''
+        return finalized_entity_data
     
 
-    def _measurements_filter(self):
+    def _page_locate(self):
         """
-        Filters the input items to retain only those relevant for measurements.
+        Locates page numbers, for the identified measurements.
 
         Args:
-            
+
         Returns:
             
         """
+        instructions = PAGE_LOCATE_INSTRUCTIONS
+        fields = list(self.identification_schema.model_fields.keys()) + ['measurement']
         messages = []
-        message_measurement_types = []
-        message_data_ids = []
-        for m in self.measurement_schema.model_fields.keys():
-            m_description = self.measurement_schema.model_fields[m].description
-            for i, datapoint in enumerate(self.data):
-                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
-                instructions = (
-                    f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
-                    f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
-                    f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
-                    f"Respond 'false' if the the given feature or entity do not appear in the context. "
-                    f"Respond 'false' if the context does not explicity provide data for the given feature and entity. "
-                    f"Respond 'false' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-                    f"Respond 'false' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-                    f"Respond 'false' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
-                    f"Respond 'true' only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
-                )
-                context = datapoint['context']
-                query = f"Does the context contain data for {m_description} measured for the entity {item}?"
-                prompt = (
+        message_tuples = []
+        message_ids = []
+        for i, datapoint in enumerate(self.data):
+            item = {k: v for k,v in datapoint.items() if k in fields}
+            entity_names = datapoint.get('entity_names', [])
+            context = datapoint['context']
+            pages = re.findall(r'<page number="(\d+)">', context)
+            pages = [int(p) for p in pages]
+
+            for p in pages:
+                page_start = context.find(f'<page number="{p}">') + len(f'<page number="{p}">')
+                page_end = context.find(f'</page>', page_start)
+                page_text = context[page_start: page_end].strip()
+
+                for m, measurement_names in datapoint['measurement_names'].items():
+                    m_description = self.measurement_schema.model_fields[m].description
+
+                    query = (
+                        f"Does the given page contain a measurement "
+                        f"for the feature {m_description} of the entity: {item}?"
+                        f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                        f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}."
+                    )
+                    prompt = (
+                        f"## Instructions:\n{instructions}\n\n## Context:\n{page_text}\n\n## Query:\n{query}"
+                        )
+                    messages.append(
+                        [{"role": "user","content": prompt}]
+                    )
+                    message_tuples.append((instructions, context, query))
+                    message_ids.append((i, p, m))
+
+        if not self.probe:
+            guided_decoding_params = GuidedDecodingParams(
+                choice = ['true', 'false']
+            )
+            sampling_params = SamplingParams(
+                **self.sampling_params,
+                guided_decoding=guided_decoding_params,
+                logprobs = 1,
+            )
+
+            responses = self.llm.chat(
+                messages = messages,
+                sampling_params = sampling_params,
+            )
+            response_texts = [r.outputs[0].text for r in responses]
+            response_probs = [r.outputs[0].cumulative_logprob for r in responses]
+
+            page_id_data = []
+            for i, resp in enumerate(response_texts):
+                # Isolate page in context
+                if resp != 'false':
+                    idx, page_number, measurement = message_ids[i]
+                    datapoint = self.data[idx]
+                    context = datapoint['context']
+                    page_start = context.find(f'<page number="{page_number}">') + len(f'<page number="{page_number}">')
+                    page_end = context.find(f'</page>', page_start)
+                    page_text = context[page_start: page_end].strip()
+
+                    page_id_data.append(
+                        datapoint | 
+                        {'page_number': page_number, 'context': page_text} |
+                        {'measurement': measurement, 'measurement_id': i} | 
+                        {'measurement_names': datapoint['measurement_names'].get(measurement, [])} |
+                        {'page_logprob': response_probs[i]}
+                    )
+
+        else:
+            responses = self.ctxlm.predict(
+                prompts = message_tuples
+            )
+
+            page_id_data = []
+            for i, resp in enumerate(responses):
+                # Isolate page in context
+                if resp['response'] != 'false':
+                    idx, page_number, measurement = message_ids[i]
+                    datapoint = self.data[idx]
+                    context = datapoint['context']
+                    page_start = context.find(f'<page number="{page_number}">') + len(f'<page number="{page_number}">')
+                    page_end = context.find(f'</page>', page_start)
+                    page_text = context[page_start: page_end].strip()
+
+                    page_id_data.append(
+                        datapoint | 
+                        {'page_number': page_number, 'context': page_text} |
+                        {'measurement': measurement, 'measurement_id': i} | 
+                        {'measurement_names': datapoint['measurement_names'].get(measurement, [])} |
+                        {'page_logprob': resp['logprob']} | {'page_attn_output': resp['attn_output']}
+                    )
+
+        return page_id_data
+    
+
+    '''
+    def _in_table(self):
+        """
+        Locates page numbers, for the identified measurements.
+
+        Args:
+
+        Returns:
+            
+        """
+        instructions = (
+            f"You are an expert at finding data within research papers. "
+            f"You will be given a passage from a research paper, and queried with a description for a specific entity to be measured. "
+            f"Your task is to determine if the measurement occurs within a table or not. "
+            f"Respond 'false' if the the given feature or entity do not appear in any table within the passage. "
+            f"Respond 'false' if the given feature or entity do not appear in any table within the passage. "
+            f"Respond 'false' if there is no table that explicity provides data for the given feature and entity. "
+            f"Respond 'false' if there is no table that reports a direct numerical measurement for the feature and entity. "
+            f"Respond 'false' if the data reported only contains values for parameter estimates or measures of fit for a statistical model. "
+            f"Respond 'false' for cases where there is not a clear choice for a single, numerical data value. "
+            f"Respond 'true' only if there is a table which explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
+            f"Respond with only 'true' or 'false', do not include any additional explanation in your response."
+        )
+        fields = list(self.identification_schema.model_fields.keys()) + ['measurement']
+        messages = []
+        message_tuples = []
+        message_ids = []
+        for i, datapoint in enumerate(self.data):
+            item = {k: v for k,v in datapoint.items() if k in fields}
+            page_number = datapoint.get('page_number')
+            measurement = datapoint.get('measurement')
+            measurement_description = self.measurement_schema.model_fields[measurement].description
+            entity_names = datapoint.get('entity_names', [])
+            measurement_names = datapoint.get('measurement_names', [])
+
+            context = datapoint['context']
+            #page_start = context.find(f'<page number="{page_number}">') + len(f'<page number="{page_number}">')
+            #page_end = context.find(f'</page>', page_start)
+            #page_text = context[page_start: page_end].strip()
+
+            query = (
+                f"Does a measurement of {measurement_description} for the entity {item} occur within a table in the passage?"
+                f"Note that the entity may be referred to by any of the following extended names or abbreviations: {entity_names}. "
+                f"Also note that the measurement may be referred to by any of the following abbreviations: {measurement_names}. "
+            )
+            prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
                 )
-                messages.append([
-                    {"role": "user","content": prompt}]
-                )
-                message_measurement_types.append(m)
-                message_data_ids.append(i)
+            messages.append(
+                [{"role": "user","content": prompt}]
+            )
+            message_ids.append(i)
+
 
         guided_decoding_params = GuidedDecodingParams(
             choice = ['true', 'false']
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-
-        measurement_data = []
-        for i, resp in enumerate(response_texts):
-            if resp == 'true':
-                measurement_data.append(
-                    self.data[message_data_ids[i]] | {'measurement_id': i, 'measurement': message_measurement_types[i]}
-                )
-
-        return measurement_data
-    
-
-
-    def _measurements_filter_by_page(self):
-        """
-        Filters the input items to retain only those relevant for measurements.
-
-        Args:
-            
-        Returns:
-            
-        """
-        messages = []
-        message_measurement_types = []
-        message_data_ids = []
-        for m in self.measurement_schema.model_fields.keys():
-            m_description = self.measurement_schema.model_fields[m].description
-            for i, datapoint in enumerate(self.data):
-                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
-                instructions = (
-                    f"You are an expert in discerning whether or not a given piece of scientific text is relevant for data collection. "
-                    f"You will be given context from a research paper, along with a description of a feature to be measured for a specific entity. "
-                    f"Your task is to determine if the context contains a numerical measurement for the given feature and entity. "
-                    f"Respond with -1 if the the given feature or entity do not appear in the context. "
-                    f"Respond with -1 if the context does not explicity provide data for the given feature and entity. "
-                    f"Respond with -1 if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-                    f"Respond with -1 if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-                    f"Respond with -1 for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
-                    f"Respond with the integer page number where the measurement may be found, only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
-                    f"Page numbers can be found by searching for the <PAGE_X>...</PAGE_X> tags in the context. "
-                    f"Do not attempt to infer or guess page numbers. "
-                    f"Respond with -1 or the page number only, without any additional text or explanation. "
-                )
-                context = datapoint['context']
-                query = f"Does the context contain data for {m_description} measured for the entity {item}?"
-                prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user","content": prompt}]
-                )
-                message_measurement_types.append(m)
-                message_data_ids.append(i)
-
-
-        guided_decoding_params = GuidedDecodingParams(
-            json=IntegerResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-
-        measurement_data = []
-        for i, resp in enumerate(response_texts):
-            idx = message_data_ids[i]
-            try:
-                resp_validated = response_validator(IntegerResponse, resp)
-                page_id = resp_validated['value']
-            except:
-                print("Validation error in measurement page ID response.")
-                page_id = -1
-
-            if page_id != -1:
-                if self.page_selection:
-                    context = ''
-                    page_tag_start = f"<PAGE_{page_id}>"
-                    page_tag_end = f"</PAGE_{page_id}>"
-                    context_start_idx = self.data[idx]['context'].find(page_tag_start) + len(page_tag_start)
-                    context_end_idx = self.data[idx]['context'].find(page_tag_end)
-                    if context_start_idx == -1:
-                        print("Page tags not found in context.")
-                        context = self.data[idx]['context'].strip()
-                    elif context_end_idx == -1:
-                        context = self.data[idx]['context'][context_start_idx:].strip()
-                    else:
-                        context = self.data[idx]['context'][context_start_idx: context_end_idx].strip()
-
-                    measurement_data.append(
-                        self.data[idx] | 
-                        {'context': context} | {'page_id': page_id} |
-                        {'measurement_id': i, 'measurement': message_measurement_types[i]}
-                    )
-                else:
-                    measurement_data.append(
-                        self.data[idx] | 
-                        {'page_id': page_id} |
-                        {'measurement_id': i, 'measurement': message_measurement_types[i]}
-                    )
-
-        return measurement_data
-    
-
-    def _page_id(self):
-        """
-        Extracts measurements from the text chunks for the identified items.
-
-        Args:
-
-        Returns:
-            
-        """
-        instructions = (
-            f"You are an expert in finding data within research papers. "
-            f"You will be queried with a description of an specific entity to be measured, "
-            f"and asked to locate and identify the page number on which the measurement appears. "
-            f"Page numbers can be found by searching for the <PAGE_X>...</PAGE_X> tags in the context. "
-            f"Do not attempt to infer or guess page numbers. "
-            f"If the requested measurement does not appear in the context, respond with the number -1. "
-            f"Otherwise, respond with the integer page number only, without any additional text or explanation. "
-        )
-        fields = list(self.identification_schema.model_fields.keys()) + ['measurement']
-        messages = []
-        for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k in fields}
-            item['measurement'] = self.measurement_schema.model_fields[datapoint['measurement']].description
-            context = datapoint['context']
-            query = f"Identify the page number which contains the measurement for the following datapoint: {item}."
-            prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-            messages.append([
-                {"role": "user","content": prompt}]
-            )
-
-        guided_decoding_params = GuidedDecodingParams(
-            json=IntegerResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
+            guided_decoding=guided_decoding_params,
+            logprobs = 1,
         )
 
         responses = self.llm.chat(
@@ -509,99 +453,116 @@ class MeasurementLM:
             sampling_params = sampling_params,
         )
         response_texts = [r.outputs[0].text for r in responses]
-        page_id_data = []
+
+        tabled_data = []
         for i, resp in enumerate(response_texts):
-            try:
-                resp_validated = response_validator(IntegerResponse, resp)
-                page_id = resp_validated['value']
-            except:
-                print("Validation error in page ID response.")
-                page_id = -1
-            
-            # Isolate page in context
-            if page_id != -1:
-                if self.page_selection:
-                    context = ''
-                    page_tag_start = f"<PAGE_{page_id}>"
-                    page_tag_end = f"</PAGE_{page_id}>"
-                    context_start_idx = self.data[i]['context'].find(page_tag_start) + len(page_tag_start)
-                    context_end_idx = self.data[i]['context'].find(page_tag_end)
-                    context = self.data[i]['context'][context_start_idx: context_end_idx].strip()
-
-                    page_id_data.append(
-                        self.data[i] | {'page_id': page_id} | {'context': context}
-                    )
-
-                else:
-                    page_id_data.append(
-                    self.data[i] | {'page_id': page_id}
+            datapoint = self.data[i]
+            if resp == 'true':
+                tabled_data.append(
+                    datapoint | {'table_number': -2, 'table_logprob': 0.0}
+                )
+            else:
+                tabled_data.append(
+                    datapoint | {'table_number': -1, 'table_logprob': 0.0}
                 )
 
-        return page_id_data
+        return tabled_data
+    '''
     
 
-    def _measure(self):
+    def _table_locate(self):
         """
-        Extracts measurements from the text chunks for the identified items.
+        Locates page numbers, for the identified measurements.
 
         Args:
 
         Returns:
             
         """
-        instructions = (
-            f"You are an expert in extracting precise numerical data from user provided, scientific text. "
-            f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
-            f"Your task is to extract the corresponding value if it appears in the provided context. "
-            f"Respond 'None' if the the given feature or entity do not appear in the context. "
-            f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
-            f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-            f"Respond 'None' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
-            f"Respond 'None' if the data is reported for a collection of entities rather than a single, specific entity. "
-            f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
-            f"Copy the value exactly as it appears in the context. "
-            f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-            f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
-        )
+        instructions = TABLE_LOCATE_INSTRUCTIONS
+        fields = list(self.identification_schema.model_fields.keys()) + ['measurement']
         messages = []
+        message_tuples = []
         message_ids = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
-            measurement = datapoint['measurement']
-            m_description = self.measurement_schema.model_fields[measurement].description
+            #if datapoint.get('table_number', -1) == -1:
+            #    continue
+
+            item = {k: v for k,v in datapoint.items() if k in fields}
+            measurement = datapoint.get('measurement')
+            measurement_description = self.measurement_schema.model_fields[measurement].description
+            entity_names = datapoint.get('entity_names', [])
+            measurement_names = datapoint.get('measurement_names', [])
             context = datapoint['context']
-            query = "Extract the value for the " + f"{m_description} of the entity {item}."
-            messages.append((instructions, context, query))
-            message_ids.append(datapoint['measurement_id'])
+            tables = re.findall(r'<table number="(\d+)">', context)
+            tables = [int(t) for t in tables]
 
-        measurement_responses = self.ctxlm.predict(messages, message_ids)
+            for t in tables:
+                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
+                table_end = context.find(f'</table>', table_start)
+                table_text = context[table_start: table_end].strip()
 
-        measured_data = []
-        
-        for i, resp in enumerate(measurement_responses):
-            if resp.strip().lower() != 'none':
-                measured_data.append(
-                    self.data[i] | 
-                    {
-                        'value': resp
-                    }
+                query = (
+                    f"Does the table given as context contain a measurement "
+                    f"for the feature {measurement_description} of the entity: {item}?"
+                    f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                    f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
                 )
-        '''
-        for i,response_dict in enumerate(measurement_responses):
-            if response_dict['response'].strip().lower() != 'none':
-                measured_data.append(
-                    self.data[i] | 
-                    {
-                        'value': response_dict['response'],
-                        'context_scores' : response_dict.get('context_scores', {}),
-                        'parametric_scores' : response_dict.get('parametric_scores', {}),
-                        'copying_scores' : response_dict.get('copying_scores', {}),
-                        'linear_probes' : response_dict.get('linear_probes', {})
-                    }
+                prompt = (
+                    f"## Instructions:\n{instructions}\n\n## Context:\n{table_text}\n\n## Query:\n{query}"
+                    )
+                messages.append(
+                    [{"role": "user","content": prompt}]
                 )
-        '''
-        return measured_data
+                message_tuples.append((instructions, table_text, query))
+                message_ids.append((i, t))
+
+        if not self.probe:
+            guided_decoding_params = GuidedDecodingParams(
+                choice = ['true', 'false']
+            )
+            sampling_params = SamplingParams(
+                **self.sampling_params,
+                guided_decoding=guided_decoding_params,
+                logprobs = 1,
+            )
+
+            responses = self.llm.chat(
+                messages = messages,
+                sampling_params = sampling_params,
+            )
+            response_texts = [r.outputs[0].text for r in responses]
+            response_probs = [r.outputs[0].cumulative_logprob for r in responses]
+            table_id_data = [
+                d | {'table_number': -1, 'table_logprob': 0.0} for d in self.data
+            ]
+            for i, resp in enumerate(response_texts):
+                if resp != 'false':
+                    idx, table_number = message_ids[i]
+                    datapoint = self.data[idx]
+                    table_id_data[idx] = datapoint | {
+                        'table_number': table_number, 'table_logprob': response_probs[i]
+                    }
+            
+        else:
+            responses = self.ctxlm.predict(
+                prompts = message_tuples
+            )
+            table_id_data = [
+                d | {'table_number': -1, 'table_logprob': 0.0} for d in self.data
+            ]
+            for i, resp in enumerate(responses):
+                if resp['response'] != 'false':
+                    idx, table_number = message_ids[i]
+                    datapoint = self.data[idx]
+
+                    table_id_data[idx] = datapoint | {
+                        'table_number': table_number,
+                        'table_logprob': resp['logprob'],
+                        'table_attn_output': resp['attn_output']
+                    }
+
+        return table_id_data
     
 
     def _measure_vllm(self):
@@ -613,39 +574,32 @@ class MeasurementLM:
         Returns:
             
         """
-        instructions = (
-            f"You are an expert in extracting precise numerical data from user provided, scientific text. "
-            f"You will be queried with a description of an specific entity to be measured, along with the measurement type to report for. "
-            f"Your task is to extract the corresponding value if it appears in the provided context. "
-            f"Respond 'None' if the the given feature or entity do not appear in the context. "
-            f"Respond 'None' if the context does not explicity provide data for the given feature and entity. "
-            f"Respond 'None' if the data reported is not either a direct numerical measurement or a mean of numerical measurements. "
-            f"Respond 'None' if the data reported only contains values for parameter estimates or other statistical measures of fit. "
-            f"Respond 'None' for ranges of values, inequalties, or other cases where there is not a clear choice for a single numerical data value. "
-            f"Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question. "
-            f"Copy the value exactly as it appears in the context. "
-            f"Give the value only, and do not include any units of measurement, descriptors, or explanation in your response. "
-            f"If the value is associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information. "
-        )
+        instructions = MEASURE_VALUE_INSTRUCTIONS
         messages = []
+        message_ids = []
         for i, datapoint in enumerate(self.data):
-            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
-            measurement = datapoint['measurement']
-            m_description = self.measurement_schema.model_fields[measurement].description
-            context = datapoint['context']
-            query = "Extract the value for the " + f"{m_description} of the entity {item}."
-            prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+            if datapoint['table_number'] == -1:
+                context = datapoint['context']
+                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+                entity_names = datapoint.get('entity_names', [])
+                measurement = datapoint['measurement']
+                m_description = self.measurement_schema.model_fields[measurement].description
+                measurement_names = datapoint.get('measurement_names', [])
+                query = (
+                    f"Extract the value for the {m_description} of the entity {item}. "
+                    f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                    f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
                 )
-            messages.append([
-                {"role": "user","content": prompt}]
-            )
+                prompt = (
+                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                    )
+                messages.append([
+                    {"role": "user","content": prompt}]
+                )
+                message_ids.append(i)
 
-        mlm_params = {k: v for k,v in self.sampling_params.items() if k not in ['max_tokens', 'seed', 'temperature', 'stop']}
-        mlm_params['temperature'] = 0.0
-        mlm_params['max_tokens'] = 20
         sampling_params = SamplingParams(
-            **mlm_params
+            **self.sampling_params
         )
 
         responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
@@ -653,14 +607,282 @@ class MeasurementLM:
         measured_data = []
         for i, resp in enumerate(response_texts):
             if resp.strip().lower() != 'none':
-                measured_data.append(
-                    self.data[i] | {'value': resp}
-                )
+                idx = message_ids[i]
+                measured_data.append(self.data[idx] | {'value': resp})
+
+        measured_data = measured_data + [d for d in self.data if d['table_number'] != -1]
 
         return measured_data
     
 
-    def _standardize(self):
+    def _measure_vllm_rows(self):
+        """
+        Extracts measurements from tables in the text.
+
+        Args:
+
+        Returns:
+            
+        """
+        # Next, extract the unique row name necessary to locate the measurement:
+        instructions = MEASURE_TABLE_ROW_INSTRUCTIONS
+
+        messages = []
+        sampling_params = []
+        message_ids = []
+        for i, datapoint in enumerate(self.data):
+            if datapoint['table_number'] != -1:
+                context = datapoint['context']
+                table_number = datapoint['table_number']
+                table_start = f'<table number="{table_number}">'
+                table_start = context.find(f'<table number="{table_number}">')
+                table_end = context.find(f'</table>', table_start) + len(f'</table>')
+                table_text = context[table_start: table_end].strip()
+                if not table_text:
+                    continue
+                tables = pd.read_html(StringIO(table_text))
+                table_df = tables[0]
+                row_names = table_df.loc[:,"index"].to_list() if 'index' in table_df.columns else []
+                row_names = [str(name) for name in row_names]
+
+                # Get all td elements from the table (possible row names)
+                #soup = BeautifulSoup(table_text, 'html.parser')
+                #all_cells = soup.find_all(['td'])
+                #cell_contents = [cell.get_text(strip=True) for cell in all_cells]
+
+                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+                entity_names = datapoint.get('entity_names', [])
+                measurement = datapoint['measurement']
+                measurement_names = datapoint.get('measurement_names', [])
+                m_description = self.measurement_schema.model_fields[measurement].description
+                query = (
+                    f"Extract the row index name necessary to locate the measurement "
+                    f"for the {m_description} of the entity {item} in table {table_number}. "
+                    f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                    f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
+                )
+                prompt = (
+                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                messages.append([{"role": "user","content": prompt}])
+                guided_decoding_params = GuidedDecodingParams(
+                    choice = row_names + ['None']
+                )
+                params = SamplingParams(
+                    **self.sampling_params,
+                    guided_decoding=guided_decoding_params
+                )
+                sampling_params.append(params)
+                message_ids.append(i)
+
+        
+        responses = self.llm.chat(
+            messages = messages,
+            sampling_params = sampling_params,
+        )
+        response_texts = [r.outputs[0].text for r in responses]
+        measured_data = [d for d in self.data]
+        for i, resp in enumerate(response_texts):
+            idx = message_ids[i]
+            datapoint = self.data[idx]
+            if resp.strip().lower() != 'none':
+                measured_data[idx] = datapoint | {
+                    'row_index': resp
+                }
+
+        return measured_data
+    
+
+    def _measure_vllm_columns(self):
+        """
+        Extracts measurements from tables in the text.
+
+        Args:
+
+        Returns:
+            
+        """
+        instructions = MEASURE_TABLE_COLUMN_INSTRUCTIONS
+
+        messages = []
+        sampling_params = []
+        message_ids = []
+        for i, datapoint in enumerate(self.data):
+            if int(datapoint['table_number']) != -1:
+                context = datapoint['context']
+                table_number = int(datapoint['table_number'])
+                table_start = f'<table number="{table_number}">'
+                table_start = context.find(f'<table number="{table_number}">')
+                table_end = context.find(f'</table>', table_start) + len(f'</table>')
+                table_text = context[table_start: table_end].strip()
+                tables = pd.read_html(StringIO(table_text))
+                table_df = tables[0]
+                column_names = [str(name) for name in table_df.columns.tolist()]
+                column_names = [str(name) for name in column_names if str(name) != 'index']
+
+                item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+                entity_names = datapoint.get('entity_names', [])
+                measurement = datapoint['measurement']
+                m_description = self.measurement_schema.model_fields[measurement].description
+                measurement_names = datapoint.get('measurement_names', [])
+                query = (
+                    f"Extract the column index name necessary to locate the measurement "
+                    f"for the {m_description} of the entity {item} in table {table_number}. "
+                    f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                    f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
+                )
+                prompt = (
+                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                messages.append([
+                    {"role": "user","content": prompt}]
+                )
+                guided_decoding_params = GuidedDecodingParams(
+                    choice = column_names + ['None']
+                )
+                params = SamplingParams(
+                    **self.sampling_params,
+                    guided_decoding=guided_decoding_params
+                )
+                sampling_params.append(params)
+                message_ids.append(i)
+
+
+        responses = self.llm.chat(
+            messages = messages,
+            sampling_params = sampling_params,
+        )
+        response_texts = [r.outputs[0].text for r in responses]
+        measured_data = [d for d in self.data]
+        for i, resp in enumerate(response_texts):
+            idx = message_ids[i]
+            datapoint = self.data[idx]
+            if resp.strip().lower() != 'none':
+                measured_data[idx] = datapoint | {
+                    'column_index': resp
+                }
+
+
+        return measured_data
+
+
+    def _table_extract(self):
+        """
+        Extracts measurements from tables in the text.
+        """
+        table_extracted_data = [d for d in self.data]
+        for i, datapoint in enumerate(self.data):
+            if datapoint.get('row_index', None) is not None and datapoint.get('column_index', None) is not None:
+                context = datapoint['context']
+                table_number = int(datapoint['table_number'])
+                table_start = context.find(f'<table number="{table_number}">')
+                table_end = context.find(f'</table>', table_start) + len(f'</table>')
+                table_text = context[table_start: table_end].strip()
+                tables = pd.read_html(StringIO(table_text))
+                table_df = tables[0]
+
+                col_name = datapoint['column_index']
+                row_name = datapoint['row_index']
+
+                # Get matching rows
+                matched_rows = table_df.loc[table_df["index"] == row_name][col_name]
+                
+                # Handle edge cases: no matches, multiple matches, or single match
+                if len(matched_rows) == 0:
+                    # No matching row found
+                    print("No matching row found in table extraction.")
+                    val = None
+                elif len(matched_rows) == 1:
+                    val = matched_rows.item()
+                else:
+                    # Multiple matches - take the first one
+                    print("Multiple matching rows found in table extraction, taking the first match.")
+                    val = matched_rows.iloc[0]
+                
+                table_extracted_data[i] = datapoint | {'value': val}
+
+                '''
+                # Find column index:
+                if col_name in table.columns:
+                    col_idx = table.columns.get_loc(col_name)
+                else:
+                    try:
+                        # parse multi-level column names
+                        col_name_parsed = ast.literal_eval(col_name)
+                        col_idx = table.columns.get_loc(col_name_parsed)
+                    except:
+                        col_idx = None
+
+
+                # Find row index:
+                try:
+                    row_mask = (table.iloc[:,:3] == row_name).sum(axis = 1)
+                    row_idx = row_mask[row_mask > 0].index[0]
+                except:
+                    row_idx = None
+
+                if row_idx is not None and col_idx is not None:
+                    table_extracted_data[i] = datapoint | {
+                        'value': table.iat[row_idx, col_idx]
+                    }
+                '''
+
+        return [t for t in table_extracted_data if t.get('value', None) is not None]
+    
+
+    def _standardize_measurements(self):
+        """
+        Standardizes the measurement units for the extracted measurements.
+
+        Args:
+
+        Returns:
+            
+        """
+        instructions = STANDARDIZE_MEASUREMENTS_INSTRUCTIONS
+        messages = []
+        message_data_ids = []
+        sampling_params = []
+        for i, datapoint in enumerate(self.data):
+            item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+            entity_names = datapoint.get('entity_names', [])
+            measurement = datapoint['measurement']
+            measurement_val = datapoint['value']
+            measurement_description = self.measurement_schema.model_fields[measurement].description
+            measurement_names = datapoint.get('measurement_names', [])
+            context = datapoint['context']
+
+            query = (
+                f"Entity measured: {item}\n"
+                f"Measurement type: {measurement_description}\n"
+                f"Measurement value: {measurement_val}\n"
+                f"Standardize the measurement value for the given data point. "
+                f"Note that the entity may be referred to by any of the following extended aliases, names, or abbreviations: {entity_names}. "
+                f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
+            )
+            prompt = (
+                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+            )
+            messages.append(
+                [{"role": "user", "content": prompt}]
+            )
+            message_data_ids.append(i)
+            params = SamplingParams(
+                **self.sampling_params,
+            )
+            sampling_params.append(params)
+
+        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
+        response_units = [r.outputs[0].text for r in responses]
+        
+        standardized_data = [datapoint for datapoint in self.data]
+        for i, resp in enumerate(response_units):
+            standardized_data[message_data_ids[i]]['value'] = resp.strip()
+
+        return standardized_data
+        
+    
+    def _standardize_units(self):
         """
         Gives standardized units to the extracted measurements.
 
@@ -669,23 +891,17 @@ class MeasurementLM:
         Returns:
             
         """
-        instructions = (
-            f"You are an expert in data collection and scientific measurements. "
-            f"You will be given context from a research paper, along with a description of a extracted measurement value and the feature and entity it was reported for. "
-            f"Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of given unit options. "
-            f"To ensure units follow standard formatting conventions, your response should be limited to options from among the given list. "
-            f"If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context. "
-            f"Your response should include the unit only, do not include any additional explanation or text. "
-        )        
+        instructions = STANDARDIZE_UNITS_INSTRUCTIONS
         messages = []
         message_data_ids = []
         sampling_params = []
         for i, datapoint in enumerate(self.data):
             item = {k: v for k,v in datapoint.items() if k in self.identification_schema.model_fields.keys()}
+            entity_names = datapoint.get('entity_names', [])
             measurement = datapoint['measurement']
             measurement_val = datapoint['value']
-
             measurement_description = self.measurement_schema.model_fields[measurement].description
+            measurement_names = datapoint.get('measurement_names', [])
             available_units = self.measurement_schema.model_fields[measurement].json_schema_extra.get('units', None)
 
             if available_units is not None:
@@ -695,7 +911,9 @@ class MeasurementLM:
                     f"Entity measured: {item}\n"
                     f"Measurement type: {measurement_description}\n"
                     f"Measurement value: {measurement_val}\n"
-                    f"Determine the unit of measurement for the given data point from among the following choices: {available_units}."
+                    f"Determine the unit of measurement for the given data point from among the following choices: {available_units}. "
+                    f"Note that the entity may be referred to by any of the following aliases, extended names, or abbreviations: {entity_names}. "
+                    f"Note that the measurement may be referred to by any of the following terms or abbreviations: {measurement_names}. "
                 )
                 prompt = (
                     f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
@@ -753,11 +971,9 @@ class MeasurementLM:
         self.data = self._filter()
         self.data = self._identify()
         self.data = self._measurements_filter()
-        self.data = self._page_id()
-        if self.return_full_output:
-            self.data = self._measure()
-        else:
-            self.data = self._measure_vllm()
+        self.data = self._locate()
+        self.data = self._measure_vllm()
+        self.data = self._measure_vllm_tables()
         self.data = self._standardize()
         #self.data = self._judge()
 

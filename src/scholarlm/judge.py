@@ -143,6 +143,7 @@ class JudgementLM:
                 'value': entry['value']
             }
             measurement_names = entry.get('measurement_names', [])
+            entity_names = entry.get('entity_names', [])
 
             prompt = (
                 f'## Instructions:\n'
@@ -156,7 +157,8 @@ class JudgementLM:
                 f"{json.dumps(measurement)}\n\n"
                 f"## Query:\n"
                 f"Is the extracted measurement value correctly attributed to the given entity?"
-                f"Note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
+                f"Note that the entity may be referred to by any of the following extended names or abbreviations: {entity_names}. "
+                f"Also note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
             )
 
             messages.append([
@@ -218,6 +220,7 @@ class JudgementLM:
             datapoint['measurement'] = self.measurement_schema.model_fields[entry['measurement']].description
             datapoint['value'] = entry['value']
             measurement_names = entry.get('measurement_names', [])
+            entity_names = entry.get('entity_names', [])
 
             prompt = (
                 f'## Instructions:\n'
@@ -228,7 +231,8 @@ class JudgementLM:
                 f"{json.dumps(datapoint)}\n\n"
                 f"## Query:\n"
                 f"Does the extracted data point deviate from its given intstructions?",
-                f"Note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
+                f"Note that the entity may be referred to by any of the following extended names or abbreviations: {entity_names}. "
+                f"Also note that the text may also refer to the measurement using any of the following abbreviations: {measurement_names}."
             )
 
             messages.append([

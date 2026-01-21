@@ -1,16 +1,10 @@
 from .contextlm import ContextLM
 
-from .contextlm2 import ContextLM2
-
-from .contextlm3 import ContextLM3
-
 from .documentlm import DocumentLM
 
 from .documentlm2 import DocumentLM2
 
 from .measurementlm import MeasurementLM
-
-from .measurementlm2 import MeasurementLM2
 
 from .judge import JudgementLM
 
@@ -26,4 +20,8 @@ from .utils import (
     jensen_shannon_divergence,
     table_extract,
     add_row_names
+)
+
+from .instruction_prompts import (
+    JUDGE_INSTRUCTIONS
 )

@@ -5,7 +5,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
-from scholarlm import DocumentLM2, MeasurementLM2 #, ContextLM 
+from scholarlm import DocumentLM2, MeasurementLM #, ContextLM 
 from scholarlm.utils import get_filenames_in_directory
 
 #task_id = int(os.getenv('SGE_TASK_ID'))
@@ -28,7 +28,6 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
 text_files.sort()
 
-
 text_files = [
     'physical_and_chemical_limnological.txt',
     'physical-chemical_influences.txt',
@@ -41,8 +40,6 @@ text_files = [
     'diversity_of_macroinvertebrates.txt',
     'impact_of_macrophytes.txt'
 ]
-
-#text_files = ['habitat_characteristics.txt']
 
 text_filepaths = []
 text_info = []
@@ -130,8 +127,10 @@ class MeasurementSchema(BaseModel):
         json_schema_extra={'units': ["µg/L", "mg/L", "mg/m^3"]}
     )
 
-measurementlm = MeasurementLM2(
-    model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
+measurementlm = MeasurementLM(
+    #model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
+    #model_name="cyankiwi/Olmo-3.1-32B-Instruct-AWQ-8bit",
+    model_name="Valdemardi/DeepSeek-R1-Distill-Qwen-32B-AWQ",
     identification_prompt=identification_prompt,
     identification_schema=IdentificationSchema,
     measurement_schema=MeasurementSchema,
@@ -142,8 +141,7 @@ measurementlm = MeasurementLM2(
         "max_tokens" : 8192,
         "seed": 342,
     },
-    return_full_output=False,
-    page_selection = False,
+    probe = False,
 )
 
 
@@ -235,14 +233,14 @@ def standardize(infile, outfile):
 
 #data = measurementlm.fit(text_chunks)
 
-outfile1 = "data/12_17_25/ten_identify.json"
+outfile1 = "data/01_07_26/ten_identify_deepseek.json"
 identify(text, outfile1)
 
-outfile2 = "data/12_17_25/ten_locate.json"
+outfile2 = "data/01_07_26/ten_locate_deepseek.json"
 locate(outfile1, outfile2)
 
-outfile3 = "data/12_17_25/ten_measure.json"
+outfile3 = "data/01_07_26/ten_measure_deepseek.json"
 measure(outfile2, outfile3)
 
-outfile4 = "data/12_17_25/ten_standardize.json"
+outfile4 = "data/01_07_26/ten_standardize_deepseek.json"
 standardize(outfile3, outfile4)

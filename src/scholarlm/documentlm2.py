@@ -104,8 +104,6 @@ class DocumentLM2:
         # Retry with higher temperature if max tokens exceeded (often due to runaway tables)
         temp = self.sampling_params.temperature
         while temp <= 1.0:
-            temp += 0.2
-            temp = min(temp, 1.0)
             self.sampling_params.temperature = temp
             retry_messages = []
             retry_message_ids = []
@@ -123,6 +121,8 @@ class DocumentLM2:
             for i, r in enumerate(retry_responses):
                 idx = retry_message_ids[i]
                 responses[idx] = r
+
+            temp += 0.2
 
 
         response_text = [r.outputs[0].text for r in responses]
@@ -150,7 +150,7 @@ class DocumentLM2:
             # Add unique IDs to each table
             counter = count()
             doc_text = re.sub(
-                r"<table>", lambda m: f'<table number="{next(counter)}">', doc_text
+                r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
             )
 
             # Add row names to each table
