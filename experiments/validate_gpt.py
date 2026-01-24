@@ -109,6 +109,14 @@ client = AsyncOpenAI()
 async def run_single_chat(model, custom_id, messages, sem, max_retries):
     """
     Run a single chat completion with automatic retry on 429 errors.
+
+    Returns:
+        (custom_id, result_dict)
+        result_dict contains:
+          - validation: model text (expected 'true'/'false')
+          - confidence: probability of the (first) token the model actually produced
+            for 'true'/'false' (best-effort; None if logprobs unavailable)
+          - model: model name
     """
     async with sem:
         for attempt in range(max_retries):
@@ -116,9 +124,54 @@ async def run_single_chat(model, custom_id, messages, sem, max_retries):
                 response = await client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    max_completion_tokens=12288
+                    # This task should only output a boolean.
+                    max_completion_tokens=8,
+                    temperature=0,
+                    # Ask for token logprobs.
+                    logprobs=True,
+                    # Request enough alternatives so 'true'/'false' show up even if tokenization differs.
+                    top_logprobs=5,
                 )
-                return custom_id, response.choices[0].message.content
+
+                text = (response.choices[0].message.content or "").strip()
+
+                confidence = None
+                try:
+                    import math
+
+                    lp = getattr(response.choices[0], "logprobs", None)
+                    content = getattr(lp, "content", None) if lp is not None else None
+
+                    if content:
+                        first = content[0]
+
+                        # 1) Prefer the logprob of the actually generated token.
+                        first_token = (getattr(first, "token", None) or "").strip().lower()
+                        first_logprob = getattr(first, "logprob", None)
+
+                        if first_logprob is not None and first_token in {"true", "false"}:
+                            confidence = float(math.exp(first_logprob))
+                        else:
+                            # 2) Fallback: look for returned label in the top_logprobs list.
+                            top = getattr(first, "top_logprobs", None) or []
+                            label = text.strip().lower()
+
+                            for t in top:
+                                tok = (getattr(t, "token", None) or "").strip().lower()
+                                if tok == label:
+                                    lprob = getattr(t, "logprob", None)
+                                    if lprob is not None:
+                                        confidence = float(math.exp(lprob))
+                                        break
+
+                except Exception:
+                    confidence = None
+
+                return custom_id, {
+                    "validation": text,
+                    "confidence": confidence,
+                    "model": model,
+                }
 
             except RateLimitError as e:
                 wait_time = (2 ** attempt) + random.random()
@@ -129,9 +182,9 @@ async def run_single_chat(model, custom_id, messages, sem, max_retries):
             except APIError as e:
                 wait_time = (2 ** attempt) + random.random()
                 print(f"[{custom_id}] API error (attempt {attempt+1}/{max_retries}): {e}")
-                print(f"  Retrying in {wait_time:.2f}s...") 
+                print(f"  Retrying in {wait_time:.2f}s...")
                 await asyncio.sleep(wait_time)
-            
+
             except Exception as e:
                 print(f"[{custom_id}] Unexpected error: {type(e).__name__}: {e}")
                 raise
@@ -143,40 +196,42 @@ async def run_all_chats(chats, model="gpt-4o", max_concurrent=1, max_retries=10)
     Run all chats in parallel with limited concurrency.
     """
     sem = asyncio.Semaphore(max_concurrent)
-    
+
     async def run_with_delay(chat, delay):
         await asyncio.sleep(delay)
         return await run_single_chat(model, chat["custom_id"], chat["messages"], sem, max_retries=max_retries)
-    
+
     # Stagger the initial requests by 5 seconds each to avoid rate limiting
     tasks = [
         run_with_delay(chat, idx * 1.0)
         for idx, chat in enumerate(chats)
     ]
     results = await asyncio.gather(*tasks)
-    return {cid: text for cid, text in results}
+    return {cid: payload for cid, payload in results}
 
 
 ####################################################################################################
 # Run batches with size limit and parallel processing
 
 responses = asyncio.run(run_all_chats(
-    chats, 
+    chats,
     model="gpt-5.2",
     max_concurrent=500,
     max_retries=7
 ))
 
 data_validated = []
-for cid, response_text in responses.items():
+for cid, result in responses.items():
     idx = int(cid)
     entry = data[idx]
     entry_validated = entry | {
-        'validation': response_text
+        'validation': result.get('validation'),
+        'validation_confidence': result.get('confidence'),
+        'validation_model': result.get('model'),
     }
     data_validated.append(entry_validated)
 
-output_file = f"data/01_14_26/ten_validated3.json"
+output_file = f"data/01_20_26/ten_validated_gpt.json"
 
 with open(output_file, "w") as f:
     json.dump(data_validated, f, indent=4, ensure_ascii=False)
