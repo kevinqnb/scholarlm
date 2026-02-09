@@ -5,7 +5,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
-from scholarlm import DocumentLM2, MeasurementLM #, ContextLM 
+from scholarlm import MeasurementLM
 from scholarlm.utils import get_filenames_in_directory
 
 #task_id = int(os.getenv('SGE_TASK_ID'))
@@ -60,75 +60,129 @@ for filepath in text_filepaths:
         text.append(content)
 
 
-identification_prompt = """You are an expert in identifying ponds, lakes, and wetlands referenced in text from scientific literature. Using the given context, find, identify, and list all individual pond, lake, or wetland ecosystems it mentions. 
-* Any identified ecosystem must be a distinct entity, and not a general reference to or an aggregate collection of ecosystems. 
-* For each ecosystem, provide the following identification attributes: name, date observed, geographic location, and ecosystem type (pond, lake, wetland, or other). If any one of these attributes is not explicitly mentioned in the text, respond with the value None for that attribute. 
-* Each identified entity should be as specific as possible to the state it was measured in. If there are multiple dates observed for what is otherwise the same ecosystem, treat each as separate, identified items. If an ecosystem is measured in different physical states (e.g. after treatment or during different seasons), treat each as separate, identified items, and distinguish them in the name attribute. However, if any ecosystem is mentioned multiple times with identical attributes or states, only list it once. 
-* If the text uses multiple names that refer to the same ecosystem, use only the most complete, full-form name that still uniquely identifies the ecosystem. It is also acceptable to use codes or abbreviations if that is the only form of the name given. 
-* Make sure to check table rows or columns for any entities which may be listed there, but  are not mentioned elsewhere in the paper.
-* Format the output as a JSON object with an array of items, where each item is an object containing the specified identification attributes. If no distinct ecosystems are found within the context, the items array should be empty.
+POND_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature.
 
-Example response 1: {{'items': [{{'name': 'Pond A', 'date': '2020-05-01', 'location': 'Location A', 'ecosystem': 'pond'}}, {{'name': 'Pond A', 'date': '2021-05-01', 'location': 'Location A', 'ecosystem': 'pond'}}, {{'name': 'Wetland B', 'date': None, 'location': None, 'ecosystem': 'wetland'}}]}} 
+Given the provided text (including any tables), extract all distinct ecosystem observations.
 
-Example response 2 (no distinct ecosystems are found): {{'items': []}}
+An ecosystem observation is defined as a specific pond, lake, wetland, or other aquatic ecosystem. 
+The observation may be further identified by a specific treatment site within the ecosystem, a specific treatment state, and/or by a specific date of measurement.
+
+
+WHAT COUNTS AS AN ECOSYSTEM:
+- Include ponds, lakes, wetlands, and similar aquatic ecosystems.
+- Marshes, bogs, fens, and swamp should all be considered as "wetland".
+- If the ecosystem type is unclear, classify it as "other".
+
+
+ATTRIBUTE SCHEMA:
+For each distinct ecosystem observation, output one item with the following attributes:
+- name
+- abbreviations and/or codes for reference
+- general location
+- treatment site
+- treatment state
+- date of observation
+- ecosystem type
+
+
+IDENTIFICATION GUIDELINES:
+Treat ecosystem observations with the same name as multiple separate items if ANY of the following differ:
+- Site or sub-site identifier (e.g., different plots, basins, units, or coded sites such as "P1", "W2", etc.)
+- Treatment state (e.g., restored vs unrestored, control vs treatment, fertilized vs unfertilized, etc.)
+- Date of observation or sampling
+
+However, if the same ecosystem is mentioned with the same site, same state, and same date, do not duplicate it.
+
+
+STRICT RULES ABOUT MISSING INFORMATION:
+- Do NOT infer, guess, or derive any attribute.
+- Use ONLY information explicitly stated in the text.
+- If an attribute is not explicitly given, set its value to None.
+
+
+EXTRACTION PROCEDURE (FOLLOW IN ORDER):
+1. Scan the entire text, including tables, for any mentions of specific ponds, lakes, wetlands, or coded sites.
+2. Determine which mentions correspond to distinct ecosystem observations using the identity rules above.
+3. Output one JSON item per distinct observation.
+4. Collect all items into a single JSON array under the key "items".
+
+
+OUTPUT FORMAT REQUIREMENTS:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "abbreviations": "...",
+      "location": "...",
+      "site": "...",
+      "state": "...",
+      "date": "...",
+      "ecosystem": "..."
+    }
+  ]
+}
+- If no distinct ecosystems are found, output exactly:
+{ "items": [] }
 """
 
-class IdentificationSchema(BaseModel):
+class ObservationSchema(BaseModel):
     name: str | None
-    date: str | None
+    abbreviations: str | None
     location: str | None
+    site: str | None
+    state: str | None
+    date: str | None
     ecosystem: str | None
-    model_config = {
-        'title': 'Ecosystem Identifier',
-        'entity_description': 'ponds, lakes, or wetlands',
-        'primary_identifier': 'name'
-    }
 
-class MeasurementSchema(BaseModel):
-    latitude: float | None = Field(
-        description="latitude",
-        json_schema_extra={'units': ["degrees", "radians"]}
-    )
-    longitude: float | None = Field(
-        description="longitude",
-        json_schema_extra={'units': ["degrees", "radians"]}
-    )
-    surface_area: float | None = Field(
-        description="surface area",
-        json_schema_extra={'units': ["km^2", "mi^2", "ha", "m^2", "acres"]}
-    )
-    max_depth: float | None = Field(
-        description="maximum depth",
-        json_schema_extra={'units': ["m", "km", "ft"]}
-    )
-    vegetation_cover: float | None = Field(
-        description="aquatic macrophyte percent coverage",
-        json_schema_extra={'units': ["percent", "fraction"]}
-    )
-    ph: float | None = Field(
-        description="pH level",
-        json_schema_extra={'units': None}
-    )
-    tn: float | None = Field(
-        description="total nitrogen concentration",
-        json_schema_extra={'units': ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]}
-    )
-    tp: float | None = Field(
-        description="total phosphorus concentration",
-        json_schema_extra={'units': ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]}
-    )
-    chla: float | None = Field(
-        description="chlorophyll-a concentration",
-        json_schema_extra={'units': ["µg/L", "mg/L", "mg/m^3"]}
-    )
+
+feature_info_dict = {
+    "latitude": {
+        "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
+        "units": ["degrees", "radians"]
+    },
+    "longitude": {
+        "description": "Geographic longitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
+        "units": ["degrees", "radians"]
+    },
+    "surface_area": {
+        "description": "Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.",
+        "units": ["km^2", "mi^2", "ha", "m^2", "acres"]
+    },
+    "max_depth": {
+        "description": "Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.",
+        "units": ["m", "km", "ft"]
+    },
+    "vegetation_cover": {
+        "description": "Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other aquatic vegetation. This should refer to areal coverage, not biomass or volume.",
+        "units": ["percent", "fraction"]
+    },
+    "ph": {
+        "description": "pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.",
+        "units": []
+    },
+    "tn": {
+        "description": "Total nitrogen concentration in the water column, including both dissolved and particulate forms and all major species (e.g., nitrate, nitrite, ammonium, organic nitrogen), as explicitly reported in the source.",
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
+    },
+    "tp": {
+        "description": "Total phosphorus concentration in the water column, including both dissolved and particulate forms, as explicitly reported in the source (i.e., not just soluble reactive phosphorus or orthophosphate).",
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
+    },
+    "chla": {
+        "description": "Chlorophyll-a concentration in the water column, used as a proxy for phytoplankton biomass. This should refer to extracted or in situ chlorophyll-a measurements, not total chlorophyll or other pigments unless explicitly labeled as chlorophyll-a.",
+        "units": ["µg/L", "mg/L", "mg/m^3"]
+    },
+}
+
 
 measurementlm = MeasurementLM(
     model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
-    #model_name="cyankiwi/Olmo-3.1-32B-Instruct-AWQ-8bit",
-    #model_name="Valdemardi/DeepSeek-R1-Distill-Qwen-32B-AWQ"
-    identification_prompt=identification_prompt,
-    identification_schema=IdentificationSchema,
-    measurement_schema=MeasurementSchema,
+    entity_identification_prompt=POND_IDENTIFICATION_PROMPT,
+    entity_identification_schema=ObservationSchema,
+    feature_info_dict=feature_info_dict,
     sampling_params={
         "temperature": 0.1,
         "top_p" : 0.95,
@@ -136,7 +190,6 @@ measurementlm = MeasurementLM(
         "max_tokens" : 8192,
         "seed": 342,
     },
-    probe = False,
 )
 
 
@@ -163,7 +216,9 @@ def identify(text, outfile):
         data.append({'document_id': i, 'context' : paper})
 
     measurementlm.data = data
-    data = measurementlm._identify_measurements()
+    data = measurementlm._identify_feature_terms()
+    measurementlm.data = data
+    data = measurementlm._identify_feature_units()
     measurementlm.data = data
     data = measurementlm._identify_entities()
 
@@ -178,30 +233,11 @@ def locate(infile, outfile):
         data = json.load(f)
     
     measurementlm.data = data
+    data = measurementlm._identify_entity_feature_pairs()
+    measurementlm.data = data
     data = measurementlm._page_locate()
-    #measurementlm.data = data
-    #data = measurementlm._in_table()
     measurementlm.data = data
     data = measurementlm._table_locate()
-
-    if measurementlm.probe:
-        # Save attention outputs separately
-        attn_output_dir = "data/01_14_26/attention_outputs"
-        filtered_data = []
-        for entry in data:
-            page_attn_output = entry.pop('page_attn_output', None)
-            table_attn_output = entry.pop('table_attn_output', None)
-            filtered_data.append(entry)
-
-            measurement_id = entry['measurement_id']
-            if page_attn_output is not None:
-                attn_outfile = os.path.join(attn_output_dir, f"page_attn_{measurement_id}.npz")
-                np.savez_compressed(attn_outfile, attn_output=page_attn_output)
-            if table_attn_output is not None:
-                attn_outfile = os.path.join(attn_output_dir, f"table_attn_{measurement_id}.npz")
-                np.savez_compressed(attn_outfile, attn_output=table_attn_output)
-
-        data = filtered_data
 
     with open(outfile, 'w') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
@@ -232,8 +268,6 @@ def standardize(infile, outfile):
 
     measurementlm.data = data
     data = measurementlm._standardize_measurements()
-    measurementlm.data = data
-    data = measurementlm._standardize_units()
 
     dataset = []
     for datapoint in data:
@@ -249,14 +283,14 @@ def standardize(infile, outfile):
 
 #data = measurementlm.fit(text_chunks)
 
-outfile1 = "data/01_14_26/ten_identify4.json"
+outfile1 = "data/01_28_26/ten_identify.json"
 identify(text, outfile1)
 
-outfile2 = "data/01_14_26/ten_locate4.json"
+outfile2 = "data/01_28_26/ten_locate.json"
 locate(outfile1, outfile2)
 
-outfile3 = "data/01_14_26/ten_measure4.json"
+outfile3 = "data/01_28_26/ten_measure.json"
 measure(outfile2, outfile3)
 
-outfile4 = "data/01_14_26/ten_standardize4.json"
+outfile4 = "data/01_28_26/ten_standardize.json"
 standardize(outfile3, outfile4)

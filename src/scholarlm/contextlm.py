@@ -45,6 +45,7 @@ class ContextLM:
         
         #self.llm = LanguageModel(model_name, **nnsight_kwargs)
         self.llm = StandardizedTransformer(model_name, enable_attention_probs=False, **nnsight_kwargs)
+        print(self.llm)
         self.tokenizer = self.llm.tokenizer
         if self.tokenizer.pad_token is None:
             self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
@@ -123,7 +124,7 @@ class ContextLM:
 
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             attention_outputs = torch.zeros(
-                size=(self.n_layers, self.n_heads, self.head_dim),
+                size=(self.max_new_tokens, self.n_layers, self.n_heads, self.head_dim),
                 device=tensor_device,
                 dtype=torch.bfloat16,
             ).save()
@@ -141,7 +142,9 @@ class ContextLM:
             with tracer.iter[:] as token_idx:
                 for layer_idx, layer in enumerate(self.llm.model.layers):
                     # Output of attention is the input to the MLP
-                    attention_outputs[layer_idx, :, :] = (
+                    #print("Storing attention output for layer", layer_idx)
+                    #print(layer.self_attn.o_proj.input[-1, -1, :].shape)
+                    attention_outputs[token_idx, layer_idx, :, :] = (
                         layer.self_attn.o_proj.input[-1, -1, :]
                         .view(self.n_heads, self.head_dim)
                         .detach()
@@ -154,16 +157,15 @@ class ContextLM:
 
                 response_tokens_cpu[token_idx] = tok_id
                 response_log_prob[0] += float(tok_logp)
-            
-            print("Response log-probability:", response_log_prob[0])
 
         response = self.llm.tokenizer.decode(response_tokens_cpu, skip_special_tokens=True)
+        n_generated_tokens = (response_tokens_cpu != self.tokenizer.pad_token_id).sum().item()
 
         response_dict = {
             "response": response,
             "logprob": float(response_log_prob[0]),
         }
-        response_dict["attn_output"] = attention_outputs.float().cpu().numpy()
+        response_dict["attn_output"] = attention_outputs[n_generated_tokens - 1].float().cpu().numpy()
 
         # Explicitly delete large tensors to free memory after .save() references
         del attention_outputs

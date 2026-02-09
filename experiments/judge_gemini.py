@@ -30,74 +30,84 @@ from scholarlm import JUDGE_INSTRUCTIONS
 
 ####################################################################################################
 
-class MeasurementSchema(BaseModel):
-    latitude: float | None = Field(
-        description="latitude",
-        json_schema_extra={"units": ["degrees", "radians"]},
-    )
-    longitude: float | None = Field(
-        description="longitude",
-        json_schema_extra={"units": ["degrees", "radians"]},
-    )
-    surface_area: float | None = Field(
-        description="surface area",
-        json_schema_extra={"units": ["km^2", "mi^2", "ha", "m^2", "acres"]},
-    )
-    max_depth: float | None = Field(
-        description="maximum depth",
-        json_schema_extra={"units": ["m", "km", "ft"]},
-    )
-    vegetation_cover: float | None = Field(
-        description="aquatic macrophyte percent coverage",
-        json_schema_extra={"units": ["percent", "fraction"]},
-    )
-    ph: float | None = Field(
-        description="pH level",
-        json_schema_extra={"units": None},
-    )
-    tn: float | None = Field(
-        description="total nitrogen concentration",
-        json_schema_extra={"units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]},
-    )
-    tp: float | None = Field(
-        description="total phosphorus concentration",
-        json_schema_extra={"units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]},
-    )
-    chla: float | None = Field(
-        description="chlorophyll-a concentration",
-        json_schema_extra={"units": ["µg/L", "mg/L", "mg/m^3"]},
-    )
+
+class ObservationSchema(BaseModel):
+    name: str | None
+    abbreviations: str | None
+    location: str | None
+    site: str | None
+    state: str | None
+    date: str | None
+    ecosystem: str | None
+
+fields = ObservationSchema.model_fields.keys()
+
+feature_info_dict = {
+    "latitude": {
+        "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
+        "units": ["degrees", "radians"]
+    },
+    "longitude": {
+        "description": "Geographic longitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
+        "units": ["degrees", "radians"]
+    },
+    "surface_area": {
+        "description": "Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.",
+        "units": ["km^2", "mi^2", "ha", "m^2", "acres"]
+    },
+    "max_depth": {
+        "description": "Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.",
+        "units": ["m", "km", "ft"]
+    },
+    "vegetation_cover": {
+        "description": "Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other aquatic vegetation. This should refer to areal coverage, not biomass or volume.",
+        "units": ["percent", "fraction"]
+    },
+    "ph": {
+        "description": "pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.",
+        "units": []
+    },
+    "tn": {
+        "description": "Total nitrogen concentration in the water column, including both dissolved and particulate forms and all major species (e.g., nitrate, nitrite, ammonium, organic nitrogen), as explicitly reported in the source.",
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
+    },
+    "tp": {
+        "description": "Total phosphorus concentration in the water column, including both dissolved and particulate forms, as explicitly reported in the source (i.e., not just soluble reactive phosphorus or orthophosphate).",
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
+    },
+    "chla": {
+        "description": "Chlorophyll-a concentration in the water column, used as a proxy for phytoplankton biomass. This should refer to extracted or in situ chlorophyll-a measurements, not total chlorophyll or other pigments unless explicitly labeled as chlorophyll-a.",
+        "units": ["µg/L", "mg/L", "mg/m^3"]
+    },
+}
 
 
 ####################################################################################################
 
 # Match your GPT script defaults; edit as needed.
-input_file = "data/01_14_26/ten_judged3.json"
-output_file = "data/01_20_26/ten_validated_gemini.json"
+input_file = "data/01_28_26/ten_standardize.json"
+output_file = "data/01_28_26/ten_judged_gemini.json"
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     chats: list[dict[str, Any]] = []
 
     for i, entry in enumerate(data):
-        context = entry.get("context", None)
-        name = entry.get("name", None)
-        feature = MeasurementSchema.model_fields[entry["measurement"]].description
-        value = entry.get("value", None)
-        units = entry.get("units", None)
-        entity_names = entry.get("entity_names", [])
-        feature_names = entry.get("measurement_names", [])
+        context = entry['context']
+        feature = entry.get('feature')
+        feature_description = feature_info_dict[feature]['description']
+        feature_terms = entry.get('feature_terms', [])
+        entity_description = {k: v for k,v in entry.items() if k in fields}
+        measurement_val = entry['value']
 
         instructions = JUDGE_INSTRUCTIONS
-        query = f"""Is the extracted data point valid for the given entity and feature?
-Extracted Data Point:
-    Entity Name: {name}
-    Feature: {feature}
-    Value: {value}
-    Units: {units}
-Note that the entity may be known by multiple names: {', '.join(entity_names)}.
-Also, the feature may be referred to by different terms: {', '.join(feature_names)}.
-    """
+        query = (
+            f"Feature description: {feature_description}\n"
+            f"Terminology used for the feature: {feature_terms}\n"
+            f"Entity description: {entity_description}\n"
+            f"Extracted measurement: {measurement_val}\n\n"
+            f"Is the extracted data point valid for the given entity and feature?"
+        )
 
         prompt = f"## Context:\n{context}\n\n## Query:\n{query}"
 
@@ -279,7 +289,7 @@ async def run_single_chat(
                         print(f"[{custom_id}] Empty Gemini text. Response type={type(resp).__name__}")
 
                 return custom_id, {
-                    "validation": text,
+                    "judgement": text,
                     "confidence": confidence,
                     "model": model,
                 }
@@ -356,9 +366,9 @@ if __name__ == "__main__":
         idx = int(cid)
         entry = data[idx]
         entry_validated = entry | {
-            "validation": result.get("validation"),
-            "validation_confidence": result.get("confidence"),
-            "validation_model": result.get("model"),
+            "judgement": result.get("judgement"),
+            "judgement_confidence": result.get("confidence"),
+            "judgement_model": result.get("model"),
         }
         data_validated.append(entry_validated)
 

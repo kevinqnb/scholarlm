@@ -3,53 +3,67 @@ Notes:
 - These are *instruction* blocks only. Query/context formatting remains in caller code.
 """
 
-# Measurement relevance (boolean)
-IDENTIFY_MEASUREMENTS_RELEVANCE_INSTRUCTIONS = "You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains any information relevant to the requested query. Respond 'true' if the context is relevant and 'false' if it is not."
-
-# Measurement terms
-IDENTIFY_MEASUREMENT_TERMS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by first identifying terminology used within the context. Given context from a research paper and a specific measurement type, extract any terms or abbreviations used to directly refer to the measurement type in question.
+# Feature terms
+IDENTIFY_FEATURE_TERMS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by first identifying terminology used within the context. Given context from a research paper and a specific feature type, extract any terminology or abbreviations used to directly refer to the feature in question.
 
 Guidelines:
 - Do not include any abbreviations that refer to similar concepts or measurements, but which are not direct in relation.
 - Pay close attention to tables and figure captions, as these often contain the abbreviations used in the main text.
+- Do not infer, guess, or fabricate any terms or abbreviations that are not explicitly present in the context.
 - Structure your response as a list of strings, for example: ['term_1', 'term_2']
-- If there are no additional terms or abbreviations, respond with an empty list.
+- If the context does not contain any terminology or abbreviations that directly refer to the given feature, respond with an empty list.
 """
 
-# Entity abbreviations / aliases
-IDENTIFY_ENTITY_ALIASES_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by first identifying terminology used within the context. Given context from a research paper and a specific entity, extract any aliases, abbreviations, or extended names used to directly refer to the entity in question.
+IDENTIFY_FEATURE_UNITS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by specifying the units used for measurement of a given feature within context provided for a research paper.
 
 Guidelines:
-- Do not include any abbreviations or names that refer to similar entities or concepts, but which are not direct and specific in relation.
-- Pay close attention to tables and figure captions, as these often contain the abbreviations or names used in the main text.
-- Structure your response as a list of strings, for example: ['abbreviation_1', 'name_2']
-- If there are no additional aliases, abbreviations, or extended names, respond with an empty list.
+- To ensure units follow standard formatting conventions, you will be given a list of options and your response should be limited to options from among the given list.
+- If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context.
+- Your response should include the unit only, do not include any additional explanation or text.
+- If the context does not explicitly provide data for the given feature, respond with 'None'.
 """
+
+
+# Determine if features are present in context
+IDENTIFY_ENTITY_FEATURE_PAIRS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains data for a described feature in reference to a given entity.
+
+Guidelines:
+- Answer False if the the given feature or entity do not appear in the context.
+- Answer False if the context does not explicity provide data for the given feature and entity.
+- Answer False if the data reported is not a direct numerical measurement.
+- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- Answer False for cases where there is not a clear choice for a single, numerical data value.
+- Answer True only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
+- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
+- Structure your response as a JSON object with "explanation" and "answer" fields.
+"""
+
 
 # Locating measurements on a single page
 PAGE_LOCATE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by determining if they occur on a single, given page of context. You will be queried with a description of a specific entity and feature to be measured, and asked to determine if a relevant measurement occurs on the page.
 
 Guidelines:
-- Respond 'false' if the the given feature or entity do not appear in the context.
-- Respond 'false' if the context does not explicity provide data for the given feature and entity.
-- Respond 'false' if the data reported is not a direct numerical measurement.
-- Respond 'false' if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Respond 'false' for cases where there is not a clear choice for a single, numerical data value.
-- Respond 'true' only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- Respond with 'true' or 'false' only, do not include any additional explanation in your response.
+- Answer False if the the given feature or entity do not appear in the context.
+- Answer False if the context does not explicity provide data for the given feature and entity.
+- Answer False if the data reported is not a direct numerical measurement.
+- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- Answer False for cases where there is not a clear choice for a single, numerical data value.
+- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
+- Structure your response as a JSON object with "explanation" and "answer" fields.
 """
 
 # Locating measurements in a single table
 TABLE_LOCATE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by determining if they occur within context from a single, given html table. You will be queried with a description of a specific entity and feature to be measured, and asked to determine if a relevant measurement occurs within the table.
 
 Guidelines:
-- Respond 'false' if the the given feature or entity do not appear in the contextual table.
-- Respond 'false' if the contextual table does not explicity provide data for the given feature and entity.
-- Respond 'false' if the data reported is not a direct numerical measurement.
-- Respond 'false' if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Respond 'false' for cases where there is not a clear choice for a single, numerical data value.
-- Respond 'true' only if the contextual table explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- Respond with 'true' or 'false' only, do not include any additional explanation in your response.
+- Answer False if the the given feature or entity do not appear in the contextual table.
+- Answer False if the contextual table does not explicity provide data for the given feature and entity.
+- Answer False if the data reported is not a direct numerical measurement.
+- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- Answer False for cases where there is not a clear choice for a single, numerical data value.
+- Answer True only if the contextual table explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
+- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
+- Structure your response as a JSON object with "explanation" and "answer" fields.
 """
 
 # Extract value from plain text (non-table)
@@ -112,13 +126,28 @@ Guidelines:
 """
 
 # Validate extracted measurement value
-JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. You will 
-be given a passage of context from a research paper, along with a description for an extracted data point. Your task is to determine whether or not the extracted data value appears in the context, and is correctly attributed to the entity name and feature type it is collected for. 
+JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
 
-Guidelines:
-- Respond 'false' if the numerical data value does not explicitly appear within the context
-- Response 'false' if the data value is not directly relevant to the given entity name
-- Respond 'false' if the data value is not directly relevant to the given feature type
-- Respond 'true'  only if the context explicitly provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- Respond with 'true' or 'false' only, do not include any additional explanation in your response
+You will be given:
+1) A passage of context from a research paper
+2) A description of a candidate extracted data point (feature description, entity description, and extracted value)
+
+Your task: decide whether the extracted value is explicitly present in the context AND is correctly attributed to the specified entity and feature.
+
+Decision rules:
+- Respond 'true' ONLY if all of the following are satisfied:
+  (A) Value presence: The extracted value appears explicitly in the context (same number), or appears as an equivalent formatting of the same number (e.g., '10' vs '10.0'; thousands separators; leading/trailing zeros). Do not accept values that require arithmetic, unit conversion, averaging, or other inference.
+  (B) Correct attribution to entity: The context clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
+  (C) Correct attribution to feature: The value clearly corresponds to the specified feature (not a related metric, proxy, similarly named variable, or a different operationalization).
+  (D) Direct measurement: The value is a directly reported measurement (or directly reported descriptive statistic of the measurement such as mean/median explicitly tied to the feature), not a model parameter, regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit, or tuning/optimization output.
+
+- Respond 'false' if ANY of the following apply:
+  - The value does not appear in the context text/table exactly (aside from trivial formatting differences).
+  - The value appears but is tied to a different entity or feature than the one described.
+  - The only matching numbers are part of uncertainty/intervals (e.g., '±', CI ranges) and the extracted value is not shown as the central estimate in the context.
+  - The value is only implied (requires calculation, conversion, or deduction).
+  - There are multiple plausible candidate values within the context and the extracted value is not uniquely supported.
+
+Output format:
+- Respond with 'true' or 'false' only (lowercase), with no additional text.
 """

@@ -2,8 +2,6 @@ from .contextlm import ContextLM
 
 from .documentlm import DocumentLM
 
-from .documentlm2 import DocumentLM2
-
 from .measurementlm import MeasurementLM
 
 from .judge import JudgementLM
@@ -23,5 +21,5 @@ from .utils import (
 )
 
 from .instruction_prompts import (
-    JUDGE_INSTRUCTIONS
+    JUDGE_INSTRUCTIONS,
 )
