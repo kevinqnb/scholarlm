@@ -1,59 +1,50 @@
 # ScholarLM :microscope: :books:
 
-**Parse and analyze scientific research papers with large language models using mechanistic interpretability.**
+**Extract data from scientific research papers using local, large language models.**
 
-*Please note:* This project is a work in progress. 
+*Please note:* This project is a work in progress.
 
-This library implements a system for extracting insights from scientific papers (which are in the form of pdfs) using large language models.
-Specifically, we apply local and open source LLMs towards organized tasks for:
-* Document OCR: translating pdf images into markdown, and splitting into paragraph sized chunks.
-* Document extraction: systematically collecting data points from chunks of markdown text. 
-* Hallucination detection: mechanistic intervention on model activations to detect and prevent hallucinated responses. 
+This library implements a system for extracting data from scientific papers (PDFs) using large language models.
+We apply local and open source LLMs towards organized tasks for:
+* Document OCR: translating PDF images into markdown/text and splitting into paragraph-sized chunks.
+* Document extraction: systematically collecting data points from chunks of text.
+* (Experimental) Hallucination detection: mechanistic intervention on model activations to detect and reduce hallucinated responses.
 
-Our focus is on using small, local models for OCR and text generation tasks, and this library is designed to be compatible 
-with any such model of your choosing. 
+Our focus is on using small, local models for OCR and text generation tasks, and this library is designed to be compatible with Hugging Face Transformers / vLLM-style models.
 
-### Installation
+## Installation
+
+### Prerequisites
+- **Python**: 3.10+ recommended.
+- **GPU (recommended)**: Most workflows are intended for CUDA GPUs (see `experiments/ocr.py`, `experiments/pond.py`, `experiments/judge_llama.py`).
+
+### Install (recommended: `uv`)
+To get started, install dependencies with the `uv` package manager. If you do not already have `uv` installed, follow the instructions here:
+https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/scholarlm.git
 cd scholarlm
 
-# Install with pixi (recommended)
-pixi install
+# Create/resolve an environment and install dependencies
+uv sync
+```
 
-# Or install with pip
+### Install (alternative: pip + venv)
+If you prefer a standard virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -U pip
 pip install -e .
 ```
 
-### Basic Usage
-
-```python
-from scholarlm import ContextLM
-
-# Initialize the model
-model = ContextLM(
-    model_name="meta-llama/Llama-3.1-8B-Instruct",
-    top_k=0.1,  # Top 10% of context tokens to analyze
-    max_new_tokens=50
-)
-
-# Generate text with context analysis
-context = "The Earth orbits around the Sun in an elliptical path."
-instructions = "Explain planetary motion."
-
-result = model.generate(context, instructions)
-
-print(f"Response: {result['response']}")
-print(f"Parametric Score: {result['parametric_score']:.4f}")
-print(f"Context Score: {result['context_score']:.4f}")
-```
-
-## References
-
-ScholarLM implements external context and parametric knowledge score methods from:
-> Sun, Zhongxiang, et al. "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation via Mechanistic Interpretability." ICLR. 2025.
+## Basic Usage (high-level)
+- **OCR PDFs → text**: see `experiments/ocr.py`
+- **Extract measurements**: see `experiments/pond.py`
+- **Judge/validate extracted points**: see `experiments/judge_llama.py` and `experiments/validate.py`
 
 ## License
 
