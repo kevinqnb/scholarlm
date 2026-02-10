@@ -12,7 +12,7 @@ from .utils import tokenize, jensen_shannon_divergence
 from scipy.spatial.distance import jensenshannon
 
 
-class ContextLM:
+class JudgementLM:
     """
     A wrapper around NNsight language models that provides methods for generating text
     and computing hallucination scores based upon input context and instructions.

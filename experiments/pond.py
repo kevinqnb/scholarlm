@@ -18,16 +18,16 @@ torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
 
-main_directory = os.getenv("POND_PATH")
-md_directory = os.getenv("POND_MARKDOWN_PATH")
-text_directory = os.getenv("POND_TEXT_PATH2")
-
+main_directory = "data/pond"
+pdf_directory = os.path.join(main_directory, "pdfs")
+ocr_directory = os.path.join(main_directory, "ocr_output")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
-text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
-text_files.sort()
+#text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
+#text_files.sort()
 
+'''
 text_files = [
     'physical_and_chemical_limnological.txt',
     'physical-chemical_influences.txt',
@@ -40,12 +40,26 @@ text_files = [
     'diversity_of_macroinvertebrates.txt',
     'impact_of_macrophytes.txt'
 ]
+'''
+
+text_files = [
+    "bacterioplankton.txt",
+    "conservation_of_pond.txt",
+    "distinct_optical.txt",
+    "fish_assemblages.txt",
+    "lake_morphometry.txt",
+    "natural_variability.txt",
+    "productivity_and_depth.txt",
+    "relationships_of_fish.txt",
+    "sediment_characteristics.txt",
+    "vegetation-environmental.txt"
+]
 
 text_filepaths = []
 text_info = []
 for f in text_files:
     paper_code = f.replace('.txt', '')
-    filepath = os.path.join(text_directory, f)
+    filepath = os.path.join(ocr_directory, f)
     metadata = paper_info.get(paper_code, {})
     # ID Addition:
     metadata['paper_code'] = paper_code
@@ -281,16 +295,19 @@ def standardize(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-#data = measurementlm.fit(text_chunks)
-
-outfile1 = "data/01_28_26/ten_identify.json"
+'''
+outfile1 = "data/experiments/01_28_26/ten_identify.json"
 identify(text, outfile1)
 
-outfile2 = "data/01_28_26/ten_locate.json"
+outfile2 = "data/experiments/01_28_26/ten_locate.json"
 locate(outfile1, outfile2)
 
-outfile3 = "data/01_28_26/ten_measure.json"
+outfile3 = "data/experiments/01_28_26/ten_measure.json"
 measure(outfile2, outfile3)
 
-outfile4 = "data/01_28_26/ten_standardize.json"
+outfile4 = "data/experiments/01_28_26/ten_standardize.json"
 standardize(outfile3, outfile4)
+'''
+
+data = measurementlm.fit(text)
+measurementlm.save("data/experiments/2026_02_11/new_ten.json")

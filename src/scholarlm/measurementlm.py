@@ -1,12 +1,13 @@
+import json
 from pydantic import BaseModel
 import numpy as np
 import pandas as pd
+import math
 import re
 from io import StringIO
 import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
-from .contextlm import ContextLM
 from .instruction_prompts import (
     IDENTIFY_FEATURE_TERMS_INSTRUCTIONS,
     IDENTIFY_FEATURE_UNITS_INSTRUCTIONS,
@@ -35,6 +36,20 @@ class BooleanDecisionResponse(BaseModel):
     """Structured response that encourages reasoning before a boolean decision."""
     explanation: str
     answer: bool
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            # Check for NaN
+            if math.isnan(obj):
+                return None
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 
 class MeasurementLM:
@@ -827,8 +842,8 @@ class MeasurementLM:
         Args:
             filepath (str): The path to the file where the data will be saved.
         """
-        df = pd.DataFrame(self.data)
-        df.to_csv(filepath, index=False)
+        with open(filepath, 'w') as f:
+            json.dump(self.data, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
 

@@ -1,10 +1,8 @@
-from .contextlm import ContextLM
-
 from .documentlm import DocumentLM
 
 from .measurementlm import MeasurementLM
 
-from .judge import JudgementLM
+from .judgementlm import JudgementLM
 
 from .utils import (
     get_filenames_in_directory,
@@ -22,4 +20,5 @@ from .utils import (
 
 from .instruction_prompts import (
     JUDGE_INSTRUCTIONS,
+    CLEAN_TABLE_INSTRUCTIONS
 )

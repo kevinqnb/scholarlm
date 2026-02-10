@@ -14,26 +14,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from scholarlm.utils import get_filenames_in_directory, encode_pil_image, process_pdf
+from scholarlm.instruction_prompts import CLEAN_TABLE_INSTRUCTIONS
 
-
-####################################################################################################
-# Open text and pdf files 
-
-main_directory = os.getenv("POND_PATH")
-pdf_directory = os.getenv("POND_PDF_PATH")
-md_directory = os.getenv("POND_MARKDOWN_PATH")
-text_directory = os.getenv("POND_TEXT_PATH")
-text_directory2 = os.getenv("POND_TEXT_PATH2")
-image_directory = os.getenv("POND_IMAGE_PATH")
 api_key = os.getenv("OPENAI_API_KEY")
 
-# Directory
+####################################################################################################
+# Load PDFs and set up filepaths
+
+main_directory = "data/pond"
+pdf_directory = os.path.join(main_directory, "pdfs")
+ocr_directory = os.path.join(main_directory, "ocr_output")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
-pdf_files = get_filenames_in_directory(pdf_directory, ignore = [".DS_Store"])
+
+# Get all PDF files in the pdf directory
+pdf_files = get_filenames_in_directory(pdf_directory, ignore = [".DS_Store", ".gitkeep"])
 pdf_files.sort()
-pdf_files = [
+
+# Or specify specific files to process:
+precomputed_pdf_files = [
     'physical_and_chemical_limnological.pdf',
     'physical-chemical_influences.pdf',
     'prairie_wetland.pdf',
@@ -44,15 +44,26 @@ pdf_files = [
     'long-term_stability.pdf',
     'diversity_of_macroinvertebrates.pdf',
     'impact_of_macrophytes.pdf'
+    "bacterioplankton.pdf",
+    "conservation_of_pond.pdf",
+    "distinct_optical.pdf",
+    "fish_assemblages.pdf",
+    "lake_morphometry.pdf",
+    "natural_variability.pdf",
+    "productivity_and_depth.pdf",
+    "relationships_of_fish.pdf",
+    "sediment_characteristics.pdf",
+    "vegetation-environmental.pdf"
 ]
 
-pdf_files = ['physical-chemical_influences.pdf']
+pdf_files = [pf for pf in pdf_files if pf not in precomputed_pdf_files]
 
 pdf_filepaths = []
 for f in pdf_files:
     filepath = os.path.join(pdf_directory, f)
     pdf_filepaths.append(filepath)
 
+# Process PDFs to extract images as base64 strings for embedding in prompts
 pdf_images = []
 for filepath in pdf_filepaths:
     # Reduce image size to 1536 to save tokens and reduce rate limiting
@@ -60,26 +71,11 @@ for filepath in pdf_filepaths:
     pdf_images.append(b64_images)
 
 
-text_files = get_filenames_in_directory(text_directory, ignore = [".DS_Store"])
-text_files.sort()
-text_files = [
-    'physical_and_chemical_limnological.txt',
-    'physical-chemical_influences.txt',
-    'prairie_wetland.txt',
-    'net_heterotrophy.txt',
-    'habitat_characteristics.txt',
-    'biodiversity_of_constructed.txt',
-    'fish_production_in_lakes.txt',
-    'long-term_stability.txt',
-    'diversity_of_macroinvertebrates.txt',
-    'impact_of_macrophytes.txt'
-]
-
-text_files = ['physical-chemical_influences.txt']
+text_files = [pf.replace('.pdf', '.txt') for pf in pdf_files]
 
 text_filepaths = []
 for f in text_files:
-    filepath = os.path.join(text_directory, f)
+    filepath = os.path.join(ocr_directory, f)
     text_filepaths.append(filepath)
 
 text = []
@@ -92,20 +88,7 @@ for filepath in text_filepaths:
 ####################################################################################################
 # Create prompts:
 
-instructions = """
-You are an expert data engineer specializing in cleaning unstructured HTML tables for Python/Pandas processing. You will be provided with an HTML table from a research paper, along with an image of the page it was extracted from. Your job is to use the context to improve the structure and content of the table so that it is in accurate, clean, LLM readable, html format.
-
-Formatting Instructions:
-1. Standardize to 'long' format: If the table is 'wide' (e.g., it lists different categories side-by-side with repeating columns), you must 'melt' or unpivot the table by creating new rows for each category, while keeping unique, non-repeating column headers. You should not melt the table if columns are non-repeating or non-hierarchical, only do so if it is necessary for machine readability.
-2. You must create a single index column so that rows are machine identifiable. The very first column of your output table must be named 'index'. This column must contain unique identifiers for each row. If the rows are hierarchical (e.g., Category -> Sub-category) or if you unpivoted the data, you must combine the identifying columns into a Python-tuple format. For example, if the indentifying columns are 'column A' and 'column B', each row should be identified by a tuple: '('column A' value, 'column B' value)'. Otherwise if the identifiers are simple and have no hierarchy, the index should be a single non-tupled value. Importantly, when choosing identifying attributes, you should give highest priority to columns which use descriptive names, even if they must be combined with other attribute columns to uniquely identify the row. If no such columns exist, you may use numerical columns to uniquely identify rows.
-3. If there are multi-level column headers, flatten them in the same way by grouping the headers in a tuple format. For example, if the headers are 'Year' and 'Measurement', the combined header should be ('Year', 'Measurement').
-4. Your job is mainly to modify structure without interfering on the data. However, if you notice any inaccuracies or inconsistencies in the given HTML table, you must correct them.
-5. If a single cell contains a main value along with a separate range or interval of numbers, you must split these into separate columns. For example, if data is reported in a 'mean (minimum, maximum)' format, you should create three separate columns for the mean, minimum, and maximum. Similarly, if data is reported in a 'value ± uncertainty' format, you should create one column for the main value and another column for the uncertainty. Use the context to make sure that the new columns are named according to the statistic they represent. For example, in a single feature broken into mean, minimum, and maximum features you may use names such as 'feature_1_mean', 'feature_1_min', 'feature_1_max'. If there is no clear indication of what the statistic is, use generic names like 'feature_1_val_1', 'feature_1_val_2', etc.
-6. The response table must be in HTML format, and wrapped inside <table number="i"></table> tags. Make sure to keep the table number attribute exactly as it appears in the given HTML.
-7. At the very beginning of the table HTML, include <caption></caption> tags and use these to briefly describe the table and the measurements included within it. Use available table captioning on the pdf page to help, but make sure to include any additional information which might be relevant to understand the new formatting. 
-8. Provide only the raw HTML for the full table, do not stop early (even if it is repetitive) and do not include any additional text or explanations.
-"""
-
+instructions = CLEAN_TABLE_INSTRUCTIONS
 chats = []
 chat_ids = []
 for paper_idx, paper_text in enumerate(text):
@@ -215,7 +198,7 @@ print(f"Running {len(chats)} chat completions with up to 1 concurrent requests..
 
 responses = asyncio.run(run_all_chats(
     chats, 
-    model="gpt-5.1",
+    model="gpt-5.2",
     max_concurrent=5,
     max_retries=5
 ))
@@ -247,7 +230,7 @@ for cid, response_text in responses.items():
 # Save updated texts
 for paper_idx, paper_text in enumerate(updated_text):
     filename = text_files[paper_idx]
-    out_filepath = os.path.join(text_directory2, filename)
+    out_filepath = os.path.join(ocr_directory, filename)
     with open(out_filepath, 'w', encoding='utf-8') as f:
         f.write(paper_text)
 

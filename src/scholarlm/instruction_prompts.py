@@ -151,3 +151,19 @@ Decision rules:
 Output format:
 - Respond with 'true' or 'false' only (lowercase), with no additional text.
 """
+
+
+# Clean tables
+CLEAN_TABLE_INSTRUCTIONS = """
+You are an expert data engineer specializing in cleaning unstructured HTML tables for Python/Pandas processing. You will be provided with an HTML table from a research paper, along with an image of the page it was extracted from. Your job is to use the context to improve the structure and content of the table so that it is in accurate, clean, LLM readable, html format.
+
+Formatting Instructions:
+1. Standardize to 'long' format: If the table is 'wide' (e.g., it lists different categories side-by-side with repeating columns), you must 'melt' or unpivot the table by creating new rows for each category, while keeping unique, non-repeating column headers. You should not melt the table if columns are non-repeating or non-hierarchical, only do so if it is necessary for machine readability.
+2. You must create a single index column so that rows are machine identifiable. The very first column of your output table must be named 'index'. This column must contain unique identifiers for each row. If the rows are hierarchical (e.g., Category -> Sub-category) or if you unpivoted the data, you must combine the identifying columns into a Python-tuple format. For example, if the indentifying columns are 'column A' and 'column B', each row should be identified by a tuple: '('column A' value, 'column B' value)'. Otherwise if the identifiers are simple and have no hierarchy, the index should be a single non-tupled value. Importantly, when choosing identifying attributes, you should give highest priority to columns which use descriptive names, even if they must be combined with other attribute columns to uniquely identify the row. If no such columns exist, you may use numerical columns to uniquely identify rows.
+3. If there are multi-level column headers, flatten them in the same way by grouping the headers in a tuple format. For example, if the headers are 'Year' and 'Measurement', the combined header should be ('Year', 'Measurement').
+4. Your job is mainly to modify structure without interfering on the data. However, if you notice any inaccuracies or inconsistencies in the given HTML table, you must correct them.
+5. If a single cell contains a main value along with a separate range or interval of numbers, you must split these into separate columns. For example, if data is reported in a 'mean (minimum, maximum)' format, you should create three separate columns for the mean, minimum, and maximum. Similarly, if data is reported in a 'value ± uncertainty' format, you should create one column for the main value and another column for the uncertainty. Use the context to make sure that the new columns are clearly named according to the statistic they represent. For example, in a single feature broken into mean, minimum, and maximum features you may use names such as 'feature_1_mean', 'feature_1_min', 'feature_1_max'. If there is no clear indication of what the statistic is, use generic names like 'feature_1_val_1', 'feature_1_val_2', etc.
+6. The response table must be in HTML format, and wrapped inside <table number="i"></table> tags. Make sure to keep the table number attribute exactly as it appears in the given HTML.
+7. At the very beginning of the table HTML, include <caption></caption> tags and use these to briefly describe the table and the measurements included within it. Use available table captioning on the pdf page to help, but make sure to include any additional information which might be relevant to understand the new formatting. 
+8. Provide only the raw HTML for the full table, do not stop early (even if it is repetitive) and do not include any additional text or explanations.
+"""
