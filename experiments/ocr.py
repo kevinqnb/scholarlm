@@ -39,7 +39,7 @@ precomputed_pdf_files = [
     'fish_production_in_lakes.pdf',
     'long-term_stability.pdf',
     'diversity_of_macroinvertebrates.pdf',
-    'impact_of_macrophytes.pdf'
+    'impact_of_macrophytes.pdf',
     "bacterioplankton.pdf",
     "conservation_of_pond.pdf",
     "distinct_optical.pdf",

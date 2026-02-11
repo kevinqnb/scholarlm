@@ -24,8 +24,8 @@ ocr_directory = os.path.join(main_directory, "ocr_output")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
-#text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
-#text_files.sort()
+text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
+text_files.sort()
 
 '''
 text_files = [
@@ -40,7 +40,7 @@ text_files = [
     'diversity_of_macroinvertebrates.txt',
     'impact_of_macrophytes.txt'
 ]
-'''
+
 
 text_files = [
     "bacterioplankton.txt",
@@ -54,6 +54,8 @@ text_files = [
     "sediment_characteristics.txt",
     "vegetation-environmental.txt"
 ]
+'''
+
 
 text_filepaths = []
 text_info = []
@@ -310,4 +312,4 @@ standardize(outfile3, outfile4)
 '''
 
 data = measurementlm.fit(text)
-measurementlm.save("data/experiments/2026_02_11/new_ten.json")
+measurementlm.save("data/experiments/2026_02_11/pond.json")

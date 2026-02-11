@@ -1,10 +1,10 @@
 import json
 
 judgement_files_dict = {
-    "gpt": "data/01_28_26/ten_judged_gpt.json",
-    "gemini": "data/01_28_26/ten_judged_gemini.json",
-    "claude": "data/01_28_26/ten_judged_claude.json",
-    "llama": "data/01_28_26/ten_judged_llama.json",
+    "gpt": "data/experiments/2026_02_11/new_ten_judged_gpt.json",
+    "gemini": "data/experiments/2026_02_11/new_ten_judged_gemini.json",
+    "claude": "data/experiments/2026_02_11/new_ten_judged_claude.json",
+    "llama": "data/experiments/2026_02_11/new_ten_judged_llama.json",
 }
 
 data_combined_dict = {}
@@ -30,6 +30,10 @@ for entry in data_combined:
     valid_vote = 0
     for j in judgement_files_dict.keys():
         jud_key = f"judgement_{j}"
+        jud_result = entry[jud_key]
+        if jud_result is True:
+            valid_vote += 1
+        '''
         jud_result = entry[jud_key].lower().strip()
         if "true" in jud_result:
             if j != 'llama':
@@ -37,12 +41,12 @@ for entry in data_combined:
             entry[jud_key] = True
         else:
             entry[jud_key] = False
-
+        '''
     #entry["judgement_combined"] = valid_vote > len(judgement_files_dict) / 2
     entry["judgement_combined"] = valid_vote >= 2
 
 
-output_file = f"data/01_28_26/ten_judged_combined.json"
+output_file = f"data/experiments/2026_02_11/new_ten_judged_combined.json"
 with open(output_file, "w") as f:
     json.dump(data_combined, f, indent=4, ensure_ascii=False)
     

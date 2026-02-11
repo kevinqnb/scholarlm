@@ -10,6 +10,7 @@ from PIL import Image
 import asyncio
 from openai import OpenAI, AsyncOpenAI
 from openai import RateLimitError, APIError
+import backoff
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -43,8 +44,8 @@ precomputed_pdf_files = [
     'fish_production_in_lakes.pdf',
     'long-term_stability.pdf',
     'diversity_of_macroinvertebrates.pdf',
-    'impact_of_macrophytes.pdf'
-    "bacterioplankton.pdf",
+    'impact_of_macrophytes.pdf',
+    #"bacterioplankton.pdf",
     "conservation_of_pond.pdf",
     "distinct_optical.pdf",
     "fish_assemblages.pdf",
@@ -97,6 +98,9 @@ for paper_idx, paper_text in enumerate(text):
     pages = [int(p) for p in pages]
 
     for page_idx in pages:
+        # Some PDFs may have sparse/offset page indices; skip if we don't have an image.
+        if page_idx < 0 or page_idx >= len(paper_images):
+            continue
         page_image = paper_images[page_idx]
         page_start = paper_text.find(f'<page number="{page_idx}">') + len(f'<page number="{page_idx}">')
         page_end = paper_text.find(f'</page>', page_start)
@@ -137,94 +141,61 @@ for paper_idx, paper_text in enumerate(text):
 
 
 ####################################################################################################
+# Run chats sequentially with delay and backoff for rate limits
 
-client = AsyncOpenAI()
+client = OpenAI(api_key=api_key)
 
-async def run_single_chat(model, custom_id, messages, sem, max_retries):
-    """
-    Run a single chat completion with automatic retry on 429 errors.
-    """
-    async with sem:
-        for attempt in range(max_retries):
-            try:
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_completion_tokens=12288
-                )
-                return custom_id, response.choices[0].message.content
+@backoff.on_exception(backoff.expo, (RateLimitError, APIError), max_time=60, max_tries=6)
+def completions_with_delay_and_backoff(delay: float, **kwargs):
+    time.sleep(delay)
+    return client.chat.completions.create(**kwargs)
 
-            except RateLimitError as e:
-                wait_time = (2 ** attempt) + random.random()
-                print(f"[{custom_id}] Rate limit hit (attempt {attempt+1}/{max_retries}): {e}")
-                print(f"  Retrying in {wait_time:.2f}s...")
-                await asyncio.sleep(wait_time)
+rate_limit_per_minute = 30 # Limit to 30 requests per minute (~10 papers)
+delay = 60.0 / rate_limit_per_minute
 
-            except APIError as e:
-                wait_time = (2 ** attempt) + random.random()
-                print(f"[{custom_id}] API error (attempt {attempt+1}/{max_retries}): {e}")
-                print(f"  Retrying in {wait_time:.2f}s...") 
-                await asyncio.sleep(wait_time)
-            
-            except Exception as e:
-                print(f"[{custom_id}] Unexpected error: {type(e).__name__}: {e}")
-                raise
-
-        raise RuntimeError(f"[{custom_id}] Failed after {max_retries} retries.")
-
-async def run_all_chats(chats, model="gpt-4o", max_concurrent=1, max_retries=10):
-    """
-    Run all chats in parallel with limited concurrency.
-    """
-    sem = asyncio.Semaphore(max_concurrent)
-    
-    async def run_with_delay(chat, delay):
-        await asyncio.sleep(delay)
-        return await run_single_chat(model, chat["custom_id"], chat["messages"], sem, max_retries=max_retries)
-    
-    # Stagger the initial requests by 5 seconds each to avoid rate limiting
-    tasks = [
-        run_with_delay(chat, idx * 5.0)
-        for idx, chat in enumerate(chats)
-    ]
-    results = await asyncio.gather(*tasks)
-    return {cid: text for cid, text in results}
+responses = {}
+for i, chat in enumerate(chats):
+    print(f"Running chat {i+1}/{len(chats)} with custom_id: {chat['custom_id']}")
+    try:
+        response = completions_with_delay_and_backoff(
+            delay=delay,
+            model="gpt-5.2",
+            messages=chat["messages"],
+            max_completion_tokens=8192,
+            temperature=0.1,
+            seed=342
+        )
+        responses[chat["custom_id"]] = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error processing chat with custom_id {chat['custom_id']}: {e}")
+        print("Chat idx:", i)
+        print()
+        responses[chat["custom_id"]] = None  # Or some error message
 
 
 ####################################################################################################
-# Run batches with size limit and parallel processing
-
-print(f"Running {len(chats)} chat completions with up to 1 concurrent requests...")
-
-responses = asyncio.run(run_all_chats(
-    chats, 
-    model="gpt-5.2",
-    max_concurrent=5,
-    max_retries=5
-))
+# Save results:
 
 updated_text = deepcopy(text)
 for cid, response_text in responses.items():
+    if not response_text:
+        continue
+
     paper_idx, page_idx, table_idx = re.findall(r'paper_(\d+);page_(\d+);table_(\d+)', cid)[0]
     paper_idx = int(paper_idx)
-    page_idx = int(page_idx)
     table_idx = int(table_idx)
 
-    # Locate the table in the text and replace with validated response
     paper_text = updated_text[paper_idx]
     table_start = paper_text.find(f'<table number="{table_idx}">')
-    table_end = paper_text.find(f'</table>', table_start) + len(f'</table>')
+    if table_start == -1:
+        continue
+    table_end = paper_text.find(f'</table>', table_start)
+    if table_end == -1:
+        continue
+    table_end += len(f'</table>')
 
-    # Replace the table text with the validated response
     new_table_text = response_text.strip()
-
-    # Update the full paper text
-    updated_paper_text = (
-        paper_text[:table_start] +
-        new_table_text +
-        paper_text[table_end:]
-    )
-    updated_text[paper_idx] = updated_paper_text
+    updated_text[paper_idx] = paper_text[:table_start] + new_table_text + paper_text[table_end:]
 
 
 # Save updated texts

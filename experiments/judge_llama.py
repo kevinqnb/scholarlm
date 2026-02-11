@@ -6,7 +6,7 @@ import random
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
-from scholarlm import ContextLM
+from scholarlm import JudgementLM
 from scholarlm import JUDGE_INSTRUCTIONS
 
 # (try to) set seeds for reproducibility
@@ -78,7 +78,7 @@ ctxlm_params = {
     'max_new_tokens': 1,
 }
 
-llm = ContextLM(
+llm = JudgementLM(
     model_name="meta-llama/Llama-3.1-8B-Instruct",
     sampling_params=ctxlm_params,
     nnsight_kwargs = {"torch_dtype": torch.bfloat16},
@@ -86,9 +86,9 @@ llm = ContextLM(
 
 ####################################################################################################
 
-input_file = "data/01_28_26/ten_standardize.json"
-output_file = f"data/01_28_26/ten_judged_llama.json"
-attn_output_file = "data/01_28_26/ten_judged_llama_attention_outputs.npz"
+input_file = "data/experiments/2026_02_11/pond.json"
+output_file = f"data/experiments/2026_02_11/pond_judged_llama.json"
+attn_output_file = "data/experiments/2026_02_11/pond_judged_llama_attention_outputs.npz"
 
 with open(input_file, "r") as f:
     data = json.load(f)

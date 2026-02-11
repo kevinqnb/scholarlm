@@ -2,25 +2,190 @@ import os
 import json
 import random
 import asyncio
+import time
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from scholarlm import JUDGE_INSTRUCTIONS
+
+load_dotenv()
 
 # NOTE: Requires the Anthropic SDK:
 #   pip install anthropic
 # and an API key in env var:
 #   export ANTHROPIC_API_KEY=...
 #
-# This script mirrors `experiments/validate_gpt.py` but uses Claude.
+# This script mirrors `experiments/judge_gpt.py` / `experiments/judge_gemini.py` but uses Claude.
 #
 # Token probabilities:
 # - Anthropic's public API does not expose next-token logprobs.
-# - This script outputs only the boolean `validation`.
+# - We set `judgement_confidence=None` for parity with the other judge scripts.
+
+
+####################################################################################################
+
+def normalize_bool_text(text: str | None) -> bool | None:
+    """Strictly parse a model response into a boolean.
+
+    Accepts only true/false (case-insensitive) with optional surrounding whitespace.
+    Returns None if the response is not exactly parseable.
+    """
+
+    if text is None:
+        return None
+    t = text.strip().lower()
+    if "true" in t:
+        return True
+    if "false" in t:
+        return False
+    return None
+
+
+def build_user_prompt_from_entry(
+    *,
+    context: str,
+    feature_description: str,
+    feature_terms: list[Any],
+    entity_description: dict[str, Any],
+    measurement_val: Any,
+) -> str:
+    """Create the shared user prompt for judging.
+
+    This must stay stable across providers to make results comparable.
+    """
+
+    query = (
+        f"Feature description: {feature_description}\n"
+        f"Terminology used for the feature: {feature_terms}\n"
+        f"Entity description: {entity_description}\n"
+        f"Extracted measurement: {measurement_val}\n\n"
+        f"Is the extracted data point valid for the given entity and feature?"
+    )
+    return f"## Context:\n{context}\n\n## Query:\n{query}"
+
+
+class AsyncRateLimiter:
+    """A simple global rate limiter (token-less) that paces calls to ~rpm.
+
+    Enforces an *average* request rate across all concurrent tasks.
+    """
+
+    def __init__(self, requests_per_minute: float):
+        if requests_per_minute <= 0:
+            raise ValueError("requests_per_minute must be > 0")
+        self._interval = 60.0 / float(requests_per_minute)
+        self._lock = asyncio.Lock()
+        self._next_time = 0.0
+
+    async def wait(self):
+        async with self._lock:
+            now = time.monotonic()
+            if self._next_time <= now:
+                self._next_time = now
+            delay = self._next_time - now
+            self._next_time += self._interval
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
+async def run_single_chat(
+    client: Any,
+    *,
+    model: str,
+    custom_id: str,
+    system: str,
+    user: str,
+    sem: asyncio.Semaphore,
+    limiter: AsyncRateLimiter,
+    max_retries: int,
+) -> tuple[str, dict[str, Any]]:
+    """Run a single Claude request with bounded concurrency + retries."""
+
+    last_exc: Exception | None = None
+
+    for attempt in range(max_retries):
+        try:
+            async with sem:
+                await limiter.wait()
+
+                # Anthropic SDK is sync; run in a worker thread.
+                def _call():
+                    return client.messages.create(
+                        model=model,
+                        system=system,
+                        messages=[{"role": "user", "content": user}],
+                        # Mirror the other judge scripts: output should be only true/false.
+                        max_tokens=5,
+                        temperature=0.0,
+                    )
+
+                resp = await asyncio.to_thread(_call)
+
+            # Text extraction
+            text = ""
+            blocks = getattr(resp, "content", None) or []
+            for b in blocks:
+                if getattr(b, "type", None) == "text":
+                    text += getattr(b, "text", "")
+
+            raw = text.strip()
+            valid = normalize_bool_text(raw)
+
+            return custom_id, {
+                "judgement": valid,
+                "confidence": None,
+                "model": model,
+                "raw_text": raw,
+            }
+
+        except Exception as e:
+            last_exc = e
+            # Exponential backoff with jitter.
+            await asyncio.sleep(min(30.0, (2**attempt) + random.random()))
+
+    raise last_exc if last_exc is not None else RuntimeError("Claude request failed")
+
+
+async def run_all_chats(
+    chats: list[dict[str, Any]],
+    *,
+    model: str,
+    max_concurrent: int,
+    requests_per_minute: float = 60,
+    max_retries: int = 6,
+) -> dict[str, dict[str, Any]]:
+    """Run all chats concurrently with global pacing + bounded concurrency."""
+
+    import anthropic  # type: ignore
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    sem = asyncio.Semaphore(max_concurrent)
+    limiter = AsyncRateLimiter(requests_per_minute=requests_per_minute)
+
+    results = await asyncio.gather(
+        *(
+            run_single_chat(
+                client=client,
+                model=model,
+                custom_id=chat["custom_id"],
+                system=chat["system"],
+                user=chat["user"],
+                sem=sem,
+                limiter=limiter,
+                max_retries=max_retries,
+            )
+            for chat in chats
+        )
+    )
+
+    return {cid: payload for cid, payload in results}
 
 
 ####################################################################################################
@@ -34,6 +199,7 @@ class ObservationSchema(BaseModel):
     state: str | None
     date: str | None
     ecosystem: str | None
+
 
 fields = ObservationSchema.model_fields.keys()
 
@@ -79,37 +245,38 @@ feature_info_dict = {
 
 ####################################################################################################
 
-input_file = "data/01_28_26/ten_standardize.json"
-output_file = "data/01_28_26/ten_judged_claude.json"
+input_file = "data/experiments/2026_02_11/new_ten.json"
+output_file = "data/experiments/2026_02_11/new_ten_judged_claude.json"
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     chats: list[dict[str, Any]] = []
 
     for i, entry in enumerate(data):
-        context = entry['context']
-        feature = entry.get('feature')
-        feature_description = feature_info_dict[feature]['description']
-        feature_terms = entry.get('feature_terms', [])
-        entity_description = {k: v for k,v in entry.items() if k in fields}
-        measurement_val = entry['value']
+        context = entry["context"]
+        feature = entry.get("feature")
+        feature_description = feature_info_dict[feature]["description"]
+        feature_terms = entry.get("feature_terms", [])
+        entity_description = {k: v for k, v in entry.items() if k in fields}
+        measurement_val = entry["value"]
 
-        instructions = JUDGE_INSTRUCTIONS
-        query = (
-            f"Feature description: {feature_description}\n"
-            f"Terminology used for the feature: {feature_terms}\n"
-            f"Entity description: {entity_description}\n"
-            f"Extracted measurement: {measurement_val}\n\n"
-            f"Is the extracted data point valid for the given entity and feature?"
+        # Keep the same system prompt as other scripts (contains hard constraint
+        # to answer with exactly 'true' or 'false').
+        system = JUDGE_INSTRUCTIONS
+
+        user = build_user_prompt_from_entry(
+            context=context,
+            feature_description=feature_description,
+            feature_terms=feature_terms,
+            entity_description=entity_description,
+            measurement_val=measurement_val,
         )
-
-        prompt = f"## Context:\n{context}\n\n## Query:\n{query}"
 
         chats.append(
             {
                 "custom_id": str(i),
-                "system": instructions,
-                "user": prompt,
+                "system": system,
+                "user": user,
             }
         )
 
@@ -118,97 +285,6 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 ####################################################################################################
 
-async def run_single_chat(
-    client: Any,
-    model: str,
-    custom_id: str,
-    system: str,
-    user: str,
-    sem: asyncio.Semaphore,
-    max_retries: int,
-) -> tuple[str, str]:
-    """Run a single Claude request with retry."""
-
-    async with sem:
-        for attempt in range(max_retries):
-            try:
-                # Anthropic SDK is sync; run in worker thread.
-                def _call():
-                    # With Messages API: system prompt is separate.
-                    return client.messages.create(
-                        model=model,
-                        system=system,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": user,
-                            }
-                        ],
-                        max_tokens=8,
-                        temperature=0.0,
-                    )
-
-                resp = await asyncio.to_thread(_call)
-
-                # Text extraction
-                text = ""
-                try:
-                    # Common: resp.content is a list of blocks like {type:'text', text:'...'}
-                    blocks = getattr(resp, "content", None) or []
-                    for b in blocks:
-                        if getattr(b, "type", None) == "text":
-                            text += getattr(b, "text", "")
-                    text = text.strip()
-                except Exception:
-                    text = str(resp).strip()
-
-                return custom_id, text
-
-            except Exception as e:
-                wait_time = (2**attempt) + random.random()
-                print(f"[{custom_id}] Claude error (attempt {attempt+1}/{max_retries}): {type(e).__name__}: {e}")
-                print(f"  Retrying in {wait_time:.2f}s...")
-                await asyncio.sleep(wait_time)
-
-        raise RuntimeError(f"[{custom_id}] Failed after {max_retries} retries.")
-
-
-async def run_all_chats(
-    chats: list[dict[str, Any]],
-    model: str,
-    max_concurrent: int,
-    max_retries: int,
-) -> dict[str, str]:
-    """Run all chats in parallel with limited concurrency."""
-
-    import anthropic  # type: ignore
-
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set")
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    sem = asyncio.Semaphore(max_concurrent)
-
-    async def run_with_delay(chat: dict[str, Any], delay: float):
-        await asyncio.sleep(delay)
-        return await run_single_chat(
-            client=client,
-            model=model,
-            custom_id=chat["custom_id"],
-            system=chat["system"],
-            user=chat["user"],
-            sem=sem,
-            max_retries=max_retries,
-        )
-
-    tasks = [run_with_delay(chat, idx * 1.0) for idx, chat in enumerate(chats)]
-    results = await asyncio.gather(*tasks)
-    return {cid: text for cid, text in results}
-
-
-####################################################################################################
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:
@@ -216,25 +292,28 @@ if __name__ == "__main__":
 
     chats = build_chats(data)
 
-    # "Latest" Claude model name changes; set via env var so you can swap easily.
-    model = "claude-haiku-4-5"
+    model = "claude-opus-4-6"
 
     responses = asyncio.run(
         run_all_chats(
             chats,
             model=model,
-            max_concurrent=2,
-            max_retries=5,
+            max_concurrent=3,
+            requests_per_minute=40,
+            max_retries=6,
         )
     )
 
     data_validated: list[dict[str, Any]] = []
-    for cid, response_text in responses.items():
+    for cid, result in responses.items():
         idx = int(cid)
         entry = data[idx]
         entry_validated = entry | {
-            "judgement": response_text,
-            "judgement_model": model,
+            "judgement": result.get("judgement"),
+            "judgement_confidence": result.get("confidence"),
+            "judgement_model": result.get("model"),
+            # Keep for debugging prompt compliance; can be dropped later.
+            "judgement_raw_text": result.get("raw_text"),
         }
         data_validated.append(entry_validated)
 

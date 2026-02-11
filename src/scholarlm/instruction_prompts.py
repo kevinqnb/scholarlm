@@ -149,7 +149,7 @@ Decision rules:
   - There are multiple plausible candidate values within the context and the extracted value is not uniquely supported.
 
 Output format:
-- Respond with 'true' or 'false' only (lowercase), with no additional text.
+- Respond with a single token as either 'true' or 'false' (lowercase). Do not include any additional text or punctuation.
 """
 
 

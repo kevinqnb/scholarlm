@@ -1,15 +1,161 @@
-import os
 import json
 import time
-from pydantic import BaseModel, Field
-import random
 import asyncio
-from openai import OpenAI, AsyncOpenAI
-from openai import RateLimitError, APIError
+import backoff
+
+from pydantic import BaseModel
 from dotenv import load_dotenv
-load_dotenv()
+from typing import Any
+
+from openai import AsyncOpenAI
+from openai import RateLimitError, APIError
 
 from scholarlm import JUDGE_INSTRUCTIONS
+
+load_dotenv()
+
+client = AsyncOpenAI()
+
+####################################################################################################
+
+def normalize_bool_text(text: str | None) -> bool | None:
+    """Strictly parse a model response into a boolean.
+
+    Accepts only true/false (case-insensitive) with optional surrounding whitespace.
+    Returns None if the response is not exactly parseable.
+    """
+
+    if text is None:
+        return None
+    t = text.strip().lower()
+    if "true" in t:
+        return True
+    if "false" in t:
+        return False
+    return None
+
+
+def _extract_p_true_from_first_token(response) -> float | None:
+    """Compute P('true') from the *first generated token* logprobs (best-effort)."""
+    try:
+        import math
+
+        choice0 = response.choices[0]
+        lp = getattr(choice0, "logprobs", None)
+        content = getattr(lp, "content", None) if lp is not None else None
+        if not content:
+            return None
+
+        first = content[0]
+        first_token = (getattr(first, "token", None) or "").strip().lower()
+        first_logprob = getattr(first, "logprob", None)
+
+        # If the model actually emitted 'true' as the first token, use that.
+        if first_token == "true" and first_logprob is not None:
+            return float(math.exp(first_logprob))
+
+        # Otherwise, look for 'true' in the alternatives.
+        top = getattr(first, "top_logprobs", None) or []
+        for alt in top:
+            tok = (getattr(alt, "token", None) or "").strip().lower()
+            if tok == "true":
+                alt_lp = getattr(alt, "logprob", None)
+                if alt_lp is not None:
+                    return float(math.exp(alt_lp))
+
+        return None
+
+    except Exception:
+        return None
+
+
+class AsyncRateLimiter:
+    """A simple global rate limiter (token-less) that paces calls to ~rpm.
+
+    This enforces an *average* request rate across all concurrent tasks.
+    """
+
+    def __init__(self, requests_per_minute: float):
+        if requests_per_minute <= 0:
+            raise ValueError("requests_per_minute must be > 0")
+        self._interval = 60.0 / float(requests_per_minute)
+        self._lock = asyncio.Lock()
+        self._next_time = 0.0
+
+    async def wait(self):
+        async with self._lock:
+            now = time.monotonic()
+            if self._next_time <= now:
+                self._next_time = now
+            delay = self._next_time - now
+            # schedule next slot
+            self._next_time += self._interval
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
+async def _create_completion(model: str, messages):
+    """Call the API expecting a bare true/false.
+
+    IMPORTANT: Do not modify `messages` here; assume the prompt already contains
+    the necessary instructions to respond with exactly 'true' or 'false'.
+    """
+
+    return await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_completion_tokens=5,
+        temperature=0,
+        logprobs=True,
+        top_logprobs=5,
+    )
+
+
+async def run_all_chats(
+    chats,
+    model: str = "gpt-4o",
+    max_concurrent: int = 25,
+    requests_per_minute: float = 50,
+    max_time: int = 60,
+    max_tries: int = 6,
+):
+    """Run all chats concurrently with simple global pacing + automatic backoff."""
+
+    sem = asyncio.Semaphore(max_concurrent)
+    limiter = AsyncRateLimiter(requests_per_minute=requests_per_minute)
+
+    async def _run_one(chat):
+        custom_id = chat["custom_id"]
+        messages = chat["messages"]
+
+        @backoff.on_exception(
+            backoff.expo,
+            (RateLimitError, APIError),
+            max_time=max_time,
+            max_tries=max_tries,
+            jitter=backoff.full_jitter,
+        )
+        async def _call_with_backoff():
+            async with sem:
+                await limiter.wait()
+                return await _create_completion(model=model, messages=messages)
+
+        response = await _call_with_backoff()
+        raw = (response.choices[0].message.content or "").strip()
+
+        valid = normalize_bool_text(raw)
+        p_valid_true = _extract_p_true_from_first_token(response)
+
+        return custom_id, {
+            "judgement": valid,
+            "confidence": p_valid_true,
+            "model": model,
+            "raw_text": raw,
+        }
+
+    results = await asyncio.gather(*(_run_one(chat) for chat in chats))
+    return {cid: payload for cid, payload in results}
+
 
 ####################################################################################################
 
@@ -64,24 +210,21 @@ feature_info_dict = {
 }
 
 ####################################################################################################
+# Build the chats for all entries.
 
-input_file = "data/01_28_26/ten_standardize.json"
-output_file = f"data/01_28_26/ten_judged_gpt.json"
+def build_user_prompt_from_entry(
+    *,
+    context: str,
+    feature_description: str,
+    feature_terms: list[Any],
+    entity_description: dict[str, Any],
+    measurement_val: Any,
+) -> str:
+    """Create the shared user prompt for judging.
 
-with open(input_file, "r") as f:
-    data = json.load(f)
+    This must stay stable across providers to make results comparable.
+    """
 
-chats = []
-chat_ids = []
-for i, entry in enumerate(data):
-    context = entry['context']
-    feature = entry.get('feature')
-    feature_description = feature_info_dict[feature]['description']
-    feature_terms = entry.get('feature_terms', [])
-    entity_description = {k: v for k,v in entry.items() if k in fields}
-    measurement_val = entry['value']
-
-    instructions = JUDGE_INSTRUCTIONS
     query = (
         f"Feature description: {feature_description}\n"
         f"Terminology used for the feature: {feature_terms}\n"
@@ -89,159 +232,74 @@ for i, entry in enumerate(data):
         f"Extracted measurement: {measurement_val}\n\n"
         f"Is the extracted data point valid for the given entity and feature?"
     )
-    prompt = (
-        f"## Context:\n{context}\n\n## Query:\n{query}"
+    return f"## Context:\n{context}\n\n## Query:\n{query}"
+
+def build_chats(data):
+    chats = []
+
+    for i, entry in enumerate(data):
+        context = entry["context"]
+        feature = entry.get("feature")
+        feature_description = feature_info_dict[feature]["description"]
+        feature_terms = entry.get("feature_terms", [])
+        entity_description = {k: v for k, v in entry.items() if k in fields}
+        measurement_val = entry["value"]
+
+        system = JUDGE_INSTRUCTIONS
+        user = build_user_prompt_from_entry(
+            context=context,
+            feature_description=feature_description,
+            feature_terms=feature_terms,
+            entity_description=entity_description,
+            measurement_val=measurement_val,
+        )
+
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": [{"type": "text", "text": user}]},
+        ]
+
+        chats.append({"custom_id": str(i), "messages": messages})
+
+    return chats
+
+
+####################################################################################################
+# Run the script.
+
+input_file = "data/experiments/2026_02_11/pond.json"
+output_file = "data/experiments/2026_02_11/pond_judged_gpt.json"
+
+if __name__ == "__main__":
+    with open(input_file, "r") as f:
+        data = json.load(f)
+
+    chats = build_chats(data)
+
+    responses = asyncio.run(
+        run_all_chats(
+            chats,
+            model="gpt-5.2",
+            max_concurrent=30,
+            requests_per_minute=60,
+            max_time=60,
+            max_tries=6,
+        )
     )
 
-    messages = [
-        {"role": "system", "content": instructions},
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-            ],
-        },
-    ]
-    cid = str(i)
-    chat = {
-        "custom_id": cid,
-        "messages": messages
-    }
-    chats.append(chat)
-    chat_ids.append(cid)
+    data_validated = []
+    for cid, result in responses.items():
+        idx = int(cid)
+        entry = data[idx]
+        entry_validated = entry | {
+            "judgement": result.get("judgement"),
+            "judgement_confidence": result.get("confidence"),
+            "judgement_model": result.get("model"),
+            "judgement_raw_text": result.get("raw_text"),
+        }
+        data_validated.append(entry_validated)
 
-
-####################################################################################################
-
-
-client = AsyncOpenAI()
-
-async def run_single_chat(model, custom_id, messages, sem, max_retries):
-    """
-    Run a single chat completion with automatic retry on 429 errors.
-
-    Returns:
-        (custom_id, result_dict)
-        result_dict contains:
-          - validation: model text (expected 'true'/'false')
-          - confidence: probability of the (first) token the model actually produced
-            for 'true'/'false' (best-effort; None if logprobs unavailable)
-          - model: model name
-    """
-    async with sem:
-        for attempt in range(max_retries):
-            try:
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    # This task should only output a boolean.
-                    max_completion_tokens=8,
-                    temperature=0,
-                    # Ask for token logprobs.
-                    logprobs=True,
-                    # Request enough alternatives so 'true'/'false' show up even if tokenization differs.
-                    top_logprobs=5,
-                )
-
-                text = (response.choices[0].message.content or "").strip()
-
-                confidence = None
-                try:
-                    import math
-
-                    lp = getattr(response.choices[0], "logprobs", None)
-                    content = getattr(lp, "content", None) if lp is not None else None
-
-                    if content:
-                        first = content[0]
-
-                        # 1) Prefer the logprob of the actually generated token.
-                        first_token = (getattr(first, "token", None) or "").strip().lower()
-                        first_logprob = getattr(first, "logprob", None)
-
-                        if first_logprob is not None and first_token in {"true", "false"}:
-                            confidence = float(math.exp(first_logprob))
-                        else:
-                            # 2) Fallback: look for returned label in the top_logprobs list.
-                            top = getattr(first, "top_logprobs", None) or []
-                            label = text.strip().lower()
-
-                            for t in top:
-                                tok = (getattr(t, "token", None) or "").strip().lower()
-                                if tok == label:
-                                    lprob = getattr(t, "logprob", None)
-                                    if lprob is not None:
-                                        confidence = float(math.exp(lprob))
-                                        break
-
-                except Exception:
-                    confidence = None
-
-                return custom_id, {
-                    "judgement": text,
-                    "confidence": confidence,
-                    "model": model,
-                }
-
-            except RateLimitError as e:
-                wait_time = (2 ** attempt) + random.random()
-                print(f"[{custom_id}] Rate limit hit (attempt {attempt+1}/{max_retries}): {e}")
-                print(f"  Retrying in {wait_time:.2f}s...")
-                await asyncio.sleep(wait_time)
-
-            except APIError as e:
-                wait_time = (2 ** attempt) + random.random()
-                print(f"[{custom_id}] API error (attempt {attempt+1}/{max_retries}): {e}")
-                print(f"  Retrying in {wait_time:.2f}s...")
-                await asyncio.sleep(wait_time)
-
-            except Exception as e:
-                print(f"[{custom_id}] Unexpected error: {type(e).__name__}: {e}")
-                raise
-
-        raise RuntimeError(f"[{custom_id}] Failed after {max_retries} retries.")
-
-async def run_all_chats(chats, model="gpt-4o", max_concurrent=1, max_retries=10):
-    """
-    Run all chats in parallel with limited concurrency.
-    """
-    sem = asyncio.Semaphore(max_concurrent)
-
-    async def run_with_delay(chat, delay):
-        await asyncio.sleep(delay)
-        return await run_single_chat(model, chat["custom_id"], chat["messages"], sem, max_retries=max_retries)
-
-    # Stagger the initial requests by 5 seconds each to avoid rate limiting
-    tasks = [
-        run_with_delay(chat, idx * 1.0)
-        for idx, chat in enumerate(chats)
-    ]
-    results = await asyncio.gather(*tasks)
-    return {cid: payload for cid, payload in results}
-
-
-####################################################################################################
-# Run batches with size limit and parallel processing
-
-responses = asyncio.run(run_all_chats(
-    chats,
-    model="gpt-5.2",
-    max_concurrent=500,
-    max_retries=7
-))
-
-data_validated = []
-for cid, result in responses.items():
-    idx = int(cid)
-    entry = data[idx]
-    entry_validated = entry | {
-        'judgement': result.get('judgement'),
-        'judgement_confidence': result.get('confidence'),
-        'judgement_model': result.get('model'),
-    }
-    data_validated.append(entry_validated)
-
-with open(output_file, "w") as f:
-    json.dump(data_validated, f, indent=4, ensure_ascii=False)
+    with open(output_file, "w") as f:
+        json.dump(data_validated, f, indent=4, ensure_ascii=False)
 
 
