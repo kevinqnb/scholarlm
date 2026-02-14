@@ -1,4 +1,6 @@
 import json
+from rapidfuzz import fuzz
+from itertools import combinations
 from pydantic import BaseModel
 import numpy as np
 import pandas as pd
@@ -796,6 +798,180 @@ class MeasurementLM:
         return standardized_data
 
 
+    def _deduplicate(self, similarity_threshold: float = 0.85):
+        """
+        De-duplicates extracted measurements using value-anchored grouping.
+
+        Records sharing the same (document_id, feature, value) are compared on
+        their entity identification attributes.  For each pair of non-null
+        attribute values, string similarity is computed with
+        ``difflib.SequenceMatcher``.  Only non-null attributes (in at least one
+        of the two records) contribute to the average; attributes that are null
+        in *both* records are skipped.
+
+        When the average similarity is ≥ ``similarity_threshold`` the records
+        are merged: each entity attribute whose values differ across the group
+        is stored as a **sorted list of unique values**, while attributes that
+        agree are kept as a single value.
+
+        Args:
+            similarity_threshold (float): Minimum average attribute similarity
+                to consider two records duplicates.  Default ``0.65``.
+
+        Returns:
+            list[dict]: De-duplicated measurement records.
+        """
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
+
+        # --- helpers --------------------------------------------------------
+        def _norm(v):
+            """Normalise an attribute value to a comparable lowercase string."""
+            if v is None:
+                return None
+            return str(v).strip().lower()
+
+        def _flatten_field(v):
+            """Return a list of normalised strings for a field value.
+
+            Handles scalars, ``None``, and list-valued fields that result
+            from prior merges.
+            """
+            if v is None:
+                return []
+            if isinstance(v, list):
+                return [s for s in (_norm(x) for x in v) if s is not None]
+            normed = _norm(v)
+            return [normed] if normed is not None else []
+
+        def _field_similarity(raw_a, raw_b):
+            """Similarity between two (possibly list-valued) field values.
+
+            Returns ``None`` when both sides are empty/null (meaning the
+            field should be skipped entirely), or a float in [0, 1].
+
+            * Both null → ``None`` (skip).
+            * One null, one populated → treat as *compatible* (1.0).
+              A ``None`` is "unknown" rather than "different".
+            * Both populated → best pairwise ``token_set_ratio`` between
+              the flattened value lists (handles prior-merge lists).
+            """
+            vals_a = _flatten_field(raw_a)
+            vals_b = _flatten_field(raw_b)
+
+            if not vals_a and not vals_b:
+                return None                        # both empty → skip
+
+            if not vals_a or not vals_b:
+                return 1.0                         # one null → compatible
+
+            # Both populated: best pairwise match
+            best = max(
+                fuzz.token_set_ratio(a, b) / 100.0
+                for a in vals_a
+                for b in vals_b
+            )
+            return best
+
+        def _pair_similarity(a, b):
+            """Average similarity over non-null entity fields."""
+            scores = []
+            for field in entity_fields:
+                sim = _field_similarity(a.get(field), b.get(field))
+                if sim is None:
+                    continue                       # both null → skip
+                scores.append(sim)
+            return sum(scores) / len(scores) if scores else 1.0
+
+        def _group_key(record):
+            """Blocking key: same document, same feature, same value."""
+            return (
+                record.get('document_id'),
+                record.get('feature'),
+                _norm(record.get('value')),
+            )
+
+        # --- build groups ---------------------------------------------------
+        groups: dict[tuple, list[int]] = {}
+        for idx, record in enumerate(self.data):
+            key = _group_key(record)
+            groups.setdefault(key, []).append(idx)
+
+        merged_indices: set[int] = set()
+        deduplicated: list[dict] = []
+
+        for key, indices in groups.items():
+            if len(indices) == 1:
+                # singleton – nothing to compare
+                deduplicated.append(self.data[indices[0]])
+                merged_indices.add(indices[0])
+                continue
+
+            # Greedy single-linkage clustering within the group
+            clusters: list[list[int]] = []
+            assigned: set[int] = set()
+            for i, j in combinations(range(len(indices)), 2):
+                if _pair_similarity(self.data[indices[i]], self.data[indices[j]]) >= similarity_threshold:
+                    # find if either is already in a cluster
+                    ci = cj = None
+                    for k, cl in enumerate(clusters):
+                        if i in cl:
+                            ci = k
+                        if j in cl:
+                            cj = k
+                    if ci is not None and cj is not None:
+                        if ci != cj:
+                            clusters[ci].extend(clusters[cj])
+                            clusters.pop(cj)
+                    elif ci is not None:
+                        clusters[ci].append(j)
+                    elif cj is not None:
+                        clusters[cj].append(i)
+                    else:
+                        clusters.append([i, j])
+                    assigned.update([i, j])
+
+            # singletons within the group (not similar to anyone)
+            for i in range(len(indices)):
+                if i not in assigned:
+                    clusters.append([i])
+
+            # merge each cluster into one record
+            for cluster in clusters:
+                cluster_records = [self.data[indices[i]] for i in cluster]
+                merged = dict(cluster_records[0])     # start from first record
+
+                for field in entity_fields:
+                    unique_vals = []
+                    seen: set = set()
+                    for rec in cluster_records:
+                        v = rec.get(field)
+                        # handle values already stored as lists from prior merges
+                        vals = v if isinstance(v, list) else [v]
+                        for item in vals:
+                            if item is None:
+                                continue
+                            normed = _norm(item)
+                            if normed not in seen:
+                                seen.add(normed)
+                                unique_vals.append(item)
+                    # if all values were None, keep as None
+                    if len(unique_vals) == 0:
+                        merged[field] = None
+                    elif len(unique_vals) == 1:
+                        merged[field] = unique_vals[0]
+                    else:
+                        merged[field] = sorted(
+                            unique_vals,
+                            key=lambda x: str(x) if x is not None else ''
+                        )
+
+                deduplicated.append(merged)
+                for i in cluster:
+                    merged_indices.add(indices[i])
+
+        return deduplicated
+
+
     def fit(
         self,
         documents : list[str],
@@ -831,6 +1007,7 @@ class MeasurementLM:
         self.data = self._measure_vllm_columns()
         self.data = self._table_extract()
         self.data = self._standardize_measurements()
+        self.data = self._deduplicate()
 
         return self.data
 

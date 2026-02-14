@@ -33,16 +33,7 @@ for entry in data_combined:
         jud_result = entry[jud_key]
         if jud_result is True:
             valid_vote += 1
-        '''
-        jud_result = entry[jud_key].lower().strip()
-        if "true" in jud_result:
-            if j != 'llama':
-                valid_vote += 1
-            entry[jud_key] = True
-        else:
-            entry[jud_key] = False
-        '''
-    #entry["judgement_combined"] = valid_vote > len(judgement_files_dict) / 2
+            
     entry["judgement_combined"] = valid_vote >= 2
 
 

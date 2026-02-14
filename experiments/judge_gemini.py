@@ -317,9 +317,20 @@ def build_user_prompt_from_entry(
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Sort by document_id then context to improve temporal locality for any
+    # provider-side prefix reuse / caching.
+    # Carry original indices so we can write results in the original input order.
+    data_with_idx = list(enumerate(data))
+    data_with_idx.sort(
+        key=lambda it: (
+            str(it[1].get("document_id", "")),
+            str(it[1].get("context", "")),
+        )
+    )
+
     chats: list[dict[str, Any]] = []
 
-    for i, entry in enumerate(data):
+    for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
         feature = entry.get("feature")
         feature_description = feature_info_dict[feature]["description"]
@@ -336,7 +347,7 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
             measurement_val=measurement_val,
         )
 
-        chats.append({"custom_id": str(i), "system": system, "user": user})
+        chats.append({"custom_id": str(orig_idx), "system": system, "user": user})
 
     return chats
 
@@ -344,8 +355,8 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_11/new_ten.json"
-output_file = "data/experiments/2026_02_11/new_ten_judged_gemini.json"
+input_file = "data/experiments/2026_02_11/pond.json"
+output_file = "data/experiments/2026_02_11/pond_judged_gemini.json"
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:
@@ -365,10 +376,11 @@ if __name__ == "__main__":
         )
     )
 
+    # Reconstruct output in the original `data` order.
     data_validated: list[dict[str, Any]] = []
-    for cid, result in responses.items():
-        idx = int(cid)
-        entry = data[idx]
+    for i in range(len(data)):
+        result = responses.get(str(i), {})
+        entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
             "judgement_confidence": result.get("confidence"),

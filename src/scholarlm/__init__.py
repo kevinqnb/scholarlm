@@ -15,10 +15,13 @@ from .utils import (
     tokenize,
     jensen_shannon_divergence,
     table_extract,
-    add_row_names
+    add_row_names,
+    load_deduplicate_and_process_results,
+    match_datasets,
+    matching_precision_recall,
 )
 
 from .instruction_prompts import (
     JUDGE_INSTRUCTIONS,
-    CLEAN_TABLE_INSTRUCTIONS
+    CLEAN_TABLE_INSTRUCTIONS,
 )

@@ -19,6 +19,12 @@ load_dotenv()
 #
 # This script mirrors `experiments/judge_gpt.py` / `experiments/judge_gemini.py` but uses Claude.
 #
+# Prompt caching:
+# - Anthropic supports prompt caching by marking *stable* prompt segments with
+#   `cache_control` on content blocks.
+# - We mark the (1) system instructions and (2) per-entry context block as cacheable.
+# - Variable query parts remain uncached.
+#
 # Token probabilities:
 # - Anthropic's public API does not expose next-token logprobs.
 # - We set `judgement_confidence=None` for parity with the other judge scripts.
@@ -43,19 +49,24 @@ def normalize_bool_text(text: str | None) -> bool | None:
     return None
 
 
-def build_user_prompt_from_entry(
+def build_user_prompt_blocks_from_entry(
     *,
     context: str,
     feature_description: str,
     feature_terms: list[Any],
     entity_description: dict[str, Any],
     measurement_val: Any,
-) -> str:
-    """Create the shared user prompt for judging.
+) -> tuple[str, str]:
+    """Return (cached_context_text, query_text) for judging.
 
-    This must stay stable across providers to make results comparable.
+    We split the prompt so the large, reused context can be explicitly cached.
     """
 
+    # Stable cached prefix for this entry.
+    cached_context = f"## Context:\n{context}\n\n"
+
+    # Keep the shared prompt content stable across providers.
+    # NOTE: Do not change entity_description formatting (keep Python dict repr).
     query = (
         f"Feature description: {feature_description}\n"
         f"Terminology used for the feature: {feature_terms}\n"
@@ -63,7 +74,10 @@ def build_user_prompt_from_entry(
         f"Extracted measurement: {measurement_val}\n\n"
         f"Is the extracted data point valid for the given entity and feature?"
     )
-    return f"## Context:\n{context}\n\n## Query:\n{query}"
+
+    query_text = f"## Query:\n{query}"
+
+    return cached_context, query_text
 
 
 class AsyncRateLimiter:
@@ -96,7 +110,8 @@ async def run_single_chat(
     model: str,
     custom_id: str,
     system: str,
-    user: str,
+    cached_context: str,
+    query_text: str,
     sem: asyncio.Semaphore,
     limiter: AsyncRateLimiter,
     max_retries: int,
@@ -114,8 +129,29 @@ async def run_single_chat(
                 def _call():
                     return client.messages.create(
                         model=model,
-                        system=system,
-                        messages=[{"role": "user", "content": user}],
+                        # Mark stable instructions as cacheable.
+                        system=[
+                            {
+                                "type": "text",
+                                "text": system,
+                                "cache_control": {"type": "ephemeral"},
+                            }
+                        ],
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    # Mark the reused context as cacheable.
+                                    {
+                                        "type": "text",
+                                        "text": cached_context,
+                                        "cache_control": {"type": "ephemeral"},
+                                    },
+                                    # Keep variable parts uncached.
+                                    {"type": "text", "text": query_text},
+                                ],
+                            }
+                        ],
                         # Mirror the other judge scripts: output should be only true/false.
                         max_tokens=5,
                         temperature=0.0,
@@ -176,7 +212,8 @@ async def run_all_chats(
                 model=model,
                 custom_id=chat["custom_id"],
                 system=chat["system"],
-                user=chat["user"],
+                cached_context=chat["cached_context"],
+                query_text=chat["query_text"],
                 sem=sem,
                 limiter=limiter,
                 max_retries=max_retries,
@@ -245,14 +282,24 @@ feature_info_dict = {
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_11/new_ten.json"
-output_file = "data/experiments/2026_02_11/new_ten_judged_claude.json"
+input_file = "data/experiments/2026_02_11/pond.json"
+output_file = "data/experiments/2026_02_11/pond_judged_claude.json"
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    # Sort by document_id then context to increase cache locality (Claude caches expire).
+    # We carry the original index so outputs can be re-mapped to the original order.
+    data_with_idx = list(enumerate(data))
+    data_with_idx.sort(
+        key=lambda it: (
+            str(it[1].get("document_id", "")),
+            str(it[1].get("context", "")),
+        )
+    )
+
     chats: list[dict[str, Any]] = []
 
-    for i, entry in enumerate(data):
+    for i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
         feature = entry.get("feature")
         feature_description = feature_info_dict[feature]["description"]
@@ -264,7 +311,7 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # to answer with exactly 'true' or 'false').
         system = JUDGE_INSTRUCTIONS
 
-        user = build_user_prompt_from_entry(
+        cached_context, query_text = build_user_prompt_blocks_from_entry(
             context=context,
             feature_description=feature_description,
             feature_terms=feature_terms,
@@ -274,9 +321,12 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
         chats.append(
             {
-                "custom_id": str(i),
+                # Use the original index as the custom_id so we can map results
+                # back to the original input order.
+                "custom_id": str(orig_idx),
                 "system": system,
-                "user": user,
+                "cached_context": cached_context,
+                "query_text": query_text,
             }
         )
 
@@ -292,7 +342,7 @@ if __name__ == "__main__":
 
     chats = build_chats(data)
 
-    model = "claude-opus-4-6"
+    model = "claude-sonnet-4-5"
 
     responses = asyncio.run(
         run_all_chats(
@@ -304,10 +354,11 @@ if __name__ == "__main__":
         )
     )
 
+    # Reconstruct output in the original `data` order.
     data_validated: list[dict[str, Any]] = []
-    for cid, result in responses.items():
-        idx = int(cid)
-        entry = data[idx]
+    for i in range(len(data)):
+        result = responses.get(str(i), {})
+        entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
             "judgement_confidence": result.get("confidence"),

@@ -235,9 +235,20 @@ def build_user_prompt_from_entry(
     return f"## Context:\n{context}\n\n## Query:\n{query}"
 
 def build_chats(data):
+    # Sort by document_id then context to improve temporal locality for any
+    # provider-side prefix reuse / caching.
+    # Carry original indices so we can write results in the original input order.
+    data_with_idx = list(enumerate(data))
+    data_with_idx.sort(
+        key=lambda it: (
+            str(it[1].get("document_id", "")),
+            str(it[1].get("context", "")),
+        )
+    )
+
     chats = []
 
-    for i, entry in enumerate(data):
+    for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
         feature = entry.get("feature")
         feature_description = feature_info_dict[feature]["description"]
@@ -259,7 +270,7 @@ def build_chats(data):
             {"role": "user", "content": [{"type": "text", "text": user}]},
         ]
 
-        chats.append({"custom_id": str(i), "messages": messages})
+        chats.append({"custom_id": str(orig_idx), "messages": messages})
 
     return chats
 
@@ -287,10 +298,11 @@ if __name__ == "__main__":
         )
     )
 
+    # Reconstruct output in the original `data` order.
     data_validated = []
-    for cid, result in responses.items():
-        idx = int(cid)
-        entry = data[idx]
+    for i in range(len(data)):
+        result = responses.get(str(i), {})
+        entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
             "judgement_confidence": result.get("confidence"),

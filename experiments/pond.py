@@ -41,7 +41,6 @@ text_files = [
     'impact_of_macrophytes.txt'
 ]
 
-
 text_files = [
     "bacterioplankton.txt",
     "conservation_of_pond.txt",
@@ -297,6 +296,26 @@ def standardize(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
+def deduplicate(infile, outfile):
+    print("Deduplicating...")
+    with open(infile, 'r') as f:
+        data = json.load(f)
+
+    measurementlm.data = data
+    data = measurementlm._deduplicate()
+
+    dataset = []
+    for datapoint in data:
+        document_id = datapoint['document_id']
+        doc_metadata = text_info[document_id]
+        dataset.append(
+            doc_metadata | datapoint
+        )
+
+    with open(outfile, 'w') as f:
+        json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
+
+
 '''
 outfile1 = "data/experiments/01_28_26/ten_identify.json"
 identify(text, outfile1)
@@ -311,5 +330,23 @@ outfile4 = "data/experiments/01_28_26/ten_standardize.json"
 standardize(outfile3, outfile4)
 '''
 
+outfile4 = "data/experiments/2026_02_11/pond.json"
+outfile5 = "data/experiments/2026_02_11/pond_dedup.json"
+deduplicate(outfile4, outfile5)
+
+'''
 data = measurementlm.fit(text)
-measurementlm.save("data/experiments/2026_02_11/pond.json")
+
+dataset = []
+for datapoint in data:
+    document_id = datapoint['document_id']
+    doc_metadata = text_info[document_id]
+    dataset.append(
+        doc_metadata | datapoint
+    )
+
+
+outfile = "data/experiments/2026_02_11/pond.json"
+with open(outfile, 'w') as f:
+    json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
+'''
