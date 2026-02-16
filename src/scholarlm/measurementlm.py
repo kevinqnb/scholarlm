@@ -12,9 +12,8 @@ from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 from .instruction_prompts import (
     ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS,
-    DETECT_ATTRIBUTE_INSTRUCTIONS,
-    DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS,
-    IDENTIFY_ATTRIBUTE_TERMS_INSTRUCTIONS,
+    DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
+    DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS,
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
@@ -52,6 +51,19 @@ class TableValueExtractionResponse(BaseModel):
     row_index: str | None = None
     column_index: str | None = None
     units: str | None = None
+
+
+class AttributeDetectionItem(BaseModel):
+    """Detection result for a single attribute."""
+    attribute_name: str
+    explanation: str
+    detected: bool
+    terms: list[str]
+
+
+class BatchAttributeDetectionResponse(BaseModel):
+    """Batched detection results for all attributes."""
+    items: list[AttributeDetectionItem]
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -243,70 +255,104 @@ class MeasurementLM:
 
 
     # -----------------------------------------------------------------------
-    # Step 2: Attribute detection (full context + per-table + term ID)
+    # Step 2: Attribute detection (batched full context + per-table)
     # -----------------------------------------------------------------------
+
+    def _format_attribute_list(self):
+        """Format all attributes as a numbered list for inclusion in prompts."""
+        lines = []
+        for idx, (attr_name, attr_info) in enumerate(self.attribute_info_dict.items(), 1):
+            desc = attr_info.get('description', '')
+            lines.append(f"{idx}. {attr_name}: {desc}")
+        return "\n".join(lines)
 
     def _detect_attributes(self):
         """
-        Detects which attributes are measured for each entity in three phases:
-        A. Full-context boolean detection per (entity, attribute).
-        B. Per-table boolean detection for attributes still False after Phase A.
-        C. Term identification for detected attributes.
+        Detects which attributes are measured for each entity in two phases:
+        A. Batched full-context detection — one prompt per entity evaluating
+           all attributes at once, with inline term identification.
+        B. Batched per-table detection — one prompt per (entity, table) for
+           attributes not yet detected in Phase A.
 
         Reads from self.data (one record per entity per document) and returns
         one record per (entity, attribute) pair where the attribute was detected.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
-
-        # --- Phase A: Full-context boolean detection ---
-        messages = []
-        message_ids = []  # (record_idx, attribute_name)
-        for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            entity_description = {
-                k: v for k, v in datapoint.items() if k in entity_fields
-            }
-            for attr_name, attr_info in self.attribute_info_dict.items():
-                attr_description = attr_info.get('description', '')
-                query = (
-                    f"Attribute description: {attr_description}\n"
-                    f"Entity description: {entity_description}\n\n"
-                    f"Does the context provide data for measuring the described attribute "
-                    f"in reference to the given entity?\n\n"
-                )
-                prompt = (
-                    f"## Instructions:\n{DETECT_ATTRIBUTE_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([{"role": "user", "content": prompt}])
-                message_ids.append((i, attr_name))
+        attribute_list_text = self._format_attribute_list()
+        attr_names = list(self.attribute_info_dict.keys())
 
         guided_decoding_params = GuidedDecodingParams(
-            json=BooleanDecisionResponse.model_json_schema()
+            json=BatchAttributeDetectionResponse.model_json_schema()
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
             guided_decoding=guided_decoding_params
         )
+
+        # --- Phase A: Batched full-context detection (one prompt per entity) ---
+        messages = []
+        message_ids = []  # record_idx
+        for i, datapoint in enumerate(self.data):
+            context = datapoint['context']
+            entity_description = {
+                k: v for k, v in datapoint.items() if k in entity_fields
+            }
+            query = (
+                f"Entity description: {entity_description}\n\n"
+                f"Attributes to evaluate:\n{attribute_list_text}\n\n"
+                f"For each attribute listed above, determine whether the context "
+                f"provides a direct numerical measurement for the given entity. "
+                f"Return one item per attribute using the exact attribute name.\n\n"
+            )
+            prompt = (
+                f"## Instructions:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS}\n\n"
+                f"## Context:\n{context}\n\n## Query:\n{query}"
+            )
+            messages.append([{"role": "user", "content": prompt}])
+            message_ids.append(i)
+
         responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
 
-        # Build detection results: {record_idx: {attr_name: bool}}
+        # Build detection results and attribute terms
         detection_results: dict[int, dict[str, bool]] = {}
-        for msg_idx, resp in enumerate(response_texts):
-            record_idx, attr_name = message_ids[msg_idx]
-            try:
-                decision = response_validator(BooleanDecisionResponse, resp)
-                answer = bool(decision.get('answer', False))
-            except:
-                print("Validation error in attribute detection response.")
-                answer = False
-            detection_results.setdefault(record_idx, {})[attr_name] = answer
+        attribute_terms: dict[tuple[int, str], list[str]] = {}
 
-        # --- Phase B: Per-table boolean detection for False attributes ---
+        for msg_idx, resp in enumerate(response_texts):
+            record_idx = message_ids[msg_idx]
+            try:
+                batch = response_validator(BatchAttributeDetectionResponse, resp)
+            except:
+                print("Validation error in batched attribute detection response.")
+                for attr_name in attr_names:
+                    detection_results.setdefault(record_idx, {})[attr_name] = False
+                continue
+
+            # Index response items by attribute_name
+            responded_attrs = {}
+            for item in batch['items']:
+                responded_attrs[item['attribute_name']] = item
+
+            for attr_name in attr_names:
+                item = responded_attrs.get(attr_name)
+                if item and item.get('detected', False):
+                    detection_results.setdefault(record_idx, {})[attr_name] = True
+                    attribute_terms[(record_idx, attr_name)] = item.get('terms', [])
+                else:
+                    detection_results.setdefault(record_idx, {})[attr_name] = False
+
+        # --- Phase B: Batched per-table detection for undetected attributes ---
         table_messages = []
-        table_message_ids = []  # (record_idx, attr_name)
+        table_message_ids = []  # (record_idx, list_of_attr_names_queried)
         for i, datapoint in enumerate(self.data):
+            # Collect attributes not yet detected for this entity
+            undetected = [
+                a for a in attr_names
+                if not detection_results.get(i, {}).get(a, False)
+            ]
+            if not undetected:
+                continue
+
             context = datapoint['context']
             entity_description = {
                 k: v for k, v in datapoint.items() if k in entity_fields
@@ -315,31 +361,34 @@ class MeasurementLM:
             if not tables:
                 continue
 
-            for attr_name, attr_info in self.attribute_info_dict.items():
-                # Skip attributes already detected as True
-                if detection_results.get(i, {}).get(attr_name, False):
+            # Build attribute list text for undetected attributes only
+            undetected_lines = []
+            for idx, attr_name in enumerate(undetected, 1):
+                desc = self.attribute_info_dict[attr_name].get('description', '')
+                undetected_lines.append(f"{idx}. {attr_name}: {desc}")
+            undetected_list_text = "\n".join(undetected_lines)
+
+            for t in tables:
+                t = int(t)
+                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
+                table_end = context.find('</table>', table_start)
+                table_text = context[table_start:table_end].strip()
+                if not table_text:
                     continue
 
-                attr_description = attr_info.get('description', '')
-                for t in tables:
-                    t = int(t)
-                    table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
-                    table_end = context.find('</table>', table_start)
-                    table_text = context[table_start:table_end].strip()
-                    if not table_text:
-                        continue
-
-                    query = (
-                        f"Attribute description: {attr_description}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"Does the table contain a measurement for the given attribute and entity?\n\n"
-                    )
-                    prompt = (
-                        f"## Instructions:\n{DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS}\n\n"
-                        f"## Context:\n{table_text}\n\n## Query:\n{query}"
-                    )
-                    table_messages.append([{"role": "user", "content": prompt}])
-                    table_message_ids.append((i, attr_name))
+                query = (
+                    f"Entity description: {entity_description}\n\n"
+                    f"Attributes to evaluate:\n{undetected_list_text}\n\n"
+                    f"For each attribute listed above, determine whether the table "
+                    f"contains a direct numerical measurement for the given entity. "
+                    f"Return one item per attribute using the exact attribute name.\n\n"
+                )
+                prompt = (
+                    f"## Instructions:\n{DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS}\n\n"
+                    f"## Context:\n{table_text}\n\n## Query:\n{query}"
+                )
+                table_messages.append([{"role": "user", "content": prompt}])
+                table_message_ids.append((i, undetected))
 
         if table_messages:
             table_responses = self.llm.chat(
@@ -348,60 +397,24 @@ class MeasurementLM:
             table_response_texts = [r.outputs[0].text for r in table_responses]
 
             for msg_idx, resp in enumerate(table_response_texts):
-                record_idx, attr_name = table_message_ids[msg_idx]
+                record_idx, queried_attrs = table_message_ids[msg_idx]
                 try:
-                    decision = response_validator(BooleanDecisionResponse, resp)
-                    answer = bool(decision.get('answer', False))
+                    batch = response_validator(BatchAttributeDetectionResponse, resp)
                 except:
-                    print("Validation error in table attribute detection response.")
-                    answer = False
-
-                if answer:
-                    detection_results.setdefault(record_idx, {})[attr_name] = True
-
-        # --- Phase C: Term identification for detected attributes ---
-        term_messages = []
-        term_message_ids = []  # (record_idx, attr_name)
-        for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            for attr_name in self.attribute_info_dict:
-                if not detection_results.get(i, {}).get(attr_name, False):
+                    print("Validation error in batched table attribute detection response.")
                     continue
-                attr_description = self.attribute_info_dict[attr_name]['description']
-                query = (
-                    f"Attribute description: {attr_description}\n\n"
-                    f"What terms are used to refer to the described attribute in the context?"
-                )
-                prompt = (
-                    f"## Instructions:\n{IDENTIFY_ATTRIBUTE_TERMS_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                term_messages.append([{"role": "user", "content": prompt}])
-                term_message_ids.append((i, attr_name))
 
-        # Collect terms
-        attribute_terms: dict[tuple[int, str], list[str]] = {}
-        if term_messages:
-            term_guided = GuidedDecodingParams(
-                json=ListResponse.model_json_schema()
-            )
-            term_sampling = SamplingParams(
-                **self.sampling_params,
-                guided_decoding=term_guided
-            )
-            term_responses = self.llm.chat(
-                messages=term_messages, sampling_params=term_sampling
-            )
-            term_response_texts = [r.outputs[0].text for r in term_responses]
+                responded_attrs = {}
+                for item in batch['items']:
+                    responded_attrs[item['attribute_name']] = item
 
-            for msg_idx, resp in enumerate(term_response_texts):
-                record_idx, attr_name = term_message_ids[msg_idx]
-                try:
-                    terms = response_validator(ListResponse, resp)['items']
-                except:
-                    print("Error parsing attribute terms response.")
-                    terms = []
-                attribute_terms[(record_idx, attr_name)] = terms
+                for attr_name in queried_attrs:
+                    item = responded_attrs.get(attr_name)
+                    if item and item.get('detected', False):
+                        detection_results.setdefault(record_idx, {})[attr_name] = True
+                        # Only set terms if not already set by a previous table
+                        if (record_idx, attr_name) not in attribute_terms:
+                            attribute_terms[(record_idx, attr_name)] = item.get('terms', [])
 
         # --- Data expansion: one record per (entity, detected attribute) ---
         expanded_data = []
