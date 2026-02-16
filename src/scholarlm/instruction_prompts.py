@@ -61,37 +61,51 @@ Guidelines:
 - If the context does not contain any terminology or abbreviations that directly refer to the given attribute, respond with an empty list.
 """
 
-# Step 2 (batched): Full-context attribute detection with inline term identification
-DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has a directly reported numerical measurement for the given entity.
+# Step 2 (batched): Document-level full-context attribute detection with inline term identification
+DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has any directly reported numerical measurements anywhere in the document.
 
 Guidelines:
 - You MUST return one item per attribute, using the EXACT attribute name provided. Do not rename, skip, or add attributes.
-- Set detected to false if the given attribute or entity do not appear in the context.
-- Set detected to false if the context does not explicitly provide data for the given attribute and entity.
+- Set detected to false if the given attribute does not appear in the context.
+- Set detected to false if the context does not explicitly provide data for the given attribute.
 - Set detected to false if the data reported is not a direct numerical measurement.
 - Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
 - Set detected to false for cases where there is not a clear choice for a single, numerical data value.
-- Set detected to true only if the context explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
+- Set detected to true only if the context explicitly provides a direct numerical measurement for the given attribute.
 - For each attribute, provide a brief explanation justifying your decision.
 - When detected is true, populate the terms list with any terminology or abbreviations used in the context to refer to that attribute. Pay close attention to tables and figure captions, as these often contain abbreviations used in the main text. Do not infer, guess, or fabricate terms not explicitly present in the context.
 - When detected is false, return an empty list for terms.
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
 """
 
-# Step 2 (batched): Per-table attribute detection with inline term identification
-DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against a specific HTML table from a research paper, determining whether each attribute has a directly reported numerical measurement for the given entity within this table.
+# Step 2 (batched): Document-level per-table attribute detection with inline term identification
+DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against a specific HTML table from a research paper, determining whether each attribute has any directly reported numerical measurements within this table.
 
 Guidelines:
 - You MUST return one item per attribute, using the EXACT attribute name provided. Do not rename, skip, or add attributes.
-- Set detected to false if the given attribute or entity do not appear in the table.
-- Set detected to false if the table does not explicitly provide data for the given attribute and entity.
+- Set detected to false if the given attribute does not appear in the table.
+- Set detected to false if the table does not explicitly provide data for the given attribute.
 - Set detected to false if the data reported is not a direct numerical measurement.
 - Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Set detected to true only if the table explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
+- Set detected to true only if the table explicitly provides a direct numerical measurement for the given attribute.
 - For each attribute, provide a brief explanation justifying your decision.
 - When detected is true, populate the terms list with any terminology or abbreviations used in the table to refer to that attribute. Do not infer, guess, or fabricate terms not explicitly present in the table.
 - When detected is false, return an empty list for terms.
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
+"""
+
+# Step 2b: Filter (entity, attribute) pairs
+FILTER_ENTITY_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains a directly reported numerical measurement for a described attribute in reference to a given entity.
+
+Guidelines:
+- Answer False if the given attribute or entity do not appear in the context.
+- Answer False if the context does not explicitly provide data for the given attribute and entity.
+- Answer False if the data reported is not a direct numerical measurement.
+- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- Answer False for cases where there is not a clear choice for a single, numerical data value.
+- Answer True only if the context explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
+- Along with your answer, provide a brief explanation justifying the reasons for your decision.
+- Structure your response as a JSON object with "explanation" and "answer" fields.
 """
 
 # Step 3: Extract value from text (combined locate + extract)

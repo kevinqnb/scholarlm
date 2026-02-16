@@ -196,14 +196,41 @@ def extract_entities(text, outfile):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def detect_attributes(infile, outfile):
-    """Step 2: Attribute detection."""
+def detect_attributes(text, outfile):
+    """Step 2: Document-level attribute detection."""
     print("Detecting attributes...")
-    with open(infile, 'r') as f:
-        data = json.load(f)
+    data = []
+    for i, paper in enumerate(text):
+        data.append({'document_id': i, 'context': paper})
 
     measurementlm.data = data
-    data = measurementlm._detect_attributes()
+    doc_attributes = measurementlm._detect_attributes()
+
+    with open(outfile, 'w') as f:
+        json.dump(doc_attributes, f, indent=4, ensure_ascii=False)
+
+
+def combine_and_filter(entities_file, attributes_file, outfile):
+    """Step 3: Cross-product entities x attributes, then filter pairs."""
+    print("Combining and filtering entity-attribute pairs...")
+    with open(entities_file, 'r') as f:
+        entity_data = json.load(f)
+
+    with open(attributes_file, 'r') as f:
+        doc_attributes = json.load(f)
+
+    # doc_attributes keys are strings after JSON round-trip
+    entity_attribute_data = []
+    for record in entity_data:
+        doc_id = str(record['document_id'])
+        for attr_name, terms in doc_attributes.get(doc_id, {}).items():
+            entity_attribute_data.append(record | {
+                'attribute': attr_name,
+                'attribute_terms': terms,
+            })
+
+    measurementlm.data = entity_attribute_data
+    data = measurementlm._filter_entity_attribute_pairs()
 
     with open(outfile, 'w') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
@@ -255,13 +282,16 @@ outfile1 = "data/experiments/2026_02_18/ten_entities.json"
 extract_entities(text, outfile1)
 
 outfile2 = "data/experiments/2026_02_18/ten_attributes.json"
-detect_attributes(outfile1, outfile2)
+detect_attributes(text, outfile2)
 
-outfile3 = "data/experiments/2026_02_18/ten_values.json"
-extract_values(outfile2, outfile3)
+outfile3 = "data/experiments/2026_02_18/ten_pairs.json"
+combine_and_filter(outfile1, outfile2, outfile3)
 
-outfile4 = "data/experiments/2026_02_18/ten_final.json"
-standardize_and_deduplicate(outfile3, outfile4)
+outfile4 = "data/experiments/2026_02_18/ten_values.json"
+extract_values(outfile3, outfile4)
+
+outfile5 = "data/experiments/2026_02_18/ten_final.json"
+standardize_and_deduplicate(outfile4, outfile5)
 
 
 '''
