@@ -41,6 +41,12 @@ text_files = [
     'impact_of_macrophytes.txt'
 ]
 
+
+text_files = [
+    'physical_and_chemical_limnological.txt',
+]
+
+
 '''
 text_files = [
     "bacterioplankton.txt",
@@ -209,7 +215,7 @@ measurementlm = MeasurementLM(
 )
 
 
-def extract_entities(text, outfile):
+def extract_entities_and_attributes(text, outfile):
     """Step 1: Entity extraction with table enrichment."""
     print("Extracting entities...")
     data = []
@@ -217,23 +223,20 @@ def extract_entities(text, outfile):
         data.append({'document_id': i, 'context': paper})
 
     measurementlm.data = data
-    data = measurementlm._extract_entities()
+    entity_data = measurementlm._extract_entities()
+    attribute_data = measurementlm._detect_attributes()
+
+    entity_attribute_data = []
+    for i in range(len(data)):
+        entities = entity_data[i]
+        attributes = attribute_data[i]
+        for entity in entities:
+            for attr in attributes:
+                record = data[i] | entity | attr
+                entity_attribute_data.append(record)
 
     with open(outfile, 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-
-def detect_attributes(infile, outfile):
-    """Step 2: Attribute detection."""
-    print("Detecting attributes...")
-    with open(infile, 'r') as f:
-        data = json.load(f)
-
-    measurementlm.data = data
-    data = measurementlm._detect_attributes()
-
-    with open(outfile, 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+        json.dump(entity_attribute_data, f, indent=4, ensure_ascii=False)
 
 
 def extract_values(infile, outfile):
@@ -278,17 +281,14 @@ def standardize_and_deduplicate(infile, outfile):
 
 
 
-outfile1 = "data/experiments/2026_02_18/ten_entities.json"
-extract_entities(text, outfile1)
+outfile1 = "data/experiments/2026_02_18/ten_entities_attributes.json"
+extract_entities_and_attributes(text, outfile1)
 
-outfile2 = "data/experiments/2026_02_18/ten_attributes.json"
-detect_attributes(outfile1, outfile2)
+outfile2 = "data/experiments/2026_02_18/ten_values.json"
+extract_values(outfile1, outfile2)
 
-outfile3 = "data/experiments/2026_02_18/ten_values.json"
-extract_values(outfile2, outfile3)
-
-outfile4 = "data/experiments/2026_02_18/ten_final.json"
-standardize_and_deduplicate(outfile3, outfile4)
+outfile3 = "data/experiments/2026_02_18/ten_final.json"
+standardize_and_deduplicate(outfile2, outfile3)
 
 
 '''

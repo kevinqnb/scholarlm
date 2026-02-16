@@ -24,28 +24,28 @@ Guidelines:
 """
 
 # Step 2: Attribute detection (full context)
-DETECT_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains data for a described attribute (measurement variable) in reference to a given entity.
+DETECT_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains data for a described attribute (measurement variable).
 
 Guidelines:
-- Answer False if the given attribute or entity do not appear in the context.
-- Answer False if the context does not explicitly provide data for the given attribute and entity.
+- Answer False if the given attribute does not appear in the context.
+- Answer False if the context does not explicitly provide data for the given attribute.
 - Answer False if the data reported is not a direct numerical measurement.
 - Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
 - Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Answer True only if the context explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
+- Answer True only if the context explicitly provides a direct numerical value measured for the given attribute.
 - Along with your answer, provide a brief explanation justifying the reasons for your decision.
 - Structure your response as a JSON object with "explanation" and "answer" fields.
 """
 
 # Step 2: Attribute detection (single table)
-DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a specific HTML table from a research paper contains data for a described attribute (measurement variable) in reference to a given entity.
+DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a specific HTML table from a research paper contains data for a described attribute (measurement variable).
 
 Guidelines:
-- Answer False if the given attribute or entity do not appear in the table.
-- Answer False if the table does not explicitly provide data for the given attribute and entity.
+- Answer False if the given attribute does not appear in the table.
+- Answer False if the table does not explicitly provide data for the given attribute.
 - Answer False if the data reported is not a direct numerical measurement.
 - Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer True only if the table explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
+- Answer True only if the table explicitly provides a direct numerical value measured for the given attribute.
 - Along with your answer, provide a brief explanation justifying the reasons for your decision.
 - Structure your response as a JSON object with "explanation" and "answer" fields.
 """
@@ -208,15 +208,6 @@ Guidelines:
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
 - Your response should include the standardized value only, do not include any additional explanation or text.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
-"""
-
-# Choose / determine units
-STANDARDIZE_UNITS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by providing units for measurement values extracted from context provided for a research paper. You will be queried with a description of a specific entity and feature to collect data for, along with an extracted measurement value. Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of given unit options.
-
-Guidelines:
-- To ensure units follow standard formatting conventions, your response should be limited to options from among the given list.
-- If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context.
-- Your response should include the unit only, do not include any additional explanation or text.
 """
 
 # Validate extracted measurement value

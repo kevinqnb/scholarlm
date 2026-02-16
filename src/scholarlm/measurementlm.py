@@ -234,10 +234,10 @@ class MeasurementLM:
                 doc_entities[doc_idx] = existing
 
         # --- Build output: one record per (document, entity) ---
-        entity_data = []
+        entity_data = [[] for _ in self.data]
         for i, datapoint in enumerate(self.data):
             for entity in doc_entities.get(i, []):
-                entity_data.append(datapoint | entity)
+                entity_data[i].append(entity)
 
         return entity_data
 
@@ -249,30 +249,23 @@ class MeasurementLM:
     def _detect_attributes(self):
         """
         Detects which attributes are measured for each entity in three phases:
-        A. Full-context boolean detection per (entity, attribute).
+        A. Full-context boolean detection per attribute.
         B. Per-table boolean detection for attributes still False after Phase A.
         C. Term identification for detected attributes.
 
-        Reads from self.data (one record per entity per document) and returns
-        one record per (entity, attribute) pair where the attribute was detected.
+        Reads from self.data (one record per document) and returns
+        attributes and attribute terminology that was detected.
         """
-        entity_fields = list(self.entity_identification_schema.model_fields.keys())
-
         # --- Phase A: Full-context boolean detection ---
         messages = []
         message_ids = []  # (record_idx, attribute_name)
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            entity_description = {
-                k: v for k, v in datapoint.items() if k in entity_fields
-            }
             for attr_name, attr_info in self.attribute_info_dict.items():
                 attr_description = attr_info.get('description', '')
                 query = (
                     f"Attribute description: {attr_description}\n"
-                    f"Entity description: {entity_description}\n\n"
-                    f"Does the context provide data for measuring the described attribute "
-                    f"in reference to the given entity?\n\n"
+                    f"Does the context provide data for the described attribute?"
                 )
                 prompt = (
                     f"## Instructions:\n{DETECT_ATTRIBUTE_INSTRUCTIONS}\n\n"
@@ -308,9 +301,7 @@ class MeasurementLM:
         table_message_ids = []  # (record_idx, attr_name)
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            entity_description = {
-                k: v for k, v in datapoint.items() if k in entity_fields
-            }
+
             tables = re.findall(r'<table number="(\d+)">', context)
             if not tables:
                 continue
@@ -331,8 +322,7 @@ class MeasurementLM:
 
                     query = (
                         f"Attribute description: {attr_description}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"Does the table contain a measurement for the given attribute and entity?\n\n"
+                        f"Does the table provide data for the described attribute?"
                     )
                     prompt = (
                         f"## Instructions:\n{DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS}\n\n"
@@ -403,21 +393,20 @@ class MeasurementLM:
                     terms = []
                 attribute_terms[(record_idx, attr_name)] = terms
 
-        # --- Data expansion: one record per (entity, detected attribute) ---
-        expanded_data = []
+        # --- Data expansion: one record per attribute ---
+        attribute_data = [[] for _ in self.data]
         for i, datapoint in enumerate(self.data):
             for attr_name in self.attribute_info_dict:
                 if not detection_results.get(i, {}).get(attr_name, False):
                     continue
                 terms = attribute_terms.get((i, attr_name), [])
-                expanded_data.append(
-                    datapoint | {
-                        'attribute': attr_name,
-                        'attribute_terms': terms,
-                    }
-                )
+                attribute_data[i].append({
+                    'attribute': attr_name,
+                    'attribute_terms': terms,
+                })
 
-        return expanded_data
+        return attribute_data
+
 
 
     # -----------------------------------------------------------------------
@@ -877,13 +866,20 @@ class MeasurementLM:
             self.data.append({'document_id': i, 'context': doc})
 
         # Step 1: Entity extraction (full context + table enrichment)
-        self.data = self._extract_entities()
+        entity_data = self._extract_entities()
 
         # Step 2: Attribute detection (full context + per-table + term ID)
-        self.data = self._detect_attributes()
+        attribute_data = self._detect_attributes()
 
-        # Save entity-attribute pairs for parallel extraction
-        entity_attribute_data = [d for d in self.data]
+        # Save entity-attribute pairs
+        entity_attribute_data = []
+        for i in range(len(self.data)):
+            entities = entity_data[i]
+            attributes = attribute_data[i]
+            for entity in entities:
+                for attr in attributes:
+                    record = self.data[i] | entity | attr
+                    entity_attribute_data.append(record)
 
         # Step 3: Extract values from text (per-page)
         self.data = entity_attribute_data
