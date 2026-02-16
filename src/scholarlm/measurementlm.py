@@ -11,16 +11,13 @@ import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 from .instruction_prompts import (
-    IDENTIFY_FEATURE_TERMS_INSTRUCTIONS,
-    IDENTIFY_FEATURE_UNITS_INSTRUCTIONS,
-    IDENTIFY_ENTITY_FEATURE_PAIRS_INSTRUCTIONS,
-    PAGE_LOCATE_INSTRUCTIONS,
-    TABLE_LOCATE_INSTRUCTIONS,
-    MEASURE_VALUE_INSTRUCTIONS,
-    MEASURE_TABLE_ROW_INSTRUCTIONS,
-    MEASURE_TABLE_COLUMN_INSTRUCTIONS,
+    ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS,
+    DETECT_ATTRIBUTE_INSTRUCTIONS,
+    DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS,
+    IDENTIFY_ATTRIBUTE_TERMS_INSTRUCTIONS,
+    EXTRACT_TEXT_VALUE_INSTRUCTIONS,
+    EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
-    STANDARDIZE_UNITS_INSTRUCTIONS,
 )
 
 
@@ -40,12 +37,28 @@ class BooleanDecisionResponse(BaseModel):
     answer: bool
 
 
+class TextValueExtractionResponse(BaseModel):
+    """Response for extracting a value from prose text."""
+    explanation: str
+    has_value: bool
+    value: str | None = None
+    units: str | None = None
+
+
+class TableValueExtractionResponse(BaseModel):
+    """Response for extracting a value from a table."""
+    explanation: str
+    has_value: bool
+    row_index: str | None = None
+    column_index: str | None = None
+    units: str | None = None
+
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
             return int(obj)
         if isinstance(obj, np.floating):
-            # Check for NaN
             if math.isnan(obj):
                 return None
             return float(obj)
@@ -59,23 +72,21 @@ class MeasurementLM:
     A language model class designed for organized collection of measurements from scientific text.
 
     Args:
-        model_name (str): The name or path of the pre-trained language model from the huggingface 
+        model_name (str): The name or path of the pre-trained language model from the huggingface
             collection.
-        sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
         entity_identification_prompt (str): The prompt template for entity identification.
         entity_identification_schema (BaseModel): The pydantic schema for entity identification.
-        feature_info_dict (dict[str, any]): A dictionary containing information about the features to be
-            measured.
-
-    Attributes:
-
+        attribute_info_dict (dict[str, any]): A dictionary containing information about the
+            attributes to be measured. Each key is an attribute name, and each value is a dict
+            with at least a 'description' key and optionally a 'units' key.
+        sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
     """
     def __init__(
         self,
         model_name: str,
         entity_identification_prompt: str,
         entity_identification_schema: BaseModel,
-        feature_info_dict: dict[str, any],
+        attribute_info_dict: dict[str, any],
         sampling_params: dict[str, any] = {},
     ):
         self.model_name = model_name
@@ -88,142 +99,23 @@ class MeasurementLM:
         } | sampling_params
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
-        self.feature_info_dict = feature_info_dict
+        self.attribute_info_dict = attribute_info_dict
         self.llm = LLM(model=model_name)
 
 
-    def _identify_feature_terms(self):
+    # -----------------------------------------------------------------------
+    # Step 1: Entity extraction (full context + table enrichment)
+    # -----------------------------------------------------------------------
+
+    def _extract_entities(self):
         """
-        Identifies terms used to describe features in the text.
+        Extracts entities from documents in two passes:
+        1. Full-context extraction using the entity identification prompt and schema.
+        2. Per-table enrichment that finds new entities or fills in missing fields
+           on existing entities.
 
-        Args:
-            
-        Returns:
-            
-        """
-        instructions = IDENTIFY_FEATURE_TERMS_INSTRUCTIONS
-        messages = []
-        message_ids = []
-        for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            for feature in self.feature_info_dict:
-                feature_description = self.feature_info_dict[feature]['description']
-
-                query = (
-                    f"Feature description: {feature_description}\n\n"
-                    f"What terms are used to refer to the described feature in the context?"
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user", "content": prompt}
-                ])
-                message_ids.append((i, feature))
-
-        guided_decoding_params = GuidedDecodingParams(
-            json=ListResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-        feature_term_data = [d for d in self.data]
-        for i, resp in enumerate(response_texts):
-            idx, feature = message_ids[i]
-            try:
-                alt_names = response_validator(ListResponse, resp)['items']
-                if feature_term_data[idx].get('feature_terms') is None:
-                    feature_term_data[idx]['feature_terms'] = {}
-                feature_term_data[idx]['feature_terms'][feature] = alt_names
-            except:
-                print("Error parsing alternative names response.")
-                if feature_term_data[idx].get('feature_terms') is None:
-                    feature_term_data[idx]['feature_terms'] = {}
-                feature_term_data[idx]['feature_terms'][feature] = []
-
-        return feature_term_data
-
-
-    def _identify_feature_units(self):
-        """
-        Identifies units used to measure features in the text.
-
-        Args:
-            
-        Returns:
-
-        """
-        instructions = IDENTIFY_FEATURE_UNITS_INSTRUCTIONS
-        messages = []
-        message_ids = []
-        sampling_params = []
-        for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            doc_id = datapoint.get('document_id', None)
-            for feature in self.feature_info_dict:
-                feature_description = self.feature_info_dict[feature]['description']
-                feature_terms = datapoint.get('feature_terms', {}).get(feature, [])
-                feature_units = self.feature_info_dict[feature].get('units', None)
-
-                if len(feature_units) == 0:
-                    continue
-
-                query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n\n"
-                    f"What units does the context use to measure described feature, if any? Choose from among given options: {feature_units}."
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user", "content": prompt}
-                ])
-                message_ids.append((i, feature))
-
-                '''
-                guided_decoding_params = GuidedDecodingParams(
-                    choice = feature_units
-                )
-                params = SamplingParams(
-                    **self.sampling_params,
-                    guided_decoding=guided_decoding_params
-                )
-                sampling_params.append(params)
-                '''
-
-
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-        )
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-        feature_unit_data = [d for d in self.data]
-        for i, resp in enumerate(response_texts):
-            idx, feature = message_ids[i]
-            if resp.strip().lower() != 'none':
-                if feature_unit_data[idx].get('units') is None:
-                    feature_unit_data[idx]['units'] = {}
-                feature_unit_data[idx]['units'][feature] = resp.strip()
-            else:
-                if feature_unit_data[idx].get('units') is None:
-                    feature_unit_data[idx]['units'] = {}
-                feature_unit_data[idx]['units'][feature] = None
-
-        return feature_unit_data
-
-
-    def _identify_entities(self):
-        """
-        Identifies entities in the text based on the identification schema.
-
-        Args:
-            
-        Returns:
-            
+        Reads from self.data (one record per document) and returns one record per
+        (document, entity) with entity schema fields merged in.
         """
         from pydantic import create_model
 
@@ -232,19 +124,18 @@ class MeasurementLM:
             items=(list[self.entity_identification_schema], ...),
         )
         identification_list_json = IdentificationList.model_json_schema()
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
 
+        # --- Pass 1: Full-context entity identification ---
         messages = []
         for i, datapoint in enumerate(self.data):
             instructions = self.entity_identification_prompt
             context = datapoint['context']
-
             query = "Follow the instructions to identify the items mentioned in the context."
             prompt = (
                 f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
             )
-            messages.append([
-                {"role": "user","content": prompt}]
-            )
+            messages.append([{"role": "user", "content": prompt}])
 
         guided_decoding_params = GuidedDecodingParams(
             json=identification_list_json
@@ -254,9 +145,11 @@ class MeasurementLM:
             guided_decoding=guided_decoding_params
         )
 
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
+        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        entity_data = []
+
+        # Build per-document entity lists
+        doc_entities: dict[int, list[dict]] = {}
         for i, r in enumerate(response_texts):
             try:
                 resp_validated = response_validator(IdentificationList, r)
@@ -264,49 +157,129 @@ class MeasurementLM:
                 print("Validation error in identification response.")
                 resp_validated = {'items': []}
 
-            for entity in resp_validated['items']:
-                entity_data.append(
-                    self.data[i] | entity
+            doc_entities[i] = list(resp_validated['items'])
+
+        # --- Pass 2: Table enrichment ---
+        enrichment_messages = []
+        enrichment_ids = []  # (doc_idx, table_number)
+        for i, datapoint in enumerate(self.data):
+            context = datapoint['context']
+            tables = re.findall(r'<table number="(\d+)">', context)
+            if not tables:
+                continue
+
+            existing_entities_summary = json.dumps(
+                doc_entities.get(i, []), indent=2, ensure_ascii=False
+            )
+
+            for t in tables:
+                t = int(t)
+                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
+                table_end = context.find('</table>', table_start)
+                table_text = context[table_start:table_end].strip()
+                if not table_text:
+                    continue
+
+                query = (
+                    "Examine this table. Identify any new entities not in the list above, "
+                    "and for existing entities extract any additional attribute values "
+                    "(abbreviations, codes, etc.) that the table reveals."
                 )
+                prompt = (
+                    f"## Instructions:\n{ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS}\n\n"
+                    f"## Already Identified Entities:\n{existing_entities_summary}\n\n"
+                    f"## Table:\n{table_text}\n\n"
+                    f"## Query:\n{query}"
+                )
+                enrichment_messages.append([{"role": "user", "content": prompt}])
+                enrichment_ids.append((i, t))
+
+        if enrichment_messages:
+            enrichment_responses = self.llm.chat(
+                messages=enrichment_messages, sampling_params=sampling_params
+            )
+            enrichment_texts = [r.outputs[0].text for r in enrichment_responses]
+
+            for msg_idx, resp_text in enumerate(enrichment_texts):
+                doc_idx, table_number = enrichment_ids[msg_idx]
+                try:
+                    resp_validated = response_validator(IdentificationList, resp_text)
+                except:
+                    print(f"Validation error in table enrichment response (doc {doc_idx}, table {table_number}).")
+                    continue
+
+                existing = doc_entities.get(doc_idx, [])
+                for new_entity in resp_validated['items']:
+                    # Try to match against existing entities by name
+                    new_name = str(new_entity.get('name', '') or '').strip().lower()
+                    best_match_score = 0
+                    best_match_idx = -1
+                    for eidx, existing_entity in enumerate(existing):
+                        existing_name = str(existing_entity.get('name', '') or '').strip().lower()
+                        if new_name and existing_name:
+                            score = fuzz.token_set_ratio(new_name, existing_name)
+                            if score > best_match_score:
+                                best_match_score = score
+                                best_match_idx = eidx
+
+                    if best_match_score >= 80 and best_match_idx >= 0:
+                        # Enrich: fill in None fields on the existing entity
+                        for field in entity_fields:
+                            if existing[best_match_idx].get(field) is None and new_entity.get(field) is not None:
+                                existing[best_match_idx][field] = new_entity[field]
+                    else:
+                        # New entity
+                        existing.append(new_entity)
+
+                doc_entities[doc_idx] = existing
+
+        # --- Build output: one record per (document, entity) ---
+        entity_data = []
+        for i, datapoint in enumerate(self.data):
+            for entity in doc_entities.get(i, []):
+                entity_data.append(datapoint | entity)
 
         return entity_data
 
-    
-    def _identify_entity_feature_pairs(self):
-        """
-        Identifies measurements in the text based on the measurement schema.
 
-        Args:
-            
-        Returns:
-            
+    # -----------------------------------------------------------------------
+    # Step 2: Attribute detection (full context + per-table + term ID)
+    # -----------------------------------------------------------------------
+
+    def _detect_attributes(self):
         """
-        instructions = IDENTIFY_ENTITY_FEATURE_PAIRS_INSTRUCTIONS
+        Detects which attributes are measured for each entity in three phases:
+        A. Full-context boolean detection per (entity, attribute).
+        B. Per-table boolean detection for attributes still False after Phase A.
+        C. Term identification for detected attributes.
+
+        Reads from self.data (one record per entity per document) and returns
+        one record per (entity, attribute) pair where the attribute was detected.
+        """
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
+
+        # --- Phase A: Full-context boolean detection ---
         messages = []
-        message_ids = []
+        message_ids = []  # (record_idx, attribute_name)
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            doc_id = datapoint.get('document_id', None)
             entity_description = {
-                k: v for k,v in datapoint.items() if k in self.entity_identification_schema.model_fields.keys()
+                k: v for k, v in datapoint.items() if k in entity_fields
             }
-            for feature in self.feature_info_dict:
-                feature_description = self.feature_info_dict[feature].get('description', '')
-                feature_terms = datapoint.get('feature_terms', {}).get(feature, [])
-
+            for attr_name, attr_info in self.attribute_info_dict.items():
+                attr_description = attr_info.get('description', '')
                 query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
+                    f"Attribute description: {attr_description}\n"
                     f"Entity description: {entity_description}\n\n"
-                    f"Does the context provide data for measuring the described feature in reference to the given entity?\n\n"
+                    f"Does the context provide data for measuring the described attribute "
+                    f"in reference to the given entity?\n\n"
                 )
                 prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                    f"## Instructions:\n{DETECT_ATTRIBUTE_INSTRUCTIONS}\n\n"
+                    f"## Context:\n{context}\n\n## Query:\n{query}"
                 )
-                messages.append([
-                    {"role": "user", "content": prompt}
-                ])
-                message_ids.append((i, feature))
+                messages.append([{"role": "user", "content": prompt}])
+                message_ids.append((i, attr_name))
 
         guided_decoding_params = GuidedDecodingParams(
             json=BooleanDecisionResponse.model_json_schema()
@@ -315,527 +288,447 @@ class MeasurementLM:
             **self.sampling_params,
             guided_decoding=guided_decoding_params
         )
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
+        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
 
-        identified_data = []
-        for i, resp in enumerate(response_texts):
-            idx, feature = message_ids[i]
+        # Build detection results: {record_idx: {attr_name: bool}}
+        detection_results: dict[int, dict[str, bool]] = {}
+        for msg_idx, resp in enumerate(response_texts):
+            record_idx, attr_name = message_ids[msg_idx]
             try:
                 decision = response_validator(BooleanDecisionResponse, resp)
                 answer = bool(decision.get('answer', False))
             except:
-                print("Validation error in entity-feature decision response.")
+                print("Validation error in attribute detection response.")
                 answer = False
+            detection_results.setdefault(record_idx, {})[attr_name] = answer
 
-            if answer:
-                datapoint = self.data[idx]
-                feature_terms = datapoint.get('feature_terms', {}).get(feature, [])
-                units = datapoint.get('units', {}).get(feature, None)
-                doc_id = datapoint.get('document_id', None)
-                identified_data.append(
+        # --- Phase B: Per-table boolean detection for False attributes ---
+        table_messages = []
+        table_message_ids = []  # (record_idx, attr_name)
+        for i, datapoint in enumerate(self.data):
+            context = datapoint['context']
+            entity_description = {
+                k: v for k, v in datapoint.items() if k in entity_fields
+            }
+            tables = re.findall(r'<table number="(\d+)">', context)
+            if not tables:
+                continue
+
+            for attr_name, attr_info in self.attribute_info_dict.items():
+                # Skip attributes already detected as True
+                if detection_results.get(i, {}).get(attr_name, False):
+                    continue
+
+                attr_description = attr_info.get('description', '')
+                for t in tables:
+                    t = int(t)
+                    table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
+                    table_end = context.find('</table>', table_start)
+                    table_text = context[table_start:table_end].strip()
+                    if not table_text:
+                        continue
+
+                    query = (
+                        f"Attribute description: {attr_description}\n"
+                        f"Entity description: {entity_description}\n\n"
+                        f"Does the table contain a measurement for the given attribute and entity?\n\n"
+                    )
+                    prompt = (
+                        f"## Instructions:\n{DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS}\n\n"
+                        f"## Context:\n{table_text}\n\n## Query:\n{query}"
+                    )
+                    table_messages.append([{"role": "user", "content": prompt}])
+                    table_message_ids.append((i, attr_name))
+
+        if table_messages:
+            table_responses = self.llm.chat(
+                messages=table_messages, sampling_params=sampling_params
+            )
+            table_response_texts = [r.outputs[0].text for r in table_responses]
+
+            for msg_idx, resp in enumerate(table_response_texts):
+                record_idx, attr_name = table_message_ids[msg_idx]
+                try:
+                    decision = response_validator(BooleanDecisionResponse, resp)
+                    answer = bool(decision.get('answer', False))
+                except:
+                    print("Validation error in table attribute detection response.")
+                    answer = False
+
+                if answer:
+                    detection_results.setdefault(record_idx, {})[attr_name] = True
+
+        # --- Phase C: Term identification for detected attributes ---
+        term_messages = []
+        term_message_ids = []  # (record_idx, attr_name)
+        for i, datapoint in enumerate(self.data):
+            context = datapoint['context']
+            for attr_name in self.attribute_info_dict:
+                if not detection_results.get(i, {}).get(attr_name, False):
+                    continue
+                attr_description = self.attribute_info_dict[attr_name]['description']
+                query = (
+                    f"Attribute description: {attr_description}\n\n"
+                    f"What terms are used to refer to the described attribute in the context?"
+                )
+                prompt = (
+                    f"## Instructions:\n{IDENTIFY_ATTRIBUTE_TERMS_INSTRUCTIONS}\n\n"
+                    f"## Context:\n{context}\n\n## Query:\n{query}"
+                )
+                term_messages.append([{"role": "user", "content": prompt}])
+                term_message_ids.append((i, attr_name))
+
+        # Collect terms
+        attribute_terms: dict[tuple[int, str], list[str]] = {}
+        if term_messages:
+            term_guided = GuidedDecodingParams(
+                json=ListResponse.model_json_schema()
+            )
+            term_sampling = SamplingParams(
+                **self.sampling_params,
+                guided_decoding=term_guided
+            )
+            term_responses = self.llm.chat(
+                messages=term_messages, sampling_params=term_sampling
+            )
+            term_response_texts = [r.outputs[0].text for r in term_responses]
+
+            for msg_idx, resp in enumerate(term_response_texts):
+                record_idx, attr_name = term_message_ids[msg_idx]
+                try:
+                    terms = response_validator(ListResponse, resp)['items']
+                except:
+                    print("Error parsing attribute terms response.")
+                    terms = []
+                attribute_terms[(record_idx, attr_name)] = terms
+
+        # --- Data expansion: one record per (entity, detected attribute) ---
+        expanded_data = []
+        for i, datapoint in enumerate(self.data):
+            for attr_name in self.attribute_info_dict:
+                if not detection_results.get(i, {}).get(attr_name, False):
+                    continue
+                terms = attribute_terms.get((i, attr_name), [])
+                expanded_data.append(
                     datapoint | {
-                        'feature': feature,
-                        'feature_terms': feature_terms,
-                        'units': units,
+                        'attribute': attr_name,
+                        'attribute_terms': terms,
                     }
                 )
 
-        return identified_data
-    
+        return expanded_data
 
-    def _page_locate(self):
+
+    # -----------------------------------------------------------------------
+    # Step 3: Extract values from text (per-page)
+    # -----------------------------------------------------------------------
+
+    def _extract_values_from_text(self):
         """
-        Locates page numbers, for the identified measurements.
+        Extracts measurement values from prose text on a per-page basis.
 
-        Args:
+        For each (entity, attribute) pair in self.data, splits the document context
+        into pages and asks whether a value is present. If yes, extracts the value
+        and units.
 
-        Returns:
-            
+        Returns records with 'value', 'units', 'page_number', and 'source'='text'.
         """
-        instructions = PAGE_LOCATE_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
-        message_ids = []
+        message_ids = []  # (record_idx, page_number)
+
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            feature = datapoint.get('feature')
-            feature_description = self.feature_info_dict[feature]['description']
-            feature_terms = datapoint.get('feature_terms', [])
-            entity_description = {k: v for k,v in datapoint.items() if k in fields}
+            attribute = datapoint.get('attribute')
+            attr_description = self.attribute_info_dict[attribute]['description']
+            attr_terms = datapoint.get('attribute_terms', [])
+            unit_options = self.attribute_info_dict[attribute].get('units', [])
+            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
 
             pages = re.findall(r'<page number="(\d+)">', context)
-            pages = [int(p) for p in pages]
             for p in pages:
+                p = int(p)
                 page_start = context.find(f'<page number="{p}">') + len(f'<page number="{p}">')
-                page_end = context.find(f'</page>', page_start)
-                page_text = context[page_start: page_end].strip()
+                page_end = context.find('</page>', page_start)
+                page_text = context[page_start:page_end].strip()
+                if not page_text:
+                    continue
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+                    )
 
                 query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
+                    f"Attribute description: {attr_description}\n"
+                    f"Terminology used for the attribute: {attr_terms}\n"
                     f"Entity description: {entity_description}\n\n"
-                    f"Does the given page contain a measurement for the given feature and entity?\n\n"
+                    f"{units_guidance}"
+                    f"Does this page contain a measured value for the given attribute and entity? "
+                    f"If yes, extract the value and its units.\n\n"
                 )
                 prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{page_text}\n\n## Query:\n{query}"
-                    )
-                messages.append(
-                    [{"role": "user","content": prompt}]
+                    f"## Instructions:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
+                    f"## Context:\n{page_text}\n\n## Query:\n{query}"
                 )
+                messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((i, p))
 
+        if not messages:
+            return []
 
         guided_decoding_params = GuidedDecodingParams(
-            json=BooleanDecisionResponse.model_json_schema()
+            json=TextValueExtractionResponse.model_json_schema()
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-            logprobs = 1,
+            guided_decoding=guided_decoding_params
         )
-
-        responses = self.llm.chat(
-            messages = messages,
-            sampling_params = sampling_params,
-        )
+        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_probs = [r.outputs[0].cumulative_logprob for r in responses]
 
-        page_id_data = []
-        for i, resp in enumerate(response_texts):
+        text_values = []
+        for msg_idx, resp in enumerate(response_texts):
+            record_idx, page_number = message_ids[msg_idx]
             try:
-                decision = response_validator(BooleanDecisionResponse, resp)
-                answer = bool(decision.get('answer', False))
+                result = response_validator(TextValueExtractionResponse, resp)
             except:
-                print("Validation error in page-locate decision response.")
-                answer = False
+                print("Validation error in text value extraction response.")
+                continue
 
-            if answer:
-                idx, page_number = message_ids[i]
-                datapoint = self.data[idx]
+            if result.get('has_value') and result.get('value') is not None:
+                datapoint = self.data[record_idx]
+                # Narrow context to the page text
                 context = datapoint['context']
                 page_start = context.find(f'<page number="{page_number}">') + len(f'<page number="{page_number}">')
-                page_end = context.find(f'</page>', page_start)
-                page_text = context[page_start: page_end].strip()
+                page_end = context.find('</page>', page_start)
+                page_text = context[page_start:page_end].strip()
 
-                page_id_data.append(
-                    datapoint | 
-                    {'context': page_text, 'measurement_id': i} |
-                    {'page_number': page_number} |
-                    {'page_logprob': response_probs[i]}
+                text_values.append(
+                    datapoint | {
+                        'context': page_text,
+                        'value': result['value'],
+                        'units': result.get('units'),
+                        'page_number': page_number,
+                        'source': 'text',
+                    }
                 )
 
-        return page_id_data
-    
+        return text_values
 
-    def _table_locate(self):
+
+    # -----------------------------------------------------------------------
+    # Step 4: Extract values from tables
+    # -----------------------------------------------------------------------
+
+    def _extract_values_from_tables(self):
         """
-        Locates page numbers, for the identified measurements.
+        Extracts measurement values from HTML tables.
 
-        Args:
+        For each (entity, attribute) pair in self.data, iterates over tables in the
+        document context. Provides the table HTML along with row names and column
+        names as additional context. If a value is found, extracts the cell using
+        the row and column indices.
 
-        Returns:
-            
+        Returns records with 'value', 'units', 'table_number', 'row_index',
+        'column_index', and 'source'='table'.
         """
-        instructions = TABLE_LOCATE_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
-        message_tuples = []
-        message_ids = []
+        message_ids = []  # (record_idx, table_number)
+        table_cache = {}  # (record_idx, table_number) -> (table_text, row_names, column_names)
+
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            feature = datapoint.get('feature')
-            feature_description = self.feature_info_dict[feature]['description']
-            feature_terms = datapoint.get('feature_terms', [])
-            entity_description = {k: v for k,v in datapoint.items() if k in fields}
+            attribute = datapoint.get('attribute')
+            attr_description = self.attribute_info_dict[attribute]['description']
+            attr_terms = datapoint.get('attribute_terms', [])
+            unit_options = self.attribute_info_dict[attribute].get('units', [])
+            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
 
             tables = re.findall(r'<table number="(\d+)">', context)
-            tables = [int(t) for t in tables]
-
             for t in tables:
-                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
-                table_end = context.find(f'</table>', table_start)
-                table_text = context[table_start: table_end].strip()
+                t = int(t)
+                table_tag_start = context.find(f'<table number="{t}">')
+                table_content_start = table_tag_start + len(f'<table number="{t}">')
+                table_end = context.find('</table>', table_content_start)
+                table_text = context[table_tag_start:table_end + len('</table>')].strip()
+                if not table_text:
+                    continue
+
+                # Parse table to get row and column names
+                try:
+                    table_dfs = pd.read_html(StringIO(table_text))
+                    table_df = table_dfs[0]
+                    row_names = table_df.loc[:, "index"].to_list() if 'index' in table_df.columns else []
+                    row_names = [str(name) for name in row_names]
+                    column_names = [str(name) for name in table_df.columns.tolist()]
+                    column_names = [name for name in column_names if name != 'index']
+                except:
+                    print(f"Error parsing table {t} in record {i}.")
+                    continue
+
+                table_cache[(i, t)] = (table_text, row_names, column_names)
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
+                    )
 
                 query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
+                    f"Attribute description: {attr_description}\n"
+                    f"Terminology used for the attribute: {attr_terms}\n"
                     f"Entity description: {entity_description}\n\n"
-                    f"Does the table contain a measurement for the given feature and entity?\n\n"
+                    f"Row names in the table: {row_names}\n"
+                    f"Column names in the table: {column_names}\n\n"
+                    f"{units_guidance}"
+                    f"Does this table contain a measured value for the given attribute and entity? "
+                    f"If yes, provide the row_index and column_index names, and the units.\n\n"
                 )
                 prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{table_text}\n\n## Query:\n{query}"
-                    )
-                messages.append(
-                    [{"role": "user","content": prompt}]
+                    f"## Instructions:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
+                    f"## Context:\n{table_text}\n\n## Query:\n{query}"
                 )
-                message_tuples.append((instructions, table_text, query))
+                messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((i, t))
 
+        if not messages:
+            return []
 
         guided_decoding_params = GuidedDecodingParams(
-            json=BooleanDecisionResponse.model_json_schema()
+            json=TableValueExtractionResponse.model_json_schema()
         )
         sampling_params = SamplingParams(
             **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-            logprobs = 1,
+            guided_decoding=guided_decoding_params
         )
-
-        responses = self.llm.chat(
-            messages = messages,
-            sampling_params = sampling_params,
-        )
+        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
         response_texts = [r.outputs[0].text for r in responses]
-        response_probs = [r.outputs[0].cumulative_logprob for r in responses]
-        table_id_data = [
-            d | {'table_number': -1, 'table_logprob': 0.0} for d in self.data
-        ]
-        for i, resp in enumerate(response_texts):
+
+        table_values = []
+        for msg_idx, resp in enumerate(response_texts):
+            record_idx, table_number = message_ids[msg_idx]
             try:
-                decision = response_validator(BooleanDecisionResponse, resp)
-                answer = bool(decision.get('answer', False))
+                result = response_validator(TableValueExtractionResponse, resp)
             except:
-                print("Validation error in table-locate decision response.")
-                answer = False
+                print("Validation error in table value extraction response.")
+                continue
 
-            if answer:
-                idx, table_number = message_ids[i]
-                datapoint = self.data[idx]
-                table_id_data[idx] = datapoint | {
-                    'table_number': table_number, 
-                    'table_logprob': response_probs[i]
-                }
+            if not result.get('has_value'):
+                continue
+            row_index = result.get('row_index')
+            column_index = result.get('column_index')
+            if row_index is None or column_index is None:
+                continue
 
-        return table_id_data
+            # Extract cell value from the table using pandas
+            table_text, row_names, column_names = table_cache[(record_idx, table_number)]
+            try:
+                table_dfs = pd.read_html(StringIO(table_text))
+                table_df = table_dfs[0]
 
-
-    def _measure_vllm(self):
-        """
-        Extracts measurements from the text chunks for the identified items.
-
-        Args:
-
-        Returns:
-            
-        """
-        instructions = MEASURE_VALUE_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
-        messages = []
-        message_ids = []
-        for i, datapoint in enumerate(self.data):
-            if datapoint['table_number'] == -1:
-                context = datapoint['context']
-                feature = datapoint.get('feature')
-                feature_description = self.feature_info_dict[feature]['description']
-                feature_terms = datapoint.get('feature_terms', [])
-                entity_description = {k: v for k,v in datapoint.items() if k in fields}
-
-                query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
-                    f"Entity description: {entity_description}\n\n"
-                    f"Extract the value reported by the context for the given feature and entity."
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                    )
-                messages.append([
-                    {"role": "user","content": prompt}]
-                )
-                message_ids.append(i)
-
-        sampling_params = SamplingParams(
-            **self.sampling_params
-        )
-
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
-        measured_data = []
-        for i, resp in enumerate(response_texts):
-            if resp.strip().lower() != 'none':
-                idx = message_ids[i]
-                measured_data.append(self.data[idx] | {'value': resp})
-
-        measured_data = measured_data + [d for d in self.data if d['table_number'] != -1]
-
-        return measured_data
-
-    
-    def _measure_vllm_rows(self):
-        """
-        Extracts measurements from tables in the text.
-
-        Args:
-
-        Returns:
-            
-        """
-        # Next, extract the unique row name necessary to locate the measurement:
-        instructions = MEASURE_TABLE_ROW_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
-        messages = []
-        sampling_params = []
-        message_ids = []
-        for i, datapoint in enumerate(self.data):
-            if datapoint['table_number'] != -1:
-                context = datapoint['context']
-                table_number = datapoint['table_number']
-                table_start = f'<table number="{table_number}">' 
-                table_start = context.find(f'<table number="{table_number}">')
-                table_end = context.find(f'</table>', table_start) + len(f'</table>')
-                table_text = context[table_start: table_end].strip()
-                if not table_text:
-                    continue
-                tables = pd.read_html(StringIO(table_text))
-                table_df = tables[0]
-                row_names = table_df.loc[:,"index"].to_list() if 'index' in table_df.columns else []
-                row_names = [str(name) for name in row_names]
-
-                feature = datapoint.get('feature')
-                feature_description = self.feature_info_dict[feature]['description']
-                feature_terms = datapoint.get('feature_terms', [])
-                entity_description = {k: v for k,v in datapoint.items() if k in fields}
-
-                query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
-                    f"Entity description: {entity_description}\n\n"
-                    f"Extract the row index name in table {table_number} necessary to locate the measurement for the given feature and entity."
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([{"role": "user","content": prompt}])
-                guided_decoding_params = GuidedDecodingParams(
-                    choice = row_names + ['None']
-                )
-                params = SamplingParams(
-                    **self.sampling_params,
-                    guided_decoding=guided_decoding_params
-                )
-                sampling_params.append(params)
-                message_ids.append(i)
-
-        
-        responses = self.llm.chat(
-            messages = messages,
-            sampling_params = sampling_params,
-        )
-        response_texts = [r.outputs[0].text for r in responses]
-        measured_data = [d for d in self.data]
-        for i, resp in enumerate(response_texts):
-            idx = message_ids[i]
-            datapoint = self.data[idx]
-            if resp.strip().lower() != 'none':
-                measured_data[idx] = datapoint | {
-                    'row_index': resp
-                }
-
-        return measured_data
-
-    
-    def _measure_vllm_columns(self):
-        """
-        Extracts measurements from tables in the text.
-
-        Args:
-
-        Returns:
-            
-        """
-        instructions = MEASURE_TABLE_COLUMN_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
-        messages = []
-        sampling_params = []
-        message_ids = []
-        for i, datapoint in enumerate(self.data):
-            if int(datapoint['table_number']) != -1:
-                context = datapoint['context']
-                table_number = int(datapoint['table_number'])
-                table_start = f'<table number="{table_number}">' 
-                table_start = context.find(f'<table number="{table_number}">')
-                table_end = context.find(f'</table>', table_start) + len(f'</table>')
-                table_text = context[table_start: table_end].strip()
-                tables = pd.read_html(StringIO(table_text))
-                table_df = tables[0]
-                column_names = [str(name) for name in table_df.columns.tolist()]
-                column_names = [str(name) for name in column_names if str(name) != 'index']
-
-                feature = datapoint.get('feature')
-                feature_description = self.feature_info_dict[feature]['description']
-                feature_terms = datapoint.get('feature_terms', [])
-                entity_description = {k: v for k,v in datapoint.items() if k in fields}
-                
-                query = (
-                    f"Feature description: {feature_description}\n"
-                    f"Terminology used for the feature: {feature_terms}\n"
-                    f"Entity description: {entity_description}\n\n"
-                    f"Extract the column index name in table {table_number} necessary to locate the measurement for the given feature and entity."
-                )
-                prompt = (
-                    f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
-                )
-                messages.append([
-                    {"role": "user","content": prompt}]
-                )
-                guided_decoding_params = GuidedDecodingParams(
-                    choice = column_names + ['None']
-                )
-                params = SamplingParams(
-                    **self.sampling_params,
-                    guided_decoding=guided_decoding_params
-                )
-                sampling_params.append(params)
-                message_ids.append(i)
-
-
-        responses = self.llm.chat(
-            messages = messages,
-            sampling_params = sampling_params,
-        )
-        response_texts = [r.outputs[0].text for r in responses]
-        measured_data = [d for d in self.data]
-        for i, resp in enumerate(response_texts):
-            idx = message_ids[i]
-            datapoint = self.data[idx]
-            if resp.strip().lower() != 'none':
-                measured_data[idx] = datapoint | {
-                    'column_index': resp
-                }
-
-        return measured_data
-
-
-    def _table_extract(self):
-        """
-        Extracts measurements from tables in the text.
-        """
-        table_extracted_data = [d for d in self.data]
-        for i, datapoint in enumerate(self.data):
-            if datapoint.get('row_index', None) is not None and datapoint.get('column_index', None) is not None:
-                context = datapoint['context']
-                table_number = int(datapoint['table_number'])
-                table_start = context.find(f'<table number="{table_number}">')
-                table_end = context.find(f'</table>', table_start) + len(f'</table>')
-                table_text = context[table_start: table_end].strip()
-                tables = pd.read_html(StringIO(table_text))
-                table_df = tables[0]
-
-                col_name = datapoint['column_index']
-                row_name = datapoint['row_index']
-
-                # Get matching rows
-                matched_rows = table_df.loc[table_df["index"] == row_name][col_name]
-                
-                # Handle edge cases: no matches, multiple matches, or single match
+                matched_rows = table_df.loc[table_df["index"] == row_index][column_index]
                 if len(matched_rows) == 0:
-                    # No matching row found
                     print("No matching row found in table extraction.")
                     val = None
                 elif len(matched_rows) == 1:
                     val = matched_rows.item()
                 else:
-                    # Multiple matches - take the first one
                     print("Multiple matching rows found in table extraction, taking the first match.")
                     val = matched_rows.iloc[0]
-                
-                table_extracted_data[i] = datapoint | {'value': val}
+            except:
+                print(f"Error extracting value from table {table_number} in record {record_idx}.")
+                val = None
 
-        return [t for t in table_extracted_data if t.get('value', None) is not None]
+            if val is not None:
+                datapoint = self.data[record_idx]
+                table_values.append(
+                    datapoint | {
+                        'context': table_text,
+                        'value': val,
+                        'units': result.get('units'),
+                        'table_number': table_number,
+                        'row_index': row_index,
+                        'column_index': column_index,
+                        'source': 'table',
+                    }
+                )
+
+        return table_values
 
 
-    def _standardize_measurements(self):
+    # -----------------------------------------------------------------------
+    # Step 5: Standardize and deduplicate
+    # -----------------------------------------------------------------------
+
+    def _standardize_and_deduplicate(self, similarity_threshold: float = 0.85):
         """
-        Standardizes the measurement units for the extracted measurements.
+        Standardizes extracted measurement values and then de-duplicates records.
+
+        Standardization: asks the LLM to clean up extracted values (remove uncertainty,
+        normalize formatting, etc.).
+
+        De-duplication: records sharing the same (document_id, attribute, value) are
+        compared on entity identification attributes using fuzzy matching. Similar
+        records are merged.
 
         Args:
+            similarity_threshold (float): Minimum average attribute similarity
+                to consider two records duplicates.
 
         Returns:
-            
+            list[dict]: Standardized, de-duplicated measurement records.
         """
-        instructions = STANDARDIZE_MEASUREMENTS_INSTRUCTIONS
-        fields = list(self.entity_identification_schema.model_fields.keys())
+        # --- Standardization ---
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
         message_data_ids = []
-        sampling_params = []
         for i, datapoint in enumerate(self.data):
             context = datapoint['context']
-            feature = datapoint.get('feature')
-            feature_description = self.feature_info_dict[feature]['description']
-            feature_terms = datapoint.get('feature_terms', [])
-            entity_description = {k: v for k,v in datapoint.items() if k in fields}
+            attribute = datapoint.get('attribute')
+            attr_description = self.attribute_info_dict[attribute]['description']
+            attr_terms = datapoint.get('attribute_terms', [])
+            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
 
             query = (
-                f"Feature description: {feature_description}\n"
-                f"Terminology used for the feature: {feature_terms}\n"
+                f"Attribute description: {attr_description}\n"
+                f"Terminology used for the attribute: {attr_terms}\n"
                 f"Entity description: {entity_description}\n"
                 f"Extracted measurement: {measurement_val}\n\n"
                 f"Standardize the measurement value for the given data point. "
             )
             prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                f"## Instructions:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+                f"## Context:\n{context}\n\n## Query:\n{query}"
             )
-            messages.append(
-                [{"role": "user", "content": prompt}]
-            )
+            messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 
-            params = SamplingParams(
-                **self.sampling_params,
-            )
-            sampling_params.append(params)
+        sampling_params = SamplingParams(**self.sampling_params)
+        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
+        response_texts = [r.outputs[0].text for r in responses]
 
-        responses = self.llm.chat(messages = messages, sampling_params = sampling_params)
-        response_units = [r.outputs[0].text for r in responses]
-        
         standardized_data = [datapoint for datapoint in self.data]
-        for i, resp in enumerate(response_units):
+        for i, resp in enumerate(response_texts):
             standardized_data[message_data_ids[i]]['value'] = resp.strip()
 
-        return standardized_data
+        # --- De-duplication ---
+        self.data = standardized_data
 
-
-    def _deduplicate(self, similarity_threshold: float = 0.85):
-        """
-        De-duplicates extracted measurements using value-anchored grouping.
-
-        Records sharing the same (document_id, feature, value) are compared on
-        their entity identification attributes.  For each pair of non-null
-        attribute values, string similarity is computed with
-        ``difflib.SequenceMatcher``.  Only non-null attributes (in at least one
-        of the two records) contribute to the average; attributes that are null
-        in *both* records are skipped.
-
-        When the average similarity is ≥ ``similarity_threshold`` the records
-        are merged: each entity attribute whose values differ across the group
-        is stored as a **sorted list of unique values**, while attributes that
-        agree are kept as a single value.
-
-        Args:
-            similarity_threshold (float): Minimum average attribute similarity
-                to consider two records duplicates.  Default ``0.65``.
-
-        Returns:
-            list[dict]: De-duplicated measurement records.
-        """
-        entity_fields = list(self.entity_identification_schema.model_fields.keys())
-
-        # --- helpers --------------------------------------------------------
         def _norm(v):
-            """Normalise an attribute value to a comparable lowercase string."""
             if v is None:
                 return None
             return str(v).strip().lower()
 
         def _flatten_field(v):
-            """Return a list of normalised strings for a field value.
-
-            Handles scalars, ``None``, and list-valued fields that result
-            from prior merges.
-            """
             if v is None:
                 return []
             if isinstance(v, list):
@@ -844,27 +737,12 @@ class MeasurementLM:
             return [normed] if normed is not None else []
 
         def _field_similarity(raw_a, raw_b):
-            """Similarity between two (possibly list-valued) field values.
-
-            Returns ``None`` when both sides are empty/null (meaning the
-            field should be skipped entirely), or a float in [0, 1].
-
-            * Both null → ``None`` (skip).
-            * One null, one populated → treat as *compatible* (1.0).
-              A ``None`` is "unknown" rather than "different".
-            * Both populated → best pairwise ``token_set_ratio`` between
-              the flattened value lists (handles prior-merge lists).
-            """
             vals_a = _flatten_field(raw_a)
             vals_b = _flatten_field(raw_b)
-
             if not vals_a and not vals_b:
-                return None                        # both empty → skip
-
+                return None
             if not vals_a or not vals_b:
-                return 1.0                         # one null → compatible
-
-            # Both populated: best pairwise match
+                return 1.0
             best = max(
                 fuzz.token_set_ratio(a, b) / 100.0
                 for a in vals_a
@@ -873,45 +751,38 @@ class MeasurementLM:
             return best
 
         def _pair_similarity(a, b):
-            """Average similarity over non-null entity fields."""
             scores = []
             for field in entity_fields:
                 sim = _field_similarity(a.get(field), b.get(field))
                 if sim is None:
-                    continue                       # both null → skip
+                    continue
                 scores.append(sim)
             return sum(scores) / len(scores) if scores else 1.0
 
         def _group_key(record):
-            """Blocking key: same document, same feature, same value."""
             return (
                 record.get('document_id'),
-                record.get('feature'),
+                record.get('attribute'),
                 _norm(record.get('value')),
+                _norm(record.get('units')),
             )
 
-        # --- build groups ---------------------------------------------------
         groups: dict[tuple, list[int]] = {}
         for idx, record in enumerate(self.data):
             key = _group_key(record)
             groups.setdefault(key, []).append(idx)
 
-        merged_indices: set[int] = set()
         deduplicated: list[dict] = []
 
         for key, indices in groups.items():
             if len(indices) == 1:
-                # singleton – nothing to compare
                 deduplicated.append(self.data[indices[0]])
-                merged_indices.add(indices[0])
                 continue
 
-            # Greedy single-linkage clustering within the group
             clusters: list[list[int]] = []
             assigned: set[int] = set()
             for i, j in combinations(range(len(indices)), 2):
                 if _pair_similarity(self.data[indices[i]], self.data[indices[j]]) >= similarity_threshold:
-                    # find if either is already in a cluster
                     ci = cj = None
                     for k, cl in enumerate(clusters):
                         if i in cl:
@@ -930,22 +801,19 @@ class MeasurementLM:
                         clusters.append([i, j])
                     assigned.update([i, j])
 
-            # singletons within the group (not similar to anyone)
             for i in range(len(indices)):
                 if i not in assigned:
                     clusters.append([i])
 
-            # merge each cluster into one record
             for cluster in clusters:
                 cluster_records = [self.data[indices[i]] for i in cluster]
-                merged = dict(cluster_records[0])     # start from first record
+                merged = dict(cluster_records[0])
 
                 for field in entity_fields:
                     unique_vals = []
                     seen: set = set()
                     for rec in cluster_records:
                         v = rec.get(field)
-                        # handle values already stored as lists from prior merges
                         vals = v if isinstance(v, list) else [v]
                         for item in vals:
                             if item is None:
@@ -954,7 +822,6 @@ class MeasurementLM:
                             if normed not in seen:
                                 seen.add(normed)
                                 unique_vals.append(item)
-                    # if all values were None, keep as None
                     if len(unique_vals) == 0:
                         merged[field] = None
                     elif len(unique_vals) == 1:
@@ -965,62 +832,82 @@ class MeasurementLM:
                             key=lambda x: str(x) if x is not None else ''
                         )
 
+                # Collect unique contexts and provenance metadata
+                for prov_field in ('context', 'source', 'page_number', 'table_number', 'row_index', 'column_index'):
+                    unique_vals = []
+                    seen_prov: set = set()
+                    for rec in cluster_records:
+                        v = rec.get(prov_field)
+                        if v is None:
+                            continue
+                        key_v = str(v)
+                        if key_v not in seen_prov:
+                            seen_prov.add(key_v)
+                            unique_vals.append(v)
+                    if len(unique_vals) == 0:
+                        merged[prov_field] = None
+                    elif len(unique_vals) == 1:
+                        merged[prov_field] = unique_vals[0]
+                    else:
+                        merged[prov_field] = unique_vals
+
                 deduplicated.append(merged)
-                for i in cluster:
-                    merged_indices.add(indices[i])
 
         return deduplicated
 
 
+    # -----------------------------------------------------------------------
+    # Full pipeline
+    # -----------------------------------------------------------------------
+
     def fit(
         self,
-        documents : list[str],
+        documents: list[str],
     ):
         """
-        Fits the MeasurementLM to the provided text chunks by filtering, identifying items, 
-        and extracting measurements.
+        Runs the full measurement extraction pipeline on the provided documents.
 
         Args:
             documents (list[str]): A list of text documents.
         Returns:
             measurements (list[dict]): A list of measurements extracted for identified items.
         """
-        '''
-        self.data = []
-        for i in range(len(chunks)):
-            #self.data.append({'chunk_id': i, 'context' : chunks[i]})
-            for j, chunk in chunks[i].items():
-                self.data.append({'document_id': i, 'chunk_id': j, 'context' : chunk})
-        '''
         self.data = []
         for i, doc in enumerate(documents):
-            self.data.append({'document_id': i, 'context' : doc})
+            self.data.append({'document_id': i, 'context': doc})
 
-        self.data = self._identify_feature_terms()
-        self.data = self._identify_feature_units()
-        self.data = self._identify_entities()
-        self.data = self._identify_entity_feature_pairs()
-        self.data = self._page_locate()
-        self.data = self._table_locate()
-        self.data = self._measure_vllm()
-        self.data = self._measure_vllm_rows()
-        self.data = self._measure_vllm_columns()
-        self.data = self._table_extract()
-        self.data = self._standardize_measurements()
-        self.data = self._deduplicate()
+        # Step 1: Entity extraction (full context + table enrichment)
+        self.data = self._extract_entities()
+
+        # Step 2: Attribute detection (full context + per-table + term ID)
+        self.data = self._detect_attributes()
+
+        # Save entity-attribute pairs for parallel extraction
+        entity_attribute_data = [d for d in self.data]
+
+        # Step 3: Extract values from text (per-page)
+        self.data = entity_attribute_data
+        text_values = self._extract_values_from_text()
+
+        # Step 4: Extract values from tables
+        self.data = entity_attribute_data
+        table_values = self._extract_values_from_tables()
+
+        # Combine text and table extractions
+        self.data = text_values + table_values
+
+        # Step 5: Standardize and deduplicate
+        self.data = self._standardize_and_deduplicate()
 
         return self.data
 
 
     def save(self, filepath: str):
         """
-        Saves the measurement data to a csv.
+        Saves the measurement data to a JSON file.
 
         Args:
             filepath (str): The path to the file where the data will be saved.
         """
         with open(filepath, 'w') as f:
             json.dump(self.data, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
-
-
-

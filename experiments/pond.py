@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
 from scholarlm import MeasurementLM
+from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 
 #task_id = int(os.getenv('SGE_TASK_ID'))
@@ -26,34 +27,6 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
 text_files.sort()
-
-'''
-text_files = [
-    'physical_and_chemical_limnological.txt',
-    'physical-chemical_influences.txt',
-    'prairie_wetland.txt',
-    'net_heterotrophy.txt',
-    'habitat_characteristics.txt',
-    'biodiversity_of_constructed.txt',
-    'fish_production_in_lakes.txt',
-    'long-term_stability.txt',
-    'diversity_of_macroinvertebrates.txt',
-    'impact_of_macrophytes.txt'
-]
-
-text_files = [
-    "bacterioplankton.txt",
-    "conservation_of_pond.txt",
-    "distinct_optical.txt",
-    "fish_assemblages.txt",
-    "lake_morphometry.txt",
-    "natural_variability.txt",
-    "productivity_and_depth.txt",
-    "relationships_of_fish.txt",
-    "sediment_characteristics.txt",
-    "vegetation-environmental.txt"
-]
-'''
 
 
 text_filepaths = []
@@ -79,7 +52,7 @@ POND_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, a
 
 Given the provided text (including any tables), extract all distinct ecosystem observations.
 
-An ecosystem observation is defined as a specific pond, lake, wetland, or other aquatic ecosystem. 
+An ecosystem observation is defined as a specific pond, lake, wetland, or other aquatic ecosystem.
 The observation may be further identified by a specific treatment site within the ecosystem, a specific treatment state, and/or by a specific date of measurement.
 
 
@@ -153,7 +126,7 @@ class ObservationSchema(BaseModel):
     ecosystem: str | None
 
 
-feature_info_dict = {
+attribute_info_dict = {
     "latitude": {
         "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
         "units": ["degrees", "radians"]
@@ -197,7 +170,7 @@ measurementlm = MeasurementLM(
     model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
     entity_identification_prompt=POND_IDENTIFICATION_PROMPT,
     entity_identification_schema=ObservationSchema,
-    feature_info_dict=feature_info_dict,
+    attribute_info_dict=attribute_info_dict,
     sampling_params={
         "temperature": 0.1,
         "top_p" : 0.95,
@@ -208,101 +181,61 @@ measurementlm = MeasurementLM(
 )
 
 
-import math
-import numpy as np
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            # Check for NaN
-            if math.isnan(obj):
-                return None
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super().default(obj)
-
-
-def identify(text, outfile):
-    print("Identifying...")
+def extract_entities(text, outfile):
+    """Step 1: Entity extraction with table enrichment."""
+    print("Extracting entities...")
     data = []
     for i, paper in enumerate(text):
-        data.append({'document_id': i, 'context' : paper})
+        data.append({'document_id': i, 'context': paper})
 
     measurementlm.data = data
-    data = measurementlm._identify_feature_terms()
-    measurementlm.data = data
-    data = measurementlm._identify_feature_units()
-    measurementlm.data = data
-    data = measurementlm._identify_entities()
-
-    # Save intermediate results
-    with open(outfile, 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-
-def locate(infile, outfile):
-    print("Locating...")
-    with open(infile, 'r') as f:
-        data = json.load(f)
-    
-    measurementlm.data = data
-    data = measurementlm._identify_entity_feature_pairs()
-    measurementlm.data = data
-    data = measurementlm._page_locate()
-    measurementlm.data = data
-    data = measurementlm._table_locate()
+    data = measurementlm._extract_entities()
 
     with open(outfile, 'w') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def measure(infile, outfile):
-    print("Measuring...")
+def detect_attributes(infile, outfile):
+    """Step 2: Attribute detection."""
+    print("Detecting attributes...")
     with open(infile, 'r') as f:
         data = json.load(f)
-    
+
     measurementlm.data = data
-    data = measurementlm._measure_vllm()
-    measurementlm.data = data
-    data = measurementlm._measure_vllm_rows()
-    measurementlm.data = data
-    data = measurementlm._measure_vllm_columns()
-    measurementlm.data = data
-    data = measurementlm._table_extract()
+    data = measurementlm._detect_attributes()
+
+    with open(outfile, 'w') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+
+def extract_values(infile, outfile):
+    """Steps 3+4: Extract values from text and tables."""
+    print("Extracting values...")
+    with open(infile, 'r') as f:
+        data = json.load(f)
+
+    entity_attribute_data = data
+
+    measurementlm.data = entity_attribute_data
+    text_values = measurementlm._extract_values_from_text()
+
+    measurementlm.data = entity_attribute_data
+    table_values = measurementlm._extract_values_from_tables()
+
+    data = text_values + table_values
 
     with open(outfile, 'w') as f:
         json.dump(data, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-def standardize(infile, outfile):
-    print("Standardizing...")
+def standardize_and_deduplicate(infile, outfile):
+    """Step 5: Standardize and deduplicate."""
+    print("Standardizing and deduplicating...")
     with open(infile, 'r') as f:
         data = json.load(f)
 
     measurementlm.data = data
-    data = measurementlm._standardize_measurements()
-
-    dataset = []
-    for datapoint in data:
-        document_id = datapoint['document_id']
-        doc_metadata = text_info[document_id]
-        dataset.append(
-            doc_metadata | datapoint
-        )
-
-    with open(outfile, 'w') as f:
-        json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
-
-
-def deduplicate(infile, outfile):
-    print("Deduplicating...")
-    with open(infile, 'r') as f:
-        data = json.load(f)
-
-    measurementlm.data = data
-    data = measurementlm._deduplicate()
+    data = measurementlm._standardize_and_deduplicate()
 
     dataset = []
     for datapoint in data:
@@ -317,22 +250,18 @@ def deduplicate(infile, outfile):
 
 
 '''
-outfile1 = "data/experiments/01_28_26/ten_identify.json"
-identify(text, outfile1)
+outfile1 = "data/experiments/2026_02_16/pond_entities.json"
+extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/01_28_26/ten_locate.json"
-locate(outfile1, outfile2)
+outfile2 = "data/experiments/2026_02_16/pond_attributes.json"
+detect_attributes(outfile1, outfile2)
 
-outfile3 = "data/experiments/01_28_26/ten_measure.json"
-measure(outfile2, outfile3)
+outfile3 = "data/experiments/2026_02_16/pond_values.json"
+extract_values(outfile2, outfile3)
 
-outfile4 = "data/experiments/01_28_26/ten_standardize.json"
-standardize(outfile3, outfile4)
+outfile4 = "data/experiments/2026_02_16/pond_final.json"
+standardize_and_deduplicate(outfile3, outfile4)
 '''
-
-outfile4 = "data/experiments/2026_02_11/pond.json"
-outfile5 = "data/experiments/2026_02_11/pond_dedup.json"
-deduplicate(outfile4, outfile5)
 
 '''
 data = measurementlm.fit(text)
@@ -346,7 +275,7 @@ for datapoint in data:
     )
 
 
-outfile = "data/experiments/2026_02_11/pond.json"
+outfile = "data/experiments/2026_02_16/pond.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 '''
