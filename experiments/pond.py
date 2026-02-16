@@ -28,6 +28,34 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
 text_files.sort()
 
+text_files = [
+    'physical_and_chemical_limnological.txt',
+    'physical-chemical_influences.txt',
+    'prairie_wetland.txt',
+    'net_heterotrophy.txt',
+    'habitat_characteristics.txt',
+    'biodiversity_of_constructed.txt',
+    'fish_production_in_lakes.txt',
+    'long-term_stability.txt',
+    'diversity_of_macroinvertebrates.txt',
+    'impact_of_macrophytes.txt'
+]
+
+'''
+text_files = [
+    "bacterioplankton.txt",
+    "conservation_of_pond.txt",
+    "distinct_optical.txt",
+    "fish_assemblages.txt",
+    "lake_morphometry.txt",
+    "natural_variability.txt",
+    "productivity_and_depth.txt",
+    "relationships_of_fish.txt",
+    "sediment_characteristics.txt",
+    "vegetation-environmental.txt"
+]
+'''
+
 
 text_filepaths = []
 text_info = []
@@ -249,19 +277,19 @@ def standardize_and_deduplicate(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-'''
-outfile1 = "data/experiments/2026_02_16/pond_entities.json"
+
+outfile1 = "data/experiments/2026_02_18/ten_entities.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_02_16/pond_attributes.json"
+outfile2 = "data/experiments/2026_02_18/ten_attributes.json"
 detect_attributes(outfile1, outfile2)
 
-outfile3 = "data/experiments/2026_02_16/pond_values.json"
+outfile3 = "data/experiments/2026_02_18/ten_values.json"
 extract_values(outfile2, outfile3)
 
-outfile4 = "data/experiments/2026_02_16/pond_final.json"
+outfile4 = "data/experiments/2026_02_18/ten_final.json"
 standardize_and_deduplicate(outfile3, outfile4)
-'''
+
 
 '''
 data = measurementlm.fit(text)
