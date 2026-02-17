@@ -205,8 +205,10 @@ def extract_entities(text, outfile):
     measurementlm.data = data
     data = measurementlm._extract_entities()
 
+    # Strip context before saving (re-injected from text[] in later steps)
+    save_data = [{k: v for k, v in r.items() if k != 'context'} for r in data]
     with open(outfile, 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
+        json.dump(save_data, f, indent=4, ensure_ascii=False)
 
 
 def detect_attributes(text, outfile):
@@ -223,45 +225,90 @@ def detect_attributes(text, outfile):
         json.dump(doc_attributes, f, indent=4, ensure_ascii=False)
 
 
-def combine_and_filter(entities_file, attributes_file, outfile):
-    """Step 3: Cross-product entities x attributes, then filter pairs."""
-    print("Combining and filtering entity-attribute pairs...")
+def _serialize_prov(prov_dict):
+    """Serialize tuple-keyed provenance dict for JSON (keys become 'doc_id|item_id' strings)."""
+    return {f"{k[0]}|{k[1]}": v for k, v in prov_dict.items()}
+
+
+def _deserialize_prov(json_dict):
+    """Deserialize JSON provenance dict back to tuple keys."""
+    out = {}
+    for k, v in json_dict.items():
+        parts = k.split("|", 1)
+        # doc_id is int, second part is entity_id or attr_name (string)
+        try:
+            doc_id = int(parts[0])
+        except ValueError:
+            doc_id = parts[0]
+        out[(doc_id, parts[1])] = v
+    return out
+
+
+def entity_provenance(text, entities_file, outfile):
+    """Step 2a: Entity provenance — locate pages/tables with data per entity."""
+    print("Running entity provenance...")
+    with open(entities_file, 'r') as f:
+        entity_data = json.load(f)
+
+    # Restore full document context into entity records
+    for record in entity_data:
+        doc_id = record['document_id']
+        record['context'] = text[doc_id]
+
+    prov = measurementlm._entity_provenance(entity_data)
+
+    with open(outfile, 'w') as f:
+        json.dump(_serialize_prov(prov), f, indent=4, ensure_ascii=False)
+
+
+def attribute_provenance(text, attributes_file, outfile):
+    """Step 2b: Attribute provenance — locate pages/tables with data per attribute."""
+    print("Running attribute provenance...")
+    with open(attributes_file, 'r') as f:
+        doc_attributes = json.load(f)
+
+    # doc_attributes keys are strings after JSON round-trip; _attribute_provenance handles that
+    data = []
+    for i, paper in enumerate(text):
+        data.append({'document_id': i, 'context': paper})
+    measurementlm.data = data
+
+    prov = measurementlm._attribute_provenance(doc_attributes)
+
+    with open(outfile, 'w') as f:
+        json.dump(_serialize_prov(prov), f, indent=4, ensure_ascii=False)
+
+
+def extract_values(text, entities_file, attributes_file, entity_prov_file, attr_prov_file, outfile):
+    """Steps 5+6: Extract values from text and tables using provenance intersection."""
+    print("Extracting values...")
     with open(entities_file, 'r') as f:
         entity_data = json.load(f)
 
     with open(attributes_file, 'r') as f:
         doc_attributes = json.load(f)
 
-    # doc_attributes keys are strings after JSON round-trip
-    entity_attribute_data = []
+    with open(entity_prov_file, 'r') as f:
+        entity_prov = _deserialize_prov(json.load(f))
+
+    with open(attr_prov_file, 'r') as f:
+        attr_prov = _deserialize_prov(json.load(f))
+
+    # doc_attributes keys are strings after JSON; convert to int for consistency
+    doc_attributes = {int(k): v for k, v in doc_attributes.items()}
+
+    # Restore full document context into entity records
     for record in entity_data:
-        doc_id = str(record['document_id'])
-        for attr_name, terms in doc_attributes.get(doc_id, {}).items():
-            entity_attribute_data.append(record | {
-                'attribute': attr_name,
-                'attribute_terms': terms,
-            })
+        doc_id = record['document_id']
+        record['context'] = text[doc_id]
 
-    measurementlm.data = entity_attribute_data
-    data = measurementlm._filter_entity_attribute_pairs()
+    text_values = measurementlm._extract_values_from_text(
+        entity_data, doc_attributes, entity_prov, attr_prov
+    )
 
-    with open(outfile, 'w') as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-
-def extract_values(infile, outfile):
-    """Steps 3+4: Extract values from text and tables."""
-    print("Extracting values...")
-    with open(infile, 'r') as f:
-        data = json.load(f)
-
-    entity_attribute_data = data
-
-    measurementlm.data = entity_attribute_data
-    text_values = measurementlm._extract_values_from_text()
-
-    measurementlm.data = entity_attribute_data
-    table_values = measurementlm._extract_values_from_tables()
+    table_values = measurementlm._extract_values_from_tables(
+        entity_data, doc_attributes, entity_prov, attr_prov
+    )
 
     data = text_values + table_values
 
@@ -270,16 +317,17 @@ def extract_values(infile, outfile):
 
 
 def standardize_and_deduplicate(infile, outfile):
-    """Step 5: Standardize and deduplicate."""
+    """Step 7+8: Standardize then deduplicate."""
     print("Standardizing and deduplicating...")
     with open(infile, 'r') as f:
         data = json.load(f)
 
     measurementlm.data = data
-    data = measurementlm._standardize_and_deduplicate()
+    standardized = measurementlm._standardize()
+    deduplicated = measurementlm._deduplicate(standardized)
 
     dataset = []
-    for datapoint in data:
+    for datapoint in deduplicated:
         document_id = datapoint['document_id']
         doc_metadata = text_info[document_id]
         dataset.append(
@@ -297,11 +345,14 @@ extract_entities(text, outfile1)
 outfile2 = "data/experiments/2026_02_18/ten_attributes.json"
 detect_attributes(text, outfile2)
 
-outfile3 = "data/experiments/2026_02_18/ten_pairs.json"
-combine_and_filter(outfile1, outfile2, outfile3)
+outfile3a = "data/experiments/2026_02_18/ten_entity_prov.json"
+entity_provenance(text, outfile1, outfile3a)
+
+outfile3b = "data/experiments/2026_02_18/ten_attr_prov.json"
+attribute_provenance(text, outfile2, outfile3b)
 
 outfile4 = "data/experiments/2026_02_18/ten_values.json"
-extract_values(outfile3, outfile4)
+extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
 outfile5 = "data/experiments/2026_02_18/ten_final.json"
 standardize_and_deduplicate(outfile4, outfile5)

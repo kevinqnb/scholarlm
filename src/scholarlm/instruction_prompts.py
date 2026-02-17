@@ -101,7 +101,35 @@ Guidelines:
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
 """
 
-# Step 2b: Filter (entity, attribute) pairs
+# Step 2a: Entity provenance — locate pages/tables with data for an entity
+ENTITY_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described entity.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper and a description of an entity.
+- Set has_data to true only if the page contains directly reported numerical measurements associated with the described entity.
+- Set has_data to false if the entity is not mentioned on the page, or if there are no numerical measurements for it.
+- Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- If has_data is true and the data appears within a table on the page, provide the table number. If the data is in prose text (not in a table), leave table_number as null.
+- If has_data is false, leave table_number as null.
+- Provide a brief explanation justifying your decision.
+- Structure your response as a JSON object with "explanation", "has_data", and "table_number" fields.
+"""
+
+# Step 2b: Attribute provenance — locate pages/tables with data for an attribute
+ATTRIBUTE_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described measurement attribute.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper and a description of a measurement attribute.
+- Set has_data to true only if the page contains directly reported numerical measurements for the described attribute.
+- Set has_data to false if the attribute is not mentioned on the page, or if there are no numerical measurements for it.
+- Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- If has_data is true and the data appears within a table on the page, provide the table number. If the data is in prose text (not in a table), leave table_number as null.
+- If has_data is false, leave table_number as null.
+- Provide a brief explanation justifying your decision.
+- Structure your response as a JSON object with "explanation", "has_data", and "table_number" fields.
+"""
+
+# Step 2c: Filter (entity, attribute) pairs
 FILTER_ENTITY_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains a directly reported numerical measurement for a described attribute in reference to a given entity.
 
 Guidelines:
