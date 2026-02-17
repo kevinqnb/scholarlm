@@ -117,7 +117,7 @@ class MeasurementLM:
 
 
     # -----------------------------------------------------------------------
-    # Step 1: Entity extraction (full context + table enrichment)
+    # Step 1: Document Level entity extraction
     # -----------------------------------------------------------------------
 
     def _extract_entities(self):
@@ -172,80 +172,6 @@ class MeasurementLM:
 
             doc_entities[i] = list(resp_validated['items'])
 
-        # --- Pass 2: Table enrichment ---
-        enrichment_messages = []
-        enrichment_ids = []  # (doc_idx, table_number)
-        for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            tables = re.findall(r'<table number="(\d+)">', context)
-            if not tables:
-                continue
-
-            existing_entities_summary = json.dumps(
-                doc_entities.get(i, []), indent=2, ensure_ascii=False
-            )
-
-            for t in tables:
-                t = int(t)
-                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
-                table_end = context.find('</table>', table_start)
-                table_text = context[table_start:table_end].strip()
-                if not table_text:
-                    continue
-
-                query = (
-                    "Examine this table. Identify any new entities not in the list above, "
-                    "and for existing entities extract any additional attribute values "
-                    "(abbreviations, codes, etc.) that the table reveals."
-                )
-                prompt = (
-                    f"## Instructions:\n{ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS}\n\n"
-                    f"## Already Identified Entities:\n{existing_entities_summary}\n\n"
-                    f"## Table:\n{table_text}\n\n"
-                    f"## Query:\n{query}"
-                )
-                enrichment_messages.append([{"role": "user", "content": prompt}])
-                enrichment_ids.append((i, t))
-
-        if enrichment_messages:
-            enrichment_responses = self.llm.chat(
-                messages=enrichment_messages, sampling_params=sampling_params
-            )
-            enrichment_texts = [r.outputs[0].text for r in enrichment_responses]
-
-            for msg_idx, resp_text in enumerate(enrichment_texts):
-                doc_idx, table_number = enrichment_ids[msg_idx]
-                try:
-                    resp_validated = response_validator(IdentificationList, resp_text)
-                except:
-                    print(f"Validation error in table enrichment response (doc {doc_idx}, table {table_number}).")
-                    continue
-
-                existing = doc_entities.get(doc_idx, [])
-                for new_entity in resp_validated['items']:
-                    # Try to match against existing entities by name
-                    new_name = str(new_entity.get('name', '') or '').strip().lower()
-                    best_match_score = 0
-                    best_match_idx = -1
-                    for eidx, existing_entity in enumerate(existing):
-                        existing_name = str(existing_entity.get('name', '') or '').strip().lower()
-                        if new_name and existing_name:
-                            score = fuzz.token_set_ratio(new_name, existing_name)
-                            if score > best_match_score:
-                                best_match_score = score
-                                best_match_idx = eidx
-
-                    if best_match_score >= 80 and best_match_idx >= 0:
-                        # Enrich: fill in None fields on the existing entity
-                        for field in entity_fields:
-                            if existing[best_match_idx].get(field) is None and new_entity.get(field) is not None:
-                                existing[best_match_idx][field] = new_entity[field]
-                    else:
-                        # New entity
-                        existing.append(new_entity)
-
-                doc_entities[doc_idx] = existing
-
         # --- Build output: one record per (document, entity) ---
         entity_data = []
         for i, datapoint in enumerate(self.data):
@@ -256,7 +182,7 @@ class MeasurementLM:
 
 
     # -----------------------------------------------------------------------
-    # Step 2: Document-level attribute detection (batched full context + per-table)
+    # Step 2: Document-level attribute detection
     # -----------------------------------------------------------------------
 
     def _format_attribute_list(self, attr_names=None):
@@ -343,70 +269,6 @@ class MeasurementLM:
                     attribute_terms[doc_idx][attr_name] = item.get('terms', [])
                 else:
                     detection_results[doc_idx][attr_name] = False
-
-        # --- Phase B: Batched per-table fallback for undetected attributes ---
-        table_messages = []
-        table_message_ids = []  # (doc_idx, list_of_attr_names_queried)
-        for i, datapoint in enumerate(self.data):
-            undetected = [
-                a for a in attr_names
-                if not detection_results.get(i, {}).get(a, False)
-            ]
-            if not undetected:
-                continue
-
-            context = datapoint['context']
-            tables = re.findall(r'<table number="(\d+)">', context)
-            if not tables:
-                continue
-
-            undetected_list_text = self._format_attribute_list(undetected)
-
-            for t in tables:
-                t = int(t)
-                table_start = context.find(f'<table number="{t}">') + len(f'<table number="{t}">')
-                table_end = context.find('</table>', table_start)
-                table_text = context[table_start:table_end].strip()
-                if not table_text:
-                    continue
-
-                query = (
-                    f"Attributes to evaluate:\n{undetected_list_text}\n\n"
-                    f"For each attribute listed above, determine whether the table "
-                    f"contains any direct numerical measurements for that attribute. "
-                    f"Return one item per attribute using the exact attribute name.\n\n"
-                )
-                prompt = (
-                    f"## Instructions:\n{DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{table_text}\n\n## Query:\n{query}"
-                )
-                table_messages.append([{"role": "user", "content": prompt}])
-                table_message_ids.append((i, undetected))
-
-        if table_messages:
-            table_responses = self.llm.chat(
-                messages=table_messages, sampling_params=sampling_params
-            )
-            table_response_texts = [r.outputs[0].text for r in table_responses]
-
-            for msg_idx, resp in enumerate(table_response_texts):
-                doc_idx, queried_attrs = table_message_ids[msg_idx]
-                try:
-                    batch = response_validator(BatchAttributeDetectionResponse, resp)
-                except:
-                    print("Validation error in batched table attribute detection response.")
-                    continue
-
-                responded_attrs = {}
-                for item in batch['items']:
-                    responded_attrs[item['attribute_name']] = item
-
-                for attr_name in queried_attrs:
-                    item = responded_attrs.get(attr_name)
-                    if item and item.get('detected', False):
-                        detection_results[doc_idx][attr_name] = True
-                        if attr_name not in attribute_terms.get(doc_idx, {}):
-                            attribute_terms.setdefault(doc_idx, {})[attr_name] = item.get('terms', [])
 
         # --- Build output: {doc_idx: {attr_name: terms}} for detected attrs ---
         doc_attributes: dict[int, dict[str, list[str]]] = {}

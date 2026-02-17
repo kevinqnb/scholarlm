@@ -31,7 +31,7 @@ class ObservationSchema(BaseModel):
 
 fields = ObservationSchema.model_fields.keys()
 
-feature_info_dict = {
+attribute_info_dict = {
     "latitude": {
         "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
         "units": ["degrees", "radians"]
@@ -97,20 +97,20 @@ messages = []
 message_ids = []
 for entry in data:
     context = entry['context']
-    feature = entry.get('feature')
-    feature_description = feature_info_dict[feature]['description']
-    feature_terms = entry.get('feature_terms', [])
+    attribute = entry.get('feature')
+    attribute_description = attribute_info_dict[attribute]['description']
+    attribute_terms = entry.get('feature_terms', [])
     entity_description = {k: v for k,v in entry.items() if k in fields}
     measurement_val = entry['value']
     measurement_id = entry['measurement_id']
 
     instructions = JUDGE_INSTRUCTIONS
     query = (
-        f"Feature description: {feature_description}\n"
-        f"Terminology used for the feature: {feature_terms}\n"
+        f"attribute description: {attribute_description}\n"
+        f"Terminology used for the attribute: {attribute_terms}\n"
         f"Entity description: {entity_description}\n"
         f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and feature?"
+        f"Is the extracted data point valid for the given entity and attribute?"
     )
     
     messages.append((instructions, context, query))

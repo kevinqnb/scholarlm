@@ -14,8 +14,8 @@ ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS = """You are an expert in data extraction f
 2. Additional information about EXISTING entities (such as abbreviations, codes, site identifiers, treatment states, or dates) that may be visible in this table but were not captured from the full text.
 
 Guidelines:
-- The context below contains an HTML table from the paper.
-- You are also given the list of entities already identified.
+- You will be provided the full research paper context, and the list of entities already identified.
+- Subsequently you will be given an HTML table selected from the paper.
 - Extract any NEW entities visible in the table that are not already in the list.
 - For entities already in the list, extract any additional attribute values (abbreviations, codes, etc.) that the table reveals.
 - Do not fabricate or infer information not explicitly present in the table.
@@ -41,6 +41,7 @@ Guidelines:
 DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a specific HTML table from a research paper contains data for a described attribute (measurement variable) in reference to a given entity.
 
 Guidelines:
+- You will be provided the full research paper context, and an HTML table selected from the paper.
 - Answer False if the given attribute or entity do not appear in the table.
 - Answer False if the table does not explicitly provide data for the given attribute and entity.
 - Answer False if the data reported is not a direct numerical measurement.
@@ -79,17 +80,23 @@ Guidelines:
 """
 
 # Step 2 (batched): Document-level per-table attribute detection with inline term identification
-DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against a specific HTML table from a research paper, determining whether each attribute has any directly reported numerical measurements within this table.
+DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. You have already performed a document-level scan for attributes and may have identified some of them along with associated terminology. You are now examining a specific HTML table from the paper to:
+
+1. Detect any attributes that were NOT previously identified from the full text.
+2. Identify additional terminology or abbreviations for attributes that WERE already detected, but whose terms may be supplemented by information visible in this table.
+
+You must evaluate ALL of the listed attributes against the selected table.
 
 Guidelines:
+- You will be provided the full research paper context, and the list of attributes already identified.
+- Subsequently you will be given an HTML table selected from the paper.
 - You MUST return one item per attribute, using the EXACT attribute name provided. Do not rename, skip, or add attributes.
-- Set detected to false if the given attribute does not appear in the table.
-- Set detected to false if the table does not explicitly provide data for the given attribute.
+- Set detected to true if the table explicitly provides a direct numerical measurement for the given attribute, even if the attribute was already detected in the full text.
+- Set detected to false if the given attribute does not appear in the table, or the table does not provide a direct numerical measurement for it.
 - Set detected to false if the data reported is not a direct numerical measurement.
 - Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Set detected to true only if the table explicitly provides a direct numerical measurement for the given attribute.
 - For each attribute, provide a brief explanation justifying your decision.
-- When detected is true, populate the terms list with any terminology or abbreviations used in the table to refer to that attribute. Do not infer, guess, or fabricate terms not explicitly present in the table.
+- When detected is true, populate the terms list with any terminology or abbreviations used in the table to refer to that attribute. Include terms even if they duplicate previously identified terms — deduplication will be handled downstream. Do not infer, guess, or fabricate terms not explicitly present in the table.
 - When detected is false, return an empty list for terms.
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
 """

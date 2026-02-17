@@ -28,7 +28,19 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
 text_files.sort()
 
-text_files = ['physical_and_chemical_limnological.txt']
+text_files = [
+    'physical_and_chemical_limnological.txt',
+    'physical-chemical_influences.txt',
+    'prairie_wetland.txt',
+    'net_heterotrophy.txt',
+    'habitat_characteristics.txt',
+    'biodiversity_of_constructed.txt',
+    'fish_production_in_lakes.txt',
+    'long-term_stability.txt',
+    'diversity_of_macroinvertebrates.txt',
+    'impact_of_macrophytes.txt'
+]
+
 
 text_filepaths = []
 text_info = []
@@ -61,6 +73,7 @@ WHAT COUNTS AS AN ECOSYSTEM:
 - Include ponds, lakes, wetlands, and similar aquatic ecosystems.
 - Marshes, bogs, fens, and swamp should all be considered as "wetland".
 - If the ecosystem type is unclear, classify it as "other".
+- An ecosystem might be referred to by a specific name (e.g., "Lake Mendota"), a coded identifier (e.g., "P1", "W2", "Pond 1", "Pond A", etc.), or a general description (e.g., "the restored wetland", "the control pond", etc.). All of these should be extracted as distinct ecosystem observations if they meet the identity criteria below.
 
 
 ATTRIBUTE SCHEMA:
@@ -137,15 +150,15 @@ attribute_info_dict = {
         "units": ["degrees", "radians"]
     },
     "surface_area": {
-        "description": "Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.",
+        "description": "Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description. This is NOT the same as watershed area, drainage basin area, catchment area, or littoral zone area.",
         "units": ["km^2", "mi^2", "ha", "m^2", "acres"]
     },
     "max_depth": {
-        "description": "Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.",
+        "description": "Maximum physical water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is NOT the same as mean depth, average depth, or Secchi depth (water transparency depth).",
         "units": ["m", "km", "ft"]
     },
     "vegetation_cover": {
-        "description": "Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other aquatic vegetation. This should refer to areal coverage, not biomass or volume.",
+        "description": "Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other rooted/floating aquatic vegetation. This should refer to areal coverage, not biomass or volume. This is NOT the same as algal cover, periphyton cover, or phytoplankton density.",
         "units": ["percent", "fraction"]
     },
     "ph": {
@@ -153,15 +166,15 @@ attribute_info_dict = {
         "units": []
     },
     "tn": {
-        "description": "Total nitrogen concentration in the water column, including both dissolved and particulate forms and all major species (e.g., nitrate, nitrite, ammonium, organic nitrogen), as explicitly reported in the source.",
+        "description": "Total nitrogen (TN) concentration in the water column, representing the sum of all nitrogen forms — both dissolved and particulate, including nitrate (NO₃), nitrite (NO₂), ammonium (NH₃/NH₄⁺), and organic nitrogen. This must be the aggregate 'total nitrogen' value as explicitly reported in the source. This is NOT the same as individual nitrogen species (e.g., NO₃ alone, NO₂ alone, NH₃ alone, combined NO₃+NO₂, or particulate organic nitrogen [PON]) unless they are explicitly labeled as total nitrogen.",
         "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
     },
     "tp": {
-        "description": "Total phosphorus concentration in the water column, including both dissolved and particulate forms, as explicitly reported in the source (i.e., not just soluble reactive phosphorus or orthophosphate).",
+        "description": "Total phosphorus (TP) concentration in the water column, representing the sum of all phosphorus forms — both dissolved and particulate. This must be the aggregate 'total phosphorus' value as explicitly reported in the source. This is NOT the same as individual phosphorus species (e.g., soluble reactive phosphorus [SRP], orthophosphate [PO₄³⁻], dissolved reactive phosphorus [DRP], or particulate phosphorus [PP]) unless they are explicitly labeled as total phosphorus.",
         "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
     },
     "chla": {
-        "description": "Chlorophyll-a concentration in the water column, used as a proxy for phytoplankton biomass. This should refer to extracted or in situ chlorophyll-a measurements, not total chlorophyll or other pigments unless explicitly labeled as chlorophyll-a.",
+        "description": "Chlorophyll-a (Chl-a) concentration in the water column, used as a proxy for phytoplankton biomass. This should refer to extracted or in situ chlorophyll-a measurements only. This is NOT the same as total chlorophyll, chlorophyll-b, chlorophyll-c, pheophytin, or other pigment measurements unless they are explicitly labeled as chlorophyll-a.",
         "units": ["µg/L", "mg/L", "mg/m^3"]
     },
 }
