@@ -109,11 +109,11 @@ Guidelines:
 - Set has_data to true only if the page contains directly reported numerical measurements associated with the described entity.
 - Set has_data to false if the entity is not mentioned on the page, or if there are no numerical measurements for it.
 - Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- If has_data is true and the data appears within a table on the page, provide the table number, x, indicated by the <table number="x"> tag. Do NOT use table numbers mentioned in the text or in the table caption, refer only to the table number in the HTML tag.
-- If the data is in prose text (not in a table), leave table_number as null.
-- If has_data is false, leave table_number as null.
+- If has_data is true and the data appears within a table on the page, set in_table to true.
+- If the data is in prose text (not in a table), set in_table to false.
+- If has_data is false, set in_table to false.
 - Provide a brief explanation justifying your decision.
-- Structure your response as a JSON object with "explanation", "has_data", and "table_number" fields.
+- Structure your response as a JSON object with "explanation", "has_data", and "in_table" fields.
 """
 
 # Step 2b: Attribute provenance — locate pages/tables with data for an attribute
@@ -124,10 +124,10 @@ Guidelines:
 - Set has_data to true only if the page contains directly reported numerical measurements for the described attribute.
 - Set has_data to false if the attribute is not mentioned on the page, or if there are no numerical measurements for it.
 - Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- If has_data is true and the data appears within a table on the page, provide the table number, x, indicated by the <table number="x"> tag. If the data is in prose text (not in a table), leave table_number as null.
-- If has_data is false, leave table_number as null.
+- If has_data is true and the data appears within a table on the page, set in_table to true. If the data is in prose text (not in a table), set in_table to false.
+- If has_data is false, set in_table to false.
 - Provide a brief explanation justifying your decision.
-- Structure your response as a JSON object with "explanation", "has_data", and "table_number" fields.
+- Structure your response as a JSON object with "explanation", "has_data", and "in_table" fields.
 """
 
 # Step 2c: Filter (entity, attribute) pairs

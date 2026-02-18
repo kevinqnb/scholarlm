@@ -47,7 +47,7 @@ class ProvenanceResponse(BaseModel):
     """Structured response for provenance detection on a single page."""
     explanation: str
     has_data: bool
-    table_number: int | None = None
+    in_table: bool
 
 
 class TextValueExtractionResponse(BaseModel):
@@ -135,6 +135,10 @@ class MeasurementLM:
         if end == -1:
             return ""
         return context[start:end].strip()
+
+    def _get_table_numbers_on_page(self, page_text: str) -> list[int]:
+        """Return sorted list of table numbers found in *page_text*."""
+        return sorted(int(t) for t in re.findall(r'<table number="(\d+)">', page_text))
 
     # -----------------------------------------------------------------------
     # Step 1: Document Level entity extraction
@@ -242,8 +246,8 @@ class MeasurementLM:
                 query = (
                     f"Entity description: {entity_description}\n\n"
                     f"Does this page contain directly reported numerical measurements "
-                    f"for the described entity? If yes and the data is in a table, "
-                    f"provide the table number.\n\n"
+                    f"for the described entity? If yes, indicate whether the data "
+                    f"appears in a table or in prose text.\n\n"
                 )
                 prompt = (
                     f"## Instructions:\n{ENTITY_PROVENANCE_INSTRUCTIONS}\n\n"
@@ -276,10 +280,21 @@ class MeasurementLM:
 
             if result.get('has_data'):
                 key = (doc_id, entity_id)
-                provenance.setdefault(key, []).append({
-                    'page': page_number,
-                    'table': result.get('table_number'),
-                })
+                if result.get('in_table'):
+                    page_text = self._get_page_text(
+                        unique_entities[(doc_id, entity_id)]['context'],
+                        page_number,
+                    )
+                    for t in self._get_table_numbers_on_page(page_text):
+                        provenance.setdefault(key, []).append({
+                            'page': page_number,
+                            'table': t,
+                        })
+                else:
+                    provenance.setdefault(key, []).append({
+                        'page': page_number,
+                        'table': None,
+                    })
 
         return provenance
 
@@ -424,8 +439,8 @@ class MeasurementLM:
                         f"Attribute description: {attr_description}\n"
                         f"Terminology used for the attribute: {terms}\n\n"
                         f"Does this page contain directly reported numerical measurements "
-                        f"for the described attribute? If yes and the data is in a table, "
-                        f"provide the table number.\n\n"
+                        f"for the described attribute? If yes, indicate whether the data "
+                        f"appears in a table or in prose text.\n\n"
                     )
                     prompt = (
                         f"## Instructions:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
@@ -458,10 +473,21 @@ class MeasurementLM:
 
             if result.get('has_data'):
                 key = (doc_id, attr_name)
-                provenance.setdefault(key, []).append({
-                    'page': page_number,
-                    'table': result.get('table_number'),
-                })
+                if result.get('in_table'):
+                    page_text = self._get_page_text(
+                        self.data[doc_id]['context'],
+                        page_number,
+                    )
+                    for t in self._get_table_numbers_on_page(page_text):
+                        provenance.setdefault(key, []).append({
+                            'page': page_number,
+                            'table': t,
+                        })
+                else:
+                    provenance.setdefault(key, []).append({
+                        'page': page_number,
+                        'table': None,
+                    })
 
         return provenance
 
