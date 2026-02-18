@@ -282,8 +282,8 @@ attribute_info_dict = {
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = "data/experiments/2026_02_11/pond_judged_claude.json"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = "data/experiments/2026_02_18/pond_judged_claude.json"
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -301,9 +301,9 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     for i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
-        attribute = entry.get("feature")
+        attribute = entry.get("attribute")
         attribute_description = attribute_info_dict[attribute]["description"]
-        attribute_terms = entry.get("feature_terms", [])
+        attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
         measurement_val = entry["value"]
 
@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
     chats = build_chats(data)
 
-    model = "claude-sonnet-4-5"
+    model = "claude-sonnet-4-6"
 
     responses = asyncio.run(
         run_all_chats(

@@ -9,8 +9,6 @@ from scholarlm import MeasurementLM
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 
-#task_id = int(os.getenv('SGE_TASK_ID'))
-
 # (try to) set seeds for reproducibility
 import random
 import torch
@@ -19,15 +17,28 @@ torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
 
+task_id = int(os.getenv('SGE_TASK_ID'))
+
+
 main_directory = "data/pond"
 pdf_directory = os.path.join(main_directory, "pdfs")
 ocr_directory = os.path.join(main_directory, "ocr_output")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
-text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store"])
+text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store", ".gitkeep"])
 text_files.sort()
 
+# split into 5 groups for 5 tasks; each task processes one group of files
+files_per_task = len(text_files) // 5
+start_index = (task_id - 1) * files_per_task
+global_offset = start_index  # for tracking document_id across tasks
+if task_id < 5:
+    text_files = text_files[start_index : start_index + files_per_task]
+else:
+    text_files = text_files[start_index:]
+
+'''
 text_files = [
     'physical_and_chemical_limnological.txt',
     'physical-chemical_influences.txt',
@@ -40,6 +51,7 @@ text_files = [
     'diversity_of_macroinvertebrates.txt',
     'impact_of_macrophytes.txt'
 ]
+'''
 
 
 text_filepaths = []
@@ -338,39 +350,40 @@ def standardize_and_deduplicate(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-
-outfile1 = "data/experiments/2026_02_18/ten_entities.json"
+'''
+outfile1 = "data/experiments/2026_02_18/prov_ten_entities.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_02_18/ten_attributes.json"
+outfile2 = "data/experiments/2026_02_18/prov_ten_attributes.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_02_18/ten_entity_prov.json"
+outfile3a = "data/experiments/2026_02_18/prov_ten_entity_prov.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_02_18/ten_attr_prov.json"
+outfile3b = "data/experiments/2026_02_18/prov_ten_attr_prov.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_02_18/ten_values.json"
+outfile4 = "data/experiments/2026_02_18/prov_ten_values.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_02_18/ten_final.json"
+outfile5 = "data/experiments/2026_02_18/prov_ten_final.json"
 standardize_and_deduplicate(outfile4, outfile5)
-
-
 '''
+
+
 data = measurementlm.fit(text)
 
 dataset = []
 for datapoint in data:
     document_id = datapoint['document_id']
     doc_metadata = text_info[document_id]
+    datapoint['document_id'] = document_id + global_offset  # adjust for global document ID across tasks
     dataset.append(
         doc_metadata | datapoint
     )
 
 
-outfile = "data/experiments/2026_02_16/pond.json"
+outfile = f"data/experiments/2026_02_18/pond{task_id}.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
-'''
+

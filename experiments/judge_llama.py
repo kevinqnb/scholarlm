@@ -86,9 +86,9 @@ llm = JudgementLM(
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = f"data/experiments/2026_02_11/pond_judged_llama.json"
-attn_output_file = "data/experiments/2026_02_11/pond_judged_llama_attention_outputs.npz"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = f"data/experiments/2026_02_18/pond_judged_llama.json"
+attn_output_file = "data/experiments/2026_02_18/pond_judged_llama_attention_outputs.npz"
 
 with open(input_file, "r") as f:
     data = json.load(f)
@@ -97,9 +97,9 @@ messages = []
 message_ids = []
 for entry in data:
     context = entry['context']
-    attribute = entry.get('feature')
+    attribute = entry.get('attribute')
     attribute_description = attribute_info_dict[attribute]['description']
-    attribute_terms = entry.get('feature_terms', [])
+    attribute_terms = entry.get('attribute_terms', [])
     entity_description = {k: v for k,v in entry.items() if k in fields}
     measurement_val = entry['value']
     measurement_id = entry['measurement_id']
@@ -123,7 +123,7 @@ attn_output_dict = {}
 for i, response in enumerate(responses):
     measurement_id = str(message_ids[i])
     judged_data_point = data[i] | {
-        'judgement': response['response'],
+        'judgement': True if "true" in response['response'].strip().lower() else False,
         'judgement_confidence': math.exp(float(response['logprob'])),
         'judgement_model': 'Llama-3.1-8B-Instruct',
     }

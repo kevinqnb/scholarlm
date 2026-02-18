@@ -473,13 +473,13 @@ def _try_coerce_value(value: Any, target_type: Type[Any]) -> Any:
 ####################################################################################################
 
 
-def load_deduplicate_and_process_results(
+def load_and_process_results(
     json_path: str,
     *,
-    dedup_cols: Sequence[str],
     unit_conversion_table: Mapping[str, Mapping[str, Any]],
     attribute_types: Optional[Mapping[Any, Type[Any]]] = None,
     drop_keys: Optional[Iterable[str]] = None,
+    drop_attrs: Optional[Iterable[Any]] = None,
     attribute_col: str = "attribute",
     value_col: str = "value",
     unit_col: str = "units",
@@ -496,8 +496,6 @@ def load_deduplicate_and_process_results(
     ----------
     json_path:
         Path to a JSON file containing a list of dict records.
-    dedup_cols:
-        Column names to use for deduplication.
     unit_conversion_table:
         Mapping like: unit_conversion_table[attribute][unit] -> multiplicative factor.
         If an attribute is string-valued in your data, use an empty dict (or omit the attribute)
@@ -507,6 +505,8 @@ def load_deduplicate_and_process_results(
         This function does not enforce—only attempts coercion.
     drop_keys:
         Optional iterable of keys to drop from each record before creating the DataFrame.
+    drop_attrs:
+        Optional iterable of attribute values to drop (i.e., drop rows where `attribute_col` is in this set).
     attribute_col:
         Name of the column containing the attribute names (used for type coercion and unit conversion).
     value_col:
@@ -526,14 +526,12 @@ def load_deduplicate_and_process_results(
     if drop_keys:
         drop_set = set(drop_keys)
         records = [{k: v for k, v in r.items() if k not in drop_set} for r in records]
+    if drop_attrs:
+        drop_attr_set = set(drop_attrs)
+        records = [r for r in records if r.get(attribute_col) not in drop_attr_set]
+
 
     df = pd.DataFrame(records)
-
-    # Deduplicate based on requested columns (ignore missing columns gracefully)
-    present_dedup_cols = [c for c in dedup_cols if c in df.columns]
-    if present_dedup_cols:
-        df = df.drop_duplicates(subset=present_dedup_cols, keep="first")
-
     df = df.dropna(subset=[value_col])
 
     # Optional per-attribute type coercion
@@ -570,7 +568,6 @@ def load_deduplicate_and_process_results(
 
     df[out_col] = processed
     df = df.dropna(subset=[out_col])
-    df = df.drop_duplicates()
     df = df.reset_index(drop=True)
     return df
 

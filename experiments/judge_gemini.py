@@ -332,9 +332,9 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
-        attribute = entry.get("feature")
+        attribute = entry.get("attribute")
         attribute_description = attribute_info_dict[attribute]["description"]
-        attribute_terms = entry.get("feature_terms", [])
+        attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
         measurement_val = entry["value"]
 
@@ -355,8 +355,8 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = "data/experiments/2026_02_11/pond_judged_gemini.json"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = "data/experiments/2026_02_18/pond_judged_gemini.json"
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:

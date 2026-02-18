@@ -16,7 +16,7 @@ from .utils import (
     jensen_shannon_divergence,
     table_extract,
     add_row_names,
-    load_deduplicate_and_process_results,
+    load_and_process_results,
     match_datasets,
     matching_precision_recall,
 )

@@ -104,7 +104,7 @@ async def _create_completion(model: str, messages):
     return await client.chat.completions.create(
         model=model,
         messages=messages,
-        max_completion_tokens=5,
+        max_completion_tokens=10,
         temperature=0,
         logprobs=True,
         top_logprobs=5,
@@ -250,9 +250,9 @@ def build_chats(data):
 
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
-        attribute = entry.get("feature")
+        attribute = entry.get("attribute")
         attribute_description = attribute_info_dict[attribute]["description"]
-        attribute_terms = entry.get("feature_terms", [])
+        attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
         measurement_val = entry["value"]
 
@@ -278,8 +278,8 @@ def build_chats(data):
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = "data/experiments/2026_02_11/pond_judged_gpt.json"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = "data/experiments/2026_02_18/pond_judged_gpt.json"
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:
