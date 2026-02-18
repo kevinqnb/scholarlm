@@ -17,9 +17,6 @@ torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
 
-task_id = int(os.getenv('SGE_TASK_ID'))
-
-
 main_directory = "data/pond"
 pdf_directory = os.path.join(main_directory, "pdfs")
 ocr_directory = os.path.join(main_directory, "ocr_output")
@@ -28,15 +25,6 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store", ".gitkeep"])
 text_files.sort()
-
-# split into 5 groups for 5 tasks; each task processes one group of files
-files_per_task = len(text_files) // 5
-start_index = (task_id - 1) * files_per_task
-global_offset = start_index  # for tracking document_id across tasks
-if task_id < 5:
-    text_files = text_files[start_index : start_index + files_per_task]
-else:
-    text_files = text_files[start_index:]
 
 '''
 text_files = [
@@ -52,6 +40,20 @@ text_files = [
     'impact_of_macrophytes.txt'
 ]
 '''
+
+
+text_files = [
+    'physical-chemical_influences.txt',
+    'environmental_conditions.txt',
+    'relative_contribution.txt',
+    'monitoring_status.txt',
+    'characterizing_ponds.txt',
+    'diversity_of_macroinvertebrates.txt',
+    'impact_of_macrophytes.txt',
+    'macroinvertebrate_size.txt',
+    'biodiversity_of_constructed.txt',
+    'conservation_of_pond.txt',
+]
 
 
 text_filepaths = []
@@ -86,7 +88,6 @@ WHAT COUNTS AS AN ECOSYSTEM:
 - Marshes, bogs, fens, and swamp should all be considered as "wetland".
 - If the ecosystem type is unclear, classify it as "other".
 
-
 ATTRIBUTE SCHEMA:
 For each distinct ecosystem observation, output one item with the following attributes:
 - name
@@ -98,6 +99,7 @@ For each distinct ecosystem observation, output one item with the following attr
 - ecosystem type
 
 NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. Therefore, it is very important that these identifiers are collected and reported in the "abbreviations and/or codes for reference" field.
+
 
 
 IDENTIFICATION GUIDELINES:
@@ -351,27 +353,27 @@ def standardize_and_deduplicate(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-'''
-outfile1 = "data/experiments/2026_02_18/prov_ten_entities.json"
+
+outfile1 = "data/experiments/2026_02_25/test_entities.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_02_18/prov_ten_attributes.json"
+outfile2 = "data/experiments/2026_02_25/test_attributes.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_02_18/prov_ten_entity_prov.json"
+outfile3a = "data/experiments/2026_02_25/test_entity_prov.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_02_18/prov_ten_attr_prov.json"
+outfile3b = "data/experiments/2026_02_25/test_attr_prov.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_02_18/prov_ten_values.json"
+outfile4 = "data/experiments/2026_02_25/test_values.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_02_18/prov_ten_final.json"
+outfile5 = "data/experiments/2026_02_25/test_final.json"
 standardize_and_deduplicate(outfile4, outfile5)
+
+
 '''
-
-
 data = measurementlm.fit(text)
 
 dataset = []
@@ -387,4 +389,4 @@ for datapoint in data:
 outfile = f"data/experiments/2026_02_18/pond{task_id}.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
-
+'''
