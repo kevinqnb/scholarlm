@@ -651,7 +651,7 @@ class MeasurementLM:
             if not table_text:
                 return None
             try:
-                table_dfs = pd.read_html(StringIO(table_text), dtype=str)
+                table_dfs = pd.read_html(StringIO(table_text))
                 table_df = table_dfs[0]
                 row_names = table_df.loc[:, "index"].to_list() if 'index' in table_df.columns else []
                 row_names = [str(name) for name in row_names]
@@ -760,8 +760,13 @@ class MeasurementLM:
                 continue
             table_text, row_names, column_names = parsed
             try:
-                table_dfs = pd.read_html(StringIO(table_text), dtype=str)
+                table_dfs = pd.read_html(StringIO(table_text))
                 table_df = table_dfs[0]
+
+                # Ensure row and column indices are strings for matching
+                table_df.columns = [str(c) for c in table_df.columns]
+                if 'index' in table_df.columns:
+                    table_df['index'] = table_df['index'].astype(str)
 
                 matched_rows = table_df.loc[table_df["index"] == row_index][column_index]
                 if len(matched_rows) == 0:
