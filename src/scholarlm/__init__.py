@@ -4,6 +4,8 @@ from .measurementlm import MeasurementLM
 
 from .judgementlm import JudgementLM
 
+from .table_cleaner import TableCleaner
+
 from .utils import (
     get_filenames_in_directory,
     get_foldernames_in_directory,
@@ -24,5 +26,6 @@ from .utils import (
 from .instruction_prompts import (
     JUDGE_INSTRUCTIONS,
     CLEAN_TABLE_INSTRUCTIONS,
-    CLEAN_TABLE_INSTRUCTIONS_V2
+    CLEAN_TABLE_INSTRUCTIONS_V2,
+    DETECT_MISSING_TABLES_INSTRUCTIONS,
 )

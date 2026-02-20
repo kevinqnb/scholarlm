@@ -331,6 +331,21 @@ Output format:
 
 
 # Clean tables
+# Table cleaning pre-pass: detect tables missing from OCR output
+DETECT_MISSING_TABLES_INSTRUCTIONS = """You are an expert document analyst. You will be given an image of a PDF page alongside its OCR-parsed text.
+
+Your task: determine whether the page image contains one or more data tables that are NOT represented as `<table number="...">` blocks in the OCR text.
+
+Guidelines:
+- A missing table is a clearly visible, structured grid of data rows and columns in the image that has no corresponding `<table number="...">` block in the OCR text.
+- Do not flag decorative layouts, figures, charts, or images as missing tables — only structured data tables with rows and columns.
+- If the OCR text already contains `<table>` tags that correspond to all visible tables, set has_missing_tables to false.
+- Set has_missing_tables to true only if at least one genuine data table is clearly visible in the image but entirely absent from the OCR text.
+- Provide a brief explanation of your finding.
+- Structure your response as a JSON object with "explanation" and "has_missing_tables" fields.
+"""
+
+
 CLEAN_TABLE_INSTRUCTIONS = """
 You are an expert data engineer specializing in cleaning unstructured HTML tables for Python/Pandas processing. You will be provided with an HTML table from a research paper, along with an image of the page it was extracted from. Your job is to use the context to improve the structure and content of the table so that it is in accurate, clean, LLM readable, html format.
 
@@ -380,7 +395,6 @@ Your task: reproduce the OCR text exactly as given, but replace each `<table>` b
 
 **Data integrity:**
 - Preserve all original data values. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
-- If the OCR text is missing <table> tags or has malformed table markup, use the image to reconstruct the table in proper HTML format.
 - Output tables must be valid HTML within `<table>...</table>` tags.
 
 ### Example
