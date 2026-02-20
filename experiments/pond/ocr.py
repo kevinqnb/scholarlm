@@ -20,7 +20,7 @@ torch.cuda.manual_seed(342)
 
 main_directory = "data/pond"
 pdf_directory = os.path.join(main_directory, "pdfs")
-ocr_directory = os.path.join(main_directory, "ocr_output")
+ocr_directory = os.path.join(main_directory, "ocr_output_raw")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
@@ -28,6 +28,7 @@ with open(os.path.join(main_directory, "directory.json"), "r") as f:
 pdf_files = get_filenames_in_directory(pdf_directory, ignore = [".DS_Store", ".gitkeep"])
 pdf_files.sort()
 
+'''
 # Or specify specific files to process:
 precomputed_pdf_files = [
     'physical_and_chemical_limnological.pdf',
@@ -53,7 +54,7 @@ precomputed_pdf_files = [
 ]
 
 pdf_files = [pf for pf in pdf_files if pf not in precomputed_pdf_files]
-
+'''
 
 filepaths = []
 for f in pdf_files:
