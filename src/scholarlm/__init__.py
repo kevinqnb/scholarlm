@@ -24,4 +24,5 @@ from .utils import (
 from .instruction_prompts import (
     JUDGE_INSTRUCTIONS,
     CLEAN_TABLE_INSTRUCTIONS,
+    CLEAN_TABLE_INSTRUCTIONS_V2
 )

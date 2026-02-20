@@ -164,9 +164,11 @@ cython_debug/
 older/*
 examples/basics_vllm.py
 experiments/out/*
+experiments/ocr/out/*
+experiments/pond/out/*
 *.sh
 data/experiments/*/*
 data/pond/pdfs/*.pdf
 data/pond/ocr_output/*.txt
 data/pond/ocr_output/*.md
-data/pubtables
+data/ocr

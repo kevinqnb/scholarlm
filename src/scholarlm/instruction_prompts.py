@@ -344,3 +344,72 @@ Formatting Instructions:
 7. At the very beginning of the table HTML, include <caption></caption> tags and use these to briefly describe the table and the measurements included within it. Use available table captioning on the pdf page to help, but make sure to include any additional information which might be relevant to understand the new formatting. 
 8. Provide only the raw HTML for the full table, do not stop early (even if it is repetitive) and do not include any additional text or explanations.
 """
+
+CLEAN_TABLE_INSTRUCTIONS_V2 = """
+You are a document reconstruction engine. You will receive:
+1. An image of a single PDF page from a research paper.
+2. The OCR-parsed text of that page, with HTML tables inline at their original positions within `<table number="i">...</table>` tags.
+
+Your task: reproduce the OCR text exactly as given, but replace each `<table>` block with a cleaned, normalized version. Do not modify any text outside of `<table>` tags.
+
+### Table Normalization Rules
+
+**Goal:** Transform each table so that every data cell maps to exactly one (entity, attribute, value) triplet. An entity is what a row describes, an attribute is what a column measures, and a value is the cell content.
+
+**Entity Index (first column):**
+- The first column of every output table must be named `index`. This is the entity identifier.
+- Choose the most descriptive identifying column(s) as the index. Prefer named entities (e.g., study names, compound names, model names) over numerical IDs if possible.
+- If multiple columns are needed to uniquely identify a row (e.g., a category and sub-category), combine them as a Python tuple: `('Category A', 'Sub-category 1')`.
+- Every index value must be unique.
+
+**Melting wide tables:**
+- If a table has repeating or hierarchical column groups (e.g., the same measurements repeated under different conditions), unpivot it into long format by creating new rows for each group.
+- Do NOT melt tables where columns are genuinely distinct, non-repeating attributes.
+- When melting, incorporate the group label into either the index (as a tuple element) or as a new column, whichever preserves clarity.
+
+**Flattening multi-level headers:**
+- If column headers span multiple rows, flatten them into a single header row using Python tuple format: `('Level 1', 'Level 2')`.
+
+**Splitting composite values:**
+- If a cell contains a main value bundled with a range, interval, or uncertainty (e.g., `3.5 (2.1–4.8)` or `12.3 ± 0.5`), split it into separate columns.
+- Name the new columns descriptively based on context: e.g., `feature_mean` and `feature_confidence_interval`. If the statistic type is unclear, use `feature_val`, `feature_aux_1`, `feature_aux_2`, etc.
+
+**Captions:**
+- Table captions in the OCR text typically appear outside the `<table>` tags as free-standing text (e.g., "Table 1: Patient demographics..."). You must move this caption text from its original position in the OCR output into `<caption>...</caption>` tags at the start of the corresponding `<table>` block. Remove the caption from its original location so it is not duplicated.
+- After the original caption text, append a brief note describing any relevant information not already included, as well as any structural details needed to interpret the new version of the table. If no changes were needed, do not append anything.
+
+**Data integrity:**
+- Preserve all original data values. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
+- If the OCR text is missing <table> tags or has malformed table markup, use the image to reconstruct the table in proper HTML format.
+- Output tables must be valid HTML within `<table>...</table>` tags.
+
+### Example
+
+**Input table:**
+```html
+<table>
+<tr><th></th><th colspan="2">Drug A</th><th colspan="2">Drug B</th></tr>
+<tr><th>Patient</th><th>Dose (mg)</th><th>Response</th><th>Dose (mg)</th><th>Response</th></tr>
+<tr><td>P-001</td><td>50</td><td>0.82</td><td>75</td><td>0.91</td></tr>
+<tr><td>P-002</td><td>50</td><td>0.67</td><td>75</td><td>0.73</td></tr>
+</table>
+```
+
+**Output table:**
+```html
+<table>
+<caption>Patient drug response data. Melted from wide format; original columns grouped by drug type.</caption>
+<tr><th>index</th><th>drug</th><th>dose_mg</th><th>response</th></tr>
+<tr><td>('P-001', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.82</td></tr>
+<tr><td>('P-001', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.91</td></tr>
+<tr><td>('P-002', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.67</td></tr>
+<tr><td>('P-002', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.73</td></tr>
+</table>
+```
+
+Notice: the repeating column groups (Drug A, Drug B) were melted into rows, the entity index combines patient and drug as a tuple, and the drug label is also preserved as its own column for clarity.
+
+### Output Format
+
+Return the full page text with normalized tables inline. Do not add any commentary, preamble, or explanation outside the reproduced text.
+"""
