@@ -22,7 +22,7 @@ task_id = int(os.getenv('SGE_TASK_ID'))
 
 main_directory = "data/pond"
 pdf_directory = os.path.join(main_directory, "pdfs")
-ocr_directory = os.path.join(main_directory, "ocr_output")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_vllm")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
@@ -384,7 +384,7 @@ for datapoint in data:
     )
 
 
-outfile = f"data/experiments/2026_02_25/pond{task_id}.json"
+outfile = f"data/experiments/2026_02_25/pond{task_id}_vllm.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 

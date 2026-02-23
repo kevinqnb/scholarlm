@@ -2,6 +2,7 @@ import os
 import re
 import json
 import warnings
+import yaml
 import pandas as pd
 from itertools import count
 from dotenv import load_dotenv
@@ -101,22 +102,43 @@ class DocumentLM:
 
         responses = self.vlm.chat(messages = messages, sampling_params = self.sampling_params)
 
-        # Retry with higher temperature if max tokens exceeded (often due to runaway tables)
+        # Retry with higher temperature if max tokens exceeded or if tables failed to be extracted.
         temp = self.sampling_params.temperature
         while temp <= 1.0:
             self.sampling_params.temperature = temp
             retry_messages = []
             retry_message_ids = []
             for i, r in enumerate(responses):
-                print(f"Tokens generated: {len(r.outputs[0].token_ids)}")
                 if len(r.outputs[0].token_ids) >= self.max_tokens:
                     print(f"Max tokens exceeded for message {i}, retrying...")
                     retry_messages.append(messages[i])
                     retry_message_ids.append(i)
+                    continue
+
+                front_matter_match = re.match(r"^---\s*\n([\s\S]*?)\n---", r.outputs[0].text)
+                if front_matter_match:
+                    try:
+                        metadata = yaml.safe_load(front_matter_match.group(1))
+                    except yaml.YAMLError:
+                        metadata = {}
+
+                    is_table = metadata.get("is_table", False)
+
+                    content_after_front_matter = r.outputs[0].text[front_matter_match.end():]
+                    has_table_tags = "<table" in content_after_front_matter.lower()
+
+                    if is_table and not has_table_tags:
+                        print(f"Model reports is_table=True but no <table> tags found for message {i}, retrying...")
+                        retry_messages.append([
+                            {"role": "system", "content": self.ocr_prompt + " Focus on accurately extracting tables in html format."},
+                            messages[i][1],  # reuse the same image message
+                        ])
+                        retry_message_ids.append(i)
+                
 
             if len(retry_messages) == 0:
                 break
-            print(f"Retrying {len(retry_messages)} pages with temperature {temp:.1f} due to max token limit...")
+            print(f"Retrying {len(retry_messages)} pages with temperature {temp:.1f}...")
             retry_responses = self.vlm.chat(messages = retry_messages, sampling_params = self.sampling_params)
             for i, r in enumerate(retry_responses):
                 idx = retry_message_ids[i]
@@ -152,21 +174,6 @@ class DocumentLM:
             doc_text = re.sub(
                 r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
             )
-
-            # Add row names to each table
-            '''
-            for t in range(next(counter)):
-                table_t = re.search(
-                    rf'<table number="{t}">([\s\S]*?)</table>', doc_text
-                ).group(0)
-
-                table_t_names = add_row_names(table_t)
-
-                doc_text = doc_text.replace(
-                    table_t,
-                    table_t_names
-                )
-            '''
 
             self.text.append(doc_text)
 

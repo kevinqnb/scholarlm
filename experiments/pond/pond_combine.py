@@ -2,8 +2,8 @@ import json
 import glob
 from scholarlm.measurementlm import NumpyEncoder
 
-input_pattern = "data/experiments/2026_02_25/pond*.json"
-outfile = "data/experiments/2026_02_25/pond.json"
+input_pattern = "data/experiments/2026_02_25/pond*_vllm.json"
+outfile = "data/experiments/2026_02_25/pond_vllm.json"
 
 combined = []
 for filepath in sorted(glob.glob(input_pattern)):

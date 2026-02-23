@@ -171,6 +171,9 @@ data/experiments/*/*
 data/pond/pdfs/*.pdf
 data/pond/ocr_output/*.txt
 data/pond/ocr_output/*.md
+data/pond/ocr_output_raw/*.txt
+data/pond/ocr_output_raw/*.md
+data/pond/ocr_output_cleaned_vllm/*.txt
 data/ocr
 
 memory

@@ -372,10 +372,13 @@ Your task: reproduce the OCR text exactly as given, but replace each `<table>` b
 **Goal:** Transform each table so that every data cell maps to exactly one (entity, attribute, value) triplet. An entity is what a row describes, an attribute is what a column measures, and a value is the cell content.
 
 **Entity Index (first column):**
-- The first column of every output table must be named `index`. This is the entity identifier.
-- Choose the most descriptive identifying column(s) as the index. Prefer named entities (e.g., study names, compound names, model names) over numerical IDs if possible.
+- You MUST create a create a new column named `index` as the first column of every output table. This is the entity identifier.
+- To populate the 'index' column, use information from one or more columns from the original table that uniquely identify each row.
+- When identifying rows always refer named entities (e.g., object names, study names, compound names, model names) over numerical IDs if possible.
 - If multiple columns are needed to uniquely identify a row (e.g., a category and sub-category), combine them as a Python tuple: `('Category A', 'Sub-category 1')`.
-- Every index value must be unique.
+- Every index value must be unique, and your choice of identifiers should be consistent across all rows in the table.
+
+NOTE: This is a critical step for machine readability. The index column is what allows downstream code to refer to specific rows, so it must be populated with meaningful, unique identifiers. If the original table has no clear entity identifiers, you may use numerical row numbers, but this is a last resort.
 
 **Melting wide tables:**
 - If a table has repeating or hierarchical column groups (e.g., the same measurements repeated under different conditions), unpivot it into long format by creating new rows for each group.
@@ -394,7 +397,7 @@ Your task: reproduce the OCR text exactly as given, but replace each `<table>` b
 - After the original caption text, append a brief note describing any relevant information not already included, as well as any structural details needed to interpret the new version of the table. If no changes were needed, do not append anything.
 
 **Data integrity:**
-- Preserve all original data values. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
+- Preserve all original data values. Your priority is to restructure and add additional indexing information. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
 - Output tables must be valid HTML within `<table>...</table>` tags.
 
 ### Example
