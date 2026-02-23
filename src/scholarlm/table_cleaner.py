@@ -1,20 +1,9 @@
 """
-TableCleaner: VLM-powered OCR table detection, re-OCR, and normalization.
+TableCleaner: VLM-powered OCR table cleaning / normalization.
 
-Recommended three-step workflow
---------------------------------
-1. **detect()**  – Scan every page of every document for tables that are visible
-   in the PDF image but absent from the OCR text.  Returns a list of
-   ``(doc_idx, page_number)`` candidates that should be re-run through OCR.
-
-2. **Re-OCR**  – Pass the candidates to a separate ``DocumentLM`` (olmOCR) run
-   (see ``experiments/pond/table_reocr.py``).  Because olmOCR and the cleaning
-   model are separate VLLM instances they cannot share a GPU context in the same
-   Python process; running them as separate scripts avoids GPU contention.
-
-3. **clean()**  – Normalize and restructure the tables that ARE present in the
-   (now up-to-date) OCR text.  Operates only on pages that contain ``<table>``
-   tags; missing-table reconstruction is intentionally out of scope here.
+Normalize and restructure the tables that are already present in the OCR text.
+Operates only on pages that contain ``<table>`` tags; 
+missing-table reconstruction is intentionally out of scope here.
 
 Backends
 --------
@@ -29,23 +18,10 @@ from copy import deepcopy
 from itertools import count as itercount
 from typing import Optional
 
-from pydantic import BaseModel
-
 from .instruction_prompts import (
-    DETECT_MISSING_TABLES_INSTRUCTIONS,
     CLEAN_TABLE_INSTRUCTIONS_V3,
 )
 from .utils import process_pdf
-
-
-# ---------------------------------------------------------------------------
-# Pydantic schema for the detection pass
-# ---------------------------------------------------------------------------
-
-class MissingTableDetectionResponse(BaseModel):
-    """Structured output for the missing-table detection pass."""
-    explanation: str
-    has_missing_tables: bool
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +30,7 @@ class MissingTableDetectionResponse(BaseModel):
 
 class TableCleaner:
     """
-    VLM-powered table detection and cleaning for OCR-extracted research paper text.
+    VLM-powered table cleaning for OCR-extracted research paper text.
 
     Args:
         backend: ``"vllm"`` (local) or ``"openai"`` (API).
@@ -192,25 +168,6 @@ class TableCleaner:
             block["image_url"]["detail"] = "high"
         return block
 
-    def _build_detection_message(
-        self, image_b64: str, page_text: str
-    ) -> list[dict]:
-        return [
-            {
-                "role": "user",
-                "content": [
-                    self._image_block(image_b64),
-                    {
-                        "type": "text",
-                        "text": (
-                            f"## Instructions:\n{DETECT_MISSING_TABLES_INSTRUCTIONS}\n\n"
-                            f"## OCR Text:\n{page_text}"
-                        ),
-                    },
-                ],
-            }
-        ]
-
     def _build_cleaning_message(
         self, image_b64: str, page_text: str
     ) -> list[dict]:
@@ -233,18 +190,6 @@ class TableCleaner:
     # -----------------------------------------------------------------------
     # Backend dispatch
     # -----------------------------------------------------------------------
-
-    def _run_vllm_detection(self, messages: list[list[dict]]) -> list[str]:
-        guided = self._GuidedDecodingParams(
-            json=MissingTableDetectionResponse.model_json_schema()
-        )
-        params = self._SamplingParams(
-            temperature=self.sampling_params.get("temperature", 0.1),
-            max_tokens=512,
-            guided_decoding=guided,
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=params)
-        return [r.outputs[0].text for r in responses]
 
     def _run_vllm_cleaning(self, messages: list[list[dict]]) -> list[str]:
         params = self._SamplingParams(**self.sampling_params)
@@ -289,80 +234,6 @@ class TableCleaner:
     # Public API
     # -----------------------------------------------------------------------
 
-    def detect(
-        self,
-        texts: list[str],
-        pdf_paths: list[str] = None,
-        images: list[list[str]] = None,
-    ) -> list[tuple[int, int]]:
-        """
-        Scan every page of every document for tables that are present in the
-        PDF image but absent from (or only partially captured in) the OCR text.
-
-        Runs on **all** pages regardless of whether they already contain
-        ``<table>`` tags — a page with one captured table may still have a
-        second table that was missed.
-
-        Args:
-            texts: OCR text strings (one per document) as produced by
-                ``DocumentLM``.
-            pdf_paths: Paths to the source PDF files.  Used to render page
-                images unless ``images`` is supplied.
-            images: Pre-rendered page images as lists of base64 strings — one
-                list per document, indexed to match ``<page number="N">`` tags.
-
-        Returns:
-            List of ``(doc_idx, page_number)`` tuples for pages where at least
-            one table visible in the image is missing from the OCR text.  Pass
-            these to a targeted re-OCR step before running ``clean()``.
-        """
-        all_images = self._load_images(pdf_paths, images)
-
-        messages: list[list[dict]] = []
-        message_ids: list[tuple[int, int]] = []
-
-        for doc_idx, (text, doc_images) in enumerate(zip(texts, all_images)):
-            for page_number in self._get_page_numbers(text):
-                if page_number >= len(doc_images):
-                    continue
-                page_text = self._get_page_text(text, page_number)
-                messages.append(
-                    self._build_detection_message(
-                        doc_images[page_number], page_text
-                    )
-                )
-                message_ids.append((doc_idx, page_number))
-
-        if not messages:
-            return []
-
-        print(f"Running detection on {len(messages)} pages...")
-        if self.backend == self.VLLM_BACKEND:
-            responses = self._run_vllm_detection(messages)
-        else:
-            responses = self._run_openai_batch(
-                messages,
-                extra_kwargs={"response_format": {"type": "json_object"}},
-            )
-
-        candidates: list[tuple[int, int]] = []
-        for (doc_idx, page_number), resp in zip(message_ids, responses):
-            if not resp:
-                continue
-            try:
-                result = json.loads(resp)
-                if result.get("has_missing_tables"):
-                    print(
-                        f"  Missing table: doc {doc_idx}, page {page_number} "
-                        f"— {result.get('explanation', '')}"
-                    )
-                    candidates.append((doc_idx, page_number))
-            except (json.JSONDecodeError, KeyError):
-                pass
-
-        print(f"Detection complete. {len(candidates)} pages flagged.")
-        return candidates
-
     def clean(
         self,
         texts: list[str],
@@ -372,20 +243,14 @@ class TableCleaner:
         """
         Normalize and restructure tables that are present in the OCR text.
 
-        Operates only on pages that contain ``<table number="N">`` tags.
-        Missing-table reconstruction is out of scope here — run ``detect()``
-        and a targeted re-OCR pass first so every table is captured before
-        this step runs.
-
         For each qualifying page the model receives the page image alongside
         the full page OCR text and returns the corrected page text with
         normalized tables in place.
 
         Args:
-            texts: OCR text strings (one per document).  Should reflect any
-                re-OCR corrections applied after ``detect()``.
+            texts: OCR text strings (one per document). 
             pdf_paths: Paths to the source PDF files.
-            images: Pre-rendered page images (same format as ``detect()``).
+            images: Pre-rendered page images.
 
         Returns:
             Cleaned OCR text strings in the same order as ``texts``.

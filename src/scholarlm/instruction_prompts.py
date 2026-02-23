@@ -3,66 +3,10 @@ Notes:
 - These are *instruction* blocks only. Query/context formatting remains in caller code.
 """
 
-# ---------------------------------------------------------------------------
-# New pipeline prompts (attribute-based)
-# ---------------------------------------------------------------------------
+# --------------------------------------------
+# Data Extraction Prompts
+# --------------------------------------------
 
-# Step 1: Entity table enrichment
-ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. You have already identified a set of entities from a research paper. You are now examining a specific table from that paper to find:
-
-1. NEW entities that were not previously identified from the full text.
-2. Additional information about EXISTING entities (such as abbreviations, codes, site identifiers, treatment states, or dates) that may be visible in this table but were not captured from the full text.
-
-Guidelines:
-- You will be provided the full research paper context, and the list of entities already identified.
-- Subsequently you will be given an HTML table selected from the paper.
-- Extract any NEW entities visible in the table that are not already in the list.
-- For entities already in the list, extract any additional attribute values (abbreviations, codes, etc.) that the table reveals.
-- Do not fabricate or infer information not explicitly present in the table.
-- Structure your response as a JSON list of items following the provided schema.
-- If no new entities or enrichments are found, respond with an empty list.
-"""
-
-# Step 2: Attribute detection (full context)
-DETECT_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains data for a described attribute (measurement variable) in reference to a given entity.
-
-Guidelines:
-- Answer False if the given attribute or entity do not appear in the context.
-- Answer False if the context does not explicitly provide data for the given attribute and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Answer True only if the context explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
-- Along with your answer, provide a brief explanation justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-# Step 2: Attribute detection (single table)
-DETECT_ATTRIBUTE_TABLE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a specific HTML table from a research paper contains data for a described attribute (measurement variable) in reference to a given entity.
-
-Guidelines:
-- You will be provided the full research paper context, and an HTML table selected from the paper.
-- Answer False if the given attribute or entity do not appear in the table.
-- Answer False if the table does not explicitly provide data for the given attribute and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer True only if the table explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
-- Along with your answer, provide a brief explanation justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-# Step 2: Attribute term identification
-IDENTIFY_ATTRIBUTE_TERMS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by first identifying terminology used within the context. Given context from a research paper and a specific attribute type, extract any terminology or abbreviations used to directly refer to the attribute in question.
-
-Guidelines:
-- Do not include any abbreviations that refer to similar concepts or measurements, but which are not direct in relation.
-- Pay close attention to tables and figure captions, as these often contain the abbreviations used in the main text.
-- Do not infer, guess, or fabricate any terms or abbreviations that are not explicitly present in the context.
-- Structure your response as a list of strings, for example: ['term_1', 'term_2']
-- If the context does not contain any terminology or abbreviations that directly refer to the given attribute, respond with an empty list.
-"""
-
-# Step 2 (batched): Document-level full-context attribute detection with inline term identification
 DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has any directly reported numerical measurements anywhere in the document.
 
 Guidelines:
@@ -79,29 +23,7 @@ Guidelines:
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
 """
 
-# Step 2 (batched): Document-level per-table attribute detection with inline term identification
-DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. You have already performed a document-level scan for attributes and may have identified some of them along with associated terminology. You are now examining a specific HTML table from the paper to:
 
-1. Detect any attributes that were NOT previously identified from the full text.
-2. Identify additional terminology or abbreviations for attributes that WERE already detected, but whose terms may be supplemented by information visible in this table.
-
-You must evaluate ALL of the listed attributes against the selected table.
-
-Guidelines:
-- You will be provided the full research paper context, and the list of attributes already identified.
-- Subsequently you will be given an HTML table selected from the paper.
-- You MUST return one item per attribute, using the EXACT attribute name provided. Do not rename, skip, or add attributes.
-- Set detected to true if the table explicitly provides a direct numerical measurement for the given attribute, even if the attribute was already detected in the full text.
-- Set detected to false if the given attribute does not appear in the table, or the table does not provide a direct numerical measurement for it.
-- Set detected to false if the data reported is not a direct numerical measurement.
-- Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- For each attribute, provide a brief explanation justifying your decision.
-- When detected is true, populate the terms list with any terminology or abbreviations used in the table to refer to that attribute. Include terms even if they duplicate previously identified terms — deduplication will be handled downstream. Do not infer, guess, or fabricate terms not explicitly present in the table.
-- When detected is false, return an empty list for terms.
-- Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
-"""
-
-# Step 2a: Entity provenance — locate pages/tables with data for an entity
 ENTITY_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described entity.
 
 Guidelines:
@@ -116,7 +38,7 @@ Guidelines:
 - Structure your response as a JSON object with "explanation", "has_data", and "in_table" fields.
 """
 
-# Step 2b: Attribute provenance — locate pages/tables with data for an attribute
+
 ATTRIBUTE_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described measurement attribute.
 
 Guidelines:
@@ -130,21 +52,7 @@ Guidelines:
 - Structure your response as a JSON object with "explanation", "has_data", and "in_table" fields.
 """
 
-# Step 2c: Filter (entity, attribute) pairs
-FILTER_ENTITY_ATTRIBUTE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains a directly reported numerical measurement for a described attribute in reference to a given entity.
 
-Guidelines:
-- Answer False if the given attribute or entity do not appear in the context.
-- Answer False if the context does not explicitly provide data for the given attribute and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Answer True only if the context explicitly provides a direct numerical value measured for the given attribute, with respect to the entity in question.
-- Along with your answer, provide a brief explanation justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-# Step 3: Extract value from text (combined locate + extract)
 EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a page of text from a research paper contains a measured value for a given attribute and entity, and if so, to extract it.
 
 Guidelines:
@@ -157,7 +65,7 @@ Guidelines:
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
 
-# Step 4: Extract value from table (combined locate + extract)
+
 EXTRACT_TABLE_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
 
 You will be provided with:
@@ -176,111 +84,6 @@ Guidelines:
 """
 
 
-# ---------------------------------------------------------------------------
-# Legacy prompts (kept for backward compatibility with older experiment scripts)
-# ---------------------------------------------------------------------------
-
-# Feature terms
-IDENTIFY_FEATURE_TERMS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by first identifying terminology used within the context. Given context from a research paper and a specific feature type, extract any terminology or abbreviations used to directly refer to the feature in question.
-
-Guidelines:
-- Do not include any abbreviations that refer to similar concepts or measurements, but which are not direct in relation.
-- Pay close attention to tables and figure captions, as these often contain the abbreviations used in the main text.
-- Do not infer, guess, or fabricate any terms or abbreviations that are not explicitly present in the context.
-- Structure your response as a list of strings, for example: ['term_1', 'term_2']
-- If the context does not contain any terminology or abbreviations that directly refer to the given feature, respond with an empty list.
-"""
-
-IDENTIFY_FEATURE_UNITS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by specifying the units used for measurement of a given feature within context provided for a research paper.
-
-Guidelines:
-- To ensure units follow standard formatting conventions, you will be given a list of options and your response should be limited to options from among the given list.
-- If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context.
-- Your response should include the unit only, do not include any additional explanation or text.
-- If the context does not explicitly provide data for the given feature, respond with 'None'.
-"""
-
-
-# Determine if features are present in context
-IDENTIFY_ENTITY_FEATURE_PAIRS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if context from a research paper contains data for a described feature in reference to a given entity.
-
-Guidelines:
-- Answer False if the the given feature or entity do not appear in the context.
-- Answer False if the context does not explicity provide data for the given feature and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Answer True only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-
-# Locating measurements on a single page
-PAGE_LOCATE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by determining if they occur on a single, given page of context. You will be queried with a description of a specific entity and feature to be measured, and asked to determine if a relevant measurement occurs on the page.
-
-Guidelines:
-- Answer False if the the given feature or entity do not appear in the context.
-- Answer False if the context does not explicity provide data for the given feature and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-# Locating measurements in a single table
-TABLE_LOCATE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points, by determining if they occur within context from a single, given html table. You will be queried with a description of a specific entity and feature to be measured, and asked to determine if a relevant measurement occurs within the table.
-
-Guidelines:
-- Answer False if the the given feature or entity do not appear in the contextual table.
-- Answer False if the contextual table does not explicity provide data for the given feature and entity.
-- Answer False if the data reported is not a direct numerical measurement.
-- Answer False if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Answer False for cases where there is not a clear choice for a single, numerical data value.
-- Answer True only if the contextual table explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- Along with your answer, provide a brief explanation for justifying the reasons for your decision.
-- Structure your response as a JSON object with "explanation" and "answer" fields.
-"""
-
-# Extract value from plain text (non-table)
-MEASURE_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract precise numerical data from context provided from a research paper. You will be queried with a description of a specific entity and feature to collect data for. Your task is to extract the corresponding value if it appears in the provided context.
-
-Guidelines:
-- Respond with the value None if the the given feature or entity do not appear in the context.
-- Respond with the value None if the context does not explicity provide data for the given feature and entity.
-- Respond with the value None if the data reported is not either a direct numerical measurement.
-- Respond with the value None if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Respond with the value None for cases where there is not a clear choice for a single numerical data value.
-- Respond with the extracted value only if the context explicity provides a direct numerical value measured for the given feature, with respect to the entity in question.
-- If a data point is extracted, copy the value exactly as it appears in the context.
-- Give the value only, and do not include any units of measurement, descriptors, or explanation in your response.
-- If the there are multiple types of values explicitly reported for a feature (e.g. mean, minimum, maximum, uncertainty) respond with the mean or central value only, unless the queried feature specifically directs otherwise.
-"""
-
-# Select row index in a table
-MEASURE_TABLE_ROW_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points within context from a single, given html table from a research paper. You will be queried with a description of a specific entity and feature to be measured, and asked to extract the corresponding row index name necessary to locate the measurement within the table.
-
-Guidelines:
-- If there are multiple row names that could apply, choose the one that is most specific to the entity or feature in question.
-- If the there are multiple types of values explicitly reported for a feature (e.g. mean, minimum, maximum, uncertainty) respond with the row for the mean or central value only, unless the given measurement specifically directs otherwise.
-- Your response must use the exact row index name as it appears in the table.
-- If there is no row name corresponding to the relevant entity or feature, respond 'None'.
-- Respond with the row name only, without any additional text or explanation.
-"""
-
-# Select column index in a table
-MEASURE_TABLE_COLUMN_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in locating data points within context from a single, given html table from a research paper. You will be queried with a description of a specific entity and feature to be measured, and asked to extract the corresponding column index name necessary to locate the measurement within the table.
-
-Guidelines:
-- If there are multiple column names that could apply, choose the one that is most specific to the entity or feature in question.
-- If the there are multiple types of values explicitly reported for a feature (e.g. mean, minimum, maximum, uncertainty) respond with the column for the mean or central value only, unless the given measurement specifically directs otherwise.
-- Your response must use the exact column index name as it appears in the table.
-- If there is no column name corresponding to the relevant entity or feature, respond 'None'.
--  Respond with the column name only, without any additional text or explanation.
-"""
-
-# Standardize extracted measurement value
 STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, along with an extracted measurement value. Your task is to standardize the extracted measurement value according to the following guidelines.
 
 Guidelines:
@@ -293,57 +96,43 @@ Guidelines:
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
 """
 
-# Choose / determine units
-STANDARDIZE_UNITS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by providing units for measurement values extracted from context provided for a research paper. You will be queried with a description of a specific entity and feature to collect data for, along with an extracted measurement value. Your task is to determine the unit of measurement for that data point by referencing the context, and then choosing from a list of given unit options.
 
-Guidelines:
-- To ensure units follow standard formatting conventions, your response should be limited to options from among the given list.
-- If, however, none of the options fit with what is seen in the context, respond with the unit exactly as it appears in the context.
-- Your response should include the unit only, do not include any additional explanation or text.
-"""
+# --------------------------------------------
+# LLM as Judge Prompts
+# --------------------------------------------
+
 
 # Validate extracted measurement value
 JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
 1) A passage of context from a research paper
-2) A description of a candidate extracted data point (attribute description, entity description, and extracted value)
+2) A description of a candidate extracted (entity, attribute, value) triplet
 
-Your task: decide whether the extracted value is explicitly present in the context AND is correctly attributed to the specified entity and attribute.
+Your task: decide whether the extracted value is explicitly present in the context AND is correctly assigned to the specified entity and attribute.
 
 Decision rules:
 - Respond 'true' ONLY if all of the following are satisfied:
-  (A) Value presence: The extracted value appears explicitly in the context (same number), or appears as an equivalent formatting of the same number (e.g., '10' vs '10.0'; thousands separators; leading/trailing zeros). Do not accept values that require arithmetic, unit conversion, averaging, or other inference.
-  (B) Correct attribution to entity: The context clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
-  (C) Correct attribution to attribute: The value clearly corresponds to the specified attribute (not a related metric, proxy, similarly named variable, or a different operationalization).
-  (D) Direct measurement: The value is a directly reported measurement (or directly reported descriptive statistic of the measurement such as mean/median explicitly tied to the attribute), not a model parameter, regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit, or tuning/optimization output.
+  (A) Value presence: The extracted value appears explicitly in the context as a numerically identical value — i.e., both represent exactly the same number on the number line, differing only in surface formatting (e.g., 10 vs 10.0, 1000 vs 1,000, 0.001 vs 1e-3, negative sign variants). Do not accept values that require unit conversion (0.05 vs 5%), rounding (3.14 vs 3.1), arithmetic, averaging, or any other numerical transformation.
+  (B) Correct assignment to entity: The context clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
+  (C) Correct assignment to attribute: The value clearly corresponds to the specified attribute (not a related metric, proxy, similarly named variable, or a different operationalization).
+  (D) Direct reported quantity: The value represents a directly reported measurement or descriptive statistic (mean, median, total) of the attribute — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or tuning parameter). The value must also be reported as a standalone quantity, not solely as an endpoint of a range, interval, or bound (e.g., reject "6.5" if it only appears in "ranged from 6.5 to 7.2" and is not independently stated as the attribute's value).
 
 - Respond 'false' if ANY of the following apply:
   - The value does not appear in the context text/table exactly (aside from trivial formatting differences).
   - The value appears but is tied to a different entity or attribute than the one described.
-  - The only matching numbers are part of uncertainty/intervals (e.g., '±', CI ranges) and the extracted value is not shown as the central estimate in the context.
-  - The value is only implied (requires calculation, conversion, or deduction).
-  - There are multiple plausible candidate values within the context and the extracted value is not uniquely supported.
+  - The value appears only as an endpoint of a range, interval, or bound (e.g., "6.5–7.2", "ranged from X to Y", "between X and Y") and is not independently reported as a standalone quantity for the specified entity and attribute.
+  - The value is a model output, test statistic, or derived statistical quantity (e.g., regression coefficient, odds ratio, p-value, CI bound, goodness-of-fit metric) rather than a directly reported quantity or descriptive summary.
+  - The value is only implied (requires calculation, unit conversion, or deduction from other reported numbers).
 
 Output format:
 - Respond with a single token as either 'true' or 'false' (lowercase). Do not include any additional text or punctuation.
 """
 
 
-# Clean tables
-# Table cleaning pre-pass: detect tables missing from OCR output
-DETECT_MISSING_TABLES_INSTRUCTIONS = """You are an expert document analyst. You will be given an image of a PDF page alongside its OCR-parsed text.
-
-Your task: determine whether the page image contains one or more data tables that are NOT represented as `<table number="...">` blocks in the OCR text.
-
-Guidelines:
-- A missing table is a clearly visible, structured grid of data rows and columns in the image that has no corresponding `<table number="...">` block in the OCR text.
-- Do not flag decorative layouts, figures, charts, or images as missing tables — only structured data tables with rows and columns.
-- If the OCR text already contains `<table>` tags that correspond to all visible tables, set has_missing_tables to false.
-- Set has_missing_tables to true only if at least one genuine data table is clearly visible in the image but entirely absent from the OCR text.
-- Provide a brief explanation of your finding.
-- Structure your response as a JSON object with "explanation" and "has_missing_tables" fields.
-"""
+# --------------------------------------------
+# Table Cleaning Prompts
+# --------------------------------------------
 
 
 CLEAN_TABLE_INSTRUCTIONS = """

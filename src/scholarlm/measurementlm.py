@@ -9,9 +9,7 @@ import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 from .instruction_prompts import (
-    ENTITY_TABLE_ENRICHMENT_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
-    DETECT_ATTRIBUTES_TABLE_BATCH_INSTRUCTIONS,
     ENTITY_PROVENANCE_INSTRUCTIONS,
     ATTRIBUTE_PROVENANCE_INSTRUCTIONS,
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,

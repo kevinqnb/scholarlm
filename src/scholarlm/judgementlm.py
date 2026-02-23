@@ -15,11 +15,7 @@ from scipy.spatial.distance import jensenshannon
 class JudgementLM:
     """
     A wrapper around NNsight language models that provides methods for generating text
-    and computing hallucination scores based upon input context and instructions.
-
-    This is intended to be an application of methods described in the following paper:
-    Sun, Zhongxiang, et al. "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation
-    via Mechanistic Interpretability." ICLR. 2025.
+    and caching output from attention activations.
 
     Args:
         model_name (str): The name of the model to load from NNsight or huggingface.
@@ -43,7 +39,6 @@ class JudgementLM:
         # Detect available GPUs and set up device allocation
         self._setup_devices()
         
-        #self.llm = LanguageModel(model_name, **nnsight_kwargs)
         self.llm = StandardizedTransformer(model_name, enable_attention_probs=False, **nnsight_kwargs)
         print(self.llm)
         self.tokenizer = self.llm.tokenizer
