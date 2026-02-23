@@ -33,7 +33,7 @@ from pydantic import BaseModel
 
 from .instruction_prompts import (
     DETECT_MISSING_TABLES_INSTRUCTIONS,
-    CLEAN_TABLE_INSTRUCTIONS_V2,
+    CLEAN_TABLE_INSTRUCTIONS_V3,
 )
 from .utils import process_pdf
 
@@ -114,7 +114,6 @@ class TableCleaner:
             self.openai_model = openai_model
             self.openai_rate_limit = openai_rate_limit
             self.sampling_params = {
-                "temperature": 0.1,
                 "max_completion_tokens": 8192,
             } | sampling_params
 
@@ -223,7 +222,7 @@ class TableCleaner:
                     {
                         "type": "text",
                         "text": (
-                            f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS_V2}\n\n"
+                            f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS_V3}\n\n"
                             f"## OCR Text:\n{page_text}"
                         ),
                     },

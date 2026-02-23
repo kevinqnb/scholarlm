@@ -25,12 +25,13 @@ pdf_directory = os.path.join(main_directory, "pdfs")
 ocr_directory = os.path.join(main_directory, "ocr_output_raw")
 ocr_out_directory_cleaned = os.path.join(main_directory, "ocr_output_cleaned_openai")
 
-OPENAI_MODEL = "gpt-4o"
+OPENAI_MODEL = "gpt-5-mini"
 RATE_LIMIT = 30  # requests per minute
 TARGET_DIM = 1536
 
 # Skip files that have already been processed.
 # Comment out or clear this list to process everything.
+'''
 precomputed_pdf_files = [
     'physical_and_chemical_limnological.pdf',
     'physical-chemical_influences.pdf',
@@ -53,13 +54,15 @@ precomputed_pdf_files = [
     "sediment_characteristics.pdf",
     "vegetation-environmental.pdf",
 ]
+'''
 
 ####################################################################################################
 # Load files
 
 pdf_files = get_filenames_in_directory(pdf_directory, ignore=[".DS_Store", ".gitkeep"])
 pdf_files.sort()
-pdf_files = [f for f in pdf_files if f not in precomputed_pdf_files]
+#pdf_files = [f for f in pdf_files if f not in precomputed_pdf_files]
+#pdf_files = pdf_files[:10]  # Limit to 10 files for testing; remove this line to process all files
 
 pdf_filepaths = [os.path.join(pdf_directory, f) for f in pdf_files]
 text_files = [f.replace(".pdf", ".txt") for f in pdf_files]
@@ -89,7 +92,7 @@ cleaner = TableCleaner(
     backend="openai",
     openai_model=OPENAI_MODEL,
     openai_rate_limit=RATE_LIMIT,
-    sampling_params={"temperature": 0.1, "max_completion_tokens": 8192},
+    sampling_params={"max_completion_tokens": 16384},
     target_longest_dim=TARGET_DIM,
 )
 

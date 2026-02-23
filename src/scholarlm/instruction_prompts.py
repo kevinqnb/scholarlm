@@ -385,8 +385,35 @@ NOTE: This is a critical step for machine readability. The index column is what 
 - Do NOT melt tables where columns are genuinely distinct, non-repeating attributes.
 - When melting, incorporate the group label into either the index (as a tuple element) or as a new column, whichever preserves clarity.
 
+Melting wide tables:
+
+- Each column should represent a distinct attribute (property or measurement) of the row entity. Each row should represent a distinct entity or observation.
+- If column headers encode a second entity or condition rather than a distinct attribute — for example, the same measurement repeated across different drugs, time points, datasets, or experimental groups — unpivot the table into long format. Create new rows for each entity/condition, and add a column for the entity/condition label.
+- Do NOT melt when columns represent genuinely different attributes of the same entity, even if they are related. For example, a table with columns accuracy, precision, recall, F1 for each model should remain wide, because these are distinct measurements. But a table with accuracy_dataset_A, accuracy_dataset_B should be melted, because dataset is an entity being encoded in the column headers.
+- Heuristic: If you could factor a set of column headers into {attribute} × {entity/condition}, the table should be melted along the entity/condition axis.
+- When melting, incorporate the new entity/condition label into the index as a tuple element, and also preserve it as its own column.
+
 **Flattening multi-level headers:**
 - If column headers span multiple rows, flatten them into a single header row using Python tuple format: `('Level 1', 'Level 2')`.
+
+
+
+**Melting wide tables:**
+
+Each column should represent a distinct attribute of the row entity. Each row should represent a distinct entity or observation.
+If column headers encode a second entity or condition rather than a distinct attribute — for example, the same measurement repeated across different drugs, time points, datasets, or experimental groups — unpivot the table into long format. Create new rows for each entity/condition, and add a column for the entity/condition label.
+Do NOT melt when columns represent genuinely different attributes of the same entity, even if the attributes are related. For example, a table with columns accuracy, precision, recall, f1 for each model should remain wide, because these are distinct measurements of each model. But a table with accuracy_dataset_a, accuracy_dataset_b should be melted, because dataset is an entity encoded in the column headers.
+Heuristic: if you can factor a set of column headers into {attribute} × {entity/condition}, the table should be melted along the entity/condition axis. If there are multiple such axes (e.g., {attribute} × {drug} × {time_point}), melt along all of them, giving each its own column.
+When melting, incorporate the new entity/condition label into the index as a tuple element, and also preserve it as its own column.
+Columns that are not part of the repeated group (e.g., metadata like name or category) should be carried through unchanged to every new row.
+
+**Column naming:**
+
+Every column must have a unique, descriptive name.
+Use lowercase with underscores (e.g., dose_mg, response_rate).
+If the original table has multi-level headers, first apply the melting rule. For any multi-level headers that remain after melting, concatenate the levels with underscores into a single name (e.g., blood_pressure_systolic).
+Where feasible, incorporate units into the column name (e.g., dose_mg rather than Dose (mg)).
+
 
 **Splitting composite values:**
 - If a cell contains a main value bundled with a range, interval, or uncertainty (e.g., `3.5 (2.1–4.8)` or `12.3 ± 0.5`), split it into separate columns.
@@ -399,12 +426,13 @@ NOTE: This is a critical step for machine readability. The index column is what 
 **Data integrity:**
 - Preserve all original data values. Your priority is to restructure and add additional indexing information. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
 - Output tables must be valid HTML within `<table>...</table>` tags.
+- If the table has a numbered tag, keep the same number in your output (e.g., `<table number="1">` should remain `<table number="1">`).
 
 ### Example
 
 **Input table:**
 ```html
-<table>
+<table number="1">
 <tr><th></th><th colspan="2">Drug A</th><th colspan="2">Drug B</th></tr>
 <tr><th>Patient</th><th>Dose (mg)</th><th>Response</th><th>Dose (mg)</th><th>Response</th></tr>
 <tr><td>P-001</td><td>50</td><td>0.82</td><td>75</td><td>0.91</td></tr>
@@ -414,7 +442,7 @@ NOTE: This is a critical step for machine readability. The index column is what 
 
 **Output table:**
 ```html
-<table>
+<table number="1">
 <caption>Patient drug response data. Melted from wide format; original columns grouped by drug type.</caption>
 <tr><th>index</th><th>drug</th><th>dose_mg</th><th>response</th></tr>
 <tr><td>('P-001', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.82</td></tr>
@@ -427,6 +455,111 @@ NOTE: This is a critical step for machine readability. The index column is what 
 Notice: the repeating column groups (Drug A, Drug B) were melted into rows, the entity index combines patient and drug as a tuple, and the drug label is also preserved as its own column for clarity.
 
 ### Output Format
+
+Return the full page text with normalized tables inline. Do not add any commentary, preamble, or explanation outside the reproduced text.
+"""
+
+
+CLEAN_TABLE_INSTRUCTIONS_V3 = """
+# Table Normalization Prompt
+
+You are a document reconstruction engine. You will receive:
+
+1. An image of a single PDF page from a research paper.
+2. The OCR-parsed text of that page, with HTML tables inline at their original positions within `<table number="i">...</table>` tags.
+
+Your task: reproduce the OCR text exactly as given, but replace each `<table>` block with a cleaned, normalized version. Do not modify any text outside of `<table>` tags.
+
+## Table Normalization Rules
+
+### Goal
+
+Transform each table so that any cell can be uniquely addressed by a (row name, column name) pair and contains exactly one value. A downstream LLM will extract data by selecting a row name and a column name, so both axes must be meaningful and unambiguous.
+
+This requires three properties:
+
+1. **Every row has a meaningful, unique name.**
+2. **Every column has a meaningful, unique name.**
+3. **Every cell contains exactly one value.**
+
+Only restructure a table when it violates one or more of these properties. If a table already satisfies all three, preserve its structure.
+
+### Row Names (Index Column)
+
+- Create a new first column named `index` containing a unique, meaningful identifier for each row.
+- Populate the `index` column using one or more columns from the original table that uniquely identify each row. Prefer named entities (e.g., object names, study names, compound names, model names) over numerical IDs.
+- If multiple columns are needed for uniqueness, combine them as a Python tuple: `('Category A', 'Sub-category 1')`.
+- Every index value must be unique across all rows in the table.
+- Columns used solely to construct the index may be removed if they carry no additional information beyond what the index captures. Columns that carry additional information should be retained.
+- If the original table has no clear entity identifiers, use numerical row numbers as a last resort.
+
+### Column Names
+
+- Every column must have a unique, descriptive name.
+- Use lowercase with underscores (e.g., `dose_mg`, `response_rate`).
+- Where feasible, incorporate units into the column name (e.g., `dose_mg` rather than `Dose (mg)`).
+- If the original table has multi-level headers, concatenate the levels with underscores into a single name (e.g., `blood_pressure_systolic`).
+
+### When to Restructure
+
+Restructure a table only when its current layout prevents clean (row name, column name) addressing. The primary case:
+
+- **Column headers encode both an entity and an attribute.** If a set of column headers can be factored as `{attribute} × {entity/condition}` (e.g., `dose_mg` repeated under `Drug A` and `Drug B`), the column names are not independent attributes — they bundle identity information that belongs in the row names. Unpivot the table so the entity/condition becomes part of the row index, and the columns become pure attribute names.
+- **Heuristic:** If two or more columns would have the same attribute name once you strip out an entity or condition label, the table should be unpivoted along that entity/condition axis.
+- Do NOT restructure tables where every column is already a distinct, independently meaningful attribute — even if the table looks "wide."
+
+When restructuring involves unpivoting (melting) a wide table:
+
+- Incorporate the new entity/condition label into the index as a tuple element, and also preserve it as its own column.
+- If there are multiple entity/condition axes (e.g., `{attribute} × {drug} × {time_point}`), each should become its own column and tuple element in the index.
+- Columns that are not part of the repeated group (e.g., metadata like name or category) should be carried through unchanged to every new row.
+
+### Atomic Cell Values
+
+- If a cell contains a main value bundled with a range, interval, or uncertainty (e.g., `3.5 (2.1–4.8)` or `12.3 ± 0.5`), split it into separate columns.
+- Name the new columns descriptively based on context: e.g., `feature_mean` and `feature_ci`. If the statistic type is unclear, use `feature_val`, `feature_aux_1`, `feature_aux_2`, etc.
+
+### Captions
+
+- Table captions in the OCR text typically appear outside the `<table>` tags as free-standing text (e.g., "Table 1: Patient demographics..."). Move this caption text from its original position into `<caption>...</caption>` tags at the start of the corresponding `<table>` block. Remove the caption from its original location so it is not duplicated.
+- After the original caption text, append a brief note describing any structural changes made (e.g., melting, transposing, column renaming) needed to interpret the new version of the table. If no changes were made, do not append anything.
+
+### Data Integrity
+
+- Preserve all original data values. Your priority is to restructure and add indexing information, not to alter content.
+- Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
+- Output tables must be valid HTML within `<table>...</table>` tags.
+- If the table has a numbered tag, keep the same number in your output (e.g., `<table number="1">` should remain `<table number="1">`).
+
+## Example
+
+**Input table:**
+
+```html
+<table number="1">
+<tr><th></th><th colspan="2">Drug A</th><th colspan="2">Drug B</th></tr>
+<tr><th>Patient</th><th>Dose (mg)</th><th>Response</th><th>Dose (mg)</th><th>Response</th></tr>
+<tr><td>P-001</td><td>50</td><td>0.82</td><td>75</td><td>0.91</td></tr>
+<tr><td>P-002</td><td>50</td><td>0.67</td><td>75</td><td>0.73</td></tr>
+</table>
+```
+
+**Why restructure:** The column headers factor as `{dose_mg, response} × {Drug A, Drug B}`. `Drug A` and `Drug B` are entities encoded in the column headers. A downstream LLM looking for P-001's dose under Drug A would more naturally address `row="('P-001', 'Drug A')", column="dose_mg"` than `row="P-001", column="dose_mg_drug_a"`.
+
+**Output table:**
+
+```html
+<table number="1">
+<caption>Patient drug response data. Restructured from wide format: drug type (originally in column groups) moved to rows.</caption>
+<tr><th>index</th><th>drug</th><th>dose_mg</th><th>response</th></tr>
+<tr><td>('P-001', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.82</td></tr>
+<tr><td>('P-001', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.91</td></tr>
+<tr><td>('P-002', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.67</td></tr>
+<tr><td>('P-002', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.73</td></tr>
+</table>
+```
+
+## Output Format
 
 Return the full page text with normalized tables inline. Do not add any commentary, preamble, or explanation outside the reproduced text.
 """
