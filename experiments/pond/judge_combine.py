@@ -1,11 +1,14 @@
 import json
 
 judgement_files_dict = {
-    "gpt": "data/experiments/2026_02_11/new_ten_judged_gpt.json",
-    "gemini": "data/experiments/2026_02_11/new_ten_judged_gemini.json",
-    "claude": "data/experiments/2026_02_11/new_ten_judged_claude.json",
-    "llama": "data/experiments/2026_02_11/new_ten_judged_llama.json",
+    "gpt": "data/experiments/2026_02_11/pond_judged_gpt.json",
+    "gemini": "data/experiments/2026_02_11/pond_judged_gemini.json",
+    "claude": "data/experiments/2026_02_11/pond_judged_claude.json",
+    "llama": "data/experiments/2026_02_11/pond_judged_llama.json",
 }
+
+voting_models = ["gpt", "gemini", "claude"]
+voting_threshold = 2
 
 data_combined_dict = {}
 
@@ -28,16 +31,16 @@ data_combined = list(data_combined_dict.values())
 
 for entry in data_combined:
     valid_vote = 0
-    for j in judgement_files_dict.keys():
+    for j in voting_models:
         jud_key = f"judgement_{j}"
         jud_result = entry[jud_key]
         if jud_result is True:
             valid_vote += 1
             
-    entry["judgement_combined"] = valid_vote >= 2
+    entry["judgement_combined"] = valid_vote >= voting_threshold
 
 
-output_file = f"data/experiments/2026_02_11/new_ten_judged_combined.json"
+output_file = f"data/experiments/2026_02_11/pond_judged_combined.json"
 with open(output_file, "w") as f:
     json.dump(data_combined, f, indent=4, ensure_ascii=False)
     

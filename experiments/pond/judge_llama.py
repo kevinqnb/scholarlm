@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
 from scholarlm import JudgementLM
-from scholarlm import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 # (try to) set seeds for reproducibility
 import random
@@ -31,7 +31,7 @@ class ObservationSchema(BaseModel):
 
 fields = ObservationSchema.model_fields.keys()
 
-feature_info_dict = {
+attribute_info_dict = {
     "latitude": {
         "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
         "units": ["degrees", "radians"]
@@ -86,9 +86,9 @@ llm = JudgementLM(
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = f"data/experiments/2026_02_11/pond_judged_llama.json"
-attn_output_file = "data/experiments/2026_02_11/pond_judged_llama_attention_outputs.npz"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = f"data/experiments/2026_02_18/pond_judged_llama.json"
+attn_output_file = "data/experiments/2026_02_18/pond_judged_llama_attention_outputs.npz"
 
 with open(input_file, "r") as f:
     data = json.load(f)
@@ -97,20 +97,20 @@ messages = []
 message_ids = []
 for entry in data:
     context = entry['context']
-    feature = entry.get('feature')
-    feature_description = feature_info_dict[feature]['description']
-    feature_terms = entry.get('feature_terms', [])
+    attribute = entry.get('attribute')
+    attribute_description = attribute_info_dict[attribute]['description']
+    attribute_terms = entry.get('attribute_terms', [])
     entity_description = {k: v for k,v in entry.items() if k in fields}
     measurement_val = entry['value']
     measurement_id = entry['measurement_id']
 
     instructions = JUDGE_INSTRUCTIONS
     query = (
-        f"Feature description: {feature_description}\n"
-        f"Terminology used for the feature: {feature_terms}\n"
+        f"attribute description: {attribute_description}\n"
+        f"Terminology used for the attribute: {attribute_terms}\n"
         f"Entity description: {entity_description}\n"
         f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and feature?"
+        f"Is the extracted data point valid for the given entity and attribute?"
     )
     
     messages.append((instructions, context, query))
@@ -123,7 +123,7 @@ attn_output_dict = {}
 for i, response in enumerate(responses):
     measurement_id = str(message_ids[i])
     judged_data_point = data[i] | {
-        'judgement': response['response'],
+        'judgement': True if "true" in response['response'].strip().lower() else False,
         'judgement_confidence': math.exp(float(response['logprob'])),
         'judgement_model': 'Llama-3.1-8B-Instruct',
     }

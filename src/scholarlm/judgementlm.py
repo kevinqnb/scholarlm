@@ -1,25 +1,68 @@
-import os
 import gc
-from tqdm import tqdm
-import math
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from transformers import AutoTokenizer
-from nnsight import LanguageModel
 from nnterp import StandardizedTransformer
-from .utils import tokenize, jensen_shannon_divergence
-from scipy.spatial.distance import jensenshannon
+from tqdm import tqdm
+
+
+def tokenize(
+    instructions: str,
+    context: str,
+    query: str,
+    tokenizer: callable,
+) -> tuple[list[int], list[int], list[int], list[int]]:
+    """
+    Apply a chat template to an (instructions, context, query) triple and return the
+    tokenized input along with the token indices for each section.
+
+    Args:
+        instructions (str): The instruction string.
+        context (str): The context string.
+        query (str): The query string.
+        tokenizer (Callable): HuggingFace tokenizer.
+
+    Returns:
+        (tokenized_chat, instruction_tokens, context_tokens, query_tokens)
+    """
+    chat = [
+        {"role": "user", "content": f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"},
+    ]
+    formatted_chat = tokenizer.apply_chat_template(
+        chat, tokenize=False, add_generation_prompt=True
+    )
+    tokenized_chat = tokenizer(
+        formatted_chat, return_offsets_mapping=True, add_special_tokens=False
+    )
+
+    instruction_start = formatted_chat.index("## Instructions:\n") + len("## Instructions:\n")
+    instruction_end = formatted_chat.index("\n\n## Context:")
+    context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
+    context_end = formatted_chat.index("\n\n## Query:")
+    query_start = formatted_chat.index("## Query:\n") + len("## Query:\n")
+    query_end = query_start + len(query)
+
+    instruction_tokens = [
+        i for i, (s, e) in enumerate(tokenized_chat["offset_mapping"])
+        if s >= instruction_start and e <= instruction_end
+    ]
+    context_tokens = [
+        i for i, (s, e) in enumerate(tokenized_chat["offset_mapping"])
+        if s >= context_start and e <= context_end
+    ]
+    query_tokens = [
+        i for i, (s, e) in enumerate(tokenized_chat["offset_mapping"])
+        if s >= query_start and e <= query_end
+    ]
+
+    return tokenized_chat["input_ids"], instruction_tokens, context_tokens, query_tokens
 
 
 class JudgementLM:
     """
     A wrapper around NNsight language models that provides methods for generating text
-    and computing hallucination scores based upon input context and instructions.
-
-    This is intended to be an application of methods described in the following paper:
-    Sun, Zhongxiang, et al. "ReDeEP: Detecting Hallucination in Retrieval-Augmented Generation
-    via Mechanistic Interpretability." ICLR. 2025.
+    and caching output from attention activations.
 
     Args:
         model_name (str): The name of the model to load from NNsight or huggingface.
@@ -43,7 +86,6 @@ class JudgementLM:
         # Detect available GPUs and set up device allocation
         self._setup_devices()
         
-        #self.llm = LanguageModel(model_name, **nnsight_kwargs)
         self.llm = StandardizedTransformer(model_name, enable_attention_probs=False, **nnsight_kwargs)
         print(self.llm)
         self.tokenizer = self.llm.tokenizer
@@ -96,19 +138,23 @@ class JudgementLM:
         query: str,
     ) -> dict[str, str | float]:
         """
-        Generate text for a (context, instructions) pair, and compute
-        external context scores and parametric knowledge scores for each generated token.
+        Generate a response for a single (instructions, context, query) triple.
+
+        Runs the model under an NNsight trace to capture per-layer, per-head
+        attention output projections at each generation step, then decodes the
+        response.
 
         Args:
             instructions (str): The instructions string.
             context (str): The context string.
             query (str): The query string.
-            return_attn_output (bool): If True, also return per-layer attention output (can be large).
 
         Returns:
-            response_dict (dict): A dictionary containing:
-                'response' (str): The generated text.
-                'logprob' (float): The summed log-probability of the selected tokens.
+            dict: A dictionary containing:
+                'response' (str): The decoded generated text.
+                'logprob' (float): Summed log-probability of the generated tokens.
+                'attn_output' (np.ndarray): Attention output for the last generated
+                    token, shape (n_layers, n_heads, head_dim).
         """
         (tokenized_prompt,
          instruction_token_indices,
@@ -185,17 +231,13 @@ class JudgementLM:
         prompts : list[tuple[str, str, str]],
     ) -> tuple[list[str], list[float]]:
         """
-        Generate text for a batch of (context, instructions) pairs, and compute
-        a hallucination score for each generation.
+        Run generate() on a batch of (instructions, context, query) triples.
 
         Args:
-            prompts (list[tuple[str, str, str]]): A list of (instructions, context, query) pairs.
-        
+            prompts (list[tuple[str, str, str]]): A list of (instructions, context, query) triples.
+
         Returns:
-            responses (list[dict]): A list of dictionaries containing:
-                'response' (str): The generated text.
-                'parametric_score' (float): The summed parametric knowledge score.
-                'context_score' (float): The summed external context score.
+            list[dict]: One response dict per prompt. See generate() for the dict structure.
         """
         responses = []
         for i, (instructions, context, query) in enumerate(tqdm(prompts)):
@@ -203,24 +245,6 @@ class JudgementLM:
             responses.append(response_dict)
 
         return responses
-    
-
-    def save(
-        self,
-        path : str
-    ):
-        """
-        Save the recorded responses, parametric scores, and context scores to a .npz file.
-
-        Args:
-            path (str): The file path to save the data to.
-        """
-        np.savez(
-            path,
-            responses = self.responses,
-            parametric_scores = np.array(self.parametric_score_arrays),
-            context_scores = np.array(self.context_score_array)
-        )
 
 
 

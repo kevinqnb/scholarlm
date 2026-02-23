@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from scholarlm import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 load_dotenv()
 
@@ -250,7 +250,7 @@ class ObservationSchema(BaseModel):
 
 fields = ObservationSchema.model_fields.keys()
 
-feature_info_dict = {
+attribute_info_dict = {
     "latitude": {
         "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
         "units": ["degrees", "radians"]
@@ -296,8 +296,8 @@ feature_info_dict = {
 def build_user_prompt_from_entry(
     *,
     context: str,
-    feature_description: str,
-    feature_terms: list[Any],
+    attribute_description: str,
+    attribute_terms: list[Any],
     entity_description: dict[str, Any],
     measurement_val: Any,
 ) -> str:
@@ -307,11 +307,11 @@ def build_user_prompt_from_entry(
     """
 
     query = (
-        f"Feature description: {feature_description}\n"
-        f"Terminology used for the feature: {feature_terms}\n"
+        f"attribute description: {attribute_description}\n"
+        f"Terminology used for the attribute: {attribute_terms}\n"
         f"Entity description: {entity_description}\n"
         f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and feature?"
+        f"Is the extracted data point valid for the given entity and attribute?"
     )
     return f"## Context:\n{context}\n\n## Query:\n{query}"
 
@@ -332,17 +332,17 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         context = entry["context"]
-        feature = entry.get("feature")
-        feature_description = feature_info_dict[feature]["description"]
-        feature_terms = entry.get("feature_terms", [])
+        attribute = entry.get("attribute")
+        attribute_description = attribute_info_dict[attribute]["description"]
+        attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
         measurement_val = entry["value"]
 
         system = JUDGE_INSTRUCTIONS
         user = build_user_prompt_from_entry(
             context=context,
-            feature_description=feature_description,
-            feature_terms=feature_terms,
+            attribute_description=attribute_description,
+            attribute_terms=attribute_terms,
             entity_description=entity_description,
             measurement_val=measurement_val,
         )
@@ -355,8 +355,8 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_11/pond.json"
-output_file = "data/experiments/2026_02_11/pond_judged_gemini.json"
+input_file = "data/experiments/2026_02_18/pond.json"
+output_file = "data/experiments/2026_02_18/pond_judged_gemini.json"
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:
