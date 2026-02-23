@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from scholarlm import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 load_dotenv()
 

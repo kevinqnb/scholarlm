@@ -15,17 +15,14 @@ from vllm import LLM, SamplingParams
 
 class DocumentLM:
     """
-    A class to manage and process markdown documents for use with a language model.
+    A vision-language model (VLM) wrapper for converting PDF documents to markdown text.
 
     Args:
-        model: The vision language model to be used for processing the documents.
-        ocr_prompt (str): The prompt to use for OCR processing when ocr is set to True.
-        sampling_params (dict[str, any]): Sampling parameters for the LLM during OCR processing.
-    Attributes:
-        model: The vision language model to be used for processing the documents.
-        ocr_prompt (str): The prompt to use for OCR processing.
-        sampling_params (SamplingParams): Sampling parameters for the LLM during OCR processing.
-        markdown_text (list[str]): A list of processed markdown documents as strings.
+        model: Name or path of the VLM to use for OCR, passed directly to vLLM's LLM.
+        ocr_prompt (str): System prompt for the OCR task. Defaults to a standard
+            instruction to convert PDF pages to markdown with HTML tables.
+        sampling_params (dict[str, any]): Sampling parameters passed to vLLM's
+            SamplingParams. Defaults to temperature=0.1 and max_tokens=16384.
     """
     def __init__(
             self,
@@ -63,13 +60,21 @@ class DocumentLM:
 
     def fit(self, filepaths: list[str]):
         """
-        Load and process documents from the provided file paths.
+        OCR all pages of the provided PDF files and return the combined markdown text.
+
+        Renders each PDF page as an image, sends it through the VLM with the OCR
+        prompt, and reassembles page outputs into a single document per file. Pages
+        that exceed max_tokens or fail to produce expected table tags are retried
+        with progressively higher temperature.
+
+        Output text wraps each page in ``<page number="N">`` tags and numbers
+        tables sequentially with ``<table number="N">`` tags.
 
         Args:
-            filepaths (list[str]): A list of file paths for the documents to be processed.
+            filepaths (list[str]): Paths to the PDF files to process.
 
         Returns:
-            list[str]: A list of processed markdown documents as strings.
+            list[str]: Processed markdown text, one string per document.
         """
         self.filepaths = filepaths
 
@@ -183,10 +188,11 @@ class DocumentLM:
 
     def save(self, filepaths: list[str]):
         """
-        Save the processed text documents to the specified directory.
+        Save the processed OCR text to disk.
+
         Args:
-            text_documents (list[dict]): A list of text documents to be saved.
-            filepaths (list[str]): A list of file paths corresponding to the documents.
+            filepaths (list[str]): Output file paths, one per document. Must have
+                the same length as the list passed to fit().
         """
         for i, text in enumerate(self.text):
             output_filepath = filepaths[i]

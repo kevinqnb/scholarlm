@@ -10,7 +10,7 @@ from typing import Any
 from openai import AsyncOpenAI
 from openai import RateLimitError, APIError
 
-from scholarlm import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 load_dotenv()
 

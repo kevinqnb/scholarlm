@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 load_dotenv()
 from scholarlm import JudgementLM
-from scholarlm import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 # (try to) set seeds for reproducibility
 import random
