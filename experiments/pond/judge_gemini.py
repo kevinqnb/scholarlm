@@ -355,8 +355,8 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_18/pond.json"
-output_file = "data/experiments/2026_02_18/pond_judged_gemini.json"
+input_file = "data/experiments/2026_02_25/pond_openai.json"
+output_file = "data/experiments/2026_02_25/pond_openai_judged_gemini.json"
 
 if __name__ == "__main__":
     with open(input_file, "r") as f:

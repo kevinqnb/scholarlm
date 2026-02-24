@@ -1,10 +1,10 @@
 import json
 
 judgement_files_dict = {
-    "gpt": "data/experiments/2026_02_11/pond_judged_gpt.json",
-    "gemini": "data/experiments/2026_02_11/pond_judged_gemini.json",
-    "claude": "data/experiments/2026_02_11/pond_judged_claude.json",
-    "llama": "data/experiments/2026_02_11/pond_judged_llama.json",
+    "gpt": "data/experiments/2026_02_25/pond_openai_judged_gpt.json",
+    "gemini": "data/experiments/2026_02_25/pond_openai_judged_gemini.json",
+    "claude": "data/experiments/2026_02_25/pond_openai_judged_claude.json",
+    "llama": "data/experiments/2026_02_25/pond_openai_judged_llama.json",
 }
 
 voting_models = ["gpt", "gemini", "claude"]

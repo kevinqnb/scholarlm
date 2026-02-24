@@ -282,8 +282,8 @@ attribute_info_dict = {
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_18/pond.json"
-output_file = "data/experiments/2026_02_18/pond_judged_claude.json"
+input_file = "data/experiments/2026_02_25/pond_openai.json"
+output_file = "data/experiments/2026_02_25/pond_openai_judged_claude.json"
 
 
 def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -342,14 +342,14 @@ if __name__ == "__main__":
 
     chats = build_chats(data)
 
-    model = "claude-sonnet-4-6"
+    model = "claude-opus-4-6"
 
     responses = asyncio.run(
         run_all_chats(
             chats,
             model=model,
             max_concurrent=3,
-            requests_per_minute=40,
+            requests_per_minute=25,
             max_retries=6,
         )
     )

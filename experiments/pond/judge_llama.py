@@ -86,9 +86,9 @@ llm = JudgementLM(
 
 ####################################################################################################
 
-input_file = "data/experiments/2026_02_18/pond.json"
-output_file = f"data/experiments/2026_02_18/pond_judged_llama.json"
-attn_output_file = "data/experiments/2026_02_18/pond_judged_llama_attention_outputs.npz"
+input_file = "data/experiments/2026_02_25/pond_openai.json"
+output_file = f"data/experiments/2026_02_25/pond_openai_judged_llama.json"
+attn_output_file = "data/experiments/2026_02_25/pond_openai_judged_llama_attention_outputs.npz"
 
 with open(input_file, "r") as f:
     data = json.load(f)

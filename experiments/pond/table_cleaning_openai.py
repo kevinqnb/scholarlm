@@ -26,7 +26,7 @@ ocr_directory = os.path.join(main_directory, "ocr_output_raw")
 ocr_out_directory_cleaned = os.path.join(main_directory, "ocr_output_cleaned_openai")
 
 OPENAI_MODEL = "gpt-5-mini"
-RATE_LIMIT = 30  # requests per minute
+RATE_LIMIT = 100  # requests per minute
 TARGET_DIM = 1536
 
 # Skip files that have already been processed.

@@ -275,12 +275,15 @@ Only restructure a table when it violates one or more of these properties. If a 
 
 ### Row Names (Index Column)
 
-- Create a new first column named `index` containing a unique, meaningful identifier for each row.
+- You MUST create a create a new column named `index` containing a unique, meaningful identifier for each row.
 - Populate the `index` column using one or more columns from the original table that uniquely identify each row. Prefer named entities (e.g., object names, study names, compound names, model names) over numerical IDs.
 - If multiple columns are needed for uniqueness, combine them as a Python tuple: `('Category A', 'Sub-category 1')`.
 - Every index value must be unique across all rows in the table.
 - Columns used solely to construct the index may be removed if they carry no additional information beyond what the index captures. Columns that carry additional information should be retained.
 - If the original table has no clear entity identifiers, use numerical row numbers as a last resort.
+
+NOTE: This is a critical step for machine readability. Creating an 'index' column is what allows downstream code to refer to specific rows, so it must be populated with meaningful, unique identifiers.
+
 
 ### Column Names
 
