@@ -114,18 +114,114 @@ Your task: decide whether the extracted triplet is fully valid — meaning the e
 Decision rules:
 - Respond 'true' ONLY if ALL of the following are satisfied:
   (A) Valid entity: The described entity is a real, distinct entity of the specified type as evidenced by the document. It must not be a hypothetical, aggregated, ambiguously described, or otherwise invalid instance of the entity type.
-  (B) Value presence: The extracted value appears explicitly at the specified location in the document (refer to the provided page and table number) as a numerically identical value — i.e., both represent exactly the same number on the number line, differing only in surface formatting (e.g., 10 vs 10.0, 1000 vs 1,000, 0.001 vs 1e-3, negative sign variants). Do not accept values that require unit conversion (0.05 vs 5%), rounding (3.14 vs 3.1), arithmetic, averaging, or any other numerical transformation.
+  (B) Value presence: The extracted value appears explicitly at the specified location in the document (same page and, if a table is cited, within that table). If the value appears elsewhere in the document but not at the cited location, respond 'false'. The value must be numerically identical — i.e., both represent exactly the same number on the number line, differing only in surface formatting (e.g., 10 vs 10.0, 1000 vs 1,000, 0.001 vs 1e-3, 1/2 vs 0.5, negative sign variants). Do not accept values that require unit conversion (0.05 vs 5%), rounding (3.14 vs 3.1), arithmetic, averaging, or any other numerical transformation.
   (C) Correct assignment to entity: The document clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
   (D) Correct assignment to attribute: The value clearly corresponds to the specified attribute (not a related metric, proxy, similarly named variable, or a different operationalization).
-  (E) Direct reported quantity: The value represents a directly reported measurement or descriptive statistic (mean, median, total) of the attribute — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or tuning parameter). The value must also be reported as a standalone quantity, not solely as an endpoint of a range, interval, or bound (e.g., reject "6.5" if it only appears in "ranged from 6.5 to 7.2" and is not independently stated as the attribute's value).
+  (E) Direct reported quantity: The value represents a directly reported measurement or descriptive summary statistic (e.g., mean, median, standard deviation, count, proportion, total, minimum, maximum) of the attribute — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, correlation coefficient, or tuning parameter). The value must also be reported as a standalone quantity, not solely as an endpoint of a range, interval, or bound (e.g., reject "6.5" if it only appears in "ranged from 6.5 to 7.2" and is not independently stated as the attribute's value). Exception: if the attribute itself describes a bound or endpoint (e.g., "minimum pH", "lower bound of temperature range"), then extracting the corresponding endpoint value is acceptable.
+  (F) Correct units: The units associated with the extracted value must match the units reported in the document for that quantity at the specified location. Accept only trivial notational variants (e.g., "μm" vs "um", "mg/L" vs "mg L⁻¹", "°C" vs "degrees C"). Do not accept values where the extracted units differ from the reported units in a way that would require conversion (e.g., "mg/L" vs "g/L", "ha" vs "m²", "%" vs "ppm").
 
 - Respond 'false' if ANY of the following apply:
   - The described entity does not correspond to a valid entity of the specified type as described in the document.
-  - The value does not appear at the specified location in the document exactly (aside from trivial formatting differences).
+  - The value does not appear at the specified location (same page and, if cited, same table) in the document exactly (aside from trivial formatting differences).
   - The value appears but is tied to a different entity or attribute than the one described.
-  - The value appears only as an endpoint of a range, interval, or bound (e.g., "6.5–7.2", "ranged from X to Y", "between X and Y") and is not independently reported as a standalone quantity for the specified entity and attribute.
-  - The value is a model output, test statistic, or derived statistical quantity (e.g., regression coefficient, odds ratio, p-value, CI bound, goodness-of-fit metric) rather than a directly reported quantity or descriptive summary.
+  - The value appears only as an endpoint of a range, interval, or bound (e.g., "6.5–7.2", "ranged from X to Y", "between X and Y") and is not independently reported as a standalone quantity for the specified entity and attribute — unless the attribute itself describes that bound or endpoint.
+  - The value is a model output, test statistic, or derived statistical quantity (e.g., regression coefficient, odds ratio, p-value, CI bound, goodness-of-fit metric, correlation coefficient) rather than a directly reported quantity or descriptive summary.
   - The value is only implied (requires calculation, unit conversion, or deduction from other reported numbers).
+  - The units associated with the extracted value do not match the units reported in the document at the specified location (aside from trivial notational variants).
+
+Handling conflicting information:
+- If the document contains conflicting values for the same entity-attribute pair at different locations, evaluate only against the value at the specified location.
+
+Default when ambiguous:
+- When the evidence is ambiguous or you are less than confident that all criteria are satisfied, default to 'false'. The goal is high precision.
+
+Below are examples of how to evaluate candidate triplets.
+
+---
+Document context (for example):
+'''
+<page number="0">
+Bacterial and Viral Dynamics in a Temperate Agricultural Pond... 
+<page number="1">
+Therefore, we aimed to assess the bacterial and viral components of a temperate agricultural pond in the Mid-Atlantic, United States during the late growing season (October–December), a time when declining temperature and nutrient levels may impact the structure and function of the microbial assemblages. Specifically, we used 16S rRNA gene and shotgun metagenomic sequencing to: (i) survey the bacterial consortium utilizing different filter pore sizes (1 and 0.2 μm); (ii) characterize the diversity and abundance of the bacteriophage within the viral community; and (iii) compare the phylogeny of pond viromes across time using the phylogenetically relevant, and biologically meaningful, Pol I protein.\n\nMATERIALS AND METHODS\n\nStudy Site and Sample Collection\nTen-liter water samples were collected in October 2016, November 2016, and December 2016 from a temperate freshwater agricultural pond in central Maryland, United States (maximum depth of ca. 3.35 meters and a surface area of ca. 0.26 ha). A Honda WX10TA (32 GPM) water pump was used to collect water 15–30 cm below the surface into a sterile polypropylene carboy. Samples were kept in the dark at 4°C and processed within 24 h of collection. In addition, a ProDSS digital sampling system (YSI, Yellow Springs, OH, United States) was used to measure, in triplicate: the water temperature (°C), conductivity (SPC uS/cm), pH, dissolved oxygen (%), oxidation/reduction potential (mV), turbidity (FNU), nitrate (mg/L), and chloride (mg/L).\n\nSample Preparation\nViral and microbial fractions were separated through peristaltic filtration followed by an iron-based flocculation and resuspension of viral particles. Two 142 mm polycarbonate in-line filter holders (Geotech, CO, United States), one equipped with a 142-mm diameter Whatman 1 μm polycarbonate filter
+</page>...
+'''
+
+Example 1 — CORRECT extraction (all criteria satisfied):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Terminology used for the attribute: surface area, area
+Page: 1, Table: N/A
+Extracted measurement: 0.26
+Measurement units: ha
+
+VERDICT: true
+
+Explanation: The document describes "a temperate freshwater agricultural pond in central Maryland, United States" with "a surface area of ca. 0.26 ha." The entity is valid, the value 0.26 appears at the cited location as the surface area of this pond, and it is a directly reported quantity.
+
+---
+
+Example 2 — INCORRECT extraction (invalid entity):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Lake Merhei, location: Mid-Atlantic United States, ecosystem: pond}
+Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Terminology used for the attribute: surface area, area
+Page: 1, Table: N/A
+Extracted measurement: 0.26
+Measurement units: ha
+
+VERDICT: false
+
+Explanation: The document describes an agricultural pond in central Maryland but makes no mention of any water body called "Lake Merhei." Criterion A is not satisfied.
+
+---
+
+Example 3 — INCORRECT extraction (value belongs to a different attribute):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Terminology used for the attribute: surface area, area
+Page: 1, Table: N/A
+Extracted measurement: 3.35
+Measurement units: meters
+
+VERDICT: false
+
+Explanation: The value 3.35 appears on page 1 but corresponds to maximum depth ("ca. 3.35 meters"), not surface area. Criterion D is not satisfied.
+
+---
+
+Example 4 — INCORRECT extraction (value assigned to wrong attribute):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Terminology used for the attribute: maximum depth, depth
+Page: 1, Table: N/A
+Extracted measurement: 0.26
+Measurement units: ha
+
+VERDICT: false
+
+Explanation: The value 0.26 appears on page 1 but corresponds to surface area ("ca. 0.26 ha"), not maximum depth. Criterion D is not satisfied.
+
+---
+
+Example 5 — INCORRECT extraction (unit mismatch):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Terminology used for the attribute: maximum depth, depth
+Page: 1, Table: N/A
+Extracted measurement: 3.35
+Extracted units: cm
+
+---
 
 Output format:
 - Respond with a single token as either 'true' or 'false' (lowercase). Do not include any additional text or punctuation.

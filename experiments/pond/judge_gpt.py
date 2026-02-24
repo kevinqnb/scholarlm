@@ -163,10 +163,10 @@ async def run_all_chats(
 
 class ObservationSchema(BaseModel):
     name: str | None
-    abbreviations: str | None
+    #abbreviations: str | None
     location: str | None
-    site: str | None
-    state: str | None
+    #site: str | None
+    #state: str | None
     date: str | None
     ecosystem: str | None
 
@@ -254,7 +254,7 @@ def build_user_prompt_from_entry(
         f"Entity type: {entity_type_description}\n"
         f"Extracted entity: {entity_description}\n"
         f"Attribute description: {attribute_description}\n"
-        f"Terminology used for the attribute: {attribute_terms}\n"
+        #f"Terminology used for the attribute: {attribute_terms}\n"
         f"{location_info}"
         f"Extracted measurement: {measurement_val}\n\n"
         f"Is the extracted (entity, attribute, value) triplet fully valid — "
@@ -311,6 +311,8 @@ def build_chats(data, documents: list[str]):
 if __name__ == "__main__":
     with open(input_file, "r") as f:
         data = json.load(f)
+
+    data = data[:100]  # limit to 100 for testing; remove or increase as needed
 
     # Load full documents in the same sorted order used during extraction.
     text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
