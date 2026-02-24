@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from scholarlm.utils import get_filenames_in_directory
 
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_TEXT, JUDGE_INSTRUCTIONS_TABLE
 
 load_dotenv()
 
@@ -53,13 +53,17 @@ def normalize_bool_text(text: str | None) -> bool | None:
 def build_user_prompt_blocks_from_entry(
     *,
     document: str,
+    source: str,
     attribute_description: str,
     attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
     page_number: int | None,
     table_number: int | None,
-    measurement_val: Any,
+    measurement_val: Any = None,
+    row_index: Any = None,
+    column_index: Any = None,
+    units: Any = None,
 ) -> tuple[str, str]:
     """Return (cached_context_text, query_text) for judging.
 
@@ -69,29 +73,55 @@ def build_user_prompt_blocks_from_entry(
     # Stable cached prefix for this entry (full document for entity validation).
     cached_context = f"## Document:\n{document}\n\n"
 
-    # Build location hint for the judge.
+    units_str = units if units is not None else "not reported"
+
+    # NOTE: Do not change entity_description formatting (keep Python dict repr).
+    entity_section = (
+        f"Target entity type: {entity_type_description}\n"
+        f"Extracted entity: {entity_description}"
+    )
+
+    attribute_section = (
+        f"Target attribute: {attribute_description}\n"
+        f"Attribute terminology: {attribute_terms}"
+    )
+
     location_parts = []
     if page_number is not None:
         location_parts.append(f"Page number: {page_number}")
-    if table_number is not None:
+    if source == "table" and table_number is not None:
         location_parts.append(f"Table number: {table_number}")
-    location_info = ("\n".join(location_parts) + "\n") if location_parts else ""
+    location_section = "\n".join(location_parts)
 
-    # Keep the shared prompt content stable across providers.
-    # NOTE: Do not change entity_description formatting (keep Python dict repr).
-    query = (
-        f"Entity type: {entity_type_description}\n"
-        f"Extracted entity: {entity_description}\n"
-        f"Attribute description: {attribute_description}\n"
-        f"Terminology used for the attribute: {attribute_terms}\n"
-        f"{location_info}"
-        f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted (entity, attribute, value) triplet fully valid — "
-        f"meaning the entity is correctly identified, the attribute is correctly "
-        f"assigned, and the value is correctly extracted from the document?"
-    )
+    if source == "table":
+        value_section = (
+            f"Extracted row index: {row_index}\n"
+            f"Extracted column index: {column_index}\n"
+            f"Extracted units: {units_str}"
+        )
+        closing = (
+            "Is the extracted (entity, attribute, row index, column index) tuple fully valid — "
+            "meaning the entity is correctly identified and together the row index and column index "
+            "correctly locate the value for that (entity, target attribute) pair in the specified table?"
+        )
+    else:
+        value_section = (
+            f"Extracted value: {measurement_val}\n"
+            f"Extracted units: {units_str}"
+        )
+        closing = (
+            "Is the extracted (entity, attribute, value) triplet fully valid — "
+            "meaning the entity is correctly identified and the extracted value "
+            "correctly corresponds to the target attribute for that entity, as evidenced by the document?"
+        )
 
-    query_text = f"## Query:\n{query}"
+    sections = [entity_section, attribute_section]
+    if location_section:
+        sections.append(location_section)
+    sections.append(value_section)
+    sections.append(closing)
+
+    query_text = f"## Query:\n" + "\n\n".join(sections)
 
     return cached_context, query_text
 
@@ -327,14 +357,22 @@ def build_chats(data: list[dict[str, Any]], documents: list[str]) -> list[dict[s
         entity_description = {k: v for k, v in entry.items() if k in fields}
         page_number = entry.get("page_number")
         table_number = entry.get("table_number")
-        measurement_val = entry["value"]
+        source = entry.get("source", "text")
+        units = entry.get("units")
 
-        # Keep the same system prompt as other scripts (contains hard constraint
-        # to answer with exactly 'true' or 'false').
-        system = JUDGE_INSTRUCTIONS
+        if source == "table":
+            system = JUDGE_INSTRUCTIONS_TABLE
+            row_index = entry.get("row_index")
+            column_index = entry.get("column_index")
+            measurement_val = None
+        else:
+            system = JUDGE_INSTRUCTIONS_TEXT
+            measurement_val = entry["value"]
+            row_index = column_index = None
 
         cached_context, query_text = build_user_prompt_blocks_from_entry(
             document=document,
+            source=source,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
             entity_type_description=ENTITY_TYPE_DESCRIPTION,
@@ -342,6 +380,9 @@ def build_chats(data: list[dict[str, Any]], documents: list[str]) -> list[dict[s
             page_number=page_number,
             table_number=table_number,
             measurement_val=measurement_val,
+            row_index=row_index,
+            column_index=column_index,
+            units=units,
         )
 
         chats.append(
@@ -375,7 +416,7 @@ if __name__ == "__main__":
 
     chats = build_chats(data, documents)
 
-    model = "claude-opus-4-6"
+    model = "claude-haiku-4-5"
 
     responses = asyncio.run(
         run_all_chats(

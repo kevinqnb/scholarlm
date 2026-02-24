@@ -11,7 +11,7 @@ from typing import Any
 from openai import AsyncOpenAI
 from openai import RateLimitError, APIError
 
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_TEXT, JUDGE_INSTRUCTIONS_TABLE
 from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
@@ -115,7 +115,7 @@ async def _create_completion(model: str, messages):
 
 async def run_all_chats(
     chats,
-    model: str = "gpt-4o",
+    model: str = "gpt-5-mini",
     max_concurrent: int = 25,
     requests_per_minute: float = 50,
     max_time: int = 60,
@@ -163,10 +163,10 @@ async def run_all_chats(
 
 class ObservationSchema(BaseModel):
     name: str | None
-    #abbreviations: str | None
+    abbreviations: str | None
     location: str | None
-    #site: str | None
-    #state: str | None
+    site: str | None
+    state: str | None
     date: str | None
     ecosystem: str | None
 
@@ -230,37 +230,71 @@ ENTITY_TYPE_DESCRIPTION = (
 def build_user_prompt_from_entry(
     *,
     document: str,
+    source: str,
     attribute_description: str,
     attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
     page_number: int | None,
     table_number: int | None,
-    measurement_val: Any,
+    measurement_val: Any = None,
+    row_index: Any = None,
+    column_index: Any = None,
+    units: Any = None,
 ) -> str:
     """Create the shared user prompt for judging.
 
     This must stay stable across providers to make results comparable.
     """
 
+    units_str = units if units is not None else "not reported"
+
+    entity_section = (
+        f"Target entity type: {entity_type_description}\n"
+        f"Extracted entity: {entity_description}"
+    )
+
+    attribute_section = (
+        f"Target attribute: {attribute_description}\n"
+        f"Attribute terminology: {attribute_terms}"
+    )
+
     location_parts = []
     if page_number is not None:
         location_parts.append(f"Page number: {page_number}")
-    if table_number is not None:
+    if source == "table" and table_number is not None:
         location_parts.append(f"Table number: {table_number}")
-    location_info = ("\n".join(location_parts) + "\n") if location_parts else ""
+    location_section = "\n".join(location_parts)
 
-    query = (
-        f"Entity type: {entity_type_description}\n"
-        f"Extracted entity: {entity_description}\n"
-        f"Attribute description: {attribute_description}\n"
-        #f"Terminology used for the attribute: {attribute_terms}\n"
-        f"{location_info}"
-        f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted (entity, attribute, value) triplet fully valid — "
-        f"meaning the entity is correctly identified, the attribute is correctly "
-        f"assigned, and the value is correctly extracted from the document?"
-    )
+    if source == "table":
+        value_section = (
+            f"Extracted row index: {row_index}\n"
+            f"Extracted column index: {column_index}\n"
+            f"Extracted units: {units_str}"
+        )
+        closing = (
+            "Is the extracted (entity, attribute, row index, column index) tuple fully valid — "
+            "meaning the entity is correctly identified and together the row index and column index "
+            "correctly locate the value for that (entity, target attribute) pair in the specified table?"
+        )
+    else:
+        value_section = (
+            f"Extracted value: {measurement_val}\n"
+            f"Extracted units: {units_str}"
+        )
+        closing = (
+            "Is the extracted (entity, attribute, value) triplet fully valid — "
+            "meaning the entity is correctly identified and the extracted value "
+            "correctly corresponds to the target attribute for that entity, as evidenced by the document?"
+        )
+
+    sections = [entity_section, attribute_section]
+    if location_section:
+        sections.append(location_section)
+    sections.append(value_section)
+    sections.append(closing)
+
+    query = "\n\n".join(sections)
     return f"## Document:\n{document}\n\n## Query:\n{query}"
 
 
@@ -281,11 +315,22 @@ def build_chats(data, documents: list[str]):
         entity_description = {k: v for k, v in entry.items() if k in fields}
         page_number = entry.get("page_number")
         table_number = entry.get("table_number")
-        measurement_val = entry["value"]
+        source = entry.get("source", "text")
+        units = entry.get("units")
 
-        system = JUDGE_INSTRUCTIONS
+        if source == "table":
+            system = JUDGE_INSTRUCTIONS_TABLE
+            row_index = entry.get("row_index")
+            column_index = entry.get("column_index")
+            measurement_val = None
+        else:
+            system = JUDGE_INSTRUCTIONS_TEXT
+            measurement_val = entry["value"]
+            row_index = column_index = None
+
         user = build_user_prompt_from_entry(
             document=document,
+            source=source,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
             entity_type_description=ENTITY_TYPE_DESCRIPTION,
@@ -293,6 +338,9 @@ def build_chats(data, documents: list[str]):
             page_number=page_number,
             table_number=table_number,
             measurement_val=measurement_val,
+            row_index=row_index,
+            column_index=column_index,
+            units=units,
         )
 
         messages = [
@@ -327,7 +375,7 @@ if __name__ == "__main__":
     responses = asyncio.run(
         run_all_chats(
             chats,
-            model="gpt-5.2",
+            model="gpt-5-mini",
             max_concurrent=30,
             requests_per_minute=60,
             max_time=60,

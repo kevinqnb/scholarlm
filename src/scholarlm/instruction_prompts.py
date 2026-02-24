@@ -102,14 +102,15 @@ Guidelines:
 # --------------------------------------------
 
 
-# Validate extracted measurement value
-JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
+# Validate extracted measurement value (text source)
+JUDGE_INSTRUCTIONS_TEXT = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
 1) A complete document from a research paper
-2) A description of a candidate extracted (entity, attribute, value) triplet, including the page and table (if applicable) where the data was found
+2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
+3) A candidate (entity, value) extraction: the entity identified in the document, the page where the data was found, and the value extracted from the prose text for the target attribute.
 
-Your task: decide whether the extracted triplet is fully valid — meaning the entity is correctly identified, the attribute is correctly assigned, and the value is correctly extracted, all with respect to the full document.
+Your task: decide whether the extracted (entity, attribute, value) triplet is fully valid — meaning the entity is correctly identified and the extracted value correctly corresponds to the target attribute for that entity, as evidenced by the document.
 
 Decision rules:
 - Respond 'true' ONLY if ALL of the following are satisfied:
@@ -220,6 +221,100 @@ Terminology used for the attribute: maximum depth, depth
 Page: 1, Table: N/A
 Extracted measurement: 3.35
 Extracted units: cm
+
+---
+
+Output format:
+- Respond with a single token as either 'true' or 'false' (lowercase). Do not include any additional text or punctuation.
+"""
+
+
+# Validate extracted measurement value (table source)
+JUDGE_INSTRUCTIONS_TABLE = """You are an expert in data extraction for systematic scientific literature reviews.
+
+You will be given:
+1) A complete document from a research paper
+2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
+3) A candidate (entity, row index, column index) extraction: the entity identified in the document, the table where the data was found, and the row/column indices that locate the extracted value for the target attribute. The value is the cell at the intersection of the row and column indices.
+
+Your task: decide whether the extracted (entity, attribute, row index, column index) tuple is fully valid — meaning the entity is correctly identified and together the row index and column index correctly locate the value for that (entity, target attribute) pair in the specified table.
+
+Decision rules:
+- Respond 'true' ONLY if ALL of the following are satisfied:
+  (A) Valid entity: The described entity is a real, distinct entity of the specified type as evidenced by the document. It must not be a hypothetical, aggregated, ambiguously described, or otherwise invalid instance of the entity type.
+  (B) Row index presence: The specified row index appears in the specified table in the document (same page and table number). Trivial formatting variants are acceptable (e.g., minor whitespace or punctuation differences).
+  (C) Row-to-entity correspondence: The row identified by the row index clearly maps to the described entity — not a different study site, species, treatment, timepoint, or other entity of the same type.
+  (D) Column index presence: The specified column index appears as a column header in the specified table. Trivial formatting variants are acceptable.
+  (E) Column-to-attribute correspondence: The column identified by the column index clearly maps to the described attribute — not a related metric, proxy, similarly named variable, or different operationalization.
+  (F) Direct reported quantity: The cell at the intersection of the row and column contains a directly reported measurement or descriptive summary statistic (e.g., mean, median, standard deviation, count, proportion, total, minimum, maximum) — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, correlation coefficient, or tuning parameter).
+  (G) Correct units: The extracted units match the units reported in the table for that column (e.g., in the column header or caption). Accept only trivial notational variants (e.g., "μm" vs "um", "mg/L" vs "mg L⁻¹", "°C" vs "degrees C"). Do not accept units that differ in a way that would require conversion.
+
+- Respond 'false' if ANY of the following apply:
+  - The described entity does not correspond to a valid entity of the specified type as described in the document.
+  - The specified row index does not appear in the specified table.
+  - The row index maps to a different entity than the one described (e.g., a different site, treatment, or timepoint).
+  - The specified column index does not appear in the specified table.
+  - The column index maps to a different attribute than the one described (e.g., a related metric or proxy).
+  - The cell at the row/column intersection contains a model output, test statistic, or derived statistical quantity rather than a directly reported measurement.
+  - The extracted units do not match the units reported for that column in the table (aside from trivial notational variants).
+
+Default when ambiguous:
+- When the evidence is ambiguous or you are less than confident that all criteria are satisfied, default to 'false'. The goal is high precision.
+
+Below are examples of how to evaluate candidate tuples.
+
+---
+Document context (for example):
+'''
+<page number="0">
+Bacterial and Viral Dynamics in a Temperate Agricultural Pond...
+<page number="1">
+...Ten-liter water samples were collected in October 2016, November 2016, and December 2016 from a temperate freshwater agricultural pond in central Maryland, United States (maximum depth of ca. 3.35 meters and a surface area of ca. 0.26 ha). A ProDSS digital sampling system (YSI) was used to measure, in triplicate: the water temperature (°C), conductivity (SPC uS/cm), pH, dissolved oxygen (%), oxidation/reduction potential (mV), turbidity (FNU), nitrate (mg/L), and chloride (mg/L)...
+<page number="3">
+<table number="1">
+<caption>Water quality parameters measured at the agricultural pond during October, November, and December 2016.</caption>
+<tr><th>index</th><th>temperature_c</th><th>ph</th><th>conductivity_spc_us_cm</th><th>dissolved_oxygen_pct</th></tr>
+<tr><td>October 2016</td><td>14.2</td><td>7.8</td><td>312</td><td>88.4</td></tr>
+<tr><td>November 2016</td><td>9.1</td><td>7.5</td><td>298</td><td>91.2</td></tr>
+<tr><td>December 2016</td><td>4.3</td><td>7.3</td><td>285</td><td>94.7</td></tr>
+</table>
+</page>
+...
+'''
+
+Example 1 — CORRECT extraction (all criteria satisfied):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
+Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ph, pH
+Page number: 3
+Table number: 1
+Extracted row index: October 2016
+Extracted column index: ph
+Extracted units: not reported
+
+VERDICT: true
+
+Explanation: The entity (agricultural pond, October 2016) is valid. The row index "October 2016" appears in Table 1 on page 3 and maps to the October 2016 observation. The column index "ph" appears in the table and corresponds to water pH. The cell value is a directly reported measurement. pH is dimensionless, so "not reported" is correct. All criteria are satisfied.
+
+---
+
+Example 2 — INCORRECT extraction (row maps to wrong entity):
+
+Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
+Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ph, pH
+Page number: 3
+Table number: 1
+Extracted row index: December 2016
+Extracted column index: ph
+Extracted units: not reported
+
+VERDICT: false
+
+Explanation: The row index "December 2016" is present in the table, but it maps to the December 2016 observation, not the October 2016 observation described by the extracted entity. Criterion C is not satisfied.
 
 ---
 
