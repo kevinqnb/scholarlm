@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from scholarlm.utils import get_filenames_in_directory
 
 from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
@@ -51,10 +52,13 @@ def normalize_bool_text(text: str | None) -> bool | None:
 
 def build_user_prompt_blocks_from_entry(
     *,
-    context: str,
+    document: str,
     attribute_description: str,
     attribute_terms: list[Any],
+    entity_type_description: str,
     entity_description: dict[str, Any],
+    page_number: int | None,
+    table_number: int | None,
     measurement_val: Any,
 ) -> tuple[str, str]:
     """Return (cached_context_text, query_text) for judging.
@@ -62,17 +66,29 @@ def build_user_prompt_blocks_from_entry(
     We split the prompt so the large, reused context can be explicitly cached.
     """
 
-    # Stable cached prefix for this entry.
-    cached_context = f"## Context:\n{context}\n\n"
+    # Stable cached prefix for this entry (full document for entity validation).
+    cached_context = f"## Document:\n{document}\n\n"
+
+    # Build location hint for the judge.
+    location_parts = []
+    if page_number is not None:
+        location_parts.append(f"Page number: {page_number}")
+    if table_number is not None:
+        location_parts.append(f"Table number: {table_number}")
+    location_info = ("\n".join(location_parts) + "\n") if location_parts else ""
 
     # Keep the shared prompt content stable across providers.
     # NOTE: Do not change entity_description formatting (keep Python dict repr).
     query = (
-        f"attribute description: {attribute_description}\n"
+        f"Entity type: {entity_type_description}\n"
+        f"Extracted entity: {entity_description}\n"
+        f"Attribute description: {attribute_description}\n"
         f"Terminology used for the attribute: {attribute_terms}\n"
-        f"Entity description: {entity_description}\n"
+        f"{location_info}"
         f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and attribute?"
+        f"Is the extracted (entity, attribute, value) triplet fully valid — "
+        f"meaning the entity is correctly identified, the attribute is correctly "
+        f"assigned, and the value is correctly extracted from the document?"
     )
 
     query_text = f"## Query:\n{query}"
@@ -282,29 +298,35 @@ attribute_info_dict = {
 
 ####################################################################################################
 
+main_directory = "data/pond"
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+
 input_file = "data/experiments/2026_02_25/pond_openai.json"
 output_file = "data/experiments/2026_02_25/pond_openai_judged_claude.json"
 
+ENTITY_TYPE_DESCRIPTION = (
+    "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
+    "similar water body — potentially further identified by treatment site, treatment "
+    "state, or date of measurement."
+)
 
-def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # Sort by document_id then context to increase cache locality (Claude caches expire).
+
+def build_chats(data: list[dict[str, Any]], documents: list[str]) -> list[dict[str, Any]]:
+    # Sort by document_id to increase cache locality (Claude caches expire).
     # We carry the original index so outputs can be re-mapped to the original order.
     data_with_idx = list(enumerate(data))
-    data_with_idx.sort(
-        key=lambda it: (
-            str(it[1].get("document_id", "")),
-            str(it[1].get("context", "")),
-        )
-    )
+    data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
     chats: list[dict[str, Any]] = []
 
     for i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
-        context = entry["context"]
+        document = documents[entry["document_id"]]
         attribute = entry.get("attribute")
         attribute_description = attribute_info_dict[attribute]["description"]
         attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
+        page_number = entry.get("page_number")
+        table_number = entry.get("table_number")
         measurement_val = entry["value"]
 
         # Keep the same system prompt as other scripts (contains hard constraint
@@ -312,10 +334,13 @@ def build_chats(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         system = JUDGE_INSTRUCTIONS
 
         cached_context, query_text = build_user_prompt_blocks_from_entry(
-            context=context,
+            document=document,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
+            entity_type_description=ENTITY_TYPE_DESCRIPTION,
             entity_description=entity_description,
+            page_number=page_number,
+            table_number=table_number,
             measurement_val=measurement_val,
         )
 
@@ -340,7 +365,15 @@ if __name__ == "__main__":
     with open(input_file, "r") as f:
         data = json.load(f)
 
-    chats = build_chats(data)
+    # Load full documents in the same sorted order used during extraction.
+    text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
+    text_files.sort()
+    documents: list[str] = []
+    for fname in text_files:
+        with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as f:
+            documents.append(f.read())
+
+    chats = build_chats(data, documents)
 
     model = "claude-opus-4-6"
 

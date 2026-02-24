@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from scholarlm import JudgementLM
 from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
+from scholarlm.utils import get_filenames_in_directory
 
 # (try to) set seeds for reproducibility
 import random
@@ -86,9 +87,26 @@ llm = JudgementLM(
 
 ####################################################################################################
 
+main_directory = "data/pond"
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+
 input_file = "data/experiments/2026_02_25/pond_openai.json"
 output_file = f"data/experiments/2026_02_25/pond_openai_judged_llama.json"
 attn_output_file = "data/experiments/2026_02_25/pond_openai_judged_llama_attention_outputs.npz"
+
+ENTITY_TYPE_DESCRIPTION = (
+    "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
+    "similar water body — potentially further identified by treatment site, treatment "
+    "state, or date of measurement."
+)
+
+# Load full documents in the same sorted order used during extraction.
+text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
+text_files.sort()
+documents = []
+for fname in text_files:
+    with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as f:
+        documents.append(f.read())
 
 with open(input_file, "r") as f:
     data = json.load(f)
@@ -96,24 +114,37 @@ with open(input_file, "r") as f:
 messages = []
 message_ids = []
 for entry in data:
-    context = entry['context']
+    document = documents[entry['document_id']]
     attribute = entry.get('attribute')
     attribute_description = attribute_info_dict[attribute]['description']
     attribute_terms = entry.get('attribute_terms', [])
     entity_description = {k: v for k,v in entry.items() if k in fields}
+    page_number = entry.get('page_number')
+    table_number = entry.get('table_number')
     measurement_val = entry['value']
     measurement_id = entry['measurement_id']
 
+    location_parts = []
+    if page_number is not None:
+        location_parts.append(f"Page number: {page_number}")
+    if table_number is not None:
+        location_parts.append(f"Table number: {table_number}")
+    location_info = ("\n".join(location_parts) + "\n") if location_parts else ""
+
     instructions = JUDGE_INSTRUCTIONS
     query = (
-        f"attribute description: {attribute_description}\n"
+        f"Entity type: {ENTITY_TYPE_DESCRIPTION}\n"
+        f"Extracted entity: {entity_description}\n"
+        f"Attribute description: {attribute_description}\n"
         f"Terminology used for the attribute: {attribute_terms}\n"
-        f"Entity description: {entity_description}\n"
+        f"{location_info}"
         f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and attribute?"
+        f"Is the extracted (entity, attribute, value) triplet fully valid — "
+        f"meaning the entity is correctly identified, the attribute is correctly "
+        f"assigned, and the value is correctly extracted from the document?"
     )
-    
-    messages.append((instructions, context, query))
+
+    messages.append((instructions, document, query))
     message_ids.append(measurement_id)
 
 

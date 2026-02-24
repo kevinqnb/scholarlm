@@ -106,20 +106,22 @@ Guidelines:
 JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) A passage of context from a research paper
-2) A description of a candidate extracted (entity, attribute, value) triplet
+1) A complete document from a research paper
+2) A description of a candidate extracted (entity, attribute, value) triplet, including the page and table (if applicable) where the data was found
 
-Your task: decide whether the extracted value is explicitly present in the context AND is correctly assigned to the specified entity and attribute.
+Your task: decide whether the extracted triplet is fully valid — meaning the entity is correctly identified, the attribute is correctly assigned, and the value is correctly extracted, all with respect to the full document.
 
 Decision rules:
-- Respond 'true' ONLY if all of the following are satisfied:
-  (A) Value presence: The extracted value appears explicitly in the context as a numerically identical value — i.e., both represent exactly the same number on the number line, differing only in surface formatting (e.g., 10 vs 10.0, 1000 vs 1,000, 0.001 vs 1e-3, negative sign variants). Do not accept values that require unit conversion (0.05 vs 5%), rounding (3.14 vs 3.1), arithmetic, averaging, or any other numerical transformation.
-  (B) Correct assignment to entity: The context clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
-  (C) Correct assignment to attribute: The value clearly corresponds to the specified attribute (not a related metric, proxy, similarly named variable, or a different operationalization).
-  (D) Direct reported quantity: The value represents a directly reported measurement or descriptive statistic (mean, median, total) of the attribute — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or tuning parameter). The value must also be reported as a standalone quantity, not solely as an endpoint of a range, interval, or bound (e.g., reject "6.5" if it only appears in "ranged from 6.5 to 7.2" and is not independently stated as the attribute's value).
+- Respond 'true' ONLY if ALL of the following are satisfied:
+  (A) Valid entity: The described entity is a real, distinct entity of the specified type as evidenced by the document. It must not be a hypothetical, aggregated, ambiguously described, or otherwise invalid instance of the entity type.
+  (B) Value presence: The extracted value appears explicitly at the specified location in the document (refer to the provided page and table number) as a numerically identical value — i.e., both represent exactly the same number on the number line, differing only in surface formatting (e.g., 10 vs 10.0, 1000 vs 1,000, 0.001 vs 1e-3, negative sign variants). Do not accept values that require unit conversion (0.05 vs 5%), rounding (3.14 vs 3.1), arithmetic, averaging, or any other numerical transformation.
+  (C) Correct assignment to entity: The document clearly indicates the value refers to the specified entity (not a different study site, species, dataset split, subgroup, scenario, treatment, timepoint, or a set/aggregate where the entity is ambiguous).
+  (D) Correct assignment to attribute: The value clearly corresponds to the specified attribute (not a related metric, proxy, similarly named variable, or a different operationalization).
+  (E) Direct reported quantity: The value represents a directly reported measurement or descriptive statistic (mean, median, total) of the attribute — not a model output (regression coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or tuning parameter). The value must also be reported as a standalone quantity, not solely as an endpoint of a range, interval, or bound (e.g., reject "6.5" if it only appears in "ranged from 6.5 to 7.2" and is not independently stated as the attribute's value).
 
 - Respond 'false' if ANY of the following apply:
-  - The value does not appear in the context text/table exactly (aside from trivial formatting differences).
+  - The described entity does not correspond to a valid entity of the specified type as described in the document.
+  - The value does not appear at the specified location in the document exactly (aside from trivial formatting differences).
   - The value appears but is tied to a different entity or attribute than the one described.
   - The value appears only as an endpoint of a range, interval, or bound (e.g., "6.5–7.2", "ranged from X to Y", "between X and Y") and is not independently reported as a standalone quantity for the specified entity and attribute.
   - The value is a model output, test statistic, or derived statistical quantity (e.g., regression coefficient, odds ratio, p-value, CI bound, goodness-of-fit metric) rather than a directly reported quantity or descriptive summary.

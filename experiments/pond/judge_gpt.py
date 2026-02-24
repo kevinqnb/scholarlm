@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import asyncio
@@ -11,6 +12,7 @@ from openai import AsyncOpenAI
 from openai import RateLimitError, APIError
 
 from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
+from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
 
@@ -212,12 +214,28 @@ attribute_info_dict = {
 ####################################################################################################
 # Build the chats for all entries.
 
+main_directory = "data/pond"
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+
+input_file = "data/experiments/2026_02_25/pond_openai.json"
+output_file = "data/experiments/2026_02_25/pond_openai_judged_gpt.json"
+
+ENTITY_TYPE_DESCRIPTION = (
+    "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
+    "similar water body — potentially further identified by treatment site, treatment "
+    "state, or date of measurement."
+)
+
+
 def build_user_prompt_from_entry(
     *,
-    context: str,
+    document: str,
     attribute_description: str,
     attribute_terms: list[Any],
+    entity_type_description: str,
     entity_description: dict[str, Any],
+    page_number: int | None,
+    table_number: int | None,
     measurement_val: Any,
 ) -> str:
     """Create the shared user prompt for judging.
@@ -225,43 +243,55 @@ def build_user_prompt_from_entry(
     This must stay stable across providers to make results comparable.
     """
 
-    query = (
-        f"attribute description: {attribute_description}\n"
-        f"Terminology used for the attribute: {attribute_terms}\n"
-        f"Entity description: {entity_description}\n"
-        f"Extracted measurement: {measurement_val}\n\n"
-        f"Is the extracted data point valid for the given entity and attribute?"
-    )
-    return f"## Context:\n{context}\n\n## Query:\n{query}"
+    location_parts = []
+    if page_number is not None:
+        location_parts.append(f"Page number: {page_number}")
+    if table_number is not None:
+        location_parts.append(f"Table number: {table_number}")
+    location_info = ("\n".join(location_parts) + "\n") if location_parts else ""
 
-def build_chats(data):
-    # Sort by document_id then context to improve temporal locality for any
-    # provider-side prefix reuse / caching.
+    query = (
+        f"Entity type: {entity_type_description}\n"
+        f"Extracted entity: {entity_description}\n"
+        f"Attribute description: {attribute_description}\n"
+        f"Terminology used for the attribute: {attribute_terms}\n"
+        f"{location_info}"
+        f"Extracted measurement: {measurement_val}\n\n"
+        f"Is the extracted (entity, attribute, value) triplet fully valid — "
+        f"meaning the entity is correctly identified, the attribute is correctly "
+        f"assigned, and the value is correctly extracted from the document?"
+    )
+    return f"## Document:\n{document}\n\n## Query:\n{query}"
+
+
+def build_chats(data, documents: list[str]):
+    # Sort by document_id to improve temporal locality for any provider-side
+    # prefix reuse / caching.
     # Carry original indices so we can write results in the original input order.
     data_with_idx = list(enumerate(data))
-    data_with_idx.sort(
-        key=lambda it: (
-            str(it[1].get("document_id", "")),
-            str(it[1].get("context", "")),
-        )
-    )
+    data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
     chats = []
 
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
-        context = entry["context"]
+        document = documents[entry["document_id"]]
         attribute = entry.get("attribute")
         attribute_description = attribute_info_dict[attribute]["description"]
         attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in fields}
+        page_number = entry.get("page_number")
+        table_number = entry.get("table_number")
         measurement_val = entry["value"]
 
         system = JUDGE_INSTRUCTIONS
         user = build_user_prompt_from_entry(
-            context=context,
+            document=document,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
+            entity_type_description=ENTITY_TYPE_DESCRIPTION,
             entity_description=entity_description,
+            page_number=page_number,
+            table_number=table_number,
             measurement_val=measurement_val,
         )
 
@@ -278,14 +308,19 @@ def build_chats(data):
 ####################################################################################################
 # Run the script.
 
-input_file = "data/experiments/2026_02_25/pond_openai.json"
-output_file = "data/experiments/2026_02_25/pond_openai_judged_gpt.json"
-
 if __name__ == "__main__":
     with open(input_file, "r") as f:
         data = json.load(f)
 
-    chats = build_chats(data)
+    # Load full documents in the same sorted order used during extraction.
+    text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
+    text_files.sort()
+    documents: list[str] = []
+    for fname in text_files:
+        with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as f:
+            documents.append(f.read())
+
+    chats = build_chats(data, documents)
 
     responses = asyncio.run(
         run_all_chats(

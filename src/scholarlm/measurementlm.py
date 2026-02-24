@@ -669,8 +669,9 @@ class MeasurementLM:
             for attr_name, terms in doc_attributes.get(doc_id, {}).items():
                 # Provenance intersection: find table numbers where both entity
                 # and attribute have provenance
+                entity_prov_entries = entity_prov.get((doc_id, entity_id), [])
                 e_tables = {
-                    entry['table'] for entry in entity_prov.get((doc_id, entity_id), [])
+                    entry['table'] for entry in entity_prov_entries
                     if entry['table'] is not None
                 }
                 a_tables = {
@@ -678,6 +679,13 @@ class MeasurementLM:
                     if entry['table'] is not None
                 }
                 intersecting_tables = sorted(e_tables & a_tables)
+
+                # Map table number -> page number for provenance attribution.
+                table_to_page = {
+                    entry['table']: entry['page']
+                    for entry in entity_prov_entries
+                    if entry['table'] is not None
+                }
 
                 if not intersecting_tables:
                     continue
@@ -696,6 +704,7 @@ class MeasurementLM:
                     if parsed is None:
                         continue
                     table_text, row_names, column_names = parsed
+                    table_page_number = table_to_page.get(t)
 
                     units_guidance = ""
                     if unit_options:
@@ -720,7 +729,7 @@ class MeasurementLM:
                         f"## Context:\n{table_text}\n\n## Query:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
-                    message_ids.append((pair_record, t))
+                    message_ids.append((pair_record, t, table_page_number))
 
         if not messages:
             return []
@@ -737,7 +746,7 @@ class MeasurementLM:
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
-            pair_record, table_number = message_ids[msg_idx]
+            pair_record, table_number, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(TableValueExtractionResponse, resp)
             except:
@@ -785,6 +794,7 @@ class MeasurementLM:
                         'context': table_text,
                         'value': val,
                         'units': result.get('units'),
+                        'page_number': page_number,
                         'table_number': table_number,
                         'row_index': row_index,
                         'column_index': column_index,
