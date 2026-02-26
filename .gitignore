@@ -162,10 +162,8 @@ cython_debug/
 #.idea/
 
 older/*
-examples/basics_vllm.py
-experiments/out/*
-experiments/ocr/out/*
-experiments/pond/out/*
+experiments/*/out/*
+experiments/*/*/out/*
 *.sh
 data/experiments/*/*
 data/pond/pdfs/*.pdf

@@ -19,7 +19,7 @@ from itertools import count as itercount
 from typing import Optional
 
 from .instruction_prompts import (
-    CLEAN_TABLE_INSTRUCTIONS_V3,
+    CLEAN_TABLE_INSTRUCTIONS,
 )
 from .utils import process_pdf
 
