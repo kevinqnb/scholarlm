@@ -1,33 +1,24 @@
 import os
 import json
-import random
-import asyncio
 import time
-import math
-from typing import Any
+import asyncio
+import backoff
 
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from scholarlm.utils import get_filenames_in_directory
+from typing import Any
+
+from openai import AsyncOpenAI
+from openai import RateLimitError, APIError
 
 from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_TEXT, JUDGE_INSTRUCTIONS_TABLE
+from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
 
-# NOTE: Requires the Google Gen AI SDK:
-#   pip install google-genai
-# and an API key in env var:
-#   export GEMINI_API_KEY=...
-#
-# Token probabilities:
-# - Gemini does not expose OpenAI-style logprobs uniformly across models/endpoints.
-# - Some SDK responses include per-step candidate metadata (token + probability).
-# - We compute P(true) from any available first-step candidate probabilities;
-#   otherwise `confidence=None`.
-
+client = AsyncOpenAI()
 
 ####################################################################################################
-
 
 def normalize_bool_text(text: str | None) -> bool | None:
     """Strictly parse a model response into a boolean.
@@ -46,89 +37,45 @@ def normalize_bool_text(text: str | None) -> bool | None:
     return None
 
 
-def _extract_p_true_from_gemini_response(response: Any) -> float | None:
-    """Best-effort P('true') from Gemini response metadata."""
+def _extract_p_true_from_first_token(response) -> float | None:
+    """Compute P('true') from the *first generated token* logprobs (best-effort)."""
     try:
-        candidates = getattr(response, "candidates", None)
-        if not candidates:
+        import math
+
+        choice0 = response.choices[0]
+        lp = getattr(choice0, "logprobs", None)
+        content = getattr(lp, "content", None) if lp is not None else None
+        if not content:
             return None
 
-        cand0 = candidates[0]
+        first = content[0]
+        first_token = (getattr(first, "token", None) or "").strip().lower()
+        first_logprob = getattr(first, "logprob", None)
 
-        for attr in ("logprobs_result", "logprobs", "token_logprobs", "tokenMetadata"):
-            lp_obj = getattr(cand0, attr, None)
-            if not lp_obj:
-                continue
+        # If the model actually emitted 'true' as the first token, use that.
+        if first_token == "true" and first_logprob is not None:
+            return float(math.exp(first_logprob))
 
-            for steps_attr in ("top_candidates", "topCandidates", "steps", "tokens"):
-                steps = getattr(lp_obj, steps_attr, None)
-                if not steps:
-                    continue
-
-                step0 = steps[0] if isinstance(steps, list) else None
-                if not step0:
-                    continue
-
-                top = step0
-                if not isinstance(top, list):
-                    top = (
-                        getattr(step0, "candidates", None)
-                        or getattr(step0, "top_candidates", None)
-                        or getattr(step0, "topCandidates", None)
-                    )
-
-                if not top or not isinstance(top, list):
-                    continue
-
-                for alt in top:
-                    tok = (
-                        getattr(alt, "token", None)
-                        or getattr(alt, "text", None)
-                        or ""
-                    ).strip().lower()
-                    if tok != "true":
-                        continue
-
-                    p = getattr(alt, "probability", None)
-                    if p is not None:
-                        return float(p)
-
-                    lp = getattr(alt, "log_probability", None)
-                    if lp is None:
-                        lp = getattr(alt, "logprob", None)
-                    if lp is not None:
-                        return float(math.exp(float(lp)))
-
-        token_meta = getattr(cand0, "token_metadata", None)
-        if token_meta and isinstance(token_meta, list) and token_meta:
-            step0 = token_meta[0]
-            top = (
-                getattr(step0, "top_candidates", None)
-                or getattr(step0, "topCandidates", None)
-                or getattr(step0, "candidates", None)
-            )
-            if top and isinstance(top, list):
-                for alt in top:
-                    tok = (
-                        getattr(alt, "token", None)
-                        or getattr(alt, "text", None)
-                        or ""
-                    ).strip().lower()
-                    if tok == "true":
-                        p = getattr(alt, "probability", None)
-                        if p is not None:
-                            return float(p)
-                        lp = getattr(alt, "log_probability", None) or getattr(alt, "logprob", None)
-                        if lp is not None:
-                            return float(math.exp(float(lp)))
+        # Otherwise, look for 'true' in the alternatives.
+        top = getattr(first, "top_logprobs", None) or []
+        for alt in top:
+            tok = (getattr(alt, "token", None) or "").strip().lower()
+            if tok == "true":
+                alt_lp = getattr(alt, "logprob", None)
+                if alt_lp is not None:
+                    return float(math.exp(alt_lp))
 
         return None
+
     except Exception:
         return None
 
 
 class AsyncRateLimiter:
-    """A simple global rate limiter (token-less) that paces calls to ~rpm."""
+    """A simple global rate limiter (token-less) that paces calls to ~rpm.
+
+    This enforces an *average* request rate across all concurrent tasks.
+    """
 
     def __init__(self, requests_per_minute: float):
         if requests_per_minute <= 0:
@@ -143,102 +90,85 @@ class AsyncRateLimiter:
             if self._next_time <= now:
                 self._next_time = now
             delay = self._next_time - now
+            # schedule next slot
             self._next_time += self._interval
         if delay > 0:
             await asyncio.sleep(delay)
 
 
-async def _create_gemini_response(
-    *,
-    client: Any,
-    model: str,
-    system: str,
-    user: str,
-):
-    """Call Gemini expecting a bare true/false."""
+async def _create_completion(model: str, messages, use_logprobs: bool = True):
+    """Call the API expecting a bare true/false.
 
-    # Lazy import so this file can still be imported without the SDK installed.
-    from google import genai  # type: ignore
+    IMPORTANT: Do not modify `messages` here; assume the prompt already contains
+    the necessary instructions to respond with exactly 'true' or 'false'.
+    """
 
-    # NOTE: In the `google-genai` SDK, `generate_content` returns a
-    # `GenerateContentResponse` (non-awaitable) in many versions/configs.
-    # Keep the outer function async for compatibility with our concurrency
-    # plumbing, but do not `await` the SDK call.
-    return client.models.generate_content(
+    kwargs: dict[str, Any] = dict(
         model=model,
-        contents=[
-            {"role": "user", "parts": [{"text": user}]},
-        ],
-        config={
-            "system_instruction": system,
-            "temperature": 0,
-            "max_output_tokens": 5,
-            "response_mime_type": "text/plain",
-            "candidate_count": 1,
-        },
+        messages=messages,
+        max_completion_tokens=2048,
+        #temperature=0,
     )
+
+    if use_logprobs:
+        kwargs["logprobs"] = True
+        kwargs["top_logprobs"] = 5
+
+    return await client.chat.completions.create(**kwargs)
 
 
 async def run_all_chats(
-    chats: list[dict[str, Any]],
-    *,
-    model: str,
-    max_concurrent: int = 20,
-    requests_per_minute: float = 60,
-    max_retries: int = 6,
-) -> dict[str, dict[str, Any]]:
-    """Run Gemini chats concurrently with global pacing + simple retries."""
-
-    from google import genai  # type: ignore
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY environment variable is not set")
-
-    client = genai.Client(api_key=api_key)
+    chats,
+    model: str = "gpt-5-mini",
+    max_concurrent: int = 25,
+    requests_per_minute: float = 50,
+    max_time: int = 60,
+    max_tries: int = 6,
+    use_logprobs: bool = True,
+):
+    """Run all chats concurrently with simple global pacing + automatic backoff."""
 
     sem = asyncio.Semaphore(max_concurrent)
     limiter = AsyncRateLimiter(requests_per_minute=requests_per_minute)
 
-    async def _run_one(chat: dict[str, Any]):
+    async def _run_one(chat):
         custom_id = chat["custom_id"]
-        system = chat.get("system", "")
-        user = chat.get("user", "")
+        messages = chat["messages"]
 
-        last_exc: Exception | None = None
-        for attempt in range(max_retries):
-            try:
-                async with sem:
-                    await limiter.wait()
-                    response = await _create_gemini_response(
-                        client=client,
-                        model=model,
-                        system=system,
-                        user=user,
-                    )
+        @backoff.on_exception(
+            backoff.expo,
+            (RateLimitError, APIError),
+            max_time=max_time,
+            max_tries=max_tries,
+            jitter=backoff.full_jitter,
+        )
+        async def _call_with_backoff():
+            async with sem:
+                await limiter.wait()
+                return await _create_completion(
+                    model=model, messages=messages, use_logprobs=use_logprobs
+                )
 
-                raw = (getattr(response, "text", None) or "").strip()
-                valid = normalize_bool_text(raw)
-                p_true = _extract_p_true_from_gemini_response(response)
+        response = await _call_with_backoff()
+        raw = (response.choices[0].message.content or "").strip()
 
-                return custom_id, {
-                    "judgement": valid,
-                    "confidence": p_true,
-                    "model": model,
-                    "raw_text": raw,
-                }
-            except Exception as e:
-                last_exc = e
-                await asyncio.sleep(min(30.0, (2**attempt) + random.random()))
+        valid = normalize_bool_text(raw)
+        p_valid_true = (
+            _extract_p_true_from_first_token(response) if use_logprobs else None
+        )
 
-        raise last_exc if last_exc is not None else RuntimeError("Gemini request failed")
+        return custom_id, {
+            "judgement": valid,
+            "confidence": p_valid_true,
+            "model": model,
+            "raw_text": raw,
+        }
 
     results = await asyncio.gather(*(_run_one(chat) for chat in chats))
     return {cid: payload for cid, payload in results}
 
 
 ####################################################################################################
-
 
 class ObservationSchema(BaseModel):
     name: str | None
@@ -290,7 +220,6 @@ attribute_info_dict = {
     },
 }
 
-
 ####################################################################################################
 # Build the chats for all entries.
 
@@ -298,7 +227,7 @@ main_directory = "data/pond"
 ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
 
 input_file = "data/experiments/2026_02_25/pond_openai.json"
-output_file = "data/experiments/2026_02_25/pond_openai_judged_gemini.json"
+output_file = "data/experiments/2026_02_25/pond_openai_judged_gpt.json"
 
 ENTITY_TYPE_DESCRIPTION = (
     "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
@@ -378,14 +307,14 @@ def build_user_prompt_from_entry(
     return f"## Document:\n{document}\n\n## Query:\n{query}"
 
 
-def build_chats(data: list[dict[str, Any]], documents: list[str]) -> list[dict[str, Any]]:
+def build_chats(data, documents: list[str]):
     # Sort by document_id to improve temporal locality for any provider-side
     # prefix reuse / caching.
     # Carry original indices so we can write results in the original input order.
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
-    chats: list[dict[str, Any]] = []
+    chats = []
 
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         document = documents[entry["document_id"]]
@@ -423,7 +352,12 @@ def build_chats(data: list[dict[str, Any]], documents: list[str]) -> list[dict[s
             units=units,
         )
 
-        chats.append({"custom_id": str(orig_idx), "system": system, "user": user})
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": [{"type": "text", "text": user}]},
+        ]
+
+        chats.append({"custom_id": str(orig_idx), "messages": messages})
 
     return chats
 
@@ -435,6 +369,8 @@ if __name__ == "__main__":
     with open(input_file, "r") as f:
         data = json.load(f)
 
+    #data = data[:100]  # limit to 100 for testing; remove or increase as needed
+
     # Load full documents in the same sorted order used during extraction.
     text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
     text_files.sort()
@@ -445,20 +381,22 @@ if __name__ == "__main__":
 
     chats = build_chats(data, documents)
 
-    model = "gemini-3-flash-preview"
+    USE_LOGPROBS = False  # Set to False to disable logprobs computation
 
     responses = asyncio.run(
         run_all_chats(
             chats,
-            model=model,
-            max_concurrent=50,
-            requests_per_minute=100,
-            max_retries=6,
+            model="gpt-5-mini",
+            max_concurrent=30,
+            requests_per_minute=60,
+            max_time=60,
+            max_tries=6,
+            use_logprobs=USE_LOGPROBS,
         )
     )
 
     # Reconstruct output in the original `data` order.
-    data_validated: list[dict[str, Any]] = []
+    data_validated = []
     for i in range(len(data)):
         result = responses.get(str(i), {})
         entry = data[i]
@@ -472,3 +410,5 @@ if __name__ == "__main__":
 
     with open(output_file, "w") as f:
         json.dump(data_validated, f, indent=4, ensure_ascii=False)
+
+

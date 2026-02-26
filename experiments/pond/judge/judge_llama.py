@@ -111,7 +111,7 @@ for fname in text_files:
 with open(input_file, "r") as f:
     data = json.load(f)
 
-data = data[:100]  # limit to 100 for testing; remove or increase as needed
+#data = data[:100]  # limit to 100 for testing; remove or increase as needed
 
 messages = []
 message_ids = []

@@ -17,18 +17,19 @@ torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
 
-task_id = int(os.getenv('SGE_TASK_ID'))
+#task_id = int(os.getenv('SGE_TASK_ID'))
 
 
 main_directory = "data/pond"
 pdf_directory = os.path.join(main_directory, "pdfs")
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gpt_5_mini")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store", ".gitkeep"])
 text_files.sort()
 
+'''
 # split into 5 groups for 5 tasks; each task processes one group of files
 files_per_task = len(text_files) // 5
 start_index = (task_id - 1) * files_per_task
@@ -37,6 +38,7 @@ if task_id < 5:
     text_files = text_files[start_index : start_index + files_per_task]
 else:
     text_files = text_files[start_index:]
+'''
 
 '''
 text_files = [
@@ -351,27 +353,26 @@ def standardize_and_deduplicate(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-'''
-outfile1 = "data/experiments/2026_02_18/prov_ten_entities.json"
+
+outfile1 = "data/experiments/2026_03_04/pond_entities.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_02_18/prov_ten_attributes.json"
+outfile2 = "data/experiments/2026_03_04/pond_attributes.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_02_18/prov_ten_entity_prov.json"
+outfile3a = "data/experiments/2026_03_04/pond_entity_prov.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_02_18/prov_ten_attr_prov.json"
+outfile3b = "data/experiments/2026_03_04/pond_attribute_prov.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_02_18/prov_ten_values.json"
+outfile4 = "data/experiments/2026_03_04/pond_values.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_02_18/prov_ten_final.json"
+outfile5 = "data/experiments/2026_03_04/pond_final.json"
 standardize_and_deduplicate(outfile4, outfile5)
+
 '''
-
-
 data = measurementlm.fit(text)
 
 dataset = []
@@ -384,7 +385,7 @@ for datapoint in data:
     )
 
 
-outfile = f"data/experiments/2026_02_25/pond{task_id}_openai.json"
+outfile = f"data/experiments/2026_03_04/pond{task_id}_vllm.json"
 with open(outfile, 'w') as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
-
+'''

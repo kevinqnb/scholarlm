@@ -40,7 +40,7 @@ for entry in data_combined:
     entry["judgement_combined"] = valid_vote >= voting_threshold
 
 
-output_file = f"data/experiments/2026_02_11/pond_judged_combined.json"
+output_file = f"data/experiments/2026_02_25/pond_openai_judged_combined.json"
 with open(output_file, "w") as f:
     json.dump(data_combined, f, indent=4, ensure_ascii=False)
     

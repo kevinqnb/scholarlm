@@ -87,8 +87,8 @@ Guidelines:
 STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, along with an extracted measurement value. Your task is to standardize the extracted measurement value according to the following guidelines.
 
 Guidelines:
-- For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information.
-- For numerical values reported as ranges with a central value (e.g., 5 (3-7)), report only the central value unless the queried attribute specifically directs otherwise.
+- For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information, unless the queried attribute specifically directs otherwise.
+- For numerical values reported as ranges with a central value (e.g., 5 (3-7)) report only the central value, unless the queried attribute specifically directs otherwise.
 - For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
@@ -111,6 +111,8 @@ You will be given:
 3) A candidate (entity, value) extraction: the entity identified in the document, the page where the data was found, and the value extracted from the prose text for the target attribute.
 
 Your task: decide whether the extracted (entity, attribute, value) triplet is fully valid — meaning the entity is correctly identified and the extracted value correctly corresponds to the target attribute for that entity, as evidenced by the document.
+
+Note: The given entity may be over-specified (e.g., it may include a date or treatment that is not explicitly represented in the table), but it should not be under-specified (e.g., it should not be missing or disagreeing on key identifying information that is needed to extract the value). The extracted value must correctly correspond to the target attribute for the specified entity, even if the entity is more specific than what is strictly necessary to identify the correct value.
 
 Decision rules:
 - Respond 'true' ONLY if ALL of the following are satisfied:
@@ -239,6 +241,8 @@ You will be given:
 
 Your task: decide whether the extracted (entity, attribute, row index, column index) tuple is fully valid — meaning the entity is correctly identified and together the row index and column index correctly locate the value for that (entity, target attribute) pair in the specified table.
 
+Note: The given entity may be over-specified (e.g., it may include a date or treatment that is not explicitly represented in the table), but it should not be under-specified (e.g., it should not be missing or disagreeing on key identifying information that is needed to map to a specific row in the table). The row and column indices must together correctly locate the value for the specified attribute and entity, even if the entity is more specific than what is strictly necessary to identify the correct row.
+
 Decision rules:
 - Respond 'true' ONLY if ALL of the following are satisfied:
   (A) Valid entity: The described entity is a real, distinct entity of the specified type as evidenced by the document. It must not be a hypothetical, aggregated, ambiguously described, or otherwise invalid instance of the entity type.
@@ -324,125 +328,10 @@ Output format:
 
 
 # --------------------------------------------
-# Table Cleaning Prompts
+# Table Cleaning
 # --------------------------------------------
 
-
 CLEAN_TABLE_INSTRUCTIONS = """
-You are an expert data engineer specializing in cleaning unstructured HTML tables for Python/Pandas processing. You will be provided with an HTML table from a research paper, along with an image of the page it was extracted from. Your job is to use the context to improve the structure and content of the table so that it is in accurate, clean, LLM readable, html format.
-
-Formatting Instructions:
-1. Standardize to 'long' format: If the table is 'wide' (e.g., it lists different categories side-by-side with repeating columns), you must 'melt' or unpivot the table by creating new rows for each category, while keeping unique, non-repeating column headers. You should not melt the table if columns are non-repeating or non-hierarchical, only do so if it is necessary for machine readability.
-2. You must create a single index column so that rows are machine identifiable. The very first column of your output table must be named 'index'. This column must contain unique identifiers for each row. If the rows are hierarchical (e.g., Category -> Sub-category) or if you unpivoted the data, you must combine the identifying columns into a Python-tuple format. For example, if the indentifying columns are 'column A' and 'column B', each row should be identified by a tuple: '('column A' value, 'column B' value)'. Otherwise if the identifiers are simple and have no hierarchy, the index should be a single non-tupled value. Importantly, when choosing identifying attributes, you should give highest priority to columns which use descriptive names, even if they must be combined with other attribute columns to uniquely identify the row. If no such columns exist, you may use numerical columns to uniquely identify rows.
-3. If there are multi-level column headers, flatten them in the same way by grouping the headers in a tuple format. For example, if the headers are 'Year' and 'Measurement', the combined header should be ('Year', 'Measurement').
-4. Your job is mainly to modify structure without interfering on the data. However, if you notice any inaccuracies or inconsistencies in the given HTML table, you must correct them.
-5. If a single cell contains a main value along with a separate range or interval of numbers, you must split these into separate columns. For example, if data is reported in a 'mean (minimum, maximum)' format, you should create three separate columns for the mean, minimum, and maximum. Similarly, if data is reported in a 'value ± uncertainty' format, you should create one column for the main value and another column for the uncertainty. Use the context to make sure that the new columns are clearly named according to the statistic they represent. For example, in a single feature broken into mean, minimum, and maximum features you may use names such as 'feature_1_mean', 'feature_1_min', 'feature_1_max'. If there is no clear indication of what the statistic is, use generic names like 'feature_1_val_1', 'feature_1_val_2', etc.
-6. The response table must be in HTML format, and wrapped inside <table number="i"></table> tags. Make sure to keep the table number attribute exactly as it appears in the given HTML.
-7. At the very beginning of the table HTML, include <caption></caption> tags and use these to briefly describe the table and the measurements included within it. Use available table captioning on the pdf page to help, but make sure to include any additional information which might be relevant to understand the new formatting. 
-8. Provide only the raw HTML for the full table, do not stop early (even if it is repetitive) and do not include any additional text or explanations.
-"""
-
-CLEAN_TABLE_INSTRUCTIONS_V2 = """
-You are a document reconstruction engine. You will receive:
-1. An image of a single PDF page from a research paper.
-2. The OCR-parsed text of that page, with HTML tables inline at their original positions within `<table number="i">...</table>` tags.
-
-Your task: reproduce the OCR text exactly as given, but replace each `<table>` block with a cleaned, normalized version. Do not modify any text outside of `<table>` tags.
-
-### Table Normalization Rules
-
-**Goal:** Transform each table so that every data cell maps to exactly one (entity, attribute, value) triplet. An entity is what a row describes, an attribute is what a column measures, and a value is the cell content.
-
-**Entity Index (first column):**
-- You MUST create a create a new column named `index` as the first column of every output table. This is the entity identifier.
-- To populate the 'index' column, use information from one or more columns from the original table that uniquely identify each row.
-- When identifying rows always refer named entities (e.g., object names, study names, compound names, model names) over numerical IDs if possible.
-- If multiple columns are needed to uniquely identify a row (e.g., a category and sub-category), combine them as a Python tuple: `('Category A', 'Sub-category 1')`.
-- Every index value must be unique, and your choice of identifiers should be consistent across all rows in the table.
-
-NOTE: This is a critical step for machine readability. The index column is what allows downstream code to refer to specific rows, so it must be populated with meaningful, unique identifiers. If the original table has no clear entity identifiers, you may use numerical row numbers, but this is a last resort.
-
-**Melting wide tables:**
-- If a table has repeating or hierarchical column groups (e.g., the same measurements repeated under different conditions), unpivot it into long format by creating new rows for each group.
-- Do NOT melt tables where columns are genuinely distinct, non-repeating attributes.
-- When melting, incorporate the group label into either the index (as a tuple element) or as a new column, whichever preserves clarity.
-
-Melting wide tables:
-
-- Each column should represent a distinct attribute (property or measurement) of the row entity. Each row should represent a distinct entity or observation.
-- If column headers encode a second entity or condition rather than a distinct attribute — for example, the same measurement repeated across different drugs, time points, datasets, or experimental groups — unpivot the table into long format. Create new rows for each entity/condition, and add a column for the entity/condition label.
-- Do NOT melt when columns represent genuinely different attributes of the same entity, even if they are related. For example, a table with columns accuracy, precision, recall, F1 for each model should remain wide, because these are distinct measurements. But a table with accuracy_dataset_A, accuracy_dataset_B should be melted, because dataset is an entity being encoded in the column headers.
-- Heuristic: If you could factor a set of column headers into {attribute} × {entity/condition}, the table should be melted along the entity/condition axis.
-- When melting, incorporate the new entity/condition label into the index as a tuple element, and also preserve it as its own column.
-
-**Flattening multi-level headers:**
-- If column headers span multiple rows, flatten them into a single header row using Python tuple format: `('Level 1', 'Level 2')`.
-
-
-
-**Melting wide tables:**
-
-Each column should represent a distinct attribute of the row entity. Each row should represent a distinct entity or observation.
-If column headers encode a second entity or condition rather than a distinct attribute — for example, the same measurement repeated across different drugs, time points, datasets, or experimental groups — unpivot the table into long format. Create new rows for each entity/condition, and add a column for the entity/condition label.
-Do NOT melt when columns represent genuinely different attributes of the same entity, even if the attributes are related. For example, a table with columns accuracy, precision, recall, f1 for each model should remain wide, because these are distinct measurements of each model. But a table with accuracy_dataset_a, accuracy_dataset_b should be melted, because dataset is an entity encoded in the column headers.
-Heuristic: if you can factor a set of column headers into {attribute} × {entity/condition}, the table should be melted along the entity/condition axis. If there are multiple such axes (e.g., {attribute} × {drug} × {time_point}), melt along all of them, giving each its own column.
-When melting, incorporate the new entity/condition label into the index as a tuple element, and also preserve it as its own column.
-Columns that are not part of the repeated group (e.g., metadata like name or category) should be carried through unchanged to every new row.
-
-**Column naming:**
-
-Every column must have a unique, descriptive name.
-Use lowercase with underscores (e.g., dose_mg, response_rate).
-If the original table has multi-level headers, first apply the melting rule. For any multi-level headers that remain after melting, concatenate the levels with underscores into a single name (e.g., blood_pressure_systolic).
-Where feasible, incorporate units into the column name (e.g., dose_mg rather than Dose (mg)).
-
-
-**Splitting composite values:**
-- If a cell contains a main value bundled with a range, interval, or uncertainty (e.g., `3.5 (2.1–4.8)` or `12.3 ± 0.5`), split it into separate columns.
-- Name the new columns descriptively based on context: e.g., `feature_mean` and `feature_confidence_interval`. If the statistic type is unclear, use `feature_val`, `feature_aux_1`, `feature_aux_2`, etc.
-
-**Captions:**
-- Table captions in the OCR text typically appear outside the `<table>` tags as free-standing text (e.g., "Table 1: Patient demographics..."). You must move this caption text from its original position in the OCR output into `<caption>...</caption>` tags at the start of the corresponding `<table>` block. Remove the caption from its original location so it is not duplicated.
-- After the original caption text, append a brief note describing any relevant information not already included, as well as any structural details needed to interpret the new version of the table. If no changes were needed, do not append anything.
-
-**Data integrity:**
-- Preserve all original data values. Your priority is to restructure and add additional indexing information. Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
-- Output tables must be valid HTML within `<table>...</table>` tags.
-- If the table has a numbered tag, keep the same number in your output (e.g., `<table number="1">` should remain `<table number="1">`).
-
-### Example
-
-**Input table:**
-```html
-<table number="1">
-<tr><th></th><th colspan="2">Drug A</th><th colspan="2">Drug B</th></tr>
-<tr><th>Patient</th><th>Dose (mg)</th><th>Response</th><th>Dose (mg)</th><th>Response</th></tr>
-<tr><td>P-001</td><td>50</td><td>0.82</td><td>75</td><td>0.91</td></tr>
-<tr><td>P-002</td><td>50</td><td>0.67</td><td>75</td><td>0.73</td></tr>
-</table>
-```
-
-**Output table:**
-```html
-<table number="1">
-<caption>Patient drug response data. Melted from wide format; original columns grouped by drug type.</caption>
-<tr><th>index</th><th>drug</th><th>dose_mg</th><th>response</th></tr>
-<tr><td>('P-001', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.82</td></tr>
-<tr><td>('P-001', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.91</td></tr>
-<tr><td>('P-002', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.67</td></tr>
-<tr><td>('P-002', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.73</td></tr>
-</table>
-```
-
-Notice: the repeating column groups (Drug A, Drug B) were melted into rows, the entity index combines patient and drug as a tuple, and the drug label is also preserved as its own column for clarity.
-
-### Output Format
-
-Return the full page text with normalized tables inline. Do not add any commentary, preamble, or explanation outside the reproduced text.
-"""
-
-
-CLEAN_TABLE_INSTRUCTIONS_V3 = """
 # Table Normalization Prompt
 
 You are a document reconstruction engine. You will receive:
