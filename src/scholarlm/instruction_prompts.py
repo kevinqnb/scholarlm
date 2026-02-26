@@ -98,6 +98,86 @@ Guidelines:
 
 
 # --------------------------------------------
+# Ablation Prompts
+# --------------------------------------------
+
+
+# Ablation 1: Combined (entity, attribute) pair provenance
+ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described (entity, attribute) pair.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper, a description of an entity, and a description of a measurement attribute.
+- Set has_data to true only if the page contains directly reported numerical measurements associated with BOTH the described entity AND the described attribute simultaneously — i.e., the measurement of that attribute is reported for that specific entity.
+- Set has_data to false if the entity is not mentioned on the page, if the attribute is not mentioned on the page, if there are no numerical measurements for the attribute, or if the measurements found are not clearly associated with the described entity.
+- Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- If has_data is true and the data appears within a table on the page, set in_table to true.
+- If the data is in prose text (not in a table), set in_table to false.
+- If has_data is false, set in_table to false.
+- Provide a brief explanation justifying your decision.
+- Structure your response as a JSON object with "explanation", "has_data", and "in_table" fields.
+"""
+
+
+# Ablation 2: Full-context text value extraction
+EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a research paper document contains a measured value for a given attribute and entity at a specified page, and if so, to extract it.
+
+Guidelines:
+- You will be given the full document text. The query will specify which page to focus on.
+- If the specified page does not contain a relevant measurement, set has_value to false and leave value and units as null.
+- If a measurement is found at the specified page, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
+"""
+
+
+# Ablation 2: Full-context table value extraction
+EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a specified table within a research paper document contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
+
+Guidelines:
+- You will be given the full document text. The query will specify which page and table number to focus on.
+- If the specified table does not contain a relevant measurement, set has_value to false and leave row_index, column_index, and units as null.
+- If a measurement is found in the specified table, set has_value to true, and provide the exact row_index name and column_index name needed to locate the cell.
+- Your row_index and column_index must exactly match names from the provided row and column name lists.
+- Also extract the units of measurement if identifiable from the table headers or context.
+- If there are multiple types of values reported (e.g., mean, min, max), choose the row/column for the mean or central value unless the attribute description directs otherwise.
+- Structure your response as a JSON object with "explanation", "has_value", "row_index", "column_index", and "units" fields.
+"""
+
+
+# Ablation 5: Full-document (entity, attribute) pair provenance with direct list response
+FULL_CONTEXT_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all locations in a full research paper document where a directly reported numerical measurement exists for a described entity and attribute.
+
+Guidelines:
+- You will be given the full document text, a description of an entity, and a description of a measurement attribute.
+- Identify every location in the document where a direct numerical measurement for BOTH the described entity AND the described attribute appears together.
+- For each location found, report the page number and the table number (if applicable).
+- Determine the page number using the closest preceding <page number="x"> tag in the document, and report x as the page_number.
+- If the data appears within a table, determine the table number using the enclosing <table number="x"> tag and report x as the table_number. If the data is in prose text (not in a table), set table_number to null.
+- Only report locations with directly reported numerical measurements. Do not include locations where only model parameters, goodness-of-fit statistics, or qualitative descriptions appear.
+- If no qualifying locations are found, return an empty items list.
+- Provide a brief explanation for each reported location.
+- Structure your response as a JSON object with an "items" list, where each item has "explanation", "page_number", and "table_number" fields.
+"""
+
+
+# Ablation 3: Direct table value extraction (no row/column indexing)
+EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to extract it directly.
+
+Guidelines:
+- If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
+- If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
+"""
+
+
+# --------------------------------------------
 # LLM as Judge Prompts
 # --------------------------------------------
 
