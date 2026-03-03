@@ -129,6 +129,7 @@ def match_datasets(
     *,
     strict_matching: Dict[str, str],
     fuzzy_matching: Optional[Dict[str, str]] = None,
+    fuzzy_threshold: float = 0.0,
 ) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[float]]:
     """Match rows across two dataframes using strict and optional fuzzy criteria.
 
@@ -146,6 +147,10 @@ def match_datasets(
     fuzzy_matching:
         Mapping from column name in df_left -> column name in df_right compared with
         fuzzy ratios, averaged to produce an edge weight in [0, 1].
+    fuzzy_threshold:
+        Minimum average fuzzy score in [0, 1] required for candidate edges to be included
+        in the graph and considered for matching. Defaults to 0.0 to include all
+        edges that pass strict criteria.
 
     Returns
     -------
@@ -230,8 +235,127 @@ def match_datasets(
                     continue
                 score = float(np.mean(scores))
 
+            if score < fuzzy_threshold:
+                continue
+
             edges.append((int(i), int(j)))
             edge_weights.append(float(score))
+
+    if not edges:
+        return [], edges, edge_weights
+
+    G = nx.Graph()
+    G.add_edges_from(
+        [(f"L_{i}", f"R_{j}", {"weight": w}) for (i, j), w in zip(edges, edge_weights)]
+    )
+
+    matching_nodes = nx.algorithms.matching.max_weight_matching(G, maxcardinality=False)
+
+    matching: List[Tuple[int, int]] = []
+    for u, v in matching_nodes:
+        if u.startswith("L_"):
+            matching.append((int(u[2:]), int(v[2:])))
+        else:
+            matching.append((int(v[2:]), int(u[2:])))
+
+    matching.sort()
+    return matching, edges, edge_weights
+
+
+def match_entities(
+    items_left: List[Dict[str, Any]],
+    items_right: List[Dict[str, Any]],
+    *,
+    strict_keys: List[str],
+    fuzzy_keys: Optional[List[str]] = None,
+    fuzzy_threshold: float = 0.0,
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[float]]:
+    """Match entities across two lists of dicts using strict and fuzzy criteria.
+
+    Parameters
+    ----------
+    items_left, items_right:
+        Lists of dictionary records to match.
+    strict_keys:
+        Keys whose values must be exactly equal for an edge to exist.
+        Numeric values are compared with ``np.isclose``; strings are
+        compared case-insensitively after stripping whitespace.
+    fuzzy_keys:
+        Keys whose (string) values are compared via fuzzy ratio.  The
+        average fuzzy score must meet or exceed *fuzzy_threshold* for the
+        edge to be kept.
+    fuzzy_threshold:
+        Minimum average fuzzy score in [0, 1] required for candidate edges.
+
+    Returns
+    -------
+    (matching, edges, edge_weights)
+        matching: list of (left_index, right_index) pairs from the
+            maximum-weight bipartite matching.
+        edges: all candidate edges that passed strict + threshold filters.
+        edge_weights: corresponding fuzzy scores aligned with *edges*.
+    """
+    if fuzzy_keys is None:
+        fuzzy_keys = []
+
+    if not strict_keys:
+        raise ValueError("strict_keys must be a non-empty list")
+
+    def _is_null(x) -> bool:
+        try:
+            return bool(pd.isna(x))
+        except (TypeError, ValueError):
+            return x is None
+
+    def _normalize(x):
+        if _is_null(x):
+            return None
+        if isinstance(x, str):
+            return x.lower().strip()
+        return x
+
+    def _is_numeric(x) -> bool:
+        if isinstance(x, (bool, np.bool_)):
+            return False
+        return isinstance(x, (int, float, np.integer, np.floating)) and not _is_null(x)
+
+    def _strict_equal(a, b) -> bool:
+        if _is_null(a) or _is_null(b):
+            return False
+        if _is_numeric(a) and _is_numeric(b):
+            return bool(np.isclose(float(a), float(b), atol=1e-3, rtol=0.0))
+        return _normalize(a) == _normalize(b)
+
+    def _fuzzy_score(a: str, b: str) -> float:
+        return float(fuzz.ratio(_normalize(a), _normalize(b))) / 100.0
+
+    edges: List[Tuple[int, int]] = []
+    edge_weights: List[float] = []
+
+    for i, left in enumerate(items_left):
+        for j, right in enumerate(items_right):
+            # All strict keys must match exactly
+            if not all(_strict_equal(left.get(k), right.get(k)) for k in strict_keys):
+                continue
+
+            # Compute average fuzzy score
+            if not fuzzy_keys:
+                score = 1.0
+            else:
+                scores = [
+                    _fuzzy_score(left[k], right[k])
+                    for k in fuzzy_keys
+                    if not _is_null(left.get(k)) and not _is_null(right.get(k))
+                ]
+                if not scores:
+                    continue
+                score = float(np.mean(scores))
+
+            if score < fuzzy_threshold:
+                continue
+
+            edges.append((i, j))
+            edge_weights.append(score)
 
     if not edges:
         return [], edges, edge_weights
@@ -260,6 +384,7 @@ def matching_precision_recall(
     *,
     strict_matching: Dict[str, str],
     fuzzy_matching: Optional[Dict[str, str]] = None,
+    fuzzy_threshold: float = 0.0,
     **match_kwargs,
 ) -> Tuple[float, float]:
     """Estimate recall/precision under the matching rules.
@@ -274,6 +399,7 @@ def matching_precision_recall(
         df_right,
         strict_matching=strict_matching,
         fuzzy_matching=fuzzy_matching,
+        fuzzy_threshold=fuzzy_threshold,
         **match_kwargs,
     )
 
@@ -281,4 +407,4 @@ def matching_precision_recall(
     precision = tp / total_right if total_right > 0 else 0.0
     recall = tp / total_left if total_left > 0 else 0.0
 
-    return recall, precision
+    return matching, recall, precision

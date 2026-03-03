@@ -114,7 +114,13 @@ class MeasurementLMAblation1(MeasurementLM):
             entity_description = {k: v for k, v in record.items() if k in entity_fields}
             # CHANGED: pull attribute info from the pair record directly
             attr_name = record["attribute"]
-            attr_description = self.attribute_info_dict[attr_name].get("description", "")
+
+            try:
+                attr_description = self.attribute_info_dict[attr_name].get("description", "")
+            except KeyError:
+                print(f"Warning: attribute '{attr_name}' not found in attribute_info_dict. Skipping this entity.")
+                continue
+
             attr_terms = record.get("attribute_terms", [])
             pages = self._get_page_numbers(context)
 

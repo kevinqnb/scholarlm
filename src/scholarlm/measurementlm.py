@@ -851,6 +851,7 @@ class MeasurementLM:
 
         return standardized_data
 
+    '''
     def _deduplicate(self, data):
         """
         Simple equality-based deduplication using entity_id.
@@ -899,6 +900,82 @@ class MeasurementLM:
                 if not is_dup:
                     deduplicated.append(record)
                     kept_values.append((val, units))
+
+        return deduplicated
+    '''
+
+    def _deduplicate(self, data):
+        """
+        Equality-based deduplication using entity_id, with provenance aggregation.
+
+        Groups records by (entity_id, attribute), then within each group
+        compares values: np.isclose for numerics, case-insensitive string
+        match otherwise. Keeps first occurrence and aggregates provenance
+        fields (page_number, table_number, row_index, column_index, source,
+        context) from duplicates into aligned lists.
+
+        Args:
+            data: list of measurement records
+
+        Returns:
+            list[dict]: Deduplicated records with aggregated provenance.
+        """
+        def _norm(v):
+            if v is None:
+                return None
+            return str(v).strip().lower()
+
+        def _values_equal(a, b):
+            """Compare two values: np.isclose for numerics, case-insensitive otherwise."""
+            try:
+                fa, fb = float(a), float(b)
+                return np.isclose(fa, fb)
+            except (ValueError, TypeError):
+                return _norm(a) == _norm(b)
+
+        # Provenance fields to aggregate into aligned lists
+        _PROV_FIELDS = ('page_number', 'table_number', 'row_index', 'column_index', 'source', 'context')
+
+        def _extract_provenance(record):
+            """Extract a provenance tuple from a record, using None for missing fields."""
+            return {field: record.get(field) for field in _PROV_FIELDS}
+
+        groups: dict[tuple, list[int]] = {}
+        for idx, record in enumerate(data):
+            key = (record.get('entity_id'), record.get('attribute'))
+            groups.setdefault(key, []).append(idx)
+
+        deduplicated: list[dict] = []
+
+        for key, indices in groups.items():
+            # Each entry: (value, units, index into deduplicated list)
+            kept_values: list[tuple] = []
+            for idx in indices:
+                record = data[idx]
+                val = record.get('value')
+                units = _norm(record.get('units'))
+                prov = _extract_provenance(record)
+
+                is_dup = False
+                for kept_val, kept_units, dedup_idx in kept_values:
+                    if _values_equal(val, kept_val) and units == kept_units:
+                        # Aggregate provenance: append all fields together to stay aligned
+                        kept_record = deduplicated[dedup_idx]
+                        for field in _PROV_FIELDS:
+                            kept_record[field].append(prov[field])
+                        is_dup = True
+                        break
+
+                if not is_dup:
+                    # Create new record with provenance fields as single-element lists
+                    new_record = {
+                        k: v for k, v in record.items() if k not in _PROV_FIELDS
+                    }
+                    for field in _PROV_FIELDS:
+                        new_record[field] = [prov[field]]
+                    dedup_idx = len(deduplicated)
+                    deduplicated.append(new_record)
+                    kept_values.append((val, units, dedup_idx))
 
         return deduplicated
 

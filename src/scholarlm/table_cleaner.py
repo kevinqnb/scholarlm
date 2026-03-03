@@ -179,8 +179,9 @@ class TableCleaner:
                     {
                         "type": "text",
                         "text": (
-                            f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS_V3}\n\n"
-                            f"## OCR Text:\n{page_text}"
+                            f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS}\n\n"
+                            f"## OCR Text:\n{page_text}\n\n"
+                            f"## Query:\nClean and normalize the tables in the OCR text, using the page image for reference. Return ONLY the cleaned OCR text for this page, with tables normalized and restructured as needed. Do NOT include any additional explanation, return ONLY the cleaned text.\n"
                         ),
                     },
                 ],
