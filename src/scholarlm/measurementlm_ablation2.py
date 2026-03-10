@@ -263,8 +263,8 @@ class MeasurementLMAblation2(MeasurementLM):
                         f"Terminology used for the attribute: {terms}\n"
                         f"Entity description: {entity_description}\n\n"
                         f"Target page: {table_page_number}, Target table: {t}\n\n"  # NEW: location reference
-                        f"Row names in the table: {row_names}\n"
-                        f"Column names in the table: {column_names}\n\n"
+                        #f"Row names in the table: {row_names}\n"
+                        #f"Column names in the table: {column_names}\n\n"
                         f"{units_guidance}"
                         f"Does table {t} on page {table_page_number} of the document contain "
                         f"a measured value for the given attribute and entity? "
