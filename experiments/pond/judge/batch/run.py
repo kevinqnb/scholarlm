@@ -3,26 +3,28 @@
 Usage — all-in-one (runs the full pipeline from start to finish):
 
     uv run python -m experiments.pond.judge.batch.run \\
-        --provider openai \\
+        --provider openai run \\
         --input  data/experiments/2026_03_04/pond_final.json \\
         --docs   data/pond/ocr_output_cleaned_gpt_5_mini \\
         --model  gpt-5-mini \\
         --output data/experiments/2026_03_04/pond_judged_gpt_batch.json
 
     uv run python -m experiments.pond.judge.batch.run \\
-        --provider anthropic \\
+        --provider anthropic run \\
         --input  data/experiments/2026_03_04/pond_final.json \\
         --docs   data/pond/ocr_output_cleaned_gpt_5_mini \\
         --model  claude-haiku-4-5 \\
         --output data/experiments/2026_03_04/pond_judged_claude_batch.json
 
     uv run python -m experiments.pond.judge.batch.run \\
-        --provider gemini \\
-        --input   data/experiments/2026_03_04/pond_final.json \\
-        --docs    data/pond/ocr_output_cleaned_gpt_5_mini \\
-        --model   gemini-3.1-flash-lite-preview \\
-        --output  data/experiments/2026_03_04/pond_judged_gemini_batch.json \\
-        --dest-gcs gs://my-bucket/judge-output/
+        --provider gemini run \\
+        --input      data/experiments/2026_03_04/pond_final.json \\
+        --docs       data/pond/ocr_output_cleaned_gpt_5_mini \\
+        --model      gemini-3.1-flash-lite-preview \\
+        --output     data/experiments/2026_03_04/pond_judged_gemini_batch.json \\
+        --dest-gcs   gs://my-bucket/judge-output/ \\
+        --gcp-project my-gcp-project \\
+        --gcp-location us-central1
 
 Usage — step by step (useful when you want to inspect the batch before
 processing, or resume after a crash):
@@ -91,6 +93,8 @@ def step_submit(
     model: str,
     state_file: str,
     dest_gcs: str | None = None,
+    gcp_project: str | None = None,
+    gcp_location: str | None = None,
 ) -> list[str]:
     """Build and submit batches (splitting if needed). Saves state. Returns ids/names."""
     data = load_data(input_file)
@@ -121,9 +125,18 @@ def step_submit(
         if not dest_gcs:
             raise ValueError("--dest-gcs is required for the gemini provider")
         requests = gemini_batch.build_requests(chat_entries, model)
-        batch_names = gemini_batch.submit_batch(requests, model, dest_gcs=dest_gcs)
+        batch_names = gemini_batch.submit_batch(
+            requests, model,
+            dest_gcs=dest_gcs,
+            project=gcp_project,
+            location=gcp_location,
+        )
         state["batch_names"] = batch_names
         state["dest_gcs"] = dest_gcs
+        if gcp_project:
+            state["gcp_project"] = gcp_project
+        if gcp_location:
+            state["gcp_location"] = gcp_location
 
     else:
         raise ValueError(f"Unknown provider: {provider}")
@@ -153,7 +166,12 @@ def step_poll(provider: str, state_file: str, interval: int = 60) -> None:
     elif provider == "gemini":
         from . import gemini_batch
 
-        gemini_batch.poll_batch(state["batch_names"], interval=interval)
+        gemini_batch.poll_batch(
+            state["batch_names"],
+            project=state.get("gcp_project"),
+            location=state.get("gcp_location"),
+            interval=interval,
+        )
 
     else:
         raise ValueError(f"Unknown provider: {provider}")
@@ -209,11 +227,16 @@ def run_all(
     output_file: str,
     *,
     dest_gcs: str | None = None,
+    gcp_project: str | None = None,
+    gcp_location: str | None = None,
     interval: int = 60,
     state_file: str = ".batch_state.json",
 ) -> None:
     """Run the full generate → submit → poll → process pipeline."""
-    step_submit(provider, input_file, docs_dir, model, state_file, dest_gcs=dest_gcs)
+    step_submit(
+        provider, input_file, docs_dir, model, state_file,
+        dest_gcs=dest_gcs, gcp_project=gcp_project, gcp_location=gcp_location,
+    )
     step_poll(provider, state_file, interval=interval)
     step_process(provider, state_file, input_file, output_file)
 
@@ -243,6 +266,8 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument("--model", required=True, help="Model name for this provider.")
     r.add_argument("--output", required=True, help="Output JSON path.")
     r.add_argument("--dest-gcs", help="GCS URI for Gemini output (required for gemini).")
+    r.add_argument("--gcp-project", help="GCP project id (gemini only; or set GOOGLE_CLOUD_PROJECT).")
+    r.add_argument("--gcp-location", help="GCP region (gemini only; default us-central1).")
     r.add_argument("--interval", type=int, default=60, help="Poll interval in seconds.")
     r.add_argument("--state", default=".batch_state.json", help="Temp state file.")
 
@@ -252,6 +277,8 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--docs", required=True, help="Directory of OCR text files.")
     s.add_argument("--model", required=True, help="Model name for this provider.")
     s.add_argument("--dest-gcs", help="GCS URI for Gemini output (required for gemini).")
+    s.add_argument("--gcp-project", help="GCP project id (gemini only; or set GOOGLE_CLOUD_PROJECT).")
+    s.add_argument("--gcp-location", help="GCP region (gemini only; default us-central1).")
     s.add_argument("--state", default=".batch_state.json", help="State file to write.")
 
     # ── poll ──────────────────────────────────────────────────────────────────
@@ -280,6 +307,8 @@ def main(argv: list[str] | None = None) -> None:
             model=args.model,
             output_file=args.output,
             dest_gcs=getattr(args, "dest_gcs", None),
+            gcp_project=getattr(args, "gcp_project", None),
+            gcp_location=getattr(args, "gcp_location", None),
             interval=args.interval,
             state_file=args.state,
         )
@@ -292,6 +321,8 @@ def main(argv: list[str] | None = None) -> None:
             model=args.model,
             state_file=args.state,
             dest_gcs=getattr(args, "dest_gcs", None),
+            gcp_project=getattr(args, "gcp_project", None),
+            gcp_location=getattr(args, "gcp_location", None),
         )
 
     elif args.command == "poll":

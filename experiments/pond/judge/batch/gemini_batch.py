@@ -2,30 +2,70 @@
 
 Three-step flow:
     requests    = build_requests(chat_entries, model)
-    batch_names = submit_batch(requests, model, dest_gcs="gs://bucket/out/")
-    poll_batch(batch_names)
+    batch_names = submit_batch(requests, model, dest_gcs="gs://bucket/out/",
+                               project="my-project", location="us-central1")
+    poll_batch(batch_names, project="my-project", location="us-central1")
     results     = fetch_results(batch_names, model, dest_gcs="gs://bucket/out/")
 
 Input size limit: 2 GB per source file. submit_batch() splits automatically.
 
-Requirements:
-  - GEMINI_API_KEY env var
-  - A GCS bucket for output: Gemini writes results under dest_gcs.
-    Each chunk creates its own subdirectory keyed by job name, so all
-    chunks under the same dest_gcs prefix are found by fetch_results.
-  - uv add google-genai google-cloud-storage
+Authentication:
+    The Gemini Batch API requires Google Cloud credentials (OAuth / service
+    account), NOT a plain GEMINI_API_KEY. Run once to set up local credentials:
+
+        gcloud auth application-default login
+
+    Then pass your GCP project and location to submit_batch() and poll_batch(),
+    or set GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION env vars.
+
+    Input JSONL chunks are uploaded to {dest_gcs}input/ via google-cloud-storage
+    (also uses ADC). Output is written by Gemini under dest_gcs.
+
+    uv add google-genai google-cloud-storage
 """
 from __future__ import annotations
 
 import json
-import tempfile
+import os
 import time
-from pathlib import Path
 from typing import Any
 
 from .common import chunk_by_size, normalize_bool_text
 
 MAX_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB per source file
+
+
+# ─── Client helpers ───────────────────────────────────────────────────────────
+
+
+def _make_client(project: str, location: str) -> Any:
+    """Build a Vertex-AI-mode genai client using Application Default Credentials."""
+    from google import genai  # type: ignore
+
+    return genai.Client(vertexai=True, project=project, location=location)
+
+
+def _gcs_upload(content: str, gcs_uri: str) -> None:
+    """Upload UTF-8 text to a GCS URI using Application Default Credentials."""
+    from google.cloud import storage  # type: ignore
+
+    bucket_name, _, blob_path = gcs_uri[5:].partition("/")
+    gcs_client = storage.Client()
+    gcs_client.bucket(bucket_name).blob(blob_path).upload_from_string(
+        content.encode("utf-8"), content_type="application/jsonl"
+    )
+
+
+def _resolve_project_location(
+    project: str | None, location: str | None
+) -> tuple[str, str]:
+    project = project or os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+    location = location or os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+    if not project:
+        raise RuntimeError(
+            "GCP project is required. Pass --gcp-project or set GOOGLE_CLOUD_PROJECT."
+        )
+    return project, location
 
 
 # ─── Request building ─────────────────────────────────────────────────────────
@@ -75,38 +115,26 @@ def _submit_one_chunk(
     model: str,
     *,
     client: Any,
+    src_gcs_prefix: str,
     dest_gcs: str,
-    display_name: str,
     chunk_label: str,
+    chunk_index: int,
 ) -> str:
-    """Upload one JSONL chunk to Files API and create a batch job. Returns job name."""
+    """Upload one JSONL chunk to GCS and create a batch job. Returns job name."""
     from google.genai import types  # type: ignore
 
+    src_uri = f"{src_gcs_prefix.rstrip('/')}/chunk_{chunk_index:04d}.jsonl"
     lines = "\n".join(json.dumps(r, ensure_ascii=False) for r in chunk)
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
-    ) as tmp:
-        tmp.write(lines)
-        tmp_path = tmp.name
-
-    try:
-        uploaded = client.files.upload(
-            file=Path(tmp_path),
-            config=types.UploadFileConfig(
-                display_name=display_name,
-                mime_type="application/jsonl",
-            ),
-        )
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
+    print(f"  {chunk_label}: uploading input to {src_uri} ...")
+    _gcs_upload(lines, src_uri)
 
     prefixed_model = model if model.startswith("models/") else f"models/{model}"
     batch = client.batches.create(
         model=prefixed_model,
-        src=uploaded.uri,
+        src=src_uri,
         config=types.CreateBatchJobConfig(dest=dest_gcs),
     )
-    print(f"  {chunk_label}: file={uploaded.uri}  job={batch.name}  state={batch.state}")
+    print(f"  {chunk_label}: job={batch.name}  state={batch.state}")
     return batch.name
 
 
@@ -115,49 +143,49 @@ def submit_batch(
     model: str,
     *,
     dest_gcs: str,
+    project: str | None = None,
+    location: str | None = None,
     display_name: str = "judge_batch",
     max_bytes: int = MAX_BYTES,
 ) -> list[str]:
-    """Split requests into ≤max_bytes chunks, upload each, and create batch jobs.
+    """Split requests into ≤max_bytes chunks, upload each to GCS, and create batch jobs.
 
+    Input chunks are written to {dest_gcs}input/ so only one GCS path is needed.
     Returns a list of batch job names (one per chunk).
 
     Args:
         requests:     list of dicts from build_requests().
         model:        Gemini model, e.g. "gemini-2.5-flash-lite".
         dest_gcs:     GCS URI for results, e.g. "gs://my-bucket/output/".
-        display_name: Human-readable label for Files API uploads.
+        project:      GCP project id (or set GOOGLE_CLOUD_PROJECT env var).
+        location:     GCP region, default "us-central1" (or GOOGLE_CLOUD_LOCATION).
+        display_name: Label prefix for input files in GCS.
         max_bytes:    Per-file size cap; defaults to the 2 GB API limit.
     """
-    import os
+    project, location = _resolve_project_location(project, location)
+    client = _make_client(project, location)
 
-    from google import genai  # type: ignore
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY environment variable is not set")
-
-    client = genai.Client(api_key=api_key)
+    src_gcs_prefix = f"{dest_gcs.rstrip('/')}/input/{display_name}"
     chunks = chunk_by_size(requests, max_bytes)
     n = len(chunks)
     print(
         f"Submitting {len(requests)} requests to Gemini Batch API"
         + (f" in {n} chunks" if n > 1 else "")
-        + " ..."
+        + f" (project={project}, location={location}) ..."
     )
 
     batch_names: list[str] = []
     for i, chunk in enumerate(chunks):
         label = f"chunk {i + 1}/{n} ({len(chunk)} requests)"
-        chunk_display = f"{display_name}_{i + 1}" if n > 1 else display_name
         batch_names.append(
             _submit_one_chunk(
                 chunk,
                 model,
                 client=client,
+                src_gcs_prefix=src_gcs_prefix,
                 dest_gcs=dest_gcs,
-                display_name=chunk_display,
                 chunk_label=label,
+                chunk_index=i,
             )
         )
     return batch_names
@@ -176,19 +204,15 @@ TERMINAL_STATES = {
 def poll_batch(
     batch_names: list[str],
     *,
+    project: str | None = None,
+    location: str | None = None,
     interval: int = 60,
     timeout: int = 86400,
 ) -> None:
     """Block until all batch jobs complete (raises on failure or timeout)."""
-    import os
+    project, location = _resolve_project_location(project, location)
+    client = _make_client(project, location)
 
-    from google import genai  # type: ignore
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY environment variable is not set")
-
-    client = genai.Client(api_key=api_key)
     pending = set(batch_names)
     elapsed = 0
 
@@ -225,9 +249,8 @@ def fetch_results(
 ) -> dict[str, dict[str, Any]]:
     """Download and parse results for all chunks from GCS.
 
-    Each batch job writes its output under dest_gcs keyed by job name, so a
-    single prefix scan captures results from all chunks. The ``key`` field in
-    each output record matches the ``custom_id`` used throughout the pipeline.
+    Scans the entire dest_gcs prefix for output JSONL files, excluding the
+    input/ subdirectory where source files were uploaded.
 
     Returns a dict keyed by key/custom_id:
         {"judgement": bool|None, "prob": None, "model": str, "raw_text": str}
@@ -241,8 +264,13 @@ def fetch_results(
     gcs_client = storage.Client()
     bucket = gcs_client.bucket(bucket_name)
 
-    prefix = prefix.rstrip("/") + "/"
-    blobs = [b for b in bucket.list_blobs(prefix=prefix) if b.name.endswith(".jsonl")]
+    output_prefix = prefix.rstrip("/") + "/"
+    input_prefix = output_prefix + "input/"
+
+    blobs = [
+        b for b in bucket.list_blobs(prefix=output_prefix)
+        if b.name.endswith(".jsonl") and not b.name.startswith(input_prefix)
+    ]
     if not blobs:
         raise RuntimeError(f"No output JSONL files found under {dest_gcs}")
 
