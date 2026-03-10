@@ -1,4 +1,4 @@
-"""Pond extraction experiment — Ablation 3: Direct Table Value Extraction
+"""Pond extraction experiment — Ablation 3: Direct Table Value Extraction from raw OCR output
 
 Uses MeasurementLMAblation3, which asks the model to extract table values
 directly rather than specifying row and column indices for programmatic lookup.
@@ -15,6 +15,8 @@ load_dotenv()
 from scholarlm.measurementlm_ablation3 import MeasurementLMAblation3
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
+
+from extract_prompts import POND_IDENTIFICATION_PROMPT
 
 import random
 import torch
@@ -46,76 +48,6 @@ for filepath in text_filepaths:
     with open(filepath, "r", encoding="utf-8") as file:
         text.append(file.read())
 
-
-POND_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature.
-
-Given the provided text (including any tables), extract all distinct ecosystem observations.
-
-An ecosystem observation is defined as a specific pond, lake, wetland, or other aquatic ecosystem.
-The observation may be further identified by a specific treatment site within the ecosystem, a specific treatment state, and/or by a specific date of measurement.
-
-
-WHAT COUNTS AS AN ECOSYSTEM:
-- Include ponds, lakes, wetlands, and similar aquatic ecosystems.
-- Marshes, bogs, fens, and swamp should all be considered as "wetland".
-- If the ecosystem type is unclear, classify it as "other".
-
-
-ATTRIBUTE SCHEMA:
-For each distinct ecosystem observation, output one item with the following attributes:
-- name
-- abbreviations and/or codes for reference
-- general location
-- treatment site
-- treatment state
-- date of observation
-- ecosystem type
-
-NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. Therefore, it is very important that these identifiers are collected and reported in the "abbreviations and/or codes for reference" field.
-
-
-IDENTIFICATION GUIDELINES:
-Treat ecosystem observations with the same name as multiple separate items if ANY of the following differ:
-- Site or sub-site identifier (e.g., different plots, basins, units, or coded sites such as "P1", "W2", etc.)
-- Treatment state (e.g., restored vs unrestored, control vs treatment, fertilized vs unfertilized, etc.)
-- Date of observation or sampling
-
-However, if the same ecosystem is mentioned with the same site, same state, and same date, do not duplicate it.
-
-
-STRICT RULES ABOUT MISSING INFORMATION:
-- Do NOT infer, guess, or derive any attribute.
-- Use ONLY information explicitly stated in the text.
-- If an attribute is not explicitly given, set its value to None.
-
-
-EXTRACTION PROCEDURE (FOLLOW IN ORDER):
-1. Scan the entire text, including tables, for any mentions of specific ponds, lakes, wetlands, or coded sites.
-2. Determine which mentions correspond to distinct ecosystem observations using the identity rules above.
-3. Output one JSON item per distinct observation.
-4. Collect all items into a single JSON array under the key "items".
-
-
-OUTPUT FORMAT REQUIREMENTS:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- The top-level object must have this form:
-{
-  "items": [
-    {
-      "name": "...",
-      "abbreviations": "...",
-      "location": "...",
-      "site": "...",
-      "state": "...",
-      "date": "...",
-      "ecosystem": "..."
-    }
-  ]
-}
-- If no distinct ecosystems are found, output exactly:
-{ "items": [] }
-"""
 
 class ObservationSchema(BaseModel):
     name: str | None

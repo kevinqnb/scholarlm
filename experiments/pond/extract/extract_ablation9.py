@@ -1,15 +1,16 @@
-"""Pond extraction experiment — Ablation 6: Gemma 3.27b table cleaning
+"""Pond extraction experiment — Ablation 9: No Explanations in Structured Responses
 
-Pipeline structure is identical to extract.py. The only difference is that the text files have 
-been cleaned using Gemma 3.27b to restructure tables.
-"""
+Uses MeasurementLMAblation9, which runs the standard pipeline but without
+chain-of-thought explanation fields in any structured JSON response.
+
+Pipeline structure is identical to extract.py."""
 
 import os
 import json
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from dotenv import load_dotenv
 load_dotenv()
-from scholarlm.measurementlm import MeasurementLM
+from scholarlm.measurementlm_ablation9 import MeasurementLMAblation9
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 
@@ -23,7 +24,7 @@ torch.cuda.manual_seed(342)
 
 
 main_directory = "data/pond"
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gemma_3_27b")
+ocr_directory = os.path.join(main_directory, "ocr_output_raw")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
@@ -96,7 +97,7 @@ attribute_info_dict = {
 }
 
 
-measurementlm = MeasurementLM(
+measurementlm = MeasurementLMAblation9(
     model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
     entity_identification_prompt=POND_IDENTIFICATION_PROMPT,
     entity_identification_schema=ObservationSchema,
@@ -112,7 +113,6 @@ measurementlm = MeasurementLM(
 
 
 def extract_entities(text, outfile):
-    """Step 1: Entity extraction."""
     print("Extracting entities...")
     data = []
     for i, paper in enumerate(text):
@@ -127,7 +127,6 @@ def extract_entities(text, outfile):
 
 
 def detect_attributes(text, outfile):
-    """Step 2: Document-level attribute detection."""
     print("Detecting attributes...")
     data = []
     for i, paper in enumerate(text):
@@ -157,7 +156,6 @@ def _deserialize_prov(json_dict):
 
 
 def entity_provenance(text, entities_file, outfile):
-    """Step 2a: Entity provenance."""
     print("Running entity provenance...")
     with open(entities_file, "r") as f:
         entity_data = json.load(f)
@@ -173,7 +171,6 @@ def entity_provenance(text, entities_file, outfile):
 
 
 def attribute_provenance(text, attributes_file, outfile):
-    """Step 2b: Attribute provenance."""
     print("Running attribute provenance...")
     with open(attributes_file, "r") as f:
         doc_attributes = json.load(f)
@@ -190,8 +187,7 @@ def attribute_provenance(text, attributes_file, outfile):
 
 
 def extract_values(text, entities_file, attributes_file, entity_prov_file, attr_prov_file, outfile):
-    """Steps 5+6: Extract values using full-document context (ablation 2)."""
-    print("Extracting values with full-document context...")
+    print("Extracting values...")
     with open(entities_file, "r") as f:
         entity_data = json.load(f)
 
@@ -223,7 +219,6 @@ def extract_values(text, entities_file, attributes_file, entity_prov_file, attr_
 
 
 def standardize_and_deduplicate(infile, outfile):
-    """Steps 7+8: Standardize then deduplicate."""
     print("Standardizing and deduplicating...")
     with open(infile, "r") as f:
         data = json.load(f)
@@ -242,20 +237,20 @@ def standardize_and_deduplicate(infile, outfile):
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
 
-outfile1 = "data/experiments/2026_03_04/ablation6_entities.json"
+outfile1 = "data/experiments/2026_03_04/ablation9_entities.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_03_04/ablation6_attributes.json"
+outfile2 = "data/experiments/2026_03_04/ablation9_attributes.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_03_04/ablation6_entity_prov.json"
+outfile3a = "data/experiments/2026_03_04/ablation9_entity_prov.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_03_04/ablation6_attribute_prov.json"
+outfile3b = "data/experiments/2026_03_04/ablation9_attribute_prov.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_03_04/ablation6_values.json"
+outfile4 = "data/experiments/2026_03_04/ablation9_values.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_03_04/ablation6_final.json"
+outfile5 = "data/experiments/2026_03_04/ablation9_final.json"
 standardize_and_deduplicate(outfile4, outfile5)
