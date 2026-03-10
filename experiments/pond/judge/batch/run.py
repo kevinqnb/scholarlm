@@ -269,35 +269,41 @@ def _build_parser() -> argparse.ArgumentParser:
     r.add_argument("--gcp-project", help="GCP project id (gemini only; or set GOOGLE_CLOUD_PROJECT).")
     r.add_argument("--gcp-location", help="GCP region (gemini only; default us-central1).")
     r.add_argument("--interval", type=int, default=60, help="Poll interval in seconds.")
-    r.add_argument("--state", default=".batch_state.json", help="Temp state file.")
+    r.add_argument("--state", default=None, help="Temp state file (default: .batch_state_{provider}.json).")
 
     # ── submit ────────────────────────────────────────────────────────────────
     s = sub.add_parser("submit", help="Build and submit the batch; save state.")
     s.add_argument("--input", required=True, help="Path to extracted data JSON.")
     s.add_argument("--docs", required=True, help="Directory of OCR text files.")
     s.add_argument("--model", required=True, help="Model name for this provider.")
-    s.add_argument("--dest-gcs", help="GCS URI for Gemini output (required for gemini).")
+    s.add_argument("--dest-gcs", help="GCS URI for Gemini output (or set GEMINI_DEST_GCS).")
     s.add_argument("--gcp-project", help="GCP project id (gemini only; or set GOOGLE_CLOUD_PROJECT).")
     s.add_argument("--gcp-location", help="GCP region (gemini only; default us-central1).")
-    s.add_argument("--state", default=".batch_state.json", help="State file to write.")
+    s.add_argument("--state", default=None, help="State file to write (default: .batch_state_{provider}.json).")
 
     # ── poll ──────────────────────────────────────────────────────────────────
     po = sub.add_parser("poll", help="Poll until the batch completes.")
-    po.add_argument("--state", default=".batch_state.json", help="State file to read.")
+    po.add_argument("--state", default=None, help="State file to read (default: .batch_state_{provider}.json).")
     po.add_argument("--interval", type=int, default=60, help="Poll interval in seconds.")
 
     # ── process ───────────────────────────────────────────────────────────────
     pr = sub.add_parser("process", help="Download results and write output JSON.")
-    pr.add_argument("--state", default=".batch_state.json", help="State file to read.")
+    pr.add_argument("--state", default=None, help="State file to read (default: .batch_state_{provider}.json).")
     pr.add_argument("--input", required=True, help="Path to original extracted data JSON.")
     pr.add_argument("--output", required=True, help="Output JSON path.")
 
     return p
 
 
+def _default_state_file(provider: str, override: str | None) -> str:
+    return override or f".batch_state_{provider}.json"
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    state_file = _default_state_file(args.provider, args.state)
 
     if args.command == "run":
         run_all(
@@ -310,7 +316,7 @@ def main(argv: list[str] | None = None) -> None:
             gcp_project=getattr(args, "gcp_project", None),
             gcp_location=getattr(args, "gcp_location", None),
             interval=args.interval,
-            state_file=args.state,
+            state_file=state_file,
         )
 
     elif args.command == "submit":
@@ -319,7 +325,7 @@ def main(argv: list[str] | None = None) -> None:
             input_file=args.input,
             docs_dir=args.docs,
             model=args.model,
-            state_file=args.state,
+            state_file=state_file,
             dest_gcs=getattr(args, "dest_gcs", None),
             gcp_project=getattr(args, "gcp_project", None),
             gcp_location=getattr(args, "gcp_location", None),
@@ -328,14 +334,14 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "poll":
         step_poll(
             provider=args.provider,
-            state_file=args.state,
+            state_file=state_file,
             interval=args.interval,
         )
 
     elif args.command == "process":
         step_process(
             provider=args.provider,
-            state_file=args.state,
+            state_file=state_file,
             input_file=args.input,
             output_file=args.output,
         )
