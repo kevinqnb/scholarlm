@@ -122,8 +122,6 @@ def step_submit(
     elif provider == "gemini":
         from . import gemini_batch
 
-        if not dest_gcs:
-            raise ValueError("--dest-gcs is required for the gemini provider")
         requests = gemini_batch.build_requests(chat_entries, model)
         batch_names = gemini_batch.submit_batch(
             requests, model,

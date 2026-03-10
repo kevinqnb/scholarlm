@@ -68,6 +68,15 @@ def _resolve_project_location(
     return project, location
 
 
+def _resolve_dest_gcs(dest_gcs: str | None) -> str:
+    dest_gcs = dest_gcs or os.environ.get("GEMINI_DEST_GCS", "")
+    if not dest_gcs:
+        raise RuntimeError(
+            "GCS output URI is required. Pass --dest-gcs or set GEMINI_DEST_GCS."
+        )
+    return dest_gcs
+
+
 # ─── Request building ─────────────────────────────────────────────────────────
 
 
@@ -163,6 +172,7 @@ def submit_batch(
         display_name: Label prefix for input files in GCS.
         max_bytes:    Per-file size cap; defaults to the 2 GB API limit.
     """
+    dest_gcs = _resolve_dest_gcs(dest_gcs)
     project, location = _resolve_project_location(project, location)
     client = _make_client(project, location)
 
@@ -260,6 +270,7 @@ def fetch_results(
     """
     from google.cloud import storage  # type: ignore
 
+    dest_gcs = _resolve_dest_gcs(dest_gcs)
     if not dest_gcs.startswith("gs://"):
         raise ValueError(f"dest_gcs must start with gs://, got: {dest_gcs}")
 
