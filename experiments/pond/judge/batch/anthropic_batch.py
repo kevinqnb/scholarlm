@@ -29,9 +29,19 @@ def build_requests(
     max_tokens: int = 5,
     temperature: float = 0.0,
 ) -> list[dict]:
-    """Convert chat entries to Anthropic batch request objects."""
+    """Convert chat entries to Anthropic batch request objects with prompt caching.
+
+    The system prompt and per-document text block are marked with cache_control
+    so repeated tokens are read from cache rather than re-billed at full price.
+    Requests are already sorted by document_id in prepare_chat_entries, so
+    adjacent requests sharing the same document will hit the cache.
+    """
     requests = []
     for entry in chat_entries:
+        # Split user content into the cached document prefix and the per-request query.
+        user_document = entry["user_document"]          # "## Document:\n...\n\n"
+        user_query = entry["user"][len(user_document):]  # "## Query:\n..."
+
         requests.append(
             {
                 "custom_id": entry["custom_id"],
@@ -39,8 +49,30 @@ def build_requests(
                     "model": model,
                     "max_tokens": max_tokens,
                     "temperature": temperature,
-                    "system": entry["system"],
-                    "messages": [{"role": "user", "content": entry["user"]}],
+                    # Cache the system prompt — it's identical across all requests.
+                    "system": [
+                        {
+                            "type": "text",
+                            "text": entry["system"],
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                # Cache the document block — shared by all requests
+                                # for the same source document.
+                                {
+                                    "type": "text",
+                                    "text": user_document,
+                                    "cache_control": {"type": "ephemeral"},
+                                },
+                                # The query is unique per request — not cached.
+                                {"type": "text", "text": user_query},
+                            ],
+                        }
+                    ],
                 },
             }
         )

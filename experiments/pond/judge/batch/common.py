@@ -234,7 +234,15 @@ def prepare_chat_entries(
             units=units,
         )
 
-        entries.append({"custom_id": str(orig_idx), "system": system, "user": user})
+        user_document = f"## Document:\n{document}\n\n"
+        entries.append({
+            "custom_id": str(orig_idx),
+            "system": system,
+            "user": user,
+            # Cached prefix for Anthropic — the document text shared across many requests.
+            # OpenAI and Gemini ignore this field and use the combined "user" string.
+            "user_document": user_document,
+        })
 
     return entries
 
