@@ -45,12 +45,12 @@ def _make_client(project: str, location: str) -> Any:
     return genai.Client(vertexai=True, project=project, location=location)
 
 
-def _gcs_upload(content: str, gcs_uri: str) -> None:
+def _gcs_upload(content: str, gcs_uri: str, project: str) -> None:
     """Upload UTF-8 text to a GCS URI using Application Default Credentials."""
     from google.cloud import storage  # type: ignore
 
     bucket_name, _, blob_path = gcs_uri[5:].partition("/")
-    gcs_client = storage.Client()
+    gcs_client = storage.Client(project=project)
     gcs_client.bucket(bucket_name).blob(blob_path).upload_from_string(
         content.encode("utf-8"), content_type="application/jsonl"
     )
@@ -115,6 +115,7 @@ def _submit_one_chunk(
     model: str,
     *,
     client: Any,
+    project: str,
     src_gcs_prefix: str,
     dest_gcs: str,
     chunk_label: str,
@@ -126,7 +127,7 @@ def _submit_one_chunk(
     src_uri = f"{src_gcs_prefix.rstrip('/')}/chunk_{chunk_index:04d}.jsonl"
     lines = "\n".join(json.dumps(r, ensure_ascii=False) for r in chunk)
     print(f"  {chunk_label}: uploading input to {src_uri} ...")
-    _gcs_upload(lines, src_uri)
+    _gcs_upload(lines, src_uri, project)
 
     prefixed_model = model if model.startswith("models/") else f"models/{model}"
     batch = client.batches.create(
@@ -182,6 +183,7 @@ def submit_batch(
                 chunk,
                 model,
                 client=client,
+                project=project,
                 src_gcs_prefix=src_gcs_prefix,
                 dest_gcs=dest_gcs,
                 chunk_label=label,
@@ -246,6 +248,7 @@ def fetch_results(
     model: str,
     *,
     dest_gcs: str,
+    project: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Download and parse results for all chunks from GCS.
 
@@ -260,8 +263,9 @@ def fetch_results(
     if not dest_gcs.startswith("gs://"):
         raise ValueError(f"dest_gcs must start with gs://, got: {dest_gcs}")
 
+    project = project or os.environ.get("GOOGLE_CLOUD_PROJECT") or None
     bucket_name, _, prefix = dest_gcs[5:].partition("/")
-    gcs_client = storage.Client()
+    gcs_client = storage.Client(project=project)
     bucket = gcs_client.bucket(bucket_name)
 
     output_prefix = prefix.rstrip("/") + "/"

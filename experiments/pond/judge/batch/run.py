@@ -206,7 +206,9 @@ def step_process(
         from . import gemini_batch
 
         results = gemini_batch.fetch_results(
-            state["batch_names"], model=model, dest_gcs=state["dest_gcs"]
+            state["batch_names"], model=model,
+            dest_gcs=state["dest_gcs"],
+            project=state.get("gcp_project"),
         )
 
     else:
