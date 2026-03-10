@@ -99,6 +99,8 @@ class JudgementLM:
         self.responses = []
         self.parametric_score_arrays = []
         self.context_score_array = []
+
+        self._init_binary_token_ids()
     
 
     def _setup_devices(self):
@@ -130,6 +132,23 @@ class JudgementLM:
 
         #self.tensor_device = torch.device("cpu")
     
+
+    def _init_binary_token_ids(self) -> None:
+        """
+        Look up and cache single token IDs for 'true', 'True', 'false', 'False'.
+        Warns if any string tokenizes to more than one token (uses first token only).
+        """
+        targets = ["true", "True", "false", "False"]
+        self._binary_token_ids: dict[str, int] = {}
+        for s in targets:
+            ids = self.tokenizer.encode(s, add_special_tokens=False)
+            if len(ids) != 1:
+                print(f"Warning: '{s}' tokenizes to {len(ids)} tokens {ids}; using first token {ids[0]}.")
+            self._binary_token_ids[s] = ids[0]
+        if self.verbose:
+            for s, tok_id in self._binary_token_ids.items():
+                print(f"  '{s}' -> token {tok_id} ('{self.tokenizer.decode([tok_id])}')")
+
 
     def generate(
         self,
@@ -168,6 +187,11 @@ class JudgementLM:
         tensor_device = self.tensor_device
         response_dict: dict[str, str | float] = {}
 
+        true_id_1 = self._binary_token_ids["true"]
+        true_id_2 = self._binary_token_ids["True"]
+        false_id_1 = self._binary_token_ids["false"]
+        false_id_2 = self._binary_token_ids["False"]
+
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             attention_outputs = torch.zeros(
                 size=(self.max_new_tokens, self.n_layers, self.n_heads, self.head_dim),
@@ -184,6 +208,13 @@ class JudgementLM:
             ).save()
 
             response_log_prob = np.array([0.0], dtype=np.float64).save()
+
+            # Capture logits for binary target tokens at each step; only step 0 is used.
+            binary_logits = torch.zeros(
+                (self.max_new_tokens, 4),
+                device=tensor_device,
+                dtype=torch.float32,
+            ).save()
 
             with tracer.iter[:] as token_idx:
                 for layer_idx, layer in enumerate(self.llm.model.layers):
@@ -204,18 +235,41 @@ class JudgementLM:
                 response_tokens_cpu[token_idx] = tok_id
                 response_log_prob[0] += float(tok_logp)
 
+                binary_logits[token_idx, 0] = logits_last[true_id_1].float().detach().to(tensor_device)
+                binary_logits[token_idx, 1] = logits_last[true_id_2].float().detach().to(tensor_device)
+                binary_logits[token_idx, 2] = logits_last[false_id_1].float().detach().to(tensor_device)
+                binary_logits[token_idx, 3] = logits_last[false_id_2].float().detach().to(tensor_device)
+
         response = self.llm.tokenizer.decode(response_tokens_cpu, skip_special_tokens=True)
         n_generated_tokens = (response_tokens_cpu != self.tokenizer.pad_token_id).sum().item()
+
+        # Compute normalized P(true) from first-step logits only.
+        # Marginalize over casing via logsumexp, then softmax over the two classes.
+        first_logits = binary_logits[0].float().cpu() # Looking at the first generation only
+        true_log_terms = [first_logits[0]]
+        if true_id_1 != true_id_2:
+            true_log_terms.append(first_logits[1])
+        false_log_terms = [first_logits[2]]
+        if false_id_1 != false_id_2:
+            false_log_terms.append(first_logits[3])
+        log_p_true = torch.logsumexp(torch.stack(true_log_terms), dim=0)
+        log_p_false = torch.logsumexp(torch.stack(false_log_terms), dim=0)
+        probs = F.softmax(torch.stack([log_p_true, log_p_false]), dim=0)
 
         response_dict = {
             "response": response,
             "logprob": float(response_log_prob[0]),
+            "p_true": float(probs[0].item()),
+            "p_false": float(probs[1].item()),
+            "log_p_true": float(log_p_true.item()),
+            "log_p_false": float(log_p_false.item()),
         }
         response_dict["attn_output"] = attention_outputs[n_generated_tokens - 1].float().cpu().numpy()
 
         # Explicitly delete large tensors to free memory after .save() references
         del attention_outputs
         del response_tokens_cpu
+        del binary_logits
         del tracer
 
         # Clear CUDA cache if using GPU
