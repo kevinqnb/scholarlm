@@ -138,7 +138,9 @@ def _submit_one_chunk(
     print(f"  {chunk_label}: uploading input to {src_uri} ...")
     _gcs_upload(lines, src_uri, project)
 
-    prefixed_model = model if model.startswith("models/") else f"models/{model}"
+    # Vertex AI batch jobs require the publisher model path, not the AI Studio "models/" prefix.
+    bare = model.removeprefix("models/").removeprefix("publishers/google/models/")
+    prefixed_model = f"publishers/google/models/{bare}"
     batch = client.batches.create(
         model=prefixed_model,
         src=src_uri,
