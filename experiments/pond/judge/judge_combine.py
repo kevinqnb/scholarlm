@@ -18,9 +18,21 @@ for j, jdf in judgement_files_dict.items():
 
     for entry in result_dict:
         eid = entry["measurement_id"]
-        entry_filter = {k: v for k, v in entry.items() if k not in ["judgement", "judgement_model", "judgement_confidence"]}
-        entry_filter[f"judgement_{j}"] = entry["judgement"]
-        entry_filter[f"judgement_confidence_{j}"] = entry.get("judgement_confidence", "")
+        filters  = [
+            "judgement",
+            "judgement_model",
+            "judgement_prob",
+            "judgement_p_true",
+            "judgement_p_false",
+            "judgement_logit_p_true",
+            "judgement_logit_p_false",
+            "judgement_raw_text",
+        ]
+        entry_filter = {k: v for k, v in entry.items() if k not in filters}
+        for k in filters:
+            if k in entry and k != "judgement_model":  # keep judgement_model as is for reference
+                entry_filter[k + f"_{j}"] = entry[k]
+
         if eid not in data_combined_dict:
             data_combined_dict[eid] = entry_filter
         else:
@@ -40,7 +52,7 @@ for entry in data_combined:
     entry["judgement_combined"] = valid_vote >= voting_threshold
 
 
-output_file = f"data/experiments/2026_02_25/pond_openai_judged_combined.json"
+output_file = f"data/experiments/2026_03_04/pond_judged_combined.json"
 with open(output_file, "w") as f:
     json.dump(data_combined, f, indent=4, ensure_ascii=False)
     

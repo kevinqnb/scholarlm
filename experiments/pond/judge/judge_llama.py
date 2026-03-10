@@ -88,11 +88,11 @@ llm = JudgementLM(
 ####################################################################################################
 
 main_directory = "data/pond"
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gpt_5_mini")
 
-input_file = "data/experiments/2026_02_25/pond_openai.json"
-output_file = f"data/experiments/2026_02_25/pond_openai_judged_llama.json"
-attn_output_file = "data/experiments/2026_02_25/pond_openai_judged_llama_attention_outputs.npz"
+input_file = "data/experiments/2026_03_04/pond_final.json"
+output_file = f"data/experiments/2026_03_04/pond_judged_llama.json"
+attn_output_file = "data/experiments/2026_03_04/pond_judged_llama_attention_outputs.npz"
 
 ENTITY_TYPE_DESCRIPTION = (
     "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
@@ -189,7 +189,11 @@ for i, response in enumerate(responses):
     measurement_id = str(message_ids[i])
     judged_data_point = data[i] | {
         'judgement': True if "true" in response['response'].strip().lower() else False,
-        'judgement_confidence': math.exp(float(response['logprob'])),
+        'judgement_prob': math.exp(float(response['logprob'])),
+        'judgement_p_true': float(response['p_true']),
+        'judgement_p_false': float(response['p_false']),
+        'judgement_logit_p_true': float(response['logit_p_true']),
+        'judgement_logit_p_false': float(response['logit_p_false']),
         'judgement_model': 'Llama-3.1-8B-Instruct',
     }
     judged_data.append(judged_data_point)

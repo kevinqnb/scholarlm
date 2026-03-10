@@ -261,8 +261,8 @@ class JudgementLM:
             "logprob": float(response_log_prob[0]),
             "p_true": float(probs[0].item()),
             "p_false": float(probs[1].item()),
-            "log_p_true": float(log_p_true.item()),
-            "log_p_false": float(log_p_false.item()),
+            "logit_p_true": float(log_p_true.item()),
+            "logit_p_false": float(log_p_false.item()),
         }
         response_dict["attn_output"] = attention_outputs[n_generated_tokens - 1].float().cpu().numpy()
 

@@ -217,7 +217,7 @@ async def run_single_chat(
 
             return custom_id, {
                 "judgement": valid,
-                "confidence": None,
+                "prob": None,
                 "model": model,
                 "raw_text": raw,
             }
@@ -435,7 +435,7 @@ if __name__ == "__main__":
         entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
-            "judgement_confidence": result.get("confidence"),
+            "judgement_prob": result.get("prob"),
             "judgement_model": result.get("model"),
             # Keep for debugging prompt compliance; can be dropped later.
             "judgement_raw_text": result.get("raw_text"),

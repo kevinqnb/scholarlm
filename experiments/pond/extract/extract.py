@@ -273,11 +273,11 @@ def standardize_and_deduplicate(infile, outfile):
     deduplicated = measurementlm._deduplicate(standardized)
 
     dataset = []
-    for datapoint in deduplicated:
+    for i, datapoint in enumerate(deduplicated):
         document_id = datapoint['document_id']
         doc_metadata = text_info[document_id]
         dataset.append(
-            doc_metadata | datapoint
+            doc_metadata | datapoint | {'measurement_id': i}
         )
 
     with open(outfile, 'w') as f:

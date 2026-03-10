@@ -159,7 +159,7 @@ async def run_all_chats(
 
         return custom_id, {
             "judgement": valid,
-            "confidence": p_valid_true,
+            "prob": p_valid_true,
             "model": model,
             "raw_text": raw,
         }
@@ -402,7 +402,7 @@ if __name__ == "__main__":
         entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
-            "judgement_confidence": result.get("confidence"),
+            "judgement_prob": result.get("prob"),
             "judgement_model": result.get("model"),
             "judgement_raw_text": result.get("raw_text"),
         }
