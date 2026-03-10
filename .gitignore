@@ -164,11 +164,13 @@ cython_debug/
 older/*
 experiments/*/out/*
 experiments/*/*/out/*
+experiments/*/*/*/out/*
 *.sh
 data/experiments/*/*
 data/pond/pdfs/*.pdf
 data/pond/ocr_output
 data/pond/ocr_output*/
 data/ocr
+.batch_state.json
 
 memory
