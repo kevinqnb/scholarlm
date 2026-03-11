@@ -6,7 +6,9 @@ Three-step flow:
     poll_batch(batch_ids, client=client)
     results   = fetch_results(batch_ids, client=client, model=model)
 
-Input size limit: 200 MB per JSONL file. submit_batch() splits automatically.
+Input size limit: 200 MB per JSONL file, 40 M enqueued tokens across all active
+batches. submit_batch() splits automatically and waits for in-flight batches to
+drain before submitting new chunks when the token budget is tight.
 """
 from __future__ import annotations
 
@@ -20,6 +22,96 @@ from openai import OpenAI
 from .common import chunk_by_size, normalize_bool_text
 
 MAX_BYTES = 200 * 1024 * 1024  # 200 MB per file
+MAX_TOKENS = 40_000_000        # 40 M enqueued-token queue limit
+
+TERMINAL_STATUSES = {"completed", "failed", "expired", "cancelled"}
+
+# ─── Token estimation ────────────────────────────────────────────────────────
+
+
+def _estimate_tokens(request: dict) -> int:
+    """Rough token estimate for one OpenAI batch request (4 chars ≈ 1 token).
+
+    Counts characters in all message content fields and divides by 4, then
+    adds max_completion_tokens for the expected output budget.
+    """
+    body = request.get("body", {})
+    messages = body.get("messages", [])
+    char_count = 0
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            char_count += len(content)
+        elif isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict):
+                    char_count += len(part.get("text", ""))
+                elif isinstance(part, str):
+                    char_count += len(part)
+    input_tokens = max(1, char_count // 4)
+    output_tokens = body.get("max_completion_tokens", 2048)
+    return input_tokens + output_tokens
+
+
+def _chunk_by_tokens(requests: list[dict], max_tokens: int) -> list[list[dict]]:
+    """Split requests so each chunk's estimated token total stays within max_tokens.
+
+    A single request that on its own exceeds max_tokens is placed in its own
+    chunk (with a warning) rather than dropped.
+    """
+    chunks: list[list[dict]] = []
+    current: list[dict] = []
+    current_tokens = 0
+
+    for req in requests:
+        req_tokens = _estimate_tokens(req)
+        if current and current_tokens + req_tokens > max_tokens:
+            chunks.append(current)
+            current = []
+            current_tokens = 0
+        if not current and req_tokens > max_tokens:
+            print(
+                f"  Warning: single request estimates {req_tokens:,} tokens "
+                f"(>{max_tokens:,}); submitting alone."
+            )
+        current.append(req)
+        current_tokens += req_tokens
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+
+def _poll_until_token_budget(
+    in_flight: list[tuple[str, int]],
+    needed_tokens: int,
+    *,
+    client: OpenAI,
+    max_tokens: int,
+    interval: int = 60,
+) -> list[tuple[str, int]]:
+    """Block until in-flight batches have drained enough to fit needed_tokens.
+
+    Returns the updated in_flight list (completed batches removed).
+    """
+    while sum(t for _, t in in_flight) + needed_tokens > max_tokens:
+        enqueued = sum(t for _, t in in_flight)
+        print(
+            f"  Token budget: {enqueued:,} enqueued + {needed_tokens:,} needed "
+            f"> {max_tokens:,} limit. Waiting {interval}s for batches to drain ..."
+        )
+        time.sleep(interval)
+        still_in_flight: list[tuple[str, int]] = []
+        for batch_id, tokens in in_flight:
+            batch = client.batches.retrieve(batch_id)
+            if batch.status not in TERMINAL_STATUSES:
+                still_in_flight.append((batch_id, tokens))
+            else:
+                print(f"  Batch {batch_id} finished (status={batch.status}), freeing ~{tokens:,} tokens.")
+        in_flight = still_in_flight
+    return in_flight
+
 
 # ─── Request building ─────────────────────────────────────────────────────────
 
@@ -85,13 +177,30 @@ def submit_batch(
     *,
     client: OpenAI,
     max_bytes: int = MAX_BYTES,
+    max_tokens: int = MAX_TOKENS,
     metadata: dict | None = None,
 ) -> list[str]:
-    """Split requests into ≤max_bytes chunks, upload each, and create batch jobs.
+    """Split requests into chunks respecting the 200 MB file limit and the
+    40 M enqueued-token limit, upload each chunk, and create batch jobs.
+
+    Chunks are first split by byte size, then any chunk that still exceeds
+    max_tokens is split further.  When the running token total of in-flight
+    batches would exceed max_tokens, submission pauses until earlier batches
+    complete before continuing.
 
     Returns a list of batch ids (one per chunk).
     """
-    chunks = chunk_by_size(requests, max_bytes)
+    # 1. Split by file size.
+    byte_chunks = chunk_by_size(requests, max_bytes)
+
+    # 2. Further split any byte-chunk that exceeds the token limit.
+    chunks: list[list[dict]] = []
+    for bc in byte_chunks:
+        sub = _chunk_by_tokens(bc, max_tokens)
+        if len(sub) > 1:
+            print(f"  One size-based chunk split into {len(sub)} sub-chunks to stay within token limit.")
+        chunks.extend(sub)
+
     n = len(chunks)
     print(
         f"Submitting {len(requests)} requests to OpenAI Batch API"
@@ -99,18 +208,26 @@ def submit_batch(
         + " ..."
     )
 
+    # 3. Submit chunks, pausing when the enqueued-token budget is exhausted.
     batch_ids: list[str] = []
+    in_flight: list[tuple[str, int]] = []  # (batch_id, estimated_tokens)
+
     for i, chunk in enumerate(chunks):
-        label = f"chunk {i + 1}/{n} ({len(chunk)} requests)"
-        batch_ids.append(
-            _submit_one_chunk(chunk, client=client, chunk_label=label, metadata=metadata)
+        chunk_tokens = sum(_estimate_tokens(r) for r in chunk)
+        label = f"chunk {i + 1}/{n} ({len(chunk)} requests, ~{chunk_tokens:,} tokens)"
+
+        in_flight = _poll_until_token_budget(
+            in_flight, chunk_tokens, client=client, max_tokens=max_tokens
         )
+
+        batch_id = _submit_one_chunk(chunk, client=client, chunk_label=label, metadata=metadata)
+        batch_ids.append(batch_id)
+        in_flight.append((batch_id, chunk_tokens))
+
     return batch_ids
 
 
 # ─── Polling ─────────────────────────────────────────────────────────────────
-
-TERMINAL_STATUSES = {"completed", "failed", "expired", "cancelled"}
 
 
 def poll_batch(
