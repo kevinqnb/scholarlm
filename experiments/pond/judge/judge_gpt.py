@@ -224,10 +224,10 @@ attribute_info_dict = {
 # Build the chats for all entries.
 
 main_directory = "data/pond"
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gpt_5_mini")
 
-input_file = "data/experiments/2026_02_25/pond_openai.json"
-output_file = "data/experiments/2026_02_25/pond_openai_judged_gpt.json"
+input_file = "data/experiments/2026_03_04/pond_final.json"
+output_file = "data/experiments/2026_03_04/pond_judged_gpt.json"
 
 ENTITY_TYPE_DESCRIPTION = (
     "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
