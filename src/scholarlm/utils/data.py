@@ -8,9 +8,9 @@ from rapidfuzz import fuzz
 
 
 def _try_coerce_value(value: Any, target_type: Type[Any]) -> Any:
-    """Best-effort coercion of a single value to `target_type`.
+    """Strictly coerce a single value to `target_type`.
 
-    If coercion fails, returns the original `value`.
+    If coercion fails, raises an exception.
     Only performs very light cleaning intended for PDF-extracted numerics.
     """
     if value is None:
@@ -19,23 +19,20 @@ def _try_coerce_value(value: Any, target_type: Type[Any]) -> Any:
     if isinstance(value, target_type):
         return value
 
-    try:
-        if target_type is str:
-            return str(value)
+    if target_type is str:
+        return str(value)
 
-        if target_type in (int, float):
-            if isinstance(value, str):
-                s = value.strip().replace(",", "").replace("−", "-")
-                if target_type is int:
-                    return int(float(s))
-                return float(s)
+    if target_type in (int, float):
+        if isinstance(value, str):
+            s = value.strip().replace(",", "").replace("−", "-")
             if target_type is int:
-                return int(value)
-            return float(value)
+                return int(float(s))
+            return float(s)
+        if target_type is int:
+            return int(value)
+        return float(value)
 
-        return target_type(value)
-    except Exception:
-        return value
+    return target_type(value)
 
 
 def load_and_process_results(
@@ -49,6 +46,7 @@ def load_and_process_results(
     value_col: str = "value",
     unit_col: str = "units",
     out_col: str = "processed_value",
+    strict_unit_conversion: bool = False,
 ) -> pd.DataFrame:
     """Load experiment results JSON, deduplicate, optionally coerce value types, and apply unit conversions.
 
@@ -73,6 +71,10 @@ def load_and_process_results(
         Name of the column containing unit names.
     out_col:
         Name of the new column for processed values after coercion and unit conversion.
+    strict_unit_conversion:
+        If True, values are set to None when the attribute exists in the conversion table
+        but the specified unit is not found in it. If False (default), values remain unchanged
+        when no unit conversion factor is found.
 
     Returns
     -------
@@ -97,7 +99,13 @@ def load_and_process_results(
             attr = row.get(attribute_col)
             val = row.get(value_col)
             target_type = attribute_types.get(attr)
-            coerced_values.append(val if target_type is None else _try_coerce_value(val, target_type))
+            if target_type is None:
+                coerced_values.append(val)
+            else:
+                try:
+                    coerced_values.append(_try_coerce_value(val, target_type))
+                except Exception:
+                    coerced_values.append(np.nan)
         df[value_col] = coerced_values
 
     processed: List[Any] = []
@@ -110,12 +118,15 @@ def load_and_process_results(
         factor = attr_table.get(unit) if isinstance(attr_table, Mapping) else None
 
         if factor is None:
-            processed.append(val)
+            if strict_unit_conversion and attr is not None and isinstance(attr_table, Mapping) and len(attr_table) > 0:
+                processed.append(None)
+            else:
+                processed.append(val)
         else:
             try:
                 processed.append(val * factor)
             except Exception:
-                processed.append(val)
+                processed.append(None)
 
     df[out_col] = processed
     df = df.dropna(subset=[out_col])

@@ -1,0 +1,21 @@
+COLUMN_NAME	SAMPLE_TYPE	UNITS	LABEL	FORMABBR	VAR_TYPE	RANGE_HIGH	RANGE_LOW	LEGAL_VALUES
+COND	CHEM	uS/cm	"Specific conductance,uS/cm"		NUMERIC			
+DATE_COL			Date of primary site visit					
+DATE_COL	SITEINFO		Date of primary site visit	POINT	CHARACTER			
+NH3	CHEM	mg N/L	"Ammonia as N, preserved, mg N/L"		NUMERIC			
+NO3NO2	CHEM	mg N/L	"Nitrate-nitrite as N, mg N/L"		NUMERIC			
+PH	CHEM		Laboratory-measured pH		NUMERIC			
+PUBLICATION_DATE			Date the dataset was published to the NARS site					
+SAMPLE_TYPE			Code identifying sample type					
+SITE_ID			Identification code for site					
+SITE_ID	SITEINFO		Identification code for site	POINT	CHARACTER			
+SITE_USE	SITEINFO		Result classifies each point in a way that indicates how a point can be used in analysis or not		CHARACTER			NWCA_DO_NOT_USE|NWCA_NOT_NEEDED|NWCA_NOT_PROBABILITY|NWCA_NOT_SAMPLED|NWCA_PROBABILITY|NWCA_REVISITS
+SITE_USE			Result classifies each point in a way that indicates how a point can be used in analysis or not					
+STATE	SITEINFO		State abbreviation		CHARACTER			
+STATE			State abbreviation					
+TKN	CHEM	mg/L	"Total Kjeldahl Nitrogen, mg/L"		NUMERIC			
+TN	CHEM	mg N/L	"Total nitrogen, mg N/L"		NUMERIC			
+TP	CHEM	ug P/L	"Total phosphorus, ug P/L"		NUMERIC			
+UID			Unique identification number for a site visit					
+VISIT_NO			Visit number within the year					
+VISIT_NO	SITEINFO		Visit number within the year	POINT	CHARACTER			

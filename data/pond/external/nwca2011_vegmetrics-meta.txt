@@ -1,0 +1,539 @@
+COLUMN_NAME	SAMPLE_TYPE	UNITS	LABEL	FORMABBR	VAR_TYPE	RANGE_HIGH	RANGE_LOW	LEGAL_VALUES	METRIC_TYPE
+D_AC	PLANT	NA	"Simpson Diversity Index - alien + cryptogenic species. D = 1 - sum(pi^2), where pi is proportion of species i"			NA	0		Stressor
+D_ALIEN	PLANT	NA	"Simpson Diversity Index - alien species only. D = 1 - sum(pi^2), where pi is proportion of species i"			NA	0		Stressor
+D_ALL	PLANT	NA	"Simpson Diversity Index - All species. D = 1 - sum(pi^2), where pi is proportion of species i"			NA	0		Condition
+D_NAT	PLANT	NA	"Simpson Diversity Index - native species only. D = 1 - sum(pi^2), where pi is proportion of species i"			NA	0		Condition
+D_SANDT	VEGTYPE	NA	"Simpson's Diversity - Heterogeneity of  S&T Types in AA. D = 1-sum(pi^2), where pi is proportion of plots sampled of class i."			NA	0		Condition
+D_VASC_STRATA	VEGTYPE	NA	"Simpson's Diversity - Heterogeneity of  Vertical Vascular Structure in AA based on occurrence and relative cover of all strata in all plots. D = 1-sum(pi^2), where pi is relative cover of vegetation stratum i"			NA	0		Condition
+DOM_SANDT	VEGTYPE	NA	Dominant  S&T Type(s) in AA			NA	NA	E2EM|E2SS|PEM|PSS|PFO|PUBPAB|PF	Condition
+FQAI_ALL	PLANT	NA	"Floristic Quality Index with all species. Sum(CC)/sqrt(N) where CC is coefficient of conservatism, N is number of species"			NA	0		Condition
+FQAI_COV_ALL	PLANT	NA	"Proportional cover-weighted Floristic Quality Index with all species. Sum(pijCCij)/sqrt(N) where CCij is coefficient of conservatism for species i at site j, pij is weight for CC for species i at site j, N is number of species."			NA	0		Condition
+FQAI_COV_NAT	PLANT	NA	"Proportional cover-weighted Floristic Quality Index with native species only. Sum(pijCCij)/sqrt(N) where CCij is coefficient of conservatism for species i at site j, pij is weight for CC for species i at site j, N is number of species."			NA	0		Condition
+FQAI_FREQ_ALL	PLANT	NA	"Proportional frequency-weighted Floristic Quality Index with all species only. Sum(pijCCij)/sqrt(N) where CCij is coefficient of conservatism for species i at site j, pij is weight for CC for species i at site j, N is number of species."			NA	0		Condition
+FQAI_FREQ_NAT	PLANT	NA	"Proportional frequency-weighted Floristic Quality Index with native species only. Sum(pijCCij)/sqrt(N) where CCij is coefficient of conservatism for species i at site j, pij is weight for CC for species i at site j, N is number of species."			NA	0		Condition
+FQAI_NAT	PLANT	NA	"Floristic Quality Index  with native species only. Sum(CC)/sqrt(N) where CC is coefficient of conservatism, N is number of species"			NA	0		Condition
+FREQ_ALGAE	VEGTYPE	NA	Frequency of filamentous or mat forming algae			100	0		Condition
+FREQ_ARBOREAL	VEGTYPE	NA	Frequency of rboreal Bryophytes and  Lichens			100	0		Condition
+FREQ_BAREGD	GROUND	NA	Frequency of bareground			NA	0		Condition
+FREQ_BRYOPHYTES	VEGTYPE	NA	"Frequency of byrophytes growing on ground surfaces, logs, rocks, etc."			100	0		Condition
+FREQ_EXPOSED_GRAVEL	GROUND	NA	Frequency exposed gravel/cobble (~2mm to 25cm)			NA	0		Condition
+FREQ_EXPOSED_ROCK	GROUND	NA	Frequency exposed rock (> 25cm)			NA	0		Condition
+FREQ_EXPOSED_SOIL	GROUND	NA	Frequency exposed soil/sediment			NA	0		Condition
+FREQ_FLOATING_AQ	VEGTYPE	NA	Frequency Floating Aquatic Vegetation			100	0		Condition
+FREQ_H2O	GROUND	NA	Frequency of occurrence of water across 100-m2 plots			NA	0		Condition
+FREQ_H2O_AQVEG	GROUND	NA	Frequency of occurrence of water and floating/submerged aquatic vegetation			NA	0		Condition
+FREQ_H2O_EMERGVEG	GROUND	NA	Frequency of occurrence ofwater and emergent and/or woody vegetation			NA	0		Condition
+FREQ_H2O_NOVEG	GROUND	NA	Frequency of occurrence of water and no vegetation			NA	0		Condition
+FREQ_HMED_TREE	TREE	NA	"Frequency (proportion of plots) of HMED,  trees  > 5m to 15m tall"			100	0		Condition
+FREQ_HMED_VEG	VEGTYPE	NA	Frequency Vegetation > 5m to 15m tall			100	0		Condition
+FREQ_LIANAS	VEGTYPE	NA	"Frequency Lianas, vines, and vascular epiphytes"			100	0		Condition
+FREQ_LICHENS	VEGTYPE	NA	"Frequency of lichens growing on ground surfaces, logs, rocks, etc."			100	0		Condition
+FREQ_LITTER	GROUND	NA	Frequency of litter			NA	0		Condition
+FREQ_LMED_TREE	TREE	NA	"Frequency (proportion of plots) of LMED trees, trees > 2 to 5m tall"			100	0		Condition
+FREQ_MACROALGAE	VEGTYPE	NA	Macroalgae (freshwater species/seaweeds)			100	0		Condition
+FREQ_MED_VEG	VEGTYPE	NA	Frequency Vegetation  >2m to 5 tall			100	0		Condition
+FREQ_PEAT_MOSS_DOM	VEGTYPE	NA	Frequency of plots where bryophytes are dominated by Sphagnum or other peat forming moss			100	0		Condition
+FREQ_SMALL_TREE	TREE	NA	"Frequency (proportion of plots) of SMALL trees, trees 0.5m to 2m tall"			100	0		Condition
+FREQ_SMALL_VEG	VEGTYPE	NA	Frequency Vegetation 0.5 to 2m tall			100	0		Condition
+FREQ_SUBMERGED_AQ	VEGTYPE	NA	Frequency Submerged Aquatic Vegetation across 5 plots			100	0		Condition
+FREQ_TALL_TREE	TREE	NA	"Frequency (proportion of plots) of TALL trees,  trees > 15m  to 30m tall"			100	0		Condition
+FREQ_TALL_VEG	VEGTYPE	NA	Frequency Vegetation > 15m to 30m tall			100	0		Condition
+FREQ_TREE_GROUND	TREE	NA	"Frequency (proportion of plots) of ground layer trees, trees < 2m"			100	0		Condition
+FREQ_TREE_MID	TREE	NA	"Frequency (proportion of plots) of  subcanopy, trees  2m-15m tall"			100	0		Condition
+FREQ_TREE_UPPER	TREE	NA	"Frequency (proportion of plots) of CANOPY trees, trees  >15m"			100	0		Condition
+FREQ_VSMALL_TREE	TREE	NA	"Frequency (proportion of plots) of VSMALL trees,  trees < 0.5m tall"			100	0		Condition
+FREQ_VSMALL_VEG	VEGTYPE	NA	Frequency Vegetation < 0.5m tall			100	0		Condition
+FREQ_VTALL_TREE	TREE	NA	"Frequency (proportion of plots) of VTALL trees, trees > 30m tall"			100	0		Condition
+FREQ_VTALL_VEG	VEGTYPE	NA	Frequency Vegetation > 30m tall			100	0		Condition
+FREQ_WD_COARSE	GROUND	NA	Frequency of coarse woody debris (> 5cm diameter)			NA	0		Condition
+FREQ_WD_FINE	GROUND	NA	Frequency of fine woody debris (< 5cm diameter)			NA	0		Condition
+H_AC	PLANT	NA	"Shannon-Wiener Diversity Index - alien + cryptogenic species. H' = -1*sum(pi*ln(pi)), where pi is proportion of species i"			NA	0		Stressor
+H_ALIEN	PLANT	NA	"Shannon-Wiener Diversity Index - alien species. H' = -1*sum(pi*ln(pi)), where pi is proportion of species i"			NA	0		Stressor
+H_ALL	PLANT	NA	"Shannon-Wiener Diversity Index  - All species. H' = -1*sum(pi*ln(pi)), where pi is proportion of species i"			NA	0		Condition
+H_NAT	PLANT	NA	"Shannon-Wiener Diversity Index - native species only. H' = -1*sum(pi*ln(pi)), where pi is proportion of species i"			NA	0		Condition
+H_SANDT	VEGTYPE	NA	"Shannon-Wiener - Heterogeneity of S&T Types in AA. H' = -1*sum(pi*ln(pi)), where pi is proportion of sampled plots with class i."			NA	0		Condition
+H_VASC_STRATA	VEGTYPE	NA	"Shannon-Wiener - Heterogeneity of  Vertical Vascular Structure in AA based on occurrence and relative cover of all strata in all plots. H' = -1*sum(pi*ln(pi)), where pi is relative cover of vegetation stratum i."			NA	0		Condition
+IMP_ALGAE	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) of filamentous or mat forming algae			NA	0		Condition
+IMP_ARBOREAL	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) of arboreal bryophytes and  lichens			NA	0		Condition
+IMP_BAREGD	GROUND	NA	Importance  ((FREQ + XCOV)/2) of bareground			NA	0		Condition
+IMP_BRYOPHYTES	VEGTYPE	NA	"Importance ((FREQ + XCOV)/2) of bryophytes growing on ground surfaces, logs, rocks, etc."			NA	0		Condition
+IMP_EXPOSED_GRAVEL	GROUND	NA	Importance ((FREQ + XCOV)/2) exposed gravel/cobble (~2mm to 25cm)			NA	0		Condition
+IMP_EXPOSED_ROCK	GROUND	NA	Importance ((FREQ + XCOV)/2) exposed rock (> 25cm)			NA	0		Condition
+IMP_EXPOSED_SOIL	GROUND	NA	Importance ((FREQ + XCOV)/2) exposed soil/sediment			NA	0		Condition
+IMP_FLOATING_AQ	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Floating Aquatic Vegetation			NA	0		Condition
+IMP_H2O	GROUND	NA	Importance ((FREQ_H2O + XCOV_H2O)/2)Total cover of water (percent of Veg Plot area with water = a+b+c â‰¤ 100%)			NA	0		Condition
+IMP_H2O_AQVEG	GROUND	NA	Importance ((FREQ_H2O_AQVEG + XCOV_H2O_AQVEG)/2) of b) % Veg Plot area with water and floating/submerged aquatic vegetation			NA	0		Condition
+IMP_H2O_EMERGVEG	GROUND	NA	Importance ((FREQ_H2O_EMERGVEG + XCOV_H2O_EMERGVEG)/2) of c) % Veg Plot area with water and emergent and/or woody vegetation			NA	0		Condition
+IMP_H2O_NOVEG	GROUND	NA	Importance ((FREQ_H2O_NOVEG + XCOV_H2O_NOVEG)/2) of a) % Veg Plot area with water and no vegetation			NA	0		Condition
+IMP_HMED_TREE	TREE	NA	"Importance  of HMED,  trees  > 5m to 15m tall"			NA	0		Condition
+IMP_HMED_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation > 5m to 15m tall			NA	0		Condition
+IMP_LIANAS	VEGTYPE	NA	"Importance  ((FREQ + XCOV)/2) Lianas, vines, and vascular epiphytes"			NA	0		Condition
+IMP_LICHENS	VEGTYPE	NA	"Importance ((FREQ + XCOV)/2) of lichens growing on ground surfaces, logs, rocks, etc."			NA	0		Condition
+IMP_LITTER	GROUND	NA	Importance ((FREQ + XCOV)/2) of litter			NA	0		Condition
+IMP_LMED_TREE	TREE	NA	"Importance  of LMED trees, trees > 2 to 5m tall"			NA	0		Condition
+IMP_MACROALGAE	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) of macroalgae (freshwater species/seaweeds)			NA	0		Condition
+IMP_MED_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation  >2m to 5 tall			NA	0		Condition
+IMP_SMALL_TREE	TREE	NA	"Importance  of SMALL trees, trees 0.5m to 2m tall"			NA	0		Condition
+IMP_SMALL_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation 0.5 to 2m tall			NA	0		Condition
+IMP_SUBMERGED_AQ	VEGTYPE	NA	Importance  ((FREQ + XCOV)/2) Submerged Aquatic Vegetation			NA	0		Condition
+IMP_TALL_TREE	TREE	NA	"Importance  of TALL trees,  trees > 15m  to 30m tall"			NA	0		Condition
+IMP_TALL_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation > 15m to 30m tall			NA	0		Condition
+IMP_TREE_GROUND	TREE	NA	"Importance  of ground layer trees, trees < 2m"			NA	0		Condition
+IMP_TREE_MID	TREE	NA	"Importance  of  subcanopy, trees  2m-15m tall"			NA	0		Condition
+IMP_TREE_UPPER	TREE	NA	"Importance  of CANOPY trees, trees  >15m"			NA	0		Condition
+IMP_VSMALL_TREE	TREE	NA	"Importance  of VSMALL trees,  trees < 0.5m tall"			NA	0		Condition
+IMP_VSMALL_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation < 0.5m tall			NA	0		Condition
+IMP_VTALL_TREE	TREE	NA	"Importance  of VTALL trees, trees > 30m tall"			NA	0		Condition
+IMP_VTALL_VEG	VEGTYPE	NA	Importance ((FREQ + XCOV)/2) Vegetation > 30m tall			NA	0		Condition
+IMP_WD_COARSE	GROUND	NA	Importance ((FREQ + XCOV)/2) of coarse woody debris (> 5cm diameter)			NA	0		Condition
+IMP_WD_FINE	GROUND	NA	Importance ((FREQ + XCOV)/2) of fine woody debris (< 5cm diameter)			NA	0		Condition
+J_AC	PLANT	NA	"Eveness (Pielou) - alien + cryptogenic species. J = H'/ln(S), where S is number of species observed"			NA	0		Stressor
+J_ALIEN	PLANT	NA	"Eveness (Pielou) - alien species only. J = H'/ln(S), where S is number of species observed"			NA	0		Stressor
+J_ALL	PLANT	NA	"Eveness (Pielou) - All species. J = H'/ln(S), where S is number of species observed"			NA	0		Condition
+J_NAT	PLANT	NA	"Eveness (Pielou) - native species only. J = H'/ln(S), where S is number of species observed"			NA	0		Condition
+J_SANDT	VEGTYPE	NA	"Pielou Eveness - Heterogeneity of S&T Classes in AA. J = H'/ln(S), where H' is Shannon-Wiener diversity and S is number of classes at site."			NA	0		Condition
+J_VASC_STRATA	VEGTYPE	NA	"Pielou Evenness - Heterogeneity of  Vertical Vascular Structure in AA based on occurrence and relative cover of all strata in all plots. J = H'/ln(S), where H' is Shannon-Wiener diversity and S is number of vegetation strata at site."			NA	0		Condition
+LITTER_TYPE	GROUND	NA	Predominant litter type			NA	NA		Condition
+MAX_COV_H2O	GROUND	NA	Maximum Total cover of water			NA	0		Condition
+MAX_H2O_DEPTH	GROUND	NA	Maximum water depth			NA	0		Condition
+MEDDEPTH_LITTER	GROUND	NA	Median depth of litter across all 1-m2 quadrats in AA			NA	0		Condition
+MEDN_AC	PLANT	NA	Median Number of Alien + Cryptogenic Species/100-m2Plot			NA	0		Stressor
+MEDN_ADVSPP	PLANT	NA	Median Number of Adventive Species across 100-m2Plots			NA	0		Stressor
+MEDN_ALIENSPP	PLANT	NA	Median Number of Alien( INTR + ADV) Species across 100-m2 Plots			NA	0		Stressor
+MEDN_CRYPSPP	PLANT	NA	Median Number of Cryptogenic Species/100-m2Plot			NA	0		Stressor
+MEDN_FAM	PLANT	NA	Median Number of Families across 100-m2 Plots			NA	0		Condition
+MEDN_GEN	PLANT	NA	Median Number of Genera across 100-m2 Plots			NA	0		Condition
+MEDN_INTRSPP	PLANT	NA	Median Number of Introduced Species across 100-m2Plots			NA	0		Stressor
+MEDN_NATSPP	PLANT	NA	Median Number of Native Species across 100-m2Plots			NA	0		Condition
+MEDN_SPP	PLANT	NA	Median Number of Species across 100-m2Plots			NA	0		Condition
+MIN_COV_H2O	GROUND	NA	Minimum Total cover of water			NA	0		Condition
+MIN_H2O_DEPTH	GROUND	NA	Minimum water depth			NA	0		Condition
+N_ANN_BIEN	PLANT	NA	"ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Condition
+N_ANN_BIEN_AC	PLANT	NA	"Alien + Cryptogenic ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Stressor
+N_ANN_BIEN_NAT	PLANT	NA	"Native ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Condition
+N_ANN_PEREN	PLANT	NA	"ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Condition
+N_ANN_PEREN_AC	PLANT	NA	"Alien + Cryptogenic ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Stressor
+N_ANN_PEREN_NAT	PLANT	NA	"Native ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Condition
+N_ANNUAL	PLANT	NA	ANNUAL Richness (Species with annual life cycle duration)			NA	0		Condition
+N_ANNUAL_AC	PLANT	NA	Alien + Cryptogenic ANNUAL Richness (Species with annual life cycle duration)			NA	0		Stressor
+N_ANNUAL_NAT	PLANT	NA	Native ANNUAL Richness (Species with annual life cycle duration)			NA	0		Condition
+N_DICOT	PLANT	NA	DICOT richness			NA	0		Condition
+N_DICOTS_AC	PLANT	NA	Alien + Cryptogenic DICOT richness			NA	0		Stressor
+N_DICOTS_ALIEN	PLANT	NA	Alien DICOT richness			NA	0		Stressor
+N_DICOTS_CRYP	PLANT	NA	Cryptogenic DICOT richness			NA	0		Condition
+N_DICOTS_NAT	PLANT	NA	Native DICOT richness			NA	0		Condition
+N_FAC	PLANT	NA	Number of Facultative  species			NA	0		Condition
+N_FACU	PLANT	NA	Number of Facultative Upland species			NA	0		Condition
+N_FACW	PLANT	NA	Number of Facultative Wetland species			NA	0		Condition
+N_FERN	PLANT	NA	FERN richness			NA	0		Condition
+N_FERNS_INTR	PLANT	NA	Introduced FERN richness			NA	0		Stressor
+N_FERNS_NAT	PLANT	NA	Native FERN richness			NA	0		Condition
+N_FORB	PLANT	NA	"FORB richness, including GROWTH_HABIT categories 'FORB/HERB','FORB/HERB, SHRUB','FORB/HERB, SHRUB, SUBSHRUB','FORB/HERB, SUBSHRUB'"			NA	0		Condition
+N_FORB_AC	PLANT	NA	ALIEN and CRYP FORB richness			NA	0		Stressor
+N_FORB_NAT	PLANT	NA	NATIVE FORB  richness			NA	0		Condition
+N_GRAMINOID	PLANT	NA	GRAMINOID richness including GROWTH_HABIT			NA	0		Condition
+N_GRAMINOID_AC	PLANT	NA	ALIEN AND CRYP GRAMINOID richness			NA	0		Stressor
+N_GRAMINOID_NAT	PLANT	NA	NATIVE GRAMINOID richness			NA	0		Condition
+N_GYMNOSPERM	PLANT	NA	GYMNOSPERM richness			NA	0		Condition
+N_HERB	PLANT	NA	Herbaceous (FORB+GRAMINOID  richness			NA	0		Condition
+N_HERB_AC	PLANT	NA	ALIEN + CRYP Herbaceous (FORB+GRAMINOID)  richness			NA	0		Stressor
+N_HERB_NAT	PLANT	NA	NATIVE Herbaceous (FORB+GRAMINOID  richness			NA	0		Condition
+N_HMED_TREE	TREE	NA	"Richness of HMED tree species,  trees  > 5m to 15m tall"			NA	0		Condition
+N_HORSETAIL	PLANT	NA	HORSETAIL richness			NA	0		Condition
+N_HSEN	PLANT	NA	Number (Richness) Highly Sensitive Species; C >=9			NA	0		Condition
+N_HTOL	PLANT	NA	Number (Richness) Highly Toleraant Species; C<=2			NA	0		Condition
+N_ISEN	PLANT	NA	Number (Richness) Intermediate Sensitivity Species C= 5 to 6			NA	0		Condition
+N_LITTER_TYPE	GROUND	NA	Number of unique litter types observed across the 5 100-m2 plots			NA	0		Condition
+N_LMED_TREE	TREE	NA	"Richness  of LMED tree species, trees > 2 to 5m tall"			NA	0		Condition
+N_LYCOPOD	PLANT	NA	LYCOPOD richness			NA	0		Condition
+N_MONOCOT	PLANT	NA	MONOCOT richness			NA	0		Condition
+N_MONOCOTS_AC	PLANT	NA	Alien + Cryptogenic MONOCOT richness			NA	0		Stressor
+N_MONOCOTS_ALIEN	PLANT	NA	Alien MONOCOT richness			NA	0		Stressor
+N_MONOCOTS_CRYP	PLANT	NA	Cryptogenic MONOCOT richness			NA	0		Stressor
+N_MONOCOTS_NAT	PLANT	NA	Native MONOCOT richness			NA	0		Condition
+N_OBL	PLANT	NA	Number of Obligate species			NA	0		Condition
+N_OBLFACW_AC	PLANT	NA	Number of f Alien + Cryptogenic Obligate and facultative wetland species			NA	0		Stressor
+N_PEAT_MOSS_DOM	VEGTYPE	NA	Number of plots where bryophytes are dominated by Sphagnum or other peat forming moss			NA	0		Condition
+N_PERENNIAL	PLANT	NA	PERENNIAL Richness (perennial only species)			NA	0		Condition
+N_PERENNIAL_AC	PLANT	NA	Alien + Cryptogenic PERENNIAL Richness (perennial only species)			NA	0		Stressor
+N_PERENNIAL_NAT	PLANT	NA	Native PERENNIAL Richness (perennial only species)			NA	0		Condition
+N_SANDT	VEGTYPE	NA	Number of unique S&T Types in AA			NA	0		Condition
+N_SEN	PLANT	NA	Number (Richness) Sensitive Species; C >=7			NA	0		Condition
+N_SHRUB	PLANT	NA	"SHRUB richness, including GROWTH_HABIT categories 'SHRUB','SHRUB, TREE','TREE, SUBSHRUB, SHRUB','SHRUB, SUBSHRUB, TREE'"			NA	0		Condition
+N_SHRUB_COMB	PLANT	NA	"Combined Shrub growth habits (N-SHRUB, N_SSHRUB_SHRUB, N_SSHRUB_FORB) richness"			NA	0		Condition
+N_SHRUB_COMB_AC	PLANT	NA	"ALIEN and CRYP richness for Combined Shrub growth habits (N_SHRUB, N_SSHRUB_SHRUB, N_SSHRUB_FORB)"			NA	0		Stressor
+N_SHRUB_COMB_NAT	PLANT	NA	"Native richness of Combined Shrub growth habits (N-SHRUB, N_SSHRUB_SHRUB, N_SSHRUB_FORB) richness"			NA	0		Condition
+N_SMALL_TREE	TREE	NA	"Richness of SMALL trees, trees 0.5m to 2m tall"			NA	0		Condition
+N_SSHRUB_FORB	PLANT	NA	"SUBSHRUB-FORB richness including GROWTH_HABIT categories 'SUBSHRUB, FORB/HERB','SUBSHRUB, SHRUB, FORB/HERB'"			NA	0		Condition
+N_SSHRUB_SHRUB	PLANT	NA	"SUBSHRUB-SHRUB richness, including GROWTH_HABIT categories 'SUBSHRUB','SUBSHRUB, SHRUB','SHRUB, SUBSHRUB','SUBSHRUB, SHRUB, TREE'"			NA	0		Condition
+N_TALL_TREE	TREE	NA	"Richness of TALL tree species,  trees > 15m  to 30m tall"			NA	0		Condition
+N_TOL	PLANT	NA	Number (Richness) Tolerant Species; C <= 4			NA	0		Condition
+N_TREE	PLANT	NA	TREE richness			NA	0		Condition
+N_TREE_COMB	PLANT	NA	Tree and Tree_SHRUB richness			NA	0		Condition
+N_TREE_COMB_AC	PLANT	NA	Alien and Cryptogenic Tree and Tree_SHRUB richness			NA	0		Stressor
+N_TREE_COMB_NAT	PLANT	NA	Native Tree and Tree_SHRUB richness			NA	0		Condition
+N_TREE_GROUND	TREE	NA	"Richness of ground layer tree species, trees < 2m"			NA	0		Condition
+N_TREE_MID	TREE	NA	"Richness of  subcanopy tree species, trees  2m-15m tall"			NA	0		Condition
+N_TREE_SHRUB	PLANT	NA	"TREE-SHRUB richness, including GROWTH_HABIT categories 'TREE, SHRUB','TREE, SHRUB, VINE'"			NA	0		Condition
+N_TREE_UPPER	TREE	NA	"Richness of CANOPY tree species, trees  >15m"			NA	0		Condition
+N_TREESPP	TREE	NA	Richness tree species			NA	0		Condition
+N_UPL	PLANT	NA	Number of UPL species			NA	0		Condition
+N_VASC_STRATA	VEGTYPE	NA	Number of  Unique Vascular Vegetation Strata across AA			NA	0		Condition
+N_VINE	PLANT	NA	"VINE richness, including GROWTH_HABIT categories 'VINE, FORB/HERB','SUBSHRUB, FORB/HERB, VINE','FORB/HERB, VINE'"			NA	0		Condition
+N_VINE_AC	PLANT	NA	VINE richness			NA	0		Stressor
+N_VINE_NAT	PLANT	NA	VINE richness			NA	0		Condition
+N_VINE_SHRUB	PLANT	NA	"VINE-SHRUB richness, including GROWTH_HABIT categories 'VINE, SHRUB','VINE, SUBSHRUB', 'SUBSHRUB, VINE','SHRUB, VINE','SHRUB, FORB/HERB, SUBSHRUB, VINE'"			NA	0		Condition
+N_VINE_SHRUB_AC	PLANT	NA	Alien and cryptogenic VINE-SHRUB richness			NA	0		Stressor
+N_VINE_SHRUB_NAT	PLANT	NA	Native VINE-SHRUB richness			NA	0		Condition
+N_VSMALL_TREE	TREE	NA	"Richness of VSMALL tree species,  trees < 0.5m tall"			NA	0		Condition
+N_VTALL_TREE	TREE	NA	"Richness of VTALL tree species, trees > 30m tall"			NA	0		Condition
+PCTN_AC	PLANT	NA	Percent of total number of Alien +  Cryptogenic species observed in all 100-m2 plots native			100	0		Stressor
+PCTN_ADVSPP	PLANT	NA	Percent of total number of  Adventive species observed in all 100-m2 plots			100	0		Stressor
+PCTN_ALIENSPP	PLANT	NA	Percent of total number of Alien species observed in all 100-m2 plots			100	0		Stressor
+PCTN_ANN_BIEN	PLANT	NA	"Percent ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Condition
+PCTN_ANN_BIEN_AC	PLANT	NA	"Alien + Cryptogenic Percent ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Stressor
+PCTN_ANN_BIEN_NAT	PLANT	NA	"Native Percent ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Condition
+PCTN_ANN_PEREN	PLANT	NA	"Percent ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Condition
+PCTN_ANN_PEREN_AC	PLANT	NA	"Alien + Cryptogenic Percent ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Stressor
+PCTN_ANN_PEREN_NAT	PLANT	NA	"Native Percent ANNUAL, BIENNIAL, PERENNIAL Richness (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Condition
+PCTN_ANNUAL	PLANT	NA	Percent ANNUAL Richness (Species with annual life cycle duration)			100	0		Condition
+PCTN_ANNUAL_AC	PLANT	NA	Alien + Cryptogenic Percent ANNUAL Richness (Species with annual life cycle duration)			100	0		Stressor
+PCTN_ANNUAL_NAT	PLANT	NA	Native Percent ANNUAL Richness (Species with annual life cycle duration)			100	0		Condition
+PCTN_CRYPSPP	PLANT	NA	Percent of total number of Cryptogenic species observed in all 100-m2 plots native			100	0		Stressor
+PCTN_DICOT	PLANT	NA	DICOT percent richness			100	0		Condition
+PCTN_DICOTS_AC	PLANT	NA	Alien + Cryptogenic DICOT percent richness			100	0		Stressor
+PCTN_DICOTS_ALIEN	PLANT	NA	Alien DICOT percent richness			100	0		Stressor
+PCTN_DICOTS_CRYP	PLANT	NA	Cryptogenic DICOT percent richness			100	0		Stressor
+PCTN_DICOTS_NAT	PLANT	NA	Native DICOT percent richness			100	0		Condition
+PCTN_FAC	PLANT	NA	% Number of Facultative  species			100	0		Condition
+PCTN_FACU	PLANT	NA	% Number of Facultative Upland species			100	0		Condition
+PCTN_FACW	PLANT	NA	% Number of Facultative Wetland species			100	0		Condition
+PCTN_FERN	PLANT	NA	FERN percent richness			100	0		Condition
+PCTN_FERNS_INTR	PLANT	NA	Introduced FERN percent richness			100	0		Stressor
+PCTN_FERNS_NAT	PLANT	NA	Native FERN percent richness			100	0		Condition
+PCTN_FORB	PLANT	NA	FORB percent richness			100	0		Condition
+PCTN_FORB_AC	PLANT	NA	Alien and cryptogenic FORB percent richness			100	0		Stressor
+PCTN_FORB_NAT	PLANT	NA	Native FORB percent richness			100	0		Condition
+PCTN_GRAMINOID	PLANT	NA	GRAMINOID percent richness			100	0		Condition
+PCTN_GRAMINOID_AC	PLANT	NA	Alien + Cryptogenic GRAMINOID percent richness			100	0		Stressor
+PCTN_GRAMINOID_NAT	PLANT	NA	Native GRAMINOID percent richness			100	0		Condition
+PCTN_GYMNOSPERM	PLANT	NA	GYMNOSPERM percent richness			100	0		Condition
+PCTN_HERB	PLANT	NA	Percent Herbaceous (FORB+GRAMINOID  richness			100	0		Condition
+PCTN_HERB_AC	PLANT	NA	Percent ALIEN + CRYP Herbaceous (FORB+GRAMINOID)  richness			100	0		Stressor
+PCTN_HERB_NAT	PLANT	NA	Percent NATIVE Herbaceous (FORB+GRAMINOID  richness			100	0		Condition
+PCTN_HORSETAIL	PLANT	NA	HORSETAIL percent richness			100	0		Condition
+PCTN_HSEN	PLANT	NA	% Number (Richness) Highly Sensitive Species; C >=9			100	0		Condition
+PCTN_HTOL	PLANT	NA	% Number (Richness) Highly Tolerant Species; C<=2			100	0		Condition
+PCTN_INTRSPP	PLANT	NA	Percent of total number of introduced species observed in all 100-m2 plots native			100	0		Stressor
+PCTN_ISEN	PLANT	NA	% Number (Richness) Intermediate Sensitivity Species C= 5 to 6			100	0		Condition
+PCTN_LYCOPOD	PLANT	NA	LYCOPOD percent richness			100	0		Condition
+PCTN_MONOCOT	PLANT	NA	MONOCOT percent richness			100	0		Condition
+PCTN_MONOCOTS_AC	PLANT	NA	Alien + Cryptogenic MONOCOT percent richness			100	0		Stressor
+PCTN_MONOCOTS_ALIEN	PLANT	NA	Alien MONOCOT percent richness			100	0		Stressor
+PCTN_MONOCOTS_CRYP	PLANT	NA	Cryptogenic MONOCOT percent richness			100	0		Stressor
+PCTN_MONOCOTS_NAT	PLANT	NA	Native MONOCOT percent richness			100	0		Condition
+PCTN_NATSPP	PLANT	NA	Percent of total number of native species observed in all 100-m2 plots native			100	0		Condition
+PCTN_OBL	PLANT	NA	% Number of Obligate species			100	0		Condition
+PCTN_PERENNIAL	PLANT	NA	Percent PERENNIAL Richness (perennial only species)			100	0		Condition
+PCTN_PERENNIAL_AC	PLANT	NA	Percent Alien + Cryptogenic PERENNIAL Richness (perennial only species)			100	0		Stressor
+PCTN_PERENNIAL_NAT	PLANT	NA	Percent Native PERENNIAL Richness (perennial only species)			100	0		Condition
+PCTN_SEN	PLANT	NA	% Number (Richness) Sensitive Species; C >=7			100	0		Condition
+PCTN_SHRUB	PLANT	NA	SHRUB percent richness			100	0		Condition
+PCTN_SHRUB_COMB	PLANT	NA	"Combined Shrub growth habits (PCTN-SHRUB, PCTN_SSHRUB_SHRUB, PCTN_SSHRUB-FORB) richness"			100	0		Condition
+PCTN_SHRUB_COMB_AC	PLANT	NA	Percent ALIEN and CRYP richness for Combined Shrub growth habits			100	0		Stressor
+PCTN_SHRUB_COMB_NAT	PLANT	NA	Percent Native richness of Combined Shrub growth habits			100	0		Condition
+PCTN_SSHRUB_FORB	PLANT	NA	SUBSHRUB-FORB percent richness			100	0		Condition
+PCTN_SSHRUB_SHRUB	PLANT	NA	SUBSHRUB-SHRUB percent richness			100	0		Condition
+PCTN_TOL	PLANT	NA	% Number (Richness) Tolerant Species; C <= 4			100	0		Condition
+PCTN_TREE	PLANT	NA	TREE percent richness			100	0		Condition
+PCTN_TREE_COMB	PLANT	NA	Combined Tree and Tree_SHRUB percent richness			100	0		Condition
+PCTN_TREE_COMB_AC	PLANT	NA	Combined Alien + Cryptogenic Tree and Tree_SHRUB percent richness			100	0		Stressor
+PCTN_TREE_COMB_NAT	PLANT	NA	Combined Native Tree and Tree_SHRUB percent richness			100	0		Condition
+PCTN_TREE_GROUND	TREE	NA	"Percent richness of  tree species found in ground layer (e.g., seedlings, saplings), trees < 2m"			100	0		Condition
+PCTN_TREE_MID	TREE	NA	"Percent richness of  tree species found in subcanopy layer, trees  2m-15m tall"			100	0		Condition
+PCTN_TREE_SHRUB	PLANT	NA	TREE-SHRUB percent richness			100	0		Condition
+PCTN_TREE_UPPER	TREE	NA	"Percent richness of  tree species found in subcanopy layer, trees  >15m"			100	0		Condition
+PCTN_UPL	PLANT	NA	% Number of UPL species			100	0		Condition
+PCTN_VINE	PLANT	NA	VINE percent richness			100	0		Condition
+PCTN_VINE_AC	PLANT	NA	Alien and cryptogenic VINE percent richness			100	0		Stressor
+PCTN_VINE_NAT	PLANT	NA	Native VINE percent  richness			100	0		Condition
+PCTN_VINE_SHRUB	PLANT	NA	VINE-SHRUB percent richness			100	0		Condition
+PCTN_VINE_SHRUB_AC	PLANT	NA	Alien and Cryptogenic VINE-SHRUB percent richness			100	0		Stressor
+PCTN_VINE_SHRUB_NAT	PLANT	NA	Native VINE-SHRUB percent richness			100	0		Condition
+RFREQ_AC	PLANT	NA	Relative frequency of alien and cryptogenic species occurrence in flora based on 5 100-m2 plots			NA	0		Stressor
+RFREQ_ADVSPP	PLANT	NA	Relative frequency of  Adventive  species occurrence in flora based on 5 100-m2 plots			NA	0		Stressor
+RFREQ_ALIENSPP	PLANT	NA	Relative frequency of alien( INTR + ADV) species occurrence in flora based on 5 100-m2 plots			NA	0		Stressor
+RFREQ_CRYPSPP	PLANT	NA	Relative frequency of cryptogenic species occurrence in flora based on 5 100-m2 plots			NA	0		Stressor
+RFREQ_INTRSPP	PLANT	NA	Relative frequency of introduced species   as a percent of total frequency (sum of all species)			NA	0		Stressor
+RFREQ_NATSPP	PLANT	NA	Relative frequency of native species as a percent of total frequency (sum of all species)			NA	0		Condition
+RG_VASC_STRATA	VEGTYPE	NA	Range in number of vascular vegetation strata found in 5 plots.			NA	0		Condition
+RIMP_AC	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all alien and cryptogenic species			NA	0		Stressor
+RIMP_ADVSPP	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all ADVENTIVE species			NA	0		Stressor
+RIMP_ALIENSPP	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all ALIEN (INTR + ADV)			NA	0		Stressor
+RIMP_CRYPSPP	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all CRYP species			NA	0		Stressor
+RIMP_INTRSPP	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all introduced species			NA	0		Stressor
+RIMP_NATSPP	PLANT	NA	Mean relative importance ((RFREQ + XRCOV)/2) of all native species			NA	0		Condition
+SDN_AC	PLANT	NA	Standard Deviation Number of Alien + Cyptogenic Species/100-m2 Plot			NA	0		Stressor
+SDN_ADVSPP	PLANT	NA	Standard Deviation in Number of Adventive Species across 100-m2 Plots			NA	0		Stressor
+SDN_ALIENSPP	PLANT	NA	Standard Deviation in Number of Alien (INTR + ADV) Species			NA	0		Stressor
+SDN_CRYPSPP	PLANT	NA	Standard Deviation in Number of Cyptogenic Species/100-m2 Plot			NA	0		Stressor
+SDN_FAM	PLANT	NA	Standard Deviation in Number of Families across 100-m2Plots			NA	0		Condition
+SDN_GEN	PLANT	NA	Standard Deviation in Number of Genera across 100-m2 Plots			NA	0		Condition
+SDN_INTRSPP	PLANT	NA	Standard Deviation in Number of Introduced Species across 100-m2 Plots			NA	0		Stressor
+SDN_NATSPP	PLANT	NA	Standard Deviation in Number of Native Species across 100-m2 Plots			NA	0		Condition
+SDN_SPP	PLANT	NA	Standard Deviation in Number of Species across 100-m2 Plots			NA	0		Condition
+SITE_ID	SITEINFO	NA	Identification code for site	POINT	CHARACTER	NA	NA		NA
+SITE_USE	SITEINFO	NA	Result classifies each point in a way that indicates how a point can be used in analysis or not		CHARACTER	NA	NA	NWCA_DO_NOT_USE|NWCA_NOT_NEEDED|NWCA_NOT_PROBABILITY|NWCA_NOT_SAMPLED|NWCA_PROBABILITY|NWCA_REVISITS	NA
+STATE	SITEINFO	NA	State abbreviation		CHARACTER	NA	NA		NA
+TOTN_AC	PLANT	NA	Total Number of  alien and cryptogenic Species across AA  (based 500 m2 sample area - 5 100-m2 plots)			NA	0		Stressor
+TOTN_ADVSPP	PLANT	NA	"Total Number of Adventive  Species across AA  (based 500 m2 sample area, i.e,  5 100-m2 plots)"			NA	0		Stressor
+TOTN_ALIENSPP	PLANT	NA	Total Number of Alien (INTR + ADV) Species in AA  (based 500 m2 sample area - 5 100-m2 plots)			NA	0		Stressor
+TOTN_CRYPSPP	PLANT	NA	Total Number of  cryptogenic Species across AA  (based 500 m2 sample area - 5 100-m2 plots)			NA	0		Stressor
+TOTN_FAM	PLANT	NA	Total Number of  Families across AA (based 500 m2 sample area - all 5 plots)			NA	0		Condition
+TOTN_GEN	PLANT	NA	Total Number of  Genera in AA (based on 500 m2 sample area - all 5 plots)			NA	0		Condition
+TOTN_INTRSPP	PLANT	NA	"Total Number of  Introduced Species across AA  (based 500 m2 sample area, i.e,  5 100-m2 plots)"			NA	0		Stressor
+TOTN_JR_SNAG	TREE	NA	Total number of dead trees or snags 51 to 75cm DBH			NA	0		Condition
+TOTN_JR_TREE	TREE	NA	"Total number of tree stems in JR class,of trees  51 to 75cm DBH"			NA	0		Condition
+TOTN_NATSPP	PLANT	NA	"Total Number of  Native Species across AA  (based 500 m2 sample area, i.e,  5 100-m2 plots)"			NA	0		Condition
+TOTN_SNAGS	TREE	NA	Total number of dead trees and snags			NA	0		Condition
+TOTN_SPP	PLANT	NA	Richness - Total Number of  Species/AA  (based 500 m2 sample area - 5 plots)			NA	0		Condition
+TOTN_THICK_SNAG	TREE	NA	Total number of dead trees or snags 76 to 100cm DBH			NA	0		Condition
+TOTN_THICK_TREE	TREE	NA	"Total number of tree stems in THICK class,trees 76 to 100cm DBH"			NA	0		Condition
+TOTN_THIN_SNAG	TREE	NA	Total number of dead treesor snags 26 to 50cm DBH			NA	0		Condition
+TOTN_THIN_TREE	TREE	NA	"Total number of tree stems in THIN class, trees  26 to 50cm DBH"			NA	0		Condition
+TOTN_TREES	TREE	NA	Total number of tree stems across all classes dbh			NA	0		Condition
+TOTN_XTHICK_SNAG	TREE	NA	Total number of dead trees or snags 101 to 200 cm DBH			NA	0		Condition
+TOTN_XTHICK_TREE	TREE	NA	"Total number of tree stems in XTHICK class, trees 101 to 200 cm DBH"			NA	0		Condition
+TOTN_XTHIN_SNAG	TREE	NA	Total number of dead trees or snags 11 to 25cm DBH			NA	0		Condition
+TOTN_XTHIN_TREE	TREE	NA	"Total number of tree stems in XTHIN class,  trees  11 to 25cm DBH"			NA	0		Condition
+TOTN_XXTHICK_TREE	TREE	NA	"Total number of tree stems in XXTHICK class, of trees > 200 cm DBH"			NA	0		Condition
+TOTN_XXTHIN_SNAG	TREE	NA	Total Number Dead tree or snags 5 to 10 cm DBH (diameter breast height)			NA	0		Condition
+TOTN_XXTHIN_TREE	TREE	NA	"Total number of tree stems in XXTHIN class, trees 5 to 10 cm DBH (diameter breast height)"			NA	0		Condition
+UID		NA	Unique identification number for a site visit			NA	NA		NA
+VISIT_NO	SITEINFO	NA	Visit number within the year	POINT	CHARACTER	NA	NA		NA
+WETIND_COV_ALL	PLANT	NA	"Wetland Index, Cover Weighted - all species. Sum(Impij x Ei)/sum(Iij), where Impij is importance of species i at site j, E is ecological score (based on WIS) for species i."			NA	0		Condition
+WETIND_COV_NAT	PLANT	NA	"Wetland Index, Cover Weighted - native species only. Sum(Impij x Ei)/sum(Iij), where Impij is importance of species i at site j, E is ecological score (based on WIS) for species i."			NA	0		Condition
+WETIND_FREQ_ALL	PLANT	NA	"Wetland Index, Frequency Weighted - all species. Sum(Impij x Ei)/sum(Iij), where Impij is importance of species i at site j, E is ecological score (based on WIS) for species i."			NA	0		Condition
+WETIND_FREQ_NAT	PLANT	NA	"Wetland Index, Frequency Weighted - native species only. Sum(Impij x Ei)/sum(Iij), where Impij is importance of species i at site j, E is ecological score (based on WIS) for species i."			NA	0		Condition
+XABCOV_AC	PLANT	NA	Mean total absolute cover of all alien and cryptogenic species or lowest taxomic units across 100-m2 plots			NA	0		Stressor
+XABCOV_ADVSPP	PLANT	NA	Mean total absolute cover of all ADV species or lowest taxomic units across 100-m2 plots			NA	0		Stressor
+XABCOV_ALIENSPP	PLANT	NA	Mean total absolute cover of ALIEN (INTR + ADV) species or lowest taxomic units across 100-m2 plots			NA	0		Stressor
+XABCOV_ANN_BIEN	PLANT	NA	"Percent ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Condition
+XABCOV_ANN_BIEN_AC	PLANT	NA	"Percent Alien + Cryptogenic ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Stressor
+XABCOV_ANN_BIEN_NAT	PLANT	NA	"Percent Native ANNUAL-BIENNIAL, BIENNIAL Richness (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			NA	0		Condition
+XABCOV_ANN_PEREN	PLANT	NA	"Mean absolute ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Condition
+XABCOV_ANN_PEREN_AC	PLANT	NA	"Mean absolute Alien + Cryptogenic ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Stressor
+XABCOV_ANN_PEREN_NAT	PLANT	NA	"Mean absolute Native ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			NA	0		Condition
+XABCOV_ANNUAL	PLANT	NA	Mean absolute ANNUAL cover  (Species with annual life cycle duration)			NA	0		Condition
+XABCOV_ANNUAL_AC	PLANT	NA	Mean absolute Alien + Cryptogenic ANNUAL cover  (Species with annual life cycle duration)			NA	0		Stressor
+XABCOV_ANNUAL_NAT	PLANT	NA	Mean absolute Native ANNUAL cover  (Species with annual life cycle duration)			NA	0		Condition
+XABCOV_CRYPSPP	PLANT	NA	Mean total absolute cover of all CRYP species or lowest taxomic units across 100-m2 plots			NA	0		Stressor
+XABCOV_DICOT	PLANT	NA	Mean total absolute cover of all DICOT species			NA	0		Condition
+XABCOV_DICOTS_AC	PLANT	NA	Mean total absolute cover of Alien + Cryptogenic DICOT species			NA	0		Stressor
+XABCOV_DICOTS_ALIEN	PLANT	NA	Mean total absolute cover of Alien DICOT species			NA	0		Stressor
+XABCOV_DICOTS_CRYP	PLANT	NA	Mean total absolute cover of Cryptogenic DICOT species			NA	0		Stressor
+XABCOV_DICOTS_NAT	PLANT	NA	Mean total absolute cover of Native DICOT species			NA	0		Condition
+XABCOV_FAC	PLANT	NA	Mean Absolute Cover of Facultative  species			NA	0		Condition
+XABCOV_FACU	PLANT	NA	Mean Absolute Cover of Facultative Upland species			NA	0		Condition
+XABCOV_FACW	PLANT	NA	Mean Absolute Cover of Facultative Wetland species			NA	0		Condition
+XABCOV_FERN	PLANT	NA	Mean absolute cover of FERN species			NA	0		Condition
+XABCOV_FERNS_INTR	PLANT	NA	Mean absolute cover of Introduced FERN species			NA	0		Stressor
+XABCOV_FERNS_NAT	PLANT	NA	Mean absolute cover of Native FERN species			NA	0		Condition
+XABCOV_FORB	PLANT	NA	Mean absolute FORB cover			NA	0		Condition
+XABCOV_FORB_AC	PLANT	NA	Mean absolute ALIEN and Cryptogenic  FORB cover			NA	0		Stressor
+XABCOV_FORB_NAT	PLANT	NA	Mean absolute NATIVE FORB cover			NA	0		Condition
+XABCOV_GRAMINOID	PLANT	NA	Mean absolute GRAMINOID cover			NA	0		Condition
+XABCOV_GRAMINOID_AC	PLANT	NA	Mean absolute alien and cryptogenic GRAMINOID cover			NA	0		Stressor
+XABCOV_GRAMINOID_NAT	PLANT	NA	Mean absolute native  GRAMINOID cover			NA	0		Condition
+XABCOV_GYMNOSPERM	PLANT	NA	Mean absolute cover of GYMNOSPERM species			NA	0		Condition
+XABCOV_HERB	PLANT	NA	Mean absolute cover Herbaceous (FORB+GRAMINOID			NA	0		Condition
+XABCOV_HERB_AC	PLANT	NA	Mean relative  ALIEN + CRYP Herbaceous (FORB+GRAMINOID)  cover			NA	0		Stressor
+XABCOV_HERB_NAT	PLANT	NA	Mean absolute cover NATIVE Herbaceous (FORB+GRAMINOID			NA	0		Condition
+XABCOV_HORSETAIL	PLANT	NA	Mean absolute cover of HORSETAIL species			NA	0		Condition
+XABCOV_HSEN	PLANT	NA	Absolute Mean Cover Highly Sensitive Species; C >=9			NA	0		Condition
+XABCOV_HTOL	PLANT	NA	Absolute Mean Cover Highly Toleraant Species; C<=2			NA	0		Condition
+XABCOV_INTRSPP	PLANT	NA	Mean total absolute cover of all INTR species or lowest taxomic units across 100-m2 plots			NA	0		Stressor
+XABCOV_ISEN	PLANT	NA	Absolute Mean Cover Intermediate Sensitivity Species C= 5 to 6			NA	0		Condition
+XABCOV_LYCOPOD	PLANT	NA	Mean absolute cover of LYCOPOD species			NA	0		Condition
+XABCOV_MONOCOT	PLANT	NA	Mean absolute cover of MONOCOT species			NA	0		Condition
+XABCOV_MONOCOTS_AC	PLANT	NA	Mean absolute cover of Alien + Cryptogenic MONOCOT species			NA	0		Stressor
+XABCOV_MONOCOTS_ALIEN	PLANT	NA	Mean absolute cover of Alien MONOCOT species			NA	0		Stressor
+XABCOV_MONOCOTS_CRYP	PLANT	NA	Mean absolute cover of Cryptogenic MONOCOT species			NA	0		Stressor
+XABCOV_MONOCOTS_NAT	PLANT	NA	Mean absolute cover of Native MONOCOT species			NA	0		Condition
+XABCOV_NATSPP	PLANT	NA	Mean total absolute cover summed across all NATIVE species or lowest taxomic units across 100-m2 plots			NA	0		Condition
+XABCOV_OBL	PLANT	NA	Mean Absolute Cover of Obligate species			NA	0		Condition
+XABCOV_OBLFACW_AC	PLANT	NA	Mean Absolute Cover of Alien + Cryptogenic Obligate and facultative wetland species			NA	0		Stressor
+XABCOV_PERENNIAL	PLANT	NA	Mean absolute PERENNIAL cover (prennial species)			NA	0		Condition
+XABCOV_PERENNIAL_AC	PLANT	NA	Mean absolute Alien + Cryptogenic PERENNIAL cover (prennial species)			NA	0		Stressor
+XABCOV_PERENNIAL_NAT	PLANT	NA	Mean absolute Native PERENNIAL cover (prennial species)			NA	0		Condition
+XABCOV_SEN	PLANT	NA	Absolute Mean Cover Sensitive Species; C >=7			NA	0		Condition
+XABCOV_SHRUB	PLANT	NA	Mean absolute SHRUB cover			NA	0		Condition
+XABCOV_SHRUB_COMB	PLANT	NA	"Combined Shrub growth habits (PCTN-SHRUB, PCTN_SSHRUB_SHRUB, PCTN_SSHRUB-FORB) absolute cover"			NA	0		Condition
+XABCOV_SHRUB_COMB_AC	PLANT	NA	Mean ALIEN and CRYP absolute cover for Combined Shrub growth habits			NA	0		Stressor
+XABCOV_SHRUB_COMB_NAT	PLANT	NA	Mean native absolute cover of Combined Shrub growth habits			NA	0		Condition
+XABCOV_SSHRUB_FORB	PLANT	NA	Mean absolute SUBSHRUB-FORB cover			NA	0		Condition
+XABCOV_SSHRUB_SHRUB	PLANT	NA	Mean absolute SUBSHRUB-SHRUB cover			NA	0		Condition
+XABCOV_TOL	PLANT	NA	Absolute Mean Cover Tolerant Species; C <= 4			NA	0		Condition
+XABCOV_TREE	PLANT	NA	Mean absolute TREE cover			NA	0		Condition
+XABCOV_TREE_COMB	PLANT	NA	Combined Tree and Tree_SHRUB absolute cover			NA	0		Condition
+XABCOV_TREE_COMB_AC	PLANT	NA	Combined Alien + Cryptogenic Tree and Tree_SHRUB absolute cover			NA	0		Stressor
+XABCOV_TREE_COMB_NAT	PLANT	NA	Combined Native Tree and Tree_SHRUB absolute cover			NA	0		Condition
+XABCOV_TREE_SHRUB	PLANT	NA	Mean absolute TREE-SHRUB cover			NA	0		Condition
+XABCOV_UPL	PLANT	NA	Mean Absolute Cover of UPL species			NA	0		Condition
+XABCOV_VINE	PLANT	NA	Mean absolute VINE cover			NA	0		Condition
+XABCOV_VINE_AC	PLANT	NA	Mean ALIEN and CRYP absolute VINE cover			NA	0		Stressor
+XABCOV_VINE_NAT	PLANT	NA	Mean NATIVE absolute VINE cover			NA	0		Condition
+XABCOV_VINE_SHRUB	PLANT	NA	Mean absolute VINE-SHRUB cover			NA	0		Condition
+XABCOV_VINE_SHRUB_AC	PLANT	NA	Mean absolute ALIEN and CRYP VINE-SHRUB cover			NA	0		Stressor
+XABCOV_VINE_SHRUB_NAT	PLANT	NA	Mean absolute NATIVE VINE-SHRUB COVER			NA	0		Condition
+XBCDIST_NATSPP	PLANT	NA	Within AA dissimilarity based on native species composition = Mean of between plot Bray-Curtis Distance (Dissimilarity) based on native species only			NA	0		Condition
+XBCDIST_SPP	PLANT	NA	Within AA dissimilarity based on species composition = Mean of between plot Bray-Curtis Distance (Dissimilarity) based on all species			NA	0		Condition
+XC_ALL	PLANT	NA	Mean Coefficient of Conservatism with all species			NA	0		Condition
+XC_COV_ALL	PLANT	NA	Relative cover-weighted Mean Coefficient of Conservatism with all species			NA	0		Condition
+XC_COV_NAT	PLANT	NA	Relative cover-weighted Mean Coefficient of Conservatism with native species only			NA	0		Condition
+XC_FREQ_ALL	PLANT	NA	Relative frequency-weighted Mean Coefficient of Conservatism with all species only			NA	0		Condition
+XC_FREQ_NAT	PLANT	NA	Relative frequency-weighted Mean Coefficient of Conservatism with native species only			NA	0		Condition
+XC_NAT	PLANT	NA	Mean Coefficient of Conservatism with native species only			NA	0		Condition
+XCOV_ALGAE	VEGTYPE	NA	Mean absolute cover filamentous or mat forming algae			NA	0		Condition
+XCOV_ARBOREAL	VEGTYPE	NA	Mean absolute cover arboreal Bryophytes and  Lichens			NA	0		Condition
+XCOV_BAREGD	GROUND	NA	Mean cover  of bareground			NA	0		Condition
+XCOV_BRYOPHYTES	VEGTYPE	NA	"Mean absolute cover byrophytes growing on ground surfaces, logs, rocks, etc."			NA	0		Condition
+XCOV_EXPOSED_GRAVEL	GROUND	NA	Mean Cover exposed gravel/cobble (~2mm to 25cm)			NA	0		Condition
+XCOV_EXPOSED_ROCK	GROUND	NA	c) Cover exposed rock (> 25cm)			NA	0		Condition
+XCOV_EXPOSED_SOIL	GROUND	NA	Mean Cover exposed soil/sediment			NA	0		Condition
+XCOV_FLOATING_AQ	VEGTYPE	NA	Mean Absolute Cover Floating Aquatic Vegetation			NA	0		Condition
+XCOV_H2O	GROUND	NA	Total cover of water (percent of Veg Plot area with water = a+b+c â‰¤ 100%)			NA	0		Condition
+XCOV_H2O_AQVEG	GROUND	NA	b) % Veg Plot area with water and floating/submerged aquatic vegetation			NA	0		Condition
+XCOV_H2O_EMERGVEG	GROUND	NA	c) % Veg Plot area with water and emergent and/or woody vegetation			NA	0		Condition
+XCOV_H2O_NOVEG	GROUND	NA	a) % Veg Plot area with water and no vegetation			NA	0		Condition
+XCOV_HMED_TREE	TREE	NA	"Mean absolute cover HMED trees,  trees  > 5m to 15m tall"			NA	0		Condition
+XCOV_HMED_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation > 5m to 15m tall			NA	0		Condition
+XCOV_LIANAS	VEGTYPE	NA	"Mean Absolute Cover Lianas, vines, and vascular epiphytes"			NA	0		Condition
+XCOV_LICHENS	VEGTYPE	NA	"Mean absolute cover lichens growing on ground surfaces, logs, rocks, etc."			NA	0		Condition
+XCOV_LITTER	GROUND	NA	Mean Cover of litter			NA	0		Condition
+XCOV_LMED_TREE	TREE	NA	"Mean absolute cover LMED trees, trees > 2 to 5m tall"			NA	0		Condition
+XCOV_MACROALGAE	VEGTYPE	NA	Mean absolute cover macroalage (freshwater species/seaweeds)			NA	0		Condition
+XCOV_MED_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation  >2m to 5 tall			NA	0		Condition
+XCOV_SMALL_TREE	TREE	NA	"Mean absolute cover SMALL trees, trees 0.5m to 2m tall"			NA	0		Condition
+XCOV_SMALL_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation 0.5 to 2m tall			NA	0		Condition
+XCOV_SUBMERGED_AQ	VEGTYPE	NA	Mean Absolute Cover Submerged Aquatic Vegetation			NA	0		Condition
+XCOV_TALL_TREE	TREE	NA	"Mean absolute cover TALL trees,  trees > 15m  to 30m tall"			NA	0		Condition
+XCOV_TALL_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation > 15m to 30m tall			NA	0		Condition
+XCOV_TREE_GROUND	TREE	NA	"Mean absolute cover trees in ground layer (e.g., seedlings, saplings), trees < 2m"			NA	0		Condition
+XCOV_TREE_MID	TREE	NA	"Mean absolute cover trees in MID layer, trees  2m-15m tall"			NA	0		Condition
+XCOV_TREE_UPPER	TREE	NA	"Mean absolute cover trees in UPPER layer, trees  >15m"			NA	0		Condition
+XCOV_VSMALL_TREE	TREE	NA	"Mean absolute cover VSMALL trees,  trees < 0.5m tall"			NA	0		Condition
+XCOV_VSMALL_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation < 0.5m tall			NA	0		Condition
+XCOV_VTALL_TREE	TREE	NA	"Mean absolute cover VTALL trees, trees > 30m tall"			NA	0		Condition
+XCOV_VTALL_VEG	VEGTYPE	NA	Mean Absolute Cover Vegetation > 30m tall			NA	0		Condition
+XCOV_WD_COARSE	GROUND	NA	Mean Cover of coarse woody debris (> 5cm diameter)			NA	0		Condition
+XCOV_WD_FINE	GROUND	NA	Mean Cover of fine woody debris (< 5cm diameter)			NA	0		Condition
+XDEPTH_LITTER	GROUND	NA	Mean depth of litter across all 1-m2 quadrats in AA			NA	0		Condition
+XH2O_DEPTH	GROUND	NA	Mean Predominant water depth in plots where standing water occurs			NA	0		Condition
+XH2O_DEPTH_AA	GROUND	NA	Mean Predominant water depth across AA			NA	0		Condition
+XN_AC	PLANT	NA	Mean Number of  Alien and Cryptogenic Species/100-m2Plot			NA	0		Stressor
+XN_ADVSPP	PLANT	NA	Mean Number of Adventive Species across 100-m2Plots			NA	0		Stressor
+XN_ALIENSPP	PLANT	NA	Mean Number of  Alien (INTR + ADV)Species across 100-m2 plots			NA	0		Stressor
+XN_CRYPSPP	PLANT	NA	Mean Number of  Cryptogenic Species/100-m2Plot			NA	0		Stressor
+XN_FAM	PLANT	NA	Mean Number of Families across 100-m2Plots			NA	0		Condition
+XN_GEN	PLANT	NA	Mean Number of Genera across 100-m2 Plots			NA	0		Condition
+XN_INTRSPP	PLANT	NA	Mean Number of Introduced Species across 100-m2Plots			NA	0		Stressor
+XN_JR_SNAG	TREE	NA	Mean number of dead trees or snags 51 to 75cm DBH			NA	0		Condition
+XN_JR_TREE	TREE	NA	"Mean number of tree stems in JR class,of trees  51 to 75cm DBH"			NA	0		Condition
+XN_NATSPP	PLANT	NA	Mean Number of  Native Species across 100-m2Plots			NA	0		Condition
+XN_SNAGS	TREE	NA	Mean number of dead trees and snags			NA	0		Condition
+XN_SPP	PLANT	NA	Mean Number of Species across 100-m2Plots			NA	0		Condition
+XN_THICK_SNAG	TREE	NA	Mean number of dead trees or snags 76 to 100cm DBH			NA	0		Condition
+XN_THICK_TREE	TREE	NA	"Mean number of tree stems in THICK class,trees 76 to 100cm DBH"			NA	0		Condition
+XN_THIN_SNAG	TREE	NA	Mean number of dead treesor snags 26 to 50cm DBH			NA	0		Condition
+XN_THIN_TREE	TREE	NA	"Mean number of tree stems in THIN class, trees  26 to 50cm DBH"			NA	0		Condition
+XN_TREES	TREE	NA	Mean number of tree stems across all classes dbh			NA	0		Condition
+XN_VASC_STRATA	VEGTYPE	NA	Mean number of vascular vegetation strata across plots			NA	0		Condition
+XN_XTHICK_SNAG	TREE	NA	Mean number of dead trees or snags 101 to 200 cm DBH			NA	0		Condition
+XN_XTHICK_TREE	TREE	NA	"Mean number of tree stems in XTHICK class, trees 101 to 200 cm DBH"			NA	0		Condition
+XN_XTHIN_SNAG	TREE	NA	Mean number of dead trees or snags 11 to 25cm DBH			NA	0		Condition
+XN_XTHIN_TREE	TREE	NA	"Mean number of tree stems in XTHIN class,  trees  11 to 25cm DBH"			NA	0		Condition
+XN_XXTHICK_TREE	TREE	NA	"Mean number of tree stems in XXTHICK class, of trees > 200 cm DBH"			NA	0		Condition
+XN_XXTHIN_SNAG	TREE	NA	Mean Number Dead tree or snags 5 to 10 cm DBH (diameter breast height)			NA	0		Condition
+XN_XXTHIN_TREE	TREE	NA	"Mean number of tree stems in XXTHIN class, trees 5 to 10 cm DBH (diameter breast height)"			NA	0		Condition
+XRCOV_AC	PLANT	NA	Mean relative cover of all aliena and cryptogenic species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Stressor
+XRCOV_ADVSPP	PLANT	NA	Mean relative cover of all ADV species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Stressor
+XRCOV_ALIENSPP	PLANT	NA	Mean relative cover of all ALIEN (INTR + ADV) species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Stressor
+XRCOV_ANN_BIEN	PLANT	NA	"Mean relative  ANNUAL-BIENNIAL, BIENNIAL cover (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Condition
+XRCOV_ANN_BIEN_AC	PLANT	NA	"Mean relative  Alien + Cryptogenic ANNUAL-BIENNIAL, BIENNIAL cover (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Stressor
+XRCOV_ANN_BIEN_NAT	PLANT	NA	"Mean relative  Native ANNUAL-BIENNIAL, BIENNIAL cover (Species with ANNUAL or Biennial, or Biennial only life cycle durations)"			100	0		Condition
+XRCOV_ANN_PEREN	PLANT	NA	"Mean relative ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Condition
+XRCOV_ANN_PEREN_AC	PLANT	NA	"Mean relative Alien + Cryptogenic ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Stressor
+XRCOV_ANN_PEREN_NAT	PLANT	NA	"Mean relative Native ANNUAL, BIENNIAL, PERENNIAL cover (Species with multiple life cycle durations including annual and/or biennial, and perennial)"			100	0		Condition
+XRCOV_ANNUAL	PLANT	NA	Mean relative ANNUAL cover (Species with annual life cycle duration)			100	0		Condition
+XRCOV_ANNUAL_AC	PLANT	NA	Mean relative Alien + Cryptogenic ANNUAL cover (Species with annual life cycle duration)			100	0		Stressor
+XRCOV_ANNUAL_NAT	PLANT	NA	Mean relative Native ANNUAL cover (Species with annual life cycle duration)			100	0		Condition
+XRCOV_CRYPSPP	PLANT	NA	Mean relative cover of all CRYP species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Stressor
+XRCOV_DICOT	PLANT	NA	Mean relative DICOT cover			100	0		Condition
+XRCOV_DICOTS_AC	PLANT	NA	Mean relative Alien + Cryptogenic DICOT cover			100	0		Stressor
+XRCOV_DICOTS_ALIEN	PLANT	NA	Mean relative Alien DICOT cover			100	0		Stressor
+XRCOV_DICOTS_CRYP	PLANT	NA	Mean relative Cryptogenic DICOT cover			100	0		Stressor
+XRCOV_DICOTS_NAT	PLANT	NA	Mean relative Native DICOT cover			100	0		Condition
+XRCOV_FAC	PLANT	NA	Mean Relative Cover of Facultative  species			100	0		Condition
+XRCOV_FACU	PLANT	NA	Mean Relative Cover of Facultative Upland species			100	0		Condition
+XRCOV_FACW	PLANT	NA	Mean Relative Cover of Facultative Wetland species			100	0		Condition
+XRCOV_FERN	PLANT	NA	Mean relative cover of FERN species			100	0		Condition
+XRCOV_FERNS_INTR	PLANT	NA	Mean relative cover of Introducted FERN species			100	0		Stressor
+XRCOV_FERNS_NAT	PLANT	NA	Mean relative cover of Native FERN species			100	0		Condition
+XRCOV_FLOATING_AQ	VEGTYPE	NA	Relative MeanCover Floating Aquatic Vegetation			100	0		Condition
+XRCOV_FORB	PLANT	NA	Mean relative FORB cover			100	0		Condition
+XRCOV_FORB_AC	PLANT	NA	Mean relative  ALIEN and Cryptogenic  FORB cover			100	0		Condition
+XRCOV_FORB_NAT	PLANT	NA	Mean relative  NATIVE FORB cover			100	0		Condition
+XRCOV_GRAMINOID	PLANT	NA	Mean realtive GRAMINOID cover			100	0		Condition
+XRCOV_GRAMINOID_AC	PLANT	NA	Mean realtive ALIEN and CRYP GRAMINOID cover			100	0		Stressor
+XRCOV_GRAMINOID_NAT	PLANT	NA	Mean realtive NATIVE GRAMINOID cover			100	0		Condition
+XRCOV_GYMNOSPERM	PLANT	NA	Mean relative cover of GYMNOSPERM species			100	0		Condition
+XRCOV_HERB	PLANT	NA	Mean relative  cover Herbaceous (FORB+GRAMINOID  )			100	0		Condition
+XRCOV_HERB_AC	PLANT	NA	Mean relative  ALIEN + CRYP Herbaceous (FORB+GRAMINOID) cover			100	0		Stressor
+XRCOV_HERB_NAT	PLANT	NA	Mean relative cover NATIVE Herbaceous (FORB+GRAMINOID)			100	0		Condition
+XRCOV_HMED_VEG	VEGTYPE	NA	Relative Cover Vegetation > 5m to 15m tall			100	0		Condition
+XRCOV_HORSETAIL	PLANT	NA	Mean relative cover of HORSETAIL species			100	0		Condition
+XRCOV_HSEN	PLANT	NA	Relative Mean Cover Highly Sensitive Species; C >=9			100	0		Condition
+XRCOV_HTOL	PLANT	NA	Relative Mean Cover Highly Toleraant Species; C<=2			100	0		Condition
+XRCOV_INTRSPP	PLANT	NA	Mean relative cover of all INTR species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Stressor
+XRCOV_ISEN	PLANT	NA	Relative Mean Cover Intermediate Sensitivity Species C= 5 to 6			100	0		Condition
+XRCOV_LIANAS	VEGTYPE	NA	"Relative Cover Lianas, vines, and vascular epiphytes"			100	0		Condition
+XRCOV_LYCOPOD	PLANT	NA	Mean relative cover of LYCOPOD species			100	0		Condition
+XRCOV_MED_VEG	VEGTYPE	NA	Relative Cover Vegetation  >2m to 5 tall			100	0		Condition
+XRCOV_MONOCOT	PLANT	NA	Mean relative cover of MONOCOT species			100	0		Condition
+XRCOV_MONOCOTS_AC	PLANT	NA	Mean relative cover of Alien + Cryptogenic MONOCOT species			100	0		Stressor
+XRCOV_MONOCOTS_ALIEN	PLANT	NA	Mean relative cover of Alien MONOCOT species			100	0		Stressor
+XRCOV_MONOCOTS_CRYP	PLANT	NA	Mean relative cover of Cryptogenic MONOCOT species			100	0		Stressor
+XRCOV_MONOCOTS_NAT	PLANT	NA	Mean relative cover of Native MONOCOT species			100	0		Condition
+XRCOV_NATSPP	PLANT	NA	Mean relative cover of all Native species or lowest taxonomic unit across 100-m2 plots as a percentage of total cover			100	0		Condition
+XRCOV_OBL	PLANT	NA	Mean Relative Cover of Obligate species			100	0		Condition
+XRCOV_OBLFACW_AC	PLANT	NA	Mean Relative Cover of Alien + Cryptogenic Obligate and facultative wetland species			100	0		Stressor
+XRCOV_PERENNIAL	PLANT	NA	Mean relative PERENNIAL cover (perennial only species)			100	0		Condition
+XRCOV_PERENNIAL_AC	PLANT	NA	Mean relative Alien + Cryptogenic PERENNIAL cover (perennial only species)			100	0		Stressor
+XRCOV_PERENNIAL_NAT	PLANT	NA	Mean relative Native PERENNIAL cover (perennial only species)			100	0		Condition
+XRCOV_SEN	PLANT	NA	Relative  Mean Cover Sensitive Species; C >=7			100	0		Condition
+XRCOV_SHRUB	PLANT	NA	Mean relative SHRUB cover			100	0		Condition
+XRCOV_SHRUB_COMB	PLANT	NA	"Combined Shrub growth habits (PCTN-SHRUB, PCTN_SSHRUB_SHRUB, PCTN_SSHRUB-FORB) relative  cover"			100	0		Condition
+XRCOV_SHRUB_COMB_AC	PLANT	NA	Mean ALIEN and CRYP absolute cover for Combined Shrub growth habits			100	0		Stressor
+XRCOV_SHRUB_COMB_NAT	PLANT	NA	Mean native absolute cover of Combined Shrub growth habits			100	0		Condition
+XRCOV_SMALL_VEG	VEGTYPE	NA	Relative Cover Vegetation 0.5 to 2m tall			100	0		Condition
+XRCOV_SSHRUB_FORB	PLANT	NA	Mean relative SUBSHRUB-FORB cover			100	0		Condition
+XRCOV_SSHRUB_SHRUB	PLANT	NA	Mean relative SUBSHRUB-SHRUB cover			100	0		Condition
+XRCOV_SUBMERGED_AQ	VEGTYPE	NA	Relative Mean Cover Submerged Aquatic Vegetation			100	0		Condition
+XRCOV_TALL_VEG	VEGTYPE	NA	Relative Cover Vegetation > 15m to 30m tall			100	0		Condition
+XRCOV_TOL	PLANT	NA	Relative  Mean Cover Tolerant Species; C <= 4			100	0		Condition
+XRCOV_TREE	PLANT	NA	Mean relative TREE cover			100	0		Condition
+XRCOV_TREE_COMB	PLANT	NA	Combined Tree and Tree_SHRUB relative cover			100	0		Condition
+XRCOV_TREE_COMB_AC	PLANT	NA	Combined Alien + Cryptogenic Tree and Tree_SHRUB relative cover			100	0		Stressor
+XRCOV_TREE_COMB_NAT	PLANT	NA	Combined Native Tree and Tree_SHRUB relative cover			100	0		Condition
+XRCOV_TREE_SHRUB	PLANT	NA	Mean relative TREE-SHRUB cover			100	0		Condition
+XRCOV_UPL	PLANT	NA	Mean Relative Cover of UPL species			100	0		Condition
+XRCOV_VINE	PLANT	NA	Mean relative VINE cover			100	0		Condition
+XRCOV_VINE_AC	PLANT	NA	Mean relative Alien + Cryptogenic VINE cover			100	0		Stressor
+XRCOV_VINE_NAT	PLANT	NA	Mean relative Native VINE cover			100	0		Condition
+XRCOV_VINE_SHRUB	PLANT	NA	Mean relative VINE-SHRUB			100	0		Condition
+XRCOV_VINE_SHRUB_AC	PLANT	NA	Mean ALIEN and CRYP relative VINE-SHRUB cover			100	0		Stressor
+XRCOV_VINE_SHRUB_NAT	PLANT	NA	Mean NATIVE relative VINE_SHRUB cover			100	0		Condition
+XRCOV_VSMALL_VEG	VEGTYPE	NA	Relative Cover Vegetation < 0.5m tall			100	0		Condition
+XRCOV_VTALL_VEG	VEGTYPE	NA	Relative Cover Vegetation > 30m tall			100	0		Condition
+XTOTCOV_VASC_STRATA	VEGTYPE	NA	Mean absolute cover of all vascular strata across plots			NA	0		Condition

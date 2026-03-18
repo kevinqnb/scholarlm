@@ -1,0 +1,10 @@
+COLUMN_NAME	SAMPLE_TYPE	UNITS	LABEL	FORMABBR	VAR_TYPE	RANGE_HIGH	RANGE_LOW	LEGAL_VALUES
+CHLA	CHLA	ug/L	"Chlorophyll a concentration in water sample, ug/L"		NUMERIC			
+DATE_COL	SITEINFO		Date of primary site visit	POINT	CHARACTER			
+PUBLICATION_DATE			Date the dataset was published to the NARS site					
+SAMPLE_TYPE			Code identifying sample type					
+SITE_ID	SITEINFO		Identification code for site	POINT	CHARACTER			
+SITE_USE	SITEINFO		Result classifies each point in a way that indicates how a point can be used in analysis or not		CHARACTER			NWCA_DO_NOT_USE|NWCA_NOT_NEEDED|NWCA_NOT_PROBABILITY|NWCA_NOT_SAMPLED|NWCA_PROBABILITY|NWCA_REVISITS
+STATE	SITEINFO		State abbreviation		CHARACTER			
+UID			Unique identification number for a site visit					
+VISIT_NO	SITEINFO		Visit number within the year	POINT	CHARACTER			

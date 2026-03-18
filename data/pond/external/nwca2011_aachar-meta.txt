@@ -1,0 +1,33 @@
+COLUMN_NAME	SAMPLE_TYPE	UNITS	LABEL	FORMABBR	VAR_TYPE	RANGE_HIGH	RANGE_LOW	LEGAL_VALUES
+AA_AREA	ASSEESTAB	ha	Area of AA in hectares	NWCA_AAESTAB	NUMERIC	0.5	0.1	
+AA_CENTER	ASSEESTAB		Point is or is not the AA Center	NWCA_AAESTAB	CHARACTER			|POINT_AACENTER|POINT_NOT_AACENTER
+AA_LAT	ASSEESTAB	DD	AA Lattitude of CENTER if not at  POINT	NWCA_AAESTAB	NUMERIC	89.272382	24.593419	
+AA_LAYOUT	ASSEESTAB		AA Layout used	NWCA_AAESTAB	CHARACTER			|POLYGON|STANDARD_CIRCULAR|STANDARD_CIRCULAR_SHIFTED|WETLAND_BOUNDARY
+AA_LON	ASSEESTAB	DD	AA Longitude of CENTER if not at  POINT	NWCA_AAESTAB	NUMERIC	-67.62811	-161.07402	
+AA_POINT	ASSEESTAB		AA can be established	NWCA_AAESTAB	CHARACTER			|YES|NO
+CLASS_1	ASSECHAR		Wetland class in system 1	NWCA_AAESTAB	CHARACTER			
+CLASS_2	ASSECHAR		Wetland class in system 2	NWCA_AAESTAB	CHARACTER			
+CLASS_3	ASSECHAR		Wetland class in system 3	NWCA_AAESTAB	CHARACTER			
+CLASS_FIELD_FWSST			US Fish and Wildlife Service Status and Trends wetland class assigned during field visit					
+DATE_COL			Date of primary site visit					
+DEPRESSION	ASSECHAR		HGM Depression Subclass	NWCA_AAESTAB	CHARACTER			|CLOSED|CLOSED_BEAVER_IMPOUND|CLOSED_HUMAN_IMPOUND|CLOSED_HUMAN_EXC|CLOSED_HUMAN_EXCIMP|OPEN|OPEN_BEAVER_IMPOUND|OPEN_HUMAN_IMPOUND|OPEN_HUMAN_EXC|OPEN_HUMAN_EXCIMP
+DISTANCE_VAR	ASSEESTAB	m	Distance variance - accuracy from GPS	NWCA_AAESTAB	NUMERIC	99	0	
+ECO_X_ST			"Combined NWCA_ECO4 and SANDT_FIELD_GRPS classes:CPL-PH=Coastal Plain Palustrine Herbaceaous,CPL-PW=Coastal Plain Palustrine Woody,E2EM=Estuarine Emergent,E2SS=Estuarine Shrub-scrub,EMU-PH=Eastern Mountains and Upper Midwest Herbaceous,EMU-PW=Eastern Mountains and Upper Midwest Woody,IPL-PH=Interior Plains Herbaceous,IPL-PW=Interior Plains Woody,W-PW=West Woody,W-PH=West Herbaceous"					
+FLATS	ASSECHAR		HGM Flats Subclass	NWCA_AAESTAB	CHARACTER			|FLATS_MNERL|FLATS_ORGNC|FLATS_HUMAN
+FWS_ST	ASSECHAR		FWS Status and Trends Class	NWCA_AAESTAB	CHARACTER			|E2EM|E2SS|PEM|PF|PFO|PSS|PUBPAB
+HGM_CLASS	ASSECHAR		HGM Class	NWCA_AAESTAB	CHARACTER			|DPRSS|FLATS|FRINGE|RIVERINE|SLOPE|TIDAL
+LACUSTRINE	ASSECHAR		HGM Lacustrine Fringe Subclass	NWCA_AAESTAB	CHARACTER			|NATURAL|ARTIFICIAL
+NWCA_ECO4			"Aggregated ecoregions based on FW_ECO9 regions:CPL=Coastal Plain,EMU=Eastern Mountains and Upper Midwest,IPL=Interior Plains,W=West"					
+PHOTO	ASSEESTAB		Annotated Aerial Photo? Showing AA layout and location of Veg and Soil Plots	NWCA_AAESTAB	CHARACTER			|Y
+RIVERINE	ASSECHAR		HGM Riverine Subclass	NWCA_AAESTAB	CHARACTER			|BEAVER_IMPOUND|COMPLEX|HUMAN_ALTERED|LOWER_PERENNIAL|TIDAL|UPPER_PERENNIAL
+SATELLITES_NUM	ASSEESTAB		Number of Satellites detected by GPS	NWCA_AAESTAB	NUMERIC	25	0	
+SITE_ID			Identification code for site					
+SITE_USE			Result classifies each point in a way that indicates how a point can be used in analysis or not					
+SLOPE	ASSECHAR		HGM Slope Subclass	NWCA_AAESTAB	CHARACTER			|TOPOGRAPHIC|STRATOGRAPHIC|HUMAN_ALTERED
+STATE			State abbreviation					
+SYSTEM_1	ASSECHAR		Classification system 1 name	NWCA_AAESTAB	CHARACTER			
+SYSTEM_2	ASSECHAR		Classification system 2 name	NWCA_AAESTAB	CHARACTER			
+SYSTEM_3	ASSECHAR		Classification system 3 name	NWCA_AAESTAB	CHARACTER			
+TIDAL	ASSECHAR		HGM Tidal Subclass	NWCA_AAESTAB	CHARACTER			|HUMAN_ALTERED|NATURAL
+UID			Unique identification number for a site visit					
+VISIT_NO			Visit number within the year					
