@@ -86,7 +86,12 @@ class DocumentLM:
         messages = []
         message_paper_ids = []
         for i, filepath in enumerate(filepaths):
-            b64_images = process_pdf(filepath, target_longest_dim = 2048)
+            try:
+                b64_images = process_pdf(filepath, target_longest_dim = 2048)
+            except Exception as e:
+                warnings.warn(f"Failed to process {filepath} with error: {e}. Skipping this file.")
+                continue
+                
             for j, img in enumerate(b64_images):
                 image_data_uri = f'data:image/png;base64,{img}'
                 message = [

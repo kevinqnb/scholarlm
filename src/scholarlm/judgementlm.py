@@ -1,10 +1,15 @@
 import gc
-
 import numpy as np
-import torch
-import torch.nn.functional as F
-from nnterp import StandardizedTransformer
 from tqdm import tqdm
+
+try:
+    import torch
+    import torch.nn.functional as F
+    from nnterp import StandardizedTransformer
+    HAS_GPU_DEPS = True
+except ImportError:
+    print("Warning: PyTorch and/or nnterp not available; JudgementLM will not use GPU acceleration.")
+    HAS_GPU_DEPS = False
 
 
 def tokenize(

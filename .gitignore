@@ -177,6 +177,8 @@ data/ocr
 
 data/nfix/pdfs/*.pdf
 data/nfix/meta/*
+data/nfix/ocr_output
+data/nfix/ocr_output*/
 
 .batch_state.json
 .batch_state_openai.json
