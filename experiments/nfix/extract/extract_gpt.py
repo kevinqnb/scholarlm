@@ -233,7 +233,7 @@ attribute_info_dict = {
 
 
 measurementlm = MeasurementLM(
-    model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
+    model_name="openai/gpt-oss-120b",
     entity_identification_prompt=NFIX_IDENTIFICATION_PROMPT,
     entity_identification_schema=ObservationSchema,
     attribute_info_dict=attribute_info_dict,
@@ -391,22 +391,22 @@ def standardize_and_deduplicate(infile, outfile):
 
 
 
-outfile1 = "data/experiments/2026_04_01/ten_nfix_entities.json"
+outfile1 = "data/experiments/2026_04_01/ten_nfix_entities_gpt.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_04_01/ten_nfix_attributes.json"
+outfile2 = "data/experiments/2026_04_01/ten_nfix_attributes_gpt.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_04_01/ten_nfix_entity_prov.json"
+outfile3a = "data/experiments/2026_04_01/ten_nfix_entity_prov_gpt.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_04_01/ten_nfix_attribute_prov.json"
+outfile3b = "data/experiments/2026_04_01/ten_nfix_attribute_prov_gpt.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_04_01/ten_nfix_values.json"
+outfile4 = "data/experiments/2026_04_01/ten_nfix_values_gpt.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_04_01/ten_nfix_final.json"
+outfile5 = "data/experiments/2026_04_01/ten_nfix_final_gpt.json"
 standardize_and_deduplicate(outfile4, outfile5)
 
 '''

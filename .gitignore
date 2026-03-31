@@ -188,3 +188,4 @@ data/nfix/ocr_output*/
 
 memory
 *.DS_STORE
+.virtual_documents/
