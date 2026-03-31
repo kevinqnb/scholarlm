@@ -140,7 +140,7 @@ Guidelines:
 - You will be given the full document text. The query will specify which page and table number to focus on.
 - If the specified table does not contain a relevant measurement, set has_value to false and leave row_index, column_index, and units as null.
 - If a measurement is found in the specified table, set has_value to true, and provide the exact row_index name and column_index name needed to locate the cell.
-- Your row_index and column_index must exactly match names from the provided row and column name lists.
+- Your row_index and column_index must exactly match names from the target table.
 - Also extract the units of measurement if identifiable from the table headers or context.
 - If there are multiple types of values reported (e.g., mean, min, max), choose the row/column for the mean or central value unless the attribute description directs otherwise.
 - Structure your response as a JSON object with "explanation", "has_value", "row_index", "column_index", and "units" fields.
@@ -175,6 +175,81 @@ Guidelines:
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
+
+# Ablation 9: No explanation prompts (for all of the above)
+DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has any directly reported numerical measurements anywhere in the document.
+
+Guidelines:
+- You MUST return one item per attribute, using the EXACT attribute name provided. Do not rename, skip, or add attributes.
+- Set detected to false if the given attribute does not appear in the context.
+- Set detected to false if the context does not explicitly provide data for the given attribute.
+- Set detected to false if the data reported is not a direct numerical measurement.
+- Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- Set detected to false for cases where there is not a clear choice for a single, numerical data value.
+- Set detected to true only if the context explicitly provides a direct numerical measurement for the given attribute.
+- For each attribute, provide a brief explanation justifying your decision.
+- When detected is true, populate the terms list with any terminology or abbreviations used in the context to refer to that attribute. Pay close attention to tables and figure captions, as these often contain abbreviations used in the main text. Do not infer, guess, or fabricate terms not explicitly present in the context.
+- When detected is false, return an empty list for terms.
+- Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "detected", and "terms" fields.
+"""
+
+ENTITY_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described entity.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper and a description of an entity.
+- Set has_data to true only if the page contains directly reported numerical measurements associated with the described entity.
+- Set has_data to false if the entity is not mentioned on the page, or if there are no numerical measurements for it.
+- Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- If has_data is true and the data appears within a table on the page, set in_table to true.
+- If the data is in prose text (not in a table), set in_table to false.
+- If has_data is false, set in_table to false.
+- Structure your response as a JSON object with "has_data" and "in_table" fields.
+"""
+
+
+ATTRIBUTE_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described measurement attribute.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper and a description of a measurement attribute.
+- Set has_data to true only if the page contains directly reported numerical measurements for the described attribute.
+- Set has_data to false if the attribute is not mentioned on the page, or if there are no numerical measurements for it.
+- Set has_data to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
+- If has_data is true and the data appears within a table on the page, set in_table to true. If the data is in prose text (not in a table), set in_table to false.
+- If has_data is false, set in_table to false.
+- Structure your response as a JSON object with "has_data" and "in_table" fields.
+"""
+
+
+EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a page of text from a research paper contains a measured value for a given attribute and entity, and if so, to extract it.
+
+Guidelines:
+- If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
+- If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
+- Copy the value exactly as it appears -- do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- Structure your response as a JSON object with "has_value", "value", and "units" fields.
+"""
+
+# Ablation 9: No Explanations
+EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
+
+You will be provided with:
+- The full HTML table
+- A list of row names in the table
+- A list of column names in the table
+- A description of the entity and attribute to find
+
+Guidelines:
+- If the table does not contain a relevant measurement, set has_value to false and leave row_index, column_index, and units as null.
+- If a measurement is found, set has_value to true, and provide the exact row_index name and column_index name needed to locate the cell.
+- Your row_index and column_index must exactly match names from the provided lists.
+- Also extract the units of measurement if identifiable from the table headers or context.
+- If there are multiple types of values reported (e.g., mean, min, max), choose the row/column for the mean or central value unless the attribute description directs otherwise.
+- Structure your response as a JSON object with "has_value", "row_index", "column_index", and "units" fields.
+"""
+
 
 
 # --------------------------------------------

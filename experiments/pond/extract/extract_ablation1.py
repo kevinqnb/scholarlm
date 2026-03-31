@@ -24,6 +24,8 @@ from scholarlm.measurementlm_ablation1 import MeasurementLMAblation1
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 
+from extract_prompts import POND_IDENTIFICATION_PROMPT_WITH_ATTRIBUTES
+
 import random
 import torch
 random.seed(342)
@@ -53,83 +55,6 @@ text = []
 for filepath in text_filepaths:
     with open(filepath, "r", encoding="utf-8") as file:
         text.append(file.read())
-
-
-# --- Ablation 1: Combined (entity, attribute) identification prompt ---
-#
-# This prompt replaces the separate entity identification + attribute detection
-# prompts from the baseline. The model is instructed to emit one item per
-# (ecosystem observation, measurement attribute) pair, only when a direct
-# numerical measurement for that attribute is reported for that entity.
-POND_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature.
-
-Given the provided text (including any tables), extract all distinct ecosystem observations.
-
-An ecosystem observation is defined as a specific pond, lake, wetland, or other aquatic ecosystem.
-The observation may be further identified by a specific treatment site within the ecosystem, a specific treatment state, a specific date of measurement, and/or by a specific measurement attribute type.
-
-
-WHAT COUNTS AS AN ECOSYSTEM:
-- Include ponds, lakes, wetlands, and similar aquatic ecosystems.
-- Marshes, bogs, fens, and swamps should all be considered as "wetland".
-- If the ecosystem type is unclear, classify it as "other".
-
-
-IDENTIFICATION SCHEMA:
-For each distinct ecosystem observation, output one item with the following fields:
-- name: name of the ecosystem
-- abbreviations: abbreviations and/or codes used to refer to the ecosystem
-- location: general location
-- site: treatment site or sub-site identifier (if applicable)
-- state: treatment state (e.g., restored vs. unrestored, control vs. treatment)
-- date: date of observation or sampling
-- ecosystem: ecosystem type — one of: pond, lake, wetland, other
-- attribute: the attribute for which a direct numerical measurement is reported for this ecosystem observation (must be one of: latitude, longitude, surface_area, max_depth, vegetation_cover, ph, tn, tp, chla)
-- attribute_terms: a list of terminology, abbreviations, or column headers used in the document to refer to the attribute (e.g., ["TP", "total P", "total phosphorus"])
-
-NOTE: A single ecosystem may appear as multiple items — once per distinct attribute. This is expected and correct.
-
-NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. Therefore, it is very important that these identifiers are collected and reported in the "abbreviations" field.
-
-
-IDENTIFICATION GUIDELINES:
-Treat ecosystem observations as separate items if ANY of the following differ:
-- Site or sub-site identifier (e.g., different plots, basins, units, or coded sites)
-- Treatment state (e.g., restored vs unrestored, control vs treatment)
-- Date of observation or sampling
-- Attribute(s) for which a measurement is reported
-
-However, if the same ecosystem is mentioned with the same site, state, date, and attribute, do not duplicate it.
-
-
-AVAILABLE MEASUREMENT ATTRIBUTES:
-Attributes should only be drawn from the following list, using the attribute name EXACTLY as it appears below. If none of these attributes are directly measured for a given ecosystem observation, then the observation is invalid and should not be reported. 
-
-1. latitude: Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.
-2. longitude: Geographic longitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.
-3. surface_area: Surface area of the water body itself, representing the horizontal area of open water. This is NOT the same as watershed area, drainage basin area, catchment area, or littoral zone area.
-4. max_depth: Maximum physical water depth of the ecosystem, defined as the deepest point of the water body. This is NOT the same as mean depth, average depth, or Secchi depth.
-5. vegetation_cover: Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other rooted/floating aquatic vegetation. This is NOT the same as algal cover or phytoplankton density.
-6. ph: pH of the water (dimensionless). Should refer to a measured water pH value, not soil or sediment pH.
-7. tn: Total nitrogen (TN) concentration in the water column — the sum of ALL nitrogen forms. This is NOT the same as individual nitrogen species (e.g., NO₃ alone) unless they are explicitly labeled as total nitrogen.
-8. tp: Total phosphorus (TP) concentration in the water column — the sum of ALL phosphorus forms. This is NOT the same as individual phosphorus species (e.g., SRP, orthophosphate) unless they are explicitly labeled as total phosphorus.
-9. chla: Chlorophyll-a (Chl-a) concentration in the water column. This is NOT the same as total chlorophyll, chlorophyll-b, or pheophytin unless explicitly labeled as chlorophyll-a.
-
-NOTE: It is very important that you only use the EXACT attribute names from the list above (latitude, longitude, surface_area, max_depth, vegetation_cover, ph, tn, tp, chla) when reporting attributes.
-
-
-STRICT RULES ABOUT MISSING INFORMATION:
-- Do NOT infer, guess, or derive any attribute.
-- Use ONLY information explicitly stated in the text.
-- If an entity field is not explicitly given, set its value to None.
-
-
-OUTPUT FORMAT REQUIREMENTS:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- One item per (ecosystem observation, attribute) pair.
-- If no qualifying pairs are found, output exactly: { "items": [] }
-"""
 
 
 # --- Ablation 1: Combined entity-attribute schema ---
@@ -192,7 +117,7 @@ attribute_info_dict = {
 
 measurementlm = MeasurementLMAblation1(
     model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
-    entity_identification_prompt=POND_IDENTIFICATION_PROMPT,
+    entity_identification_prompt=POND_IDENTIFICATION_PROMPT_WITH_ATTRIBUTES,
     entity_identification_schema=ObservationAttributePairSchema,
     attribute_info_dict=attribute_info_dict,
     sampling_params={
@@ -312,10 +237,10 @@ def standardize_and_deduplicate(infile, outfile):
     deduplicated = measurementlm._deduplicate(standardized)
 
     dataset = []
-    for datapoint in deduplicated:
+    for i, datapoint in enumerate(deduplicated):
         document_id = datapoint["document_id"]
         doc_metadata = text_info[document_id]
-        dataset.append(doc_metadata | datapoint)
+        dataset.append(doc_metadata | datapoint | {'measurement_id': i})
 
     with open(outfile, "w") as f:
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)

@@ -18,3 +18,10 @@ from .data import (
     match_datasets,
     matching_precision_recall,
 )
+
+from .ml import (
+    fit_temperature,
+    apply_temperature,
+    fit_temperature_from_probs,
+    apply_temperature_from_probs,
+)

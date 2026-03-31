@@ -9,7 +9,7 @@ from scholarlm import MeasurementLM
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 
-from extract_prompts import POND_IDENTIFICATION_PROMPT
+from extract_prompts import NFIX_IDENTIFICATION_PROMPT
 
 # (try to) set seeds for reproducibility
 import random
@@ -22,14 +22,46 @@ torch.cuda.manual_seed(342)
 #task_id = int(os.getenv('SGE_TASK_ID'))
 
 
-main_directory = "data/pond"
+main_directory = "data/nfix"
 pdf_directory = os.path.join(main_directory, "pdfs")
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gpt_5_mini")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_vllm")
 with open(os.path.join(main_directory, "directory.json"), "r") as f:
     paper_info = json.load(f)
 
+
+def text_or_table_extraction(location):
+    if 'figure' in location:
+        return False
+    if 'supplement' in location:
+        return False
+    if 'archive' in location:
+        return False
+    if 'author' in location:
+        return False
+    else:
+        return True
+
+registered_paper_info = {
+    R: Rinfo for R,Rinfo in paper_info.items() if text_or_table_extraction(Rinfo['extraction_location']) 
+}
+registered_ids = list(registered_paper_info.keys())
+
 text_files = get_filenames_in_directory(ocr_directory, ignore = [".DS_Store", ".gitkeep"])
 text_files.sort()
+text_files = [f for f in text_files if f.replace('.txt', '') in registered_ids]
+
+text_files = [
+    "R163.txt",
+    "R164.txt",
+    "R172.txt",
+    "R248.txt",
+    "R124.txt",
+    "R51.txt",
+    "R59.txt",
+    "R114.txt",
+    "R43.txt",
+    "R103.txt"
+]
 
 '''
 # split into 5 groups for 5 tasks; each task processes one group of files
@@ -41,22 +73,6 @@ if task_id < 5:
 else:
     text_files = text_files[start_index:]
 '''
-
-'''
-text_files = [
-    'physical_and_chemical_limnological.txt',
-    'physical-chemical_influences.txt',
-    'prairie_wetland.txt',
-    'net_heterotrophy.txt',
-    'habitat_characteristics.txt',
-    'biodiversity_of_constructed.txt',
-    'fish_production_in_lakes.txt',
-    'long-term_stability.txt',
-    'diversity_of_macroinvertebrates.txt',
-    'impact_of_macrophytes.txt'
-]
-'''
-
 
 text_filepaths = []
 text_info = []
@@ -79,63 +95,156 @@ for filepath in text_filepaths:
 class ObservationSchema(BaseModel):
     name: str | None
     abbreviations: str | None
-    location: str | None
-    site: str | None
-    state: str | None
+    ecosystem_type: str | None
+    latitude: float | None
+    longitude: float | None
     date: str | None
-    ecosystem: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+
+# Mass units
+mass_units = [
+    "nmol-N g-1 h-1",
+    "nmol-C2H4 g-1 h-1",
+    "nmol-N2 g-1 h-1",
+    "ug-N g-1 d-1",
+    "nmol-N2 g-1 d-1",
+    "umol-N g-1 d-1",
+    "nmol-C2H4 g-1 d-1",
+    "nmol-N g-1 d-1",
+    "ug-N g-1 h-1",
+    "ug-N kg-1 d-1",
+    "umol-N g-1 h-1",
+    "fmol-N g-1 h-1",
+    "ng-N g-1 d-1",
+    "ng-N g-1 h-1",
+    "nmol-N kg-1 h-1",
+    "umol-C2H4 g-1 d-1",
+    "umol-N kg-1 h-1",
+    "umol-N2 g-1 d-1",
+]
+
+# Areal units
+areal_units = [
+    "umol-N m-2 h-1",
+    "mg-N m-2 d-1",
+    "umol-N m-2 d-1",
+    "umol-C2H4 m-2 h-1",
+    "nmol-C2H4 cm-2 h-1",
+    "mmol-N m-2 d-1",
+    "ug-N m-2 h-1",
+    "mg-N m-2 h-1",
+    "nmol-C2H4 cm-2 d-1",
+    "nmol-C2H4 m-2 h-1",
+    "umol-N2 m-2 h-1",
+    "g-N m-2 yr-1",
+    "mmol-N m-2 h-1",
+    "mmol-N2 m-2 d-1",
+    "nmol-N cm-2 h-1",
+    "umol-N2 m-2 d-1",
+    "kg-N2 ha-1 yr-1",
+    "mg-N m-2 yr-1",
+    "mg-N2 m-2 h-1",
+    "ng-N m-2 h-1",
+    "nmol-C2H4 m-2 d-1",
+    "ug-N cm-2 h-1",
+    "ug-N2 m-2 h-1"
+]
+
+# Volumetric units
+volumetric_units = [
+    "nmol-N L-1 d-1",
+    "nmol-N L-1 h-1",
+    "nmol-C2H4 L-1 h-1",
+    "ug-N L-1 h-1",
+    "ng-N L-1 h-1",
+    "mg-N m-3 d-1",
+    "nmol-C2H4 cm-3 h-1",
+    "nmol-C2H4 mL-1 h-1",
+    "nmol-N cm-3 d-1",
+    "nmol-N cm-3 h-1",
+    "ug-N m-3 h-1",
+    "umol-N2 L-1 d-1",
+    "umol-N2 L-1 h-1",
+    "mmol-C2H4 m-3 d-1",
+    "nmol-C2H4 cm-3 d-1",
+    "nmol-N m-3 h-1",
+    "nmol-N2 cm-3 d-1",
+    "nmol-N2 L-1 d-1",
+    "nmol-N2 L-1 h-1",
+    "ug-N L-1 d-1",
+    "ug-N2 L-1 h-1",
+    "ug-N2 m-3 d-1",
+    "umol-C2H4 L-1 d-1",
+    "umol-C2H4 mL-1 3h-1",
+    "umol-N L-1 d-1",
+    "umol-N L-1 h-1"
+]
 
 
 attribute_info_dict = {
-    "latitude": {
-        "description": "Geographic latitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
-        "units": ["degrees", "radians"]
+    # --- Rate attributes ---
+    "nfix_rate_mass": {
+        "description": (
+            "Rate of dinitrogen fixation per unit mass: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by substrate mass. Not equivalent to rates reported per unit area or volume."
+        ),
+        "units": mass_units
     },
-    "longitude": {
-        "description": "Geographic longitude of the ecosystem location, expressed in a standard geographic coordinate system (e.g., WGS84). This should refer to the centroid or stated reference point of the ecosystem, not a bounding box or region.",
-        "units": ["degrees", "radians"]
+    "nfix_rate_areal": {
+        "description": (
+            "Rate of dinitrogen fixation per unit area: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by area. Not equivalent to rates reported per unit mass or volume."
+        ),
+        "units": areal_units
     },
-    "surface_area": {
-        "description": "Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description. This is NOT the same as watershed area, drainage basin area, catchment area, or littoral zone area.",
-        "units": ["km^2", "mi^2", "ha", "m^2", "acres"]
+    "nfix_rate_volumetric": {
+        "description": (
+            "Rate of dinitrogen fixation per unit volume: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by water volume. Not equivalent to rates reported per unit mass or area."
+        ),
+        "units": volumetric_units
     },
-    "max_depth": {
-        "description": "Maximum physical water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is NOT the same as mean depth, average depth, or Secchi depth (water transparency depth).",
-        "units": ["m", "km", "ft"]
+    # --- Incubation conditions ---
+    "nfix_incubation_time": {
+        "description": (
+            "Duration of the experimental incubation for measuring dinitrogen "
+            "fixation, from introduction of the tracer or substrate analog to "
+            "termination and sampling."
+        ),
+        "units": ["minutes", "hours", "days"]
     },
-    "vegetation_cover": {
-        "description": "Fraction or percentage of the ecosystem surface area covered by aquatic macrophytes or other rooted/floating aquatic vegetation. This should refer to areal coverage, not biomass or volume. This is NOT the same as algal cover, periphyton cover, or phytoplankton density.",
-        "units": ["percent", "fraction"]
-    },
-    "ph": {
-        "description": "pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.",
-        "units": []
-    },
-    "tn": {
-        "description": "Total nitrogen (TN) concentration in the water column, representing the sum of all nitrogen forms — both dissolved and particulate, including nitrate (NO₃), nitrite (NO₂), ammonium (NH₃/NH₄⁺), and organic nitrogen. This must be the aggregate 'total nitrogen' value as explicitly reported in the source. This is NOT the same as individual nitrogen species (e.g., NO₃ alone, NO₂ alone, NH₃ alone, combined NO₃+NO₂, or particulate organic nitrogen [PON]) unless they are explicitly labeled as total nitrogen.",
-        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
-    },
-    "tp": {
-        "description": "Total phosphorus (TP) concentration in the water column, representing the sum of all phosphorus forms — both dissolved and particulate. This must be the aggregate 'total phosphorus' value as explicitly reported in the source. This is NOT the same as individual phosphorus species (e.g., soluble reactive phosphorus [SRP], orthophosphate [PO₄³⁻], dissolved reactive phosphorus [DRP], or particulate phosphorus [PP]) unless they are explicitly labeled as total phosphorus.",
-        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"]
-    },
-    "chla": {
-        "description": "Chlorophyll-a (Chl-a) concentration in the water column, used as a proxy for phytoplankton biomass. This should refer to extracted or in situ chlorophyll-a measurements only. This is NOT the same as total chlorophyll, chlorophyll-b, chlorophyll-c, pheophytin, or other pigment measurements unless they are explicitly labeled as chlorophyll-a.",
-        "units": ["µg/L", "mg/L", "mg/m^3"]
+    "nfix_incubation_temperature": {
+        "description": (
+            "Temperature at which the sample was held during the dinitrogen "
+            "fixation incubation. Extract only if a specific numeric temperature "
+            "is reported for the incubation itself. Do not extract in situ water "
+            "temperatures unless the text explicitly states they equal the "
+            "incubation temperature. If the text says only 'ambient temperature' "
+            "or 'in situ temperature' without a numeric value, set to None."
+        ),
+        "units": ["°C", "K"]
     },
 }
 
 
 measurementlm = MeasurementLM(
-    model_name="gaunernst/gemma-3-27b-it-qat-autoawq",
-    entity_identification_prompt=POND_IDENTIFICATION_PROMPT,
+    model_name="Qwen/Qwen3.5-35B-A3B-FP8",
+    entity_identification_prompt=NFIX_IDENTIFICATION_PROMPT,
     entity_identification_schema=ObservationSchema,
     attribute_info_dict=attribute_info_dict,
     sampling_params={
-        "temperature": 0.1,
+        "temperature": 0.6,
         "top_p" : 0.95,
-        "top_k" : 64,
-        "max_tokens" : 8192,
+        "top_k" : 20,
+        "min_p" : 0.0,
+        "presence_penalty" : 0.0,
+        "repetition_penalty" : 1.0,
+        "max_tokens" : 81920,
         "seed": 342,
     },
 )
@@ -285,22 +394,22 @@ def standardize_and_deduplicate(infile, outfile):
 
 
 
-outfile1 = "data/experiments/2026_03_04/pond_entities.json"
+outfile1 = "data/experiments/2026_04_01/ten_nfix_entities_qwen.json"
 extract_entities(text, outfile1)
 
-outfile2 = "data/experiments/2026_03_04/pond_attributes.json"
+outfile2 = "data/experiments/2026_04_01/ten_nfix_attributes_qwen.json"
 detect_attributes(text, outfile2)
 
-outfile3a = "data/experiments/2026_03_04/pond_entity_prov.json"
+outfile3a = "data/experiments/2026_04_01/ten_nfix_entity_prov_qwen.json"
 entity_provenance(text, outfile1, outfile3a)
 
-outfile3b = "data/experiments/2026_03_04/pond_attribute_prov.json"
+outfile3b = "data/experiments/2026_04_01/ten_nfix_attribute_prov_qwen.json"
 attribute_provenance(text, outfile2, outfile3b)
 
-outfile4 = "data/experiments/2026_03_04/pond_values.json"
+outfile4 = "data/experiments/2026_04_01/ten_nfix_values_qwen.json"
 extract_values(text, outfile1, outfile2, outfile3a, outfile3b, outfile4)
 
-outfile5 = "data/experiments/2026_03_04/pond_final.json"
+outfile5 = "data/experiments/2026_04_01/ten_nfix_final_qwen.json"
 standardize_and_deduplicate(outfile4, outfile5)
 
 '''

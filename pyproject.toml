@@ -38,6 +38,10 @@ dependencies = [
     "scipy>=1.16.2",
     "tiktoken>=0.12.0",
     "tqdm>=4.0.0",
+    "vllm==0.10.1",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.8",
+    "seaborn>=0.13.2",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +53,7 @@ gpu = [
     "torch>=2.0.0",
     "transformer-lens>=2.16.1",
     "transformers>=4.0.0",
-    "vllm>=0.11.0",
+    "vllm>=0.8.5",
 ]
 viz = [
     "matplotlib>=3.10.7",

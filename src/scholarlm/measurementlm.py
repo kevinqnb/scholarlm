@@ -5,7 +5,6 @@ import pandas as pd
 import math
 import re
 from io import StringIO
-import torch
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 from .instruction_prompts import (
@@ -16,7 +15,6 @@ from .instruction_prompts import (
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
 )
-
 
 def response_validator(response_structure, response):
     pyd = response_structure.model_validate_json(response)

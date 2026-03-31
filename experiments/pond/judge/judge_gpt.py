@@ -159,7 +159,7 @@ async def run_all_chats(
 
         return custom_id, {
             "judgement": valid,
-            "confidence": p_valid_true,
+            "prob": p_valid_true,
             "model": model,
             "raw_text": raw,
         }
@@ -224,10 +224,10 @@ attribute_info_dict = {
 # Build the chats for all entries.
 
 main_directory = "data/pond"
-ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_openai")
+ocr_directory = os.path.join(main_directory, "ocr_output_cleaned_gpt_5_mini")
 
-input_file = "data/experiments/2026_02_25/pond_openai.json"
-output_file = "data/experiments/2026_02_25/pond_openai_judged_gpt.json"
+input_file = "data/experiments/2026_03_04/pond_final.json"
+output_file = "data/experiments/2026_03_04/pond_judged_gpt.json"
 
 ENTITY_TYPE_DESCRIPTION = (
     "A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or "
@@ -402,7 +402,7 @@ if __name__ == "__main__":
         entry = data[i]
         entry_validated = entry | {
             "judgement": result.get("judgement"),
-            "judgement_confidence": result.get("confidence"),
+            "judgement_prob": result.get("prob"),
             "judgement_model": result.get("model"),
             "judgement_raw_text": result.get("raw_text"),
         }
