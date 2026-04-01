@@ -97,6 +97,7 @@ class MeasurementLM:
         entity_identification_schema: BaseModel,
         attribute_info_dict: dict[str, any],
         sampling_params: dict[str, any] = {},
+        tensor_parallel_size: int = 1,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -109,7 +110,7 @@ class MeasurementLM:
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
         self.attribute_info_dict = attribute_info_dict
-        self.llm = LLM(model=model_name)
+        self.llm = LLM(model=model_name, tensor_parallel_size=tensor_parallel_size)
 
 
     # -----------------------------------------------------------------------

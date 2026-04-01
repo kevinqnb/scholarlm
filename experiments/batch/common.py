@@ -2,6 +2,11 @@
 
 All provider modules import from here so the prompt stays identical across
 OpenAI, Anthropic, and Gemini — making results directly comparable.
+
+The key public function ``prepare_chat_entries`` accepts an optional
+``dataset_config`` argument (a ``scholarlm.config.DatasetConfig`` instance).
+When omitted it falls back to the hardcoded pond schema and attribute catalogue
+below, preserving backward compatibility for all existing pond judge scripts.
 """
 from __future__ import annotations
 
@@ -18,7 +23,10 @@ from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
 
-# ─── Schema & attribute catalogue ────────────────────────────────────────────
+# ─── Pond-specific defaults (kept for backward compatibility) ─────────────────
+#
+# New code should pass a DatasetConfig to prepare_chat_entries() instead of
+# relying on these module-level constants.
 
 
 class ObservationSchema(BaseModel):
@@ -185,15 +193,40 @@ def build_user_prompt(
 
 
 def prepare_chat_entries(
-    data: list[dict], documents: list[str]
+    data: list[dict],
+    documents: list[str],
+    dataset_config: Any = None,
 ) -> list[dict[str, Any]]:
     """Convert raw extraction data to provider-agnostic chat entries.
 
     Entries are sorted by document_id for cache locality. Each entry contains:
-        custom_id  – str(original index in data), used to map results back
-        system     – system prompt string
-        user       – user prompt string
+        custom_id     – str(original index in data), used to map results back
+        system        – system prompt string
+        user          – user prompt string
+        user_document – document prefix used for Anthropic prompt caching
+
+    Args:
+        data: List of extraction records from a ``final.json`` file.
+        documents: List of OCR text strings indexed by ``document_id``.
+        dataset_config: Optional ``DatasetConfig`` instance.  When provided,
+            entity fields, attribute descriptions, and the entity type
+            description are sourced from the config.  When ``None``, the
+            module-level pond defaults are used (backward-compatible behaviour).
+
+    Returns:
+        List of chat entry dicts ready for any provider batch module.
     """
+    # Resolve schema fields, attribute catalogue, and entity description from
+    # the dataset config when provided, or fall back to pond defaults.
+    if dataset_config is not None:
+        _fields = dataset_config.entity_schema.model_fields.keys()
+        _attr_dict = dataset_config.attribute_info_dict
+        _entity_type_desc = dataset_config.entity_type_description
+    else:
+        _fields = fields
+        _attr_dict = attribute_info_dict
+        _entity_type_desc = ENTITY_TYPE_DESCRIPTION
+
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
@@ -201,9 +234,9 @@ def prepare_chat_entries(
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         document = documents[entry["document_id"]]
         attribute = entry.get("attribute")
-        attribute_description = attribute_info_dict[attribute]["description"]
+        attribute_description = _attr_dict[attribute]["description"]
         attribute_terms = entry.get("attribute_terms", [])
-        entity_description = {k: v for k, v in entry.items() if k in fields}
+        entity_description = {k: v for k, v in entry.items() if k in _fields}
         page_number = entry.get("page_number")
         table_number = entry.get("table_number")
         source = entry.get("source", "text")
@@ -224,7 +257,7 @@ def prepare_chat_entries(
             source=source,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
-            entity_type_description=ENTITY_TYPE_DESCRIPTION,
+            entity_type_description=_entity_type_desc,
             entity_description=entity_description,
             page_number=page_number,
             table_number=table_number,

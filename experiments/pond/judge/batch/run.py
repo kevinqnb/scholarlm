@@ -65,7 +65,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .common import load_data, load_documents, merge_results, prepare_chat_entries
+# Add experiments/ to sys.path so `batch` resolves to experiments/batch/
+_EXPERIMENTS_DIR = Path(__file__).parent.parent.parent.parent
+if str(_EXPERIMENTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_EXPERIMENTS_DIR))
+
+from batch.common import load_data, load_documents, merge_results, prepare_chat_entries
 
 
 # ─── Provider dispatch ────────────────────────────────────────────────────────
@@ -104,7 +109,7 @@ def step_submit(
     state: dict[str, Any] = {"provider": provider, "model": model}
 
     if provider == "openai":
-        from . import openai_batch
+        from batch import openai_batch
 
         client = _get_openai_client()
         requests = openai_batch.build_requests(chat_entries, model)
@@ -112,7 +117,7 @@ def step_submit(
         state["batch_ids"] = batch_ids
 
     elif provider == "anthropic":
-        from . import anthropic_batch
+        from batch import anthropic_batch
 
         client = _get_anthropic_client()
         requests = anthropic_batch.build_requests(chat_entries, model)
@@ -120,7 +125,7 @@ def step_submit(
         state["batch_ids"] = batch_ids
 
     elif provider == "gemini":
-        from . import gemini_batch
+        from batch import gemini_batch
 
         requests = gemini_batch.build_requests(chat_entries, model)
         batch_names = gemini_batch.submit_batch(
@@ -150,19 +155,19 @@ def step_poll(provider: str, state_file: str, interval: int = 60) -> None:
     provider = state.get("provider", provider)
 
     if provider == "openai":
-        from . import openai_batch
+        from batch import openai_batch
 
         client = _get_openai_client()
         openai_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
 
     elif provider == "anthropic":
-        from . import anthropic_batch
+        from batch import anthropic_batch
 
         client = _get_anthropic_client()
         anthropic_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
 
     elif provider == "gemini":
-        from . import gemini_batch
+        from batch import gemini_batch
 
         gemini_batch.poll_batch(
             state["batch_names"],
@@ -189,19 +194,19 @@ def step_process(
     data = load_data(input_file)
 
     if provider == "openai":
-        from . import openai_batch
+        from batch import openai_batch
 
         client = _get_openai_client()
         results = openai_batch.fetch_results(state["batch_ids"], client=client, model=model)
 
     elif provider == "anthropic":
-        from . import anthropic_batch
+        from batch import anthropic_batch
 
         client = _get_anthropic_client()
         results = anthropic_batch.fetch_results(state["batch_ids"], client=client, model=model)
 
     elif provider == "gemini":
-        from . import gemini_batch
+        from batch import gemini_batch
 
         results = gemini_batch.fetch_results(
             state["batch_names"], model=model,
