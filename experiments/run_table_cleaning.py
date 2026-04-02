@@ -21,11 +21,6 @@ Usage
     python experiments/run_table_cleaning.py \\
         --dataset pond --backend vllm --model gemma-3-27b
 
-    # Full HuggingFace model ID (also accepted):
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --backend vllm \\
-        --model gaunernst/gemma-3-27b-it-qat-autoawq
-
     # OpenAI API:
     python experiments/run_table_cleaning.py \\
         --dataset pond --backend openai --model gpt-4o-mini
@@ -45,7 +40,7 @@ Usage
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
 Available datasets : any file in experiments/configs/<name>.py that exports CONFIG.
-vLLM short names   : see VLLM_MODEL_REGISTRY in this file.
+vLLM model keys    : see MODEL_REGISTRY in this file.
 """
 from __future__ import annotations
 
@@ -65,17 +60,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from scholarlm import TableCleaner
-from scholarlm.config import DatasetConfig
+from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.utils import get_filenames_in_directory
 
 # ---------------------------------------------------------------------------
-# vLLM model registry (short name → HuggingFace model ID)
-# Add entries here to enable short-name lookup via --model.
+# vLLM model registry (short name → ModelConfig)
+# Add entries here to register models for the vllm backend.
 # ---------------------------------------------------------------------------
 
-VLLM_MODEL_REGISTRY: dict[str, str] = {
-    "gemma-3-27b": "gaunernst/gemma-3-27b-it-qat-autoawq",
-    "gpt-oss-120b": "openai/gpt-oss-120b",
+MODEL_REGISTRY: dict[str, ModelConfig] = {
+    "gemma-3-27b": ModelConfig(
+        name="gemma-3-27b",
+        model_id="gaunernst/gemma-3-27b-it-qat-autoawq",
+        tensor_parallel_size=1,
+        sampling_params={
+            "temperature": 0.1,
+            "max_tokens": 16384,
+        },
+    ),
+    "gpt-oss-120b": ModelConfig(
+        name="gpt-oss-120b",
+        model_id="openai/gpt-oss-120b",
+        tensor_parallel_size=2,
+        sampling_params={
+            "temperature": 0.1,
+            "max_tokens": 16384,
+        },
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -113,11 +124,6 @@ def _model_tag(model: str) -> str:
     return model.replace("/", "_").replace("-", "_").replace(".", "_").lower()
 
 
-def _resolve_vllm_model(model: str) -> str:
-    """Expand a registry short name to its HuggingFace ID, or return as-is."""
-    return VLLM_MODEL_REGISTRY.get(model, model)
-
-
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -138,9 +144,8 @@ def run_table_cleaning(
     Args:
         dataset_config: Dataset configuration loaded from experiments/configs/.
         backend: ``"vllm"`` for a local model or ``"openai"`` for the API.
-        model: For vllm — a short registry name (e.g. ``"gemma-3-27b"``) or a
-            full HuggingFace model ID.  For openai — the API model name
-            (e.g. ``"gpt-4o-mini"``).
+        model: For vllm — a key from ``MODEL_REGISTRY`` (e.g. ``"gemma-3-27b"``).
+            For openai — the API model name (e.g. ``"gpt-4o-mini"``).
         input_dir: Directory containing OCR ``.txt`` files.  Defaults to
             ``{data_dir}/ocr_output_raw/``.
         output_dir: Destination directory for cleaned ``.txt`` files.  Defaults
@@ -204,13 +209,16 @@ def run_table_cleaning(
             texts.append(fh.read())
 
     if backend == "vllm":
-        resolved = _resolve_vllm_model(model)
-        if resolved != model:
-            print(f"Resolved '{model}' → '{resolved}'")
+        if model not in MODEL_REGISTRY:
+            raise KeyError(
+                f"Unknown vllm model '{model}'. "
+                f"Available models: {sorted(MODEL_REGISTRY.keys())}"
+            )
+        model_config = MODEL_REGISTRY[model]
         cleaner = TableCleaner(
             backend="vllm",
-            model_name=resolved,
-            sampling_params={"temperature": 0.1, "max_tokens": 16384},
+            model_name=model_config.model_id,
+            sampling_params=model_config.sampling_params,
             target_longest_dim=1536,
         )
     elif backend == "openai":
@@ -257,8 +265,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--model",
         required=True,
         help=(
-            "For vllm: a short registry name (e.g. 'gemma-3-27b') or a full "
-            "HuggingFace model ID.  "
+            "For vllm: a key from MODEL_REGISTRY (e.g. 'gemma-3-27b'). "
             "For openai: the API model name (e.g. 'gpt-4o-mini')."
         ),
     )
