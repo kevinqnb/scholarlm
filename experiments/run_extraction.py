@@ -563,9 +563,16 @@ def run_pipeline(
     )
 
     if clean_tables:
-        pdf_dir = data_dir / "pdfs"
-        pdf_paths = [str(pdf_dir / f"{info['paper_code']}.pdf") for info in text_info]
-        text = mlm._clean_tables(text, pdf_paths)
+        processed_pdf_root = data_dir / "processed_pdfs"
+        if not processed_pdf_root.exists():
+            raise FileNotFoundError(
+                f"Processed PDF directory not found: {processed_pdf_root}\n"
+                f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
+            )
+        processed_pdf_dirs = [
+            str(processed_pdf_root / info["paper_code"]) for info in text_info
+        ]
+        text = mlm._clean_tables(text, processed_pdf_dirs)
 
     if final_only:
         with tempfile.TemporaryDirectory() as tmpdir:

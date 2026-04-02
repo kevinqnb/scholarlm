@@ -17,6 +17,13 @@ python experiments/run_ocr.py --dataset pond
 # Output: data/pond/ocr_output_raw/
 ```
 
+### Step 1b — PDF image pre-processing (preprocessing environment)
+
+```bash
+python experiments/process_pdfs.py --dataset pond
+# Output: data/pond/processed_pdfs/
+```
+
 ### Step 2 — Table cleaning (OpenAI gpt-5-mini, legacy)
 
 ```bash
@@ -95,6 +102,16 @@ OCR uses a single model (olmOCR); no new variants here.
 ```bash
 python experiments/run_ocr.py --dataset pond
 python experiments/run_ocr.py --dataset pond --resume  # resume partial run
+```
+
+### Step 1b — PDF image pre-processing (preprocessing environment)
+
+Run once per dataset; output is reused across all extraction runs.
+
+```bash
+python experiments/process_pdfs.py --dataset pond
+python experiments/process_pdfs.py --dataset pond --resume  # skip already-done
+# Output: data/pond/processed_pdfs/
 ```
 
 ### Step 2 — Extraction (with integrated table cleaning)

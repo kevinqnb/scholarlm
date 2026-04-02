@@ -18,7 +18,6 @@ from .instruction_prompts import (
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
 )
-from .utils import process_pdf
 
 def response_validator(response_structure, response):
     pyd = response_structure.model_validate_json(response)
@@ -152,28 +151,43 @@ class MeasurementLM:
     def _clean_tables(
         self,
         documents: list[str],
-        pdf_paths: list[str],
+        processed_pdf_dirs: list[str],
     ) -> list[str]:
         """
         Clean and normalize tables in OCR text using the loaded vLLM model.
 
-        For each page containing ``<table>`` tags, re-renders the page from the
-        source PDF and asks the model to correct and normalize the table markup
-        against the image.  Pages without tables are returned unchanged.
+        For each page containing ``<table>`` tags, loads the pre-rendered page
+        image and asks the model to correct and normalize the table markup
+        against it.  Pages without tables are returned unchanged.
+
+        Pre-processed images must be produced first by ``process_pdfs.py``,
+        which saves each page as a base64 string at
+        ``{processed_pdf_dir}/{page_index}.b64``.
 
         If ``self.cleaned_ocr_output_dir`` is set, the cleaned texts are saved
-        as ``{stem}.txt`` files (where *stem* is the PDF filename stem) in that
-        directory.
+        as ``{stem}.txt`` files (where *stem* is the last component of the
+        ``processed_pdf_dir`` path) in that directory.
 
         Args:
             documents: OCR text strings, one per document.
-            pdf_paths: Paths to source PDF files, one per document.
+            processed_pdf_dirs: Paths to the pre-processed image directories,
+                one per document.  Each directory must contain ``{i}.b64``
+                files (from ``process_pdfs.py``).
 
         Returns:
             Cleaned OCR text strings in the same order as ``documents``.
         """
-        print("Loading PDF images for table cleaning...")
-        all_images = [process_pdf(p, target_longest_dim=1536) for p in pdf_paths]
+        print("Loading pre-processed PDF images...")
+        all_images: list[list[str]] = []
+        for doc_dir in processed_pdf_dirs:
+            doc_path = Path(doc_dir)
+            if not doc_path.exists():
+                raise FileNotFoundError(
+                    f"Processed PDF directory not found: {doc_dir}\n"
+                    f"Run 'python experiments/process_pdfs.py' first."
+                )
+            page_files = sorted(doc_path.glob("*.b64"), key=lambda p: int(p.stem))
+            all_images.append([p.read_text().strip() for p in page_files])
 
         messages: list[list[dict]] = []
         message_ids: list[tuple[int, int]] = []  # (doc_idx, page_number)
@@ -243,8 +257,9 @@ class MeasurementLM:
         if self.cleaned_ocr_output_dir is not None:
             out_dir = Path(self.cleaned_ocr_output_dir)
             out_dir.mkdir(parents=True, exist_ok=True)
-            for pdf_path, cleaned_text in zip(pdf_paths, cleaned_documents):
-                out_file = out_dir / (Path(pdf_path).stem + ".txt")
+            for proc_dir, cleaned_text in zip(processed_pdf_dirs, cleaned_documents):
+                stem = Path(proc_dir).name
+                out_file = out_dir / (stem + ".txt")
                 with open(out_file, "w", encoding="utf-8") as fh:
                     fh.write(cleaned_text)
             print(f"Saved cleaned OCR to {out_dir}")
@@ -1106,27 +1121,32 @@ class MeasurementLM:
     def fit(
         self,
         documents: list[str],
-        pdf_paths: list[str] | None = None,
+        processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
         Runs the full measurement extraction pipeline on the provided documents.
 
         If ``clean_tables=True`` (set at construction), table cleaning is
         performed as an initial step using the loaded vLLM model before entity
-        extraction begins.  Cleaned texts are optionally saved to
+        extraction begins.  Pre-processed PDF images must be available (produced
+        by ``process_pdfs.py``).  Cleaned texts are optionally saved to
         ``cleaned_ocr_output_dir``.
 
         Args:
             documents: OCR text strings, one per document.
-            pdf_paths: Paths to source PDFs. Required when ``clean_tables=True``.
+            processed_pdf_dirs: Directories of pre-processed ``.b64`` page images,
+                one per document.  Required when ``clean_tables=True``.
         Returns:
             Measurement records extracted from the documents.
         """
         # Step 0: Table cleaning (optional)
         if self.clean_tables:
-            if pdf_paths is None:
-                raise ValueError("pdf_paths is required when clean_tables=True.")
-            documents = self._clean_tables(documents, pdf_paths)
+            if processed_pdf_dirs is None:
+                raise ValueError(
+                    "processed_pdf_dirs is required when clean_tables=True. "
+                    "Run 'python experiments/process_pdfs.py' first."
+                )
+            documents = self._clean_tables(documents, processed_pdf_dirs)
 
         self.data = []
         for i, doc in enumerate(documents):

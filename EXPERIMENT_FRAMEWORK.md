@@ -74,6 +74,24 @@ python experiments/run_ocr.py --dataset pond
 python experiments/run_ocr.py --dataset pond --resume  # skip already-processed PDFs
 ```
 
+### `experiments/process_pdfs.py`
+
+Pre-renders all PDF pages to base64-encoded PNGs in a preprocessing environment
+(Pillow / pypdf / pdfinfo).  This must be run **before** `run_extraction.py`
+whenever integrated table cleaning is used, because the rendering libraries are
+not available in the vLLM environment.
+
+```
+Output: data/{dataset}/processed_pdfs/{paper_code}/{page_index}.b64
+```
+
+```bash
+python experiments/process_pdfs.py --dataset pond
+python experiments/process_pdfs.py --dataset nfix --resume
+```
+
+Flags: `--paper-subset`, `--target-longest-dim` (default: 1536), `--resume`.
+
 ### `experiments/run_table_cleaning.py`
 
 **Legacy script** for API-based table cleaning (OpenAI only). For local
@@ -100,6 +118,10 @@ Runs the full `MeasurementLM` extraction pipeline. Table cleaning is
 integrated as **Step 0**: when `--ocr-dir` is not supplied, the extraction
 model cleans tables from raw OCR before extraction begins.  Cleaned texts
 are saved to `{data_dir}/ocr_output_cleaned_{model_name}/`.
+
+**Prerequisite for integrated table cleaning:** `process_pdfs.py` must be
+run first (in the preprocessing environment) to produce
+`data/{dataset}/processed_pdfs/`.
 
 The pipeline then runs 6 extraction steps written sequentially to the output
 directory:

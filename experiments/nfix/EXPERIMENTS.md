@@ -26,6 +26,13 @@ python experiments/run_ocr.py --dataset nfix
 # Output: data/nfix/ocr_output_raw/
 ```
 
+### Step 1b — PDF image pre-processing (preprocessing environment)
+
+```bash
+python experiments/process_pdfs.py --dataset nfix
+# Output: data/nfix/processed_pdfs/
+```
+
 ### Step 2 — Extraction (with integrated table cleaning)
 
 The extraction model now performs table cleaning automatically as Step 0.
@@ -56,6 +63,16 @@ OCR uses a single model (olmOCR); no new variants here.
 ```bash
 python experiments/run_ocr.py --dataset nfix
 python experiments/run_ocr.py --dataset nfix --resume  # resume partial run
+```
+
+### Step 1b — PDF image pre-processing (preprocessing environment)
+
+Run once per dataset; output is reused across all extraction runs.
+
+```bash
+python experiments/process_pdfs.py --dataset nfix
+python experiments/process_pdfs.py --dataset nfix --resume
+# Output: data/nfix/processed_pdfs/
 ```
 
 ### Step 2 — Extraction (with integrated table cleaning)
