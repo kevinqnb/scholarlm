@@ -68,27 +68,18 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "seed": 342,
         },
     ),
-    "qwen-2.5-72b": ModelConfig(
-        name="qwen-2.5-72b",
-        model_id="Qwen/Qwen2.5-72B-Instruct",
-        tensor_parallel_size=2,
+    "qwen-2.5-vl-72b": ModelConfig(
+        name="qwen-2.5-vl-72b",
+        model_id="Qwen/Qwen2.5-VL-72B-Instruct-AWQ",
+        tensor_parallel_size=1,
         sampling_params={
-            "temperature": 0.1,
+            "temperature": 0.6,
             "top_p": 0.95,
-            "top_k": 64,
-            "max_tokens": 8192,
-            "seed": 342,
-        },
-    ),
-    "llama-3.3-70b": ModelConfig(
-        name="llama-3.3-70b",
-        model_id="meta-llama/Llama-3.3-70B-Instruct",
-        tensor_parallel_size=2,
-        sampling_params={
-            "temperature": 0.1,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_tokens": 8192,
+            "top_k": 20,
+            "min_p": 0.0,
+            "presence_penalty": 0.0,
+            "repetition_penalty": 1.0,
+            "max_tokens": 81920,
             "seed": 342,
         },
     ),
@@ -106,22 +97,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "max_tokens": 81920,
             "seed": 342,
         },
-    ),
-    "gpt-oss-120b": ModelConfig(
-        name="gpt-oss-120b",
-        model_id="openai/gpt-oss-120b",
-        tensor_parallel_size=1,
-        sampling_params={
-            "temperature": 1.0,
-            "top_p": 0.95,
-            "top_k": 20,
-            "min_p": 0.0,
-            "presence_penalty": 0.0,
-            "repetition_penalty": 1.0,
-            "max_tokens": 8192,
-            "seed": 342,
-        },
-    ),
+    )
 }
 
 # ---------------------------------------------------------------------------
