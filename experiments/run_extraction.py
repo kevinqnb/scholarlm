@@ -110,7 +110,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gpt-oss-120b": ModelConfig(
         name="gpt-oss-120b",
         model_id="openai/gpt-oss-120b",
-        tensor_parallel_size=2,
+        tensor_parallel_size=1,
         sampling_params={
             "temperature": 1.0,
             "top_p": 0.95,

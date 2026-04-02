@@ -74,7 +74,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         model_id="gaunernst/gemma-3-27b-it-qat-autoawq",
         tensor_parallel_size=1,
         sampling_params={
-            "temperature": 0.1,
+            "temperature": 0.6,
             "max_tokens": 16384,
         },
     ),
@@ -83,7 +83,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         model_id="openai/gpt-oss-120b",
         tensor_parallel_size=2,
         sampling_params={
-            "temperature": 0.1,
+            "temperature": 0.6,
             "max_tokens": 16384,
         },
     ),
