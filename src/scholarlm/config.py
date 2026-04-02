@@ -22,8 +22,9 @@ class DatasetConfig:
 
     Attributes:
         name: Short identifier used in output paths and CLI arguments (e.g. ``"pond"``).
-        data_dir: Root directory for the dataset (e.g. ``"data/pond"``).
-        ocr_dir: Directory containing cleaned, OCR-processed ``.txt`` files.
+        data_dir: Root directory for the dataset (e.g. ``"data/pond"``).  Raw OCR
+            output lives at ``{data_dir}/ocr_output_raw/`` and PDFs at
+            ``{data_dir}/pdfs/`` by convention.
         metadata_file: Path to the paper directory JSON that maps
             ``paper_code -> {title, author, year, ...}``.
         entity_schema: Pydantic ``BaseModel`` subclass whose fields define the
@@ -36,7 +37,7 @@ class DatasetConfig:
         attribute_info_dict: Mapping ``attribute_name -> {"description": str, "units": list[str]}``
             passed to ``MeasurementLM`` and used to look up descriptions in judge prompts.
         paper_subset: Optional explicit list of paper codes (filename stems without
-            ``.txt``) to process.  ``None`` processes all files in ``ocr_dir`` that
+            ``.txt``) to process.  ``None`` processes all available papers that
             pass ``paper_filter``.
         paper_filter: Optional predicate ``(paper_metadata: dict) -> bool`` applied
             to each paper's metadata dict.  Only papers for which this returns
@@ -45,7 +46,6 @@ class DatasetConfig:
 
     name: str
     data_dir: str
-    ocr_dir: str
     metadata_file: str
     entity_schema: type[BaseModel]
     entity_identification_prompt: str

@@ -213,6 +213,7 @@ def get_output_dir(dataset_name: str, model_name: str, date: str | None = None) 
 
 def load_papers(
     dataset_config: DatasetConfig,
+    ocr_dir: str,
     paper_subset_override: list[str] | None = None,
 ) -> tuple[list[str], list[dict]]:
     """Load OCR text and metadata for all papers selected by the dataset config.
@@ -222,6 +223,7 @@ def load_papers(
 
     Args:
         dataset_config: The dataset configuration to load papers for.
+        ocr_dir: Directory containing ``.txt`` OCR files to load.
         paper_subset_override: If given, overrides ``dataset_config.paper_subset``.
 
     Returns:
@@ -233,9 +235,7 @@ def load_papers(
     with open(dataset_config.metadata_file) as f:
         paper_info: dict[str, dict] = json.load(f)
 
-    text_files = get_filenames_in_directory(
-        dataset_config.ocr_dir, ignore=[".DS_Store", ".gitkeep"]
-    )
+    text_files = get_filenames_in_directory(ocr_dir, ignore=[".DS_Store", ".gitkeep"])
     text_files.sort()
 
     # Apply metadata filter
@@ -255,7 +255,7 @@ def load_papers(
     text_info: list[dict] = []
     for fname in text_files:
         paper_code = fname.replace(".txt", "")
-        filepath = os.path.join(dataset_config.ocr_dir, fname)
+        filepath = os.path.join(ocr_dir, fname)
         with open(filepath, "r", encoding="utf-8") as fh:
             text.append(fh.read())
         metadata = dict(paper_info.get(paper_code, {}))
@@ -517,11 +517,20 @@ def run_pipeline(
     dataset_config: DatasetConfig,
     model_config: ModelConfig,
     output_dir: Path,
+    ocr_dir: str | None = None,
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     final_only: bool = False,
 ) -> None:
     """Run the full extraction pipeline for a dataset / model pair.
+
+    When ``ocr_dir`` is not given, raw OCR texts are loaded from
+    ``{data_dir}/ocr_output_raw/`` and table cleaning is performed as the first
+    step using the extraction model itself.  Cleaned texts are saved to
+    ``{data_dir}/ocr_output_cleaned_{model_name}/``.
+
+    When ``ocr_dir`` is given, texts are loaded directly from that directory
+    and table cleaning is skipped.
 
     When ``final_only=False`` (default), writes six files to ``output_dir``:
     - ``entities.json``       — Step 1: identified entities
@@ -539,15 +548,31 @@ def run_pipeline(
         dataset_config: Dataset configuration loaded from ``experiments/configs/``.
         model_config: Model configuration from ``MODEL_REGISTRY``.
         output_dir: Directory for output files (created if needed).
+        ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
+            is used and table cleaning is performed automatically.
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
         resume: If ``True``, skip steps whose output files already exist.
         final_only: If ``True``, keep only ``final.json``; discard intermediates.
     """
-    print(f"\nDataset : {dataset_config.name}")
-    print(f"Model   : {model_config.name} ({model_config.model_id})")
-    print(f"Output  : {output_dir}\n")
+    data_dir = Path(dataset_config.data_dir)
 
-    text, text_info = load_papers(dataset_config, paper_subset_override)
+    if ocr_dir is not None:
+        effective_ocr_dir = ocr_dir
+        clean_tables = False
+        cleaned_ocr_output_dir = None
+    else:
+        effective_ocr_dir = str(data_dir / "ocr_output_raw")
+        clean_tables = True
+        cleaned_ocr_output_dir = str(data_dir / f"ocr_output_cleaned_{model_config.name}")
+
+    print(f"\nDataset   : {dataset_config.name}")
+    print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"OCR dir   : {effective_ocr_dir}")
+    if clean_tables:
+        print(f"Cleaned   : {cleaned_ocr_output_dir}")
+    print(f"Output    : {output_dir}\n")
+
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
     mlm = MeasurementLM(
@@ -557,7 +582,14 @@ def run_pipeline(
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
         tensor_parallel_size=model_config.tensor_parallel_size,
+        clean_tables=clean_tables,
+        cleaned_ocr_output_dir=cleaned_ocr_output_dir,
     )
+
+    if clean_tables:
+        pdf_dir = data_dir / "pdfs"
+        pdf_paths = [str(pdf_dir / f"{info['paper_code']}.pdf") for info in text_info]
+        text = mlm._clean_tables(text, pdf_paths)
 
     if final_only:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -580,6 +612,7 @@ def run_single_step(
     model_config: ModelConfig,
     output_dir: Path,
     step: str,
+    ocr_dir: str | None = None,
     paper_subset_override: list[str] | None = None,
 ) -> None:
     """Run a single named pipeline step, reading inputs from and writing output to output_dir.
@@ -592,19 +625,23 @@ def run_single_step(
         output_dir: Directory containing prior step outputs and receiving this step's output.
         step: One of ``entities``, ``attributes``, ``entity_prov``, ``attribute_prov``,
               ``values``, ``final``.
+        ocr_dir: Directory of ``.txt`` OCR files to load.  Defaults to
+            ``{data_dir}/ocr_output_raw/`` (table cleaning is skipped for single steps).
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
     """
     if step not in STEP_NAMES:
         raise ValueError(f"Unknown step '{step}'. Choose from: {STEP_NAMES}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
 
     print(f"\nDataset : {dataset_config.name}")
     print(f"Model   : {model_config.name} ({model_config.model_id})")
     print(f"Step    : {step}")
+    print(f"OCR dir : {effective_ocr_dir}")
     print(f"Output  : {output_dir}\n")
 
-    text, text_info = load_papers(dataset_config, paper_subset_override)
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
     mlm = MeasurementLM(
@@ -614,6 +651,7 @@ def run_single_step(
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
         tensor_parallel_size=model_config.tensor_parallel_size,
+        clean_tables=False,
     )
 
     f_entities = output_dir / "entities.json"
@@ -665,6 +703,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--date",
         default=None,
         help="Output date tag YYYY_mm_dd (default: today).",
+    )
+    p.add_argument(
+        "--ocr-dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory of pre-cleaned OCR .txt files to use as extraction input. "
+            "If omitted, raw OCR is loaded from {data_dir}/ocr_output_raw/ and "
+            "table cleaning is performed automatically using the extraction model."
+        ),
     )
     p.add_argument(
         "--paper-subset",
@@ -719,6 +767,7 @@ def main(argv: list[str] | None = None) -> None:
             model_config=model_config,
             output_dir=output_dir,
             step=args.step,
+            ocr_dir=args.ocr_dir,
             paper_subset_override=args.paper_subset,
         )
     else:
@@ -726,6 +775,7 @@ def main(argv: list[str] | None = None) -> None:
             dataset_config=dataset_config,
             model_config=model_config,
             output_dir=output_dir,
+            ocr_dir=args.ocr_dir,
             paper_subset_override=args.paper_subset,
             resume=args.resume,
             final_only=args.final_only,

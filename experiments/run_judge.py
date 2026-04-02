@@ -278,6 +278,7 @@ def run_local_judge(
     judge_key: str,
     output_dir: Path,
     extraction_date: str | None = None,
+    ocr_dir: str | None = None,
 ) -> None:
     """Run a local (NNsight) judge and save responses + activations.
 
@@ -287,6 +288,8 @@ def run_local_judge(
         judge_key: Key in ``LOCAL_JUDGE_REGISTRY``.
         output_dir: Directory to write ``responses.json`` and ``attention_outputs.npz``.
         extraction_date: Optional date tag for locating extraction results.
+        ocr_dir: Directory of OCR ``.txt`` files used as document context.
+            Defaults to ``{data_dir}/ocr_output_raw/``.
     """
     if judge_key not in LOCAL_JUDGE_REGISTRY:
         raise KeyError(
@@ -301,14 +304,16 @@ def run_local_judge(
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
+    effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
+
     # Load documents in the same sorted order used during extraction
     text_files = get_filenames_in_directory(
-        dataset_config.ocr_dir, ignore=[".DS_Store", ".gitkeep"]
+        effective_ocr_dir, ignore=[".DS_Store", ".gitkeep"]
     )
     text_files.sort()
     documents: list[str] = []
     for fname in text_files:
-        with open(os.path.join(dataset_config.ocr_dir, fname), "r", encoding="utf-8") as fh:
+        with open(os.path.join(effective_ocr_dir, fname), "r", encoding="utf-8") as fh:
             documents.append(fh.read())
 
     messages, measurement_ids = _build_judge_messages(data, documents, dataset_config)
@@ -379,6 +384,7 @@ def run_frontier_judge(
     frontier_model: str,
     output_dir: Path,
     extraction_date: str | None = None,
+    ocr_dir: str | None = None,
     dest_gcs: str | None = None,
     gcp_project: str | None = None,
     gcp_location: str | None = None,
@@ -396,6 +402,8 @@ def run_frontier_judge(
         frontier_model: Provider-specific model name (e.g. ``"gpt-4o-mini"``).
         output_dir: Directory to write ``responses.json``.
         extraction_date: Optional date tag for locating extraction results.
+        ocr_dir: Directory of OCR ``.txt`` files used as document context.
+            Defaults to ``{data_dir}/ocr_output_raw/``.
         dest_gcs: GCS URI (Gemini only).
         gcp_project: GCP project (Gemini only).
         gcp_location: GCP region (Gemini only).
@@ -411,13 +419,15 @@ def run_frontier_judge(
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
+    effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
+
     text_files = get_filenames_in_directory(
-        dataset_config.ocr_dir, ignore=[".DS_Store", ".gitkeep"]
+        effective_ocr_dir, ignore=[".DS_Store", ".gitkeep"]
     )
     text_files.sort()
     documents: list[str] = []
     for fname in text_files:
-        with open(os.path.join(dataset_config.ocr_dir, fname), "r", encoding="utf-8") as fh:
+        with open(os.path.join(effective_ocr_dir, fname), "r", encoding="utf-8") as fh:
             documents.append(fh.read())
 
     chat_entries = _build_frontier_chat_entries(data, documents, dataset_config)
@@ -521,6 +531,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--extraction-date", default=None, help="Date tag YYYY_mm_dd of extraction run.")
     p.add_argument("--judge-date", default=None, help="Date tag for output directory (default: today).")
+    p.add_argument(
+        "--ocr-dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory of OCR .txt files to use as document context. "
+            "Defaults to {data_dir}/ocr_output_raw/. Pass the cleaned OCR dir "
+            "to match the texts used during extraction."
+        ),
+    )
     p.add_argument("--frontier-model", default=None, help="Provider model name (frontier judges only).")
     p.add_argument("--dest-gcs", default=None, help="GCS URI (Gemini only).")
     p.add_argument("--gcp-project", default=None, help="GCP project (Gemini only).")
@@ -550,6 +570,7 @@ def main(argv: list[str] | None = None) -> None:
             judge_key=judge_label,
             output_dir=output_dir,
             extraction_date=args.extraction_date,
+            ocr_dir=args.ocr_dir,
         )
     elif judge_label in FRONTIER_PROVIDERS:
         if args.frontier_model is None:
@@ -561,6 +582,7 @@ def main(argv: list[str] | None = None) -> None:
             frontier_model=args.frontier_model,
             output_dir=output_dir,
             extraction_date=args.extraction_date,
+            ocr_dir=args.ocr_dir,
             dest_gcs=args.dest_gcs,
             gcp_project=args.gcp_project,
             gcp_location=args.gcp_location,

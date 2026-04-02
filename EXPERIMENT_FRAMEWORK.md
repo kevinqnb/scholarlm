@@ -30,8 +30,7 @@ driven by per-dataset config objects rather than hardcoded values.
 | Field | Description |
 |---|---|
 | `name` | Short identifier used in output paths and CLI (`"pond"`, `"nfix"`) |
-| `data_dir` | Root directory for raw dataset files (`"data/pond"`) |
-| `ocr_dir` | Directory of cleaned OCR `.txt` files fed into extraction |
+| `data_dir` | Root directory for the dataset (`"data/pond"`).  Raw OCR lives at `{data_dir}/ocr_output_raw/`, PDFs at `{data_dir}/pdfs/` |
 | `metadata_file` | Path to `directory.json` mapping paper codes to metadata |
 | `entity_schema` | Pydantic `BaseModel` subclass defining the entity representation |
 | `entity_identification_prompt` | System prompt for the entity extraction step |
@@ -77,35 +76,33 @@ python experiments/run_ocr.py --dataset pond --resume  # skip already-processed 
 
 ### `experiments/run_table_cleaning.py`
 
-Cleans and normalizes tables in OCR text using a local vLLM model or the
-OpenAI API. After running, update `ocr_dir` in the dataset config to point at
-the new output directory before running extraction.
+**Legacy script** for API-based table cleaning (OpenAI only). For local
+model table cleaning, use `run_extraction.py` — the extraction model
+cleans tables automatically as the first step.
 
 ```
-Output: data/{dataset}/ocr_output_cleaned_{backend}_{model}/
+Output: data/{dataset}/ocr_output_cleaned_openai_{model_tag}/
 ```
 
 ```bash
-# Local vLLM:
-python experiments/run_table_cleaning.py --dataset pond --backend vllm --model gemma-3-27b
-
-# OpenAI API:
-python experiments/run_table_cleaning.py --dataset pond --backend openai --model gpt-4o-mini
+python experiments/run_table_cleaning.py --dataset pond --model gpt-4o-mini
 ```
 
-vLLM models are configured via `MODEL_REGISTRY` (same `ModelConfig` structure
-as `run_extraction.py`) at the top of the script. Currently registered:
-`gemma-3-27b`, `gpt-oss-120b`. OpenAI model names are passed directly as
-strings. `TableCleaner` (`src/scholarlm/table_cleaner.py`) supports `vllm`
-and `openai` backends only.
+The output directory can then be passed to `run_extraction.py --ocr-dir` to
+skip the integrated cleaning step.
 
-Flags: `--input-dir`, `--output-dir` (path overrides), `--rate-limit` (OpenAI
-RPM, default 100), `--paper-subset`, `--resume`.
+Flags: `--input-dir`, `--output-dir` (path overrides), `--rate-limit` (RPM,
+default 100), `--paper-subset`, `--resume`.
 
 ### `experiments/run_extraction.py`
 
-Runs the full `MeasurementLM` extraction pipeline. The pipeline has 6 steps
-written sequentially to the output directory:
+Runs the full `MeasurementLM` extraction pipeline. Table cleaning is
+integrated as **Step 0**: when `--ocr-dir` is not supplied, the extraction
+model cleans tables from raw OCR before extraction begins.  Cleaned texts
+are saved to `{data_dir}/ocr_output_cleaned_{model_name}/`.
+
+The pipeline then runs 6 extraction steps written sequentially to the output
+directory:
 
 ```
 entities.json → attributes.json → entity_prov.json →
@@ -117,7 +114,12 @@ Output: data/experiments/{dataset}/extraction/{model}/{YYYY_mm_dd}/
 ```
 
 ```bash
+# Standard run (table cleaning + extraction):
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b
+
+# Skip table cleaning by supplying pre-cleaned texts:
+python experiments/run_extraction.py --dataset pond --model gemma-3-27b \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_4o_mini
 ```
 
 **Available models** (keys of `MODEL_REGISTRY` in the script):
@@ -134,6 +136,7 @@ python experiments/run_extraction.py --dataset pond --model gemma-3-27b
 
 | Flag | Effect |
 |---|---|
+| `--ocr-dir DIR` | Load pre-cleaned texts from DIR; skip integrated table cleaning |
 | `--resume` | Skip steps whose output file already exists |
 | `--final-only` | Run all steps in a temp dir; copy only `final.json` to output |
 | `--step <name>` | Run a single named step (mutually exclusive with `--final-only`) |
@@ -146,6 +149,8 @@ Step names: `entities`, `attributes`, `entity_prov`, `attribute_prov`,
 ### `experiments/run_judge.py`
 
 Runs validation for a given (dataset, extraction model, judge model) triple.
+Use `--ocr-dir` to supply the same OCR texts used during extraction (defaults
+to `{data_dir}/ocr_output_raw/`).
 
 ```
 Output: data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
@@ -287,3 +292,8 @@ document two things:
      vLLM `gemma-3-27b` table cleaning. No judge step was run originally.
 
 2. **New experiments** with all available model combinations.
+
+Note: `ocr_dir` was removed from `DatasetConfig` in favour of the
+`--ocr-dir` CLI argument on `run_extraction.py` and `run_judge.py`.
+If no `--ocr-dir` is passed, `run_extraction.py` performs integrated
+table cleaning and saves the cleaned texts automatically.

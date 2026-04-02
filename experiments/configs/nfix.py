@@ -222,7 +222,6 @@ _DEV_SUBSET = [
 CONFIG = DatasetConfig(
     name="nfix",
     data_dir="data/nfix",
-    ocr_dir="data/nfix/ocr_output_cleaned_vllm",
     metadata_file="data/nfix/directory.json",
     entity_schema=ObservationSchema,
     entity_identification_prompt=_IDENTIFICATION_PROMPT,

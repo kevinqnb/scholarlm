@@ -1,4 +1,6 @@
 import json
+from copy import deepcopy
+from pathlib import Path
 from pydantic import BaseModel
 import numpy as np
 import pandas as pd
@@ -8,6 +10,7 @@ from io import StringIO
 from vllm import LLM, SamplingParams
 from vllm.sampling_params import GuidedDecodingParams
 from .instruction_prompts import (
+    CLEAN_TABLE_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
     ENTITY_PROVENANCE_INSTRUCTIONS,
     ATTRIBUTE_PROVENANCE_INSTRUCTIONS,
@@ -15,6 +18,7 @@ from .instruction_prompts import (
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
 )
+from .utils import process_pdf
 
 def response_validator(response_structure, response):
     pyd = response_structure.model_validate_json(response)
@@ -98,6 +102,8 @@ class MeasurementLM:
         attribute_info_dict: dict[str, any],
         sampling_params: dict[str, any] = {},
         tensor_parallel_size: int = 1,
+        clean_tables: bool = True,
+        cleaned_ocr_output_dir: str | None = None,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -110,6 +116,8 @@ class MeasurementLM:
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
         self.attribute_info_dict = attribute_info_dict
+        self.clean_tables = clean_tables
+        self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
         self.llm = LLM(model=model_name, tensor_parallel_size=tensor_parallel_size)
 
 
@@ -136,6 +144,112 @@ class MeasurementLM:
     def _get_table_numbers_on_page(self, page_text: str) -> list[int]:
         """Return sorted list of table numbers found in *page_text*."""
         return sorted(int(t) for t in re.findall(r'<table number="(\d+)">', page_text))
+
+    # -----------------------------------------------------------------------
+    # Step 0: Table cleaning (optional, runs before extraction)
+    # -----------------------------------------------------------------------
+
+    def _clean_tables(
+        self,
+        documents: list[str],
+        pdf_paths: list[str],
+    ) -> list[str]:
+        """
+        Clean and normalize tables in OCR text using the loaded vLLM model.
+
+        For each page containing ``<table>`` tags, re-renders the page from the
+        source PDF and asks the model to correct and normalize the table markup
+        against the image.  Pages without tables are returned unchanged.
+
+        If ``self.cleaned_ocr_output_dir`` is set, the cleaned texts are saved
+        as ``{stem}.txt`` files (where *stem* is the PDF filename stem) in that
+        directory.
+
+        Args:
+            documents: OCR text strings, one per document.
+            pdf_paths: Paths to source PDF files, one per document.
+
+        Returns:
+            Cleaned OCR text strings in the same order as ``documents``.
+        """
+        print("Loading PDF images for table cleaning...")
+        all_images = [process_pdf(p, target_longest_dim=1536) for p in pdf_paths]
+
+        messages: list[list[dict]] = []
+        message_ids: list[tuple[int, int]] = []  # (doc_idx, page_number)
+
+        for doc_idx, (text, doc_images) in enumerate(zip(documents, all_images)):
+            for page_number in self._get_page_numbers(text):
+                page_text = self._get_page_text(text, page_number)
+                if not re.search(r'<table number="\d+">', page_text):
+                    continue
+                if page_number >= len(doc_images):
+                    continue
+                image_b64 = doc_images[page_number]
+                messages.append([{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{image_b64}"},
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS}\n\n"
+                                f"## OCR Text:\n{page_text}\n\n"
+                                f"## Query:\nClean and normalize the tables in the OCR text, "
+                                f"using the page image for reference. Return ONLY the cleaned "
+                                f"OCR text for this page, with tables normalized and restructured "
+                                f"as needed. Do NOT include any additional explanation, return "
+                                f"ONLY the cleaned text.\n"
+                            ),
+                        },
+                    ],
+                }])
+                message_ids.append((doc_idx, page_number))
+
+        if not messages:
+            print("No pages with tables found. Nothing to clean.")
+            return deepcopy(documents)
+
+        print(f"Cleaning tables on {len(messages)} pages...")
+        cleaning_params = SamplingParams(temperature=0.1, max_tokens=16384)
+        responses = self.llm.chat(messages=messages, sampling_params=cleaning_params)
+
+        cleaned_documents = deepcopy(documents)
+        for (doc_idx, page_number), response in zip(message_ids, responses):
+            cleaned_page_text = response.outputs[0].text.strip()
+            if not cleaned_page_text:
+                continue
+            open_tag = f'<page number="{page_number}">'
+            close_tag = "</page>"
+            full_text = cleaned_documents[doc_idx]
+            start = full_text.find(open_tag)
+            if start == -1:
+                continue
+            content_start = start + len(open_tag)
+            content_end = full_text.find(close_tag, content_start)
+            if content_end == -1:
+                continue
+            cleaned_documents[doc_idx] = (
+                full_text[:content_start]
+                + "\n"
+                + cleaned_page_text
+                + "\n"
+                + full_text[content_end:]
+            )
+
+        if self.cleaned_ocr_output_dir is not None:
+            out_dir = Path(self.cleaned_ocr_output_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for pdf_path, cleaned_text in zip(pdf_paths, cleaned_documents):
+                out_file = out_dir / (Path(pdf_path).stem + ".txt")
+                with open(out_file, "w", encoding="utf-8") as fh:
+                    fh.write(cleaned_text)
+            print(f"Saved cleaned OCR to {out_dir}")
+
+        return cleaned_documents
 
     # -----------------------------------------------------------------------
     # Step 1: Document Level entity extraction
@@ -992,15 +1106,28 @@ class MeasurementLM:
     def fit(
         self,
         documents: list[str],
-    ):
+        pdf_paths: list[str] | None = None,
+    ) -> list[dict]:
         """
         Runs the full measurement extraction pipeline on the provided documents.
 
+        If ``clean_tables=True`` (set at construction), table cleaning is
+        performed as an initial step using the loaded vLLM model before entity
+        extraction begins.  Cleaned texts are optionally saved to
+        ``cleaned_ocr_output_dir``.
+
         Args:
-            documents (list[str]): A list of text documents.
+            documents: OCR text strings, one per document.
+            pdf_paths: Paths to source PDFs. Required when ``clean_tables=True``.
         Returns:
-            measurements (list[dict]): A list of measurements extracted for identified items.
+            Measurement records extracted from the documents.
         """
+        # Step 0: Table cleaning (optional)
+        if self.clean_tables:
+            if pdf_paths is None:
+                raise ValueError("pdf_paths is required when clean_tables=True.")
+            documents = self._clean_tables(documents, pdf_paths)
+
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({'document_id': i, 'context': doc})

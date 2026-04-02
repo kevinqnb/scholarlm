@@ -6,9 +6,9 @@ All commands are run from the **repository root**.
 
 ## Part 1 — Recreating the original experiments
 
-The original experiments used `gemma-3-27b` for extraction, `gpt-5-mini` for
-table cleaning, and three frontier judges (OpenAI, Anthropic, Gemini) plus one
-local judge (LLaMA 3.1 8B).
+The original experiments used `gemma-3-27b` for extraction with tables
+pre-cleaned by `gpt-5-mini` (OpenAI API), and three frontier judges
+(OpenAI, Anthropic, Gemini) plus one local judge (LLaMA 3.1 8B).
 
 ### Step 1 — OCR
 
@@ -17,23 +17,20 @@ python experiments/run_ocr.py --dataset pond
 # Output: data/pond/ocr_output_raw/
 ```
 
-### Step 2 — Table cleaning (OpenAI gpt-5-mini)
+### Step 2 — Table cleaning (OpenAI gpt-5-mini, legacy)
 
 ```bash
 python experiments/run_table_cleaning.py \
-    --dataset pond --backend openai --model gpt-5-mini
+    --dataset pond --model gpt-5-mini
 # Output: data/pond/ocr_output_cleaned_openai_gpt_5_mini/
 ```
 
-Then update `ocr_dir` in `experiments/configs/pond.py`:
-```python
-ocr_dir="data/pond/ocr_output_cleaned_openai_gpt_5_mini",
-```
-
-### Step 3 — Extraction (gemma-3-27b)
+### Step 3 — Extraction (gemma-3-27b, with pre-cleaned texts)
 
 ```bash
-python experiments/run_extraction.py --dataset pond --model gemma-3-27b
+python experiments/run_extraction.py \
+    --dataset pond --model gemma-3-27b \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_5_mini
 # Output: data/experiments/pond/extraction/gemma-3-27b/YYYY_mm_dd/
 ```
 
@@ -50,7 +47,8 @@ python experiments/run_judge.py \
     --dataset pond \
     --extraction-model gemma-3-27b \
     --judge llama-3.1-8b \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_5_mini
 
 # Frontier judges (submit all three, then combine):
 python experiments/run_judge.py \
@@ -58,14 +56,16 @@ python experiments/run_judge.py \
     --extraction-model gemma-3-27b \
     --judge openai \
     --frontier-model gpt-5-mini \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_5_mini
 
 python experiments/run_judge.py \
     --dataset pond \
     --extraction-model gemma-3-27b \
     --judge anthropic \
     --frontier-model claude-haiku-4-5 \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_5_mini
 
 python experiments/run_judge.py \
     --dataset pond \
@@ -74,7 +74,8 @@ python experiments/run_judge.py \
     --frontier-model gemini-2.5-flash-lite \
     --dest-gcs gs://my-bucket/judge-output/ \
     --gcp-project my-gcp-project \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_5_mini
 
 # Combine all judges into a single ground-truth file:
 python experiments/run_judge_combine.py \
@@ -96,25 +97,11 @@ python experiments/run_ocr.py --dataset pond
 python experiments/run_ocr.py --dataset pond --resume  # resume partial run
 ```
 
-### Step 2 — Table cleaning
+### Step 2 — Extraction (with integrated table cleaning)
 
-```bash
-# Local vLLM model:
-python experiments/run_table_cleaning.py \
-    --dataset pond --backend vllm --model gemma-3-27b
-
-# OpenAI API (different models):
-python experiments/run_table_cleaning.py \
-    --dataset pond --backend openai --model gpt-4o-mini
-
-python experiments/run_table_cleaning.py \
-    --dataset pond --backend openai --model gpt-4o
-```
-
-After cleaning, update `ocr_dir` in `experiments/configs/pond.py` to the new
-output directory before running extraction.
-
-### Step 3 — Extraction
+Table cleaning is now performed automatically by the extraction model as
+Step 0, using raw OCR from `data/pond/ocr_output_raw/`.  Cleaned texts are
+saved to `data/pond/ocr_output_cleaned_{model}/` for reuse.
 
 ```bash
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b
@@ -124,6 +111,7 @@ python experiments/run_extraction.py --dataset pond --model qwen-3.5-35b
 python experiments/run_extraction.py --dataset pond --model gpt-oss-120b
 
 # Useful flags:
+#   --ocr-dir DIR      skip table cleaning, load texts from DIR instead
 #   --resume           resume from last completed step
 #   --final-only       save only final.json, discard intermediates
 #   --step <name>      run a single step (entities, attributes, entity_prov,
@@ -132,45 +120,66 @@ python experiments/run_extraction.py --dataset pond --model gpt-oss-120b
 #   --paper-subset p1 p2 ...  process only specific papers
 ```
 
-### Step 4 — Judge
+To use OpenAI API table cleaning instead of the extraction model:
+
+```bash
+python experiments/run_table_cleaning.py \
+    --dataset pond --model gpt-4o-mini
+# Output: data/pond/ocr_output_cleaned_openai_gpt_4o_mini/
+
+python experiments/run_extraction.py \
+    --dataset pond --model gemma-3-27b \
+    --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_4o_mini
+```
+
+### Step 3 — Judge
+
+Pass `--ocr-dir` matching what was used during extraction.
 
 ```bash
 # Local judges:
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
-    --judge llama-3.1-8b --extraction-date YYYY_mm_dd
+    --judge llama-3.1-8b --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
-    --judge qwen-3-8b --extraction-date YYYY_mm_dd
+    --judge qwen-3-8b --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
-    --judge gemma-3-12b --extraction-date YYYY_mm_dd
+    --judge gemma-3-12b --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 # Frontier judges:
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
     --judge openai --frontier-model gpt-4o-mini \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
     --judge anthropic --frontier-model claude-haiku-4-5 \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
     --judge gemini --frontier-model gemini-2.5-flash-lite \
     --dest-gcs gs://my-bucket/judge-output/ \
     --gcp-project my-gcp-project \
-    --extraction-date YYYY_mm_dd
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model>
 
 # Step-by-step (for large batches):
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \
     --judge openai --frontier-model gpt-4o-mini \
-    --extraction-date YYYY_mm_dd submit
+    --extraction-date YYYY_mm_dd \
+    --ocr-dir data/pond/ocr_output_cleaned_<model> submit
 
 python experiments/run_judge.py \
     --dataset pond --extraction-model <model> \

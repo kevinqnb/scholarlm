@@ -212,7 +212,6 @@ _DEV_SUBSET = [
 CONFIG = DatasetConfig(
     name="pond",
     data_dir="data/pond",
-    ocr_dir="data/pond/ocr_output_cleaned_gpt_5_mini",
     metadata_file="data/pond/directory.json",
     entity_schema=ObservationSchema,
     entity_identification_prompt=_IDENTIFICATION_PROMPT,
