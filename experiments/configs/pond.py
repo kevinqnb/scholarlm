@@ -196,16 +196,16 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
 
 # Development subset used in early experiments
 _DEV_SUBSET = [
-    'physical_and_chemical_limnological.txt',
-    'physical-chemical_influences.txt',
-    'prairie_wetland.txt',
-    'net_heterotrophy.txt',
-    'habitat_characteristics.txt',
-    'biodiversity_of_constructed.txt',
-    'fish_production_in_lakes.txt',
-    'long-term_stability.txt',
-    'diversity_of_macroinvertebrates.txt',
-    'impact_of_macrophytes.txt'
+    'physical_and_chemical_limnological',
+    'physical-chemical_influences',
+    'prairie_wetland',
+    'net_heterotrophy',
+    'habitat_characteristics',
+    'biodiversity_of_constructed',
+    'fish_production_in_lakes',
+    'long-term_stability',
+    'diversity_of_macroinvertebrates',
+    'impact_of_macrophytes'
 ]
 
 

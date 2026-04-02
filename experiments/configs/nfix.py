@@ -233,6 +233,6 @@ CONFIG = DatasetConfig(
     attribute_info_dict=_ATTRIBUTE_INFO_DICT,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
-    paper_subset=_DEV_SUBSET,
+    paper_subset=None,
     paper_filter=_nfix_paper_filter,
 )

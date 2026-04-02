@@ -75,6 +75,7 @@ from scholarlm.utils import get_filenames_in_directory
 
 VLLM_MODEL_REGISTRY: dict[str, str] = {
     "gemma-3-27b": "gaunernst/gemma-3-27b-it-qat-autoawq",
+    "gpt-oss-120b": "openai/gpt-oss-120b",
 }
 
 # ---------------------------------------------------------------------------

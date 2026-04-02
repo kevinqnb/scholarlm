@@ -187,8 +187,9 @@ class MeasurementLM:
         for i, r in enumerate(response_texts):
             try:
                 resp_validated = response_validator(IdentificationList, r)
-            except:
-                print("Validation error in identification response.")
+            except Exception as e:
+                print(f"Validation error in identification response: {e}")
+                print(f"Response text: {r[:500]}")
                 resp_validated = {'items': []}
 
             doc_entities[i] = list(resp_validated['items'])
@@ -271,8 +272,9 @@ class MeasurementLM:
             doc_id, entity_id, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(ProvenanceResponse, resp)
-            except:
-                print("Validation error in entity provenance response.")
+            except Exception as e:
+                print(f"Validation error in entity provenance response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if result.get('has_data'):
@@ -366,8 +368,9 @@ class MeasurementLM:
             doc_idx = message_ids[msg_idx]
             try:
                 batch = response_validator(BatchAttributeDetectionResponse, resp)
-            except:
-                print("Validation error in batched attribute detection response.")
+            except Exception as e:
+                print(f"Validation error in batched attribute detection response: {e}")
+                print(f"Response text: {resp[:500]}")
                 detection_results[doc_idx] = {a: False for a in attr_names}
                 continue
 
@@ -464,8 +467,9 @@ class MeasurementLM:
             doc_id, attr_name, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(ProvenanceResponse, resp)
-            except:
-                print("Validation error in attribute provenance response.")
+            except Exception as e:
+                print(f"Validation error in attribute provenance response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if result.get('has_data'):
@@ -588,8 +592,9 @@ class MeasurementLM:
             pair_record, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(TextValueExtractionResponse, resp)
-            except:
-                print("Validation error in text value extraction response.")
+            except Exception as e:
+                print(f"Validation error in text value extraction response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if result.get('has_value') and result.get('value') is not None:
@@ -748,8 +753,9 @@ class MeasurementLM:
             pair_record, table_number, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(TableValueExtractionResponse, resp)
-            except:
-                print("Validation error in table value extraction response.")
+            except Exception as e:
+                print(f"Validation error in table value extraction response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if not result.get('has_value'):

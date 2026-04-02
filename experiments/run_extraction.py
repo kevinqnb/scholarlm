@@ -109,11 +109,15 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     ),
     "gpt-oss-120b": ModelConfig(
         name="gpt-oss-120b",
-        model_id="microsoft/MAI-DS-R1-FP8",
-        tensor_parallel_size=4,
+        model_id="openai/gpt-oss-120b",
+        tensor_parallel_size=2,
         sampling_params={
-            "temperature": 0.1,
+            "temperature": 1.0,
             "top_p": 0.95,
+            "top_k": 20,
+            "min_p": 0.0,
+            "presence_penalty": 0.0,
+            "repetition_penalty": 1.0,
             "max_tokens": 8192,
             "seed": 342,
         },
