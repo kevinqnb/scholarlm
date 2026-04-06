@@ -8,7 +8,7 @@ import math
 import re
 from io import StringIO
 from vllm import LLM, SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+from vllm.sampling_params import GuidedDecodingParams #GuidedDecodingParams
 from .instruction_prompts import (
     CLEAN_TABLE_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
@@ -99,8 +99,8 @@ class MeasurementLM:
         entity_identification_prompt: str,
         entity_identification_schema: BaseModel,
         attribute_info_dict: dict[str, any],
+        model_params: dict[str, any] = {},
         sampling_params: dict[str, any] = {},
-        tensor_parallel_size: int = 1,
         clean_tables: bool = True,
         cleaned_ocr_output_dir: str | None = None,
     ):
@@ -117,7 +117,7 @@ class MeasurementLM:
         self.attribute_info_dict = attribute_info_dict
         self.clean_tables = clean_tables
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
-        self.llm = LLM(model=model_name, tensor_parallel_size=tensor_parallel_size)
+        self.llm = LLM(model=model_name, **model_params)
 
 
     # -----------------------------------------------------------------------

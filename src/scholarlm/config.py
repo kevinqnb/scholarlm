@@ -64,15 +64,19 @@ class ModelConfig:
         name: Short identifier used in output paths and CLI arguments
             (e.g. ``"qwen-2.5-72b"``).
         model_id: HuggingFace model ID or local path passed to vLLM.
-        tensor_parallel_size: Number of GPUs to use for tensor parallelism.
-            Passed directly to ``vllm.LLM(tensor_parallel_size=...)``.
+        model_params: Model loading parameters forwarded to ``vllm.AutoModelForCausalLM.from_pretrained``.
+            Keys and defaults follow the vLLM ``AutoModelForCausalLM.from_pretrained`` signature.
         sampling_params: Generation parameters forwarded to ``vllm.SamplingParams``.
             Keys and defaults follow the vLLM ``SamplingParams`` signature.
     """
 
     name: str
     model_id: str
-    tensor_parallel_size: int = 1
+    model_params: dict = field(
+        default_factory=lambda: {
+            "tensor_parallel_size": 1,
+        }
+    )
     sampling_params: dict = field(
         default_factory=lambda: {
             "temperature": 0.1,

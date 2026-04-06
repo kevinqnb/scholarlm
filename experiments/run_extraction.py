@@ -59,11 +59,27 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gemma-3-27b": ModelConfig(
         name="gemma-3-27b",
         model_id="gaunernst/gemma-3-27b-it-qat-autoawq",
-        tensor_parallel_size=1,
+        model_params={
+            "tensor_parallel_size": 1,
+        },
         sampling_params={
             "temperature": 0.1,
             "top_p": 0.95,
-            "top_k": 64,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "seed": 342,
+        },
+    ),
+    "gemma-4-31b": ModelConfig(
+        name="gemma-4-31b",
+        model_id="RedHatAI/gemma-4-31B-it-NVFP4",
+        model_params={
+            "tensor_parallel_size": 1,
+        },
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
             "max_tokens": 8192,
             "seed": 342,
         },
@@ -71,34 +87,80 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "qwen-2.5-vl-72b": ModelConfig(
         name="qwen-2.5-vl-72b",
         model_id="Qwen/Qwen2.5-VL-72B-Instruct-AWQ",
-        tensor_parallel_size=1,
+        model_params={
+            "tensor_parallel_size": 1,
+            "max_model_len": 50000,
+        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
-            "min_p": 0.0,
-            "presence_penalty": 0.0,
-            "repetition_penalty": 1.0,
-            "max_tokens": 81920,
+            "max_tokens": 8192,
             "seed": 342,
         },
     ),
-    "qwen-3.5-35b": ModelConfig(
-        name="qwen-3.5-35b",
-        model_id="Qwen/Qwen3.5-35B-A3B-FP8",
-        tensor_parallel_size=1,
+    "qwen-3-vl-30b": ModelConfig(
+        name="qwen-3-vl-30b",
+        model_id="Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
+        model_params={
+            "tensor_parallel_size": 1,
+            "quantization": "fp8",
+        },
+        sampling_params={
+            "temperature": 0.1,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "seed": 342,
+        },
+    ),
+    "llama-4-scout-109b": ModelConfig(
+        name="llama-4-scout-109b",
+        model_id="nvidia/Llama-4-Scout-17B-16E-Instruct-NVFP4",
+        model_params={
+            "tensor_parallel_size": 1,
+            "max_model_len": 65536
+        },
+        sampling_params={
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "seed": 342,
+        },
+    ),
+    "glm-4.6v-106b": ModelConfig(
+        name="glm-4.6v-106b",
+        model_id="cyankiwi/GLM-4.6V-AWQ-4bit",
+        model_params={
+            "tensor_parallel_size": 1,
+        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
-            "min_p": 0.0,
-            "presence_penalty": 0.0,
-            "repetition_penalty": 1.0,
-            "max_tokens": 81920,
+            "max_tokens": 8192,
             "seed": 342,
         },
-    )
+    ),
+    "intern-vl3-78b": ModelConfig(
+        name="intern-vl3-78b",
+        model_id="OpenGVLab/InternVL3-78B-AWQ",
+        model_params={
+            "tensor_parallel_size": 1,
+            "trust_remote_code": True
+        },
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "seed": 342,
+        },
+    ),
 }
+
+#OpenGVLab/InternVL3-78B-AWQ
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -556,8 +618,8 @@ def run_pipeline(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
+        model_params=model_config.model_params,
         sampling_params=model_config.sampling_params,
-        tensor_parallel_size=model_config.tensor_parallel_size,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
     )
@@ -632,8 +694,8 @@ def run_single_step(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
+        model_params=model_config.model_params,
         sampling_params=model_config.sampling_params,
-        tensor_parallel_size=model_config.tensor_parallel_size,
         clean_tables=False,
     )
 

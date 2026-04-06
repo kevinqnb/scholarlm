@@ -173,12 +173,14 @@ data/pond/pdfs/*.pdf
 data/pond/meta/*
 data/pond/ocr_output
 data/pond/ocr_output*/
+data/pond/processed_pdfs/*
 data/ocr
 
 data/nfix/pdfs/*.pdf
 data/nfix/meta/*
 data/nfix/ocr_output
 data/nfix/ocr_output*/
+data/nfix/processed_pdfs/*
 
 .batch_state.json
 .batch_state_openai.json
