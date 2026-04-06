@@ -32,7 +32,16 @@ python experiments/run_table_cleaning.py \
 # Output: data/pond/ocr_output_cleaned_openai_gpt_5_mini/
 ```
 
-### Step 3 — Extraction (gemma-3-27b, with pre-cleaned texts)
+### Step 3 — Start the vLLM server
+
+```bash
+# Start the server serving gemma-3-27b (run this first, wait for startup)
+vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \
+    --tensor-parallel-size 1 \
+    --port 8000
+```
+
+### Step 4 — Extraction (gemma-3-27b, with pre-cleaned texts)
 
 ```bash
 python experiments/run_extraction.py \
@@ -46,7 +55,7 @@ python experiments/run_extraction.py \
 > prompt configurations not replicated in the unified framework.  To re-run
 > those, use the original scripts directly.
 
-### Step 4 — Judge
+### Step 5 — Judge
 
 ```bash
 # Local judge (LLaMA 3.1 8B):
@@ -114,7 +123,26 @@ python experiments/process_pdfs.py --dataset pond --resume  # skip already-done
 # Output: data/pond/processed_pdfs/
 ```
 
-### Step 2 — Extraction (with integrated table cleaning)
+### Step 2 — Start the vLLM server
+
+Each extraction run requires a vLLM server already running and serving the
+chosen model via an OpenAI-compatible API (default: `http://localhost:8000/v1`).
+Start the server before running the extraction script and wait for
+`Application startup complete`.
+
+```bash
+# Example: serve gemma-3-27b on a single GPU
+vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \
+    --tensor-parallel-size 1 \
+    --port 8000
+
+# Example: serve qwen-2.5-vl-72b on 4 GPUs
+vllm serve Qwen/Qwen2.5-VL-72B-Instruct-AWQ \
+    --tensor-parallel-size 4 \
+    --port 8000
+```
+
+### Step 3 — Extraction (with integrated table cleaning)
 
 Table cleaning is now performed automatically by the extraction model as
 Step 0, using raw OCR from `data/pond/ocr_output_raw/`.  Cleaned texts are
@@ -122,18 +150,22 @@ saved to `data/pond/ocr_output_cleaned_{model}/` for reuse.
 
 ```bash
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b
-python experiments/run_extraction.py --dataset pond --model qwen-2.5-72b
-python experiments/run_extraction.py --dataset pond --model llama-3.3-70b
-python experiments/run_extraction.py --dataset pond --model qwen-3.5-35b
-python experiments/run_extraction.py --dataset pond --model gpt-oss-120b
+python experiments/run_extraction.py --dataset pond --model gemma-4-31b
+python experiments/run_extraction.py --dataset pond --model qwen-2.5-vl-72b
+python experiments/run_extraction.py --dataset pond --model qwen-3-vl-30b
+python experiments/run_extraction.py --dataset pond --model llama-4-scout-109b
+python experiments/run_extraction.py --dataset pond --model glm-4.6v-106b
+python experiments/run_extraction.py --dataset pond --model intern-vl3-78b
 
 # Useful flags:
-#   --ocr-dir DIR      skip table cleaning, load texts from DIR instead
-#   --resume           resume from last completed step
-#   --final-only       save only final.json, discard intermediates
-#   --step <name>      run a single step (entities, attributes, entity_prov,
-#                        attribute_prov, values, final)
-#   --date YYYY_mm_dd  set a specific output date tag
+#   --ocr-dir DIR       skip table cleaning, load texts from DIR instead
+#   --api-base URL      vLLM server base URL (default: http://localhost:8000/v1)
+#   --api-key KEY       API key for the server (default: EMPTY)
+#   --resume            resume from last completed step
+#   --final-only        save only final.json, discard intermediates
+#   --step <name>       run a single step (entities, attributes, entity_prov,
+#                         attribute_prov, values, final)
+#   --date YYYY_mm_dd   set a specific output date tag
 #   --paper-subset p1 p2 ...  process only specific papers
 ```
 

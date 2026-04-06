@@ -58,31 +58,26 @@ class DatasetConfig:
 @dataclass
 class ModelConfig:
     """
-    Configuration for an extraction model instantiated via ``MeasurementLM``.
+    Configuration for an extraction model served via a vLLM OpenAI-compatible API.
 
     Attributes:
         name: Short identifier used in output paths and CLI arguments
             (e.g. ``"qwen-2.5-72b"``).
-        model_id: HuggingFace model ID or local path passed to vLLM.
-        model_params: Model loading parameters forwarded to ``vllm.AutoModelForCausalLM.from_pretrained``.
-            Keys and defaults follow the vLLM ``AutoModelForCausalLM.from_pretrained`` signature.
-        sampling_params: Generation parameters forwarded to ``vllm.SamplingParams``.
-            Keys and defaults follow the vLLM ``SamplingParams`` signature.
+        model_id: HuggingFace model ID passed to the vLLM server at startup.
+            Also used as the ``model`` field in API requests.
+        sampling_params: Generation parameters forwarded to the API.
+            Supported keys: ``temperature``, ``top_p``, ``top_k``,
+            ``max_tokens``, ``repetition_penalty``.  ``seed`` is not forwarded
+            (the OpenAI-compatible API does not support it).
     """
 
     name: str
     model_id: str
-    model_params: dict = field(
-        default_factory=lambda: {
-            "tensor_parallel_size": 1,
-        }
-    )
     sampling_params: dict = field(
         default_factory=lambda: {
             "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 64,
             "max_tokens": 8192,
-            "seed": 342,
         }
     )

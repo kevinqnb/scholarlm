@@ -1,3 +1,4 @@
+import asyncio
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -7,8 +8,7 @@ import pandas as pd
 import math
 import re
 from io import StringIO
-from vllm import LLM, SamplingParams
-from vllm.sampling_params import GuidedDecodingParams #GuidedDecodingParams
+from openai import AsyncOpenAI, OpenAI
 from .instruction_prompts import (
     CLEAN_TABLE_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
@@ -99,8 +99,10 @@ class MeasurementLM:
         entity_identification_prompt: str,
         entity_identification_schema: BaseModel,
         attribute_info_dict: dict[str, any],
-        model_params: dict[str, any] = {},
         sampling_params: dict[str, any] = {},
+        api_base: str = "http://localhost:8000/v1",
+        api_key: str = "EMPTY",
+        max_concurrent: int = 64,
         clean_tables: bool = True,
         cleaned_ocr_output_dir: str | None = None,
     ):
@@ -115,10 +117,64 @@ class MeasurementLM:
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
         self.attribute_info_dict = attribute_info_dict
+        self.max_concurrent = max_concurrent
         self.clean_tables = clean_tables
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
-        self.llm = LLM(model=model_name, **model_params)
+        self.client = OpenAI(api_key=api_key, base_url=api_base)
+        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base)
 
+
+    # -----------------------------------------------------------------------
+    # Core API call helpers
+    # -----------------------------------------------------------------------
+
+    async def _acall(
+        self,
+        messages: list[dict],
+        response_format: dict | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Single async API call to the vLLM OpenAI-compatible endpoint."""
+        kwargs = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": temperature if temperature is not None else self.sampling_params.get("temperature", 0.9),
+            "top_p": self.sampling_params.get("top_p", 0.95),
+            "max_tokens": max_tokens if max_tokens is not None else self.sampling_params.get("max_tokens", 2048),
+        }
+        if response_format is not None:
+            kwargs["response_format"] = response_format
+        extra = {}
+        if "top_k" in self.sampling_params:
+            extra["top_k"] = self.sampling_params["top_k"]
+        if "repetition_penalty" in self.sampling_params:
+            extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+        if extra:
+            kwargs["extra_body"] = extra
+        try:
+            response = await self.async_client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"API call failed: {e}")
+            return ""
+
+    def _call_batch(
+        self,
+        message_sets: list[list[dict]],
+        response_format: dict | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> list[str]:
+        """Dispatch all message sets concurrently; return response texts in order."""
+        async def _run():
+            sem = asyncio.Semaphore(self.max_concurrent)
+            async def _limited(msgs):
+                async with sem:
+                    return await self._acall(msgs, response_format, temperature, max_tokens)
+            tasks = [_limited(msgs) for msgs in message_sets]
+            return await asyncio.gather(*tasks)
+        return asyncio.run(_run())
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -228,12 +284,16 @@ class MeasurementLM:
             return deepcopy(documents)
 
         print(f"Cleaning tables on {len(messages)} pages...")
-        cleaning_params = SamplingParams(temperature=0.1, max_tokens=16384)
-        responses = self.llm.chat(messages=messages, sampling_params=cleaning_params)
+        response_texts = self._call_batch(
+            messages,
+            response_format=None,
+            temperature=self.sampling_params['temperature'],
+            max_tokens=16384
+        )
 
         cleaned_documents = deepcopy(documents)
-        for (doc_idx, page_number), response in zip(message_ids, responses):
-            cleaned_page_text = response.outputs[0].text.strip()
+        for (doc_idx, page_number), cleaned_page_text in zip(message_ids, response_texts):
+            cleaned_page_text = cleaned_page_text.strip()
             if not cleaned_page_text:
                 continue
             open_tag = f'<page number="{page_number}">'
@@ -300,16 +360,14 @@ class MeasurementLM:
             )
             messages.append([{"role": "user", "content": prompt}])
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=identification_list_json
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "identification_list",
+                "schema": identification_list_json,
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         # Build per-document entity lists
         doc_entities: dict[int, list[dict]] = {}
@@ -386,15 +444,14 @@ class MeasurementLM:
         if not messages:
             return {}
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=ProvenanceResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "provenance_response",
+                "schema": ProvenanceResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -460,13 +517,13 @@ class MeasurementLM:
         attr_names = list(self.attribute_info_dict.keys())
         attribute_list_text = self._format_attribute_list()
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=BatchAttributeDetectionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "batch_attribute_detection",
+                "schema": BatchAttributeDetectionResponse.model_json_schema(),
+            },
+        }
 
         # --- Phase A: Batched full-context detection (one prompt per document) ---
         messages = []
@@ -486,8 +543,7 @@ class MeasurementLM:
             messages.append([{"role": "user", "content": prompt}])
             message_ids.append(i)
 
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         # Build detection results and attribute terms per document
         detection_results: dict[int, dict[str, bool]] = {}
@@ -581,15 +637,14 @@ class MeasurementLM:
         if not messages:
             return {}
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=ProvenanceResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "provenance_response",
+                "schema": ProvenanceResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -706,15 +761,14 @@ class MeasurementLM:
         if not messages:
             return []
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=TextValueExtractionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "text_value_extraction",
+                "schema": TextValueExtractionResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -867,15 +921,14 @@ class MeasurementLM:
         if not messages:
             return []
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=TableValueExtractionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "table_value_extraction",
+                "schema": TableValueExtractionResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -975,9 +1028,7 @@ class MeasurementLM:
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 
-        sampling_params = SamplingParams(**self.sampling_params)
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_texts = self._call_batch(messages, response_format=None)
 
         standardized_data = [dict(datapoint) for datapoint in self.data]
         for i, resp in enumerate(response_texts):

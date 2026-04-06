@@ -33,7 +33,19 @@ python experiments/process_pdfs.py --dataset nfix
 # Output: data/nfix/processed_pdfs/
 ```
 
-### Step 2 — Extraction (with integrated table cleaning)
+### Step 2 — Start the vLLM server
+
+Each extraction run requires a vLLM server already running and serving the
+chosen model.  Start it before running the extraction script.
+
+```bash
+# Example: serve gemma-3-27b on a single GPU
+vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \
+    --tensor-parallel-size 1 \
+    --port 8000
+```
+
+### Step 3 — Extraction (with integrated table cleaning)
 
 The extraction model now performs table cleaning automatically as Step 0.
 To replicate the original experiments (vLLM gemma-3-27b table cleaning +
@@ -45,11 +57,8 @@ python experiments/run_extraction.py --dataset nfix --model gemma-3-27b
 # Cleaned texts saved to: data/nfix/ocr_output_cleaned_gemma-3-27b/
 # Output: data/experiments/nfix/extraction/gemma-3-27b/YYYY_mm_dd/
 
-# qwen-3.5-35b (equivalent to original extract_qwen.py):
-python experiments/run_extraction.py --dataset nfix --model qwen-3.5-35b
-
-# gpt-oss-120b (equivalent to original extract_gpt.py — see note above):
-python experiments/run_extraction.py --dataset nfix --model gpt-oss-120b
+# qwen-3.5-35b: first serve that model with vLLM, then:
+python experiments/run_extraction.py --dataset nfix --model qwen-3-vl-30b
 ```
 
 ---
@@ -75,7 +84,19 @@ python experiments/process_pdfs.py --dataset nfix --resume
 # Output: data/nfix/processed_pdfs/
 ```
 
-### Step 2 — Extraction (with integrated table cleaning)
+### Step 2 — Start the vLLM server
+
+Each extraction run requires a vLLM server already running and serving the
+chosen model via an OpenAI-compatible API (default: `http://localhost:8000/v1`).
+
+```bash
+# Example: serve gemma-3-27b on a single GPU
+vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \
+    --tensor-parallel-size 1 \
+    --port 8000
+```
+
+### Step 3 — Extraction (with integrated table cleaning)
 
 Table cleaning is performed automatically by the extraction model as Step 0,
 using raw OCR from `data/nfix/ocr_output_raw/`.  Cleaned texts are saved to
@@ -83,18 +104,22 @@ using raw OCR from `data/nfix/ocr_output_raw/`.  Cleaned texts are saved to
 
 ```bash
 python experiments/run_extraction.py --dataset nfix --model gemma-3-27b
-python experiments/run_extraction.py --dataset nfix --model qwen-2.5-72b
-python experiments/run_extraction.py --dataset nfix --model llama-3.3-70b
-python experiments/run_extraction.py --dataset nfix --model qwen-3.5-35b
-python experiments/run_extraction.py --dataset nfix --model gpt-oss-120b
+python experiments/run_extraction.py --dataset nfix --model gemma-4-31b
+python experiments/run_extraction.py --dataset nfix --model qwen-2.5-vl-72b
+python experiments/run_extraction.py --dataset nfix --model qwen-3-vl-30b
+python experiments/run_extraction.py --dataset nfix --model llama-4-scout-109b
+python experiments/run_extraction.py --dataset nfix --model glm-4.6v-106b
+python experiments/run_extraction.py --dataset nfix --model intern-vl3-78b
 
 # Useful flags:
-#   --ocr-dir DIR      skip table cleaning, load texts from DIR instead
-#   --resume           resume from last completed step
-#   --final-only       save only final.json, discard intermediates
-#   --step <name>      run a single step (entities, attributes, entity_prov,
-#                        attribute_prov, values, final)
-#   --date YYYY_mm_dd  set a specific output date tag
+#   --ocr-dir DIR       skip table cleaning, load texts from DIR instead
+#   --api-base URL      vLLM server base URL (default: http://localhost:8000/v1)
+#   --api-key KEY       API key for the server (default: EMPTY)
+#   --resume            resume from last completed step
+#   --final-only        save only final.json, discard intermediates
+#   --step <name>       run a single step (entities, attributes, entity_prov,
+#                         attribute_prov, values, final)
+#   --date YYYY_mm_dd   set a specific output date tag
 #   --paper-subset p1 p2 ...  process specific papers (overrides config default)
 ```
 

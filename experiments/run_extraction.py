@@ -40,7 +40,6 @@ _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "configs"
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-import torch
 from scholarlm import MeasurementLM
 from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
@@ -48,8 +47,6 @@ from scholarlm.utils import get_filenames_in_directory
 
 # Reproducibility
 random.seed(342)
-torch.manual_seed(342)
-torch.cuda.manual_seed(342)
 
 # ---------------------------------------------------------------------------
 # Model registry
@@ -59,108 +56,74 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gemma-3-27b": ModelConfig(
         name="gemma-3-27b",
         model_id="gaunernst/gemma-3-27b-it-qat-autoawq",
-        model_params={
-            "tensor_parallel_size": 1,
-        },
         sampling_params={
             "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "gemma-4-31b": ModelConfig(
         name="gemma-4-31b",
         model_id="RedHatAI/gemma-4-31B-it-NVFP4",
-        model_params={
-            "tensor_parallel_size": 1,
-        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "qwen-2.5-vl-72b": ModelConfig(
         name="qwen-2.5-vl-72b",
         model_id="Qwen/Qwen2.5-VL-72B-Instruct-AWQ",
-        model_params={
-            "tensor_parallel_size": 1,
-            "max_model_len": 50000,
-        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "qwen-3-vl-30b": ModelConfig(
         name="qwen-3-vl-30b",
         model_id="Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
-        model_params={
-            "tensor_parallel_size": 1,
-            "quantization": "fp8",
-        },
         sampling_params={
             "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "llama-4-scout-109b": ModelConfig(
         name="llama-4-scout-109b",
         model_id="nvidia/Llama-4-Scout-17B-16E-Instruct-NVFP4",
-        model_params={
-            "tensor_parallel_size": 1,
-            "max_model_len": 65536
-        },
         sampling_params={
             "temperature": 1.0,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "glm-4.6v-106b": ModelConfig(
         name="glm-4.6v-106b",
         model_id="cyankiwi/GLM-4.6V-AWQ-4bit",
-        model_params={
-            "tensor_parallel_size": 1,
-        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
     "intern-vl3-78b": ModelConfig(
         name="intern-vl3-78b",
         model_id="OpenGVLab/InternVL3-78B-AWQ",
-        model_params={
-            "tensor_parallel_size": 1,
-            "trust_remote_code": True
-        },
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "seed": 342,
         },
     ),
 }
-
-#OpenGVLab/InternVL3-78B-AWQ
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -559,6 +522,8 @@ def run_pipeline(
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     final_only: bool = False,
+    api_base: str = "http://localhost:8000/v1",
+    api_key: str = "EMPTY",
 ) -> None:
     """Run the full extraction pipeline for a dataset / model pair.
 
@@ -591,6 +556,9 @@ def run_pipeline(
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
         resume: If ``True``, skip steps whose output files already exist.
         final_only: If ``True``, keep only ``final.json``; discard intermediates.
+        api_base: Base URL of the vLLM OpenAI-compatible server (e.g.
+            ``"http://localhost:8000/v1"``).
+        api_key: API key for the vLLM server (any non-empty string works).
     """
     data_dir = Path(dataset_config.data_dir)
 
@@ -618,8 +586,9 @@ def run_pipeline(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
-        model_params=model_config.model_params,
         sampling_params=model_config.sampling_params,
+        api_base=api_base,
+        api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
     )
@@ -659,6 +628,8 @@ def run_single_step(
     step: str,
     ocr_dir: str | None = None,
     paper_subset_override: list[str] | None = None,
+    api_base: str = "http://localhost:8000/v1",
+    api_key: str = "EMPTY",
 ) -> None:
     """Run a single named pipeline step, reading inputs from and writing output to output_dir.
 
@@ -673,6 +644,8 @@ def run_single_step(
         ocr_dir: Directory of ``.txt`` OCR files to load.  Defaults to
             ``{data_dir}/ocr_output_raw/`` (table cleaning is skipped for single steps).
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
+        api_base: Base URL of the vLLM OpenAI-compatible server.
+        api_key: API key for the vLLM server (any non-empty string works).
     """
     if step not in STEP_NAMES:
         raise ValueError(f"Unknown step '{step}'. Choose from: {STEP_NAMES}")
@@ -694,8 +667,9 @@ def run_single_step(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
-        model_params=model_config.model_params,
         sampling_params=model_config.sampling_params,
+        api_base=api_base,
+        api_key=api_key,
         clean_tables=False,
     )
 
@@ -791,6 +765,21 @@ def _build_parser() -> argparse.ArgumentParser:
             "Mutually exclusive with --final-only."
         ),
     )
+    p.add_argument(
+        "--api-base",
+        default="http://localhost:8000/v1",
+        metavar="URL",
+        help=(
+            "Base URL of the vLLM OpenAI-compatible server "
+            "(default: http://localhost:8000/v1)."
+        ),
+    )
+    p.add_argument(
+        "--api-key",
+        default="EMPTY",
+        metavar="KEY",
+        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
+    )
     return p
 
 
@@ -814,6 +803,8 @@ def main(argv: list[str] | None = None) -> None:
             step=args.step,
             ocr_dir=args.ocr_dir,
             paper_subset_override=args.paper_subset,
+            api_base=args.api_base,
+            api_key=args.api_key,
         )
     else:
         run_pipeline(
@@ -824,6 +815,8 @@ def main(argv: list[str] | None = None) -> None:
             paper_subset_override=args.paper_subset,
             resume=args.resume,
             final_only=args.final_only,
+            api_base=args.api_base,
+            api_key=args.api_key,
         )
 
 

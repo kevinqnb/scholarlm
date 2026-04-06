@@ -44,9 +44,8 @@ driven by per-dataset config objects rather than hardcoded values.
 | Field | Description |
 |---|---|
 | `name` | Short identifier used in output paths and CLI |
-| `model_id` | HuggingFace model ID passed to vLLM |
-| `tensor_parallel_size` | Number of GPUs for tensor parallelism |
-| `sampling_params` | vLLM `SamplingParams` kwargs |
+| `model_id` | HuggingFace model ID of the model served by vLLM (used as the `model` field in API requests) |
+| `sampling_params` | Generation parameters forwarded to the API (`temperature`, `top_p`, `top_k`, `max_tokens`, `repetition_penalty`) |
 
 Each dataset has a config file at `experiments/configs/{name}.py` that exports
 a module-level `CONFIG: DatasetConfig`. Runner scripts load these dynamically
@@ -92,11 +91,33 @@ python experiments/process_pdfs.py --dataset nfix --resume
 
 Flags: `--paper-subset`, `--target-longest-dim` (default: 1536), `--resume`.
 
+### `experiments/run_vllm_table_cleaning.py`
+
+Runs only the table-cleaning step using a vLLM server, without running
+the full extraction pipeline.  Useful when you want to clean tables once
+and then run extraction (or re-run extraction) with ``--ocr-dir``.
+
+**Prerequisite:** `process_pdfs.py` must be run first to produce
+`data/{dataset}/processed_pdfs/`, and a vLLM server must be running.
+
+```
+Output: data/{dataset}/ocr_output_cleaned_{model_name}/
+```
+
+```bash
+# Start the vLLM server first, then:
+python experiments/run_vllm_table_cleaning.py --dataset pond --model gemma-3-27b
+
+# Resume a partial run:
+python experiments/run_vllm_table_cleaning.py --dataset pond --model gemma-3-27b --resume
+```
+
+Flags: `--ocr-dir`, `--output-dir` (path overrides), `--api-base`, `--api-key`,
+`--paper-subset`, `--resume`.
+
 ### `experiments/run_table_cleaning.py`
 
-**Legacy script** for API-based table cleaning (OpenAI only). For local
-model table cleaning, use `run_extraction.py` — the extraction model
-cleans tables automatically as the first step.
+**Legacy script** for API-based table cleaning (OpenAI only).
 
 ```
 Output: data/{dataset}/ocr_output_cleaned_openai_{model_tag}/
@@ -114,10 +135,11 @@ default 100), `--paper-subset`, `--resume`.
 
 ### `experiments/run_extraction.py`
 
-Runs the full `MeasurementLM` extraction pipeline. Table cleaning is
-integrated as **Step 0**: when `--ocr-dir` is not supplied, the extraction
-model cleans tables from raw OCR before extraction begins.  Cleaned texts
-are saved to `{data_dir}/ocr_output_cleaned_{model_name}/`.
+Runs the full `MeasurementLM` extraction pipeline against a **vLLM server**
+that must be started separately (see below). Table cleaning is integrated as
+**Step 0**: when `--ocr-dir` is not supplied, the extraction model cleans
+tables from raw OCR before extraction begins.  Cleaned texts are saved to
+`{data_dir}/ocr_output_cleaned_{model_name}/`.
 
 **Prerequisite for integrated table cleaning:** `process_pdfs.py` must be
 run first (in the preprocessing environment) to produce
@@ -135,6 +157,28 @@ attribute_prov.json → values.json → final.json
 Output: data/experiments/{dataset}/extraction/{model}/{YYYY_mm_dd}/
 ```
 
+#### Starting a vLLM server
+
+Before running the extraction script, start a vLLM server serving the
+model you want.  The server exposes an OpenAI-compatible API on port 8000
+by default.  Example (inside a Singularity container or directly):
+
+```bash
+# Single-GPU example (quantized model):
+vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \
+    --tensor-parallel-size 1 \
+    --port 8000
+
+# Multi-GPU example (large model):
+vllm serve Qwen/Qwen2.5-VL-72B-Instruct-AWQ \
+    --tensor-parallel-size 4 \
+    --port 8000
+```
+
+The server is ready when it prints `Application startup complete`.
+
+#### Running extraction
+
 ```bash
 # Standard run (table cleaning + extraction):
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b
@@ -142,23 +186,31 @@ python experiments/run_extraction.py --dataset pond --model gemma-3-27b
 # Skip table cleaning by supplying pre-cleaned texts:
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b \
     --ocr-dir data/pond/ocr_output_cleaned_openai_gpt_4o_mini
+
+# Custom server URL (e.g. server on a different machine or port):
+python experiments/run_extraction.py --dataset pond --model gemma-3-27b \
+    --api-base http://gpu-node-01:8000/v1
 ```
 
 **Available models** (keys of `MODEL_REGISTRY` in the script):
 
-| Key | HuggingFace ID | GPUs |
-|---|---|---|
-| `gemma-3-27b` | `gaunernst/gemma-3-27b-it-qat-autoawq` | 1 |
-| `qwen-2.5-72b` | `Qwen/Qwen2.5-72B-Instruct` | 2 |
-| `llama-3.3-70b` | `meta-llama/Llama-3.3-70B-Instruct` | 2 |
-| `qwen-3.5-35b` | `Qwen/Qwen3.5-35B-A3B-FP8` | 1 |
-| `gpt-oss-120b` | `openai/gpt-oss-120b` | 2 |
+| Key | HuggingFace ID |
+|---|---|
+| `gemma-3-27b` | `gaunernst/gemma-3-27b-it-qat-autoawq` |
+| `gemma-4-31b` | `RedHatAI/gemma-4-31B-it-NVFP4` |
+| `qwen-2.5-vl-72b` | `Qwen/Qwen2.5-VL-72B-Instruct-AWQ` |
+| `qwen-3-vl-30b` | `Qwen/Qwen3-VL-30B-A3B-Instruct-FP8` |
+| `llama-4-scout-109b` | `nvidia/Llama-4-Scout-17B-16E-Instruct-NVFP4` |
+| `glm-4.6v-106b` | `cyankiwi/GLM-4.6V-AWQ-4bit` |
+| `intern-vl3-78b` | `OpenGVLab/InternVL3-78B-AWQ` |
 
 **Additional flags:**
 
 | Flag | Effect |
 |---|---|
 | `--ocr-dir DIR` | Load pre-cleaned texts from DIR; skip integrated table cleaning |
+| `--api-base URL` | vLLM server base URL (default: `http://localhost:8000/v1`) |
+| `--api-key KEY` | API key for vLLM server (default: `EMPTY`; any non-empty string works) |
 | `--resume` | Skip steps whose output file already exists |
 | `--final-only` | Run all steps in a temp dir; copy only `final.json` to output |
 | `--step <name>` | Run a single named step (mutually exclusive with `--final-only`) |
@@ -291,6 +343,7 @@ experiments/
 │   ├── extract/             # Original extraction scripts (historical)
 │   └── preprocessing.py
 ├── run_ocr.py
+├── run_vllm_table_cleaning.py
 ├── run_table_cleaning.py
 ├── run_extraction.py
 ├── run_judge.py
