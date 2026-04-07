@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 older/*
+experiments/out/*
 experiments/*/out/*
 experiments/*/*/out/*
 experiments/*/*/*/out/*

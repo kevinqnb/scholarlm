@@ -226,9 +226,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--api-base",
-        default="http://localhost:8000/v1",
+        default="http://localhost:8081/v1",
         metavar="URL",
-        help="Base URL of the vLLM OpenAI-compatible server (default: http://localhost:8000/v1).",
+        help="Base URL of the vLLM OpenAI-compatible server (default: http://localhost:8081/v1).",
     )
     p.add_argument(
         "--api-key",

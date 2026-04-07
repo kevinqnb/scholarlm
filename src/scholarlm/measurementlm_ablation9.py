@@ -27,8 +27,8 @@ Pipeline structure and all other logic are identical to the baseline.
 from io import StringIO
 import pandas as pd
 from pydantic import BaseModel
-from vllm import SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+#from vllm import SamplingParams
+#from vllm.sampling_params import GuidedDecodingParams
 
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import (

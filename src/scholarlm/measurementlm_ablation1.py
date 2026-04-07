@@ -36,8 +36,8 @@ from .measurementlm import (
 from .instruction_prompts import (
     ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS,  # NEW: combined provenance prompt
 )
-from vllm import SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+#from vllm import SamplingParams
+#from vllm.sampling_params import GuidedDecodingParams
 
 
 # Fields that carry attribute identity inside the combined schema.

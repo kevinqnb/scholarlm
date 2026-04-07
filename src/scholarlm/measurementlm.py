@@ -113,6 +113,7 @@ class MeasurementLM:
             "top_k" : 64,
             "repetition_penalty" : 1.0,
             "max_tokens" : 2048,
+            "enable_thinking": False
         } | sampling_params
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
@@ -121,7 +122,7 @@ class MeasurementLM:
         self.clean_tables = clean_tables
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
         self.client = OpenAI(api_key=api_key, base_url=api_base)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base)
+        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0, max_retries=3)
 
 
     # -----------------------------------------------------------------------
@@ -150,6 +151,9 @@ class MeasurementLM:
             extra["top_k"] = self.sampling_params["top_k"]
         if "repetition_penalty" in self.sampling_params:
             extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+        if "enable_thinking" in self.sampling_params:
+            # Disable thinking by default for extraction tasks
+            extra["chat_template_kwargs"] = {"enable_thinking": self.sampling_params['enable_thinking']}
         if extra:
             kwargs["extra_body"] = extra
         try:

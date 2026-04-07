@@ -37,8 +37,8 @@ from .instruction_prompts import (
 )
 from io import StringIO
 import pandas as pd
-from vllm import SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+#from vllm import SamplingParams
+#from vllm.sampling_params import GuidedDecodingParams
 
 
 class MeasurementLMAblation2(MeasurementLM):

@@ -222,6 +222,6 @@ CONFIG = DatasetConfig(
     attribute_info_dict=_ATTRIBUTE_INFO_DICT,
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
-    paper_subset=_DEV_SUBSET,
+    paper_subset=None,
     paper_filter=None,
 )

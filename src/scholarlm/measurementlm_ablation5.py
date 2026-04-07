@@ -33,8 +33,8 @@ Unchanged from baseline: `_extract_entities()`, `_detect_attributes()`,
 from pydantic import BaseModel
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import FULL_CONTEXT_PROVENANCE_INSTRUCTIONS
-from vllm import SamplingParams
-from vllm.sampling_params import GuidedDecodingParams
+#from vllm import SamplingParams
+#from vllm.sampling_params import GuidedDecodingParams
 
 
 # -----------------------------------------------------------------------

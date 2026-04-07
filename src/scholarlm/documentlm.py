@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from scholarlm.utils import process_pdf, add_row_names
 
-from vllm import LLM, SamplingParams
+#from vllm import LLM, SamplingParams
 
 
 

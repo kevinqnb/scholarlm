@@ -65,12 +65,12 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     ),
     "gemma-4-31b": ModelConfig(
         name="gemma-4-31b",
-        model_id="RedHatAI/gemma-4-31B-it-NVFP4",
+        model_id="cyankiwi/gemma-4-31B-it-AWQ-4bit",
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
-            "max_tokens": 8192,
+            "max_tokens": 16384,
         },
     ),
     "qwen-2.5-vl-72b": ModelConfig(
@@ -116,6 +116,56 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "intern-vl3-78b": ModelConfig(
         name="intern-vl3-78b",
         model_id="OpenGVLab/InternVL3-78B-AWQ",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+        },
+    ),
+    "llama-3.3-70b": ModelConfig(
+        name="llama-3.3-70b",
+        model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+        },
+    ),
+    "qwen-2.5-72b": ModelConfig(
+        name="qwen-2.5-72b",
+        model_id="Qwen/Qwen2.5-72B-Instruct-AWQ",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+        },
+    ),
+    "qwen-3.5-27b": ModelConfig(
+        name="qwen-3.5-27b",
+        model_id="Qwen/Qwen3.5-27B-FP8",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+        },
+    ),
+    "glm-4.5-110b": ModelConfig(
+        name="glm-4.5-110b",
+        model_id="cyankiwi/GLM-4.5-Air-AWQ-4bit",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+        },
+    ),
+    "gpt-oss-120b": ModelConfig(
+        name="gpt-oss-120b",
+        model_id="openai/gpt-oss-120b",
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -767,11 +817,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--api-base",
-        default="http://localhost:8000/v1",
+        default="http://localhost:8081/v1",
         metavar="URL",
         help=(
             "Base URL of the vLLM OpenAI-compatible server "
-            "(default: http://localhost:8000/v1)."
+            "(default: http://localhost:8081/v1)."
         ),
     )
     p.add_argument(
