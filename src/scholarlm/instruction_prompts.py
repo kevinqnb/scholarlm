@@ -147,7 +147,21 @@ Guidelines:
 """
 
 
-# Ablation 5: Full-document (entity, attribute) pair provenance with direct list response
+# Ablation 3: Direct table value extraction (no row/column indexing)
+EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to extract it directly.
+
+Guidelines:
+- If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
+- If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
+"""
+
+
+# Ablation 4: Generated entity-attribute provenance
 FULL_CONTEXT_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all locations in a full research paper document where a directly reported numerical measurement exists for a described entity and attribute.
 
 Guidelines:
@@ -163,20 +177,7 @@ Guidelines:
 """
 
 
-# Ablation 3: Direct table value extraction (no row/column indexing)
-EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to extract it directly.
-
-Guidelines:
-- If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
-- If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
-- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
-- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
-"""
-
-# Ablation 9: No explanation prompts (for all of the above)
+# Ablation 5: No explanation prompts (for all of the above)
 DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has any directly reported numerical measurements anywhere in the document.
 
 Guidelines:
@@ -232,7 +233,6 @@ Guidelines:
 - Structure your response as a JSON object with "has_value", "value", and "units" fields.
 """
 
-# Ablation 9: No Explanations
 EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
 
 You will be provided with:
@@ -250,6 +250,22 @@ Guidelines:
 - Structure your response as a JSON object with "has_value", "row_index", "column_index", and "units" fields.
 """
 
+
+# Ablation 6: Direct triple extraction (no pipeline structure)
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of (entity, attribute, value) triples from a research paper document in a single pass.
+
+Guidelines:
+- You will be provided with entity identification instructions, a list of target measurement attributes with descriptions, and the full document text.
+- Following the entity identification instructions, identify all entities of the specified type present in the document.
+- For each identified entity and each listed attribute, determine whether the document contains a directly reported numerical measurement for that entity and attribute combination.
+- Only include items where a direct numerical measurement exists — do not include items where data is absent, or where only model parameters, goodness-of-fit statistics, or qualitative descriptions are reported.
+- Extract the value exactly as it appears in the document — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field; do not include any units of measurement, descriptors, or explanation in the value field.
+- Also extract the units of measurement for each value if present; set units to null if no units are reported.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity identifying fields along with "attribute", "value", and "units" fields.
+"""
 
 
 # --------------------------------------------

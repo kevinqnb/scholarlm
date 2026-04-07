@@ -36,8 +36,6 @@ from .measurementlm import (
 from .instruction_prompts import (
     ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS,  # NEW: combined provenance prompt
 )
-#from vllm import SamplingParams
-#from vllm.sampling_params import GuidedDecodingParams
 
 
 # Fields that carry attribute identity inside the combined schema.
@@ -150,15 +148,14 @@ class MeasurementLMAblation1(MeasurementLM):
         if not messages:
             return {}
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=ProvenanceResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "provenance_response",
+                "schema": ProvenanceResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -191,7 +188,11 @@ class MeasurementLMAblation1(MeasurementLM):
     # Full pipeline (simplified: 6 steps instead of 8)
     # -----------------------------------------------------------------------
 
-    def fit(self, documents: list[str]):
+    def fit(
+        self,
+        documents: list[str],
+        processed_pdf_dirs: list[str] | None = None,
+    ) -> list[dict]:
         """
         Runs the ablation 1 pipeline on the provided documents.
 
@@ -207,6 +208,14 @@ class MeasurementLMAblation1(MeasurementLM):
         attr_prov, doc_attributes) format expected by the unchanged extraction
         methods before calling them.
         """
+        if self.clean_tables:
+            if processed_pdf_dirs is None:
+                raise ValueError(
+                    "processed_pdf_dirs is required when clean_tables=True. "
+                    "Run 'python experiments/process_pdfs.py' first."
+                )
+            documents = self._clean_tables(documents, processed_pdf_dirs)
+
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})

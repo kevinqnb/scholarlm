@@ -37,8 +37,6 @@ from .instruction_prompts import (
 )
 from io import StringIO
 import pandas as pd
-#from vllm import SamplingParams
-#from vllm.sampling_params import GuidedDecodingParams
 
 
 class MeasurementLMAblation2(MeasurementLM):
@@ -124,23 +122,23 @@ class MeasurementLMAblation2(MeasurementLM):
         if not messages:
             return []
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=TextValueExtractionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "text_value_extraction",
+                "schema": TextValueExtractionResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
             pair_record, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(TextValueExtractionResponse, resp)
-            except Exception:
-                print("Validation error in text value extraction response.")
+            except Exception as e:
+                print(f"Validation error in text value extraction response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if result.get("has_value") and result.get("value") is not None:
@@ -281,23 +279,23 @@ class MeasurementLMAblation2(MeasurementLM):
         if not messages:
             return []
 
-        guided_decoding_params = GuidedDecodingParams(
-            json=TableValueExtractionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "table_value_extraction",
+                "schema": TableValueExtractionResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
             pair_record, table_number, page_number = message_ids[msg_idx]
             try:
                 result = response_validator(TableValueExtractionResponse, resp)
-            except Exception:
-                print("Validation error in table value extraction response.")
+            except Exception as e:
+                print(f"Validation error in table value extraction response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             if not result.get("has_value"):

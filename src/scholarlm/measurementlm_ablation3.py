@@ -36,8 +36,6 @@ from .instruction_prompts import (
 )
 from io import StringIO
 import pandas as pd
-#from vllm import SamplingParams
-#from vllm.sampling_params import GuidedDecodingParams
 
 
 class MeasurementLMAblation3(MeasurementLM):
@@ -148,23 +146,23 @@ class MeasurementLMAblation3(MeasurementLM):
             return []
 
         # CHANGED: response schema is TextValueExtractionResponse, not TableValueExtractionResponse
-        guided_decoding_params = GuidedDecodingParams(
-            json=TextValueExtractionResponse.model_json_schema()
-        )
-        sampling_params = SamplingParams(
-            **self.sampling_params,
-            guided_decoding=guided_decoding_params,
-        )
-        responses = self.llm.chat(messages=messages, sampling_params=sampling_params)
-        response_texts = [r.outputs[0].text for r in responses]
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "text_value_extraction",
+                "schema": TextValueExtractionResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
             pair_record, table_number, page_number, table_text = message_ids[msg_idx]
             try:
                 result = response_validator(TextValueExtractionResponse, resp)
-            except Exception:
-                print("Validation error in direct table value extraction response.")
+            except Exception as e:
+                print(f"Validation error in direct table value extraction response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
 
             # CHANGED: no pandas indexing; value comes directly from the model response
