@@ -220,6 +220,66 @@ python experiments/run_extraction.py --dataset pond --model gemma-3-27b \
 Step names: `entities`, `attributes`, `entity_prov`, `attribute_prov`,
 `values`, `final`.
 
+### `experiments/run_ablation.py`
+
+Runs a single ablation variant of the `MeasurementLM` pipeline against a **vLLM server**.
+Each ablation removes or modifies one component of the baseline extraction pipeline to
+isolate its contribution to performance.
+
+```
+Output: data/experiments/{dataset}/ablations/ablation{N}/{model}/{YYYY_mm_dd}/
+```
+
+Writes a single `final.json` file (standardized, deduplicated records with paper metadata
+merged in, same schema as `run_extraction.py`'s `final.json`).  Intermediate step files
+are not written because ablations run as a single `fit()` call.
+
+**Available ablations:**
+
+| N | Description |
+|---|---|
+| `1` | **Combined entity-attribute extraction** — entity detection and attribute detection merged into one step; provenance is also combined. Requires the dataset's `entity_schema` to include `attribute (str)` and `attribute_terms (list[str])` fields and a matching prompt. |
+| `2` | **Full-document context for value extraction** — the full document (not just the relevant page/table) is sent to the value extractor at both text and table extraction steps. |
+| `3` | **Direct table value extraction** — the model returns the value directly from the table instead of first identifying row/column indices for programmatic lookup. |
+| `4` | **Full-document pair provenance** — both provenance steps (entity + attribute) are replaced by a single full-document query per (entity, attribute) pair that returns a list of provenance locations. |
+| `5` | **No chain-of-thought explanations** — the `explanation` field is removed from all structured JSON response schemas, so the model does not produce reasoning traces. |
+| `6` | **Direct triple extraction** — the entire pipeline is replaced by a single LLM call per document that extracts all (entity, attribute, value) triples at once. |
+
+```bash
+# Run ablation 3 on the pond dataset:
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 3
+
+# Skip table cleaning by supplying pre-cleaned texts:
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 5 \
+    --ocr-dir data/pond/ocr_output_cleaned_gemma-3-27b
+
+# Run on a specific paper subset:
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 6 \
+    --paper-subset physical_and_chemical_limnological prairie_wetland
+
+# Custom server URL:
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 1 \
+    --api-base http://gpu-node-01:8000/v1
+```
+
+**Flags:**
+
+| Flag | Effect |
+|---|---|
+| `--ablation N` | Ablation to run (required, 1–6) |
+| `--ocr-dir DIR` | Load pre-cleaned texts from DIR; skip integrated table cleaning |
+| `--api-base URL` | vLLM server base URL (default: `http://localhost:8081/v1`) |
+| `--api-key KEY` | API key for vLLM server (default: `EMPTY`) |
+| `--paper-subset p1 p2` | Override the config's default paper subset |
+| `--date YYYY_mm_dd` | Pin the output date tag |
+
+**Note on ablation 1:** The dataset's `entity_schema` must include `attribute (str)` and
+`attribute_terms (list[str])` fields, and the `entity_identification_prompt` must instruct
+the model to emit one item per (entity, attribute) pair.  The script raises a clear error
+if these fields are missing.
+
+---
+
 ### `experiments/run_judge.py`
 
 Runs validation for a given (dataset, extraction model, judge model) triple.
@@ -346,6 +406,7 @@ experiments/
 ├── run_vllm_table_cleaning.py
 ├── run_table_cleaning.py
 ├── run_extraction.py
+├── run_ablation.py
 ├── run_judge.py
 ├── run_judge_combine.py
 └── run_analysis.py
