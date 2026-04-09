@@ -288,7 +288,7 @@ Use `--ocr-dir` on any runner to supply the same OCR texts used during
 extraction (defaults to `{data_dir}/ocr_output_raw/`).
 
 ```
-Output: data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
+Output: data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/
 ```
 
 #### `experiments/run_judge_interp.py` — NNsight / mechanistic interpretability
@@ -387,16 +387,16 @@ Merges per-judge `responses.json` files, computes a majority-vote ground-truth
 label from the frontier judges, and writes a combined output file.
 
 ```
-Output: data/experiments/{dataset}/judge/{extraction_model}/combined/combined.json
+Output: data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/combined/combined.json
 ```
 
 ```bash
 python experiments/run_judge_combine.py \
-    --dataset pond --extraction-model gemma-3-27b
+    --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01
 
-# Specify judges explicitly (useful when multiple date dirs exist):
+# Specify judges explicitly (useful when multiple judge date dirs exist):
 python experiments/run_judge_combine.py \
-    --dataset pond --extraction-model gemma-3-27b \
+    --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01 \
     --judges openai anthropic gemini llama-3.1-8b
 ```
 

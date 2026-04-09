@@ -84,17 +84,18 @@ def _load_dataset_config(name: str) -> DatasetConfig:
 def get_judge_output_dir(
     dataset_name: str,
     extraction_model: str,
+    extraction_date: str,
     judge_model: str,
-    date: str | None = None,
+    judge_date: str | None = None,
 ) -> Path:
-    """Return ``data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/``."""
-    if date is None:
-        date = datetime.now().strftime("%Y_%m_%d")
+    """Return ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/``."""
+    if judge_date is None:
+        judge_date = datetime.now().strftime("%Y_%m_%d")
     return (
         _REPO_ROOT
         / "data" / "experiments"
         / dataset_name / "judge"
-        / extraction_model / judge_model / date
+        / extraction_model / extraction_date / judge_model / judge_date
     )
 
 
@@ -419,13 +420,16 @@ def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
     dataset_config = _load_dataset_config(args.dataset)
+    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date)
+    extraction_date_resolved = input_file.parent.name
     output_dir = get_judge_output_dir(
-        args.dataset, args.extraction_model, args.judge, args.judge_date
+        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date
     )
     state_file = args.state or str(output_dir / f".batch_state_{args.judge}.json")
 
     print(f"\nDataset          : {args.dataset}")
     print(f"Extraction model : {args.extraction_model}")
+    print(f"Extraction date  : {extraction_date_resolved}")
     print(f"Judge            : {args.judge} / {args.frontier_model}")
     print(f"Output           : {output_dir}\n")
 
@@ -437,7 +441,7 @@ def main(argv: list[str] | None = None) -> None:
             frontier_model=args.frontier_model,
             output_dir=output_dir,
             state_file=state_file,
-            extraction_date=args.extraction_date,
+            extraction_date=extraction_date_resolved,
             ocr_dir=args.ocr_dir,
             dest_gcs=args.dest_gcs,
             gcp_project=args.gcp_project,
@@ -451,7 +455,7 @@ def main(argv: list[str] | None = None) -> None:
             extraction_model=args.extraction_model,
             output_dir=output_dir,
             state_file=state_file,
-            extraction_date=args.extraction_date,
+            extraction_date=extraction_date_resolved,
         )
     else:
         # Default: full submit → poll → process in one shot
@@ -461,7 +465,7 @@ def main(argv: list[str] | None = None) -> None:
             provider=args.judge,
             frontier_model=args.frontier_model,
             output_dir=output_dir,
-            extraction_date=args.extraction_date,
+            extraction_date=extraction_date_resolved,
             ocr_dir=args.ocr_dir,
             dest_gcs=args.dest_gcs,
             gcp_project=args.gcp_project,

@@ -57,23 +57,25 @@ FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"}
 # ---------------------------------------------------------------------------
 
 
-def _judge_base_dir(dataset_name: str, extraction_model: str) -> Path:
-    return _REPO_ROOT / "data" / "experiments" / dataset_name / "judge" / extraction_model
+def _judge_base_dir(dataset_name: str, extraction_model: str, extraction_date: str) -> Path:
+    return _REPO_ROOT / "data" / "experiments" / dataset_name / "judge" / extraction_model / extraction_date
 
 
 def _find_judge_result(
     dataset_name: str,
     extraction_model: str,
+    extraction_date: str,
     judge_key: str,
 ) -> Path:
     """Locate the most recent ``responses.json`` for a given judge key.
 
-    Searches ``data/experiments/{dataset}/judge/{extraction_model}/{judge_key}/*/responses.json``
+    Searches ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_key}/*/responses.json``
     and returns the path in the most recently dated directory.
 
     Args:
         dataset_name: Dataset identifier.
         extraction_model: Extraction model short name.
+        extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
         judge_key: Judge model key (e.g. ``"llama-3.1-8b"``, ``"openai"``).
 
     Returns:
@@ -82,7 +84,7 @@ def _find_judge_result(
     Raises:
         FileNotFoundError: If no result is found.
     """
-    judge_dir = _judge_base_dir(dataset_name, extraction_model) / judge_key
+    judge_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date) / judge_key
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory found: {judge_dir}")
     date_dirs = sorted(judge_dir.iterdir(), reverse=True)
@@ -95,9 +97,9 @@ def _find_judge_result(
     )
 
 
-def _discover_judge_keys(dataset_name: str, extraction_model: str) -> list[str]:
-    """Return all judge keys that have a responses.json under the extraction model dir."""
-    base = _judge_base_dir(dataset_name, extraction_model)
+def _discover_judge_keys(dataset_name: str, extraction_model: str, extraction_date: str) -> list[str]:
+    """Return all judge keys that have a responses.json under the extraction date dir."""
+    base = _judge_base_dir(dataset_name, extraction_model, extraction_date)
     if not base.exists():
         return []
     keys = []
@@ -185,6 +187,7 @@ def combine_judge_results(
 def run_combine(
     dataset_name: str,
     extraction_model: str,
+    extraction_date: str,
     judge_keys: list[str] | None = None,
     voting_threshold: int | None = None,
 ) -> Path:
@@ -193,8 +196,9 @@ def run_combine(
     Args:
         dataset_name: Dataset identifier.
         extraction_model: Extraction model short name.
+        extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
         judge_keys: Explicit list of judge keys to combine. If ``None``,
-            auto-discovers all judges with results under the extraction model dir.
+            auto-discovers all judges with results under the extraction date dir.
         voting_threshold: Minimum frontier-judge votes for a positive label.
             Defaults to majority of available frontier judges (ceil(n/2)).
 
@@ -202,17 +206,17 @@ def run_combine(
         Path to the written ``combined.json`` file.
     """
     if judge_keys is None:
-        judge_keys = _discover_judge_keys(dataset_name, extraction_model)
+        judge_keys = _discover_judge_keys(dataset_name, extraction_model, extraction_date)
         if not judge_keys:
             raise FileNotFoundError(
                 f"No judge results found for dataset='{dataset_name}' "
-                f"extraction_model='{extraction_model}'."
+                f"extraction_model='{extraction_model}' extraction_date='{extraction_date}'."
             )
         print(f"Auto-discovered judges: {judge_keys}")
 
     judge_files: dict[str, Path] = {}
     for key in judge_keys:
-        judge_files[key] = _find_judge_result(dataset_name, extraction_model, key)
+        judge_files[key] = _find_judge_result(dataset_name, extraction_model, extraction_date, key)
         print(f"  {key}: {judge_files[key]}")
 
     voting_judges = FRONTIER_JUDGE_KEYS & set(judge_keys)
@@ -230,7 +234,7 @@ def run_combine(
 
     combined = combine_judge_results(judge_files, voting_judges, voting_threshold)
 
-    output_dir = _judge_base_dir(dataset_name, extraction_model) / "combined"
+    output_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date) / "combined"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "combined.json"
     with open(output_file, "w") as f:
@@ -256,6 +260,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
     p.add_argument("--extraction-model", required=True, help="Extraction model short name.")
+    p.add_argument("--extraction-date", required=True, help="Date tag YYYY_mm_dd of the extraction run.")
     p.add_argument(
         "--judges", nargs="+", default=None,
         help="Judge keys to combine. Default: auto-discover from directory.",
@@ -272,6 +277,7 @@ def main(argv: list[str] | None = None) -> None:
     run_combine(
         dataset_name=args.dataset,
         extraction_model=args.extraction_model,
+        extraction_date=args.extraction_date,
         judge_keys=args.judges,
         voting_threshold=args.voting_threshold,
     )
