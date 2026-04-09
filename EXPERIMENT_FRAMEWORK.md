@@ -280,47 +280,106 @@ if these fields are missing.
 
 ---
 
-### `experiments/run_judge.py`
+### Judge scripts
 
-Runs validation for a given (dataset, extraction model, judge model) triple.
-Use `--ocr-dir` to supply the same OCR texts used during extraction (defaults
-to `{data_dir}/ocr_output_raw/`).
+Three judge runners share the same output path convention and produce
+`responses.json` files that are compatible with `run_judge_combine.py`.
+Use `--ocr-dir` on any runner to supply the same OCR texts used during
+extraction (defaults to `{data_dir}/ocr_output_raw/`).
 
 ```
 Output: data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
 ```
 
-**Local judges** (NNsight / JudgementLM — produce `responses.json` +
-`attention_outputs.npz`):
+#### `experiments/run_judge_interp.py` — NNsight / mechanistic interpretability
+
+Loads a local model through NNsight (JudgementLM) and collects per-layer,
+per-head attention output activations alongside binary judgement probabilities.
+
+Saves: `responses.json` + `attention_outputs.npz`
+
+Output fields: `judgement`, `judgement_prob`, `judgement_p_true`,
+`judgement_p_false`, `judgement_logit_p_true`, `judgement_logit_p_false`,
+`judgement_model`.
 
 ```bash
-python experiments/run_judge.py \
+python experiments/run_judge_interp.py \
     --dataset pond --extraction-model gemma-3-27b \
     --judge llama-3.1-8b --extraction-date YYYY_mm_dd
 ```
 
-Available local judge keys: `llama-3.1-8b`, `qwen-3-8b`, `gemma-3-12b`.
+Available judge keys: `llama-3.1-8b`, `qwen-3-8b`, `gemma-3-12b`.
 
-**Frontier judges** (batch API — produce `responses.json`):
+#### `experiments/run_judge_local.py` — local model via vLLM
+
+Sends async requests to a running vLLM server with `max_tokens=1` and
+`logprobs=True`. Extracts P(true)/P(false) from the next-token log-probability
+distribution by looking for `"true"`, `"True"`, `"false"`, `"False"` in the
+top-N returned tokens (default N=20, matching vLLM's `--max-logprobs` default).
+If those tokens are absent from the top-N list, probability fields are `null`
+and `judgement` falls back to the generated token text.
+
+Saves: `responses.json`
+
+Output fields: `judgement`, `judgement_prob`, `judgement_p_true`,
+`judgement_p_false`, `judgement_logit_p_true`, `judgement_logit_p_false`,
+`judgement_model`.
 
 ```bash
-python experiments/run_judge.py \
+# Start a vLLM server first, e.g.:
+#   vllm serve meta-llama/Llama-3.1-8B-Instruct --port 8081
+
+python experiments/run_judge_local.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge llama-3.1-8b --extraction-date YYYY_mm_dd
+
+# Raise the logprob ceiling (requires --max-logprobs N on the vLLM server):
+python experiments/run_judge_local.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge llama-3.1-8b --top-logprobs 50
+```
+
+Available judge keys: `llama-3.1-8b`, `qwen-3-8b`, `gemma-3-12b`,
+`llama-3.3-70b`, `qwen-2.5-72b`, `gemma-3-27b`.
+
+Flags: `--api-base URL` (default: `http://localhost:8081/v1`), `--api-key KEY`,
+`--max-concurrent N` (default: 64), `--top-logprobs N` (default: 20).
+
+#### `experiments/run_judge_frontier.py` — frontier batch API
+
+Submits extraction results to a frontier provider's batch API and saves
+judgements. Supports a one-shot run (submit → poll → process) or a three-step
+mode for large batches.
+
+Saves: `responses.json`
+
+Output fields: `judgement`, `judgement_prob` (always `null` for frontier),
+`judgement_raw_text`, `judgement_model`.
+
+```bash
+# One-shot run:
+python experiments/run_judge_frontier.py \
     --dataset pond --extraction-model gemma-3-27b \
     --judge openai --frontier-model gpt-4o-mini \
     --extraction-date YYYY_mm_dd
+
+# Three-step mode (useful for large batches or to resume after interruption):
+python experiments/run_judge_frontier.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge anthropic --frontier-model claude-haiku-4-5 \
+    submit
+python experiments/run_judge_frontier.py ... poll    --state .batch_state_anthropic.json
+python experiments/run_judge_frontier.py ... process --state .batch_state_anthropic.json
 ```
 
 Frontier provider keys: `openai`, `anthropic`, `gemini` (Gemini additionally
 requires `--dest-gcs` and `--gcp-project`).
 
-Frontier runs also support a three-step mode for large batches:
+#### `experiments/run_judge.py` (legacy)
 
-```bash
-# Submit, poll, and process separately:
-python experiments/run_judge.py ... submit
-python experiments/run_judge.py ... poll   --state .batch_state_openai.json
-python experiments/run_judge.py ... process --state .batch_state_openai.json
-```
+The original unified judge runner that combined both local-NNsight and frontier
+paths. Superseded by the three scripts above but left in place as a historical
+reference.
 
 ### `experiments/run_judge_combine.py`
 
@@ -407,7 +466,10 @@ experiments/
 ├── run_table_cleaning.py
 ├── run_extraction.py
 ├── run_ablation.py
-├── run_judge.py
+├── run_judge_interp.py      # NNsight / mechanistic interpretability judge
+├── run_judge_local.py       # Local model via vLLM (logprob extraction)
+├── run_judge_frontier.py    # Frontier batch API judge (OpenAI/Anthropic/Gemini)
+├── run_judge.py             # Legacy unified judge (superseded by the three above)
 ├── run_judge_combine.py
 └── run_analysis.py
 ```
