@@ -68,6 +68,17 @@ class MeasurementLMAblation6(MeasurementLM):
 
         attribute_list_text = self._format_attribute_list()
 
+        unit_options = {
+            attr : self.attribute_info_dict[attr].get('units', [])
+            for attr in self.attribute_info_dict
+        }
+        units_guidance = ""
+        units_guidance = (
+            f"Preferred unit options: {unit_options}\n"
+            f"When extracting values for any of the given attributes, format the units of measure using the best fitting option from the attribute's list. "
+            f"If none of the options fit, specify the unit exactly as it appears in the text."
+        )
+
         messages = []
         for datapoint in self.data:
             context = datapoint['context']
@@ -77,6 +88,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 f"Extract all (entity, attribute, value) triples for the entities and "
                 f"attributes described above. Return one item per (entity, attribute) pair "
                 f"where a direct numerical measurement exists in the document."
+                f"Include the measured value and its units if available. \n{units_guidance}"
             )
             prompt = (
                 f"## Instructions:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
@@ -151,9 +163,9 @@ class MeasurementLMAblation6(MeasurementLM):
         self.data = self._extract_triples()
 
         # Step 2: Standardize
-        self.data = self._standardize()
+        #self.data = self._standardize()
 
         # Step 3: Deduplicate
-        self.data = self._deduplicate(self.data)
+        #self.data = self._deduplicate(self.data)
 
         return self.data

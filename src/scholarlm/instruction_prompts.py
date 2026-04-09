@@ -263,7 +263,7 @@ Guidelines:
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
 - Give the value only in the value field; do not include any units of measurement, descriptors, or explanation in the value field.
-- Also extract the units of measurement for each value if present; set units to null if no units are reported.
+- Also extract the units of measurement for each value if present; set units to null if no units are reported. Format the units using the best fitting option from the attribute's list of preferred units if possible, or otherwise specify the unit exactly as it appears in the text.
 - Structure your response as a JSON object with an "items" list, where each item contains the entity identifying fields along with "attribute", "value", and "units" fields.
 """
 

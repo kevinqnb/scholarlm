@@ -55,7 +55,7 @@ random.seed(342)
 MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gemma-3-27b": ModelConfig(
         name="gemma-3-27b",
-        model_id="google/gemma-3-27b-it",
+        model_id="gaunernst/gemma-3-27b-it-int4-awq",
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -125,7 +125,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     ),
     "llama-3.3-70b": ModelConfig(
         name="llama-3.3-70b",
-        model_id="meta-llama/Llama-3.3-70B-Instruct",
+        model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
