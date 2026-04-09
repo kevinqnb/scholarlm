@@ -99,7 +99,7 @@ class JudgementLM:
         self.n_layers = len(self.llm.model.layers)
         self.n_heads = self.llm.config.num_attention_heads
         self.n_kv_heads = self.llm.config.num_key_value_heads
-        self.head_dim = self.llm.config.hidden_size // self.n_heads
+        self.head_dim = getattr(self.llm.config, 'head_dim', self.llm.config.hidden_size // self.n_heads)
 
         self.responses = []
         self.parametric_score_arrays = []
