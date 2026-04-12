@@ -243,17 +243,34 @@ async def _judge_one(
     """Send a single judge request and return binary probability fields."""
     async with sem:
         try:
-            response = await client.chat.completions.create(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": entry["system"]},
-                    {"role": "user", "content": entry["user"]},
-                ],
-                max_tokens=1,
-                temperature=0.0,
-                logprobs=True,
-                top_logprobs=top_logprobs,
-            )
+            if model_id == "openai/gpt-oss-120b":
+                # GPT-OSS-120B thinks before generating a token, 
+                # so we set max_tokens=32 to get logprobs for the first generated token.
+                response = await client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": entry["system"]},
+                        {"role": "user", "content": entry["user"]},
+                    ],
+                    max_tokens=8192,
+                    temperature=0.0,
+                    logprobs=True,
+                    top_logprobs=top_logprobs,
+                )
+                print("Response text: ", response.choices[0].message.content)
+            
+            else:
+                response = await client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": entry["system"]},
+                        {"role": "user", "content": entry["user"]},
+                    ],
+                    max_tokens=1,
+                    temperature=0.0,
+                    logprobs=True,
+                    top_logprobs=top_logprobs,
+                )       
         except Exception as e:
             print(f"  [idx={idx}] API error: {e}")
             return {
@@ -277,6 +294,9 @@ async def _judge_one(
         generated_token = ""
         generated_logprob = None
         top_lps_list = []
+
+    print(f"  [idx={idx}] Generated token: '{generated_token}' with logprob {generated_logprob}")
+    print()
 
     # Derive judgement from the generated token text
     judgement: bool | None = None

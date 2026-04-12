@@ -20,7 +20,7 @@ Usage
         --judge llama-3.1-8b \\
         --extraction-date 2026_04_01
 
-Available judge models: llama-3.1-8b, qwen-3-8b, gemma-3-12b
+Available judge models: llama-3.1-8b, gemma-2-9b, mistral-7b (see JUDGE_REGISTRY in code for details).
 """
 from __future__ import annotations
 
@@ -67,13 +67,13 @@ JUDGE_REGISTRY: dict[str, dict] = {
         "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
-    "qwen-3-8b": {
-        "model_id": "Qwen/Qwen3-8B",
+    "gemma-2-9b": {
+        "model_id": "google/gemma-2-9b-it",
         "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
-    "gemma-3-12b": {
-        "model_id": "google/gemma-3-12b-it",
+    "mistral-7b": {
+        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
         "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
