@@ -45,7 +45,7 @@ A dinitrogen fixation measurement is any explicit report of a rate of dinitrogen
 Information identifying a dinitrogen fixation measurement may include, but is not limited to, the following identifiers:
 
 - name: the name of the ecosystem or site from which the measurement was taken (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
-- abbreviations_and_codes: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same ecosystem (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
+- abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same ecosystem (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
 - ecosystem_type: the type of ecosystem from which the measurement was taken (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone (e.g. do not assume ecosystem_type is "lake" just because the name contains "Lake").
 - latitude: the latitude of the location where the measurement was taken, reported exactly as stated in the text.
 - longitude: the longitude of the location where the measurement was taken, reported exactly as stated in the text.
@@ -58,7 +58,7 @@ Information identifying a dinitrogen fixation measurement may include, but is no
 - substrate_type: the type of substrate associated with the measurement (water column, benthos, or other)
 - sample_depth: the depth at which the sample was collected (e.g. "surface", "0-5 cm", "bottom", "0-10 m", etc.)
 
-NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations_and_codes" field so that cross-references within the paper can be resolved.
+NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
 
 TABLE HANDLING:
 
@@ -107,7 +107,7 @@ OUTPUT FORMAT REQUIREMENTS:
   "items": [
     {
       "name": "...",
-      "abbreviations_and_codes": "...",
+      "abbreviations": "...",
       "ecosystem_type": "...",
       "latitude": ...,
       "longitude": ...,
