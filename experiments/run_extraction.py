@@ -342,6 +342,24 @@ def _deserialize_prov(json_dict: dict) -> dict:
     return out
 
 
+def _serialize_events(events_dict: dict) -> dict:
+    """Serialize 4-tuple keyed event resolution dict for JSON storage.
+
+    Converts ``{(doc_id, entity_id, attr_name, page_number): [events]}``
+    to ``{"doc_id|entity_id|attr_name|page_number": [events]}``.
+    """
+    return {f"{k[0]}|{k[1]}|{k[2]}|{k[3]}": v for k, v in events_dict.items()}
+
+
+def _deserialize_events(json_dict: dict) -> dict:
+    """Deserialize JSON event resolution dict back to 4-tuple keys."""
+    out: dict = {}
+    for k, v in json_dict.items():
+        parts = k.split("|", 3)
+        out[(int(parts[0]), parts[1], parts[2], int(parts[3]))] = v
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Pipeline step functions
 # ---------------------------------------------------------------------------
@@ -438,7 +456,7 @@ def step_attribute_provenance(
         json.dump(_serialize_prov(prov), f, indent=4, ensure_ascii=False)
 
 
-def step_extract_values(
+def step_resolve_events(
     mlm: MeasurementLM,
     text: list[str],
     entities_file: Path,
@@ -447,7 +465,12 @@ def step_extract_values(
     attr_prov_file: Path,
     outfile: Path,
 ) -> None:
-    """Steps 4+5: Extract values from text and tables and save to JSON.
+    """Step 3c: Resolve measurement events per (entity, attribute, page) intersection.
+
+    When the dataset config does not provide a ``measurement_event_schema``,
+    writes ``null`` to the output file and returns immediately.  The downstream
+    ``step_extract_values`` treats a ``null`` file as "event resolution disabled"
+    and preserves the original extraction behaviour.
 
     Args:
         mlm: Configured ``MeasurementLM`` instance.
@@ -458,7 +481,15 @@ def step_extract_values(
         attr_prov_file: Path to attribute provenance JSON (step 3b output).
         outfile: Destination JSON path.
     """
-    print("Steps 4+5 — Extracting values from text and tables...")
+    outfile.parent.mkdir(parents=True, exist_ok=True)
+
+    if mlm.measurement_event_schema is None:
+        print("Step 3c — Skipping event resolution (no measurement_event_schema configured).")
+        with open(outfile, "w") as f:
+            json.dump(None, f)
+        return
+
+    print("Step 3c — Resolving measurement events...")
     with open(entities_file) as f:
         entity_data: list[dict] = json.load(f)
     with open(attributes_file) as f:
@@ -472,8 +503,57 @@ def step_extract_values(
     for record in entity_data:
         record["context"] = text[record["document_id"]]
 
-    text_values = mlm._extract_values_from_text(entity_data, doc_attributes, entity_prov, attr_prov)
-    table_values = mlm._extract_values_from_tables(entity_data, doc_attributes, entity_prov, attr_prov)
+    event_resolution = mlm._resolve_events(entity_data, doc_attributes, entity_prov, attr_prov)
+
+    with open(outfile, "w") as f:
+        json.dump(_serialize_events(event_resolution), f, indent=4, ensure_ascii=False)
+
+
+def step_extract_values(
+    mlm: MeasurementLM,
+    text: list[str],
+    entities_file: Path,
+    attributes_file: Path,
+    entity_prov_file: Path,
+    attr_prov_file: Path,
+    events_file: Path,
+    outfile: Path,
+) -> None:
+    """Steps 4+5: Extract values from text and tables and save to JSON.
+
+    Args:
+        mlm: Configured ``MeasurementLM`` instance.
+        text: List of OCR text strings, one per document.
+        entities_file: Path to entities JSON (step 1 output).
+        attributes_file: Path to attributes JSON (step 2 output).
+        entity_prov_file: Path to entity provenance JSON (step 3a output).
+        attr_prov_file: Path to attribute provenance JSON (step 3b output).
+        events_file: Path to events JSON (step 3c output).
+        outfile: Destination JSON path.
+    """
+    print("Steps 4+5 — Extracting values from text and tables...")
+    with open(entities_file) as f:
+        entity_data: list[dict] = json.load(f)
+    with open(attributes_file) as f:
+        doc_attributes: dict = json.load(f)
+    with open(entity_prov_file) as f:
+        entity_prov = _deserialize_prov(json.load(f))
+    with open(attr_prov_file) as f:
+        attr_prov = _deserialize_prov(json.load(f))
+    with open(events_file) as f:
+        raw_events = json.load(f)
+    event_resolution = _deserialize_events(raw_events) if raw_events is not None else None
+
+    doc_attributes = {int(k): v for k, v in doc_attributes.items()}
+    for record in entity_data:
+        record["context"] = text[record["document_id"]]
+
+    text_values = mlm._extract_values_from_text(
+        entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
+    )
+    table_values = mlm._extract_values_from_tables(
+        entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
+    )
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     with open(outfile, "w") as f:
@@ -530,6 +610,7 @@ def _run_all_steps(
     f_attributes = work_dir / "attributes.json"
     f_entity_prov = work_dir / "entity_prov.json"
     f_attr_prov = work_dir / "attribute_prov.json"
+    f_events = work_dir / "events.json"
     f_values = work_dir / "values.json"
     f_final = work_dir / "final.json"
 
@@ -553,8 +634,13 @@ def _run_all_steps(
     else:
         print("Step 3b — Skipping (attribute_prov.json exists).")
 
+    if not (resume and f_events.exists()):
+        step_resolve_events(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events)
+    else:
+        print("Step 3c — Skipping (events.json exists).")
+
     if not (resume and f_values.exists()):
-        step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_values)
+        step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events, f_values)
     else:
         print("Steps 4+5 — Skipping (values.json exists).")
 
@@ -641,6 +727,8 @@ def run_pipeline(
         api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
+        measurement_event_schema=dataset_config.measurement_event_schema,
+        measurement_event_prompt=dataset_config.measurement_event_prompt,
     )
 
     if clean_tables:
@@ -668,7 +756,7 @@ def run_pipeline(
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
 
 
-STEP_NAMES = ("entities", "attributes", "entity_prov", "attribute_prov", "values", "final")
+STEP_NAMES = ("entities", "attributes", "entity_prov", "attribute_prov", "events", "values", "final")
 
 
 def run_single_step(
@@ -721,12 +809,15 @@ def run_single_step(
         api_base=api_base,
         api_key=api_key,
         clean_tables=False,
+        measurement_event_schema=dataset_config.measurement_event_schema,
+        measurement_event_prompt=dataset_config.measurement_event_prompt,
     )
 
     f_entities = output_dir / "entities.json"
     f_attributes = output_dir / "attributes.json"
     f_entity_prov = output_dir / "entity_prov.json"
     f_attr_prov = output_dir / "attribute_prov.json"
+    f_events = output_dir / "events.json"
     f_values = output_dir / "values.json"
     f_final = output_dir / "final.json"
 
@@ -738,8 +829,10 @@ def run_single_step(
         step_entity_provenance(mlm, text, f_entities, f_entity_prov)
     elif step == "attribute_prov":
         step_attribute_provenance(mlm, text, f_attributes, f_attr_prov)
+    elif step == "events":
+        step_resolve_events(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events)
     elif step == "values":
-        step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_values)
+        step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events, f_values)
     elif step == "final":
         step_standardize_and_deduplicate(mlm, text_info, f_values, f_final)
 

@@ -19,81 +19,65 @@ from scholarlm.config import DatasetConfig
 
 
 class ObservationSchema(BaseModel):
-    """Entity fields for an aquatic dinitrogen fixation measurement event."""
+    """Site-level entity fields for an aquatic dinitrogen fixation study."""
 
     name: str | None
     abbreviations: str | None
-    ecosystem_type: str | None
+    site_type: str | None
     latitude: float | None
     longitude: float | None
+
+
+class MeasurementEventSchema(BaseModel):
+    """Event-level fields that distinguish individual dinitrogen fixation measurements."""
+
     date: str | None
     nfix_method: str | None
     substrate_type: str | None
     sample_depth: str | None
+    additional_details: str | None
 
 
 # ---------------------------------------------------------------------------
 # Entity identification prompt
 # ---------------------------------------------------------------------------
 
-_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurements.
+_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
 
-DINITROGEN FIXATION MEASUREMENTS:
+A DINITROGEN FIXATION MEASUREMENT SITE is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
 
-A dinitrogen fixation measurement is any explicit report of a rate of dinitrogen fixation: the amount of nitrogen (or ethylene in acetylene reduction assays) per fixed unit of time. This is typically normalized by substrate mass, area, or water volume.
+Site identifying information includes the following fields:
 
-Information identifying a dinitrogen fixation measurement may include, but is not limited to, the following identifiers:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
+- abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same site (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
+- site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
+- latitude: the latitude of the site, reported exactly as stated in the text.
+- longitude: the longitude of the site, reported exactly as stated in the text.
 
-- name: the name of the ecosystem or site from which the measurement was taken (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
-- abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same ecosystem (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
-- ecosystem_type: the type of ecosystem from which the measurement was taken (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone (e.g. do not assume ecosystem_type is "lake" just because the name contains "Lake").
-- latitude: the latitude of the location where the measurement was taken, reported exactly as stated in the text.
-- longitude: the longitude of the location where the measurement was taken, reported exactly as stated in the text.
-- date: the date when the measurement was taken, using one of the following formats depending on the precision available:
-  - Full date: "dd-mm-yyyy"
-  - Month and year only: "mm-yyyy"
-  - Year only: "yyyy"
-  - If no date information is available, set to None.
-- nfix_method: the method used to measure dinitrogen fixation (e.g. acetylene reduction assay, ARA, or 15N2 incorporation)
-- substrate_type: the type of substrate associated with the measurement (water column, benthos, or other)
-- sample_depth: the depth at which the sample was collected (e.g. "surface", "0-5 cm", "bottom", "0-10 m", etc.)
-
-NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
+NOTE: While a site might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same site later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
 
 TABLE HANDLING:
 
-Tables frequently contain dinitrogen fixation measurements. When extracting from tables, be aware of the following:
-- Site or ecosystem names may appear in a row or column header.
-- Method, date, or location metadata may be encoded in row or column headers, table captions, or table footnotes rather than in individual cells. Check all of these.
-- If a table footnote defines an abbreviation (e.g. "* = acetylene reduction assay"), apply that definition to all relevant entries.
+Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying sites.
 
 IDENTIFICATION GUIDELINES:
 
-Treat dinitrogen fixation measurements with the same name as multiple separate items if ANY of the following differ:
-- Location (e.g. different latitude and longitude)
-- Date
-- Method used to measure dinitrogen fixation (e.g. ARA vs 15N2 incorporation)
-- Substrate type (e.g. water column vs benthos)
-- Sample depth (e.g. surface vs 0-5 cm)
-
-However, if the same ecosystem is referenced multiple times with the same identifying information, do not duplicate it.
-
-Note: Some identifiers describe the site (name, ecosystem_type, latitude, longitude) while others describe the measurement event (nfix_method, date). A single site may have multiple distinct measurement events. Each unique combination of site + measurement event should be a separate item.
+Treat sites with the same name as multiple separate items ONLY if their geographic location clearly differs (e.g., different latitude and longitude, or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, using different methods, or at different depths — those distinctions will be captured separately as measurement events.
 
 STRICT RULES ABOUT MISSING INFORMATION:
 
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
-- If an identifier is not explicitly given, set its value to None.
-- Do NOT infer ecosystem_type from the entity name. For example, if a site is called "Lake Mendota" but the text never describes or categorizes it as a lake, set ecosystem_type to None.
-- Do NOT infer coordinates from general geographic descriptions. If the text says "in central Wisconsin" but provides no latitude or longitude, set both to None.
+- If a field is not explicitly given, set its value to None.
+- Do NOT infer site_type from the entity name.
+- Do NOT infer coordinates from general geographic descriptions.
 
 EXTRACTION PROCEDURE (FOLLOW IN ORDER):
 
-1. Scan the entire text, including all tables, table captions, and table footnotes, for any mentions of dinitrogen fixation measurements.
-2. Resolve all abbreviations and coded identifiers back to their associated ecosystem or site.
-3. Determine which mentions correspond to distinct measurement events using the identification guidelines above.
-4. Output one JSON item per distinct measurement event.
+1. Scan the entire text, including all tables, table captions, and table footnotes, for any mentions of dinitrogen fixation measurement sites.
+2. Resolve all abbreviations and coded identifiers back to their associated site.
+3. Determine which mentions correspond to distinct sites using the identification guidelines above.
+4. Output one JSON item per distinct site.
 5. Collect all items into a single JSON array under the key "items".
 
 OUTPUT FORMAT REQUIREMENTS:
@@ -108,20 +92,42 @@ OUTPUT FORMAT REQUIREMENTS:
     {
       "name": "...",
       "abbreviations": "...",
-      "ecosystem_type": "...",
+      "site_type": "...",
       "latitude": ...,
-      "longitude": ...,
-      "date": "...",
-      "nfix_method": "...",
-      "substrate_type": "...",
-      "sample_depth": "..."
+      "longitude": ...
     }
   ]
 }
 
-- If no dinitrogen fixation measurements are found, output exactly:
+- If no dinitrogen fixation measurement sites are found, output exactly:
 { "items": [] }
 """
+
+
+# ---------------------------------------------------------------------------
+# Measurement event prompt
+# ---------------------------------------------------------------------------
+
+_MEASUREMENT_EVENT_PROMPT = """For this dataset, a measurement event is a distinct instance of a dinitrogen fixation measurement, characterized by the conditions under which it was taken.
+
+Event fields and their meanings:
+- date: The date the measurement was taken. Use one of the following formats depending on available precision:
+  - Full date: "dd-mm-yyyy"
+  - Month and year only: "mm-yyyy"
+  - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
+  - Year only: "yyyy"
+  Set to None if no date is stated on this page.
+- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
+- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
+- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
+- additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
+
+Critical rules:
+- Each event item must be as complete as the page text allows. Populate every field that has a value explicitly stated on this page.
+- Do NOT output multiple events that differ only by having different subsets of the same information. If the text supports identifying date + method + substrate for a measurement, output one event with all three fields populated — not separate events for each subset.
+- Do NOT infer, guess, or derive field values. If a field is not explicitly stated on this page, set it to None.
+"""
+
 
 # ---------------------------------------------------------------------------
 # Attribute catalogue
@@ -226,10 +232,12 @@ CONFIG = DatasetConfig(
     entity_schema=ObservationSchema,
     entity_identification_prompt=_IDENTIFICATION_PROMPT,
     entity_type_description=(
-        "A distinct dinitrogen fixation measurement event — a specific site and substrate "
-        "identified by ecosystem type, method, date, sample depth, and coordinates."
+        "A distinct dinitrogen fixation measurement site — a specific ecosystem or location "
+        "identified by name, type, and coordinates."
     ),
     attribute_info_dict=_ATTRIBUTE_INFO_DICT,
+    measurement_event_schema=MeasurementEventSchema,
+    measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

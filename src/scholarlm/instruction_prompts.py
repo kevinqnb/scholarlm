@@ -98,6 +98,23 @@ Guidelines:
 
 
 # --------------------------------------------
+# Measurement Event Resolution
+# --------------------------------------------
+
+MEASUREMENT_EVENT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a page of text from a research paper.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper, a description of an entity, and a description of a measurement attribute.
+- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
+- For each distinct measurement event you identify, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the page. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
+- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
+- If the additional_details field is applicable, populate it with a brief description (one sentence or fewer) of any distinguishing context not captured by the other fields.
+- If the page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
+- Structure your response as a JSON object with an "items" list.
+"""
+
+
+# --------------------------------------------
 # Ablation Prompts
 # --------------------------------------------
 

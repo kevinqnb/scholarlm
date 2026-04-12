@@ -14,6 +14,7 @@ from .instruction_prompts import (
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
     ENTITY_PROVENANCE_INSTRUCTIONS,
     ATTRIBUTE_PROVENANCE_INSTRUCTIONS,
+    MEASUREMENT_EVENT_INSTRUCTIONS,
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
@@ -105,6 +106,8 @@ class MeasurementLM:
         max_concurrent: int = 64,
         clean_tables: bool = True,
         cleaned_ocr_output_dir: str | None = None,
+        measurement_event_schema: BaseModel | None = None,
+        measurement_event_prompt: str | None = None,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -121,6 +124,8 @@ class MeasurementLM:
         self.max_concurrent = max_concurrent
         self.clean_tables = clean_tables
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
+        self.measurement_event_schema = measurement_event_schema
+        self.measurement_event_prompt = measurement_event_prompt
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -682,10 +687,113 @@ class MeasurementLM:
 
 
     # -----------------------------------------------------------------------
+    # Step 2c: Measurement event resolution (optional)
+    # -----------------------------------------------------------------------
+
+    def _resolve_events(self, entity_data, doc_attributes, entity_prov, attr_prov):
+        """
+        For each (entity, attribute, page) intersection, enumerate the distinct
+        measurement events present on that page.
+
+        Only runs when ``self.measurement_event_schema`` is set.  Returns an empty
+        dict otherwise.
+
+        Args:
+            entity_data: list of entity records from _extract_entities().
+            doc_attributes: dict from _detect_attributes().
+            entity_prov: dict from _entity_provenance().
+            attr_prov: dict from _attribute_provenance().
+
+        Returns:
+            dict mapping (doc_id, entity_id, attr_name, page_number) ->
+            list[event_dict].  An empty list means no events were found on
+            that page (caller falls back to a single all-None default event).
+        """
+        if self.measurement_event_schema is None:
+            return {}
+
+        from pydantic import create_model
+
+        EventList = create_model(
+            "EventList",
+            items=(list[self.measurement_event_schema], ...),
+        )
+        event_list_json = EventList.model_json_schema()
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
+
+        unique_entities = {}
+        for record in entity_data:
+            key = (record['document_id'], record['entity_id'])
+            if key not in unique_entities:
+                unique_entities[key] = record
+
+        messages = []
+        message_ids = []  # (doc_id, entity_id, attr_name, page_number)
+
+        for (doc_id, entity_id), record in unique_entities.items():
+            context = record['context']
+            entity_description = {k: v for k, v in record.items() if k in entity_fields}
+
+            for attr_name, _terms in doc_attributes.get(doc_id, {}).items():
+                attr_description = self.attribute_info_dict[attr_name].get('description', '')
+
+                # Collect all pages where both entity and attribute have provenance
+                e_pages = {entry['page'] for entry in entity_prov.get((doc_id, entity_id), [])}
+                a_pages = {entry['page'] for entry in attr_prov.get((doc_id, attr_name), [])}
+                intersecting_pages = sorted(e_pages & a_pages)
+
+                for p in intersecting_pages:
+                    page_text = self._get_page_text(context, p)
+                    if not page_text:
+                        continue
+
+                    query = (
+                        f"Entity description: {entity_description}\n"
+                        f"Attribute: {attr_name}\n"
+                        f"Attribute description: {attr_description}\n\n"
+                        f"Enumerate all distinct measurement events for the above entity "
+                        f"and attribute found on this page.\n\n"
+                    )
+                    prompt = (
+                        f"## Instructions:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
+                        f"## Dataset-specific event context:\n{self.measurement_event_prompt}\n\n"
+                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                    )
+                    messages.append([{"role": "user", "content": prompt}])
+                    message_ids.append((doc_id, entity_id, attr_name, p))
+
+        if not messages:
+            return {}
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "event_list",
+                "schema": event_list_json,
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
+
+        event_resolution = {}
+        for msg_idx, resp in enumerate(response_texts):
+            key = message_ids[msg_idx]
+            try:
+                result = response_validator(EventList, resp)
+            except Exception as e:
+                print(f"Validation error in event resolution response: {e}")
+                print(f"Response text: {resp}")
+                event_resolution[key] = []
+                continue
+            event_resolution[key] = result['items']
+
+        return event_resolution
+
+
+    # -----------------------------------------------------------------------
     # Step 3: Extract values from text (per-page)
     # -----------------------------------------------------------------------
 
-    def _extract_values_from_text(self, entity_data, doc_attributes, entity_prov, attr_prov):
+    def _extract_values_from_text(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
         """
         Extracts measurement values from prose text using provenance intersection.
 
@@ -747,20 +855,35 @@ class MeasurementLM:
                             f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
                         )
 
-                    query = (
-                        f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"{units_guidance}"
-                        f"Does this page contain a measured value for the given attribute and entity? "
-                        f"If yes, extract the value and its units.\n\n"
-                    )
-                    prompt = (
-                        f"## Instructions:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
-                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
-                    )
-                    messages.append([{"role": "user", "content": prompt}])
-                    message_ids.append((pair_record, p))
+                    # Determine measurement events for this (entity, attribute, page)
+                    if event_resolution is not None:
+                        events = event_resolution.get((doc_id, entity_id, attr_name, p), [])
+                        if not events:
+                            events = [{f: None for f in self.measurement_event_schema.model_fields}]
+                    else:
+                        events = [None]
+
+                    for event in events:
+                        event_record = pair_record | (event if event is not None else {})
+                        event_context = ""
+                        if event and any(v is not None for v in event.values()):
+                            event_context = f"Measurement event context: {event}\n"
+
+                        query = (
+                            f"Attribute description: {attr_description}\n"
+                            f"Terminology used for the attribute: {terms}\n"
+                            f"Entity description: {entity_description}\n"
+                            f"{event_context}"
+                            f"\n{units_guidance}"
+                            f"Does this page contain a measured value for the given attribute and entity? "
+                            f"If yes, extract the value and its units.\n\n"
+                        )
+                        prompt = (
+                            f"## Instructions:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
+                            f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                        )
+                        messages.append([{"role": "user", "content": prompt}])
+                        message_ids.append((event_record, p))
 
         if not messages:
             return []
@@ -804,7 +927,7 @@ class MeasurementLM:
     # Step 4: Extract values from tables
     # -----------------------------------------------------------------------
 
-    def _extract_values_from_tables(self, entity_data, doc_attributes, entity_prov, attr_prov):
+    def _extract_values_from_tables(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
         """
         Extracts measurement values from HTML tables using provenance intersection.
 
@@ -905,22 +1028,39 @@ class MeasurementLM:
                             f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
                         )
 
-                    query = (
-                        f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"Row names in the table: {row_names}\n"
-                        f"Column names in the table: {column_names}\n\n"
-                        f"{units_guidance}"
-                        f"Does this table contain a measured value for the given attribute and entity? "
-                        f"If yes, provide the row_index and column_index names, and the units.\n\n"
-                    )
-                    prompt = (
-                        f"## Instructions:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
-                        f"## Context:\n{table_text}\n\n## Query:\n{query}"
-                    )
-                    messages.append([{"role": "user", "content": prompt}])
-                    message_ids.append((pair_record, t, table_page_number))
+                    # Determine measurement events for this (entity, attribute, page)
+                    if event_resolution is not None:
+                        events = event_resolution.get(
+                            (doc_id, entity_id, attr_name, table_page_number), []
+                        )
+                        if not events:
+                            events = [{f: None for f in self.measurement_event_schema.model_fields}]
+                    else:
+                        events = [None]
+
+                    for event in events:
+                        event_record = pair_record | (event if event is not None else {})
+                        event_context = ""
+                        if event and any(v is not None for v in event.values()):
+                            event_context = f"Measurement event context: {event}\n"
+
+                        query = (
+                            f"Attribute description: {attr_description}\n"
+                            f"Terminology used for the attribute: {terms}\n"
+                            f"Entity description: {entity_description}\n"
+                            f"{event_context}"
+                            f"\nRow names in the table: {row_names}\n"
+                            f"Column names in the table: {column_names}\n\n"
+                            f"{units_guidance}"
+                            f"Does this table contain a measured value for the given attribute and entity? "
+                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                        )
+                        prompt = (
+                            f"## Instructions:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
+                            f"## Context:\n{table_text}\n\n## Query:\n{query}"
+                        )
+                        messages.append([{"role": "user", "content": prompt}])
+                        message_ids.append((event_record, t, table_page_number))
 
         if not messages:
             return []
@@ -1039,59 +1179,7 @@ class MeasurementLM:
             standardized_data[message_data_ids[i]]['value'] = resp.strip()
 
         return standardized_data
-
-    '''
-    def _deduplicate(self, data):
-        """
-        Simple equality-based deduplication using entity_id.
-
-        Groups records by (entity_id, attribute), then within each group
-        compares values: np.isclose for numerics, case-insensitive string
-        match otherwise. Keeps first occurrence, discards duplicates.
-
-        Args:
-            data: list of measurement records
-
-        Returns:
-            list[dict]: Deduplicated records.
-        """
-        def _norm(v):
-            if v is None:
-                return None
-            return str(v).strip().lower()
-
-        def _values_equal(a, b):
-            """Compare two values: np.isclose for numerics, case-insensitive otherwise."""
-            try:
-                fa, fb = float(a), float(b)
-                return np.isclose(fa, fb)
-            except (ValueError, TypeError):
-                return _norm(a) == _norm(b)
-
-        groups: dict[tuple, list[int]] = {}
-        for idx, record in enumerate(data):
-            key = (record.get('entity_id'), record.get('attribute'))
-            groups.setdefault(key, []).append(idx)
-
-        deduplicated: list[dict] = []
-
-        for key, indices in groups.items():
-            kept_values = []  # (value, units) tuples already kept
-            for idx in indices:
-                record = data[idx]
-                val = record.get('value')
-                units = _norm(record.get('units'))
-                is_dup = False
-                for kept_val, kept_units in kept_values:
-                    if _values_equal(val, kept_val) and units == kept_units:
-                        is_dup = True
-                        break
-                if not is_dup:
-                    deduplicated.append(record)
-                    kept_values.append((val, units))
-
-        return deduplicated
-    '''
+    
 
     def _deduplicate(self, data):
         """
@@ -1129,9 +1217,16 @@ class MeasurementLM:
             """Extract a provenance tuple from a record, using None for missing fields."""
             return {field: record.get(field) for field in _PROV_FIELDS}
 
+        event_field_names = (
+            list(self.measurement_event_schema.model_fields.keys())
+            if self.measurement_event_schema is not None
+            else []
+        )
+
         groups: dict[tuple, list[int]] = {}
         for idx, record in enumerate(data):
-            key = (record.get('entity_id'), record.get('attribute'))
+            event_key = tuple(record.get(f) for f in event_field_names)
+            key = (record.get('entity_id'), record.get('attribute')) + event_key
             groups.setdefault(key, []).append(idx)
 
         deduplicated: list[dict] = []
@@ -1221,14 +1316,22 @@ class MeasurementLM:
         # Step 4: Attribute provenance
         attr_prov = self._attribute_provenance(doc_attributes)
 
+        # Step 4.5: Measurement event resolution (optional)
+        if self.measurement_event_schema is not None:
+            event_resolution = self._resolve_events(
+                entity_data, doc_attributes, entity_prov, attr_prov
+            )
+        else:
+            event_resolution = None
+
         # Step 5: Extract values from text (provenance intersection)
         text_values = self._extract_values_from_text(
-            entity_data, doc_attributes, entity_prov, attr_prov
+            entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
         # Step 6: Extract values from tables (provenance intersection)
         table_values = self._extract_values_from_tables(
-            entity_data, doc_attributes, entity_prov, attr_prov
+            entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
         # Combine text and table extractions

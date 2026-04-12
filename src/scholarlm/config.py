@@ -42,6 +42,17 @@ class DatasetConfig:
         paper_filter: Optional predicate ``(paper_metadata: dict) -> bool`` applied
             to each paper's metadata dict.  Only papers for which this returns
             ``True`` are included.  Applied *before* ``paper_subset`` intersection.
+        measurement_event_schema: Optional Pydantic ``BaseModel`` subclass whose
+            fields define a single measurement event (e.g. date, method, substrate,
+            depth).  When set, the pipeline inserts an event-resolution step between
+            attribute provenance and value extraction that enumerates the distinct
+            measurement events present for each (entity, attribute, page)
+            intersection.  ``None`` disables event resolution entirely and the
+            pipeline behaves as it did before this feature was added.
+        measurement_event_prompt: Dataset-specific instructions for the event
+            resolution step, describing what constitutes a distinct measurement
+            event and explaining each event field.  Required when
+            ``measurement_event_schema`` is set; ignored otherwise.
     """
 
     name: str
@@ -53,6 +64,8 @@ class DatasetConfig:
     attribute_info_dict: dict[str, dict]
     paper_subset: list[str] | None = None
     paper_filter: Callable[[dict], bool] | None = None
+    measurement_event_schema: type[BaseModel] | None = None
+    measurement_event_prompt: str | None = None
 
 
 @dataclass
