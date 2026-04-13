@@ -20,6 +20,7 @@ from .instruction_prompts import (
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
 )
 
+
 def response_validator(response_structure, response):
     pyd = response_structure.model_validate_json(response)
     out_dict = pyd.model_dump()
@@ -67,6 +68,12 @@ class TableValueExtractionResponse(BaseModel):
     units: str | None = None
 
 
+class StandardizeResponse(BaseModel):
+    """Response for standardizing an extracted measurement value."""
+    explanation: str
+    value: str
+
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -108,6 +115,8 @@ class MeasurementLM:
         cleaned_ocr_output_dir: str | None = None,
         measurement_event_schema: BaseModel | None = None,
         measurement_event_prompt: str | None = None,
+        direct_extraction_schema: BaseModel | None = None,
+        direct_extraction_prompt: str | None = None,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -126,6 +135,8 @@ class MeasurementLM:
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
         self.measurement_event_schema = measurement_event_schema
         self.measurement_event_prompt = measurement_event_prompt
+        self.direct_extraction_schema = direct_extraction_schema
+        self.direct_extraction_prompt = direct_extraction_prompt
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -275,9 +286,9 @@ class MeasurementLM:
                         {
                             "type": "text",
                             "text": (
-                                f"## Instructions:\n{CLEAN_TABLE_INSTRUCTIONS}\n\n"
-                                f"## OCR Text:\n{page_text}\n\n"
-                                f"## Query:\nClean and normalize the tables in the OCR text, "
+                                f"## INSTRUCTIONS:\n{CLEAN_TABLE_INSTRUCTIONS}\n\n"
+                                f"## OCR TEXT:\n{page_text}\n\n"
+                                f"## QUERY:\nClean and normalize the tables in the OCR text, "
                                 f"using the page image for reference. Return ONLY the cleaned "
                                 f"OCR text for this page, with tables normalized and restructured "
                                 f"as needed. Do NOT include any additional explanation, return "
@@ -363,9 +374,13 @@ class MeasurementLM:
         for i, datapoint in enumerate(self.data):
             instructions = self.entity_identification_prompt
             context = datapoint['context']
-            query = "Follow the instructions to identify the items mentioned in the context."
+            query = (
+                "Scan the full context and identify all distinct entities of the described type. "
+                "Return one item per entity, populating all fields using only information "
+                "explicitly stated in the text. Do not infer or fabricate any field values."
+            )
             prompt = (
-                f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"
+                f"## INSTRUCTIONS:\n{instructions}\n\n## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
 
@@ -444,8 +459,8 @@ class MeasurementLM:
                     f"appears in a table or in prose text.\n\n"
                 )
                 prompt = (
-                    f"## Instructions:\n{ENTITY_PROVENANCE_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                    f"## INSTRUCTIONS:\n{ENTITY_PROVENANCE_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                 )
                 messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((doc_id, entity_id, p))
@@ -546,8 +561,8 @@ class MeasurementLM:
                 f"Return one item per attribute using the exact attribute name.\n\n"
             )
             prompt = (
-                f"## Instructions:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS}\n\n"
-                f"## Context:\n{context}\n\n## Query:\n{query}"
+                f"## INSTRUCTIONS:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
             message_ids.append(i)
@@ -637,8 +652,8 @@ class MeasurementLM:
                         f"appears in a table or in prose text.\n\n"
                     )
                     prompt = (
-                        f"## Instructions:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
-                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                        f"## INSTRUCTIONS:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
+                        f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
                     message_ids.append((doc_idx_int, attr_name, p))
@@ -755,9 +770,9 @@ class MeasurementLM:
                         f"and attribute found on this page.\n\n"
                     )
                     prompt = (
-                        f"## Instructions:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
-                        f"## Dataset-specific event context:\n{self.measurement_event_prompt}\n\n"
-                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                        f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
+                        f"## EVENT DETAILS:\n{self.measurement_event_prompt}\n\n"
+                        f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
                     message_ids.append((doc_id, entity_id, attr_name, p))
@@ -879,8 +894,8 @@ class MeasurementLM:
                             f"If yes, extract the value and its units.\n\n"
                         )
                         prompt = (
-                            f"## Instructions:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
-                            f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                            f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
+                            f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                         )
                         messages.append([{"role": "user", "content": prompt}])
                         message_ids.append((event_record, p))
@@ -1056,8 +1071,8 @@ class MeasurementLM:
                             f"If yes, provide the row_index and column_index names, and the units.\n\n"
                         )
                         prompt = (
-                            f"## Instructions:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
-                            f"## Context:\n{table_text}\n\n## Query:\n{query}"
+                            f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
+                            f"## CONTEXT:\n{table_text}\n\n## QUERY:\n{query}"
                         )
                         messages.append([{"role": "user", "content": prompt}])
                         message_ids.append((event_record, t, table_page_number))
@@ -1166,17 +1181,29 @@ class MeasurementLM:
                 f"Standardize the measurement value for the given data point. "
             )
             prompt = (
-                f"## Instructions:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
-                f"## Context:\n{context}\n\n## Query:\n{query}"
+                f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 
-        response_texts = self._call_batch(messages, response_format=None)
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "standardize_response",
+                "schema": StandardizeResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(messages, response_format=response_format)
 
         standardized_data = [dict(datapoint) for datapoint in self.data]
         for i, resp in enumerate(response_texts):
-            standardized_data[message_data_ids[i]]['value'] = resp.strip()
+            try:
+                result = response_validator(StandardizeResponse, resp)
+                standardized_data[message_data_ids[i]]['value'] = result['value']
+            except Exception as e:
+                print(f"Validation error in standardize response: {e}")
+                print(f"Response text: {resp}")
 
         return standardized_data
     

@@ -218,6 +218,8 @@ def run_ablation(
         api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
+        direct_extraction_schema=dataset_config.direct_extraction_schema,
+        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
     )
 
     # Pre-clean tables if needed (same pattern as run_extraction.py)

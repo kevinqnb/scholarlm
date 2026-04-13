@@ -38,6 +38,27 @@ class MeasurementEventSchema(BaseModel):
     additional_details: str | None
 
 
+class DirectExtractionItemSchema(BaseModel):
+    """Flat schema for Ablation 6: combines entity, event, attribute, value, and units."""
+
+    # Entity fields
+    name: str | None
+    abbreviations: str | None
+    site_type: str | None
+    latitude: float | None
+    longitude: float | None
+    # Event fields
+    date: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+    additional_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
+
+
 # ---------------------------------------------------------------------------
 # Entity identification prompt
 # ---------------------------------------------------------------------------
@@ -47,7 +68,7 @@ _IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting info
 A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
 
 
-RESPONSE SCHEMA:
+Response schema:
 Site identifying information includes the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
 - abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same site (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
@@ -57,16 +78,14 @@ Site identifying information includes the following fields:
 
 NOTE: While a site might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same site later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
 
-
-TABLE HANDLING:
-Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying sites.
+NOTE: Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying sites.
 
 
-IDENTIFICATION GUIDELINES:
+Identification rules:
 Treat sites with the same name as multiple separate items ONLY if their geographic location clearly differs (e.g., different latitude and longitude, or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, using different methods, or at different depths — those distinctions will be captured separately as measurement events.
 
 
-STRICT RULES ABOUT MISSING INFORMATION:
+Strict rules about missing information:
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
@@ -74,7 +93,7 @@ STRICT RULES ABOUT MISSING INFORMATION:
 - Do NOT infer coordinates from general geographic descriptions.
 
 
-EXTRACTION PROCEDURE (FOLLOW IN ORDER):
+Extraction procedure:
 1. Scan the entire text, including all tables, table captions, and table footnotes, for any mentions of dinitrogen fixation measurement sites.
 2. Resolve all abbreviations and coded identifiers back to their associated site.
 3. Determine which mentions correspond to distinct sites using the identification guidelines above.
@@ -82,7 +101,7 @@ EXTRACTION PROCEDURE (FOLLOW IN ORDER):
 5. Collect all items into a single JSON array under the key "items".
 
 
-OUTPUT FORMAT REQUIREMENTS:
+Output format requirements:
 - Output must be valid, strictly parseable JSON.
 - Do NOT include markdown, comments, or explanatory text.
 - Latitude and longitude values must be numeric (not strings). All other values are strings or None.
@@ -107,9 +126,7 @@ OUTPUT FORMAT REQUIREMENTS:
 # Measurement event prompt
 # ---------------------------------------------------------------------------
 
-_MEASUREMENT_EVENT_PROMPT = """For this dataset, a measurement event is a distinct instance of a dinitrogen fixation measurement, characterized by the conditions under which it was taken.
-
-EVENT FIELDS:
+_MEASUREMENT_EVENT_PROMPT = """Event fields:
 - date: The date the measurement was taken. Use one of the following formats depending on available precision:
   - Full date: "dd-mm-yyyy"
   - Month and year only: "mm-yyyy"
@@ -120,11 +137,6 @@ EVENT FIELDS:
 - substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
 - sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
 - additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
-
-RULES:
-- Each event item must be as complete as the page text allows. Populate every field that has a value explicitly stated on this page.
-- Do NOT output multiple events that differ only by having different subsets of the same information. If the text supports identifying date + method + substrate for a measurement, output one event with all three fields populated — not separate events for each subset.
-- Do NOT infer, guess, or derive field values. If a field is not explicitly stated on this page, set it to None.
 """
 
 
@@ -184,6 +196,10 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
         ),
         "units": _VOLUMETRIC_UNITS,
     },
+}
+
+
+other_attributes = {
     "nfix_incubation_time": {
         "description": (
             "Duration of the experimental incubation for measuring dinitrogen fixation, "
@@ -203,12 +219,69 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
     },
 }
 
-
 # ---------------------------------------------------------------------------
-# Direct extraction prompt:
+# Direct extraction prompt (Ablation 6)
 # ---------------------------------------------------------------------------
 
+_DIRECT_EXTRACTION_PROMPT = """Entity identification:
+Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
 
+Entity fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- abbreviations: any secondary codes or abbreviations used to refer to the same site. Set to None if the primary identifier has no alternatives.
+- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- latitude: the latitude of the site, exactly as stated in the text (numeric).
+- longitude: the longitude of the site, exactly as stated in the text (numeric).
+
+Entity identification rules:
+- Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations).
+- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each site and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
+- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
+- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
+- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "abbreviations": "...",
+      "site_type": "...",
+      "latitude": ...,
+      "longitude": ...,
+      "date": "...",
+      "nfix_method": "...",
+      "substrate_type": "...",
+      "sample_depth": "...",
+      "additional_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +324,8 @@ CONFIG = DatasetConfig(
     attribute_info_dict=_ATTRIBUTE_INFO_DICT,
     measurement_event_schema=MeasurementEventSchema,
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
+    direct_extraction_schema=DirectExtractionItemSchema,
+    direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

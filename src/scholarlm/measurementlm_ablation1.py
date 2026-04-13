@@ -139,8 +139,8 @@ class MeasurementLMAblation1(MeasurementLM):
                 )
                 # CHANGED: uses ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS
                 prompt = (
-                    f"## Instructions:\n{ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                    f"## INSTRUCTIONS:\n{ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                 )
                 messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((doc_id, entity_id, p))

@@ -280,8 +280,8 @@ class MeasurementLMAblation5(MeasurementLM):
                     )
                     # CHANGED: no-explanation prompt
                     prompt = (
-                        f"## Instructions:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                        f"## INSTRUCTIONS:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                        f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
                     message_ids.append((doc_idx_int, attr_name, p))
@@ -394,8 +394,8 @@ class MeasurementLMAblation5(MeasurementLM):
                     )
                     # CHANGED: no-explanation prompt
                     prompt = (
-                        f"## Instructions:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                        f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                        f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                        f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
                     message_ids.append((pair_record, p))

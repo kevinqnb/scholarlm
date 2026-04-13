@@ -53,6 +53,14 @@ class DatasetConfig:
             resolution step, describing what constitutes a distinct measurement
             event and explaining each event field.  Required when
             ``measurement_event_schema`` is set; ignored otherwise.
+        direct_extraction_schema: Optional Pydantic ``BaseModel`` subclass used by
+            Ablation 6 (direct triple extraction).  Must combine all entity fields,
+            all measurement event fields, and the ``attribute``, ``value``, and
+            ``units`` fields into a single flat schema.  ``None`` disables ablation 6.
+        direct_extraction_prompt: Dataset-specific prompt for Ablation 6 that
+            describes entities, measurement events, and attributes in a single
+            combined block.  Required when ``direct_extraction_schema`` is set;
+            ignored otherwise.
     """
 
     name: str
@@ -66,6 +74,8 @@ class DatasetConfig:
     paper_filter: Callable[[dict], bool] | None = None
     measurement_event_schema: type[BaseModel] | None = None
     measurement_event_prompt: str | None = None
+    direct_extraction_schema: type[BaseModel] | None = None
+    direct_extraction_prompt: str | None = None
 
 
 @dataclass

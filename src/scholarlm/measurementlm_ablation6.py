@@ -1,25 +1,23 @@
-"""MeasurementLM Ablation 6: Direct Triple Extraction (No Pipeline Structure)
+"""MeasurementLM Ablation 6: Direct Extraction (No Pipeline Structure)
 
 Ablation goal: understand what happens when we remove the extraction pipeline
-entirely and simply ask the model to extract a list of (entity, attribute, value)
-triples directly from each document in a single pass.
+entirely and simply ask the model to extract a list of measurement records
+directly from each document in a single pass.
 
 Changes from the baseline MeasurementLM:
 
 1. All intermediate pipeline steps (attribute detection, entity/attribute provenance,
-   per-page and per-table value extraction) are eliminated. A single LLM call per
-   document extracts all (entity, attribute, value, units) triples at once.
+   per-page and per-table value extraction, event resolution) are eliminated. A single
+   LLM call per document extracts all records at once.
 
-2. The extraction schema is built dynamically by extending entity_identification_schema
-   with three additional fields: 'attribute' (str), 'value' (str | None), and
-   'units' (str | None). The model is asked to return a list of these extended items.
+2. The extraction schema and prompt are defined at the dataset level
+   (direct_extraction_schema and direct_extraction_prompt on DatasetConfig). The schema
+   is a flat Pydantic model combining entity fields, measurement event fields, and
+   'attribute', 'value', and 'units' fields. The prompt describes all three in one block.
 
-3. The query combines self.entity_identification_prompt with the full attribute list
-   from attribute_info_dict, instructing the model to identify entities and
-   simultaneously extract measured values for each attribute.
-
-4. After extraction, the standard _standardize() and _deduplicate() steps are applied
-   unchanged. No provenance fields (page_number, table_number, etc.) are produced.
+3. After extraction, the standard _standardize() and _deduplicate() steps are available
+   but currently commented out pending evaluation. No provenance fields
+   (page_number, table_number, etc.) are produced.
 
 Unchanged from baseline: _standardize(), _deduplicate(), save().
 """
@@ -32,87 +30,64 @@ from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
 class MeasurementLMAblation6(MeasurementLM):
     """
     Ablation 6: the multi-step extraction pipeline is replaced by a single
-    LLM call per document that extracts all (entity, attribute, value) triples
-    directly.
+    LLM call per document that extracts all measurement records directly.
+
+    Requires direct_extraction_schema and direct_extraction_prompt to be set
+    on the MeasurementLM instance (supplied via DatasetConfig).
     """
 
     # -----------------------------------------------------------------------
-    # Single extraction step: extract all triples directly
+    # Single extraction step: extract all records directly
     # -----------------------------------------------------------------------
 
     def _extract_triples(self):
         """
-        Extract all (entity, attribute, value, units) triples from each document
-        in a single LLM call per document.
+        Extract all measurement records from each document in a single LLM call.
 
-        CHANGED: replaces all of steps 1-6 of the baseline pipeline. The model
-        receives the full document along with entity identification instructions
-        and the complete attribute list, and returns a list of items each
-        containing entity fields plus 'attribute', 'value', and 'units'.
+        Uses self.direct_extraction_schema (a flat Pydantic model combining entity,
+        event, attribute, value, and units fields) and self.direct_extraction_prompt
+        (a dataset-specific block describing entities, events, and attributes).
 
         Returns a list of records suitable for _standardize() and _deduplicate().
         """
-        # Dynamically extend entity_identification_schema with attribute/value/units
-        ExtendedTripleSchema = create_model(
-            "EntityAttributeTriple",
-            __base__=self.entity_identification_schema,
-            attribute=(str, ...),
-            value=(str | None, None),
-            units=(str | None, None),
-        )
-        TripleList = create_model(
-            "TripleList",
-            items=(list[ExtendedTripleSchema], ...),
-        )
-        triple_list_json = TripleList.model_json_schema()
+        if self.direct_extraction_schema is None or self.direct_extraction_prompt is None:
+            raise ValueError(
+                "direct_extraction_schema and direct_extraction_prompt must be set "
+                "for MeasurementLMAblation6. Define them in the dataset config."
+            )
 
-        attribute_list_text = self._format_attribute_list()
-
-        unit_options = {
-            attr : self.attribute_info_dict[attr].get('units', [])
-            for attr in self.attribute_info_dict
-        }
-        units_guidance = ""
-        units_guidance = (
-            f"Preferred unit options: {unit_options}\n"
-            f"When extracting values for any of the given attributes, format the units of measure using the best fitting option from the attribute's list. "
-            f"If none of the options fit, specify the unit exactly as it appears in the text."
+        DirectExtractionList = create_model(
+            "DirectExtractionList",
+            items=(list[self.direct_extraction_schema], ...),
         )
+        direct_extraction_list_json = DirectExtractionList.model_json_schema()
 
         messages = []
         for datapoint in self.data:
             context = datapoint['context']
-            query = (
-                f"Entity identification instructions:\n{self.entity_identification_prompt}\n\n"
-                f"Attributes to extract:\n{attribute_list_text}\n\n"
-                f"Extract all (entity, attribute, value) triples for the entities and "
-                f"attributes described above. Return one item per (entity, attribute) pair "
-                f"where a direct numerical measurement exists in the document."
-                f"Include the measured value and its units if available. \n{units_guidance}"
-            )
+            query = "Extract all measurement records from this document as described in the instructions."
             prompt = (
-                f"## Instructions:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
-                f"## Context:\n{context}\n\n## Query:\n{query}"
+                f"## INSTRUCTIONS:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
+                f"## EVENT DETAILS:\n{self.direct_extraction_prompt}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
 
         response_format = {
             "type": "json_schema",
             "json_schema": {
-                "name": "triple_list",
-                "schema": triple_list_json,
+                "name": "direct_extraction_list",
+                "schema": direct_extraction_list_json,
             },
         }
         response_texts = self._call_batch(messages, response_format=response_format)
 
-        entity_fields = list(self.entity_identification_schema.model_fields.keys())
-
         triple_data = []
         for i, r in enumerate(response_texts):
             try:
-                resp_validated = response_validator(TripleList, r)
+                resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
-                print(f"Validation error in triple extraction response: {e}")
+                print(f"Validation error in direct extraction response: {e}")
                 print(f"Response text: {r[:500]}")
                 resp_validated = {'items': []}
 
@@ -130,7 +105,7 @@ class MeasurementLMAblation6(MeasurementLM):
         return triple_data
 
     # -----------------------------------------------------------------------
-    # Full pipeline (simplified: 3 steps instead of 8)
+    # Full pipeline (simplified: single extraction step)
     # -----------------------------------------------------------------------
 
     def fit(
@@ -143,9 +118,9 @@ class MeasurementLMAblation6(MeasurementLM):
 
         CHANGED: all intermediate extraction steps replaced by a single
         _extract_triples() call.
-          Step 1: Extract all (entity, attribute, value) triples [was: steps 1-6]
-          Step 2: Standardize                                    [unchanged]
-          Step 3: Deduplicate                                    [unchanged]
+          Step 1: Extract all measurement records directly  [was: steps 1-6]
+          Step 2: Standardize                               [unchanged, currently disabled]
+          Step 3: Deduplicate                               [unchanged, currently disabled]
         """
         if self.clean_tables:
             if processed_pdf_dirs is None:
@@ -159,7 +134,7 @@ class MeasurementLMAblation6(MeasurementLM):
         for i, doc in enumerate(documents):
             self.data.append({'document_id': i, 'context': doc})
 
-        # Step 1: Extract all (entity, attribute, value) triples directly
+        # Step 1: Extract all measurement records directly
         self.data = self._extract_triples()
 
         # Step 2: Standardize

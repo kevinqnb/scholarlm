@@ -58,7 +58,7 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for sy
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears -- do not convert, round, or modify it.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
@@ -92,8 +92,9 @@ Guidelines:
 - For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
-- Your response should include the standardized value only, do not include any additional explanation or text.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
+- Provide a brief explanation of what standardization was applied (or why none was needed), then the standardized value.
+- Structure your response as a JSON object with "explanation" and "value" fields.
 """
 
 
@@ -108,7 +109,6 @@ Guidelines:
 - A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
 - For each distinct measurement event you identify, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the page. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
 - IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
-- If the additional_details field is applicable, populate it with a brief description (one sentence or fewer) of any distinguishing context not captured by the other fields.
 - If the page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
 - Structure your response as a JSON object with an "items" list.
 """
@@ -243,7 +243,7 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data e
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears -- do not convert, round, or modify it.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
@@ -268,20 +268,22 @@ Guidelines:
 """
 
 
-# Ablation 6: Direct triple extraction (no pipeline structure)
-DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of (entity, attribute, value) triples from a research paper document in a single pass.
+# Ablation 6: Direct extraction (no pipeline structure)
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of measurement records from a research paper document in a single pass. Each record captures an entity, the conditions of a specific measurement event, the attribute measured, and its value.
 
 Guidelines:
-- You will be provided with entity identification instructions, a list of target measurement attributes with descriptions, and the full document text.
-- Following the entity identification instructions, identify all entities of the specified type present in the document.
-- For each identified entity and each listed attribute, determine whether the document contains a directly reported numerical measurement for that entity and attribute combination.
-- Only include items where a direct numerical measurement exists — do not include items where data is absent, or where only model parameters, goodness-of-fit statistics, or qualitative descriptions are reported.
+- You will be provided with dataset-specific extraction instructions describing the entities to identify, the measurement event fields, and the target attributes, along with the full document text.
+- Identify all entities of the specified type present in the document, following the entity identification rules in the dataset-specific instructions.
+- For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
+- Return one item per (entity, measurement event, attribute) combination where a direct numerical measurement exists.
+- Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
 - Extract the value exactly as it appears in the document — do not convert, round, or modify it.
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
-- Give the value only in the value field; do not include any units of measurement, descriptors, or explanation in the value field.
-- Also extract the units of measurement for each value if present; set units to null if no units are reported. Format the units using the best fitting option from the attribute's list of preferred units if possible, or otherwise specify the unit exactly as it appears in the text.
-- Structure your response as a JSON object with an "items" list, where each item contains the entity identifying fields along with "attribute", "value", and "units" fields.
+- Give the value only in the value field; do not include any units, descriptors, or explanation there.
+- For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
 """
 
 

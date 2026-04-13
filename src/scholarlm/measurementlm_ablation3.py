@@ -136,8 +136,8 @@ class MeasurementLMAblation3(MeasurementLM):
                     )
                     # CHANGED: uses EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS
                     prompt = (
-                        f"## Instructions:\n{EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS}\n\n"
-                        f"## Context:\n{table_text}\n\n## Query:\n{query}"
+                        f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS}\n\n"
+                        f"## CONTEXT:\n{table_text}\n\n## QUERY:\n{query}"
                     )
                     messages.append([{"role": "user", "content": prompt}])
                     message_ids.append((pair_record, t, table_page_number, table_text))

@@ -166,8 +166,8 @@ class MeasurementLMAblation4(MeasurementLM):
                 )
                 # CHANGED: uses FULL_CONTEXT_PROVENANCE_INSTRUCTIONS and full context
                 prompt = (
-                    f"## Instructions:\n{FULL_CONTEXT_PROVENANCE_INSTRUCTIONS}\n\n"
-                    f"## Context:\n{context}\n\n## Query:\n{query}"
+                    f"## INSTRUCTIONS:\n{FULL_CONTEXT_PROVENANCE_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
                 )
                 messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((doc_id, entity_id, attr_name))

@@ -41,11 +41,11 @@ def tokenize(
         formatted_chat, return_offsets_mapping=True, add_special_tokens=False
     )
 
-    instruction_start = formatted_chat.index("## Instructions:\n") + len("## Instructions:\n")
-    instruction_end = formatted_chat.index("\n\n## Context:")
-    context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
-    context_end = formatted_chat.index("\n\n## Query:")
-    query_start = formatted_chat.index("## Query:\n") + len("## Query:\n")
+    instruction_start = formatted_chat.index("## INSTRUCTIONS:\n") + len("## INSTRUCTIONS:\n")
+    instruction_end = formatted_chat.index("\n\n## CONTEXT:")
+    context_start = formatted_chat.index("## CONTEXT:\n") + len("## CONTEXT:\n")
+    context_end = formatted_chat.index("\n\n## QUERY:")
+    query_start = formatted_chat.index("## QUERY:\n") + len("## QUERY:\n")
     query_end = query_start + len(query)
 
     instruction_tokens = [
