@@ -57,27 +57,7 @@ random.seed(342)
 torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
-# ---------------------------------------------------------------------------
-# Judge model registry
-# ---------------------------------------------------------------------------
-
-JUDGE_REGISTRY: dict[str, dict] = {
-    "llama-3.1-8b": {
-        "model_id": "meta-llama/Llama-3.1-8B-Instruct",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-2-9b": {
-        "model_id": "google/gemma-2-9b-it",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "mistral-7b": {
-        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-}
+from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
 
 # ---------------------------------------------------------------------------
 # Config / path helpers

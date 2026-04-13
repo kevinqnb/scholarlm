@@ -80,29 +80,10 @@ random.seed(342)
 torch.manual_seed(342)
 torch.cuda.manual_seed(342)
 
-# ---------------------------------------------------------------------------
-# Local judge model registry
-# ---------------------------------------------------------------------------
-
-LOCAL_JUDGE_REGISTRY: dict[str, dict] = {
-    "llama-3.1-8b": {
-        "model_id": "meta-llama/Llama-3.1-8B-Instruct",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "qwen-3-8b": {
-        "model_id": "Qwen/Qwen3-8B",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-3-12b": {
-        "model_id": "google/gemma-3-12b-it",
-        "nnsight_kwargs": {"torch_dtype": torch.bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-}
-
-FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
+from model_registry import (
+    INTERP_JUDGE_REGISTRY as LOCAL_JUDGE_REGISTRY,
+    FRONTIER_JUDGE_PROVIDERS as FRONTIER_PROVIDERS,
+)
 
 # ---------------------------------------------------------------------------
 # Config / path helpers (shared with run_extraction.py)

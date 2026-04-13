@@ -78,27 +78,7 @@ from scholarlm.utils import get_filenames_in_directory
 
 random.seed(342)
 
-# ---------------------------------------------------------------------------
-# Judge model registry
-# ---------------------------------------------------------------------------
-
-JUDGE_REGISTRY: dict[str, dict] = {
-    "gemma-3-27b": {
-        "model_id": "gaunernst/gemma-3-27b-it-int4-awq",
-    },
-    "qwen-3.5-27b": {
-        "model_id": "Qwen/Qwen3.5-27B-FP8"
-    },
-    "llama-3.3-70b": {
-        "model_id": "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
-    },
-    "qwen-2.5-72b": {
-        "model_id": "Qwen/Qwen2.5-72B-Instruct-AWQ",
-    },
-    "gpt-oss-120b": {
-        "model_id": "openai/gpt-oss-120b",
-    },
-}
+from model_registry import VLLM_JUDGE_REGISTRY as JUDGE_REGISTRY
 
 # ---------------------------------------------------------------------------
 # Config / path helpers

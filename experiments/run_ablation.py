@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -175,9 +176,25 @@ def run_ablation(
     """
     ablation_class, ablation_desc = ABLATION_REGISTRY[ablation]
     data_dir = Path(dataset_config.data_dir)
+    is_frontier = model_config.api_base is not None
 
-    if ocr_dir is not None:
-        effective_ocr_dir = ocr_dir
+    if is_frontier:
+        effective_api_base = model_config.api_base
+        if api_key == "EMPTY":
+            if "openai.com" in model_config.api_base:
+                api_key = os.environ.get("OPENAI_API_KEY", "")
+            else:
+                api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError(
+                f"API key required for frontier model '{model_config.name}'. "
+                "Set OPENAI_API_KEY or GEMINI_API_KEY, or pass --api-key."
+            )
+    else:
+        effective_api_base = api_base
+
+    if ocr_dir is not None or is_frontier:
+        effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
         clean_tables = False
         cleaned_ocr_output_dir = None
     else:
@@ -214,12 +231,13 @@ def run_ablation(
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
-        api_base=api_base,
+        api_base=effective_api_base,
         api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
         direct_extraction_schema=dataset_config.direct_extraction_schema,
         direct_extraction_prompt=dataset_config.direct_extraction_prompt,
+        use_extra_body=not is_frontier,
     )
 
     # Pre-clean tables if needed (same pattern as run_extraction.py)

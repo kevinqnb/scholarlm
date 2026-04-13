@@ -44,136 +44,10 @@ from scholarlm import MeasurementLM
 from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
+from model_registry import MODEL_REGISTRY
 
 # Reproducibility
 random.seed(342)
-
-# ---------------------------------------------------------------------------
-# Model registry
-# ---------------------------------------------------------------------------
-
-MODEL_REGISTRY: dict[str, ModelConfig] = {
-    "gemma-3-27b": ModelConfig(
-        name="gemma-3-27b",
-        model_id="gaunernst/gemma-3-27b-it-int4-awq",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "gemma-4-31b": ModelConfig(
-        name="gemma-4-31b",
-        model_id="cyankiwi/gemma-4-31B-it-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 16384,
-        },
-    ),
-    "qwen-2.5-vl-72b": ModelConfig(
-        name="qwen-2.5-vl-72b",
-        model_id="Qwen/Qwen2.5-VL-72B-Instruct-AWQ",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "qwen-3-vl-30b": ModelConfig(
-        name="qwen-3-vl-30b",
-        model_id="Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
-        sampling_params={
-            "temperature": 0.1,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "llama-4-scout-109b": ModelConfig(
-        name="llama-4-scout-109b",
-        model_id="nvidia/Llama-4-Scout-17B-16E-Instruct-NVFP4",
-        sampling_params={
-            "temperature": 1.0,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "glm-4.6v-106b": ModelConfig(
-        name="glm-4.6v-106b",
-        model_id="cyankiwi/GLM-4.6V-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "intern-vl3-78b": ModelConfig(
-        name="intern-vl3-78b",
-        model_id="OpenGVLab/InternVL3-78B-AWQ",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "llama-3.3-70b": ModelConfig(
-        name="llama-3.3-70b",
-        model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "qwen-2.5-72b": ModelConfig(
-        name="qwen-2.5-72b",
-        model_id="Qwen/Qwen2.5-72B-Instruct-AWQ",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "qwen-3.5-27b": ModelConfig(
-        name="qwen-3.5-27b",
-        model_id="Qwen/Qwen3.5-27B-FP8",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "glm-4.5-110b": ModelConfig(
-        name="glm-4.5-110b",
-        model_id="cyankiwi/GLM-4.5-Air-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "gpt-oss-120b": ModelConfig(
-        name="gpt-oss-120b",
-        model_id="openai/gpt-oss-120b",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-}
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -697,9 +571,26 @@ def run_pipeline(
         api_key: API key for the vLLM server (any non-empty string works).
     """
     data_dir = Path(dataset_config.data_dir)
+    is_frontier = model_config.api_base is not None
 
-    if ocr_dir is not None:
-        effective_ocr_dir = ocr_dir
+    # Frontier models: use their registered api_base and resolve key from env vars.
+    if is_frontier:
+        effective_api_base = model_config.api_base
+        if api_key == "EMPTY":
+            if "openai.com" in model_config.api_base:
+                api_key = os.environ.get("OPENAI_API_KEY", "")
+            else:
+                api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError(
+                f"API key required for frontier model '{model_config.name}'. "
+                "Set OPENAI_API_KEY or GEMINI_API_KEY, or pass --api-key."
+            )
+    else:
+        effective_api_base = api_base
+
+    if ocr_dir is not None or is_frontier:
+        effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
         clean_tables = False
         cleaned_ocr_output_dir = None
     else:
@@ -723,12 +614,13 @@ def run_pipeline(
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
-        api_base=api_base,
+        api_base=effective_api_base,
         api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
+        use_extra_body=not is_frontier,
     )
 
     if clean_tables:
@@ -790,6 +682,22 @@ def run_single_step(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
+    is_frontier = model_config.api_base is not None
+
+    if is_frontier:
+        effective_api_base = model_config.api_base
+        if api_key == "EMPTY":
+            if "openai.com" in model_config.api_base:
+                api_key = os.environ.get("OPENAI_API_KEY", "")
+            else:
+                api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError(
+                f"API key required for frontier model '{model_config.name}'. "
+                "Set OPENAI_API_KEY or GEMINI_API_KEY, or pass --api-key."
+            )
+    else:
+        effective_api_base = api_base
 
     print(f"\nDataset : {dataset_config.name}")
     print(f"Model   : {model_config.name} ({model_config.model_id})")
@@ -806,11 +714,12 @@ def run_single_step(
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
-        api_base=api_base,
+        api_base=effective_api_base,
         api_key=api_key,
         clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
+        use_extra_body=not is_frontier,
     )
 
     f_entities = output_dir / "entities.json"

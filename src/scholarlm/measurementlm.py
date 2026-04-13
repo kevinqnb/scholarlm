@@ -117,6 +117,7 @@ class MeasurementLM:
         measurement_event_prompt: str | None = None,
         direct_extraction_schema: BaseModel | None = None,
         direct_extraction_prompt: str | None = None,
+        use_extra_body: bool = True,
     ):
         self.model_name = model_name
         self.sampling_params = {
@@ -137,6 +138,7 @@ class MeasurementLM:
         self.measurement_event_prompt = measurement_event_prompt
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
+        self.use_extra_body = use_extra_body
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -162,16 +164,17 @@ class MeasurementLM:
         }
         if response_format is not None:
             kwargs["response_format"] = response_format
-        extra = {}
-        if "top_k" in self.sampling_params:
-            extra["top_k"] = self.sampling_params["top_k"]
-        if "repetition_penalty" in self.sampling_params:
-            extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
-        if "enable_thinking" in self.sampling_params:
-            # Disable thinking by default for extraction tasks
-            extra["chat_template_kwargs"] = {"enable_thinking": self.sampling_params['enable_thinking']}
-        if extra:
-            kwargs["extra_body"] = extra
+        if self.use_extra_body:
+            extra = {}
+            if "top_k" in self.sampling_params:
+                extra["top_k"] = self.sampling_params["top_k"]
+            if "repetition_penalty" in self.sampling_params:
+                extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+            if "enable_thinking" in self.sampling_params:
+                # Disable thinking by default for extraction tasks
+                extra["chat_template_kwargs"] = {"enable_thinking": self.sampling_params['enable_thinking']}
+            if extra:
+                kwargs["extra_body"] = extra
         try:
             response = await self.async_client.chat.completions.create(**kwargs)
             return response.choices[0].message.content

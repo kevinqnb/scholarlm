@@ -81,17 +81,21 @@ class DatasetConfig:
 @dataclass
 class ModelConfig:
     """
-    Configuration for an extraction model served via a vLLM OpenAI-compatible API.
+    Configuration for an extraction model.
 
     Attributes:
         name: Short identifier used in output paths and CLI arguments
             (e.g. ``"qwen-2.5-72b"``).
-        model_id: HuggingFace model ID passed to the vLLM server at startup.
+        model_id: HuggingFace model ID (vLLM) or API model name (frontier).
             Also used as the ``model`` field in API requests.
         sampling_params: Generation parameters forwarded to the API.
             Supported keys: ``temperature``, ``top_p``, ``top_k``,
             ``max_tokens``, ``repetition_penalty``.  ``seed`` is not forwarded
             (the OpenAI-compatible API does not support it).
+        api_base: API base URL for frontier models (e.g.
+            ``"https://api.openai.com/v1"``).  When ``None``, the model is
+            assumed to be a vLLM instance and runners use their ``--api-base``
+            CLI argument instead.
     """
 
     name: str
@@ -104,3 +108,4 @@ class ModelConfig:
             "max_tokens": 8192,
         }
     )
+    api_base: str | None = None
