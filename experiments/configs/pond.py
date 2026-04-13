@@ -39,9 +39,7 @@ class MeasurementEventSchema(BaseModel):
 # Entity identification prompt
 # ---------------------------------------------------------------------------
 
-_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature.
-
-Given the provided text (including any tables), extract all distinct aquatic ecosystems.
+_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature. Given the provided text (including any tables), extract all distinct aquatic ecosystems.
 
 An aquatic ecosystem is a specific pond, lake, wetland, or similar water body. Multiple measurements of the same ecosystem (on different dates, under different treatment conditions, at different sites within the ecosystem) should be represented as a single ecosystem record.
 
@@ -52,8 +50,8 @@ WHAT COUNTS AS AN ECOSYSTEM:
 - If the ecosystem type is unclear, classify it as "other".
 
 
-ATTRIBUTE SCHEMA:
-For each distinct ecosystem, output one item with the following attributes:
+RESPONSE SCHEMA:
+For each distinct ecosystem, output one item with the following fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
 - abbreviations: any secondary codes or abbreviations used in the text to refer to the same ecosystem (e.g. "L1", "Lake M.", "Mend."). If the primary identifier is already a code with no alternatives, set to None.
 - location: the general geographic location of the ecosystem (e.g. "central Wisconsin", "Ontario, Canada"), if explicitly stated.
@@ -62,14 +60,20 @@ For each distinct ecosystem, output one item with the following attributes:
 NOTE: While an ecosystem might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same ecosystem later on. It is very important that these identifiers are collected and reported in the "abbreviations" field.
 
 
+TABLE HANDLING:
+Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying ecosystems.
+
+
 IDENTIFICATION GUIDELINES:
 Treat ecosystems with the same name as multiple separate items ONLY if they are clearly described as distinct physical water bodies (e.g., two ponds at different locations explicitly named separately). Do NOT create separate items for the same ecosystem because measurements were taken on different dates, at different sub-sites, or under different treatment conditions — those distinctions will be captured separately as measurement events.
 
 
 STRICT RULES ABOUT MISSING INFORMATION:
-- Do NOT infer, guess, or derive any attribute.
+- Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
-- If an attribute is not explicitly given, set its value to None.
+- If a field is not explicitly given, set its value to None.
+- Do NOT infer the ecosystem type from the entity name.
+- Do NOT infer coordinates from general geographic descriptions.
 
 
 EXTRACTION PROCEDURE (FOLLOW IN ORDER):
@@ -104,7 +108,7 @@ OUTPUT FORMAT REQUIREMENTS:
 
 _MEASUREMENT_EVENT_PROMPT = """For this dataset, a measurement event is a specific observation context for a given aquatic ecosystem, typically distinguished by date and/or treatment or sampling conditions.
 
-Event fields and their meanings:
+EVENT FIELDS:
 - date: The date the measurement was taken. Use one of the following formats depending on available precision:
   - Full date: "dd-mm-yyyy"
   - Month and year only: "mm-yyyy"
@@ -113,7 +117,7 @@ Event fields and their meanings:
   Set to None if no date is stated on this page.
 - additional_details: Any other distinguishing context not captured by date — for example, treatment site or sub-site (e.g., "inlet zone", "P1"), treatment state (e.g., "restored", "control", "fertilized"), or other sampling conditions. Keep this to one sentence or fewer. Set to None if not applicable.
 
-Critical rules:
+RULES:
 - Each event item must be as complete as the page text allows. Populate every field that has a value explicitly stated on this page.
 - Do NOT output multiple events that differ only by having different subsets of the same information. If date and treatment condition are both stated for a measurement, output one event with both fields populated.
 - Do NOT infer, guess, or derive field values. If a field is not explicitly stated on this page, set it to None.
@@ -205,6 +209,12 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
 }
 
 # ---------------------------------------------------------------------------
+# Direct extraction prompt:
+# ---------------------------------------------------------------------------
+
+
+
+# ---------------------------------------------------------------------------
 # Config instance
 # ---------------------------------------------------------------------------
 
@@ -220,6 +230,19 @@ _DEV_SUBSET = [
     'long-term_stability',
     'diversity_of_macroinvertebrates',
     'impact_of_macrophytes'
+]
+
+_TOP_PAPERS = [
+    'classification_trees',
+    'physical-chemical_influences',
+    'habitat_characteristics',
+    'physical_and_chemical_limnological',
+    'prairie_wetland',
+    'macroinvertebrate_size',
+    'relationships_between_fish',
+    'net_heterotrophy',
+    'impact_of_macrophytes',
+    'environmental_conditions',
 ]
 
 CONFIG = DatasetConfig(

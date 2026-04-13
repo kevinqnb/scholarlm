@@ -44,10 +44,11 @@ class MeasurementEventSchema(BaseModel):
 
 _IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
 
-A DINITROGEN FIXATION MEASUREMENT SITE is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
+A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
 
+
+RESPONSE SCHEMA:
 Site identifying information includes the following fields:
-
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
 - abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same site (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
 - site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
@@ -56,37 +57,36 @@ Site identifying information includes the following fields:
 
 NOTE: While a site might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same site later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
 
-TABLE HANDLING:
 
+TABLE HANDLING:
 Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying sites.
 
-IDENTIFICATION GUIDELINES:
 
+IDENTIFICATION GUIDELINES:
 Treat sites with the same name as multiple separate items ONLY if their geographic location clearly differs (e.g., different latitude and longitude, or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, using different methods, or at different depths — those distinctions will be captured separately as measurement events.
 
-STRICT RULES ABOUT MISSING INFORMATION:
 
+STRICT RULES ABOUT MISSING INFORMATION:
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
 - Do NOT infer site_type from the entity name.
 - Do NOT infer coordinates from general geographic descriptions.
 
-EXTRACTION PROCEDURE (FOLLOW IN ORDER):
 
+EXTRACTION PROCEDURE (FOLLOW IN ORDER):
 1. Scan the entire text, including all tables, table captions, and table footnotes, for any mentions of dinitrogen fixation measurement sites.
 2. Resolve all abbreviations and coded identifiers back to their associated site.
 3. Determine which mentions correspond to distinct sites using the identification guidelines above.
 4. Output one JSON item per distinct site.
 5. Collect all items into a single JSON array under the key "items".
 
-OUTPUT FORMAT REQUIREMENTS:
 
+OUTPUT FORMAT REQUIREMENTS:
 - Output must be valid, strictly parseable JSON.
 - Do NOT include markdown, comments, or explanatory text.
 - Latitude and longitude values must be numeric (not strings). All other values are strings or None.
 - The top-level object must have this form:
-
 {
   "items": [
     {
@@ -98,7 +98,6 @@ OUTPUT FORMAT REQUIREMENTS:
     }
   ]
 }
-
 - If no dinitrogen fixation measurement sites are found, output exactly:
 { "items": [] }
 """
@@ -110,7 +109,7 @@ OUTPUT FORMAT REQUIREMENTS:
 
 _MEASUREMENT_EVENT_PROMPT = """For this dataset, a measurement event is a distinct instance of a dinitrogen fixation measurement, characterized by the conditions under which it was taken.
 
-Event fields and their meanings:
+EVENT FIELDS:
 - date: The date the measurement was taken. Use one of the following formats depending on available precision:
   - Full date: "dd-mm-yyyy"
   - Month and year only: "mm-yyyy"
@@ -122,7 +121,7 @@ Event fields and their meanings:
 - sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
 - additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
 
-Critical rules:
+RULES:
 - Each event item must be as complete as the page text allows. Populate every field that has a value explicitly stated on this page.
 - Do NOT output multiple events that differ only by having different subsets of the same information. If the text supports identifying date + method + substrate for a measurement, output one event with all three fields populated — not separate events for each subset.
 - Do NOT infer, guess, or derive field values. If a field is not explicitly stated on this page, set it to None.
@@ -204,6 +203,14 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
     },
 }
 
+
+# ---------------------------------------------------------------------------
+# Direct extraction prompt:
+# ---------------------------------------------------------------------------
+
+
+
+
 # ---------------------------------------------------------------------------
 # Paper filter
 # ---------------------------------------------------------------------------
@@ -221,6 +228,12 @@ def _nfix_paper_filter(metadata: dict) -> bool:
 
 # Development subset used in early experiments
 _DEV_SUBSET = [
+    "R163", "R164", "R172", "R248", "R124",
+    "R51", "R59", "R114", "R43", "R103",
+]
+
+# Subset of 10 papers with the most data points:
+_TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
     "R51", "R59", "R114", "R43", "R103",
 ]
