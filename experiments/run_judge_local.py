@@ -11,20 +11,7 @@ Output path:
     data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
 
 Saves:
-  - ``responses.json`` — per-measurement judgement + next-token P(true)/P(false)
-
-Logprob extraction
-------------------
-Each request is sent with ``max_tokens=1``, ``logprobs=True``, and
-``top_logprobs=N`` (default 20, matching vLLM's default ``--max-logprobs``
-server-side limit). The runner inspects the returned top-N tokens for
-"true", "True", "false", "False" and computes a normalized P(true) via
-logsumexp + softmax over those two classes. If neither token appears in the
-top-N list, ``judgement_p_true`` and ``judgement_p_false`` are ``null`` in
-the output; ``judgement`` is still derived from the generated token text.
-
-To raise the top_logprobs ceiling, start vLLM with ``--max-logprobs <N>``
-and pass ``--top-logprobs <N>`` to this script.
+  - ``responses.json`` — per-measurement judgement (true/false from text response)
 
 Usage
 -----
@@ -139,75 +126,6 @@ def _find_extraction_final(
 
 
 # ---------------------------------------------------------------------------
-# Logprob helpers
-# ---------------------------------------------------------------------------
-
-_TRUE_TOKENS = {"true", "True"}
-_FALSE_TOKENS = {"false", "False"}
-
-
-def _logsumexp2(a: float, b: float) -> float:
-    """Numerically stable log(exp(a) + exp(b))."""
-    if a < b:
-        a, b = b, a
-    return a + math.log1p(math.exp(b - a))
-
-
-def _extract_binary_probs(
-    top_logprobs: list,  # list of TopLogprob objects (token: str, logprob: float)
-    generated_token: str,
-    generated_logprob: float | None,
-) -> dict:
-    """Compute normalized P(true) and P(false) from a top-logprobs list.
-
-    Collects log-probabilities for "true"/"True" and "false"/"False" tokens,
-    then marginalizes via logsumexp and normalizes via softmax over the two
-    classes.
-
-    Returns a dict with keys:
-        judgement_p_true, judgement_p_false,
-        judgement_logit_p_true, judgement_logit_p_false
-    All values are float or None if the tokens were not found.
-    """
-    # Build a token → logprob map from the top-N list
-    lp_map: dict[str, float] = {}
-    for tlp in top_logprobs:
-        lp_map[tlp.token] = tlp.logprob
-
-    # Ensure the generated token is always represented
-    if generated_token and generated_logprob is not None:
-        lp_map.setdefault(generated_token, generated_logprob)
-
-    true_lps = [lp_map[t] for t in _TRUE_TOKENS if t in lp_map]
-    false_lps = [lp_map[t] for t in _FALSE_TOKENS if t in lp_map]
-
-    if not true_lps or not false_lps:
-        return {
-            "judgement_p_true": None,
-            "judgement_p_false": None,
-            "judgement_logit_p_true": None,
-            "judgement_logit_p_false": None,
-        }
-
-    # Marginalize over casing
-    log_p_true = true_lps[0] if len(true_lps) == 1 else _logsumexp2(*true_lps[:2])
-    log_p_false = false_lps[0] if len(false_lps) == 1 else _logsumexp2(*false_lps[:2])
-
-    # Softmax normalization over the two classes
-    max_lp = max(log_p_true, log_p_false)
-    e_true = math.exp(log_p_true - max_lp)
-    e_false = math.exp(log_p_false - max_lp)
-    denom = e_true + e_false
-
-    return {
-        "judgement_p_true": e_true / denom,
-        "judgement_p_false": e_false / denom,
-        "judgement_logit_p_true": log_p_true,
-        "judgement_logit_p_false": log_p_false,
-    }
-
-
-# ---------------------------------------------------------------------------
 # Async judge call
 # ---------------------------------------------------------------------------
 
@@ -217,83 +135,44 @@ async def _judge_one(
     model_id: str,
     entry: dict,
     idx: int,
-    top_logprobs: int,
     sem: asyncio.Semaphore,
 ) -> dict:
-    """Send a single judge request and return binary probability fields."""
+    """Send a single judge request and return judgement based on text response."""
     async with sem:
         try:
-            if model_id == "openai/gpt-oss-120b":
-                # GPT-OSS-120B thinks before generating a token, 
-                # so we set max_tokens=32 to get logprobs for the first generated token.
-                response = await client.chat.completions.create(
-                    model=model_id,
-                    messages=[
-                        {"role": "system", "content": entry["system"]},
-                        {"role": "user", "content": entry["user"]},
-                    ],
-                    max_tokens=8192,
-                    temperature=0.0,
-                    logprobs=True,
-                    top_logprobs=top_logprobs,
-                )
-                print("Response text: ", response.choices[0].message.content)
-            
-            else:
-                response = await client.chat.completions.create(
-                    model=model_id,
-                    messages=[
-                        {"role": "system", "content": entry["system"]},
-                        {"role": "user", "content": entry["user"]},
-                    ],
-                    max_tokens=1,
-                    temperature=0.0,
-                    logprobs=True,
-                    top_logprobs=top_logprobs,
-                )       
+            response = await client.chat.completions.create(
+                model=model_id,
+                messages=[
+                    {"role": "system", "content": entry["system"]},
+                    {"role": "user", "content": entry["user"]},
+                ],
+                max_tokens=1024,
+                temperature=0.0,
+            )
         except Exception as e:
             print(f"  [idx={idx}] API error: {e}")
             return {
                 "judgement": None,
-                "judgement_prob": None,
-                "judgement_p_true": None,
-                "judgement_p_false": None,
-                "judgement_logit_p_true": None,
-                "judgement_logit_p_false": None,
                 "judgement_model": model_id,
             }
 
     choice = response.choices[0]
-    content_lps = (choice.logprobs.content or []) if choice.logprobs else []
+    response_text = choice.message.content or ""
 
-    if content_lps:
-        generated_token = content_lps[0].token
-        generated_logprob = content_lps[0].logprob
-        top_lps_list = content_lps[0].top_logprobs or []
-    else:
-        generated_token = ""
-        generated_logprob = None
-        top_lps_list = []
+    print(f"  [idx={idx}] Response: {response_text}")
 
-    print(f"  [idx={idx}] Generated token: '{generated_token}' with logprob {generated_logprob}")
-    print()
-
-    # Derive judgement from the generated token text
+    # Derive judgement from the response text
     judgement: bool | None = None
-    if generated_token:
-        t = generated_token.strip().lower()
+    if response_text:
+        t = response_text.strip().lower()
         if "true" in t:
             judgement = True
         elif "false" in t:
             judgement = False
 
-    prob_fields = _extract_binary_probs(top_lps_list, generated_token, generated_logprob)
-
     return {
         "judgement": judgement,
-        "judgement_prob": math.exp(generated_logprob) if generated_logprob is not None else None,
         "judgement_model": response.model,
-        **prob_fields,
     }
 
 
@@ -312,9 +191,8 @@ def run_local_vllm_judge(
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     max_concurrent: int = 64,
-    top_logprobs: int = 20,
 ) -> None:
-    """Run a local vLLM judge and save responses with token-level probabilities.
+    """Run a local vLLM judge and save responses.
 
     Args:
         dataset_config: Dataset configuration.
@@ -326,8 +204,6 @@ def run_local_vllm_judge(
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server.
         max_concurrent: Maximum concurrent requests to the server.
-        top_logprobs: Number of top tokens to request from vLLM (must be ≤ the
-            server's ``--max-logprobs`` setting, which defaults to 20).
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -359,14 +235,14 @@ def run_local_vllm_judge(
     # prepare_chat_entries sets custom_id = str(original index in data).
 
     print(f"Sending {len(chat_entries)} requests to {api_base} (model: {model_id}) ...")
-    print(f"top_logprobs={top_logprobs}, max_concurrent={max_concurrent}\n")
+    print(f"max_concurrent={max_concurrent}\n")
 
     client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
     sem = asyncio.Semaphore(max_concurrent)
 
     async def _run_all() -> list[dict]:
         tasks = [
-            _judge_one(client, model_id, entry, int(entry["custom_id"]), top_logprobs, sem)
+            _judge_one(client, model_id, entry, int(entry["custom_id"]), sem)
             for entry in chat_entries
         ]
         return await asyncio.gather(*tasks)
@@ -380,19 +256,9 @@ def run_local_vllm_judge(
         result_by_orig_idx[orig_idx] = result
 
     judged_data: list[dict] = []
-    n_missing_probs = 0
     for i, record in enumerate(data):
         result = result_by_orig_idx.get(i, {})
         judged_data.append(record | result)
-        if result.get("judgement_p_true") is None:
-            n_missing_probs += 1
-
-    if n_missing_probs:
-        print(
-            f"Note: {n_missing_probs}/{len(data)} records have null P(true)/P(false) — "
-            f"'true'/'false' tokens were not found in top_{top_logprobs} logprobs. "
-            f"Consider raising --top-logprobs (and starting vLLM with --max-logprobs <N>)."
-        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     responses_file = output_dir / "responses.json"
@@ -408,7 +274,7 @@ def run_local_vllm_judge(
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Run local vLLM judge (binary probabilities via logprobs API).",
+        description="Run local vLLM judge (text-based judgement).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -440,13 +306,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--max-concurrent", type=int, default=64,
         help="Maximum concurrent requests to the vLLM server (default: 64).",
     )
-    p.add_argument(
-        "--top-logprobs", type=int, default=20,
-        help=(
-            "Number of top tokens to request for logprob extraction (default: 20). "
-            "Must be ≤ the server's --max-logprobs setting."
-        ),
-    )
     return p
 
 
@@ -476,7 +335,6 @@ def main(argv: list[str] | None = None) -> None:
         api_base=args.api_base,
         api_key=args.api_key,
         max_concurrent=args.max_concurrent,
-        top_logprobs=args.top_logprobs,
     )
 
 
