@@ -84,7 +84,7 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_tokens=8192,
+            max_tokens=32768,
             max_retries=1,
             validator=partial(response_validator, DirectExtractionList),
         )
@@ -95,7 +95,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
                 print(f"Validation error in direct extraction response: {e}")
-                print(f"Response text: {r[:500]}")
+                print(f"Response text: {r}")
                 resp_validated = {'items': []}
 
             for j, item in enumerate(resp_validated['items']):

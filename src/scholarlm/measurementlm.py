@@ -444,6 +444,7 @@ class MeasurementLM:
             messages,
             response_format=response_format,
             max_retries=1,
+            max_tokens=32768,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -860,6 +861,7 @@ class MeasurementLM:
             messages,
             response_format=response_format,
             max_retries=1,
+            max_tokens=16384,
             validator=lambda r: response_validator(EventList, r),
         )
 

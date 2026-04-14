@@ -146,7 +146,7 @@ async def _judge_one(
                     {"role": "system", "content": entry["system"]},
                     {"role": "user", "content": entry["user"]},
                 ],
-                max_tokens=1024,
+                max_tokens=2048,
                 temperature=0.0,
             )
         except Exception as e:
