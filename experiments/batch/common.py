@@ -247,6 +247,42 @@ def load_documents(ocr_directory: str) -> list[str]:
     return documents
 
 
+def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> list[str]:
+    """Load OCR documents applying the same paper_filter and paper_subset as extraction.
+
+    ``document_id`` values in ``final.json`` are indices into the list produced
+    by this function.  Using a plain directory listing (without filtering) causes
+    index misalignment whenever a subset config (e.g. ``pond_ten``) is used.
+
+    Args:
+        dataset_config: Dataset configuration supplying metadata_file, paper_filter,
+            and paper_subset.
+        ocr_directory: Directory containing ``.txt`` OCR files.
+
+    Returns:
+        List of document strings in the same order as during extraction.
+    """
+    with open(dataset_config.metadata_file) as f:
+        paper_info: dict = json.load(f)
+
+    text_files = get_filenames_in_directory(ocr_directory, ignore=[".DS_Store", ".gitkeep"])
+    text_files.sort()
+
+    if dataset_config.paper_filter is not None:
+        registered_ids = {k for k, v in paper_info.items() if dataset_config.paper_filter(v)}
+        text_files = [f for f in text_files if f.replace(".txt", "") in registered_ids]
+
+    if dataset_config.paper_subset is not None:
+        subset_set = set(dataset_config.paper_subset)
+        text_files = [f for f in text_files if f.replace(".txt", "") in subset_set]
+
+    documents: list[str] = []
+    for fname in text_files:
+        with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as fh:
+            documents.append(fh.read())
+    return documents
+
+
 def merge_results(data: list[dict], results: dict[str, dict]) -> list[dict]:
     """Merge batch results back into data in the original input order."""
     output = []

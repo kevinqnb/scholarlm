@@ -57,7 +57,9 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "configs"
+_EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_EXPERIMENTS_DIR))  # makes 'batch' importable
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -255,12 +257,8 @@ def run_regex_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    text_files = get_filenames_in_directory(effective_ocr_dir, ignore=[".DS_Store", ".gitkeep"])
-    text_files.sort()
-    documents: list[str] = []
-    for fname in text_files:
-        with open(os.path.join(effective_ocr_dir, fname), "r", encoding="utf-8") as fh:
-            documents.append(fh.read())
+    from batch import common as batch_common
+    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
     print(f"Checking {len(data)} records against {len(documents)} documents ...")
 

@@ -161,17 +161,12 @@ def run_interp_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    text_files = get_filenames_in_directory(effective_ocr_dir, ignore=[".DS_Store", ".gitkeep"])
-    text_files.sort()
-    documents: list[str] = []
-    for fname in text_files:
-        with open(os.path.join(effective_ocr_dir, fname), "r", encoding="utf-8") as fh:
-            documents.append(fh.read())
+    from batch import common as batch_common
+    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
     # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    from batch import common as batch_common
     chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
