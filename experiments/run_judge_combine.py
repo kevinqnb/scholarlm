@@ -57,7 +57,18 @@ FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"}
 # ---------------------------------------------------------------------------
 
 
-def _judge_base_dir(dataset_name: str, extraction_model: str, extraction_date: str) -> Path:
+def _judge_base_dir(
+    dataset_name: str,
+    extraction_model: str,
+    extraction_date: str,
+    ablation: str | None = None,
+) -> Path:
+    if ablation is not None:
+        return (
+            _REPO_ROOT / "data" / "experiments" / dataset_name
+            / "ablations" / f"ablation{ablation}"
+            / extraction_model / extraction_date / "judge"
+        )
     return _REPO_ROOT / "data" / "experiments" / dataset_name / "judge" / extraction_model / extraction_date
 
 
@@ -66,6 +77,7 @@ def _find_judge_result(
     extraction_model: str,
     extraction_date: str,
     judge_key: str,
+    ablation: str | None = None,
 ) -> Path:
     """Locate the most recent ``responses.json`` for a given judge key.
 
@@ -84,7 +96,7 @@ def _find_judge_result(
     Raises:
         FileNotFoundError: If no result is found.
     """
-    judge_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date) / judge_key
+    judge_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation) / judge_key
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory found: {judge_dir}")
     date_dirs = sorted(judge_dir.iterdir(), reverse=True)
@@ -97,9 +109,14 @@ def _find_judge_result(
     )
 
 
-def _discover_judge_keys(dataset_name: str, extraction_model: str, extraction_date: str) -> list[str]:
+def _discover_judge_keys(
+    dataset_name: str,
+    extraction_model: str,
+    extraction_date: str,
+    ablation: str | None = None,
+) -> list[str]:
     """Return all judge keys that have a responses.json under the extraction date dir."""
-    base = _judge_base_dir(dataset_name, extraction_model, extraction_date)
+    base = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation)
     if not base.exists():
         return []
     keys = []
@@ -190,6 +207,7 @@ def run_combine(
     extraction_date: str,
     judge_keys: list[str] | None = None,
     voting_threshold: int | None = None,
+    ablation: str | None = None,
 ) -> Path:
     """Discover judge results, combine them, and write the combined output file.
 
@@ -206,7 +224,7 @@ def run_combine(
         Path to the written ``combined.json`` file.
     """
     if judge_keys is None:
-        judge_keys = _discover_judge_keys(dataset_name, extraction_model, extraction_date)
+        judge_keys = _discover_judge_keys(dataset_name, extraction_model, extraction_date, ablation)
         if not judge_keys:
             raise FileNotFoundError(
                 f"No judge results found for dataset='{dataset_name}' "
@@ -216,7 +234,7 @@ def run_combine(
 
     judge_files: dict[str, Path] = {}
     for key in judge_keys:
-        judge_files[key] = _find_judge_result(dataset_name, extraction_model, extraction_date, key)
+        judge_files[key] = _find_judge_result(dataset_name, extraction_model, extraction_date, key, ablation)
         print(f"  {key}: {judge_files[key]}")
 
     voting_judges = FRONTIER_JUDGE_KEYS & set(judge_keys)
@@ -234,7 +252,7 @@ def run_combine(
 
     combined = combine_judge_results(judge_files, voting_judges, voting_threshold)
 
-    output_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date) / "combined"
+    output_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation) / "combined"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "combined.json"
     with open(output_file, "w") as f:
@@ -262,6 +280,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--extraction-model", required=True, help="Extraction model short name.")
     p.add_argument("--extraction-date", required=True, help="Date tag YYYY_mm_dd of the extraction run.")
     p.add_argument(
+        "--ablation", default=None, metavar="N",
+        help="Ablation number (e.g. 2). If set, reads from and writes to ablations/ablation{N}/.",
+    )
+    p.add_argument(
         "--judges", nargs="+", default=None,
         help="Judge keys to combine. Default: auto-discover from directory.",
     )
@@ -280,6 +302,7 @@ def main(argv: list[str] | None = None) -> None:
         extraction_date=args.extraction_date,
         judge_keys=args.judges,
         voting_threshold=args.voting_threshold,
+        ablation=args.ablation,
     )
 
 

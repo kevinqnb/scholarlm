@@ -87,10 +87,24 @@ def get_judge_output_dir(
     extraction_date: str,
     judge_model: str,
     judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> Path:
-    """Return ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/``."""
+    """Return the judge output directory.
+
+    Without ablation:
+        ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/``
+    With ablation:
+        ``data/experiments/{dataset}/ablations/ablation{N}/{extraction_model}/{extraction_date}/judge/{judge_model}/{judge_date}/``
+    """
     if judge_date is None:
         judge_date = datetime.now().strftime("%Y_%m_%d")
+    if ablation is not None:
+        return (
+            _REPO_ROOT
+            / "data" / "experiments"
+            / dataset_name / "ablations" / f"ablation{ablation}"
+            / extraction_model / extraction_date / "judge" / judge_model / judge_date
+        )
     return (
         _REPO_ROOT
         / "data" / "experiments"
@@ -103,8 +117,12 @@ def _find_extraction_final(
     dataset_name: str,
     extraction_model: str,
     extraction_date: str | None,
+    ablation: str | None = None,
 ) -> Path:
-    base = _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / extraction_model
+    if ablation is not None:
+        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "ablations" / f"ablation{ablation}" / extraction_model
+    else:
+        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / extraction_model
     if extraction_date:
         candidate = base / extraction_date / "final.json"
         if not candidate.exists():
@@ -139,6 +157,7 @@ def run_frontier_judge(
     gcp_location: str | None = None,
     interval: int = 60,
     state_file: str | None = None,
+    ablation: str | None = None,
 ) -> None:
     """Run a frontier batch judge and save responses.
 
@@ -159,7 +178,7 @@ def run_frontier_judge(
     if provider not in FRONTIER_PROVIDERS:
         raise ValueError(f"Unknown provider '{provider}'. Choose from: {FRONTIER_PROVIDERS}")
 
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date)
+    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -257,9 +276,10 @@ def _submit(
     dest_gcs: str | None = None,
     gcp_project: str | None = None,
     gcp_location: str | None = None,
+    ablation: str | None = None,
 ) -> None:
     """Submit batch requests and save state file."""
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date)
+    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
@@ -325,13 +345,14 @@ def _process(
     output_dir: Path,
     state_file: str,
     extraction_date: str | None = None,
+    ablation: str | None = None,
 ) -> None:
     """Fetch results from a completed batch and write responses.json."""
     state = json.loads(Path(state_file).read_text())
     provider = state["provider"]
     frontier_model = state["model"]
 
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date)
+    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
@@ -386,6 +407,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--extraction-date", default=None, help="Date tag YYYY_mm_dd of extraction run.")
     p.add_argument("--judge-date", default=None, help="Date tag for output directory (default: today).")
     p.add_argument(
+        "--ablation", default=None, metavar="N",
+        help="Ablation number (e.g. 2). If set, reads from ablations/ablation{N}/ and writes judge output there.",
+    )
+    p.add_argument(
         "--ocr-dir", default=None, metavar="DIR",
         help="Directory of OCR .txt files. Defaults to {data_dir}/ocr_output_raw/.",
     )
@@ -408,16 +433,19 @@ def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
     dataset_config = _load_dataset_config(args.dataset)
-    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date)
+    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
     extraction_date_resolved = input_file.parent.name
     output_dir = get_judge_output_dir(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date
+        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
+        ablation=args.ablation,
     )
     state_file = args.state or str(output_dir / f".batch_state_{args.judge}.json")
 
     print(f"\nDataset          : {args.dataset}")
     print(f"Extraction model : {args.extraction_model}")
     print(f"Extraction date  : {extraction_date_resolved}")
+    if args.ablation:
+        print(f"Ablation         : {args.ablation}")
     print(f"Judge            : {args.judge} / {args.frontier_model}")
     print(f"Output           : {output_dir}\n")
 
@@ -434,6 +462,7 @@ def main(argv: list[str] | None = None) -> None:
             dest_gcs=args.dest_gcs,
             gcp_project=args.gcp_project,
             gcp_location=args.gcp_location,
+            ablation=args.ablation,
         )
     elif args.subcommand == "poll":
         _poll(state_file=state_file, interval=args.interval)
@@ -444,6 +473,7 @@ def main(argv: list[str] | None = None) -> None:
             output_dir=output_dir,
             state_file=state_file,
             extraction_date=extraction_date_resolved,
+            ablation=args.ablation,
         )
     else:
         # Default: full submit → poll → process in one shot
@@ -460,6 +490,7 @@ def main(argv: list[str] | None = None) -> None:
             gcp_location=args.gcp_location,
             interval=args.interval,
             state_file=state_file,
+            ablation=args.ablation,
         )
 
 
