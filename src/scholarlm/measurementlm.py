@@ -2,6 +2,7 @@ import asyncio
 import json
 from copy import deepcopy
 from pathlib import Path
+from typing import Any, Callable
 from pydantic import BaseModel
 import numpy as np
 import pandas as pd
@@ -22,6 +23,18 @@ from .instruction_prompts import (
 
 
 def response_validator(response_structure, response):
+    # Strip any leading prose or markdown fences before the JSON object/array.
+    # Some frontier models prepend text like "Here is the JSON:" even when
+    # response_format is set; raw_decode stops at the first complete top-level value.
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(response):
+        if ch in ('{', '['):
+            try:
+                obj, _ = decoder.raw_decode(response, i)
+                response = json.dumps(obj)
+                break
+            except json.JSONDecodeError:
+                continue
     pyd = response_structure.model_validate_json(response)
     out_dict = pyd.model_dump()
     return out_dict
@@ -188,15 +201,47 @@ class MeasurementLM:
         response_format: dict | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        max_retries: int = 0,
+        validator: Callable[[str], Any] | None = None,
     ) -> list[str]:
-        """Dispatch all message sets concurrently; return response texts in order."""
+        """Dispatch all message sets concurrently; return response texts in order.
+
+        If max_retries > 0, any response that is empty or causes validator to raise
+        is retried up to max_retries times with exponential backoff between rounds.
+        validator is called only to detect failure — its return value is ignored.
+        """
         async def _run():
             sem = asyncio.Semaphore(self.max_concurrent)
+
             async def _limited(msgs):
                 async with sem:
                     return await self._acall(msgs, response_format, temperature, max_tokens)
-            tasks = [_limited(msgs) for msgs in message_sets]
-            return await asyncio.gather(*tasks)
+
+            results = list(await asyncio.gather(*[_limited(msgs) for msgs in message_sets]))
+
+            for attempt in range(max_retries):
+                failed = []
+                for i, resp in enumerate(results):
+                    if not resp:
+                        failed.append(i)
+                        continue
+                    if validator is not None:
+                        try:
+                            validator(resp)
+                        except Exception:
+                            failed.append(i)
+
+                if not failed:
+                    break
+
+                print(f"Retrying {len(failed)} failed responses (attempt {attempt + 1}/{max_retries})...")
+                await asyncio.sleep(2 ** attempt)
+                retried = await asyncio.gather(*[_limited(message_sets[i]) for i in failed])
+                for local_i, global_i in enumerate(failed):
+                    results[global_i] = retried[local_i]
+
+            return results
+
         return asyncio.run(_run())
 
     # -----------------------------------------------------------------------
@@ -311,7 +356,8 @@ class MeasurementLM:
             messages,
             response_format=None,
             temperature=self.sampling_params['temperature'],
-            max_tokens=16384
+            max_tokens=16384,
+            max_retries=1,
         )
 
         cleaned_documents = deepcopy(documents)
@@ -394,7 +440,12 @@ class MeasurementLM:
                 "schema": identification_list_json,
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(IdentificationList, r),
+        )
 
         # Build per-document entity lists
         doc_entities: dict[int, list[dict]] = {}
@@ -478,7 +529,12 @@ class MeasurementLM:
                 "schema": ProvenanceResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(ProvenanceResponse, r),
+        )
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -570,7 +626,12 @@ class MeasurementLM:
             messages.append([{"role": "user", "content": prompt}])
             message_ids.append(i)
 
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
+        )
 
         # Build detection results and attribute terms per document
         detection_results: dict[int, dict[str, bool]] = {}
@@ -671,7 +732,12 @@ class MeasurementLM:
                 "schema": ProvenanceResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(ProvenanceResponse, r),
+        )
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -790,7 +856,12 @@ class MeasurementLM:
                 "schema": event_list_json,
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(EventList, r),
+        )
 
         event_resolution = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -913,7 +984,12 @@ class MeasurementLM:
                 "schema": TextValueExtractionResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TextValueExtractionResponse, r),
+        )
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -1090,7 +1166,12 @@ class MeasurementLM:
                 "schema": TableValueExtractionResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TableValueExtractionResponse, r),
+        )
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -1197,7 +1278,13 @@ class MeasurementLM:
                 "schema": StandardizeResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_tokens=512,
+            max_retries=1,
+            validator=lambda r: response_validator(StandardizeResponse, r),
+        )
 
         standardized_data = [dict(datapoint) for datapoint in self.data]
         for i, resp in enumerate(response_texts):
@@ -1205,8 +1292,10 @@ class MeasurementLM:
                 result = response_validator(StandardizeResponse, resp)
                 standardized_data[message_data_ids[i]]['value'] = result['value']
             except Exception as e:
-                print(f"Validation error in standardize response: {e}")
+                print(f"Validation error in standardize response (keeping original value): {e}")
                 print(f"Response text: {resp}")
+                # fallback: leave value unchanged (standardized_data was initialised
+                # as a copy of self.data, so the original value is already in place)
 
         return standardized_data
     

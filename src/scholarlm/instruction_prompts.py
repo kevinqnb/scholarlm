@@ -93,7 +93,7 @@ Guidelines:
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
-- Provide a brief explanation of what standardization was applied (or why none was needed), then the standardized value.
+- Provide a brief explanation of what standardization was applied (or why none was needed), then the standardized (or unchanged) value.
 - Structure your response as a JSON object with "explanation" and "value" fields.
 """
 

@@ -129,7 +129,12 @@ class MeasurementLMAblation2(MeasurementLM):
                 "schema": TextValueExtractionResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TextValueExtractionResponse, r),
+        )
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -286,7 +291,12 @@ class MeasurementLMAblation2(MeasurementLM):
                 "schema": TableValueExtractionResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TableValueExtractionResponse, r),
+        )
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):

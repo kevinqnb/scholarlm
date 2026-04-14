@@ -155,7 +155,12 @@ class MeasurementLMAblation1(MeasurementLM):
                 "schema": ProvenanceResponse.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(ProvenanceResponse, r),
+        )
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):

@@ -22,6 +22,7 @@ Changes from the baseline MeasurementLM:
 Unchanged from baseline: _standardize(), _deduplicate(), save().
 """
 
+from functools import partial
 from pydantic import create_model
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
@@ -80,7 +81,13 @@ class MeasurementLMAblation6(MeasurementLM):
                 "schema": direct_extraction_list_json,
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_tokens=8192,
+            max_retries=1,
+            validator=partial(response_validator, DirectExtractionList),
+        )
 
         triple_data = []
         for i, r in enumerate(response_texts):

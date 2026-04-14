@@ -116,7 +116,12 @@ class MeasurementLMAblation5(MeasurementLM):
             messages.append([{"role": "user", "content": prompt}])
             message_ids.append(i)
 
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(BatchAttributeDetectionResponseNoExp, r),
+        )
 
         detection_results: dict[int, dict[str, bool]] = {}
         attribute_terms: dict[int, dict[str, list[str]]] = {}
@@ -212,7 +217,12 @@ class MeasurementLMAblation5(MeasurementLM):
                 "schema": ProvenanceResponseNoExp.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
+        )
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -297,7 +307,12 @@ class MeasurementLMAblation5(MeasurementLM):
                 "schema": ProvenanceResponseNoExp.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
+        )
 
         provenance = {}
         for msg_idx, resp in enumerate(response_texts):
@@ -411,7 +426,12 @@ class MeasurementLMAblation5(MeasurementLM):
                 "schema": TextValueExtractionResponseNoExp.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TextValueExtractionResponseNoExp, r),
+        )
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
@@ -557,7 +577,12 @@ class MeasurementLMAblation5(MeasurementLM):
                 "schema": TableValueExtractionResponseNoExp.model_json_schema(),
             },
         }
-        response_texts = self._call_batch(messages, response_format=response_format)
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_retries=1,
+            validator=lambda r: response_validator(TableValueExtractionResponseNoExp, r),
+        )
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
