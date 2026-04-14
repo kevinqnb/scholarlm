@@ -6,7 +6,7 @@ using a local model loaded through NNsight, collecting per-layer, per-head
 attention output activations alongside binary judgement probabilities.
 
 Output path:
-    data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
+    data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/
 
 Saves:
   - ``responses.json``        — per-measurement judgement + probability scores
@@ -40,7 +40,9 @@ from typing import Any
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "configs"
+_EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_EXPERIMENTS_DIR))  # makes 'batch' importable
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -50,7 +52,6 @@ import torch
 
 from scholarlm import JudgementLM
 from scholarlm.config import DatasetConfig
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_TABLE, JUDGE_INSTRUCTIONS_TEXT
 from scholarlm.utils import get_filenames_in_directory
 
 random.seed(342)
@@ -118,96 +119,6 @@ def _find_extraction_final(
 
 
 # ---------------------------------------------------------------------------
-# Prompt builder
-# ---------------------------------------------------------------------------
-
-
-def _build_judge_messages(
-    data: list[dict],
-    documents: list[str],
-    dataset_config: DatasetConfig,
-) -> tuple[list[tuple[str, str, str]], list[int]]:
-    """Build (instructions, document, query) triples for JudgementLM.
-
-    Returns:
-        ``(messages, measurement_ids)`` where each message is an
-        ``(instructions, context, query)`` triple formatted for JudgementLM.
-    """
-    entity_fields = set(dataset_config.entity_schema.model_fields.keys())
-    attr_dict = dataset_config.attribute_info_dict
-    entity_type_desc = dataset_config.entity_type_description
-
-    messages: list[tuple[str, str, str]] = []
-    measurement_ids: list[int] = []
-
-    for entry in data:
-        document = documents[entry["document_id"]]
-        attribute = entry.get("attribute")
-        attribute_description = attr_dict[attribute]["description"]
-        attribute_terms = entry.get("attribute_terms", [])
-        entity_description = {k: v for k, v in entry.items() if k in entity_fields}
-        page_number = entry.get("page_number")
-        table_number = entry.get("table_number")
-        source = entry.get("source", "text")
-        units = entry.get("units")
-        units_str = units if units is not None else "not reported"
-
-        entity_section = (
-            f"Target entity type: {entity_type_desc}\n"
-            f"Extracted entity: {entity_description}"
-        )
-        attribute_section = (
-            f"Target attribute: {attribute_description}\n"
-            f"Attribute terminology: {attribute_terms}"
-        )
-
-        location_parts = []
-        if page_number is not None:
-            location_parts.append(f"Page number: {page_number}")
-        if source == "table" and table_number is not None:
-            location_parts.append(f"Table number: {table_number}")
-        location_section = "\n".join(location_parts)
-
-        if source == "table":
-            instructions = JUDGE_INSTRUCTIONS_TABLE
-            row_index = entry.get("row_index")
-            column_index = entry.get("column_index")
-            value_section = (
-                f"Extracted row index: {row_index}\n"
-                f"Extracted column index: {column_index}\n"
-                f"Extracted units: {units_str}"
-            )
-            closing = (
-                "Is the extracted (entity, attribute, row index, column index) tuple fully valid — "
-                "meaning the entity is correctly identified and together the row index and column index "
-                "correctly locate the value for that (entity, target attribute) pair in the specified table?"
-            )
-        else:
-            instructions = JUDGE_INSTRUCTIONS_TEXT
-            measurement_val = entry["value"]
-            value_section = (
-                f"Extracted value: {measurement_val}\n"
-                f"Extracted units: {units_str}"
-            )
-            closing = (
-                "Is the extracted (entity, attribute, value) triplet fully valid — "
-                "meaning the entity is correctly identified and the extracted value "
-                "correctly corresponds to the target attribute for that entity, as evidenced by the document?"
-            )
-
-        sections = [entity_section, attribute_section]
-        if location_section:
-            sections.append(location_section)
-        sections.append(value_section)
-        sections.append(closing)
-
-        messages.append((instructions, document, "\n\n".join(sections)))
-        measurement_ids.append(entry["measurement_id"])
-
-    return messages, measurement_ids
-
-
-# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -221,6 +132,13 @@ def run_interp_judge(
     ocr_dir: str | None = None,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
+
+    Prompts are built via ``batch.common.prepare_chat_entries`` — the same
+    function used by the local vLLM and frontier judge runners — so the query
+    content (entity description, attribute description, value/indices, closing
+    question) is identical across all judge backends.  JudgementLM receives
+    the three parts separately as (instructions, context, query), which it
+    wraps into a single user message internally.
 
     Args:
         dataset_config: Dataset configuration.
@@ -250,7 +168,18 @@ def run_interp_judge(
         with open(os.path.join(effective_ocr_dir, fname), "r", encoding="utf-8") as fh:
             documents.append(fh.read())
 
-    messages, measurement_ids = _build_judge_messages(data, documents, dataset_config)
+    # Build prompts using the shared batch prompt builder.
+    # prepare_chat_entries sorts by document_id for cache locality; custom_id
+    # preserves the original index so results can be merged back in order.
+    from batch import common as batch_common
+    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
+
+    # JudgementLM takes (instructions, context, query) triples separately.
+    # instructions = system prompt, context = full document, query = ## QUERY content.
+    messages: list[tuple[str, str, str]] = [
+        (entry["system"], documents[entry["document_id"]], entry["user_query"])
+        for entry in chat_entries
+    ]
 
     llm = JudgementLM(
         model_name=judge_cfg["model_id"],
@@ -260,25 +189,33 @@ def run_interp_judge(
 
     responses = llm.predict(messages)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    judged_data: list[dict] = []
+    # Map results back to original data order via custom_id.
+    result_by_orig_idx: dict[int, dict] = {}
     attn_output_dict: dict[str, Any] = {}
 
-    for i, response in enumerate(responses):
-        mid = str(measurement_ids[i])
+    for entry, response in zip(chat_entries, responses):
+        orig_idx = int(entry["custom_id"])
+        result_by_orig_idx[orig_idx] = response
+        if response.get("attn_output") is not None:
+            mid = str(data[orig_idx]["measurement_id"])
+            attn_output_dict[mid] = response["attn_output"]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    judged_data: list[dict] = []
+
+    for i, record in enumerate(data):
+        response = result_by_orig_idx.get(i, {})
         judged_data.append(
-            data[i] | {
-                "judgement": "true" in response["response"].strip().lower(),
-                "judgement_prob": math.exp(float(response["logprob"])),
-                "judgement_p_true": float(response["p_true"]),
-                "judgement_p_false": float(response["p_false"]),
-                "judgement_logit_p_true": float(response["logit_p_true"]),
-                "judgement_logit_p_false": float(response["logit_p_false"]),
+            record | {
+                "judgement": "true" in response.get("response", "").strip().lower(),
+                "judgement_prob": math.exp(float(response["logprob"])) if "logprob" in response else None,
+                "judgement_p_true": float(response["p_true"]) if "p_true" in response else None,
+                "judgement_p_false": float(response["p_false"]) if "p_false" in response else None,
+                "judgement_logit_p_true": float(response["logit_p_true"]) if "logit_p_true" in response else None,
+                "judgement_logit_p_false": float(response["logit_p_false"]) if "logit_p_false" in response else None,
                 "judgement_model": judge_cfg["model_id"],
             }
         )
-        if response.get("attn_output") is not None:
-            attn_output_dict[mid] = response["attn_output"]
 
     responses_file = output_dir / "responses.json"
     with open(responses_file, "w") as f:

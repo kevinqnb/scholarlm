@@ -38,9 +38,9 @@ def build_requests(
     """
     requests = []
     for entry in chat_entries:
-        # Split user content into the cached document prefix and the per-request query.
-        user_document = entry["user_document"]          # "## Document:\n...\n\n"
-        user_query = entry["user"][len(user_document):]  # "## Query:\n..."
+        # Use the pre-split fields from prepare_chat_entries.
+        user_document = entry["user_document"]  # "## CONTEXT:\n...\n\n"
+        user_query = f"## QUERY:\n{entry['user_query']}"
 
         requests.append(
             {

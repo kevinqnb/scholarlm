@@ -32,7 +32,7 @@ def tokenize(
         (tokenized_chat, instruction_tokens, context_tokens, query_tokens)
     """
     chat = [
-        {"role": "user", "content": f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"},
+        {"role": "user", "content": f"## INSTRUCTIONS:\n{instructions}\n\n## CONTEXT:\n{context}\n\n## QUERY:\n{query}"},
     ]
     formatted_chat = tokenizer.apply_chat_template(
         chat, tokenize=False, add_generation_prompt=True

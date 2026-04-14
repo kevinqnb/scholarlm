@@ -296,9 +296,10 @@ Guidelines:
 JUDGE_INSTRUCTIONS_TEXT = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) A complete document from a research paper
+1) A complete document from a research paper (in ## CONTEXT)
 2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
 3) A candidate (entity, value) extraction: the entity identified in the document, the page where the data was found, and the value extracted from the prose text for the target attribute.
+Items 2 and 3 appear in ## QUERY.
 
 Your task: decide whether the extracted (entity, attribute, value) triplet is fully valid — meaning the entity is correctly identified and the extracted value correctly corresponds to the target attribute for that entity, as evidenced by the document.
 
@@ -342,13 +343,13 @@ Therefore, we aimed to assess the bacterial and viral components of a temperate 
 
 Example 1 — CORRECT extraction (all criteria satisfied):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: true
 
@@ -358,13 +359,13 @@ Explanation: The document describes "a temperate freshwater agricultural pond in
 
 Example 2 — INCORRECT extraction (invalid entity):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Lake Merhei, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: false
 
@@ -374,13 +375,13 @@ Explanation: The document describes an agricultural pond in central Maryland but
 
 Example 3 — INCORRECT extraction (value belongs to a different attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 3.35
-Measurement units: meters
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 3.35
+Extracted units: meters
 
 VERDICT: false
 
@@ -390,13 +391,13 @@ Explanation: The value 3.35 appears on page 1 but corresponds to maximum depth (
 
 Example 4 — INCORRECT extraction (value assigned to wrong attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
-Terminology used for the attribute: maximum depth, depth
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Attribute terminology: maximum depth, depth
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: false
 
@@ -406,13 +407,17 @@ Explanation: The value 0.26 appears on page 1 but corresponds to surface area ("
 
 Example 5 — INCORRECT extraction (unit mismatch):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
-Terminology used for the attribute: maximum depth, depth
-Page: 1, Table: N/A
-Extracted measurement: 3.35
+Target attribute: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Attribute terminology: maximum depth, depth
+Page number: 1
+Extracted value: 3.35
 Extracted units: cm
+
+VERDICT: false
+
+Explanation: The value 3.35 appears on page 1 and corresponds to maximum depth, but the document reports the depth in meters ("ca. 3.35 meters"), not centimeters. The extracted units (cm) do not match the reported units (meters). Criterion F is not satisfied.
 
 ---
 
@@ -425,9 +430,10 @@ Output format:
 JUDGE_INSTRUCTIONS_TABLE = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) A complete document from a research paper
+1) A complete document from a research paper (in ## CONTEXT)
 2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
 3) A candidate (entity, row index, column index) extraction: the entity identified in the document, the table where the data was found, and the row/column indices that locate the extracted value for the target attribute. The value is the cell at the intersection of the row and column indices.
+Items 2 and 3 appear in ## QUERY.
 
 Your task: decide whether the extracted (entity, attribute, row index, column index) tuple is fully valid — meaning the entity is correctly identified and together the row index and column index correctly locate the value for that (entity, target attribute) pair in the specified table.
 
@@ -478,9 +484,9 @@ Bacterial and Viral Dynamics in a Temperate Agricultural Pond...
 
 Example 1 — CORRECT extraction (all criteria satisfied):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
-Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
-Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
 Attribute terminology: ph, pH
 Page number: 3
 Table number: 1
@@ -490,25 +496,25 @@ Extracted units: not reported
 
 VERDICT: true
 
-Explanation: The entity (agricultural pond, October 2016) is valid. The row index "October 2016" appears in Table 1 on page 3 and maps to the October 2016 observation. The column index "ph" appears in the table and corresponds to water pH. The cell value is a directly reported measurement. pH is dimensionless, so "not reported" is correct. All criteria are satisfied.
+Explanation: The entity (agricultural pond in central Maryland) is valid. The row index "October 2016" appears in Table 1 on page 3 and maps to the October 2016 observation for this pond. The column index "ph" appears in the table and corresponds to water pH. The cell value is a directly reported measurement. pH is dimensionless, so "not reported" is correct. All criteria are satisfied.
 
 ---
 
-Example 2 — INCORRECT extraction (row maps to wrong entity):
+Example 2 — INCORRECT extraction (column maps to wrong attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
-Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
-Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
 Attribute terminology: ph, pH
 Page number: 3
 Table number: 1
-Extracted row index: December 2016
-Extracted column index: ph
-Extracted units: not reported
+Extracted row index: October 2016
+Extracted column index: temperature_c
+Extracted units: °C
 
 VERDICT: false
 
-Explanation: The row index "December 2016" is present in the table, but it maps to the December 2016 observation, not the October 2016 observation described by the extracted entity. Criterion C is not satisfied.
+Explanation: The row index "October 2016" is correct for this entity. However, the column index "temperature_c" maps to water temperature, not pH. The target attribute is pH and the correct column is "ph". Criterion E is not satisfied.
 
 ---
 
