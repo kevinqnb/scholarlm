@@ -19,7 +19,15 @@ Changes from the baseline MeasurementLM:
      - _extract_values_from_text()   uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
      - _extract_values_from_tables() uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
 
-3. _standardize() is unchanged: it returns free text without any explanation field.
+3. _resolve_events() is NOT overridden: the measurement event schema fields do not
+   include an explanation field, so the standard MEASUREMENT_EVENT_INSTRUCTIONS
+   already produces no explanation in event items.
+
+4. _standardize() is unchanged: it returns free text without any explanation field.
+
+5. event_resolution is accepted and forwarded in _extract_values_from_text() and
+   _extract_values_from_tables() so the pipeline correctly handles event resolution
+   when measurement_event_schema is configured.
 
 Pipeline structure and all other logic are identical to the baseline.
 """
@@ -349,10 +357,11 @@ class MeasurementLMAblation5(MeasurementLM):
     # Step 5: Extract values from text
     # -----------------------------------------------------------------------
 
-    def _extract_values_from_text(self, entity_data, doc_attributes, entity_prov, attr_prov):
+    def _extract_values_from_text(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
         """
         CHANGED: uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
         and TextValueExtractionResponseNoExp (no explanation field).
+        Accepts event_resolution and incorporates event context into the query.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
@@ -399,21 +408,36 @@ class MeasurementLMAblation5(MeasurementLM):
                             f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
                         )
 
-                    query = (
-                        f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"{units_guidance}"
-                        f"Does this page contain a measured value for the given attribute and entity? "
-                        f"If yes, extract the value and its units.\n\n"
-                    )
-                    # CHANGED: no-explanation prompt
-                    prompt = (
-                        f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                        f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-                    )
-                    messages.append([{"role": "user", "content": prompt}])
-                    message_ids.append((pair_record, p))
+                    # Determine measurement events for this (entity, attribute, page)
+                    if event_resolution is not None:
+                        events = event_resolution.get((doc_id, entity_id, attr_name, p), [])
+                        if not events:
+                            events = [{f: None for f in self.measurement_event_schema.model_fields}]
+                    else:
+                        events = [None]
+
+                    for event in events:
+                        event_record = pair_record | (event if event is not None else {})
+                        event_context = ""
+                        if event and any(v is not None for v in event.values()):
+                            event_context = f"Measurement event context: {event}\n"
+
+                        query = (
+                            f"Attribute description: {attr_description}\n"
+                            f"Terminology used for the attribute: {terms}\n"
+                            f"Entity description: {entity_description}\n"
+                            f"{event_context}"
+                            f"\n{units_guidance}"
+                            f"Does this page contain a measured value for the given attribute and entity? "
+                            f"If yes, extract the value and its units.\n\n"
+                        )
+                        # CHANGED: no-explanation prompt
+                        prompt = (
+                            f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                            f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+                        )
+                        messages.append([{"role": "user", "content": prompt}])
+                        message_ids.append((event_record, p))
 
         if not messages:
             return []
@@ -435,7 +459,7 @@ class MeasurementLMAblation5(MeasurementLM):
 
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
-            pair_record, page_number = message_ids[msg_idx]
+            event_record, page_number = message_ids[msg_idx]
             try:
                 # CHANGED: no-explanation schema
                 result = response_validator(TextValueExtractionResponseNoExp, resp)
@@ -445,9 +469,9 @@ class MeasurementLMAblation5(MeasurementLM):
                 continue
 
             if result.get('has_value') and result.get('value') is not None:
-                page_text = self._get_page_text(pair_record['context'], page_number)
+                page_text = self._get_page_text(event_record['context'], page_number)
                 text_values.append(
-                    pair_record | {
+                    event_record | {
                         'context': page_text,
                         'value': result['value'],
                         'units': result.get('units'),
@@ -462,10 +486,11 @@ class MeasurementLMAblation5(MeasurementLM):
     # Step 6: Extract values from tables
     # -----------------------------------------------------------------------
 
-    def _extract_values_from_tables(self, entity_data, doc_attributes, entity_prov, attr_prov):
+    def _extract_values_from_tables(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
         """
         CHANGED: uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
         and TableValueExtractionResponseNoExp (no explanation field).
+        Accepts event_resolution and incorporates event context into the query.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
@@ -548,23 +573,40 @@ class MeasurementLMAblation5(MeasurementLM):
                             f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
                         )
 
-                    query = (
-                        f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n"
-                        f"Entity description: {entity_description}\n\n"
-                        f"Row names in the table: {row_names}\n"
-                        f"Column names in the table: {column_names}\n\n"
-                        f"{units_guidance}"
-                        f"Does this table contain a measured value for the given attribute and entity? "
-                        f"If yes, provide the row_index and column_index names, and the units.\n\n"
-                    )
-                    # CHANGED: no-explanation prompt
-                    prompt = (
-                        f"## Instructions:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                        f"## Context:\n{table_text}\n\n## Query:\n{query}"
-                    )
-                    messages.append([{"role": "user", "content": prompt}])
-                    message_ids.append((pair_record, t, table_page_number))
+                    # Determine measurement events for this (entity, attribute, page)
+                    if event_resolution is not None:
+                        events = event_resolution.get(
+                            (doc_id, entity_id, attr_name, table_page_number), []
+                        )
+                        if not events:
+                            events = [{f: None for f in self.measurement_event_schema.model_fields}]
+                    else:
+                        events = [None]
+
+                    for event in events:
+                        event_record = pair_record | (event if event is not None else {})
+                        event_context = ""
+                        if event and any(v is not None for v in event.values()):
+                            event_context = f"Measurement event context: {event}\n"
+
+                        query = (
+                            f"Attribute description: {attr_description}\n"
+                            f"Terminology used for the attribute: {terms}\n"
+                            f"Entity description: {entity_description}\n"
+                            f"{event_context}"
+                            f"\nRow names in the table: {row_names}\n"
+                            f"Column names in the table: {column_names}\n\n"
+                            f"{units_guidance}"
+                            f"Does this table contain a measured value for the given attribute and entity? "
+                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                        )
+                        # CHANGED: no-explanation prompt
+                        prompt = (
+                            f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                            f"## CONTEXT:\n{table_text}\n\n## QUERY:\n{query}"
+                        )
+                        messages.append([{"role": "user", "content": prompt}])
+                        message_ids.append((event_record, t, table_page_number))
 
         if not messages:
             return []
@@ -586,7 +628,7 @@ class MeasurementLMAblation5(MeasurementLM):
 
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
-            pair_record, table_number, page_number = message_ids[msg_idx]
+            event_record, table_number, page_number = message_ids[msg_idx]
             try:
                 # CHANGED: no-explanation schema
                 result = response_validator(TableValueExtractionResponseNoExp, resp)
@@ -602,7 +644,7 @@ class MeasurementLMAblation5(MeasurementLM):
             if row_index is None or column_index is None:
                 continue
 
-            doc_id = pair_record['document_id']
+            doc_id = event_record['document_id']
             parsed = table_cache.get((doc_id, table_number))
             if parsed is None:
                 continue
@@ -630,7 +672,7 @@ class MeasurementLMAblation5(MeasurementLM):
 
             if val is not None:
                 table_values.append(
-                    pair_record | {
+                    event_record | {
                         'context': table_text,
                         'value': val,
                         'units': result.get('units'),

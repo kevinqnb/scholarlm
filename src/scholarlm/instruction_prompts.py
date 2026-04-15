@@ -178,6 +178,20 @@ Guidelines:
 """
 
 
+# Ablation 2: Full-context measurement event resolution
+MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a specified page of a research paper.
+
+Guidelines:
+- You will be provided with the full document text from a research paper, a description of an entity, a description of a measurement attribute, and a target page number.
+- Focus on the specified target page when identifying measurement events. The full document is provided for context only.
+- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
+- For each distinct measurement event you identify on the target page, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the target page or clearly referencing it. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
+- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
+- If the target page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
+- Structure your response as a JSON object with an "items" list.
+"""
+
+
 # Ablation 4: Generated entity-attribute provenance
 FULL_CONTEXT_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all locations in a full research paper document where a directly reported numerical measurement exists for a described entity and attribute.
 

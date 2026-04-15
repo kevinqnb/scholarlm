@@ -36,7 +36,7 @@ class MeasurementEventSchema(BaseModel):
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 6: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
 
     # Entity fields
     name: str | None
@@ -50,6 +50,19 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
+
+
+class Ablation3ObservationSchema(BaseModel):
+    """Entity schema for Ablation 3: one item per (ecosystem, attribute) pair."""
+
+    # Entity fields (same as ObservationSchema)
+    name: str | None
+    abbreviations: str | None
+    location: str | None
+    ecosystem: str | None
+    # Reserved fields required by Ablation 3
+    attribute: str
+    attribute_terms: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +126,64 @@ Output format requirements:
   ]
 }
 - If no distinct ecosystems are found, output exactly:
+{ "items": [] }
+"""
+
+
+# ---------------------------------------------------------------------------
+# Ablation 3: combined entity-attribute extraction prompt
+# ---------------------------------------------------------------------------
+
+_ABLATION3_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature, and in detecting which measurement attributes are reported for each ecosystem. Given the provided text (including any tables), extract all distinct (aquatic ecosystem, measured attribute) pairs for which a direct numerical measurement is reported.
+
+An aquatic ecosystem is a specific pond, lake, wetland, or similar water body. Emit one item per (ecosystem, attribute) pair. If an ecosystem has multiple attributes measured, emit one item per attribute.
+
+IMPORTANT: Only emit a pair when a direct numerical measurement exists in the document for that ecosystem and attribute. Do NOT emit pairs where the only data is qualitative, model parameters, or goodness-of-fit statistics.
+
+
+Response schema:
+For each (ecosystem, attribute) pair, output one item with the following fields:
+- name: the name of the ecosystem. If no full name is given, use whatever primary identifier the paper provides.
+- abbreviations: any secondary codes or abbreviations used to refer to the same ecosystem (e.g. "L1", "Lake M."). Set to None if none.
+- location: the general geographic location of the ecosystem, if explicitly stated.
+- ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
+- attribute: the exact attribute name from the list below.
+- attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
+
+
+Attributes to detect (use these exact names in the attribute field):
+1. surface_area — Surface area of the water body (NOT watershed, catchment, or littoral zone area).
+2. max_depth — Maximum physical water depth (NOT mean depth, average depth, or Secchi depth).
+3. vegetation_cover — Fraction or percentage of the surface covered by aquatic macrophytes or rooted/floating vegetation (NOT algal cover, periphyton, or phytoplankton).
+4. ph — pH of the water (dimensionless). NOT soil or sediment pH.
+5. tn — Total nitrogen (TN): aggregate sum of ALL nitrogen forms — NOT individual species (NO3-, NO2-, NH3, etc.) unless explicitly labeled as total nitrogen.
+6. tp — Total phosphorus (TP): aggregate sum of ALL phosphorus forms — NOT individual species (SRP, PO4, DRP, PP, etc.) unless explicitly labeled as total phosphorus.
+7. chla — Chlorophyll-a (Chl-a) concentration. NOT total chlorophyll, chlorophyll-b, pheophytin, or other pigments unless explicitly labeled as chlorophyll-a.
+
+
+Identification guidelines:
+- Treat ecosystems with the same name as multiple separate items ONLY if they are clearly described as distinct physical water bodies. Do NOT create separate items for the same ecosystem because measurements were taken on different dates or conditions.
+- Multiple measurements of the same ecosystem for the same attribute should produce only one (ecosystem, attribute) pair — not one per measurement event.
+- Do NOT infer, guess, or derive any identifying information. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set its value to None.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "abbreviations": "...",
+      "location": "...",
+      "ecosystem": "...",
+      "attribute": "...",
+      "attribute_terms": [...]
+    }
+  ]
+}
+- If no (ecosystem, attribute) pairs with direct numerical measurements are found, output exactly:
 { "items": [] }
 """
 
@@ -333,4 +404,6 @@ CONFIG = DatasetConfig(
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,
     paper_filter=None,
+    ablation3_entity_schema=Ablation3ObservationSchema,
+    ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
 )

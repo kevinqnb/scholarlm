@@ -39,7 +39,7 @@ class MeasurementEventSchema(BaseModel):
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 6: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
 
     # Entity fields
     name: str | None
@@ -57,6 +57,20 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
+
+
+class Ablation3ObservationSchema(BaseModel):
+    """Entity schema for Ablation 3: one item per (site, attribute) pair."""
+
+    # Entity fields (same as ObservationSchema)
+    name: str | None
+    abbreviations: str | None
+    site_type: str | None
+    latitude: float | None
+    longitude: float | None
+    # Reserved fields required by Ablation 3
+    attribute: str
+    attribute_terms: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +151,63 @@ _MEASUREMENT_EVENT_PROMPT = """Event fields:
 - substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
 - sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
 - additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Ablation 3: combined entity-attribute extraction prompt
+# ---------------------------------------------------------------------------
+
+_ABLATION3_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
+
+A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Emit one item per (site, attribute) pair. If a site has multiple attributes measured, emit one item per attribute.
+
+IMPORTANT: Only emit a pair when a direct numerical measurement exists in the document for that site and attribute. Do NOT emit pairs where the only data is qualitative, model parameters, or goodness-of-fit statistics.
+
+
+Response schema:
+For each (site, attribute) pair, output one item with the following fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- abbreviations: any secondary codes or abbreviations used to refer to the same site. Set to None if none.
+- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- latitude: the latitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
+- longitude: the longitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
+- attribute: the exact attribute name from the list below.
+- attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
+
+
+Attributes to detect (use these exact names in the attribute field):
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol-N g-1 h-1, ug-N g-1 d-1, nmol-C2H4 g-1 h-1).
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1).
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1).
+
+
+Identification guidelines:
+- Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths.
+- Multiple measurements of the same site for the same attribute should produce only one (site, attribute) pair — not one per measurement event.
+- Do NOT infer, guess, or derive any identifying information. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set its value to None.
+- Latitude and longitude values must be numeric (not strings).
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "abbreviations": "...",
+      "site_type": "...",
+      "latitude": ...,
+      "longitude": ...,
+      "attribute": "...",
+      "attribute_terms": [...]
+    }
+  ]
+}
+- If no (site, attribute) pairs with direct numerical measurements are found, output exactly:
+{ "items": [] }
 """
 
 
@@ -330,4 +401,6 @@ CONFIG = DatasetConfig(
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,
     paper_filter=_nfix_paper_filter,
+    ablation3_entity_schema=Ablation3ObservationSchema,
+    ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
 )

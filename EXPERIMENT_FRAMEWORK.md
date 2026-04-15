@@ -40,8 +40,10 @@ driven by per-dataset config objects rather than hardcoded values.
 | `paper_filter` | Optional callable `(metadata: dict) -> bool` applied before `paper_subset` |
 | `measurement_event_schema` | Optional Pydantic `BaseModel` defining a measurement event; enables event-resolution step |
 | `measurement_event_prompt` | Dataset-specific instructions for the event-resolution step |
-| `direct_extraction_schema` | Optional Pydantic `BaseModel` for Ablation 6 (direct triple extraction) |
-| `direct_extraction_prompt` | Dataset-specific prompt for Ablation 6 |
+| `direct_extraction_schema` | Optional Pydantic `BaseModel` for Ablation 1 (direct triple extraction) |
+| `direct_extraction_prompt` | Dataset-specific prompt for Ablation 1 |
+| `ablation3_entity_schema` | Optional Pydantic `BaseModel` for Ablation 3 (combined entity-attribute extraction); must include entity fields + `attribute (str)` + `attribute_terms (list[str])` |
+| `ablation3_entity_identification_prompt` | Dataset-specific prompt for Ablation 3 that instructs the model to emit one item per (entity, attribute) pair |
 
 **`ModelConfig`** — extraction model configuration:
 
@@ -286,26 +288,26 @@ are not written because ablations run as a single `fit()` call.
 
 | N | Description |
 |---|---|
-| `1` | **Combined entity-attribute extraction** — entity detection and attribute detection merged into one step; provenance is also combined. Requires the dataset's `entity_schema` to include `attribute (str)` and `attribute_terms (list[str])` fields and a matching prompt. |
-| `2` | **Full-document context for value extraction** — the full document (not just the relevant page/table) is sent to the value extractor at both text and table extraction steps. |
-| `3` | **Direct table value extraction** — the model returns the value directly from the table instead of first identifying row/column indices for programmatic lookup. |
-| `4` | **Full-document pair provenance** — both provenance steps (entity + attribute) are replaced by a single full-document query per (entity, attribute) pair that returns a list of provenance locations. |
-| `5` | **No chain-of-thought explanations** — the `explanation` field is removed from all structured JSON response schemas, so the model does not produce reasoning traces. |
-| `6` | **Direct triple extraction** — the entire pipeline is replaced by a single LLM call per document that extracts all (entity, attribute, value) triples at once.  Requires the dataset config to define `direct_extraction_schema` and `direct_extraction_prompt`. |
+| `1` | **Direct triple extraction** — the entire pipeline is replaced by a single LLM call per document that extracts all (entity, attribute, value) triples at once.  Requires the dataset config to define `direct_extraction_schema` and `direct_extraction_prompt`. |
+| `2` | **Direct table value extraction** — the model returns the value directly from the table instead of first identifying row/column indices for programmatic lookup. |
+| `3` | **Combined entity-attribute extraction** — entity detection and attribute detection merged into one step; provenance is also combined. Requires the dataset config to define `ablation3_entity_schema` and `ablation3_entity_identification_prompt`. |
+| `4` | **Full-document context for value extraction and event resolution** — the full document (not just the relevant page/table) is sent to the value extractor and event resolver at both text and table extraction steps. |
+| `5` | **No chain-of-thought explanations** — the `explanation` field is removed from all structured JSON response schemas, so the model does not produce reasoning traces.  Event resolution is unchanged (event schemas contain no explanation fields). |
+| `6` | **Full-document pair provenance** — both provenance steps (entity + attribute) are replaced by a single full-document query per (entity, attribute) pair that returns a list of provenance locations. |
 
 ```bash
-# vLLM model, run ablation 3 on the pond dataset:
-python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 3
+# vLLM model, run ablation 1 on the pond dataset (direct triple extraction):
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 1
 
 # vLLM model, skip table cleaning:
 python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 5 \
     --ocr-dir data/pond/ocr_output_cleaned_gemma-3-27b
 
-# Frontier model, ablation 6 (direct triple extraction):
-python experiments/run_ablation.py --dataset nfix --model gpt-4o-mini --ablation 6
+# Frontier model, ablation 3 (combined entity-attribute extraction):
+python experiments/run_ablation.py --dataset nfix --model gpt-4o-mini --ablation 3
 
 # Run on a specific paper subset:
-python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 6 \
+python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2 \
     --paper-subset physical_and_chemical_limnological prairie_wetland
 ```
 
@@ -320,10 +322,11 @@ python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation
 | `--paper-subset p1 p2` | Override the config's default paper subset |
 | `--date YYYY_mm_dd` | Pin the output date tag |
 
-**Note on ablation 1:** The dataset's `entity_schema` must include `attribute (str)` and
-`attribute_terms (list[str])` fields, and the `entity_identification_prompt` must instruct
-the model to emit one item per (entity, attribute) pair.  The script raises a clear error
-if these fields are missing.
+**Note on ablation 3:** The dataset config must define `ablation3_entity_schema` (entity
+fields plus `attribute: str` and `attribute_terms: list[str]`) and
+`ablation3_entity_identification_prompt` (instructs the model to emit one item per
+(entity, attribute) pair).  The script raises a clear error if either is missing.
+Both are defined in `experiments/configs/pond.py` and `experiments/configs/nfix.py`.
 
 ---
 

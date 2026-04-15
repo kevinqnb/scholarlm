@@ -10,8 +10,8 @@ Usage
 -----
     # From the repo root:
     python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 1
-    python experiments/run_ablation.py --dataset nfix --model qwen-2.5-72b --ablation 6
-    python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 3 \\
+    python experiments/run_ablation.py --dataset nfix --model qwen-2.5-72b --ablation 3
+    python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2 \\
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
@@ -20,12 +20,12 @@ Available ablations: 1–6 (see ABLATION_REGISTRY below).
 
 Notes
 -----
-Ablation 1 requires the dataset's entity_identification_schema to include two
-additional fields beyond the usual entity-identifying fields:
+Ablation 3 requires the dataset config to define ablation3_entity_schema and
+ablation3_entity_identification_prompt. The schema must include two reserved
+fields beyond the usual entity fields:
     - attribute (str)             : one of the keys in attribute_info_dict
     - attribute_terms (list[str]) : terminology used in the document
-The entity_identification_prompt must also instruct the model to emit one item
-per (entity, attribute) pair rather than one item per entity.
+The prompt must instruct the model to emit one item per (entity, attribute) pair.
 """
 from __future__ import annotations
 
@@ -67,23 +67,24 @@ from run_extraction import (
 ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     "1": (
         MeasurementLMAblation1,
-        "Combined entity-attribute extraction; entity detection and attribute detection "
-        "merged into a single step, plus a combined per-page provenance step.",
+        "Direct triple extraction; the entire pipeline is replaced by a single LLM call "
+        "per document that extracts all (entity, attribute, value) triples at once.",
     ),
     "2": (
         MeasurementLMAblation2,
-        "Full-document context for value extraction; the entire document (not just the "
-        "relevant page/table) is sent to the value extractor.",
-    ),
-    "3": (
-        MeasurementLMAblation3,
         "Direct table value extraction; the model returns the value directly from the "
         "table instead of first identifying row/column indices for programmatic lookup.",
     ),
+    "3": (
+        MeasurementLMAblation3,
+        "Combined entity-attribute extraction; entity detection and attribute detection "
+        "merged into a single step, plus a combined per-page provenance step.",
+    ),
     "4": (
         MeasurementLMAblation4,
-        "Full-document pair provenance; both provenance steps are replaced by a single "
-        "full-document query per (entity, attribute) pair that returns a list of locations.",
+        "Full-document context for value extraction and event resolution; the entire "
+        "document (not just the relevant page/table) is sent to the value extractor "
+        "and event resolver.",
     ),
     "5": (
         MeasurementLMAblation5,
@@ -92,8 +93,8 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
     "6": (
         MeasurementLMAblation6,
-        "Direct triple extraction; the entire pipeline is replaced by a single LLM call "
-        "per document that extracts all (entity, attribute, value) triples at once.",
+        "Full-document pair provenance; both provenance steps are replaced by a single "
+        "full-document query per (entity, attribute) pair that returns a list of locations.",
     ),
 }
 
@@ -213,32 +214,55 @@ def run_ablation(
     text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
-    # Ablation 1 runtime check: entity schema must include 'attribute' and 'attribute_terms'
-    if ablation == "1":
-        schema_fields = set(dataset_config.entity_schema.model_fields.keys())
+    # Ablation 3 runtime check: dataset config must provide ablation3_entity_schema
+    # and ablation3_entity_identification_prompt with the required reserved fields.
+    if ablation == "3":
+        if dataset_config.ablation3_entity_schema is None:
+            raise ValueError(
+                f"Ablation 3 requires 'ablation3_entity_schema' to be set in the "
+                f"dataset config for '{dataset_config.name}'. "
+                f"Define the schema (entity fields + attribute + attribute_terms) and "
+                f"set ablation3_entity_schema in the DatasetConfig."
+            )
+        schema_fields = set(dataset_config.ablation3_entity_schema.model_fields.keys())
         missing = {"attribute", "attribute_terms"} - schema_fields
         if missing:
             raise ValueError(
-                f"Ablation 1 requires the entity_identification_schema to include the "
-                f"fields {sorted(missing)}. The dataset config's entity_schema "
-                f"({dataset_config.entity_schema.__name__}) is missing these fields. "
-                f"Please add them and update entity_identification_prompt accordingly."
+                f"Ablation 3 requires the ablation3_entity_schema to include the "
+                f"fields {sorted(missing)}. The schema "
+                f"({dataset_config.ablation3_entity_schema.__name__}) is missing "
+                f"these fields. Please add them."
             )
+        if dataset_config.ablation3_entity_identification_prompt is None:
+            raise ValueError(
+                f"Ablation 3 requires 'ablation3_entity_identification_prompt' to be "
+                f"set in the dataset config for '{dataset_config.name}'."
+            )
+        # Use the ablation-specific schema and prompt for this run
+        entity_schema = dataset_config.ablation3_entity_schema
+        entity_identification_prompt = dataset_config.ablation3_entity_identification_prompt
+    else:
+        entity_schema = dataset_config.entity_schema
+        entity_identification_prompt = dataset_config.entity_identification_prompt
 
-    mlm = ablation_class(
+    mlm_kwargs = dict(
         model_name=model_config.model_id,
-        entity_identification_prompt=dataset_config.entity_identification_prompt,
-        entity_identification_schema=dataset_config.entity_schema,
+        entity_identification_prompt=entity_identification_prompt,
+        entity_identification_schema=entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
         api_base=effective_api_base,
         api_key=api_key,
         clean_tables=clean_tables,
         cleaned_ocr_output_dir=cleaned_ocr_output_dir,
-        direct_extraction_schema=dataset_config.direct_extraction_schema,
-        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
+        measurement_event_schema=dataset_config.measurement_event_schema,
+        measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
     )
+    if ablation == "1":
+        mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema
+        mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt
+    mlm = ablation_class(**mlm_kwargs)
 
     # Pre-clean tables if needed (same pattern as run_extraction.py)
     processed_pdf_dirs = None

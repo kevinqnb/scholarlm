@@ -128,8 +128,6 @@ class MeasurementLM:
         cleaned_ocr_output_dir: str | None = None,
         measurement_event_schema: BaseModel | None = None,
         measurement_event_prompt: str | None = None,
-        direct_extraction_schema: BaseModel | None = None,
-        direct_extraction_prompt: str | None = None,
         use_extra_body: bool = True,
     ):
         self.model_name = model_name
@@ -149,8 +147,6 @@ class MeasurementLM:
         self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
         self.measurement_event_schema = measurement_event_schema
         self.measurement_event_prompt = measurement_event_prompt
-        self.direct_extraction_schema = direct_extraction_schema
-        self.direct_extraction_prompt = direct_extraction_prompt
         self.use_extra_body = use_extra_body
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)

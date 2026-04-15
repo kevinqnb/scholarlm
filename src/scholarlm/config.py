@@ -54,13 +54,23 @@ class DatasetConfig:
             event and explaining each event field.  Required when
             ``measurement_event_schema`` is set; ignored otherwise.
         direct_extraction_schema: Optional Pydantic ``BaseModel`` subclass used by
-            Ablation 6 (direct triple extraction).  Must combine all entity fields,
+            Ablation 1 (direct triple extraction).  Must combine all entity fields,
             all measurement event fields, and the ``attribute``, ``value``, and
-            ``units`` fields into a single flat schema.  ``None`` disables ablation 6.
-        direct_extraction_prompt: Dataset-specific prompt for Ablation 6 that
+            ``units`` fields into a single flat schema.  ``None`` disables ablation 1.
+        direct_extraction_prompt: Dataset-specific prompt for Ablation 1 that
             describes entities, measurement events, and attributes in a single
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
+        ablation3_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
+            Ablation 3 (combined entity-attribute extraction).  Must include all
+            normal entity fields plus two reserved fields: ``attribute (str)`` (exact
+            attribute name from ``attribute_info_dict``) and ``attribute_terms
+            (list[str])`` (terminology used in the document).  ``None`` disables
+            ablation 3.
+        ablation3_entity_identification_prompt: Dataset-specific prompt for Ablation
+            3 that instructs the model to emit one item per (entity, attribute) pair
+            rather than one item per entity.  Required when
+            ``ablation3_entity_schema`` is set; ignored otherwise.
     """
 
     name: str
@@ -76,6 +86,8 @@ class DatasetConfig:
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None
     direct_extraction_prompt: str | None = None
+    ablation3_entity_schema: type[BaseModel] | None = None
+    ablation3_entity_identification_prompt: str | None = None
 
 
 @dataclass
