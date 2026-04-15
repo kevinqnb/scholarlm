@@ -178,7 +178,12 @@ def prepare_chat_entries(
         document_id = entry["document_id"]
         document = documents[document_id]
         attribute = entry.get("attribute")
-        attribute_description = _attr_dict[attribute]["description"]
+        try:
+            attribute_description = _attr_dict[attribute]["description"]
+        except KeyError:
+            print(f"Attribute '{attribute}' not found in dataset_config.attribute_info_dict")
+            continue
+
         attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: v for k, v in entry.items() if k in _fields}
         page_number = entry.get("page_number")

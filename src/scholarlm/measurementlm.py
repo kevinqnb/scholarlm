@@ -1283,7 +1283,7 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_tokens=512,
+            max_tokens=1024,
             max_retries=1,
             validator=lambda r: response_validator(StandardizeResponse, r),
         )
