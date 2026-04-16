@@ -53,66 +53,6 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "max_tokens": 8192,
         },
     ),
-    "gemma-4-31b": ModelConfig(
-        name="gemma-4-31b",
-        model_id="cyankiwi/gemma-4-31B-it-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 16384,
-        },
-    ),
-    "qwen-2.5-vl-72b": ModelConfig(
-        name="qwen-2.5-vl-72b",
-        model_id="Qwen/Qwen2.5-VL-72B-Instruct-AWQ",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "qwen-3-vl-30b": ModelConfig(
-        name="qwen-3-vl-30b",
-        model_id="Qwen/Qwen3-VL-30B-A3B-Instruct-FP8",
-        sampling_params={
-            "temperature": 0.1,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "llama-4-scout-109b": ModelConfig(
-        name="llama-4-scout-109b",
-        model_id="nvidia/Llama-4-Scout-17B-16E-Instruct-NVFP4",
-        sampling_params={
-            "temperature": 1.0,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "glm-4.6v-106b": ModelConfig(
-        name="glm-4.6v-106b",
-        model_id="cyankiwi/GLM-4.6V-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
-    "intern-vl3-78b": ModelConfig(
-        name="intern-vl3-78b",
-        model_id="OpenGVLab/InternVL3-78B-AWQ",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
-        },
-    ),
     "llama-3.3-70b": ModelConfig(
         name="llama-3.3-70b",
         model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
@@ -121,6 +61,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
+            "enable_thinking": False
         },
     ),
     "qwen-2.5-72b": ModelConfig(
@@ -131,6 +72,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
+            "enable_thinking": False
         },
     ),
     "qwen-3.5-27b": ModelConfig(
@@ -141,16 +83,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-        },
-    ),
-    "glm-4.5-110b": ModelConfig(
-        name="glm-4.5-110b",
-        model_id="cyankiwi/GLM-4.5-Air-AWQ-4bit",
-        sampling_params={
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 20,
-            "max_tokens": 8192,
+            "enable_thinking": False
         },
     ),
     "gpt-oss-120b": ModelConfig(
@@ -161,56 +94,27 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
+            "enable_thinking": False
         },
     ),
     # --- Frontier models (api_base set; runners skip --api-base and vLLM extra_body) ---
-    "gpt-4o-mini": ModelConfig(
-        name="gpt-4o-mini",
-        model_id="gpt-4o-mini",
-        api_base="https://api.openai.com/v1",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
-    "gpt-4.1-mini": ModelConfig(
-        name="gpt-4.1-mini",
-        model_id="gpt-4.1-mini",
-        api_base="https://api.openai.com/v1",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
     "gpt-5-mini": ModelConfig(
         name="gpt-5-mini",
         model_id="gpt-5-mini",
         api_base="https://api.openai.com/v1",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
-    "gpt-4o": ModelConfig(
-        name="gpt-4o",
-        model_id="gpt-4o",
-        api_base="https://api.openai.com/v1",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
-    "gemini-2-flash-lite": ModelConfig(
-        name="gemini-2-flash-lite",
-        model_id="gemini-2.0-flash-lite",
-        api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
-    "gemini-2-flash": ModelConfig(
-        name="gemini-2-flash",
-        model_id="gemini-2.0-flash",
-        api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
+        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_completion_tokens": 8192},
     ),
     "gemini-3-flash-lite": ModelConfig(
         name="gemini-3-flash-lite",
-        model_id="gemini-3-flash-lite",
+        model_id="gemini-3.1-flash-lite-preview",
         api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
+        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_output_tokens": 8192},
     ),
-    "gemini-1.5-flash": ModelConfig(
-        name="gemini-1.5-flash",
-        model_id="gemini-1.5-flash",
+    "gemini-3-flash": ModelConfig(
+        name="gemini-3-flash",
+        model_id="gemini-3-flash-preview",
         api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
+        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_output_tokens": 8192},
     ),
 }
 

@@ -64,6 +64,40 @@ random.seed(342)
 FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
 
 # ---------------------------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------------------------
+
+
+def _analyze_batch_errors(batch_id: str, client: Any) -> None:
+    """Retrieve and analyze errors from a failed batch."""
+    try:
+        batch = client.batches.retrieve(batch_id)
+        print(f"\n  Batch status details:")
+        print(f"    Status: {batch.status}")
+        print(f"    Total: {batch.request_counts.total}")
+        print(f"    Completed: {batch.request_counts.completed}")
+        print(f"    Failed: {batch.request_counts.failed}")
+        
+        if batch.errors_file_id:
+            err_content = client.files.content(batch.errors_file_id)
+            errors = err_content.text.splitlines()
+            print(f"    Error file has {len(errors)} entries")
+            print(f"    First few errors:")
+            for i, line in enumerate(errors[:5]):
+                if line.strip():
+                    try:
+                        err = json.loads(line)
+                        if isinstance(err, dict):
+                            print(f"      - custom_id: {err.get('custom_id')}")
+                            print(f"        error: {err.get('error')}")
+                        else:
+                            print(f"      - {err}")
+                    except json.JSONDecodeError:
+                        print(f"      - {line[:120]}")
+    except Exception as e:
+        print(f"    Could not retrieve batch details: {e}")
+
+# ---------------------------------------------------------------------------
 # Config / path helpers
 # ---------------------------------------------------------------------------
 
@@ -201,6 +235,20 @@ def run_frontier_judge(
         from openai import OpenAI
         client = OpenAI()
         requests = openai_batch.build_requests(chat_entries, frontier_model)
+        
+        # Validate first request before submitting (helps catch format issues early)
+        if requests:
+            sample_req = requests[0]
+            print(f"Sample request (first of {len(requests)}):")
+            print(f"  custom_id: {sample_req.get('custom_id')}")
+            print(f"  model: {sample_req.get('body', {}).get('model')}")
+            msg_count = len(sample_req.get('body', {}).get('messages', []))
+            print(f"  messages: {msg_count}")
+            if msg_count > 0:
+                first_msg = sample_req.get('body', {}).get('messages', [])[0]
+                content_preview = str(first_msg.get('content', ''))[:80]
+                print(f"  first message content: {content_preview}...")
+        
         batch_ids = openai_batch.submit_batch(requests, client=client)
         state["batch_ids"] = batch_ids
 
@@ -230,8 +278,42 @@ def run_frontier_judge(
     # Poll then fetch results
     if provider == "openai":
         from openai import OpenAI
-        openai_batch.poll_batch(state["batch_ids"], client=OpenAI(), interval=interval)
-        results = openai_batch.fetch_results(state["batch_ids"], client=OpenAI(), model=frontier_model)
+        client = OpenAI()
+        openai_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
+        try:
+            results = openai_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
+        except RuntimeError as e:
+            # Handle batches that failed completely (no output file)
+            if "has no output file" in str(e):
+                print(f"⚠ {e}")
+                print("This typically means all requests in the batch failed.")
+                print("Checking for error details and attempting partial recovery...")
+                
+                # Try to get error details from the batch
+                for batch_id in state["batch_ids"]:
+                    _analyze_batch_errors(batch_id, client)
+                
+                # Try to fetch results from individual batches
+                results = {}
+                for batch_id in state["batch_ids"]:
+                    try:
+                        batch_result = openai_batch.fetch_results([batch_id], client=client, model=frontier_model)
+                        results.update(batch_result)
+                    except RuntimeError:
+                        continue
+                
+                if not results:
+                    raise RuntimeError(
+                        "All batches failed completely. Common causes:\n"
+                        "  1. Invalid model name or model not accessible\n"
+                        "  2. Account rate limits or quota exceeded\n"
+                        "  3. Batch API specific quota limits\n"
+                        "  4. Invalid characters in request IDs or content\n"
+                        "  5. Deprecated or unsupported parameters\n"
+                        "Please check the error details above and verify your account status."
+                    ) from e
+            else:
+                raise
 
     elif provider == "anthropic":
         import anthropic
@@ -361,7 +443,34 @@ def _process(
 
     if provider == "openai":
         from openai import OpenAI
-        results = openai_batch.fetch_results(state["batch_ids"], client=OpenAI(), model=frontier_model)
+        client = OpenAI()
+        try:
+            results = openai_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
+        except RuntimeError as e:
+            # Handle batches that failed completely (no output file)
+            if "has no output file" in str(e):
+                print(f"⚠ {e}")
+                print("Checking for error details...")
+                for batch_id in state["batch_ids"]:
+                    try:
+                        batch = client.batches.retrieve(batch_id)
+                        if batch.errors_file_id:
+                            err_content = client.files.content(batch.errors_file_id)
+                            print(f"\n  Batch {batch_id} errors (first few):")
+                            for i, line in enumerate(err_content.text.splitlines()[:3]):
+                                if line.strip():
+                                    try:
+                                        err = json.loads(line)
+                                        print(f"    {err}")
+                                    except:
+                                        print(f"    {line[:100]}")
+                                if i >= 2:
+                                    break
+                    except Exception:
+                        pass
+                raise
+            else:
+                raise
     elif provider == "anthropic":
         import anthropic
         results = anthropic_batch.fetch_results(

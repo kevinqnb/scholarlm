@@ -120,7 +120,7 @@ def build_requests(
     chat_entries: list[dict[str, Any]],
     model: str,
     *,
-    max_completion_tokens: int = 5,
+    max_completion_tokens: int = 100,
     temperature: float = 0.0,
 ) -> list[dict]:
     """Convert chat entries to OpenAI batch JSONL records."""

@@ -131,14 +131,18 @@ class MeasurementLM:
         use_extra_body: bool = True,
     ):
         self.model_name = model_name
-        self.sampling_params = {
-            "temperature" : 0.90,
-            "top_p" : 0.95,
-            "top_k" : 64,
-            "repetition_penalty" : 1.0,
-            "max_tokens" : 2048,
-            "enable_thinking": False
-        } | sampling_params
+        if sampling_params is None:
+            self.sampling_params = {
+                "temperature" : 0.90,
+                "top_p" : 0.95,
+                "top_k" : 64,
+                "repetition_penalty" : 1.0,
+                "max_tokens" : 2048,
+                "enable_thinking": False
+            }
+        else:
+            self.sampling_params = sampling_params
+            
         self.entity_identification_prompt = entity_identification_prompt
         self.entity_identification_schema = entity_identification_schema
         self.attribute_info_dict = attribute_info_dict
