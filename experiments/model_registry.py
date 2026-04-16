@@ -102,7 +102,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         name="gpt-5-mini",
         model_id="gpt-5-mini",
         api_base="https://api.openai.com/v1",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_completion_tokens": 8192},
+        sampling_params={"max_completion_tokens": 8192},
     ),
     "gemini-3-flash-lite": ModelConfig(
         name="gemini-3-flash-lite",

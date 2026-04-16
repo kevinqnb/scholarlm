@@ -49,6 +49,7 @@ import asyncio
 import importlib.util
 import json
 import os
+import random
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -144,34 +145,48 @@ def _find_extraction_final(
 # ---------------------------------------------------------------------------
 
 
+_MAX_RETRIES = 8
+
+
 async def _judge_openai(
     entries: list[dict],
     model: str,
     max_tokens: int,
-    temperature: float,
+    temperature: float | None,
     sem: asyncio.Semaphore,
     counter: list[int],
     total: int,
 ) -> list[tuple[str, dict]]:
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI()
+    import openai
+    client = openai.AsyncOpenAI()
 
     async def _call(entry: dict) -> tuple[str, dict]:
-        async with sem:
+        raw = ""
+        for attempt in range(_MAX_RETRIES + 1):
             try:
-                resp = await client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": entry["system"]},
-                        {"role": "user", "content": entry["user"]},
-                    ],
-                    max_completion_tokens=max_tokens,
-                    temperature=temperature,
-                )
+                async with sem:
+                    call_kwargs: dict[str, Any] = {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": entry["system"]},
+                            {"role": "user", "content": entry["user"]},
+                        ],
+                        "max_completion_tokens": max_tokens,
+                    }
+                    if temperature is not None:
+                        call_kwargs["temperature"] = temperature
+                    resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                break
+            except openai.RateLimitError:
+                if attempt < _MAX_RETRIES:
+                    delay = min(60.0, (2.0 ** attempt) * (0.5 + random.random()))
+                    await asyncio.sleep(delay)
+                else:
+                    print(f"  [openai] request {entry['custom_id']} exhausted retries (rate limit).")
             except Exception as e:
                 print(f"  [openai] request {entry['custom_id']} failed: {e}")
-                raw = ""
+                break
         counter[0] += 1
         if counter[0] % 50 == 0 or counter[0] == total:
             print(f"  {counter[0]}/{total} complete", flush=True)
@@ -190,7 +205,7 @@ async def _judge_anthropic(
     entries: list[dict],
     model: str,
     max_tokens: int,
-    temperature: float,
+    temperature: float | None,
     sem: asyncio.Semaphore,
     counter: list[int],
     total: int,
@@ -199,42 +214,53 @@ async def _judge_anthropic(
     client = anthropic.AsyncAnthropic()
 
     async def _call(entry: dict) -> tuple[str, dict]:
-        async with sem:
+        raw = ""
+        for attempt in range(_MAX_RETRIES + 1):
             try:
-                resp = await client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    system=[
-                        {
-                            "type": "text",
-                            "text": entry["system"],
-                            "cache_control": {"type": "ephemeral"},
-                        }
-                    ],
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "text",
-                                    "text": entry["user_document"],
-                                    "cache_control": {"type": "ephemeral"},
-                                },
-                                {
-                                    "type": "text",
-                                    "text": f"## QUERY:\n{entry['user_query']}",
-                                },
-                            ],
-                        }
-                    ],
-                )
+                async with sem:
+                    call_kwargs: dict[str, Any] = dict(
+                        model=model,
+                        max_tokens=max_tokens,
+                        system=[
+                            {
+                                "type": "text",
+                                "text": entry["system"],
+                                "cache_control": {"type": "ephemeral"},
+                            }
+                        ],
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": entry["user_document"],
+                                        "cache_control": {"type": "ephemeral"},
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"## QUERY:\n{entry['user_query']}",
+                                    },
+                                ],
+                            }
+                        ],
+                    )
+                    if temperature is not None:
+                        call_kwargs["temperature"] = temperature
+                    resp = await client.messages.create(**call_kwargs)
                 raw = "".join(
                     block.text for block in (resp.content or []) if hasattr(block, "text")
                 ).strip()
+                break
+            except anthropic.RateLimitError:
+                if attempt < _MAX_RETRIES:
+                    delay = min(60.0, (2.0 ** attempt) * (0.5 + random.random()))
+                    await asyncio.sleep(delay)
+                else:
+                    print(f"  [anthropic] request {entry['custom_id']} exhausted retries (rate limit).")
             except Exception as e:
                 print(f"  [anthropic] request {entry['custom_id']} failed: {e}")
-                raw = ""
+                break
         counter[0] += 1
         if counter[0] % 50 == 0 or counter[0] == total:
             print(f"  {counter[0]}/{total} complete", flush=True)
@@ -253,36 +279,47 @@ async def _judge_gemini(
     entries: list[dict],
     model: str,
     max_tokens: int,
-    temperature: float,
+    temperature: float | None,
     sem: asyncio.Semaphore,
     counter: list[int],
     total: int,
 ) -> list[tuple[str, dict]]:
-    from openai import AsyncOpenAI
+    import openai
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
         raise ValueError("GEMINI_API_KEY environment variable is required for --judge gemini.")
-    client = AsyncOpenAI(
+    client = openai.AsyncOpenAI(
         api_key=api_key,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     )
 
     async def _call(entry: dict) -> tuple[str, dict]:
-        async with sem:
+        raw = ""
+        for attempt in range(_MAX_RETRIES + 1):
             try:
-                resp = await client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": entry["system"]},
-                        {"role": "user", "content": entry["user"]},
-                    ],
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                )
+                async with sem:
+                    call_kwargs = {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": entry["system"]},
+                            {"role": "user", "content": entry["user"]},
+                        ],
+                        "max_tokens": max_tokens,
+                    }
+                    if temperature is not None:
+                        call_kwargs["temperature"] = temperature
+                    resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                break
+            except openai.RateLimitError:
+                if attempt < _MAX_RETRIES:
+                    delay = min(60.0, (2.0 ** attempt) * (0.5 + random.random()))
+                    await asyncio.sleep(delay)
+                else:
+                    print(f"  [gemini] request {entry['custom_id']} exhausted retries (rate limit).")
             except Exception as e:
                 print(f"  [gemini] request {entry['custom_id']} failed: {e}")
-                raw = ""
+                break
         counter[0] += 1
         if counter[0] % 50 == 0 or counter[0] == total:
             print(f"  {counter[0]}/{total} complete", flush=True)
@@ -336,7 +373,7 @@ def run_frontier_judge_v2(
     ocr_dir: str | None = None,
     max_concurrent: int = 32,
     max_tokens: int = 5,
-    temperature: float = 0.0,
+    temperature: float | None = None,
     ablation: str | None = None,
 ) -> None:
     """Run the frontier judge using direct async API calls and save responses.json."""
@@ -410,8 +447,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Max tokens per judge response (default: 5; judge outputs 'true'/'false').",
     )
     p.add_argument(
-        "--temperature", type=float, default=0.0,
-        help="Sampling temperature (default: 0.0).",
+        "--temperature", type=float, default=None,
+        help="Sampling temperature. If omitted, the provider default is used (recommended for models that restrict this parameter, e.g. gpt-5-mini).",
     )
     return p
 

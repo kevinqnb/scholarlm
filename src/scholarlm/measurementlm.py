@@ -174,13 +174,19 @@ class MeasurementLM:
         _TOKEN_KEYS = ("max_completion_tokens", "max_tokens")
         token_param = next((k for k in _TOKEN_KEYS if k in self.sampling_params), "max_tokens")
         token_value = max_tokens if max_tokens is not None else self.sampling_params.get(token_param, 2048)
-        kwargs = {
+        # Some frontier models (e.g. gpt-5-mini) reject temperature/top_p entirely.
+        # Only include them when explicitly provided or present in sampling_params.
+        effective_temp = temperature if temperature is not None else self.sampling_params.get("temperature")
+        effective_top_p = self.sampling_params.get("top_p")
+        kwargs: dict = {
             "model": self.model_name,
             "messages": messages,
-            "temperature": temperature if temperature is not None else self.sampling_params.get("temperature", 0.9),
-            "top_p": self.sampling_params.get("top_p", 0.95),
             token_param: token_value,
         }
+        if effective_temp is not None:
+            kwargs["temperature"] = effective_temp
+        if effective_top_p is not None:
+            kwargs["top_p"] = effective_top_p
         if response_format is not None:
             kwargs["response_format"] = response_format
         if self.use_extra_body:
