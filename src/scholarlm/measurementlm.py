@@ -168,12 +168,18 @@ class MeasurementLM:
         max_tokens: int | None = None,
     ) -> str:
         """Single async API call to the vLLM OpenAI-compatible endpoint."""
+        # Frontier models may require 'max_completion_tokens' (OpenAI o-series / gpt-5+)
+        # instead of 'max_tokens'. Detect the right key from sampling_params so the
+        # caller's explicit max_tokens value is forwarded under the correct parameter name.
+        _TOKEN_KEYS = ("max_completion_tokens", "max_tokens")
+        token_param = next((k for k in _TOKEN_KEYS if k in self.sampling_params), "max_tokens")
+        token_value = max_tokens if max_tokens is not None else self.sampling_params.get(token_param, 2048)
         kwargs = {
             "model": self.model_name,
             "messages": messages,
             "temperature": temperature if temperature is not None else self.sampling_params.get("temperature", 0.9),
             "top_p": self.sampling_params.get("top_p", 0.95),
-            "max_tokens": max_tokens if max_tokens is not None else self.sampling_params.get("max_tokens", 2048),
+            token_param: token_value,
         }
         if response_format is not None:
             kwargs["response_format"] = response_format

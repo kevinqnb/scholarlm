@@ -279,7 +279,16 @@ def run_frontier_judge(
     if provider == "openai":
         from openai import OpenAI
         client = OpenAI()
-        openai_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
+        try:
+            openai_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
+        except RuntimeError as e:
+            # Batch ended in a non-completed terminal state (failed/expired/cancelled).
+            # Dump per-request error details before re-raising so the cause is visible.
+            print(f"⚠ Batch ended with error: {e}")
+            print("Fetching per-request error details...")
+            for batch_id in state["batch_ids"]:
+                _analyze_batch_errors(batch_id, client)
+            raise
         try:
             results = openai_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
         except RuntimeError as e:
@@ -288,11 +297,11 @@ def run_frontier_judge(
                 print(f"⚠ {e}")
                 print("This typically means all requests in the batch failed.")
                 print("Checking for error details and attempting partial recovery...")
-                
+
                 # Try to get error details from the batch
                 for batch_id in state["batch_ids"]:
                     _analyze_batch_errors(batch_id, client)
-                
+
                 # Try to fetch results from individual batches
                 results = {}
                 for batch_id in state["batch_ids"]:
@@ -301,7 +310,7 @@ def run_frontier_judge(
                         results.update(batch_result)
                     except RuntimeError:
                         continue
-                
+
                 if not results:
                     raise RuntimeError(
                         "All batches failed completely. Common causes:\n"

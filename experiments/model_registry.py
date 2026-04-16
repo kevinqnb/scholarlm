@@ -108,13 +108,13 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         name="gemini-3-flash-lite",
         model_id="gemini-3.1-flash-lite-preview",
         api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_output_tokens": 8192},
+        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
     ),
     "gemini-3-flash": ModelConfig(
         name="gemini-3-flash",
         model_id="gemini-3-flash-preview",
         api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_output_tokens": 8192},
+        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
     ),
 }
 
