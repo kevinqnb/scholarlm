@@ -189,9 +189,9 @@ def run_interp_judge(
     chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
-    # instructions = system prompt, context = full document, query = ## QUERY content.
+    # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
     messages: list[tuple[str, str, str]] = [
-        (entry["system"], documents[entry["document_id"]], entry["user_query"])
+        (entry["system"], entry["page_text"], entry["user_query"])
         for entry in chat_entries
     ]
 

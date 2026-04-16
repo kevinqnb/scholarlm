@@ -306,6 +306,210 @@ Guidelines:
 # --------------------------------------------
 
 
+# Unified judge prompt — works for both prose text and table sources.
+# The page context is limited to the page(s) where the value was reported.
+JUDGE_INSTRUCTIONS_UNIFIED = """You are an expert in data extraction for systematic scientific literature reviews.
+
+You will be given:
+1) One or more pages from a research paper (in ## CONTEXT) — the specific page(s) where the value was reported.
+2) In ## QUERY: a description of the extracted entity instance and its type, the target attribute description and terminology, the source location where the value was reported (a specific table or prose text), and the extracted value with its units.
+
+Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified attribute and entity.
+
+Respond 'true' ONLY if ALL of the following hold:
+
+(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or abbreviations fields in the extracted entity description.        
+
+(B) The value is present within the context. It appears explicitly in the specified table, or in the prose text if no table is cited. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
+
+(C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity, not to a different site, condition, subgroup, or an aggregate that includes other entities.
+
+(D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
+
+(E) The value is a directly reported quantity. It is a raw measurement or descriptive summary statistic (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
+
+(F) The units are correct. The units match those reported in the document for that value. Accept only trivial notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
+
+Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous. Prefer 'false' when uncertain — the goal is high precision.
+
+Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
+"""
+
+
+_JUDGE_INSTRUCTIONS_UNIFIED_EXAMPLES = """
+---
+
+Document context (for examples):
+'''
+<page number="1">
+Ten-liter water samples were collected in October 2016, November 2016, and December 2016 from a temperate freshwater agricultural pond in central Maryland, United States (maximum depth of ca. 3.35 meters and a surface area of ca. 0.26 ha). A ProDSS digital sampling system was used to measure, in triplicate: the water temperature (°C), conductivity (SPC uS/cm), pH, dissolved oxygen (%), and turbidity (FNU).
+
+<table number="1">
+  <tr>
+    <th>Water property</th>
+    <th>October</th>
+    <th>November</th>
+    <th>December</th>
+  </tr>
+  <tr>
+    <td>Ambient temp. (C)</td>
+    <td>17.2</td>
+    <td>12.2</td>
+    <td>3.9</td>
+  </tr>
+  <tr>
+    <td>Water temp. (C)</td>
+    <td>19.8</td>
+    <td>10.9</td>
+    <td>7.4</td>
+  </tr>
+  <tr>
+    <td>PH</td>
+    <td>7.7</td>
+    <td>7.56</td>
+    <td>8.08</td>
+  </tr>
+  <tr>
+    <td>Dissolved oxygen (%)</td>
+    <td>116.4</td>
+    <td>96.4</td>
+    <td>117.7</td>
+  </tr>
+  <tr>
+    <td>Nitrate (mg/L)</td>
+    <td>0.63</td>
+    <td>0.26</td>
+    <td>0.19</td>
+  </tr>
+  <tr>
+    <td>Chloride (mg/L)</td>
+    <td>13.8</td>
+    <td>13.3</td>
+    <td>7.9</td>
+  </tr>
+  <tr>
+    <td>Turbidity (FNU)</td>
+    <td>30.2</td>
+    <td>9.6</td>
+    <td>3.4</td>
+  </tr>
+  <tr>
+    <td>Precipitation<sup>†</sup> (in.)</td>
+    <td>0</td>
+    <td>0</td>
+    <td>0.2</td>
+  </tr>
+  <tr>
+    <td>Conductivity (SPC uS/cm)</td>
+    <td>158.9</td>
+    <td>160.8</td>
+    <td>167.1</td>
+  </tr>
+  <tr>
+    <td>Oxidation/reduction (mV)</td>
+    <td>189.7</td>
+    <td>159.8</td>
+    <td>243.9</td>
+  </tr>
+</table>
+</page>
+'''
+
+---
+
+Example 1 — CORRECT prose extraction with event (all criteria satisfied):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary. This is NOT the same as watershed area, drainage basin area, catchment area, or littoral zone area.
+Attribute terminology: ['surface area', 'area']
+
+Source: prose text
+
+Extracted value: 0.26
+Extracted units: ha
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: true
+
+Explanation: The page context describes "a temperate freshwater agricultural pond in central Maryland, United States" with "a surface area of ca. 0.26 ha." The entity is valid. Surface area is a fixed physical property of the pond, so it is consistent with the October 2016 event (the event does not contradict the value). The value 0.26 appears in the prose and is directly reported as the surface area in hectares. All criteria satisfied.
+
+---
+
+Example 2 — INCORRECT prose extraction (invalid entity):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Lake Merhei', 'location': 'central Maryland, United States', 'ecosystem': 'lake'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary.
+Attribute terminology: ['surface area', 'area']
+
+Source: prose text
+
+Extracted value: 0.26
+Extracted units: ha
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: false
+
+Explanation: The page context describes an agricultural pond in central Maryland but makes no mention of any water body called "Lake Merhei". Criterion A is not satisfied.
+
+---
+
+Example 3 — CORRECT table extraction with event (all criteria satisfied):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'November 2016', 'additional_details': None}
+
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ['pH', 'ph']
+
+Source: Table 1
+
+Extracted value: 7.56
+Extracted units: not reported
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: true
+
+Explanation: The entity (agricultural pond in central Maryland) is valid. Table 1 contains water quality parameters for this pond across three sampling months. The November 2016 row gives ph = 7.56. The value 7.56 is directly reported in the table for the correct entity and attribute at the November 2016 event. pH is dimensionless, so "not reported" is correct. All criteria satisfied.
+
+---
+
+Example 4 — INCORRECT table extraction (value belongs to a different attribute):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ['pH', 'ph']
+
+Source: Table 1
+
+Extracted value: 19.8
+Extracted units: °C
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: false
+
+Explanation: In Table 1, the value 19.8 °C for October 2016 corresponds to water temperature, not pH. The correct pH value for October 2016 is 7.8 (dimensionless). Criterion E is not satisfied.
+
+"""  # _JUDGE_INSTRUCTIONS_UNIFIED_EXAMPLES (unused — kept for reference)
+
+
 # Validate extracted measurement value (text source)
 JUDGE_INSTRUCTIONS_TEXT = """You are an expert in data extraction for systematic scientific literature reviews.
 

@@ -18,16 +18,53 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 
 from scholarlm.config import DatasetConfig
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_TABLE, JUDGE_INSTRUCTIONS_TEXT
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_UNIFIED
 from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
+
+
+# ─── Page extraction ──────────────────────────────────────────────────────────
+
+_PAGE_BLOCK_RE = re.compile(r'<page number="(\d+)">.*?</page>', re.DOTALL)
+
+
+def _extract_page_text(document: str, page_numbers: list[int]) -> str:
+    """Extract specific pages from an OCR document.
+
+    OCR documents use ``<page number="N">...</page>`` blocks.  This returns the
+    blocks for the requested page numbers concatenated with a blank line between
+    them, preserving the original ``<page number="N">`` tags so the judge can
+    still orient itself within the document.
+
+    Falls back to the full document string if no ``<page number>`` tags are found
+    or if none of the requested pages exist.
+
+    Args:
+        document: Full raw OCR document text.
+        page_numbers: Page numbers to extract (0-based integer, matching
+            ``page_number`` values stored in ``final.json``).
+
+    Returns:
+        Concatenated text of the requested page blocks, or the full document
+        as a fallback.
+    """
+    if not page_numbers:
+        return document
+    target = {pn for pn in page_numbers if pn is not None}
+    if not target:
+        return document
+
+    parts = [m.group(0) for m in _PAGE_BLOCK_RE.finditer(document)
+             if int(m.group(1)) in target]
+    return "\n\n".join(parts) if parts else document
 
 
 # ─── Prompt builder ───────────────────────────────────────────────────────────
@@ -40,87 +77,90 @@ def build_judge_query(
     attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
-    page_number: int | None,
-    table_number: int | None,
-    measurement_val: Any = None,
-    row_index: Any = None,
-    column_index: Any = None,
+    table_numbers: list[int | None],
+    measurement_val: Any,
     units: Any = None,
 ) -> str:
-    """Build the ## QUERY content without the document prefix.
+    """Build the ## QUERY content for the unified judge prompt.
 
     Returns the joined sections string that appears after ``## QUERY:`` in the
     full prompt.  Both ``build_user_prompt`` and the interpretability judge
-    runner (which passes document and query separately to JudgementLM) call
-    this function so the query content is identical across all judge runners.
+    runner call this function so the query content is identical across all
+    judge runners.
+
+    Measurement event fields, when present in the dataset, are folded into
+    ``entity_description`` by ``prepare_chat_entries`` before this function is
+    called, so the query structure is always the same regardless of whether the
+    dataset has an event schema.
+
+    Args:
+        source: ``"table"`` or ``"text"`` (scalar, already unwrapped from list).
+        attribute_description: Full attribute description string.
+        attribute_terms: List of terminology strings for the attribute.
+        entity_type_description: One-sentence entity type description.
+        entity_description: Dict of entity field values (may include event
+            fields merged in by ``prepare_chat_entries``).
+        table_numbers: List of table numbers (may contain ``None``).  Unique
+            non-``None`` values are shown when ``source == "table"``.
+        measurement_val: The extracted scalar value.
+        units: Extracted units string, or ``None`` if not reported.
+
+    Returns:
+        Multi-section query string ready to follow ``## QUERY:\\n``.
     """
     units_str = units if units is not None else "not reported"
 
+    entity_display = {k: v for k, v in entity_description.items() if v is not None}
     entity_section = (
         f"Target entity type: {entity_type_description}\n"
-        f"Extracted entity: {entity_description}"
+        f"Extracted entity: {entity_display}"
     )
+
     attribute_section = (
         f"Target attribute: {attribute_description}\n"
         f"Attribute terminology: {attribute_terms}"
     )
 
-    location_parts = []
-    if page_number is not None:
-        location_parts.append(f"Page number: {page_number}")
-    if source == "table" and table_number is not None:
-        location_parts.append(f"Table number: {table_number}")
-    location_section = "\n".join(location_parts)
-
+    # Source location — table number(s) if applicable, otherwise prose text.
     if source == "table":
-        value_section = (
-            f"Extracted row index: {row_index}\n"
-            f"Extracted column index: {column_index}\n"
-            f"Extracted units: {units_str}"
-        )
-        closing = (
-            "Is the extracted (entity, attribute, row index, column index) tuple fully valid — "
-            "meaning the entity is correctly identified and together the row index and column index "
-            "correctly locate the value for that (entity, target attribute) pair in the specified table?"
-        )
+        unique_tables = sorted({tn for tn in table_numbers if tn is not None})
+        if unique_tables:
+            table_str = ", ".join(f"Table {tn}" for tn in unique_tables)
+            source_section = f"Source: {table_str}"
+        else:
+            source_section = "Source: table"
     else:
-        value_section = (
-            f"Extracted value: {measurement_val}\n"
-            f"Extracted units: {units_str}"
-        )
-        closing = (
-            "Is the extracted (entity, attribute, value) triplet fully valid — "
-            "meaning the entity is correctly identified and the extracted value "
-            "correctly corresponds to the target attribute for that entity, as evidenced by the document?"
-        )
+        source_section = "Source: prose text"
 
-    sections = [entity_section, attribute_section]
-    if location_section:
-        sections.append(location_section)
-    sections.append(value_section)
-    sections.append(closing)
+    value_section = (
+        f"Extracted value: {measurement_val}\n"
+        f"Extracted units: {units_str}"
+    )
 
-    return "\n\n".join(sections)
+    closing = "Is this extraction correct? (true/false)"
+
+    return "\n\n".join([
+        entity_section, attribute_section, source_section, value_section, closing
+    ])
 
 
 def build_user_prompt(
     *,
-    document: str,
+    page_text: str,
     source: str,
     attribute_description: str,
     attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
-    page_number: int | None,
-    table_number: int | None,
-    measurement_val: Any = None,
-    row_index: Any = None,
-    column_index: Any = None,
+    table_numbers: list[int | None],
+    measurement_val: Any,
     units: Any = None,
 ) -> str:
-    """Build the full user prompt string (## CONTEXT prefix + ## QUERY content).
+    """Build the full user prompt string (## CONTEXT page text + ## QUERY content).
 
     Identical across all chat-API providers (OpenAI, Anthropic, Gemini, vLLM).
+    ``page_text`` should be only the page(s) where the value was reported, not
+    the full document.
     """
     query = build_judge_query(
         source=source,
@@ -128,14 +168,11 @@ def build_user_prompt(
         attribute_terms=attribute_terms,
         entity_type_description=entity_type_description,
         entity_description=entity_description,
-        page_number=page_number,
-        table_number=table_number,
+        table_numbers=table_numbers,
         measurement_val=measurement_val,
-        row_index=row_index,
-        column_index=column_index,
         units=units,
     )
-    return f"## CONTEXT:\n{document}\n\n## QUERY:\n{query}"
+    return f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
 
 
 # ─── Data preparation ─────────────────────────────────────────────────────────
@@ -150,17 +187,24 @@ def prepare_chat_entries(
 
     Entries are sorted by document_id for cache locality. Each entry contains:
         custom_id     – str(original index in data), used to map results back
-        document_id   – int index into documents list (for the interp judge runner)
-        system        – system prompt string (JUDGE_INSTRUCTIONS_TEXT or _TABLE)
-        user          – full user prompt string (## CONTEXT + ## QUERY)
+        document_id   – int index into documents list
+        system        – system prompt string (JUDGE_INSTRUCTIONS_UNIFIED)
+        user          – full user prompt string (## CONTEXT page text + ## QUERY)
         user_query    – the ## QUERY content only (for JudgementLM interp runner)
         user_document – ## CONTEXT prefix only (used for Anthropic prompt caching)
+        page_text     – extracted page(s) text (for JudgementLM interp runner)
+
+    Provenance fields (``source``, ``page_number``, ``table_number``) are stored
+    as lists in ``final.json`` because deduplication merges multiple source
+    occurrences.  This function unwraps them to the appropriate scalar or list
+    types before building prompts.
 
     Args:
         data: List of extraction records from a ``final.json`` file.
-        documents: List of OCR text strings indexed by ``document_id``.
+        documents: List of raw OCR text strings indexed by ``document_id``.
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
-            attribute catalogue, and entity type description.
+            attribute catalogue, entity type description, and optional
+            measurement event schema.
 
     Returns:
         List of chat entry dicts ready for any provider batch module or the
@@ -169,6 +213,11 @@ def prepare_chat_entries(
     _fields = dataset_config.entity_schema.model_fields.keys()
     _attr_dict = dataset_config.attribute_info_dict
     _entity_type_desc = dataset_config.entity_type_description
+    _event_fields = (
+        set(dataset_config.measurement_event_schema.model_fields.keys())
+        if dataset_config.measurement_event_schema is not None
+        else set()
+    )
 
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
@@ -185,21 +234,38 @@ def prepare_chat_entries(
             continue
 
         attribute_terms = entry.get("attribute_terms", [])
-        entity_description = {k: v for k, v in entry.items() if k in _fields}
-        page_number = entry.get("page_number")
-        table_number = entry.get("table_number")
-        source = entry.get("source", "text")
+        # Fold event fields into the entity description so the query structure
+        # is always identical regardless of whether the dataset has an event schema.
+        entity_description = {
+            k: v for k, v in entry.items() if k in _fields or k in _event_fields
+        }
         units = entry.get("units")
+        measurement_val = entry.get("value")
 
-        if source == "table":
-            system = JUDGE_INSTRUCTIONS_TABLE
-            row_index = entry.get("row_index")
-            column_index = entry.get("column_index")
-            measurement_val = None
-        else:
-            system = JUDGE_INSTRUCTIONS_TEXT
-            measurement_val = entry["value"]
-            row_index = column_index = None
+        # Provenance fields are stored as lists in final.json.
+        # source: take the first element as the effective source type.
+        source_raw = entry.get("source", "text")
+        source = source_raw[0] if isinstance(source_raw, list) else source_raw
+
+        # page_number / table_number: keep all unique non-None values for
+        # page extraction and table identification.
+        pn_raw = entry.get("page_number")
+        page_numbers: list[int] = (
+            [pn for pn in pn_raw if pn is not None]
+            if isinstance(pn_raw, list)
+            else ([pn_raw] if pn_raw is not None else [])
+        )
+        tn_raw = entry.get("table_number")
+        table_numbers: list[int | None] = (
+            [tn for tn in tn_raw if tn is not None]
+            if isinstance(tn_raw, list)
+            else ([tn_raw] if tn_raw is not None else [])
+        )
+
+        # Extract only the relevant page(s) from the raw OCR document.
+        page_text = _extract_page_text(document, page_numbers)
+
+        system = JUDGE_INSTRUCTIONS_UNIFIED
 
         query = build_judge_query(
             source=source,
@@ -207,18 +273,15 @@ def prepare_chat_entries(
             attribute_terms=attribute_terms,
             entity_type_description=_entity_type_desc,
             entity_description=entity_description,
-            page_number=page_number,
-            table_number=table_number,
+            table_numbers=table_numbers,
             measurement_val=measurement_val,
-            row_index=row_index,
-            column_index=column_index,
             units=units,
         )
 
-        user = f"## CONTEXT:\n{document}\n\n## QUERY:\n{query}"
-        # Cached prefix for Anthropic — the document text shared across many
-        # requests for the same paper.  OpenAI and Gemini ignore this field.
-        user_document = f"## CONTEXT:\n{document}\n\n"
+        user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+        # Cached prefix for Anthropic — the page text shared across requests
+        # for the same source page.  OpenAI and Gemini ignore this field.
+        user_document = f"## CONTEXT:\n{page_text}\n\n"
 
         entries.append({
             "custom_id": str(orig_idx),
@@ -227,6 +290,7 @@ def prepare_chat_entries(
             "user": user,
             "user_query": query,
             "user_document": user_document,
+            "page_text": page_text,
         })
 
     return entries
