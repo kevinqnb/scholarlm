@@ -121,6 +121,7 @@ def _discover_judge_keys(
         return []
     keys = []
     for judge_dir in sorted(base.iterdir()):
+        print(f"Checking for judge results in: {judge_dir}")
         if judge_dir.name == "combined":
             continue
         for date_dir in judge_dir.iterdir():
