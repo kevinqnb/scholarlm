@@ -49,7 +49,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 # Frontier provider keys — only these votes count toward ground truth
 # ---------------------------------------------------------------------------
 
-FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini", "gpt-oss-120b", "qwen-2.5-72b", "llama-3.3-70b"}
+FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"} #, "gpt-oss-120b", "qwen-2.5-72b", "llama-3.3-70b"}
 
 
 # ---------------------------------------------------------------------------

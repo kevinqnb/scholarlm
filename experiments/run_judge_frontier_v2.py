@@ -372,7 +372,7 @@ def run_frontier_judge_v2(
     extraction_date: str | None = None,
     ocr_dir: str | None = None,
     max_concurrent: int = 32,
-    max_tokens: int = 5,
+    max_tokens: int = 2048, 
     temperature: float | None = None,
     ablation: str | None = None,
 ) -> None:
@@ -443,8 +443,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum number of concurrent API calls (default: 32).",
     )
     p.add_argument(
-        "--max-tokens", type=int, default=5, metavar="N",
-        help="Max tokens per judge response (default: 5; judge outputs 'true'/'false').",
+        "--max-tokens", type=int, default=2048, metavar="N",
+        help="Max tokens per judge response (default: 2048).",
     )
     p.add_argument(
         "--temperature", type=float, default=None,
