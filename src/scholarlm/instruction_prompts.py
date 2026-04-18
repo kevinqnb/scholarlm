@@ -58,7 +58,7 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for sy
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears -- do not convert, round, or modify it.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
@@ -92,8 +92,25 @@ Guidelines:
 - For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
-- Your response should include the standardized value only, do not include any additional explanation or text.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
+- Provide a brief explanation of what standardization was applied (or why none was needed), then the standardized (or unchanged) value.
+- Structure your response as a JSON object with "explanation" and "value" fields.
+"""
+
+
+# --------------------------------------------
+# Measurement Event Resolution
+# --------------------------------------------
+
+MEASUREMENT_EVENT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a page of text from a research paper.
+
+Guidelines:
+- You will be provided with a single page of text from a research paper, a description of an entity, and a description of a measurement attribute.
+- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
+- For each distinct measurement event you identify, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the page. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
+- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
+- If the page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
+- Structure your response as a JSON object with an "items" list.
 """
 
 
@@ -147,7 +164,35 @@ Guidelines:
 """
 
 
-# Ablation 5: Full-document (entity, attribute) pair provenance with direct list response
+# Ablation 3: Direct table value extraction (no row/column indexing)
+EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to extract it directly.
+
+Guidelines:
+- If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
+- If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
+"""
+
+
+# Ablation 2: Full-context measurement event resolution
+MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a specified page of a research paper.
+
+Guidelines:
+- You will be provided with the full document text from a research paper, a description of an entity, a description of a measurement attribute, and a target page number.
+- Focus on the specified target page when identifying measurement events. The full document is provided for context only.
+- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
+- For each distinct measurement event you identify on the target page, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the target page or clearly referencing it. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
+- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
+- If the target page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
+- Structure your response as a JSON object with an "items" list.
+"""
+
+
+# Ablation 4: Generated entity-attribute provenance
 FULL_CONTEXT_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all locations in a full research paper document where a directly reported numerical measurement exists for a described entity and attribute.
 
 Guidelines:
@@ -163,20 +208,7 @@ Guidelines:
 """
 
 
-# Ablation 3: Direct table value extraction (no row/column indexing)
-EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to extract it directly.
-
-Guidelines:
-- If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
-- If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
-- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
-- Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
-"""
-
-# Ablation 9: No explanation prompts (for all of the above)
+# Ablation 5: No explanation prompts (for all of the above)
 DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to evaluate ALL of the listed attributes at once against context from a research paper, determining whether each attribute has any directly reported numerical measurements anywhere in the document.
 
 Guidelines:
@@ -225,14 +257,13 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data e
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears -- do not convert, round, or modify it.
+- Copy the value exactly as it appears — do not convert, round, or modify it.
 - Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
 - If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "has_value", "value", and "units" fields.
 """
 
-# Ablation 9: No Explanations
 EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
 
 You will be provided with:
@@ -251,19 +282,242 @@ Guidelines:
 """
 
 
+# Ablation 6: Direct extraction (no pipeline structure)
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of measurement records from a research paper document in a single pass. Each record captures an entity, the conditions of a specific measurement event, the attribute measured, and its value.
+
+Guidelines:
+- You will be provided with dataset-specific extraction instructions describing the entities to identify, the measurement event fields, and the target attributes, along with the full document text.
+- Identify all entities of the specified type present in the document, following the entity identification rules in the dataset-specific instructions.
+- For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
+- Return one item per (entity, measurement event, attribute) combination where a direct numerical measurement exists.
+- Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
+- Extract the value exactly as it appears in the document — do not convert, round, or modify it.
+- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
+- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Give the value only in the value field; do not include any units, descriptors, or explanation there.
+- For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
+"""
+
 
 # --------------------------------------------
 # LLM as Judge Prompts
 # --------------------------------------------
 
 
+# Unified judge prompt — works for both prose text and table sources.
+# The page context is limited to the page(s) where the value was reported.
+JUDGE_INSTRUCTIONS_UNIFIED = """You are an expert in data extraction for systematic scientific literature reviews.
+
+You will be given:
+1) One or more pages from a research paper (in ## CONTEXT) — the specific page(s) where the value was reported.
+2) In ## QUERY: a description of the extracted entity instance and its type, the target attribute description and terminology, the source location where the value was reported (a specific table or prose text), and the extracted value with its units.
+
+Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified attribute and entity.
+
+Respond 'true' ONLY if ALL of the following hold:
+
+(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or abbreviations fields in the extracted entity description.        
+
+(B) The value is present within the context. It appears explicitly in the specified table, or in the prose text if no table is cited. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
+
+(C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity, not to a different site, condition, subgroup, or an aggregate that includes other entities.
+
+(D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
+
+(E) The value is a directly reported quantity. It is a raw measurement or descriptive summary statistic (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
+
+(F) The units are correct. The units match those reported in the document for that value. Accept only trivial notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
+
+Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous. Prefer 'false' when uncertain — the goal is high precision.
+
+Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
+"""
+
+
+_JUDGE_INSTRUCTIONS_UNIFIED_EXAMPLES = """
+---
+
+Document context (for examples):
+'''
+<page number="1">
+Ten-liter water samples were collected in October 2016, November 2016, and December 2016 from a temperate freshwater agricultural pond in central Maryland, United States (maximum depth of ca. 3.35 meters and a surface area of ca. 0.26 ha). A ProDSS digital sampling system was used to measure, in triplicate: the water temperature (°C), conductivity (SPC uS/cm), pH, dissolved oxygen (%), and turbidity (FNU).
+
+<table number="1">
+  <tr>
+    <th>Water property</th>
+    <th>October</th>
+    <th>November</th>
+    <th>December</th>
+  </tr>
+  <tr>
+    <td>Ambient temp. (C)</td>
+    <td>17.2</td>
+    <td>12.2</td>
+    <td>3.9</td>
+  </tr>
+  <tr>
+    <td>Water temp. (C)</td>
+    <td>19.8</td>
+    <td>10.9</td>
+    <td>7.4</td>
+  </tr>
+  <tr>
+    <td>PH</td>
+    <td>7.7</td>
+    <td>7.56</td>
+    <td>8.08</td>
+  </tr>
+  <tr>
+    <td>Dissolved oxygen (%)</td>
+    <td>116.4</td>
+    <td>96.4</td>
+    <td>117.7</td>
+  </tr>
+  <tr>
+    <td>Nitrate (mg/L)</td>
+    <td>0.63</td>
+    <td>0.26</td>
+    <td>0.19</td>
+  </tr>
+  <tr>
+    <td>Chloride (mg/L)</td>
+    <td>13.8</td>
+    <td>13.3</td>
+    <td>7.9</td>
+  </tr>
+  <tr>
+    <td>Turbidity (FNU)</td>
+    <td>30.2</td>
+    <td>9.6</td>
+    <td>3.4</td>
+  </tr>
+  <tr>
+    <td>Precipitation<sup>†</sup> (in.)</td>
+    <td>0</td>
+    <td>0</td>
+    <td>0.2</td>
+  </tr>
+  <tr>
+    <td>Conductivity (SPC uS/cm)</td>
+    <td>158.9</td>
+    <td>160.8</td>
+    <td>167.1</td>
+  </tr>
+  <tr>
+    <td>Oxidation/reduction (mV)</td>
+    <td>189.7</td>
+    <td>159.8</td>
+    <td>243.9</td>
+  </tr>
+</table>
+</page>
+'''
+
+---
+
+Example 1 — CORRECT prose extraction with event (all criteria satisfied):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary. This is NOT the same as watershed area, drainage basin area, catchment area, or littoral zone area.
+Attribute terminology: ['surface area', 'area']
+
+Source: prose text
+
+Extracted value: 0.26
+Extracted units: ha
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: true
+
+Explanation: The page context describes "a temperate freshwater agricultural pond in central Maryland, United States" with "a surface area of ca. 0.26 ha." The entity is valid. Surface area is a fixed physical property of the pond, so it is consistent with the October 2016 event (the event does not contradict the value). The value 0.26 appears in the prose and is directly reported as the surface area in hectares. All criteria satisfied.
+
+---
+
+Example 2 — INCORRECT prose extraction (invalid entity):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Lake Merhei', 'location': 'central Maryland, United States', 'ecosystem': 'lake'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: Surface area of the water body itself, representing the horizontal area of open water or the stated ecosystem boundary.
+Attribute terminology: ['surface area', 'area']
+
+Source: prose text
+
+Extracted value: 0.26
+Extracted units: ha
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: false
+
+Explanation: The page context describes an agricultural pond in central Maryland but makes no mention of any water body called "Lake Merhei". Criterion A is not satisfied.
+
+---
+
+Example 3 — CORRECT table extraction with event (all criteria satisfied):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'November 2016', 'additional_details': None}
+
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ['pH', 'ph']
+
+Source: Table 1
+
+Extracted value: 7.56
+Extracted units: not reported
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: true
+
+Explanation: The entity (agricultural pond in central Maryland) is valid. Table 1 contains water quality parameters for this pond across three sampling months. The November 2016 row gives ph = 7.56. The value 7.56 is directly reported in the table for the correct entity and attribute at the November 2016 event. pH is dimensionless, so "not reported" is correct. All criteria satisfied.
+
+---
+
+Example 4 — INCORRECT table extraction (value belongs to a different attribute):
+
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {'name': 'Agricultural Pond', 'location': 'central Maryland, United States', 'ecosystem': 'pond'}
+
+Extracted event: {'date': 'October 2016', 'additional_details': None}
+
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Attribute terminology: ['pH', 'ph']
+
+Source: Table 1
+
+Extracted value: 19.8
+Extracted units: °C
+
+Is the extracted (entity, event, attribute, value) tuple fully valid — meaning the entity is correctly identified, the event correctly describes the measurement context, and the extracted value correctly corresponds to the target attribute for that entity at the described event, as evidenced by the document?
+
+VERDICT: false
+
+Explanation: In Table 1, the value 19.8 °C for October 2016 corresponds to water temperature, not pH. The correct pH value for October 2016 is 7.8 (dimensionless). Criterion E is not satisfied.
+
+"""  # _JUDGE_INSTRUCTIONS_UNIFIED_EXAMPLES (unused — kept for reference)
+
+
 # Validate extracted measurement value (text source)
 JUDGE_INSTRUCTIONS_TEXT = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) A complete document from a research paper
+1) A complete document from a research paper (in ## CONTEXT)
 2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
 3) A candidate (entity, value) extraction: the entity identified in the document, the page where the data was found, and the value extracted from the prose text for the target attribute.
+Items 2 and 3 appear in ## QUERY.
 
 Your task: decide whether the extracted (entity, attribute, value) triplet is fully valid — meaning the entity is correctly identified and the extracted value correctly corresponds to the target attribute for that entity, as evidenced by the document.
 
@@ -307,13 +561,13 @@ Therefore, we aimed to assess the bacterial and viral components of a temperate 
 
 Example 1 — CORRECT extraction (all criteria satisfied):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: true
 
@@ -323,13 +577,13 @@ Explanation: The document describes "a temperate freshwater agricultural pond in
 
 Example 2 — INCORRECT extraction (invalid entity):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Lake Merhei, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: false
 
@@ -339,13 +593,13 @@ Explanation: The document describes an agricultural pond in central Maryland but
 
 Example 3 — INCORRECT extraction (value belongs to a different attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
-Terminology used for the attribute: surface area, area
-Page: 1, Table: N/A
-Extracted measurement: 3.35
-Measurement units: meters
+Target attribute: Surface area of the water body itself (not the watershed or catchment area). This should represent the horizontal area of open water or the stated ecosystem boundary at the time of measurement or description.
+Attribute terminology: surface area, area
+Page number: 1
+Extracted value: 3.35
+Extracted units: meters
 
 VERDICT: false
 
@@ -355,13 +609,13 @@ Explanation: The value 3.35 appears on page 1 but corresponds to maximum depth (
 
 Example 4 — INCORRECT extraction (value assigned to wrong attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
-Terminology used for the attribute: maximum depth, depth
-Page: 1, Table: N/A
-Extracted measurement: 0.26
-Measurement units: ha
+Target attribute: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Attribute terminology: maximum depth, depth
+Page number: 1
+Extracted value: 0.26
+Extracted units: ha
 
 VERDICT: false
 
@@ -371,13 +625,17 @@ Explanation: The value 0.26 appears on page 1 but corresponds to surface area ("
 
 Example 5 — INCORRECT extraction (unit mismatch):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
 Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
-Attribute description: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
-Terminology used for the attribute: maximum depth, depth
-Page: 1, Table: N/A
-Extracted measurement: 3.35
+Target attribute: Maximum water depth of the ecosystem, defined as the deepest point of the water body at the time of measurement or as reported in the source. This is not the mean or average depth.
+Attribute terminology: maximum depth, depth
+Page number: 1
+Extracted value: 3.35
 Extracted units: cm
+
+VERDICT: false
+
+Explanation: The value 3.35 appears on page 1 and corresponds to maximum depth, but the document reports the depth in meters ("ca. 3.35 meters"), not centimeters. The extracted units (cm) do not match the reported units (meters). Criterion F is not satisfied.
 
 ---
 
@@ -390,9 +648,10 @@ Output format:
 JUDGE_INSTRUCTIONS_TABLE = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) A complete document from a research paper
+1) A complete document from a research paper (in ## CONTEXT)
 2) A predefined target attribute — a description and associated terminology specifying the type of measurement to extract. This is a fixed input; do not evaluate whether the attribute description is appropriate or well-formed.
 3) A candidate (entity, row index, column index) extraction: the entity identified in the document, the table where the data was found, and the row/column indices that locate the extracted value for the target attribute. The value is the cell at the intersection of the row and column indices.
+Items 2 and 3 appear in ## QUERY.
 
 Your task: decide whether the extracted (entity, attribute, row index, column index) tuple is fully valid — meaning the entity is correctly identified and together the row index and column index correctly locate the value for that (entity, target attribute) pair in the specified table.
 
@@ -443,9 +702,9 @@ Bacterial and Viral Dynamics in a Temperate Agricultural Pond...
 
 Example 1 — CORRECT extraction (all criteria satisfied):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
-Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
-Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
 Attribute terminology: ph, pH
 Page number: 3
 Table number: 1
@@ -455,25 +714,25 @@ Extracted units: not reported
 
 VERDICT: true
 
-Explanation: The entity (agricultural pond, October 2016) is valid. The row index "October 2016" appears in Table 1 on page 3 and maps to the October 2016 observation. The column index "ph" appears in the table and corresponds to water pH. The cell value is a directly reported measurement. pH is dimensionless, so "not reported" is correct. All criteria are satisfied.
+Explanation: The entity (agricultural pond in central Maryland) is valid. The row index "October 2016" appears in Table 1 on page 3 and maps to the October 2016 observation for this pond. The column index "ph" appears in the table and corresponds to water pH. The cell value is a directly reported measurement. pH is dimensionless, so "not reported" is correct. All criteria are satisfied.
 
 ---
 
-Example 2 — INCORRECT extraction (row maps to wrong entity):
+Example 2 — INCORRECT extraction (column maps to wrong attribute):
 
-Entity type: A distinct aquatic ecosystem observation — a specific pond, lake, wetland, or similar water body — potentially further identified by treatment site, treatment state, or date of measurement.
-Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond, date: October 2016}
-Attribute description: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
+Target entity type: A distinct aquatic ecosystem — a specific pond, lake, wetland, or similar water body.
+Extracted entity: {name: Agricultural Pond, location: Mid-Atlantic United States, ecosystem: pond}
+Target attribute: pH of the water, i.e., the negative logarithm of the hydrogen ion activity. This is a dimensionless quantity and should refer to a measured water pH value, not soil or sediment pH.
 Attribute terminology: ph, pH
 Page number: 3
 Table number: 1
-Extracted row index: December 2016
-Extracted column index: ph
-Extracted units: not reported
+Extracted row index: October 2016
+Extracted column index: temperature_c
+Extracted units: °C
 
 VERDICT: false
 
-Explanation: The row index "December 2016" is present in the table, but it maps to the December 2016 observation, not the October 2016 observation described by the extracted entity. Criterion C is not satisfied.
+Explanation: The row index "October 2016" is correct for this entity. However, the column index "temperature_c" maps to water temperature, not pH. The target attribute is pH and the correct column is "ph". Criterion E is not satisfied.
 
 ---
 

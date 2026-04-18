@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 older/*
+experiments/out/*
 experiments/*/out/*
 experiments/*/*/out/*
 experiments/*/*/*/out/*
@@ -173,18 +174,20 @@ data/pond/pdfs/*.pdf
 data/pond/meta/*
 data/pond/ocr_output
 data/pond/ocr_output*/
+data/pond/processed_pdfs/*
 data/ocr
 
 data/nfix/pdfs/*.pdf
 data/nfix/meta/*
 data/nfix/ocr_output
 data/nfix/ocr_output*/
+data/nfix/processed_pdfs/*
 
 .batch_state.json
 .batch_state_openai.json
 .batch_state_gemini.json
 .batch_state_anthropic.json
-
+.vllm_endpoint*.txt
 
 memory
 *.DS_STORE

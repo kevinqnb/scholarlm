@@ -32,7 +32,7 @@ def tokenize(
         (tokenized_chat, instruction_tokens, context_tokens, query_tokens)
     """
     chat = [
-        {"role": "user", "content": f"## Instructions:\n{instructions}\n\n## Context:\n{context}\n\n## Query:\n{query}"},
+        {"role": "user", "content": f"## INSTRUCTIONS:\n{instructions}\n\n## CONTEXT:\n{context}\n\n## QUERY:\n{query}"},
     ]
     formatted_chat = tokenizer.apply_chat_template(
         chat, tokenize=False, add_generation_prompt=True
@@ -41,11 +41,11 @@ def tokenize(
         formatted_chat, return_offsets_mapping=True, add_special_tokens=False
     )
 
-    instruction_start = formatted_chat.index("## Instructions:\n") + len("## Instructions:\n")
-    instruction_end = formatted_chat.index("\n\n## Context:")
-    context_start = formatted_chat.index("## Context:\n") + len("## Context:\n")
-    context_end = formatted_chat.index("\n\n## Query:")
-    query_start = formatted_chat.index("## Query:\n") + len("## Query:\n")
+    instruction_start = formatted_chat.index("## INSTRUCTIONS:\n") + len("## INSTRUCTIONS:\n")
+    instruction_end = formatted_chat.index("\n\n## CONTEXT:")
+    context_start = formatted_chat.index("## CONTEXT:\n") + len("## CONTEXT:\n")
+    context_end = formatted_chat.index("\n\n## QUERY:")
+    query_start = formatted_chat.index("## QUERY:\n") + len("## QUERY:\n")
     query_end = query_start + len(query)
 
     instruction_tokens = [
@@ -99,7 +99,7 @@ class JudgementLM:
         self.n_layers = len(self.llm.model.layers)
         self.n_heads = self.llm.config.num_attention_heads
         self.n_kv_heads = self.llm.config.num_key_value_heads
-        self.head_dim = self.llm.config.hidden_size // self.n_heads
+        self.head_dim = getattr(self.llm.config, 'head_dim', self.llm.config.hidden_size // self.n_heads)
 
         self.responses = []
         self.parametric_score_arrays = []
