@@ -9,30 +9,37 @@ For each ``(judge_model, train_dataset, test_dataset)`` triple this module:
 4. Returns a DataFrame of probe accuracies (rows = train dataset,
    columns = test dataset).
 
-The probe uses the same feature representation as ``scholarlm.analysis.probe``
+The probe uses the same feature representation as ``scholarlm.utils.probe``
 (mean over layers, then flatten over heads × head_dim).
 
 Typical usage
 -------------
-    from scholarlm.analysis.cross_dataset import cross_dataset_probe_matrix
+    from analysis.cross_dataset import cross_dataset_probe_matrix
 
     df = cross_dataset_probe_matrix(
         judge_model="llama-3.1-8b",
         datasets=["pond", "nfix"],
         extraction_model="gemma-3-27b",
-        results_root="data/experiments",
+        extraction_dates=["2026_04_01", "2026_04_01"],
     )
     print(df)
     df.to_csv("data/experiments/cross_dataset/probe_matrix_llama-3.1-8b.csv")
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from .probe import build_feature_matrix, train_probe, eval_probe
+from scholarlm.utils.probe import build_feature_matrix, train_probe, eval_probe
+
+_EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
+if str(_EXPERIMENTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_EXPERIMENTS_DIR))
+
+import paths as _paths
 
 
 # ---------------------------------------------------------------------------
@@ -40,47 +47,11 @@ from .probe import build_feature_matrix, train_probe, eval_probe
 # ---------------------------------------------------------------------------
 
 
-def _find_activations_file(
-    dataset: str,
-    extraction_model: str,
-    judge_model: str,
-    results_root: Path,
-) -> Path:
-    """Locate the most recent ``attention_outputs.npz`` for the given triple."""
-    judge_dir = results_root / dataset / "judge" / extraction_model / judge_model
-    if not judge_dir.exists():
-        raise FileNotFoundError(f"No judge directory: {judge_dir}")
-    for date_dir in sorted(judge_dir.iterdir(), reverse=True):
-        candidate = date_dir / "attention_outputs.npz"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"No attention_outputs.npz for dataset='{dataset}' "
-        f"extraction_model='{extraction_model}' judge='{judge_model}' "
-        f"under {judge_dir}"
-    )
-
-
-def _find_combined_file(
-    dataset: str,
-    extraction_model: str,
-    results_root: Path,
-) -> Path:
-    """Locate the ``combined.json`` ground-truth file."""
-    combined_file = results_root / dataset / "judge" / extraction_model / "combined" / "combined.json"
-    if not combined_file.exists():
-        raise FileNotFoundError(
-            f"Combined judge file not found: {combined_file}. "
-            "Run run_judge_combine.py first."
-        )
-    return combined_file
-
-
 def load_activations_and_labels(
     dataset: str,
     extraction_model: str,
     judge_model: str,
-    results_root: Path,
+    extraction_date: str,
 ) -> tuple[np.ndarray, np.ndarray, list[int]]:
     """Load activation feature matrix and aligned ground-truth labels.
 
@@ -88,7 +59,7 @@ def load_activations_and_labels(
         dataset: Dataset name.
         extraction_model: Extraction model short name.
         judge_model: Local judge model short name (must have activation files).
-        results_root: Root of the experiments directory (e.g. ``Path("data/experiments")``).
+        extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
 
     Returns:
         A tuple ``(X, y, measurement_ids)`` where:
@@ -98,8 +69,8 @@ def load_activations_and_labels(
     """
     import json
 
-    activations_file = _find_activations_file(dataset, extraction_model, judge_model, results_root)
-    combined_file = _find_combined_file(dataset, extraction_model, results_root)
+    activations_file = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model)
+    combined_file = _paths.find_combined(dataset, extraction_model, extraction_date)
 
     activations = np.load(activations_file)
 
@@ -127,7 +98,7 @@ def cross_dataset_probe_matrix(
     judge_model: str,
     datasets: list[str],
     extraction_model: str,
-    results_root: str | Path = "data/experiments",
+    extraction_dates: list[str],
 ) -> pd.DataFrame:
     """Train a probe on each dataset and evaluate on all others.
 
@@ -141,21 +112,25 @@ def cross_dataset_probe_matrix(
             compatible shapes.
         datasets: List of dataset names to include in the matrix.
         extraction_model: Extraction model short name (same across all datasets).
-        results_root: Root experiments directory.
+        extraction_dates: Extraction date tags (``YYYY_mm_dd``), one per dataset,
+            positionally aligned with ``datasets``.
 
     Returns:
         ``pd.DataFrame`` with ``datasets`` as both index (train) and columns (test).
         Values are probe accuracy (float in [0, 1]).  Diagonal is in-domain
         accuracy (same dataset for train and test, evaluated via a held-out split).
     """
+    if len(extraction_dates) != len(datasets):
+        raise ValueError(
+            f"extraction_dates must have the same length as datasets "
+            f"({len(extraction_dates)} vs {len(datasets)})"
+        )
     from sklearn.model_selection import train_test_split
-
-    results_root = Path(results_root)
 
     # Load activations + labels for every dataset
     dataset_data: dict[str, tuple[np.ndarray, np.ndarray]] = {}
-    for ds in datasets:
-        X, y, _ = load_activations_and_labels(ds, extraction_model, judge_model, results_root)
+    for ds, ext_date in zip(datasets, extraction_dates):
+        X, y, _ = load_activations_and_labels(ds, extraction_model, judge_model, ext_date)
         dataset_data[ds] = (X, y)
 
     # Build accuracy matrix

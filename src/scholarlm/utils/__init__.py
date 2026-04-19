@@ -25,3 +25,5 @@ from .ml import (
     fit_temperature_from_probs,
     apply_temperature_from_probs,
 )
+from .probe import build_feature_matrix, train_probe, eval_probe
+from .calibration import compute_ece, reliability_diagram_data

@@ -30,7 +30,6 @@ import random
 import shutil
 import sys
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -45,6 +44,7 @@ from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 from model_registry import MODEL_REGISTRY
+import paths
 
 # Reproducibility
 random.seed(342)
@@ -108,27 +108,6 @@ def get_model_config(name: str) -> ModelConfig:
     return MODEL_REGISTRY[name]
 
 
-# ---------------------------------------------------------------------------
-# Output path helper
-# ---------------------------------------------------------------------------
-
-
-def get_output_dir(dataset_name: str, model_name: str, date: str | None = None) -> Path:
-    """Return the output directory for a given (dataset, model, date) triple.
-
-    Path convention: ``data/experiments/{dataset}/extraction/{model}/{YYYY_mm_dd}/``
-
-    Args:
-        dataset_name: Dataset identifier (e.g. ``"pond"``).
-        model_name: Model identifier (e.g. ``"qwen-2.5-72b"``).
-        date: Optional date string ``"YYYY_mm_dd"``. Defaults to today.
-
-    Returns:
-        A ``Path`` object (not yet created on disk).
-    """
-    if date is None:
-        date = datetime.now().strftime("%Y_%m_%d")
-    return _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / model_name / date
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +824,7 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)
-    output_dir = get_output_dir(args.dataset, args.model, args.date)
+    output_dir = paths.extraction(args.dataset, args.model, args.date)
 
     if args.step:
         run_single_step(

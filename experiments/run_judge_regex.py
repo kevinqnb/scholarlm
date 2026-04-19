@@ -43,13 +43,11 @@ Usage
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import math
 import os
 import re
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -69,61 +67,8 @@ from scholarlm.utils import get_filenames_in_directory
 
 JUDGE_KEY = "regex"
 
-# ---------------------------------------------------------------------------
-# Config / path helpers
-# ---------------------------------------------------------------------------
-
-
-def _load_dataset_config(name: str) -> DatasetConfig:
-    config_path = _CONFIGS_DIR / f"{name}.py"
-    if not config_path.exists():
-        available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
-        raise FileNotFoundError(
-            f"No config found for dataset '{name}'. Available: {available}"
-        )
-    spec = importlib.util.spec_from_file_location(f"_dataset_config_{name}", config_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.CONFIG
-
-
-def get_judge_output_dir(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    judge_date: str | None = None,
-) -> Path:
-    """Return the standard output directory for this runner."""
-    if judge_date is None:
-        judge_date = datetime.now().strftime("%Y_%m_%d")
-    return (
-        _REPO_ROOT
-        / "data" / "experiments"
-        / dataset_name / "judge"
-        / extraction_model / extraction_date / JUDGE_KEY / judge_date
-    )
-
-
-def _find_extraction_final(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str | None,
-) -> Path:
-    base = _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / extraction_model
-    if extraction_date:
-        candidate = base / extraction_date / "final.json"
-        if not candidate.exists():
-            raise FileNotFoundError(f"Extraction results not found: {candidate}")
-        return candidate
-    date_dirs = sorted(base.iterdir(), reverse=True) if base.exists() else []
-    for d in date_dirs:
-        candidate = d / "final.json"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"No extraction results found for dataset='{dataset_name}' model='{extraction_model}' "
-        f"under {base}. Run run_extraction.py first."
-    )
+from run_extraction import load_dataset_config
+import paths
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +195,7 @@ def run_regex_judge(
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to
             ``{data_dir}/ocr_output_raw/``.
     """
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date)
+    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -320,11 +265,11 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
-    dataset_config = _load_dataset_config(args.dataset)
-    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date)
+    dataset_config = load_dataset_config(args.dataset)
+    input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date)
     extraction_date_resolved = input_file.parent.name
-    output_dir = get_judge_output_dir(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.judge_date
+    output_dir = paths.judge(
+        args.dataset, args.extraction_model, extraction_date_resolved, JUDGE_KEY, args.judge_date
     )
 
     print(f"\nDataset          : {args.dataset}")

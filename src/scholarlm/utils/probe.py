@@ -8,7 +8,7 @@ feature representation of these arrays.
 
 Typical usage
 -------------
-    from scholarlm.analysis.probe import build_feature_matrix, train_probe, eval_probe
+    from scholarlm.utils.probe import build_feature_matrix, train_probe, eval_probe
     import numpy as np
 
     activations = np.load("attention_outputs.npz")

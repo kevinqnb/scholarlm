@@ -49,27 +49,9 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 # Frontier provider keys — only these votes count toward ground truth
 # ---------------------------------------------------------------------------
 
-FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"} #, "gpt-oss-120b", "qwen-2.5-72b", "llama-3.3-70b"}
+FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"}
 
-
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
-
-
-def _judge_base_dir(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    ablation: str | None = None,
-) -> Path:
-    if ablation is not None:
-        return (
-            _REPO_ROOT / "data" / "experiments" / dataset_name
-            / "ablations" / f"ablation{ablation}"
-            / extraction_model / extraction_date / "judge"
-        )
-    return _REPO_ROOT / "data" / "experiments" / dataset_name / "judge" / extraction_model / extraction_date
+import paths
 
 
 def _find_judge_result(
@@ -96,7 +78,7 @@ def _find_judge_result(
     Raises:
         FileNotFoundError: If no result is found.
     """
-    judge_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation) / judge_key
+    judge_dir = paths.judge_base(dataset_name, extraction_model, extraction_date, ablation) / judge_key
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory found: {judge_dir}")
     date_dirs = sorted(judge_dir.iterdir(), reverse=True)
@@ -116,7 +98,7 @@ def _discover_judge_keys(
     ablation: str | None = None,
 ) -> list[str]:
     """Return all judge keys that have a responses.json under the extraction date dir."""
-    base = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation)
+    base = paths.judge_base(dataset_name, extraction_model, extraction_date, ablation)
     if not base.exists():
         return []
     keys = []
@@ -253,7 +235,7 @@ def run_combine(
 
     combined = combine_judge_results(judge_files, voting_judges, voting_threshold)
 
-    output_dir = _judge_base_dir(dataset_name, extraction_model, extraction_date, ablation) / "combined"
+    output_dir = paths.judge_combined(dataset_name, extraction_model, extraction_date, ablation)
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "combined.json"
     with open(output_file, "w") as f:

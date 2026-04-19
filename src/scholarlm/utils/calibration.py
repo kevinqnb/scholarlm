@@ -3,14 +3,14 @@ Calibration metrics for judge model probabilities.
 
 Supports two probability sources:
 1. **Probe probabilities** — ``predict_proba`` output from a trained probe
-   (``scholarlm.analysis.probe``).
+   (``scholarlm.utils.probe``).
 2. **Next-token probabilities** — ``judgement_p_true`` values stored by
    ``run_judge.py`` in ``responses.json`` (local judges) or frontier judge
    response files.
 
 Typical usage
 -------------
-    from scholarlm.analysis.calibration import compute_ece, reliability_diagram_data
+    from scholarlm.utils.calibration import compute_ece, reliability_diagram_data
     import numpy as np
 
     probs = np.array([0.9, 0.7, 0.3, 0.1, ...])  # predicted P(valid)

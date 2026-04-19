@@ -49,18 +49,20 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_REPO_ROOT))
 
 import numpy as np
 import pandas as pd
 
-from scholarlm.analysis.probe import build_feature_matrix, train_probe, eval_probe
-from scholarlm.analysis.calibration import compute_ece, reliability_diagram_data
-from scholarlm.analysis.cross_dataset import (
+from scholarlm.utils.probe import build_feature_matrix, train_probe, eval_probe
+from scholarlm.utils.calibration import compute_ece, reliability_diagram_data
+from analysis.cross_dataset import (
     cross_dataset_probe_matrix,
     load_activations_and_labels,
 )
 
 _EXPERIMENTS_ROOT = _REPO_ROOT / "data" / "experiments"
+import paths
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -78,30 +80,26 @@ def _find_most_recent(directory: Path, filename: str) -> Path | None:
     return None
 
 
-def _load_combined(dataset: str, extraction_model: str) -> list[dict]:
-    """Load the combined judge results for a (dataset, extraction_model) pair."""
-    path = _EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / "combined" / "combined.json"
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Combined judge file not found: {path}. Run run_judge_combine.py first."
-        )
+def _load_combined(dataset: str, extraction_model: str, extraction_date: str) -> list[dict]:
+    """Load the combined judge results for a (dataset, extraction_model, extraction_date) triple."""
+    path = paths.find_combined(dataset, extraction_model, extraction_date)
     with open(path) as f:
         return json.load(f)
 
 
 def _get_judge_response_file(
-    dataset: str, extraction_model: str, judge_model: str
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str
 ) -> Path | None:
     """Find the most recent responses.json for a judge model."""
-    judge_dir = _EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / judge_model
+    judge_dir = paths.judge_base(dataset, extraction_model, extraction_date) / judge_model
     return _find_most_recent(judge_dir, "responses.json")
 
 
 def _get_activations_file(
-    dataset: str, extraction_model: str, judge_model: str
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str
 ) -> Path | None:
     """Find the most recent attention_outputs.npz for a judge model."""
-    judge_dir = _EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / judge_model
+    judge_dir = paths.judge_base(dataset, extraction_model, extraction_date) / judge_model
     return _find_most_recent(judge_dir, "attention_outputs.npz")
 
 
@@ -113,6 +111,7 @@ def _get_activations_file(
 def run_probe_heatmap(
     dataset: str,
     extraction_models: list[str],
+    extraction_dates: list[str],
     judge_models: list[str],
 ) -> pd.DataFrame:
     """Train probes for each (extraction_model, judge_model) pair.
@@ -127,6 +126,7 @@ def run_probe_heatmap(
     Args:
         dataset: Dataset name.
         extraction_models: List of extraction model short names.
+        extraction_dates: Extraction date tags (``YYYY_mm_dd``), one per model.
         judge_models: List of local judge model short names.
 
     Returns:
@@ -134,18 +134,20 @@ def run_probe_heatmap(
         values are probe accuracy.  Saved to
         ``data/experiments/{dataset}/analysis/probe_heatmap.csv``.
     """
+    if len(extraction_dates) != len(extraction_models):
+        raise ValueError("extraction_dates must have the same length as extraction_models")
     from sklearn.model_selection import train_test_split
 
     results: dict[str, dict[str, float]] = {em: {} for em in extraction_models}
 
-    for extraction_model in extraction_models:
-        combined = _load_combined(dataset, extraction_model)
+    for extraction_model, extraction_date in zip(extraction_models, extraction_dates):
+        combined = _load_combined(dataset, extraction_model, extraction_date)
         ground_truth: dict[int, bool] = {
             r["measurement_id"]: r["judgement_combined"] for r in combined
         }
 
         for judge_model in judge_models:
-            activations_path = _get_activations_file(dataset, extraction_model, judge_model)
+            activations_path = _get_activations_file(dataset, extraction_model, extraction_date, judge_model)
             if activations_path is None:
                 print(f"  Skipping ({extraction_model}, {judge_model}): no activations found.")
                 results[extraction_model][judge_model] = float("nan")
@@ -194,6 +196,7 @@ def run_probe_heatmap(
 def run_calibration(
     dataset: str,
     extraction_model: str,
+    extraction_date: str,
     judge_models: list[str],
 ) -> dict[str, dict]:
     """Compute calibration metrics for each judge model.
@@ -207,6 +210,7 @@ def run_calibration(
     Args:
         dataset: Dataset name.
         extraction_model: Extraction model short name.
+        extraction_date: Extraction date tag (``YYYY_mm_dd``).
         judge_models: List of judge model keys.
 
     Returns:
@@ -214,7 +218,7 @@ def run_calibration(
         Summary ECE values are saved to
         ``data/experiments/{dataset}/analysis/calibration_{extraction_model}.csv``.
     """
-    combined = _load_combined(dataset, extraction_model)
+    combined = _load_combined(dataset, extraction_model, extraction_date)
     ground_truth: dict[int, bool] = {
         r["measurement_id"]: r["judgement_combined"] for r in combined
     }
@@ -223,7 +227,7 @@ def run_calibration(
     summary_rows: list[dict] = []
 
     for judge_model in judge_models:
-        responses_path = _get_judge_response_file(dataset, extraction_model, judge_model)
+        responses_path = _get_judge_response_file(dataset, extraction_model, extraction_date, judge_model)
         if responses_path is None:
             print(f"  Skipping {judge_model}: no responses.json found.")
             continue
@@ -290,16 +294,18 @@ def run_cross_dataset(
     judge_model: str,
     datasets: list[str],
     extraction_model: str,
+    extraction_dates: list[str],
 ) -> pd.DataFrame:
     """Build a cross-dataset probe accuracy matrix.
 
     Trains a probe on each dataset and evaluates on all others using
-    ``scholarlm.analysis.cross_dataset.cross_dataset_probe_matrix``.
+    ``analysis.cross_dataset.cross_dataset_probe_matrix``.
 
     Args:
         judge_model: Local judge model short name.
         datasets: List of dataset names.
         extraction_model: Extraction model short name.
+        extraction_dates: Extraction date tags (``YYYY_mm_dd``), one per dataset.
 
     Returns:
         DataFrame saved to
@@ -309,10 +315,10 @@ def run_cross_dataset(
         judge_model=judge_model,
         datasets=datasets,
         extraction_model=extraction_model,
-        results_root=_EXPERIMENTS_ROOT,
+        extraction_dates=extraction_dates,
     )
 
-    out_dir = _EXPERIMENTS_ROOT / "cross_dataset"
+    out_dir = paths.cross_dataset_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"probe_matrix_{judge_model}_{extraction_model}.csv"
     df.to_csv(out_path)
@@ -342,6 +348,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Extraction model short names.",
     )
     ph.add_argument(
+        "--extraction-dates", nargs="+", required=True,
+        help="Extraction date tags (YYYY_mm_dd), one per --extraction-models entry.",
+    )
+    ph.add_argument(
         "--judge-models", nargs="+", required=True,
         help="Local judge model short names.",
     )
@@ -350,6 +360,7 @@ def _build_parser() -> argparse.ArgumentParser:
     cal = sub.add_parser("calibration", help="Calibration metrics for each judge model.")
     cal.add_argument("--dataset", required=True, help="Dataset name.")
     cal.add_argument("--extraction-model", required=True, help="Extraction model short name.")
+    cal.add_argument("--extraction-date", required=True, help="Extraction date tag (YYYY_mm_dd).")
     cal.add_argument(
         "--judge-models", nargs="+", required=True,
         help="Judge model keys (local or frontier).",
@@ -363,6 +374,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Dataset names to include in the matrix.",
     )
     cd.add_argument("--extraction-model", required=True, help="Extraction model short name.")
+    cd.add_argument(
+        "--extraction-dates", nargs="+", required=True,
+        help="Extraction date tags (YYYY_mm_dd), one per --datasets entry.",
+    )
 
     return p
 
@@ -374,12 +389,14 @@ def main(argv: list[str] | None = None) -> None:
         run_probe_heatmap(
             dataset=args.dataset,
             extraction_models=args.extraction_models,
+            extraction_dates=args.extraction_dates,
             judge_models=args.judge_models,
         )
     elif args.command == "calibration":
         run_calibration(
             dataset=args.dataset,
             extraction_model=args.extraction_model,
+            extraction_date=args.extraction_date,
             judge_models=args.judge_models,
         )
     elif args.command == "cross-dataset":
@@ -387,6 +404,7 @@ def main(argv: list[str] | None = None) -> None:
             judge_model=args.judge_model,
             datasets=args.datasets,
             extraction_model=args.extraction_model,
+            extraction_dates=args.extraction_dates,
         )
 
 

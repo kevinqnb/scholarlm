@@ -33,7 +33,6 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -59,6 +58,7 @@ from run_extraction import (
     get_model_config,
     load_papers,
 )
+import paths
 
 # ---------------------------------------------------------------------------
 # Ablation registry
@@ -98,43 +98,6 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
 }
 
-# ---------------------------------------------------------------------------
-# Output path helper
-# ---------------------------------------------------------------------------
-
-
-def get_output_dir(
-    dataset_name: str,
-    ablation: str,
-    model_name: str,
-    date: str | None = None,
-) -> Path:
-    """Return the output directory for a given (dataset, ablation, model, date) tuple.
-
-    Path convention:
-        ``data/experiments/{dataset}/ablations/ablation{N}/{model}/{YYYY_mm_dd}/``
-
-    Args:
-        dataset_name: Dataset identifier (e.g. ``"pond"``).
-        ablation: Ablation number as a string (e.g. ``"1"``).
-        model_name: Model identifier (e.g. ``"qwen-2.5-72b"``).
-        date: Optional date string ``"YYYY_mm_dd"``. Defaults to today.
-
-    Returns:
-        A ``Path`` object (not yet created on disk).
-    """
-    if date is None:
-        date = datetime.now().strftime("%Y_%m_%d")
-    return (
-        _REPO_ROOT
-        / "data"
-        / "experiments"
-        / dataset_name
-        / "ablations"
-        / f"ablation{ablation}"
-        / model_name
-        / date
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -371,7 +334,7 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)
-    output_dir = get_output_dir(args.dataset, args.ablation, args.model, args.date)
+    output_dir = paths.ablation(args.dataset, args.ablation, args.model, args.date)
 
     run_ablation(
         dataset_config=dataset_config,

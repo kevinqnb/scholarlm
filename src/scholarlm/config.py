@@ -88,6 +88,7 @@ class DatasetConfig:
     direct_extraction_prompt: str | None = None
     ablation3_entity_schema: type[BaseModel] | None = None
     ablation3_entity_identification_prompt: str | None = None
+    ground_truth_file: str | None = None
 
 
 @dataclass
