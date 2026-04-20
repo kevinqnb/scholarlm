@@ -50,7 +50,7 @@ def recovery_rate(
     n_ext = len(extraction_df)
     n_gt = len(ground_truth_df)
     return {
-        "recall": tp / n_gt if n_gt > 0 else 0.0,
+        "recovery": tp / n_gt if n_gt > 0 else 0.0,
         "precision": tp / n_ext if n_ext > 0 else 0.0,
         "n_extracted": n_ext,
         "n_gt": n_gt,
