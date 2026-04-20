@@ -43,6 +43,17 @@ except ImportError:
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
     # --- vLLM models ---
+    "llama-3.1-8b": ModelConfig(
+        name="llama-3.1-8b",
+        model_id="meta-llama/Llama-3.1-8B-Instruct",
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "enable_thinking": False
+        },
+    ),
     "gemma-3-27b": ModelConfig(
         name="gemma-3-27b",
         model_id="gaunernst/gemma-3-27b-it-int4-awq",
