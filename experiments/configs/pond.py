@@ -406,7 +406,7 @@ CONFIG = DatasetConfig(
     paper_filter=None,
     ablation3_entity_schema=Ablation3ObservationSchema,
     ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
-    ground_truth_file="data/pond/ground_truth.csv",
+    ground_truth_file="/projectnb/mcnet/kevin/coastal/scholarlm/data/pond/ground_truth.csv",
     unit_conversion_table={
         "max_depth":        {"m": 1.0, "cm": 0.01, "feet": 0.3048, "km": 1000.0},
         "surface_area":     {"m^2": 1.0, "km^2": 1e6, "ha": 1e4, "mi^2": 2.59e6, "acres": 4046.86},

@@ -73,6 +73,8 @@ def load_ground_truth(config) -> "pd.DataFrame":
             f"DatasetConfig for '{config.name}' has no ground_truth_file set."
         )
     path = Path(config.ground_truth_file)
+    if not path.is_absolute():
+        path = Path(__file__).parent.parent / path
     if not path.exists():
         raise FileNotFoundError(f"Ground truth file not found: {path}")
     if path.suffix == ".csv":
