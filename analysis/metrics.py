@@ -37,9 +37,8 @@ def recovery_rate(
         Dict with keys ``recall``, ``precision``, ``n_extracted``, ``n_gt``.
     """
     from .loaders import cached_match
-    from scholarlm.utils.data import matching_precision_recall
 
-    matching, edges, edge_weights = cached_match(
+    matching, _edges, _edge_weights = cached_match(
         extraction_df,
         ground_truth_df,
         strict_matching=strict_matching,
@@ -47,14 +46,14 @@ def recovery_rate(
         fuzzy_threshold=fuzzy_threshold,
         cache_path=cache_path,
     )
-    _, recall, precision = matching_precision_recall(
-        matching, len(extraction_df), len(ground_truth_df)
-    )
+    tp = len(matching)
+    n_ext = len(extraction_df)
+    n_gt = len(ground_truth_df)
     return {
-        "recall": recall,
-        "precision": precision,
-        "n_extracted": len(extraction_df),
-        "n_gt": len(ground_truth_df),
+        "recall": tp / n_gt if n_gt > 0 else 0.0,
+        "precision": tp / n_ext if n_ext > 0 else 0.0,
+        "n_extracted": n_ext,
+        "n_gt": n_gt,
     }
 
 
