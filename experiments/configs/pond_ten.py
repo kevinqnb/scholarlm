@@ -406,4 +406,14 @@ CONFIG = DatasetConfig(
     paper_filter=None,
     ablation3_entity_schema=Ablation3ObservationSchema,
     ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
+    ground_truth_file="data/pond/ground_truth_ten.csv",
+    unit_conversion_table={
+        "max_depth":        {"m": 1.0, "cm": 0.01, "feet": 0.3048, "km": 1000.0},
+        "surface_area":     {"m^2": 1.0, "km^2": 1e6, "ha": 1e4, "mi^2": 2.59e6, "acres": 4046.86},
+        "vegetation_cover": {"percent": 1.0, "fraction": 100.0},
+        "tn":               {"µg/L": 1.0, "mg/L": 1000.0, "μmol/L": 14.01, "ppm": 1000.0, "ppb": 1.0},
+        "tp":               {"µg/L": 1.0, "mg/L": 1000.0, "μmol/L": 30.97, "ppm": 1000.0, "ppb": 1.0},
+        "chla":             {"µg/L": 1.0, "mg/L": 1000.0, "mg/m^3": 1.0},
+        "ph":               {},
+    },
 )

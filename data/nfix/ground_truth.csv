@@ -1,0 +1,992 @@
+nfix_rate_id,reference_id,site_name,latitude,longitude,habitat,year,month,day,hour_minute,season,substrate,substrate_details,attribute,value,error,error_type,units
+N1,R231,south west coast of Australia,-28.0,114.0,continental shelves,2003.0,10.0,,,,wc,water,nfix_rate,0.017,0.006,stdev.,nmol-n l-1 h-1
+N2,R231,south west coast of Australia,-28.0,114.0,continental shelves,2003.0,10.0,,,,wc,water,nfix_rate,0.003,0.002,stdev.,nmol-n l-1 h-1
+N3,R231,south west coast of Australia,-28.0,114.0,continental shelves,2003.0,10.0,,,,wc,water,nfix_rate,0.007,0.006,stdev.,nmol-n l-1 h-1
+N4,R231,south west coast of Australia,-28.0,114.0,continental shelves,2003.0,10.0,,,,wc,water,nfix_rate,0.001,0.001,stdev.,nmol-n l-1 h-1
+N5,R147,Arafura and Timor Sea,-10.44,122.16,continental shelves,2012.0,10.0,,,,wc,water,nfix_rate,23.0,32.0,stdev.,nmol-n l-1 d-1
+N6,R147,Coral Sea,-9.23,139.96,continental shelves,2013.0,7.0,,,,wc,water,nfix_rate,6.0,7.0,stdev.,nmol-n l-1 d-1
+N45,R21,upwelling affected (G17),30.9,-10.8,continental shelves,2009.0,8.0,,,,wc,water column,nfix_rate,5e-06,5.0,std. err,umol-n2 l-1 h-1
+N381,R135,Mesohaline 1 st. 3,7.29131986,-52.9813819,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,13.0,,,umol-n m-2 d-1
+N382,R135,Mesohaline 1 st. 9,5.95957194,-50.790271,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,99.0,,,umol-n m-2 d-1
+N383,R135,Mesohaline 1 st. 23,11.1533888,-54.4385935,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,187.0,,,umol-n m-2 d-1
+N384,R135,Mesohaline 2 st. 2,10.2877527,-54.5392884,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,121.0,,,umol-n m-2 d-1
+N385,R135,Mesohaline 2 st. 19,8.2901308,-50.7542832,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,95.0,,,umol-n m-2 d-1
+N386,R135,Mesohaline 2 st. 25,12.4185493,-56.3640027,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,253.0,,,umol-n m-2 d-1
+N389,R155,YPC,5.0,-52.0,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,17.2,7.1,std. err,umol-n m-2 d-1
+N390,R155,OPC,7.0,-53.0,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,75.9,67.0,std. err,umol-n m-2 d-1
+N391,R155,WPM,10.0,-55.0,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,118.3,41.6,std. err,umol-n m-2 d-1
+N392,R155,EPM,11.0,-51.0,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,97.3,13.9,std. err,umol-n m-2 d-1
+N393,R155,OSW,6.0,-47.5,continental shelves,2010.0,5.0,,,,wc,water column,nfix_rate,104.7,30.3,std. err,umol-n m-2 d-1
+N400,R218,Arctic Shelf 1,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,5.41,,,umol-n m-2 d-1
+N401,R218,Arctic Shelf 6,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,50.8,,,umol-n m-2 d-1
+N402,R218,Arctic Shelf 11,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,0.0,,,umol-n m-2 d-1
+N403,R218,Arctic Shelf 13,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,26.6,,,umol-n m-2 d-1
+N404,R218,Arctic Shelf 47,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,14.3,,,umol-n m-2 d-1
+N405,R218,Arctic Shelf 102,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,6.53,,,umol-n m-2 d-1
+N406,R218,Arctic Shelf 108,72.0,-160.0,continental shelves,2015.0,9.0,6.0,,,wc,water column,nfix_rate,19.5,,,umol-n m-2 d-1
+N599,R44,South China Sea-upwelling,25.574264,122.1608333,continental shelves,1995.0,3.0,1.0,,,wc,phytoplankton,nfix_rate,0.3,,,umol-n m-2 d-1
+N600,R44,South China Sea-upwelling,25.574264,122.1608333,continental shelves,1994.0,7.0,1.0,,,wc,phytoplankton,nfix_rate,33.6,,,umol-n m-2 d-1
+N601,R44,South China Sea-upwelling,25.574264,122.1608333,continental shelves,1995.0,9.0,1.0,,,wc,phytoplankton,nfix_rate,2.1,,,umol-n m-2 d-1
+N602,R44,South China Sea-Kuroshio,24.884903,123.2277778,continental shelves,1995.0,3.0,1.0,,,wc,phytoplankton,nfix_rate,6.2,,,umol-n m-2 d-1
+N603,R44,South China Sea-Kuroshio,24.884903,123.2277778,continental shelves,1995.0,5.0,1.0,,,wc,phytoplankton,nfix_rate,59.4,,,umol-n m-2 d-1
+N604,R44,South China Sea-Kuroshio,24.884903,123.2277778,continental shelves,1995.0,9.0,1.0,,,wc,phytoplankton,nfix_rate,3.4,,,umol-n m-2 d-1
+N605,R44,South China Sea-Kuroshio,24.884903,123.2277778,continental shelves,1996.0,1.0,1.0,,,wc,phytoplankton,nfix_rate,0.1,,,umol-n m-2 d-1
+N608,R34,Mornington Island,-15.96,139.44,continental shelves,2005.0,3.0,2.0,,,wc,surface water,nfix_rate,76.0,,,umol-n m-2 h-1
+N609,R34,Mornington Island,-15.96,139.44,continental shelves,2005.0,3.0,2.0,,,wc,surface water,nfix_rate,42.0,,,umol-n m-2 h-1
+N610,R34,Mornington Island,-15.96,139.44,continental shelves,2005.0,3.0,2.0,,,wc,surface water,nfix_rate,27.0,,,umol-n m-2 h-1
+N611,R34,Mornington Island,-15.96,139.44,continental shelves,2005.0,3.0,2.0,,,wc,surface water,nfix_rate,578.0,,,umol-n m-2 d-1
+N618,R96,northern Beibu Gulf,21.552818,108.84322,estuaries,2017.0,8.0,,,,wc,water,nfix_rate,0.33,0.17,stdev.,nmol-n l-1 h-1
+N619,R96,northern Beibu Gulf,21.552818,108.84322,estuaries,2017.0,12.0,,,,wc,water,nfix_rate,0.23,0.11,stdev.,nmol-n l-1 h-1
+N624,R32,New Caledonia lagoon,-22.480917,166.4454,estuaries,2013.0,1.0,13.0,,,wc,water,nfix_rate,18.5,,,nmol-n l-1 d-1
+N625,R32,New Caledonia lagoon,-22.480917,166.4454,estuaries,2013.0,1.0,13.0,,,wc,water,nfix_rate,9.2,,,nmol-n l-1 d-1
+N637,R135,Estuarine st. 4,5.95957194,-51.4879455,estuaries,2010.0,5.0,,,,wc,water column,nfix_rate,48.0,,,umol-n m-2 d-1
+N638,R135,Estuarine st. 10,4.8941736,-51.3895418,estuaries,2010.0,5.0,,,,wc,water column,nfix_rate,9.0,,,umol-n m-2 d-1
+N639,R135,Estuarine st. 11,5.49346017,-51.4884985,estuaries,2010.0,5.0,,,,wc,water column,nfix_rate,10.0,,,umol-n m-2 d-1
+N640,R135,Estuarine st. 14,5.92627824,-51.5544301,estuaries,2010.0,5.0,,,,wc,water column,nfix_rate,11.0,,,umol-n m-2 d-1
+N641,R135,Estuarine st. 16,6.69203329,-51.8193023,estuaries,2010.0,5.0,,,,wc,water column,nfix_rate,28.0,,,umol-n m-2 d-1
+N642,R4,"Alcanada, Alcudia Bay",39.84,3.17,estuaries,2012.0,,,,summer,benthos,sediments and water,nfix_rate,1.988,,,mg-n m-2 d-1
+N643,R4,"Alcanada, Alcudia Bay",39.84,3.17,estuaries,2012.0,,,,autumn,benthos,sediments and water,nfix_rate,0.115,,,mg-n m-2 d-1
+N644,R4,"Alcanada, Alcudia Bay",39.84,3.17,estuaries,2012.0,,,,winter,benthos,sediments and water,nfix_rate,0.012,,,mg-n m-2 d-1
+N645,R4,"Alcanada, Alcudia Bay",39.84,3.17,estuaries,2013.0,,,,spring,benthos,sediments and water,nfix_rate,0.074,,,mg-n m-2 d-1
+N646,R4,"Alcanada, Alcudia Bay",39.84,3.17,estuaries,2013.0,,,,summer,benthos,sediments and water,nfix_rate,0.842,,,mg-n m-2 d-1
+N647,R4,"Albufera, Alcudia Bay",39.83,3.14,estuaries,2012.0,,,,summer,benthos,sediments and water,nfix_rate,2.204,,,mg-n m-2 d-1
+N648,R4,"Albufera, Alcudia Bay",39.83,3.14,estuaries,2013.0,,,,summer,benthos,sediments and water,nfix_rate,0.56,,,mg-n m-2 d-1
+N649,R4,"Arenal, Palma Bay",39.5,2.75,estuaries,2012.0,,,,summer,benthos,sediments and water,nfix_rate,0.196,,,mg-n m-2 d-1
+N650,R4,"Arenal, Palma Bay",39.5,2.75,estuaries,2013.0,,,,summer,benthos,sediments and water,nfix_rate,0.483,,,mg-n m-2 d-1
+N651,R4,"Calanova, Palma Bay",39.54,2.6,estuaries,2012.0,,,,summer,benthos,sediments and water,nfix_rate,0.511,,,mg-n m-2 d-1
+N652,R4,"Calanova, Palma Bay",39.54,2.6,estuaries,2013.0,,,,summer,benthos,sediments and water,nfix_rate,0.417,,,mg-n m-2 d-1
+N655,R116,Subtidal at East end of Dauphin Island,30.250833,-88.07777778,estuaries,2014.0,6.0,,,,benthos,sediment,nfix_rate,2.47,0.7,std. err,umol-n m-2 h-1
+N656,R116,Subtidal at East end of Dauphin Island,30.250833,-88.07777778,estuaries,2014.0,12.0,,,,benthos,sediment,nfix_rate,2.36,0.15,std. err,umol-n m-2 h-1
+N942,R59,"Stn B1, <20um Day",58.815945,17.63698,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,14.8,2.5,stdev.,ng-n l-1 h-1
+N943,R59,"Stn B1, >20um Day",58.815945,17.63698,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,26.7,3.8,stdev.,ng-n l-1 h-1
+N944,R59,Stn BY31 <20um Day,58.365723,17.905116,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,1.4,0.5,stdev.,ng-n l-1 h-1
+N945,R59,Stn BY31 >20um Day,58.365723,17.905116,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,125.5,43.4,stdev.,ng-n l-1 h-1
+N946,R59,"Stn B1, <20um Night",58.815945,17.63698,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,1.2,0.1,stdev.,ng-n l-1 h-1
+N947,R59,"Stn B1, >20um Night",58.815945,17.63698,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,4.8,0.9,stdev.,ng-n l-1 h-1
+N948,R59,Stn BY31 <20um Night,58.365723,17.905116,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,4.1,4.4,stdev.,ng-n l-1 h-1
+N949,R59,Stn BY31 >20um Night,58.365723,17.905116,estuaries,2000.0,8.0,,,,wc,"plankton, divided by cell size",nfix_rate,30.0,4.2,stdev.,ng-n l-1 h-1
+N950,R59,"Total N2 Fix 1998, Stn BY31",58.365723,17.905116,estuaries,1998.0,,,,,wc,water,nfix_rate,655.0,,,mg-n m-2 y-1
+N951,R59,"Total N2 Fix 1999, Stn BY31",58.365723,17.905116,estuaries,1999.0,,,,,wc,water,nfix_rate,709.0,,,mg-n m-2 y-1
+N952,R59,"Total N2 Fix 2000, Stn BY31",58.365723,17.905116,estuaries,2000.0,,,,,wc,water,nfix_rate,301.0,,,mg-n m-2 y-1
+N953,R59,"N2 fix, cells >20um 1998, Stn BY31",58.365723,17.905116,estuaries,1998.0,,,,,wc,plankton cells >20 um,nfix_rate,494.0,,,mg-n m-2 y-1
+N954,R59,"N2 fix, cells >20um 1999, Stn BY31",58.365723,17.905116,estuaries,1999.0,,,,,wc,plankton cells >20 um,nfix_rate,549.0,,,mg-n m-2 y-1
+N955,R59,"N2 fix, cells >20um 2000, Stn BY31",58.365723,17.905116,estuaries,2000.0,,,,,wc,plankton cells >20 um,nfix_rate,227.0,,,mg-n m-2 y-1
+N956,R59,"Total N2 Fix 1998, Stn X1",58.844572,17.669744,estuaries,1998.0,,,,,wc,water,nfix_rate,242.0,,,mg-n m-2 y-1
+N957,R59,"Total N2 Fix 1999, Stn X1",58.844572,17.669744,estuaries,1999.0,,,,,wc,water,nfix_rate,422.0,,,mg-n m-2 y-1
+N958,R59,"Total N2 Fix 2000, Stn X1",58.844572,17.669744,estuaries,2000.0,,,,,wc,water,nfix_rate,970.0,,,mg-n m-2 y-1
+N959,R59,"N2 fix, cells >20um 1998, Stn X1",58.844572,17.669744,estuaries,1998.0,,,,,wc,plankton cells >20 um,nfix_rate,212.0,,,mg-n m-2 y-1
+N960,R59,"N2 fix, cells >20um 1999, Stn X1",58.844572,17.669744,estuaries,1999.0,,,,,wc,plankton cells >20 um,nfix_rate,283.0,,,mg-n m-2 y-1
+N961,R59,"N2 fix, cells >20um 2000, Stn X1",58.844572,17.669744,estuaries,2000.0,,,,,wc,plankton cells >20 um,nfix_rate,821.0,,,mg-n m-2 y-1
+N962,R59,"Total N2 Fix 1998, Stn H4",58.991685,17.731885,estuaries,1998.0,,,,,wc,water,nfix_rate,259.0,,,mg-n m-2 y-1
+N963,R59,"Total N2 Fix 1999, Stn H4",58.991685,17.731885,estuaries,1999.0,,,,,wc,water,nfix_rate,121.0,,,mg-n m-2 y-1
+N964,R59,"Total N2 Fix 2000, Stn H4",58.991685,17.731885,estuaries,2000.0,,,,,wc,water,nfix_rate,821.0,,,mg-n m-2 y-1
+N965,R59,"N2 fix, cells >20um 1998, Stn H4",58.991685,17.731885,estuaries,1998.0,,,,,wc,plankton cells >20 um,nfix_rate,213.0,,,mg-n m-2 y-1
+N966,R59,"N2 fix, cells >20um 1999, Stn H4",58.991685,17.731885,estuaries,1999.0,,,,,wc,plankton cells >20 um,nfix_rate,78.0,,,mg-n m-2 y-1
+N967,R59,"N2 fix, cells >20um 2000, Stn H4",58.991685,17.731885,estuaries,2000.0,,,,,wc,plankton cells >20 um,nfix_rate,598.0,,,mg-n m-2 y-1
+N968,R156,Weipa seagrass bed,-12.648099,141.811,estuaries,1986.0,11.0,,,,benthos,sediment,nfix_rate,25.0,2.6,std. err,mg-n m-2 d-1
+N969,R156,Weipa mud flat,-12.648099,141.9528,estuaries,1986.0,11.0,,,,benthos,sediment,nfix_rate,19.6,1.6,std. err,mg-n m-2 d-1
+N970,R1,Giralia Bay,-22.436944,114.3461111,estuaries,2008.0,3.0,24.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,1.7,0.26,std. err,nmol-n cm-2 h-1
+N971,R1,Giralia Bay,-22.436944,114.3461111,estuaries,2008.0,3.0,24.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,0.47,0.1,std. err,nmol-n cm-2 h-1
+N972,R154,Gotland Basin - Central Baltic,57.283333,20.08333333,estuaries,1994.0,7.0,15.0,,,wc,water column - concentrated,nfix_rate,3.58,0.04,stdev.,nmol-c2h4 ml-1 h-1
+N973,R154,Gotland Basin - Central Baltic,57.283333,20.08333333,estuaries,1994.0,7.0,15.0,,,wc,water column - concentrated,nfix_rate,1.31,0.004,stdev.,nmol-c2h4 ml-1 h-1
+N974,R154,Gotland Basin - Central Baltic,57.283333,20.08333333,estuaries,1994.0,7.0,15.0,,,wc,water column - concentrated,nfix_rate,1.6,0.09,stdev.,nmol-c2h4 ml-1 h-1
+N975,R154,Gotland Basin - Central Baltic,57.283333,20.08333333,estuaries,1994.0,7.0,15.0,,,wc,water column - not concentrated,nfix_rate,0.026,0.007,stdev.,nmol-c2h4 ml-1 h-1
+N976,R154,Gotland Basin - Central Baltic,57.283333,20.08333333,estuaries,1994.0,7.0,15.0,,,wc,water column - not concentrated,nfix_rate,0.032,0.007,stdev.,nmol-c2h4 ml-1 h-1
+N977,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1990.0,7.0,,,,benthos,surface mudflat,nfix_rate,8.3,,,nmol-c2h4 cm-2 h-1
+N978,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1990.0,11.0,,,,benthos,surface mudflat,nfix_rate,5.5,,,nmol-c2h4 cm-2 h-1
+N979,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1991.0,3.0,,,,benthos,surface mudflat,nfix_rate,25.0,,,nmol-c2h4 cm-2 h-1
+N980,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1991.0,7.0,,,,benthos,surface mudflat,nfix_rate,47.8,,,nmol-c2h4 cm-2 h-1
+N981,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1991.0,11.0,,,,benthos,surface mudflat,nfix_rate,24.7,,,nmol-c2h4 cm-2 h-1
+N982,R173,"Walker Creek Delta, Tomales Bay California",38.1713,-122.9128,estuaries,1992.0,3.0,,,,benthos,surface mudflat,nfix_rate,8.3,,,nmol-c2h4 cm-2 h-1
+N983,R173,"Lagunitas Creek, Tomales Bay, CA",38.1713,-122.9128,estuaries,1990.0,7.0,,,,benthos,surface mudflat,nfix_rate,22.7,,,nmol-c2h4 cm-2 h-1
+N984,R173,"Lagunitas Creek, Tomales Bay, CA",38.1713,-122.9128,estuaries,1990.0,11.0,,,,benthos,surface mudflat,nfix_rate,7.3,,,nmol-c2h4 cm-2 h-1
+N985,R173,"Lagunitas Creek, Tomales Bay, CA",38.1713,-122.9128,estuaries,1991.0,3.0,,,,benthos,surface mudflat,nfix_rate,20.3,,,nmol-c2h4 cm-2 h-1
+N986,R173,"Lagunitas Creek, Tomales Bay, CA",38.1713,-122.9128,estuaries,1991.0,7.0,,,,benthos,surface mudflat,nfix_rate,5.2,,,nmol-c2h4 cm-2 h-1
+N987,R173,"Lagunitas Creek, Tomales Bay, CA",38.1713,-122.9128,estuaries,1991.0,11.0,,,,benthos,surface mudflat,nfix_rate,2.7,,,nmol-c2h4 cm-2 h-1
+N1027,R25,"East Weeks Bay, AL",30.4,87.8,estuaries,2012.0,2.0,,,,benthos,sediment,nfix_rate,1.6,0.2,std. err,umol-n m-2 h-1
+N1028,R25,"Weeks Bay Mouth, AL",30.4,87.8,estuaries,2012.0,2.0,,,,benthos,sediment,nfix_rate,2.4,0.7,std. err,umol-n m-2 h-1
+N1029,R25,"West Weeks Bay, AL",30.4,87.8,estuaries,2012.0,2.0,,,,benthos,sediment,nfix_rate,2.6,0.4,std. err,umol-n m-2 h-1
+N1030,R109,"Pearl River Estuary, South China Sea",22.747341,113.652219,estuaries,2018.0,7.0,31.0,,,benthos,sediment - inner estuary,nfix_rate,0.19,0.11,stdev.,ug-N g-1 d-1
+N1031,R109,"Pearl River Estuary, South China Sea",22.747341,113.652219,estuaries,2018.0,7.0,31.0,,,benthos,sediment - outer estuary,nfix_rate,0.37,0.35,stdev.,ug-N g-1 d-1
+N1032,R47,"1 Cape Martin, France",43.752417,7.489444444,estuaries,2001.0,10.0,1.0,,,benthos,mesocosm,nfix_rate,0.138,0.084,stdev.,nmol-c2h4 cm-3 h-1
+N1033,R47,"1 Cape Martin, France",43.752417,7.489444444,estuaries,2001.0,10.0,1.0,,,benthos,mesocosm,nfix_rate,3.96,1.985,stdev.,nmol-c2h4 cm-3 h-1
+N1034,R47,2 Monaco,43.730333,7.426666667,estuaries,2001.0,10.0,2.0,,,benthos,mesocosm,nfix_rate,0.106,0.045,stdev.,nmol-c2h4 cm-3 h-1
+N1035,R47,2 Monaco,43.730333,7.426666667,estuaries,2001.0,10.0,3.0,,,benthos,mesocosm,nfix_rate,0.128,0.095,stdev.,nmol-c2h4 cm-3 h-1
+N1084,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,benthos,root-free peat (0-10 cm),nfix_rate,1.69,0.68,stdev.,umol-n g-1 d-1
+N1085,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,benthos,root-free peat (0-10 cm),nfix_rate,1.25,0.32,stdev.,umol-c2h4 g-1 d-1
+N1118,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,78.0,21.0,stdev.,mg-n m-2 d-1
+N1119,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,77.0,22.0,stdev.,mg-n m-2 d-1
+N1120,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,194.0,74.0,stdev.,mg-n m-2 d-1
+N1121,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,72.0,25.0,stdev.,mg-n m-2 d-1
+N1122,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,61.0,16.0,stdev.,mg-n m-2 d-1
+N1123,R117,"SKY Southern Patagonia, Chile",-52.508667,-72.127278,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,216.0,97.0,stdev.,mg-n m-2 d-1
+N1124,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,69.0,43.0,stdev.,mg-n m-2 d-1
+N1125,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,44.0,10.0,stdev.,mg-n m-2 d-1
+N1126,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,sphagnum,nfix_rate,127.0,26.0,stdev.,mg-n m-2 d-1
+N1127,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,63.0,30.0,stdev.,mg-n m-2 d-1
+N1128,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,27.0,14.0,stdev.,mg-n m-2 d-1
+N1129,R117,"OBS Southern Patagonia, Chile",-52.135907,-72.446037,freshwater wetlands,2014.0,3.0,,,,benthos,peat,nfix_rate,59.0,16.0,stdev.,mg-n m-2 d-1
+N1133,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,1900.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.46,0.06,stdev.,nmol-n g-1 h-1
+N1134,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,2200.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.27,0.16,stdev.,nmol-n g-1 h-1
+N1135,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,100.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.45,0.1,stdev.,nmol-n g-1 h-1
+N1136,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,400.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.38,0.21,stdev.,nmol-n g-1 h-1
+N1137,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,700.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.07,0.06,stdev.,nmol-n g-1 h-1
+N1138,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,1100.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.29,0.03,stdev.,nmol-n g-1 h-1
+N1139,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,1300.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.26,0.11,stdev.,nmol-n g-1 h-1
+N1140,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,1600.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.02,0.04,stdev.,nmol-n g-1 h-1
+N1141,R79,"Imboacica Lagoon, Brazil",-22.833333,-44.7,freshwater wetlands,1993.0,,,1900.0,,benthos,"moist sediment, near sewage outlet, diel",nfix_rate,0.19,0.11,stdev.,nmol-n g-1 h-1
+N1254,R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",39.407328,-0.315413,freshwater wetlands,1989.0,5.0,,,,benthos,rice field,nfix_rate,74.1,177.8,stdev.,umol-c2h4 m-2 h-1
+N1255,R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",39.407328,-0.315413,freshwater wetlands,1989.0,6.0,,,,benthos,rice field,nfix_rate,12.9,18.3,stdev.,umol-c2h4 m-2 h-1
+N1256,R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",39.407328,-0.315413,freshwater wetlands,1989.0,7.0,,,,benthos,rice field,nfix_rate,108.7,252.8,stdev.,umol-c2h4 m-2 h-1
+N1257,R103,"Lake Malawi, Africa, site LI-Makalawe",-12.0,34.5,lakes,1988.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,642.0,93.0,stdev.,ug-n2 m-2 h-1
+N1258,R103,"Lake Malawi, Africa, site LI-Makalawe",-12.0,34.5,lakes,1988.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,743.0,102.0,stdev.,ug-n2 m-2 h-1
+N1259,R103,"Lake Malawi, Africa, site LI-Membe",-12.0,34.5,lakes,1988.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,1276.0,149.0,stdev.,ug-n2 m-2 h-1
+N1260,R103,"Lake Malawi, Africa, site LI-Membe",-12.0,34.5,lakes,1988.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,590.0,99.0,stdev.,ug-n2 m-2 h-1
+N1261,R103,"Lake Malawi, Africa, site LI-Membe",-12.0,34.5,lakes,1988.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,445.0,103.0,stdev.,ug-n2 m-2 h-1
+N1262,R103,"Lake Malawi, Africa, site Maleri N",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,1190.0,291.0,stdev.,ug-n2 m-2 h-1
+N1263,R103,"Lake Malawi, Africa, site Maleri N",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,1068.0,371.0,stdev.,ug-n2 m-2 h-1
+N1264,R103,"Lake Malawi, Africa, site Maleri N",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,443.0,342.0,stdev.,ug-n2 m-2 h-1
+N1265,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,1310.0,402.0,stdev.,ug-n2 m-2 h-1
+N1266,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,782.0,276.0,stdev.,ug-n2 m-2 h-1
+N1267,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,108.0,79.0,stdev.,ug-n2 m-2 h-1
+N1268,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,2585.0,197.0,stdev.,ug-n2 m-2 h-1
+N1269,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,1029.0,260.0,stdev.,ug-n2 m-2 h-1
+N1270,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,387.0,93.0,stdev.,ug-n2 m-2 h-1
+N1271,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,5.0,,,,benthos,rocky epilithic periphyton; daytime rates only,nfix_rate,327.0,89.0,stdev.,ug-n2 m-2 h-1
+N1272,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,6.0,24.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,718.0,,,ug-n2 m-2 h-1
+N1273,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,6.0,24.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,899.0,,,ug-n2 m-2 h-1
+N1274,R103,"Lake Malawi, Africa, site Maleri S",-12.0,34.5,lakes,1997.0,6.0,24.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,948.0,,,ug-n2 m-2 h-1
+N1275,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,9.0,13.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,383.0,,,ug-n2 m-2 h-1
+N1276,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,9.0,13.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,492.0,,,ug-n2 m-2 h-1
+N1277,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,9.0,13.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,349.0,,,ug-n2 m-2 h-1
+N1278,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,9.0,13.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,982.0,,,ug-n2 m-2 h-1
+N1279,R103,"Lake Malawi, Africa, site Thumbi West",-12.0,34.5,lakes,1998.0,9.0,13.0,,,benthos,rocky epilithic periphyton; nocturnal rates only,nfix_rate,721.0,,,ug-n2 m-2 h-1
+N1375,R225,"Mono Lake, Sierra Nevada, California - Station 3, 2 m depth",37.98783,-119.097427,lakes,2001.0,5.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1376,R225,"Mono Lake, Sierra Nevada, California - Station 3, 18.5 m depth",37.98783,-119.097427,lakes,2001.0,5.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1377,R225,"Mono Lake, Sierra Nevada, California - Station 3, 30 m depth",37.98783,-119.097427,lakes,2001.0,5.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1378,R225,"Mono Lake, Sierra Nevada, California - Station 6, 2 m depth",37.964174,-119.028387,lakes,2001.0,8.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1379,R225,"Mono Lake, Sierra Nevada, California - Station 6, 18.5 m depth",37.964174,-119.028387,lakes,2001.0,8.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1380,R225,"Mono Lake, Sierra Nevada, California - Station 6, 30 m depth",37.964174,-119.028387,lakes,2001.0,8.0,,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 d-1
+N1418,R264,Lake Chiprana,41.2398386,-0.183341102,lakes,2000.0,3.0,7.0,,,benthos,benthic mat,nfix_rate,5.5,0.7,stdev.,nmol-c2h4 cm-2 d-1
+N1452,R230,Lake Verevi,58.231361,26.40416667,lakes,2000.0,8.0,,,,wc,water,nfix_rate,2.8,,,mg-n m-3 d-1
+N1453,R230,Lake Verevi,58.231361,26.40416667,lakes,2000.0,8.0,28.0,,,wc,water,nfix_rate,0.3,,,mg-n m-3 d-1
+N1454,R230,Lake Verevi,58.231361,26.40416667,lakes,2001.0,8.0,28.0,,,wc,water,nfix_rate,0.38,,,mg-n m-3 d-1
+N1455,R85,"2001, Fog 2, ambient",68.616667,-149.5833333,lakes,2001.0,6.0,,,,benthos,sediment,nfix_rate,0.097,0.01,std. err,mg-n m-2 d-1
+N1456,R85,"2001, Fog 2, control",68.616667,-149.5833333,lakes,2001.0,6.0,,,,benthos,sediment,nfix_rate,0.24,0.07,std. err,mg-n m-2 d-1
+N1457,R85,"2002, Fog 2, ambient",68.616667,-149.5833333,lakes,2002.0,6.0,,,,benthos,sediment,nfix_rate,0.88,0.04,std. err,mg-n m-2 d-1
+N1458,R85,"2002, Fog 2, control",68.616667,-149.5833333,lakes,2002.0,6.0,,,,benthos,sediment,nfix_rate,0.39,0.12,std. err,mg-n m-2 d-1
+N1459,R85,"2002, S-6, ambient",68.616667,-149.5833333,lakes,2002.0,6.0,,,,benthos,sediment,nfix_rate,0.36,0.1,std. err,mg-n m-2 d-1
+N1460,R85,"2002, S-6, control",68.616667,-149.5833333,lakes,2002.0,6.0,,,,benthos,sediment,nfix_rate,0.35,0.1,std. err,mg-n m-2 d-1
+N1461,R85,"2003, Fog 2, ambient",68.616667,-149.5833333,lakes,2003.0,6.0,,,,benthos,sediment,nfix_rate,0.27,0.06,std. err,mg-n m-2 d-1
+N1462,R85,"2003, Fog 2, control",68.616667,-149.5833333,lakes,2003.0,6.0,,,,benthos,sediment,nfix_rate,0.24,0.03,std. err,mg-n m-2 d-1
+N1640,R70,Shelburne Pond,44.383333,-73.158333,lakes,1999.0,6.0,29.0,,,wc,water column,nfix_rate,0.8,,,nmol-n l-1 h-1
+N1641,R70,Shelburne Pond,44.383333,-73.158333,lakes,1999.0,7.0,25.0,,,wc,water column,nfix_rate,9.62,,,nmol-n l-1 h-1
+N1642,R70,Shelburne Pond,44.383333,-73.158333,lakes,1999.0,8.0,20.0,,,wc,water column,nfix_rate,1.28,,,nmol-n l-1 h-1
+N1643,R70,Shelburne Pond,44.383333,-73.158333,lakes,1999.0,9.0,18.0,,,wc,water column,nfix_rate,0.0,,,nmol-n l-1 h-1
+N1644,R70,Shelburne Pond,44.383333,-73.158333,lakes,1999.0,10.0,19.0,,,wc,water column,nfix_rate,0.38,,,nmol-n l-1 h-1
+N1645,R39,Pond Baltazar,-27.45,-58.91667,lakes,1991.0,1.0,,,,wc,water column,nfix_rate,0.07,0.01,std. err,umol-n2 l-1 d-1
+N1646,R39,Pond Baltazar,-27.45,-58.91667,lakes,1991.0,1.0,,,,wc,water column,nfix_rate,0.0,,,umol-n2 l-1 d-1
+N1647,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2003.0,6.0,6.0,,,wc,water,nfix_rate,0.1,,,ug-n2 l-1 h-1
+N1648,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2003.0,10.0,9.0,,,wc,water,nfix_rate,0.0,,,ug-n2 l-1 h-1
+N1649,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2003.0,11.0,4.0,,,wc,water,nfix_rate,0.0,,,ug-n2 l-1 h-1
+N1650,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2003.0,7.0,3.0,,,wc,water,nfix_rate,0.0,,,ug-n2 l-1 h-1
+N1651,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2003.0,10.0,9.0,,,wc,water,nfix_rate,0.0,,,ug-n2 l-1 h-1
+N1652,R142,Gilbert Bay Great Salt Lake,41.08962096,-112.3751136,lakes,2004.0,10.0,20.0,,,wc,water,nfix_rate,0.0,,,ug-n2 l-1 h-1
+N1653,R142,Farmington Bay Great Salt Lake,41.05884227,-112.2036352,lakes,2005.0,5.0,19.0,,,wc,water,nfix_rate,2.0,,,ug-n2 l-1 h-1
+N1663,R11,"Hurun Bay, Sumatra, Station HBA",-5.05,105.25,mangroves,2007.0,4.0,,,,benthos,soil,nfix_rate,567.0,82.0,std. err,umol-n m-2 d-1
+N1664,R11,"Hurun Bay, Sumatra, Station HBR",-5.05,105.25,mangroves,2007.0,4.0,,,,benthos,soil,nfix_rate,97.0,48.0,std. err,umol-n m-2 d-1
+N1665,R11,"Hurun Bay, Sumatra, Station HBS",-5.05,105.25,mangroves,2007.0,4.0,,,,benthos,soil,nfix_rate,305.0,249.0,std. err,umol-n m-2 d-1
+N1666,R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",-4.233333,119.5916667,mangroves,2007.0,4.0,,,,benthos,soil,nfix_rate,1648.0,230.0,std. err,umol-n m-2 d-1
+N1667,R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",-4.233333,119.5916667,mangroves,2006.0,8.0,,,,benthos,soil,nfix_rate,238.0,83.0,std. err,umol-n m-2 d-1
+N1668,R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",-4.233333,119.5916667,mangroves,2007.0,4.0,,,,benthos,microbial mats covering mangrove roots (sonneratia pneumatophores),nfix_rate,4316.0,1172.0,std. err,umol-n m-2 d-1
+N1669,R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",-4.233333,119.5916667,mangroves,2006.0,8.0,,,,benthos,microbial mats covering mangrove roots (sonneratia pneumatophores),nfix_rate,860.0,45.0,std. err,umol-n m-2 d-1
+N1715,R8,Matang Mangrove Forest MVR,4.837833,100.617,mangroves,1998.0,,,,,benthos,sediment and creek water,nfix_rate,2.3,1.3,std. err,mmol-n2 m-2 d-1
+N1716,R8,Matang Mangrove Forest MVR,4.837833,100.617,mangroves,1999.0,,,,,benthos,sediment and creek water,nfix_rate,0.0,0.0,std. err,mmol-n2 m-2 d-1
+N1717,R8,Matang Mangrove Forest M18,4.850667,100.612,mangroves,1998.0,,,,,benthos,sediment and creek water,nfix_rate,3.0,1.3,std. err,mmol-n2 m-2 d-1
+N1718,R8,Matang Mangrove Forest M18,4.850667,100.612,mangroves,1999.0,,,,,benthos,sediment and creek water,nfix_rate,0.0,0.0,std. err,mmol-n2 m-2 d-1
+N1719,R8,Matang Mangrove Forest M5,4.8595,100.6155,mangroves,1998.0,,,,,benthos,sediment and creek water,nfix_rate,0.0,0.0,std. err,mmol-n2 m-2 d-1
+N1720,R8,Matang Mangrove Forest M5,4.8595,100.6155,mangroves,1999.0,,,,,benthos,sediment and creek water,nfix_rate,0.0,0.0,std. err,mmol-n2 m-2 d-1
+N1738,R7,Sawi Bay S1,10.28,99.16333333,mangroves,1999.0,4.0,,,,benthos,sediment and roots,nfix_rate,0.0,,,umol-n m-2 h-1
+N1739,R7,Sawi Bay S2,10.278333,99.16333333,mangroves,1999.0,4.0,,,,benthos,sediment and roots,nfix_rate,8.0,6.0,std. err,umol-n m-2 h-1
+N1740,R7,Sawi Bay S3,10.373333,99.22,mangroves,1999.0,4.0,,,,benthos,sediment and roots,nfix_rate,24.0,24.0,std. err,umol-n m-2 h-1
+N1741,R7,Sawi Bay S4,10.373333,99.22166667,mangroves,1999.0,4.0,,,,benthos,sediment and roots,nfix_rate,2.0,4.0,std. err,umol-n m-2 h-1
+N1742,R7,Sawi Bay S1,10.28,99.16333333,mangroves,1999.0,10.0,,,,benthos,sediment and roots,nfix_rate,0.0,,,umol-n m-2 h-1
+N1743,R7,Sawi Bay S2,10.278333,99.16333333,mangroves,1999.0,10.0,,,,benthos,sediment and roots,nfix_rate,2.0,2.0,std. err,umol-n m-2 h-1
+N1744,R7,Sawi Bay S3,10.373333,99.22,mangroves,1999.0,10.0,,,,benthos,sediment and roots,nfix_rate,10.0,10.0,std. err,umol-n m-2 h-1
+N1745,R7,Sawi Bay S4,10.373333,99.22166667,mangroves,1999.0,10.0,,,,benthos,sediment and roots,nfix_rate,6.0,8.0,std. err,umol-n m-2 h-1
+N1746,R6,"lower Mekong delta, Vietnam",8.8,105.2,mangroves,1997.0,5.0,,,,benthos,silt/clay sediment,nfix_rate,245.0,127.0,std. err,umol-n2 m-2 d-1
+N1747,R6,"lower Mekong delta, Vietnam",8.8,105.2,mangroves,1997.0,5.0,,,,benthos,silt/clay sediment,nfix_rate,1425.0,468.0,std. err,umol-n2 m-2 d-1
+N1748,R6,"lower Mekong delta, Vietnam",8.8,105.2,mangroves,1997.0,5.0,,,,benthos,silt/clay sediment,nfix_rate,444.0,92.0,std. err,umol-n2 m-2 d-1
+N1802,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,9.1,13.5,stdev.,nmol-n2 g-1 h-1
+N1803,R114,"Lake Camaleao B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,821.3,143.5,stdev.,nmol-n2 g-1 h-1
+N1804,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,306.9,235.9,stdev.,nmol-n2 g-1 h-1
+N1805,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,148.5,149.4,stdev.,nmol-n2 g-1 h-1
+N1806,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,264.5,173.3,stdev.,nmol-n2 g-1 h-1
+N1807,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,1.0,0.5,stdev.,nmol-n2 g-1 h-1
+N1808,R114,"Lake Camaleao B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,25.1,8.9,stdev.,nmol-n2 g-1 h-1
+N1809,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,14.6,7.8,stdev.,nmol-n2 g-1 h-1
+N1810,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,65.5,63.4,stdev.,nmol-n2 g-1 h-1
+N1811,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,paspalum repens periphyton,nfix_rate,170.3,166.0,stdev.,nmol-n2 g-1 h-1
+N1812,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,0.6,1.1,stdev.,nmol-n2 g-1 h-1
+N1813,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,38.2,31.1,stdev.,nmol-n2 g-1 h-1
+N1814,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,19.2,11.5,stdev.,nmol-n2 g-1 h-1
+N1815,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,318.2,216.5,stdev.,nmol-n2 g-1 h-1
+N1816,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,0.1,0.2,stdev.,nmol-n2 g-1 h-1
+N1817,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,2.7,1.6,stdev.,nmol-n2 g-1 h-1
+N1818,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,2.1,1.2,stdev.,nmol-n2 g-1 h-1
+N1819,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,echinochloa polystachya periphyton,nfix_rate,20.2,22.3,stdev.,nmol-n2 g-1 h-1
+N1820,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,1.2,1.5,stdev.,nmol-n2 g-1 h-1
+N1821,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,6.0,9.3,stdev.,nmol-n2 g-1 h-1
+N1822,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,20.9,18.7,stdev.,nmol-n2 g-1 h-1
+N1823,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,25.8,19.9,stdev.,nmol-n2 g-1 h-1
+N1824,R114,"channel near Solimoes A-B, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,0.0,0.0,stdev.,nmol-n2 g-1 h-1
+N1825,R114,"Lake Camaleao D, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,3.3,2.7,stdev.,nmol-n2 g-1 h-1
+N1826,R114,"Lake Camaleao E, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,2.1,0.8,stdev.,nmol-n2 g-1 h-1
+N1827,R114,"Lake Novo center, Marchantaria Island",-3.243347,-59.947108,rivers,2001.0,4.0,,,,benthos,eichhornia crassipes periphyton,nfix_rate,7.3,5.0,stdev.,nmol-n2 g-1 h-1
+N1975,R43,Kings Creek N4D,39.08785,-96.58445,rivers,2003.0,,,,,benthos,sediment,nfix_rate,18.6,,,fmol-n g-1 h-1
+N1976,R43,Kings Creek N4D,39.08785,-96.58445,rivers,2003.0,,,,,benthos,sediment,nfix_rate,13.3,,,fmol-n g-1 h-1
+N1977,R43,Kings Creek K2A,39.100133,-96.57423333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,2.9,,,fmol-n g-1 h-1
+N1978,R43,Kings Creek K2A,39.100133,-96.57423333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,3.2,,,fmol-n g-1 h-1
+N1979,R43,Kings Creek K2A,39.100133,-96.57423333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,78.1,,,fmol-n g-1 h-1
+N1980,R43,North Creek,39.21235,-96.59306667,rivers,2003.0,,,,,benthos,sediment,nfix_rate,6.2,,,fmol-n g-1 h-1
+N1981,R43,North Creek,39.21235,-96.59306667,rivers,2003.0,,,,,benthos,sediment,nfix_rate,6.2,,,fmol-n g-1 h-1
+N1982,R43,North Creek,39.21235,-96.59306667,rivers,2003.0,,,,,benthos,sediment,nfix_rate,14.8,,,fmol-n g-1 h-1
+N1983,R43,Natalie s Creek,39.228717,-96.65883333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,2.1,,,fmol-n g-1 h-1
+N1984,R43,Natalie s Creek,39.228717,-96.65883333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,2.3,,,fmol-n g-1 h-1
+N1985,R43,Natalie s Creek,39.228717,-96.65883333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,5.6,,,fmol-n g-1 h-1
+N1986,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,2.3,,,fmol-n g-1 h-1
+N1987,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,2.6,,,fmol-n g-1 h-1
+N1988,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,sediment,nfix_rate,3.0,,,fmol-n g-1 h-1
+N1989,R43,Campus Creek,39.228717,-96.65883333,rivers,2003.0,,,,,benthos,sediment,nfix_rate,1.9,,,fmol-n g-1 h-1
+N1990,R43,Campus Creek,39.228717,-96.65883333,rivers,2003.0,,,,,benthos,sediment,nfix_rate,1.5,,,fmol-n g-1 h-1
+N1991,R43,Campus Creek,39.228717,-96.65883333,rivers,2003.0,,,,,benthos,sediment,nfix_rate,1.5,,,fmol-n g-1 h-1
+N1992,R43,Natalie s Creek,39.228717,-96.65883333,rivers,2004.0,,,,,benthos,algae,nfix_rate,112.8,,,fmol-n g-1 h-1
+N1993,R43,Natalie s Creek,39.228717,-96.65883333,rivers,2004.0,,,,,benthos,algae,nfix_rate,82.8,,,fmol-n g-1 h-1
+N1994,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,algae,nfix_rate,93.5,,,fmol-n g-1 h-1
+N1995,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,algae,nfix_rate,62.7,,,fmol-n g-1 h-1
+N1996,R43,Big Blue River Ditch,39.185583,-96.55833333,rivers,2004.0,,,,,benthos,algae,nfix_rate,69.7,,,fmol-n g-1 h-1
+N2119,R102,"Whangateau Harbour, New Zealand",-36.3,174.7666667,salt marshes,1975.0,1.0,,,,benthos,coastal salt marsh sediment,nfix_rate,24.7,4.6,C.I.,umol-c2h4 m-2 h-1
+N2120,R102,"Whangateau Harbour, New Zealand",-36.3,174.7666667,salt marshes,1975.0,1.0,,,,benthos,coastal salt marsh sediment,nfix_rate,4.5,1.0,C.I.,umol-c2h4 m-2 h-1
+N2129,R159,"Northern Wildlife Preserve, San Diego, California - Native habitat",32.793056,-117.2166667,salt marshes,2004.0,1.0,,,,benthos,sediment,nfix_rate,29.0,11.0,stdev.,umol-c2h4 m-2 h-1
+N2130,R159,"Northern Wildlife Preserve, San Diego, California - Habitat with mussels",32.793056,-117.2166667,salt marshes,2004.0,1.0,,,,benthos,sediment,nfix_rate,11.0,2.8,stdev.,umol-c2h4 m-2 h-1
+N2131,R159,"Tijuana Estuary, Imperial Beach, California - Native habitat",32.566667,-117.1166667,salt marshes,2004.0,1.0,,,,benthos,sediment,nfix_rate,3.1,1.9,stdev.,umol-c2h4 m-2 h-1
+N2132,R159,"Tijuana Estuary, Imperial beach, California - Habitat with tamarisk shrubs",32.566667,-117.1166667,salt marshes,2004.0,1.0,,,,benthos,sediment,nfix_rate,6.1,1.5,stdev.,umol-c2h4 m-2 h-1
+N2133,R124,Connector Marsh - sediment surface,32.651482,-117.105304,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,14.98,4.62,std. err,nmol-c2h4 m-2 h-1
+N2134,R124,Connector Marsh - sediment surface,32.651482,-117.105304,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,42.62,22.74,std. err,nmol-c2h4 m-2 h-1
+N2135,R124,Connector Marsh - sediment surface,32.651482,-117.105304,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,45.42,2.16,std. err,nmol-c2h4 m-2 h-1
+N2136,R124,Connector Marsh - sediment surface,32.651482,-117.105304,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,34.68,0.99,std. err,nmol-c2h4 m-2 h-1
+N2137,R124,Connector Marsh - sediment surface,32.651482,-117.105304,salt marshes,1989.0,2.0,,,,benthos,sediment,nfix_rate,24.54,2.06,std. err,nmol-c2h4 m-2 h-1
+N2138,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,7.26,4.62,std. err,nmol-c2h4 m-2 h-1
+N2139,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,15.56,6.35,std. err,nmol-c2h4 m-2 h-1
+N2140,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,47.58,4.94,std. err,nmol-c2h4 m-2 h-1
+N2141,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,46.53,7.61,std. err,nmol-c2h4 m-2 h-1
+N2142,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1989.0,2.0,,,,benthos,sediment,nfix_rate,26.76,2.68,std. err,nmol-c2h4 m-2 h-1
+N2143,R124,North Bank - sediment surface,32.653876,-117.10731,salt marshes,1989.0,3.0,,,,benthos,sediment,nfix_rate,19.53,0.88,std. err,nmol-c2h4 m-2 h-1
+N2144,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,33.03,4.3,std. err,nmol-c2h4 m-2 h-1
+N2145,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,118.93,32.28,std. err,nmol-c2h4 m-2 h-1
+N2146,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,70.25,9.87,std. err,nmol-c2h4 m-2 h-1
+N2147,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,33.99,1.15,std. err,nmol-c2h4 m-2 h-1
+N2148,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1989.0,2.0,,,,benthos,sediment,nfix_rate,61.48,8.7,std. err,nmol-c2h4 m-2 h-1
+N2149,R124,Paradise Creek Marsh - sediment surface,32.655999,-117.10834,salt marshes,1989.0,3.0,,,,benthos,sediment,nfix_rate,24.67,1.49,std. err,nmol-c2h4 m-2 h-1
+N2150,R124,Connector Marsh - rhizosphere,32.651482,-117.105304,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,105.52,30.63,std. err,nmol-c2h4 m-2 h-1
+N2151,R124,Connector Marsh - rhizosphere,32.651482,-117.105304,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,96.24,20.56,std. err,nmol-c2h4 m-2 h-1
+N2152,R124,Connector Marsh - rhizosphere,32.651482,-117.105304,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,118.07,13.29,std. err,nmol-c2h4 m-2 h-1
+N2153,R124,Connector Marsh - rhizosphere,32.651482,-117.105304,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,251.73,20.78,std. err,nmol-c2h4 m-2 h-1
+N2154,R124,North Bank - rhizosphere,32.653876,-117.10731,salt marshes,1987.0,12.0,,,,benthos,sediment,nfix_rate,2.96,0.51,std. err,nmol-c2h4 m-2 h-1
+N2155,R124,North Bank - rhizosphere,32.653876,-117.10731,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,44.33,16.0,std. err,nmol-c2h4 m-2 h-1
+N2156,R124,North Bank - rhizosphere,32.653876,-117.10731,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,77.03,17.6,std. err,nmol-c2h4 m-2 h-1
+N2157,R124,North Bank - rhizosphere,32.653876,-117.10731,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,223.76,70.88,std. err,nmol-c2h4 m-2 h-1
+N2158,R124,North Bank - rhizosphere,32.653876,-117.10731,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,251.76,40.56,std. err,nmol-c2h4 m-2 h-1
+N2159,R124,Paradise Creek Marsh - rhizosphere,32.655999,-117.10834,salt marshes,1987.0,12.0,,,,benthos,sediment,nfix_rate,7.49,0.82,std. err,nmol-c2h4 m-2 h-1
+N2160,R124,Paradise Creek Marsh - rhizosphere,32.655999,-117.10834,salt marshes,1988.0,2.0,,,,benthos,sediment,nfix_rate,104.29,51.31,std. err,nmol-c2h4 m-2 h-1
+N2161,R124,Paradise Creek Marsh - rhizosphere,32.655999,-117.10834,salt marshes,1988.0,4.0,,,,benthos,sediment,nfix_rate,161.91,30.78,std. err,nmol-c2h4 m-2 h-1
+N2162,R124,Paradise Creek Marsh - rhizosphere,32.655999,-117.10834,salt marshes,1988.0,7.0,,,,benthos,sediment,nfix_rate,177.42,22.47,std. err,nmol-c2h4 m-2 h-1
+N2163,R124,Paradise Creek Marsh - rhizosphere,32.655999,-117.10834,salt marshes,1988.0,9.0,,,,benthos,sediment,nfix_rate,73.68,9.54,std. err,nmol-c2h4 m-2 h-1
+N2204,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,7.0,,,,benthos,sediment,nfix_rate,3.6,1.1,std. err,ng-n g-1 h-1
+N2205,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,7.0,,,,benthos,sediment,nfix_rate,7.5,2.2,std. err,ng-n g-1 h-1
+N2206,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,7.0,,,,benthos,sediment,nfix_rate,1.5,0.2,std. err,ng-n g-1 h-1
+N2207,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,7.0,,,,benthos,sediment,nfix_rate,0.5,0.3,std. err,ng-n g-1 h-1
+N2208,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,5.0,,,,benthos,sediment,nfix_rate,4.1,3.1,std. err,ng-n g-1 h-1
+N2209,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,5.0,,,,benthos,sediment,nfix_rate,6.5,0.6,std. err,ng-n g-1 h-1
+N2210,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,5.0,,,,benthos,sediment,nfix_rate,0.7,,std. err,ng-n g-1 h-1
+N2211,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,2.0,,,,benthos,sediment,nfix_rate,1.4,,std. err,ng-n g-1 h-1
+N2212,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,2.0,,,,benthos,sediment,nfix_rate,0.3,0.01,std. err,ng-n g-1 h-1
+N2213,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,10.0,,,,benthos,sediment,nfix_rate,2.7,1.0,std. err,ng-n g-1 h-1
+N2214,R13,Virginia Coastal Reserve,37.422715,-75.68776,salt marshes,1994.0,10.0,,,,benthos,sediment,nfix_rate,0.6,0.2,std. err,ng-n g-1 h-1
+N2231,R156,Groote Eylandt open bay,-13.789127,136.567,salt marshes,1987.0,2.0,,,,benthos,sediment,nfix_rate,33.0,4.0,std. err,mg-n m-2 d-1
+N2232,R156,Groote Eylandt open bay,-13.789127,136.567,salt marshes,1987.0,2.0,,,,benthos,sediment,nfix_rate,41.0,4.0,std. err,mg-n m-2 d-1
+N2329,R171,Bay of Arcachon,44.697128,-1.167539,salt marshes,1997.0,6.0,25.0,,,benthos,spartina maritima sediment,nfix_rate,0.087,,,nmol-n cm-3 h-1
+N2332,R102,"Whangateau Harbour, New Zealand",-36.3,174.7666667,seagrasses,1975.0,1.0,,,,benthos,coastal seagrass sediment,nfix_rate,15.2,2.8,C.I.,umol-c2h4 m-2 h-1
+N2333,R102,"Whangateau Harbour, New Zealand",-36.3,174.7666667,seagrasses,1975.0,1.0,,,,benthos,coastal seagrass sediment,nfix_rate,2.9,2.2,C.I.,umol-c2h4 m-2 h-1
+N2387,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"cores of zostera, water",nfix_rate,26.9,3.3,std. err,umol-c2h4 m-2 h-1
+N2388,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"cores of zostera, 2 cm",nfix_rate,9.0,1.4,std. err,umol-c2h4 m-2 h-1
+N2389,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"cores of zostera, 6 cm",nfix_rate,6.4,0.9,std. err,umol-c2h4 m-2 h-1
+N2390,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"cores of zostera, 10 cm",nfix_rate,5.0,0.8,std. err,umol-c2h4 m-2 h-1
+N2391,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"cores of zostera, 14 cm",nfix_rate,2.6,0.5,std. err,umol-c2h4 m-2 h-1
+N2392,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"defoliated cores of zostera, water",nfix_rate,1.8,1.0,std. err,umol-c2h4 m-2 h-1
+N2393,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"defoliated cores of zostera, 2 cm",nfix_rate,9.9,0.9,std. err,umol-c2h4 m-2 h-1
+N2394,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"defoliated cores of zostera, 6 cm",nfix_rate,8.6,0.4,std. err,umol-c2h4 m-2 h-1
+N2395,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"defoliated cores of zostera, 10 cm",nfix_rate,6.7,0.3,std. err,umol-c2h4 m-2 h-1
+N2396,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"defoliated cores of zostera, 14 cm",nfix_rate,4.8,0.3,std. err,umol-c2h4 m-2 h-1
+N2397,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"bare sand, water",nfix_rate,0.0,0.0,std. err,umol-c2h4 m-2 h-1
+N2398,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"bare sand, 2 cm",nfix_rate,1.6,0.2,std. err,umol-c2h4 m-2 h-1
+N2399,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"bare sand, 6 cm",nfix_rate,2.2,0.1,std. err,umol-c2h4 m-2 h-1
+N2400,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"bare sand, 10 cm",nfix_rate,2.2,0.1,std. err,umol-c2h4 m-2 h-1
+N2401,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,5.0,,,,benthos,"bare sand, 14 cm",nfix_rate,0.0,0.0,std. err,umol-c2h4 m-2 h-1
+N2402,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"cores of zostera, water",nfix_rate,46.0,5.5,std. err,umol-c2h4 m-2 h-1
+N2403,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"cores of zostera, 2 cm",nfix_rate,22.0,3.1,std. err,umol-c2h4 m-2 h-1
+N2404,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"cores of zostera, 6 cm",nfix_rate,17.5,1.6,std. err,umol-c2h4 m-2 h-1
+N2405,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"cores of zostera, 10 cm",nfix_rate,13.6,0.9,std. err,umol-c2h4 m-2 h-1
+N2406,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"cores of zostera, 14 cm",nfix_rate,12.1,1.2,std. err,umol-c2h4 m-2 h-1
+N2407,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"defoliated cores of zostera, water",nfix_rate,24.0,4.0,std. err,umol-c2h4 m-2 h-1
+N2408,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"defoliated cores of zostera, 2 cm",nfix_rate,18.4,1.8,std. err,umol-c2h4 m-2 h-1
+N2409,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"defoliated cores of zostera, 6 cm",nfix_rate,17.5,1.6,std. err,umol-c2h4 m-2 h-1
+N2410,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"defoliated cores of zostera, 10 cm",nfix_rate,13.3,1.1,std. err,umol-c2h4 m-2 h-1
+N2411,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"defoliated cores of zostera, 14 cm",nfix_rate,9.8,1.0,std. err,umol-c2h4 m-2 h-1
+N2412,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"bare sand, water",nfix_rate,0.0,0.0,std. err,umol-c2h4 m-2 h-1
+N2413,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"bare sand, 2 cm",nfix_rate,2.1,0.1,std. err,umol-c2h4 m-2 h-1
+N2414,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"bare sand, 6 cm",nfix_rate,2.9,0.2,std. err,umol-c2h4 m-2 h-1
+N2415,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"bare sand, 10 cm",nfix_rate,4.9,0.7,std. err,umol-c2h4 m-2 h-1
+N2416,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1987.0,2.0,,,,benthos,"bare sand, 14 cm",nfix_rate,4.0,0.4,std. err,umol-c2h4 m-2 h-1
+N2417,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"anaerobic seagrass sediment, 0-4 cm",nfix_rate,33.0,10.0,std. err,umol-c2h4 m-2 h-1
+N2418,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"anaerobic seagrass sediment, 4-8 cm",nfix_rate,31.0,6.0,std. err,umol-c2h4 m-2 h-1
+N2419,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"anaerobic seagrass sediment, 8-12 cm",nfix_rate,14.0,4.0,std. err,umol-c2h4 m-2 h-1
+N2420,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"aerobic seagrass sediment, 0-4 cm",nfix_rate,5.1,0.6,std. err,umol-c2h4 m-2 h-1
+N2421,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"aerobic seagrass sediment, 4-8 cm",nfix_rate,1.4,0.5,std. err,umol-c2h4 m-2 h-1
+N2422,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,12.0,,,,benthos,"aerobic seagrass sediment, 8-12 cm",nfix_rate,0.3,0.2,std. err,umol-c2h4 m-2 h-1
+N2423,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,benthos,sieved sediment 2 cm depth,nfix_rate,35.0,3.9,std. err,umol-n m-2 h-1
+N2424,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,benthos,sieved sediment 5 cm depth,nfix_rate,6.0,2.8,std. err,umol-n m-2 h-1
+N2425,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,benthos,sieved sediment 10 cm depth,nfix_rate,0.9,0.5,std. err,umol-n m-2 h-1
+N2426,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,benthos,sediment adhering to roots,nfix_rate,8.7,0.7,std. err,umol-n m-2 h-1
+N2427,R244,Lle auz Oseaux - central region of Bassin d Arcachon,44.697691,-1.177323,seagrasses,1995.0,6.0,,,,benthos,seagrass sediment- light,nfix_rate,7.66,,,umol-c2h4 m-2 h-1
+N2428,R244,Lle auz Oseaux - central region of Bassin d Arcachon,44.697691,-1.177323,seagrasses,1995.0,6.0,,,,benthos,seagrass sediment - dark,nfix_rate,4.17,,,umol-c2h4 m-2 h-1
+N2429,R244,Lle auz Oseaux - central region of Bassin d Arcachon,44.697691,-1.177323,seagrasses,1994.0,10.0,,,,benthos,z. nolitii-colonized sediment - light,nfix_rate,54.5,,,umol-c2h4 m-2 h-1
+N2430,R244,Lle auz Oseaux - central region of Bassin d Arcachon,44.697691,-1.177323,seagrasses,1994.0,10.0,,,,benthos,z. nolitii-colonized sediment - dark,nfix_rate,5.0,,,umol-c2h4 m-2 h-1
+N2431,R38,Northern Gulf of Aqaba,29.45,34.9667,seagrasses,2013.0,2.0,,,,benthos,seagrass,nfix_rate,0.06,0.01,std. err,mmol-n m-2 d-1
+N2432,R38,Northern Gulf of Aqaba,29.45,34.9667,seagrasses,2013.0,4.0,,,,benthos,seagrass,nfix_rate,0.42,0.03,std. err,mmol-n m-2 d-1
+N2433,R38,Northern Gulf of Aqaba,29.45,34.9667,seagrasses,2013.0,9.0,,,,benthos,seagrass,nfix_rate,4.6,0.78,std. err,mmol-n m-2 d-1
+N2434,R38,Northern Gulf of Aqaba,29.45,34.9667,seagrasses,2013.0,11.0,,,,benthos,seagrass,nfix_rate,0.4,0.25,std. err,mmol-n m-2 d-1
+N2437,R171,Bay of Arcachon,44.697128,-1.167539,seagrasses,1997.0,6.0,25.0,,,benthos,zostera noltii sediment,nfix_rate,0.117,,,nmol-n cm-3 h-1
+N2534,R156,Groote Eylandt reef flat,-13.789127,136.4882,tidal flats,1986.0,11.0,,,,benthos,sediment,nfix_rate,16.0,1.0,std. err,mg-n m-2 d-1
+N2535,R156,Groote Eylandt reef flat,-13.789127,136.4882,tidal flats,1987.0,2.0,,,,benthos,sediment,nfix_rate,15.0,2.0,std. err,mg-n m-2 d-1
+N2536,R1,Giralia Bay,-22.436944,114.3461111,tidal flats,2008.0,3.0,24.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,2.3,0.53,std. err,nmol-n cm-2 h-1
+N2537,R1,Giralia Bay,-22.436944,114.3461111,tidal flats,2008.0,3.0,24.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,2.6,0.43,std. err,nmol-n cm-2 h-1
+N2538,R1,Giralia Bay,-22.436944,114.3461111,tidal flats,2008.0,3.0,26.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,1.6,0.17,std. err,nmol-n cm-2 h-1
+N2539,R1,Giralia Bay,-22.436944,114.3461111,tidal flats,2008.0,3.0,27.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,2.7,0.47,std. err,nmol-n cm-2 h-1
+N2540,R1,Giralia Bay,-22.436944,114.3461111,tidal flats,2008.0,3.0,28.0,,,benthos,cyanobacterial mat and underlying sediment,nfix_rate,0.57,0.11,std. err,nmol-n cm-2 h-1
+N2607,R121,Kiwayuu station point 27,-2.01868461,41.2860269,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,86.9,,,umol-n2 m-2 d-1
+N2608,R121,Kiwayuu station point 28,-2.02729581,41.3315075,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,22.5,,,umol-n2 m-2 d-1
+N2609,R121,Sabaki station point 08,-3.1541067,40.144013,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,0.4,,,umol-n2 m-2 d-1
+N2610,R121,Sabaki station point 11,-3.15374199,40.1985574,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,2.6,,,umol-n2 m-2 d-1
+N2611,R121,Sabaki station point 17,-3.15103706,40.6030946,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,23.6,,,umol-n2 m-2 d-1
+N2612,R121,Sabaki station point 18,-3.14872723,40.9485422,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,0.1,,,umol-n2 m-2 d-1
+N2613,R121,Gazi station point 03,-4.37500253,39.5522582,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,2.3,,,umol-n2 m-2 d-1
+N2614,R121,Gazi station point 03 during surface bloom,-4.37500253,39.5522582,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,15695.5,,,umol-n2 m-2 d-1
+N2615,R121,Gazi station point 05,-4.36945084,39.7158777,continental shelves,1992.0,11.0,,,,other,trichodesmium colony suspended in seawater,nfix_rate,0.7,,,umol-n2 m-2 d-1
+N2641,R171,Bay of Arcachon,44.697128,-1.167539,estuaries,1997.0,6.0,25.0,,,other,zostera noltii roots,nfix_rate,0.008,,,nmol-n cm-3 h-1
+N2642,R171,Bay of Arcachon,44.697128,-1.167539,estuaries,1997.0,6.0,25.0,,,other,zostera noltii rhizomes,nfix_rate,0.046,,,nmol-n cm-3 h-1
+N2643,R171,Bay of Arcachon,44.697128,-1.167539,estuaries,1997.0,6.0,25.0,,,other,spartina maritima roots,nfix_rate,0.876,,,nmol-n cm-3 h-1
+N2644,R171,Bay of Arcachon,44.697128,-1.167539,estuaries,1997.0,6.0,25.0,,,other,spartina maritima rhizomes,nfix_rate,0.037,,,nmol-n cm-3 h-1
+N2645,R84,"Wilmington and Morehead City, North Carolina",34.479695,-77.472247,estuaries,2010.0,5.0,,,,other,codium,nfix_rate,0.6,0.26,stdev.,ug-n g-1 h-1
+N2646,R84,"Wilmington and Morehead City, North Carolina",34.479695,-77.472247,estuaries,2010.0,5.0,,,,other,codium,nfix_rate,0.09,0.04,stdev.,ug-n g-1 h-1
+N2688,R156,Weipa seagrass bed,-12.648099,141.811,estuaries,1986.0,11.0,,,,other,leaves,nfix_rate,4.2,0.1,std. err,mg-n m-2 d-1
+N2689,R156,Weipa seagrass bed,-12.648099,141.811,estuaries,1986.0,11.0,,,,other,roots,nfix_rate,0.3,0.1,std. err,mg-n m-2 d-1
+N2690,R156,Weipa seagrass bed,-12.648099,141.811,estuaries,1986.0,11.0,,,,other,rhizomes,nfix_rate,0.1,0.05,std. err,mg-n m-2 d-1
+N2691,R156,Weipa seagrass bed,-12.648099,141.811,estuaries,1986.0,11.0,,,,other,roots & rhizomes,nfix_rate,0.1,0.05,std. err,ug-n g-1 d-1
+N2692,R33,Seno Skyring (SKY),-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (entire plant),nfix_rate,1.02,0.27,stdev.,umol-n g-1 d-1
+N2693,R33,Seno Obstruccion (OBS),-52.135907,-72.446037,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (entire plant),nfix_rate,1.25,0.21,stdev.,umol-n g-1 d-1
+N2694,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (intact roots),nfix_rate,3.09,1.24,stdev.,umol-n g-1 d-1
+N2695,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (cut roots),nfix_rate,2.47,0.28,stdev.,umol-n g-1 d-1
+N2696,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,t. repens (cut roots),nfix_rate,3.94,0.63,stdev.,umol-n g-1 d-1
+N2697,R33,Seno Skyring (SKY),-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (entire plant),nfix_rate,2.43,0.45,stdev.,umol-c2h4 g-1 d-1
+N2698,R33,Seno Obstruccion (OBS),-52.135907,-72.446037,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (entire plant),nfix_rate,1.68,0.25,stdev.,umol-c2h4 g-1 d-1
+N2699,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (intact roots),nfix_rate,0.0,,stdev.,umol-c2h4 g-1 d-1
+N2700,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,l. fonkii (cut roots),nfix_rate,2.35,2.35,stdev.,umol-c2h4 g-1 d-1
+N2701,R33,SKY & OBS average,-52.508667,-72.127278,freshwater wetlands,2014.0,4.0,,,,other,t. repens (cut roots),nfix_rate,18.01,5.27,stdev.,umol-c2h4 g-1 d-1
+N2713,R39,Pond San Nicolas,-27.45,-58.91667,lakes,1990.0,4.0,,,,other,decomposing plant litter,nfix_rate,0.37,0.14,std. err,umol-n2 g-1 d-1
+N2714,R39,Pond San Nicolas,-27.45,-58.91667,lakes,1990.0,4.0,,,,other,water hyacinth roots,nfix_rate,0.17,0.08,std. err,umol-n2 g-1 d-1
+N2715,R39,Pond Baltazar,-27.45,-58.91667,lakes,1991.0,1.0,,,,other,decomposing plant litter,nfix_rate,3.18,0.47,std. err,umol-n2 g-1 d-1
+N2716,R39,Pond Baltazar,-27.45,-58.91667,lakes,1991.0,1.0,,,,other,water hyacinth roots,nfix_rate,0.54,0.19,std. err,umol-n2 g-1 d-1
+N2717,R43,Kings Creek N4D,39.08785,-96.58445,rivers,2003.0,,,,,other,leaves,nfix_rate,81.9,,,fmol-n g-1 h-1
+N2718,R43,Kings Creek N4D,39.08785,-96.58445,rivers,2003.0,,,,,other,leaves,nfix_rate,63.3,,,fmol-n g-1 h-1
+N2719,R43,Kings Creek K2A,39.100133,-96.57423333,rivers,2004.0,,,,,other,leaves,nfix_rate,9.2,,,fmol-n g-1 h-1
+N2720,R152,Apr,34.724813,-76.659535,salt marshes,2002.0,4.0,24.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,56.5,44.1,stdev.,nmol-c2h4 cm-2 h-1
+N2721,R152,Jun,34.724813,-76.659535,salt marshes,2002.0,4.0,25.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,72.1,48.8,stdev.,nmol-c2h4 cm-2 h-1
+N2722,R152,Jul,34.724813,-76.659535,salt marshes,2002.0,4.0,26.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,34.2,26.6,stdev.,nmol-c2h4 cm-2 h-1
+N2723,R152,Aug,34.724813,-76.659535,salt marshes,2002.0,4.0,27.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,16.3,12.8,stdev.,nmol-c2h4 cm-2 h-1
+N2724,R152,Sep,34.724813,-76.659535,salt marshes,2002.0,4.0,28.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,17.1,12.1,stdev.,nmol-c2h4 cm-2 h-1
+N2725,R152,Oct,34.724813,-76.659535,salt marshes,2002.0,4.0,29.0,,,other,epiphytes on standing dead spartina alterniflora,nfix_rate,14.6,15.3,stdev.,nmol-c2h4 cm-2 h-1
+N2812,R156,Groote Eylandt open bay,-13.789127,136.567,salt marshes,1987.0,2.0,,,,other,leaves,nfix_rate,2.2,1.2,std. err,mg-n m-2 d-1
+N2813,R156,Groote Eylandt open bay,-13.789127,136.567,salt marshes,1987.0,2.0,,,,other,roots & rhizomes,nfix_rate,2.6,0.7,std. err,mg-n m-2 d-1
+N2814,R156,Groote Eylandt open bay,-13.789127,136.567,salt marshes,1987.0,2.0,,,,other,roots & rhizomes,nfix_rate,4.1,1.1,std. err,ug-n g-1 d-1
+N2819,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,other,leaves,nfix_rate,61.0,4.0,std. err,umol-n m-2 h-1
+N2820,R172,"Moreton bay, Australia",-27.633333,153.4166667,seagrasses,1986.0,,,,,other,roots and rhizomes,nfix_rate,8.5,1.3,std. err,umol-n m-2 h-1
+N2821,R156,Groote Eylandt reef flat,-13.789127,136.4882,tidal flats,1987.0,2.0,,,,other,leaves,nfix_rate,0.3,0.2,std. err,mg-n m-2 d-1
+N2822,R156,Groote Eylandt reef flat,-13.789127,136.4882,tidal flats,1987.0,2.0,,,,other,roots & rhizomes,nfix_rate,1.6,0.4,std. err,mg-n m-2 d-1
+N2823,R156,Groote Eylandt reef flat,-13.789127,136.4882,tidal flats,1987.0,2.0,,,,other,roots & rhizomes,nfix_rate,3.7,1.1,std. err,ug-n g-1 d-1
+N2839,R221,Northeastern Chukchi Sea Shelf,71.251,-163.197,continental shelves,2010.0,7.0,25.0,,,benthos,sediments,nfix_rate,-27.0,3.1,std. err,umol-n2 m-2 h-1
+N2840,R221,Northeastern Chukchi Sea Shelf,71.251,-163.197,continental shelves,2010.0,7.0,25.0,,,benthos,sediments,nfix_rate,-27.0,1.1,std. err,umol-n2 m-2 h-1
+N2845,R78,"Narragansett Bay, RI",41.588333,-71.371667,estuaries,2011.0,6.0,,,,benthos,sediment,nfix_rate,-10.3,,,umol-n m-2 h-1
+N2846,R194,24-Jun-08,41.580028,-70.525069,estuaries,2008.0,6.0,24.0,,,benthos,water,nfix_rate,-0.768,,,mmol-n m-2 h-1
+N2847,R194,25-Jun-08,41.580028,-70.525069,estuaries,2008.0,6.0,25.0,,,benthos,water,nfix_rate,-0.173,,,mmol-n m-2 h-1
+N2861,R76,Narragansett Bay,41.778333,-71.38,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-25.0,3.5,stdev.,umol-n m-2 h-1
+N2862,R76,Narragansett Bay,41.778333,-71.38,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-245.0,9.7,stdev.,umol-n m-2 h-1
+N2863,R76,Narragansett Bay,41.718333,-71.36,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-30.0,5.2,stdev.,umol-n m-2 h-1
+N2864,R76,Narragansett Bay,41.72,-71.30833333,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-135.0,19.4,stdev.,umol-n m-2 h-1
+N2865,R76,Narragansett Bay,41.72,-71.30833333,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-650.0,200.4,stdev.,umol-n m-2 h-1
+N2866,R76,Narragansett Bay,41.588333,-71.37166667,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-75.0,13.2,stdev.,umol-n m-2 h-1
+N2867,R76,Narragansett Bay,41.588333,-71.37166667,estuaries,2006.0,,,,,benthos,sediment,nfix_rate,-276.0,90.4,stdev.,umol-n m-2 h-1
+N2868,R105,"Gainsville, FL USA",29.64752,-82.3136,lakes,2019.0,1.0,,,,benthos,sediment,nfix_rate,-0.39,0.06,std. err,mg-n m-2 h-1
+N2869,R105,"Gainsville, FL USA",29.65419,-82.38285,lakes,2019.0,1.0,,,,benthos,sediment,nfix_rate,-0.72,0.26,std. err,mg-n m-2 h-1
+N2870,R105,"Miami, FL USA",25.72118,-80.46256,lakes,2019.0,1.0,,,,benthos,sediment,nfix_rate,-0.48,0.05,std. err,mg-n m-2 h-1
+N2871,R105,"Miami, FL USA",25.69417,-80.43774,lakes,2019.0,1.0,,,,benthos,sediment,nfix_rate,-0.29,0.46,std. err,mg-n m-2 h-1
+N2872,R105,"Miami, FL USA",25.71638,-80.45018,lakes,2019.0,6.0,,,,benthos,sediment,nfix_rate,-0.28,0.18,std. err,mg-n m-2 h-1
+N2873,R144,"Lake Taihu, China",31.374645,120.173805,lakes,2002.0,9.0,26.0,,,benthos,sediment,nfix_rate,-14.0,10.0,std. err,umol-n m-2 h-1
+N2894,R235,Plum Island Estuary Long Term Ecological Research Site-Reference,42.733333,-70.83333333,salt marshes,2011.0,6.0,,,,benthos,sediment core,nfix_rate,-70.2,175.3,std. err,umol-n m-2 h-1
+N3008,R219,Chukchi Sea Station 1,71.3444,-156.6902,continental shelves,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,5.7,1.7,std. err,nmol-n l-1 d-1
+N3009,R219,Chukchi Sea Station 2,71.3444,-156.6902,continental shelves,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,17.2,7.0,std. err,nmol-n l-1 d-1
+N3010,R219,Chukchi Sea Station 3,71.3433,-156.6583,continental shelves,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,3.5,0.2,std. err,nmol-n l-1 d-1
+N3011,R219,Chukchi Sea Station 4,71.3444,-156.6902,continental shelves,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,4.4,1.2,std. err,nmol-n l-1 d-1
+N3012,R219,Chukchi Sea Station 8,71.3172,-156.855,continental shelves,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,7.7,2.1,std. err,nmol-n l-1 d-1
+N3013,R219,Walakpa Bay Station 5,71.1188,-156.9066,estuaries,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,4.9,0.4,std. err,nmol-n l-1 d-1
+N3014,R219,Walakpa Bay Station 6,71.1291,-157.0194,estuaries,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,5.4,0.3,std. err,nmol-n l-1 d-1
+N3015,R219,Walakpa Bay Station 7,71.1458,-157.0625,estuaries,2011.0,8.0,18.0,,,wc,seawater,nfix_rate,5.6,0.6,std. err,nmol-n l-1 d-1
+N3016,R9,HAY,-13.66,143.685,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,132.0,20.0,std. err,umol-n m-2 d-1
+N3017,R9,HAN,-13.853333,143.7083333,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,181.0,22.0,std. err,umol-n m-2 d-1
+N3018,R9,BUK,-13.935,143.7416667,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,374.0,61.0,std. err,umol-n m-2 d-1
+N3019,R9,PCB,-14.34,144.12,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,308.0,62.0,std. err,umol-n m-2 d-1
+N3020,R9,HIG,-17.15,145.9933333,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,70.0,28.0,std. err,umol-n m-2 d-1
+N3021,R9,RUS,-17.225,146.0833333,continental shelves,2001.0,9.0,,,,benthos,sediment,nfix_rate,191.0,78.0,std. err,umol-n m-2 d-1
+N3022,R9,HAY,-13.66,143.685,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3023,R9,HAN,-13.853333,143.7083333,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3024,R9,BUK,-13.935,143.7416667,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3025,R9,PCB,-14.34,144.12,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,72.0,16.0,std. err,umol-n m-2 d-1
+N3026,R9,LOW,-16.383333,145.555,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,313.0,72.0,std. err,umol-n m-2 d-1
+N3027,R9,CNS,-16.823333,145.79,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3028,R9,HIG,-17.15,145.9933333,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3029,R9,RUS,-17.225,146.0833333,continental shelves,2002.0,9.0,,,,benthos,sediment,nfix_rate,93.0,62.0,std. err,umol-n m-2 d-1
+N3030,R9,HAY,-13.66,143.685,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3031,R9,HAN,-13.853333,143.7083333,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,100.0,84.0,std. err,umol-n m-2 d-1
+N3032,R9,BUK,-13.935,143.7416667,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3033,R9,PCB,-14.34,144.12,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,10.0,2.0,std. err,umol-n m-2 d-1
+N3034,R9,LOW,-16.383333,145.555,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,54.0,8.0,std. err,umol-n m-2 d-1
+N3035,R9,CNS,-16.823333,145.79,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3036,R9,HIG,-17.15,145.9933333,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3037,R9,RUS,-17.225,146.0833333,continental shelves,2003.0,2.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3038,R9,FIZ,-16.965,145.9966667,continental shelves,2000.0,7.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 d-1
+N3129,R2,Alcudia Bay,39.836667,3.170833333,seagrasses,2010.0,7.0,19.0,,,wc,surface water,nfix_rate,0.0356,0.0353,stdev.,ug-n m-3 h-1
+N3130,R2,Alcudia Bay,39.836667,3.170833333,seagrasses,2012.0,5.0,14.0,,,wc,surface water,nfix_rate,0.282,0.187,stdev.,ug-n m-3 h-1
+N3131,R2,Alcudia Bay,39.836667,3.170833333,seagrasses,2010.0,7.0,19.0,,,other,seagrass leaf,nfix_rate,0.129,0.104,stdev.,ug-n g-1 h-1
+N3132,R2,Alcudia Bay,39.836667,3.170833333,seagrasses,2012.0,5.0,14.0,,,other,seagrass leaf,nfix_rate,0.0703,0.0361,stdev.,ug-n g-1 h-1
+N3133,R2,Alcudia Bay,39.836667,3.170833333,seagrasses,2012.0,5.0,14.0,,,other,seagrass shoots,nfix_rate,15.2,,,mg-n m-2 d-1
+N3164,R30,Beaufort Sea,71.120723,-132.21301,continental shelves,2008.0,,,,summer,wc,water,nfix_rate,0.14,0.16,stdev.,nmol-n l-1 d-1
+N3165,R30,Lancaster Sound,74.248064,-88.428787,continental shelves,2008.0,,,,summer,wc,water,nfix_rate,0.08,0.06,stdev.,nmol-n l-1 d-1
+N3166,R30,Baffin Bay,76.568077,-72.983032,continental shelves,2008.0,,,,summer,wc,water,nfix_rate,0.02,0.03,stdev.,nmol-n l-1 d-1
+N3167,R30,Gibbs Fjord,71.070217,-71.332696,continental shelves,2008.0,,,,summer,wc,water,nfix_rate,0.46,0.29,stdev.,nmol-n l-1 d-1
+N3168,R30,Kugmallit Bay,69.432051,-133.315194,estuaries,2008.0,,,,summer,wc,water,nfix_rate,1.36,0.04,stdev.,nmol-n l-1 d-1
+N3169,R30,Mackenzie River,69.205088,-134.246941,rivers,2008.0,,,,summer,wc,water,nfix_rate,4.45,0.23,stdev.,nmol-n l-1 d-1
+N3170,R45,South China Sea,20.949203,118.023756,continental shelves,2009.0,,,,warm season,wc,water column,nfix_rate,45.3,6.2,std. err,umol-n m-2 d-1
+N3171,R45,South China Sea,20.949203,118.023756,continental shelves,2009.0,,,,winter,wc,water column,nfix_rate,68.7,12.3,std. err,umol-n m-2 d-1
+N3200,R69,Green Lake,51.289256,-94.50055556,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,28.0,,,umol-n m-2 d-1
+N3201,R69,Orange Lake,51.231717,-94.53638889,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,12.0,,,umol-n m-2 d-1
+N3202,R69,Ling Lake,51.253894,-94.28861111,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,104.0,,,umol-n m-2 d-1
+N3203,R69,Musclow Lake,51.397944,-94.94638889,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,216.0,,,umol-n m-2 d-1
+N3204,R69,Syndey Lake,50.655378,-94.44,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,36.0,,,umol-n m-2 d-1
+N3205,R69,Trout Lake,51.19385,-93.31972222,lakes,1990.0,,,,summer,wc,phytoplankton,nfix_rate,45.0,,,umol-n m-2 d-1
+N3206,R72,"Cockburn SOund, Western Australia",-32.146149,115.7247753,estuaries,2004.0,2.0,,,,benthos,sediments,nfix_rate,0.13,0.01,std. err,umol-c2h4 m-2 h-1
+N3207,R72,"Cockburn SOund, Western Australia",-32.146149,115.7247753,estuaries,2004.0,2.0,,,,benthos,sediments,nfix_rate,0.29,0.01,std. err,umol-c2h4 m-2 h-1
+N3208,R72,"Cockburn SOund, Western Australia",-32.146149,115.7247753,estuaries,2004.0,2.0,,,,benthos,sediments,nfix_rate,0.11,0.01,std. err,umol-c2h4 m-2 h-1
+N3209,R72,"Cockburn SOund, Western Australia",-32.146149,115.7247753,estuaries,2004.0,2.0,,,,benthos,sediments,nfix_rate,0.29,0.01,std. err,umol-c2h4 m-2 h-1
+N3210,R87,Smeerenburgfjorden,79.7001,11.0867,estuaries,2008.0,8.0,,,,benthos,sediment,nfix_rate,20.0,2.0,std. err,umol-n m-2 h-1
+N3211,R87,Kongsfjorden,78.9905,12.2978,estuaries,2008.0,8.0,,,,benthos,sediment,nfix_rate,0.0,0.0,std. err,umol-n m-2 h-1
+N3212,R93,Mekong River Delta,9.821398,106.687945,estuaries,2007.0,4.0,,,,wc,water column,nfix_rate,1.13,1.04,stdev.,nmol-n l-1 h-1
+N3213,R93,Mekong River Delta,9.821398,106.687945,estuaries,2007.0,4.0,,,,wc,water column,nfix_rate,14.33,5.08,stdev.,nmol-n l-1 h-1
+N3214,R93,Mekong River Delta,9.821398,106.687945,estuaries,2007.0,4.0,,,,wc,water column,nfix_rate,10.55,6.24,stdev.,nmol-n l-1 h-1
+N3215,R93,Mekong River Delta,9.821398,106.687945,estuaries,2008.0,9.0,,,,wc,water column,nfix_rate,0.26,0.29,stdev.,nmol-n l-1 h-1
+N3216,R93,Mekong River Delta,9.821398,106.687945,estuaries,2008.0,9.0,,,,wc,water column,nfix_rate,1.81,1.7,stdev.,nmol-n l-1 h-1
+N3221,R122,Thoreaus Bog - dark,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.205,,,umol-n g-1 h-1
+N3222,R122,Thoreaus Bog - dark,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.16,,,umol-n g-1 h-1
+N3223,R122,Thoreaus Bog - dark,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.083,,,umol-n g-1 h-1
+N3224,R122,Thoreaus Bog - dark,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.123,,,umol-n g-1 h-1
+N3225,R122,Thoreaus Bog - dark,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.076,,,umol-n g-1 h-1
+N3226,R122,Thoreaus Bog - light,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.166,,,umol-n g-1 h-1
+N3227,R122,Thoreaus Bog - light,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.183,,,umol-n g-1 h-1
+N3228,R122,Thoreaus Bog - light,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.128,,,umol-n g-1 h-1
+N3229,R122,Thoreaus Bog - light,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.091,,,umol-n g-1 h-1
+N3230,R122,Thoreaus Bog - light,42.46345316,-71.32882765,freshwater wetlands,1991.0,,,,,benthos,peat,nfix_rate,0.097,,,umol-n g-1 h-1
+N3231,R130,Jiaozhou Bay,36.05,120.3,estuaries,2015.0,7.0,,,summer,wc,water,nfix_rate,0.29,0.24,stdev.,nmol-n l-1 h-1
+N3232,R130,Jiaozhou Bay,36.05,120.3,estuaries,2016.0,4.0,,,spring,wc,water,nfix_rate,0.23,0.29,stdev.,nmol-n l-1 h-1
+N3233,R130,Jiaozhou Bay,36.05,120.3,estuaries,2016.0,11.0,,,autumn,wc,water,nfix_rate,0.1,0.07,stdev.,nmol-n l-1 h-1
+N3234,R130,Jiaozhou Bay,36.05,120.3,estuaries,2016.0,1.0,,,winter,wc,water,nfix_rate,0.27,0.22,stdev.,nmol-n l-1 h-1
+N3364,R158,"Kendall Frost Reserve, Mission Bay, CA",32.7833,-117.2167,salt marshes,2005.0,4.0,,,,benthos,epihyte sample,nfix_rate,4.8,1.6,std. err,nmol-c2h4 g-1 h-1
+N3365,R158,"Kendall Frost Reserve, Mission Bay, CA",32.7833,-117.2167,salt marshes,2005.0,4.0,,,,benthos,epihyte sample,nfix_rate,5.4,2.0,std. err,nmol-c2h4 g-1 h-1
+N3376,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,6.0,1.0,,,wc,siofok-water column,nfix_rate,2.1,,,mg-n m-2 d-1
+N3377,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,7.0,4.0,,,wc,siofok-water column,nfix_rate,1.6,,,mg-n m-2 d-1
+N3378,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,8.0,5.0,,,wc,siofok-water column,nfix_rate,4.3,,,mg-n m-2 d-1
+N3379,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,9.0,6.0,,,wc,siofok-water column,nfix_rate,58.5,,,mg-n m-2 d-1
+N3380,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,10.0,18.0,,,wc,siofok-water column,nfix_rate,0.4,,,mg-n m-2 d-1
+N3381,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,6.0,1.0,,,wc,keszthely-water column,nfix_rate,1.0,,,mg-n m-2 d-1
+N3382,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,7.0,4.0,,,wc,keszthely-water column,nfix_rate,163.6,,,mg-n m-2 d-1
+N3383,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,8.0,5.0,,,wc,keszthely-water column,nfix_rate,406.8,,,mg-n m-2 d-1
+N3384,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,9.0,6.0,,,wc,keszthely-water column,nfix_rate,72.8,,,mg-n m-2 d-1
+N3385,R187,"Lake Balaton, Hungary",46.8303,17.734,lakes,1994.0,10.0,18.0,,,wc,keszthely-water column,nfix_rate,0.3,,,mg-n m-2 d-1
+N3386,R200,Western English Channel,50.116,-4.12,continental shelves,2006.0,7.0,,,,wc,surface water,nfix_rate,20.0,,std. err,nmol-n l-1 d-1
+N3387,R200,Western English Channel,49.322,-5.145,continental shelves,2006.0,7.0,,,,wc,surface water,nfix_rate,18.9,0.01,std. err,nmol-n l-1 d-1
+N3388,R201,Bay of Calvi,42.564901,8.769236,estuaries,2012.0,6.0,,,,wc,water,nfix_rate,2.0,1.21,stdev.,nmol-n l-1 d-1
+N3391,R203,Lake Tahoe - North,39.083333,-120.05,lakes,2009.0,10.0,,,,wc,surface water,nfix_rate,0.0071,0.012,std. err,nmol-n l-1 h-1
+N3392,R203,Lake Tahoe - South,39.083333,-120.05,lakes,2009.0,10.0,,,,wc,surface water,nfix_rate,0.022,0.025,std. err,nmol-n l-1 h-1
+N3393,R203,Lake Tahoe - Middle,39.083333,-120.05,lakes,2009.0,10.0,,,,wc,surface water,nfix_rate,0.051,0.088,std. err,nmol-n l-1 h-1
+N3394,R203,Lake Tahoe - West,39.083333,-120.05,lakes,2009.0,10.0,,,,wc,surface water,nfix_rate,0.002,0.0031,std. err,nmol-n l-1 h-1
+N3395,R203,Lake Tahoe - North,39.083333,-120.05,lakes,2010.0,9.0,,,,wc,surface water,nfix_rate,0.051,0.044,std. err,nmol-n l-1 h-1
+N3396,R203,Lake Tahoe - South,39.083333,-120.05,lakes,2010.0,9.0,,,,wc,surface water,nfix_rate,0.28,0.24,std. err,nmol-n l-1 h-1
+N3397,R203,Walker Lake,38.683333,-118.733333,lakes,2010.0,4.0,,,,wc,surface water,nfix_rate,1.2,0.088,std. err,nmol-n l-1 h-1
+N3398,R203,Walker Lake,38.683333,-118.733333,lakes,2010.0,9.0,,,,wc,surface water,nfix_rate,2.4,1.2,std. err,nmol-n l-1 h-1
+N3399,R203,Clear Lake - North,39.05,-122.8,lakes,2010.0,6.0,,,,wc,surface water,nfix_rate,41.0,2.6,std. err,nmol-n l-1 h-1
+N3400,R203,Clear Lake - South,39.05,-122.8,lakes,2010.0,6.0,,,,wc,surface water,nfix_rate,48.0,3.1,std. err,nmol-n l-1 h-1
+N3401,R204,cyano Feb-02 low salinity,18.199599,-88.485157,salt marshes,2002.0,2.0,,,,benthos,cyanobacterial mat,nfix_rate,0.87,,,g-n m-2 y-1
+N3402,R204,cyano Mar-02 low salinity,18.199599,-88.485157,salt marshes,2002.0,3.0,,,,benthos,cyanobacterial mat,nfix_rate,1.94,,,g-n m-2 y-1
+N3403,R204,cyano Jan-04 low salinity,18.199599,-88.485157,salt marshes,2004.0,1.0,,,,benthos,cyanobacterial mat,nfix_rate,3.69,,,g-n m-2 y-1
+N3404,R204,cyano Feb-08 low salinity,18.199599,-88.485157,salt marshes,2008.0,2.0,,,,benthos,cyanobacterial mat,nfix_rate,2.64,,,g-n m-2 y-1
+N3405,R204,cyano Jun-08 low salinity,18.199599,-88.485157,salt marshes,2008.0,6.0,,,,benthos,cyanobacterial mat,nfix_rate,1.06,,,g-n m-2 y-1
+N3406,R204,cyano Feb-09 low salinity,18.199599,-88.485157,salt marshes,2009.0,2.0,,,,benthos,cyanobacterial mat,nfix_rate,3.02,,,g-n m-2 y-1
+N3407,R204,cyano Feb-02 high salinity,18.199599,-88.485157,salt marshes,2002.0,2.0,,,,benthos,cyanobacterial mat,nfix_rate,3.76,,,g-n m-2 y-1
+N3408,R204,cyano Mar-02 high salinity,18.199599,-88.485157,salt marshes,2002.0,3.0,,,,benthos,cyanobacterial mat,nfix_rate,5.94,,,g-n m-2 y-1
+N3409,R204,cyano Jan-04 high salinity,18.199599,-88.485157,salt marshes,2004.0,1.0,,,,benthos,cyanobacterial mat,nfix_rate,1.84,,,g-n m-2 y-1
+N3410,R204,cyano Jun-08 high salinity,18.199599,-88.485157,salt marshes,2008.0,6.0,,,,benthos,cyanobacterial mat,nfix_rate,0.42,,,g-n m-2 y-1
+N3413,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,5.0,,,,benthos,lake sediment-1a,nfix_rate,0.0,,stdev.,ug-n g-1 d-1
+N3414,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,5.0,,,,benthos,lake sediment-1b,nfix_rate,42.6,33.6,stdev.,ug-n g-1 d-1
+N3415,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,5.0,,,,benthos,lake sediment-2b,nfix_rate,222.0,38.1,stdev.,ug-n g-1 d-1
+N3416,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,7.0,,,,benthos,lake sediment-1a,nfix_rate,0.0,,stdev.,ug-n g-1 d-1
+N3417,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,7.0,,,,benthos,lake sediment-1b,nfix_rate,67.8,106.0,stdev.,ug-n g-1 d-1
+N3418,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,7.0,,,,benthos,lake sediment-2b,nfix_rate,385.0,285.0,stdev.,ug-n g-1 d-1
+N3419,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,9.0,,,,benthos,lake sediment-1a,nfix_rate,0.0,,stdev.,ug-n g-1 d-1
+N3420,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,9.0,,,,benthos,lake sediment-1b,nfix_rate,6.1,6.3,stdev.,ug-n g-1 d-1
+N3421,R209,"Lake Waco, Texas",31.551524,-97.222549,freshwater wetlands,2004.0,9.0,,,,benthos,lake sediment-2b,nfix_rate,60.7,32.6,stdev.,ug-n g-1 d-1
+N3458,R217,"Tamsui estuary, Taipei, Taiwan",25.15,121.4333,mangroves,,,,,,benthos,dominant plant = tall kandelia obovata,nfix_rate,1.74,0.58,std. err,umol-c2h4 m-2 h-1
+N3459,R217,"Tamsui estuary, Taipei, Taiwan",25.15,121.4333,mangroves,,,,,,benthos,dominant plant = dwarf kandelia obovata,nfix_rate,0.39,0.03,std. err,umol-c2h4 m-2 h-1
+N3460,R217,"Tamsui estuary, Taipei, Taiwan",25.15,121.4333,mangroves,,,,,,benthos,dominant plant = none (creek sediment),nfix_rate,0.45,0.15,std. err,umol-c2h4 m-2 h-1
+N3469,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,4.0,16.0,,,benthos,microbial mats,nfix_rate,62.6,,,nmol-c2h4 cm-2 d-1
+N3470,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,5.0,7.0,,,benthos,microbial mats,nfix_rate,97.4,,,nmol-c2h4 cm-2 d-1
+N3471,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,11.0,4.0,,,benthos,microbial mats,nfix_rate,145.2,,,nmol-c2h4 cm-2 d-1
+N3472,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,7.0,10.0,,,benthos,microbial mats,nfix_rate,340.3,,,nmol-c2h4 cm-2 d-1
+N3473,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,8.0,14.0,,,benthos,microbial mats,nfix_rate,307.1,,,nmol-c2h4 cm-2 d-1
+N3474,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,9.0,10.0,,,benthos,microbial mats,nfix_rate,315.8,,,nmol-c2h4 cm-2 d-1
+N3475,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1998.0,6.0,3.0,,,benthos,microbial mats,nfix_rate,704.3,,,nmol-c2h4 cm-2 d-1
+N3476,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1997.0,5.0,21.0,,,benthos,microbial mats,nfix_rate,105.1,,,nmol-c2h4 cm-2 d-1
+N3477,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1998.0,6.0,30.0,,,benthos,microbial mats,nfix_rate,256.0,,,nmol-c2h4 cm-2 d-1
+N3478,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1998.0,7.0,29.0,,,benthos,microbial mats,nfix_rate,226.9,,,nmol-c2h4 cm-2 d-1
+N3479,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1998.0,10.0,14.0,,,benthos,microbial mats,nfix_rate,134.9,,,nmol-c2h4 cm-2 d-1
+N3480,R224,Rachel Carson Natinal Estuarine Research Researve,34.666667,-76.7,tidal flats,1999.0,7.0,10.0,,,benthos,microbial mats,nfix_rate,230.8,,,nmol-c2h4 cm-2 d-1
+N3494,R240,Great Peconic Bay,40.93425,-72.49795,estuaries,2015.0,11.0,,,,benthos,sediments with burrows,nfix_rate,0.19,0.08,stdev.,mmol-n m-2 d-1
+N3495,R240,Great Peconic Bay,40.93425,-72.49795,estuaries,2015.0,11.0,,,,benthos,"bare, unvegetated sediments",nfix_rate,0.55,,,mmol-n m-2 d-1
+N3496,R240,Great Peconic Bay,40.93425,-72.49795,estuaries,2015.0,11.0,,,,benthos,"bare, unvegetated sediments",nfix_rate,0.3,,,mmol-n m-2 d-1
+N3497,R241,"Great Peconic Bay, USA",40.963735,-72.469414,estuaries,2015.0,5.0,,,,benthos,sediment (upper 3 cm),nfix_rate,0.17,,,nmol-c2h4 cm-2 h-1
+N3498,R241,"Great Peconic Bay, USA",40.963735,-72.469414,estuaries,2014.0,5.0,,,,benthos,sediment - light,nfix_rate,-0.84,,,mmol-n m-2 d-1
+N3499,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,59.0,,,nmol-c2h4 g-1 d-1
+N3500,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,57.4,,,nmol-c2h4 g-1 d-1
+N3501,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,318.5,,,nmol-c2h4 g-1 d-1
+N3502,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,80.8,,,nmol-c2h4 g-1 d-1
+N3503,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,32.0,,,nmol-c2h4 g-1 d-1
+N3504,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,117.7,,,nmol-c2h4 g-1 d-1
+N3505,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,100.4,,,nmol-c2h4 g-1 d-1
+N3506,R248,Kent Bog,41.126565,-81.354814,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,26.7,,,nmol-c2h4 g-1 d-1
+N3507,R248,Kent Bog,41.126565,-81.354814,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,11.4,,,nmol-c2h4 g-1 d-1
+N3508,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,91.8,,,nmol-c2h4 g-1 d-1
+N3509,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,112.1,,,nmol-c2h4 g-1 d-1
+N3510,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,122.3,,,nmol-c2h4 g-1 d-1
+N3511,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,10.6,,,nmol-c2h4 g-1 d-1
+N3512,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,263.3,,,nmol-c2h4 g-1 d-1
+N3513,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,12.0,,,nmol-c2h4 g-1 d-1
+N3514,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,35.4,,,nmol-c2h4 g-1 d-1
+N3515,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,205.5,,,nmol-c2h4 m-2 d-1
+N3516,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,98.9,,,nmol-c2h4 m-2 d-1
+N3517,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,30.7,,,nmol-c2h4 m-2 d-1
+N3518,R248,Fern Lake Bog,40.682785,-82.067557,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,130.9,,,nmol-c2h4 m-2 d-1
+N3519,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,571.8,,,nmol-c2h4 m-2 d-1
+N3520,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,798.1,,,nmol-c2h4 m-2 d-1
+N3521,R248,J. Arthur Herrick Fen,41.213913,-81.370971,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,1000.8,,,nmol-c2h4 m-2 d-1
+N3522,R248,Kent Bog,41.126565,-81.354814,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,37.1,,,nmol-c2h4 m-2 d-1
+N3523,R248,Kent Bog,41.126565,-81.354814,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,54.7,,,nmol-c2h4 m-2 d-1
+N3524,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,286.0,,,nmol-c2h4 m-2 d-1
+N3525,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,490.0,,,nmol-c2h4 m-2 d-1
+N3526,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,433.5,,,nmol-c2h4 m-2 d-1
+N3527,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,35.5,,,nmol-c2h4 m-2 d-1
+N3528,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,392.7,,,nmol-c2h4 m-2 d-1
+N3529,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,58.8,,,nmol-c2h4 m-2 d-1
+N3530,R248,Triangle Lake Bog,41.120772,-81.262271,freshwater wetlands,,,,,,benthos,roots + rhizosphere soil,nfix_rate,126.3,,,nmol-c2h4 m-2 d-1
+N3531,R249,east African coastal lagoon,-4.4244,39.519224,mangroves,1991.0,,,,rainy,other,rainy season_rhizophora mucronata,nfix_rate,1.22,,,mg-n m-2 d-1
+N3532,R249,east African coastal lagoon,-4.4244,39.519224,mangroves,1992.0,,,,dry,other,dry season_rhizophora mucronata,nfix_rate,4.15,,,mg-n m-2 d-1
+N3533,R249,east African coastal lagoon,-4.4244,39.519224,mangroves,1991.0,,,,rainy,other,rainy season_ceriops tagal,nfix_rate,0.36,,,mg-n m-2 d-1
+N3534,R249,east African coastal lagoon,-4.4244,39.519224,mangroves,1992.0,,,,dry,other,dry season_ceriops tagal,nfix_rate,0.28,,,mg-n m-2 d-1
+N3538,R256,East China Sea and Southern Yellow Sea,31.38007427,124.8090035,continental shelves,2006.0,6.0,,,,wc,water column,nfix_rate,4.2,5.6,stdev.,nmol-n m-3 h-1
+N3539,R256,East China Sea and Southern Yellow Sea,31.38007427,124.8090035,continental shelves,2006.0,6.0,,,,wc,water column,nfix_rate,38.3,43.3,stdev.,nmol-n m-3 h-1
+N3540,R256,East China Sea and Southern Yellow Sea,31.38007427,124.8090035,continental shelves,2006.0,6.0,,,,wc,water column,nfix_rate,193.1,,stdev.,nmol-n m-3 h-1
+N3720,R163,east coast USA,37.695,-75.298,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,3.7,0.3,stdev.,nmol-n l-1 d-1
+N3721,R163,east coast USA,37.631,-75.152,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,2.0,0.5,stdev.,nmol-n l-1 d-1
+N3722,R163,east coast USA,37.519,-75.05,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,12.9,0.4,stdev.,nmol-n l-1 d-1
+N3723,R163,east coast USA,36.686,-74.683,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,19.3,0.6,stdev.,nmol-n l-1 d-1
+N3724,R163,east coast USA,36.627,-74.863,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,10.8,2.1,stdev.,nmol-n l-1 d-1
+N3725,R163,east coast USA,36.601,-75.058,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,11.7,0.9,stdev.,nmol-n l-1 d-1
+N3726,R163,east coast USA,36.532,-75.273,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,17.3,1.9,stdev.,nmol-n l-1 d-1
+N3727,R163,east coast USA,36.972,-76.019,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,22.5,0.8,stdev.,nmol-n l-1 d-1
+N3728,R163,east coast USA,36.9,-75.908,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,24.5,6.9,stdev.,nmol-n l-1 d-1
+N3729,R163,east coast USA,36.803,-75.857,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,30.9,7.1,stdev.,nmol-n l-1 d-1
+N3730,R163,east coast USA,36.671,-75.766,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,35.1,2.1,stdev.,nmol-n l-1 d-1
+N3731,R163,east coast USA,36.885,-75.719,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,39.0,7.2,stdev.,nmol-n l-1 d-1
+N3732,R163,east coast USA,38.042,-74.299,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,23.3,0.9,stdev.,nmol-n l-1 d-1
+N3733,R163,east coast USA,38.122,-74.384,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,3.8,0.9,stdev.,nmol-n l-1 d-1
+N3734,R163,east coast USA,37.695,-75.298,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,4.1,1.0,stdev.,nmol-n l-1 d-1
+N3735,R163,east coast USA,37.631,-75.152,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,2.1,0.03,stdev.,nmol-n l-1 d-1
+N3736,R163,east coast USA,37.519,-75.05,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,1.4,0.2,stdev.,nmol-n l-1 d-1
+N3737,R163,east coast USA,36.686,-74.683,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,1.0,0.0,stdev.,nmol-n l-1 d-1
+N3738,R163,east coast USA,36.627,-74.863,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,1.7,0.5,stdev.,nmol-n l-1 d-1
+N3739,R163,east coast USA,36.601,-75.058,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,4.2,1.0,stdev.,nmol-n l-1 d-1
+N3740,R163,east coast USA,36.532,-75.273,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,3.2,0.9,stdev.,nmol-n l-1 d-1
+N3741,R163,east coast USA,36.972,-76.019,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,5.0,0.1,stdev.,nmol-n l-1 d-1
+N3742,R163,east coast USA,36.9,-75.908,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,4.3,0.6,stdev.,nmol-n l-1 d-1
+N3743,R163,east coast USA,36.803,-75.857,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,3.5,0.1,stdev.,nmol-n l-1 d-1
+N3744,R163,east coast USA,36.671,-75.766,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,2.2,0.1,stdev.,nmol-n l-1 d-1
+N3745,R163,east coast USA,36.885,-75.719,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,8.8,0.8,stdev.,nmol-n l-1 d-1
+N3746,R163,east coast USA,38.042,-74.299,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,2.6,0.6,stdev.,nmol-n l-1 d-1
+N3747,R163,east coast USA,38.122,-74.384,continental shelves,2006.0,7.0,1.0,,,wc,water column,nfix_rate,3.8,0.5,stdev.,nmol-n l-1 d-1
+N3748,R163,east coast USA,38.933,-74.933,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,5.6,0.2,stdev.,nmol-n l-1 d-1
+N3749,R163,east coast USA,36.9,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,2.7,0.3,stdev.,nmol-n l-1 d-1
+N3750,R163,east coast USA,36.967,-76.017,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,8.6,0.2,stdev.,nmol-n l-1 d-1
+N3751,R163,east coast USA,36.884,-75.9,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,15.7,0.4,stdev.,nmol-n l-1 d-1
+N3752,R163,east coast USA,36.8,-75.85,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,17.3,2.0,stdev.,nmol-n l-1 d-1
+N3753,R163,east coast USA,36.667,-75.75,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,20.3,5.9,stdev.,nmol-n l-1 d-1
+N3754,R163,east coast USA,36.417,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,6.5,0.6,stdev.,nmol-n l-1 d-1
+N3755,R163,east coast USA,36.417,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.0,0.1,stdev.,nmol-n l-1 d-1
+N3756,R163,east coast USA,36.434,-75.517,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,7.2,6.6,stdev.,nmol-n l-1 d-1
+N3757,R163,east coast USA,36.45,-75.25,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,2.0,0.2,stdev.,nmol-n l-1 d-1
+N3758,R163,east coast USA,36.467,-75.05,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,2.3,0.3,stdev.,nmol-n l-1 d-1
+N3759,R163,east coast USA,36.483,-74.833,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.4,1.1,stdev.,nmol-n l-1 d-1
+N3760,R163,east coast USA,36.484,-74.667,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.3,0.1,stdev.,nmol-n l-1 d-1
+N3761,R163,east coast USA,37.417,-74.4,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.1,4.3,stdev.,nmol-n l-1 d-1
+N3762,R163,east coast USA,37.517,-74.567,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.5,1.2,stdev.,nmol-n l-1 d-1
+N3763,R163,east coast USA,37.7,-75.034,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.1,1.2,stdev.,nmol-n l-1 d-1
+N3764,R163,east coast USA,38.933,-74.933,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,11.3,0.2,stdev.,nmol-n l-1 d-1
+N3765,R163,east coast USA,36.9,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.9,0.6,stdev.,nmol-n l-1 d-1
+N3766,R163,east coast USA,36.967,-76.017,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,4.4,0.2,stdev.,nmol-n l-1 d-1
+N3767,R163,east coast USA,36.884,-75.9,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,13.9,7.4,stdev.,nmol-n l-1 d-1
+N3768,R163,east coast USA,36.8,-75.85,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,6.0,0.2,stdev.,nmol-n l-1 d-1
+N3769,R163,east coast USA,36.667,-75.75,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,10.9,2.3,stdev.,nmol-n l-1 d-1
+N3770,R163,east coast USA,36.417,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,5.6,0.01,stdev.,nmol-n l-1 d-1
+N3771,R163,east coast USA,36.417,-75.7,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.5,0.01,stdev.,nmol-n l-1 d-1
+N3772,R163,east coast USA,36.434,-75.517,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,7.1,4.8,stdev.,nmol-n l-1 d-1
+N3773,R163,east coast USA,36.45,-75.25,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.9,1.2,stdev.,nmol-n l-1 d-1
+N3774,R163,east coast USA,36.467,-75.05,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.0,0.1,stdev.,nmol-n l-1 d-1
+N3775,R163,east coast USA,36.483,-74.833,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,0.7,0.4,stdev.,nmol-n l-1 d-1
+N3776,R163,east coast USA,36.484,-74.667,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,0.2,0.2,stdev.,nmol-n l-1 d-1
+N3777,R163,east coast USA,37.417,-74.4,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,0.9,0.2,stdev.,nmol-n l-1 d-1
+N3778,R163,east coast USA,37.517,-74.567,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,2.7,0.4,stdev.,nmol-n l-1 d-1
+N3779,R163,east coast USA,37.7,-75.034,continental shelves,2006.0,10.0,1.0,,,wc,water column,nfix_rate,1.8,0.8,stdev.,nmol-n l-1 d-1
+N3780,R163,east coast USA,41.314,-70.944,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.1,0.1,stdev.,nmol-n l-1 d-1
+N3781,R163,east coast USA,41.304,-71.811,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,9.2,5.0,stdev.,nmol-n l-1 d-1
+N3782,R163,east coast USA,40.059,-72.837,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.2,1.4,stdev.,nmol-n l-1 d-1
+N3783,R163,east coast USA,39.098,-73.344,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,21.9,4.8,stdev.,nmol-n l-1 d-1
+N3784,R163,east coast USA,38.464,-73.3,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,11.9,4.6,stdev.,nmol-n l-1 d-1
+N3785,R163,east coast USA,37.855,-74.642,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,8.6,1.5,stdev.,nmol-n l-1 d-1
+N3786,R163,east coast USA,36.946,-75.18,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.2,0.3,stdev.,nmol-n l-1 d-1
+N3787,R163,east coast USA,35.745,-75.395,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.3,1.5,stdev.,nmol-n l-1 d-1
+N3788,R163,east coast USA,36.554,-75.706,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,25.7,15.8,stdev.,nmol-n l-1 d-1
+N3789,R163,east coast USA,37.428,-75.477,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,49.8,9.5,stdev.,nmol-n l-1 d-1
+N3790,R163,east coast USA,39.007,-74.515,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.3,0.5,stdev.,nmol-n l-1 d-1
+N3791,R163,east coast USA,39.232,-74.512,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.6,0.1,stdev.,nmol-n l-1 d-1
+N3792,R163,east coast USA,39.516,-73.88,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,3.0,0.5,stdev.,nmol-n l-1 d-1
+N3793,R163,east coast USA,40.063,-73.388,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.8,0.8,stdev.,nmol-n l-1 d-1
+N3794,R163,east coast USA,40.33,-71.74,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,9.1,5.3,stdev.,nmol-n l-1 d-1
+N3795,R163,east coast USA,40.164,-69.991,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,4.5,1.8,stdev.,nmol-n l-1 d-1
+N3796,R163,east coast USA,40.641,-69.912,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,28.6,15.1,stdev.,nmol-n l-1 d-1
+N3797,R163,east coast USA,41.16,-69.324,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.6,0.7,stdev.,nmol-n l-1 d-1
+N3798,R163,east coast USA,40.607,-68.529,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,3.7,0.4,stdev.,nmol-n l-1 d-1
+N3799,R163,east coast USA,41.404,-68.214,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,7.0,0.6,stdev.,nmol-n l-1 d-1
+N3800,R163,east coast USA,41.268,-67.822,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,10.6,0.8,stdev.,nmol-n l-1 d-1
+N3801,R163,east coast USA,40.984,-67.203,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,4.1,0.4,stdev.,nmol-n l-1 d-1
+N3802,R163,east coast USA,41.572,-66.955,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.5,0.7,stdev.,nmol-n l-1 d-1
+N3803,R163,east coast USA,41.687,-66.442,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,4.3,0.5,stdev.,nmol-n l-1 d-1
+N3804,R163,east coast USA,42.057,-65.736,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,3.1,0.5,stdev.,nmol-n l-1 d-1
+N3805,R163,east coast USA,42.478,-66.652,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.9,0.6,stdev.,nmol-n l-1 d-1
+N3806,R163,east coast USA,41.995,-66.797,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,7.5,0.01,stdev.,nmol-n l-1 d-1
+N3807,R163,east coast USA,42.05,-67.601,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.2,0.4,stdev.,nmol-n l-1 d-1
+N3808,R163,east coast USA,42.181,-69.282,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,22.2,1.8,stdev.,nmol-n l-1 d-1
+N3809,R163,east coast USA,42.498,-69.672,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,18.3,5.2,stdev.,nmol-n l-1 d-1
+N3810,R163,east coast USA,41.314,-70.944,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.1,0.1,stdev.,nmol-n l-1 d-1
+N3811,R163,east coast USA,41.304,-71.811,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.8,0.6,stdev.,nmol-n l-1 d-1
+N3812,R163,east coast USA,40.059,-72.837,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.0,0.1,stdev.,nmol-n l-1 d-1
+N3813,R163,east coast USA,39.098,-73.344,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.9,0.1,stdev.,nmol-n l-1 d-1
+N3814,R163,east coast USA,38.464,-73.3,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,20.3,10.5,stdev.,nmol-n l-1 d-1
+N3815,R163,east coast USA,37.855,-74.642,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.7,2.0,stdev.,nmol-n l-1 d-1
+N3816,R163,east coast USA,37.516,-74.974,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.8,0.1,stdev.,nmol-n l-1 d-1
+N3817,R163,east coast USA,36.946,-75.18,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,0.7,0.8,stdev.,nmol-n l-1 d-1
+N3818,R163,east coast USA,35.745,-75.395,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.3,0.3,stdev.,nmol-n l-1 d-1
+N3819,R163,east coast USA,36.554,-75.706,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,10.9,2.3,stdev.,nmol-n l-1 d-1
+N3820,R163,east coast USA,37.428,-75.477,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,9.1,0.6,stdev.,nmol-n l-1 d-1
+N3821,R163,east coast USA,39.007,-74.515,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.8,0.0,stdev.,nmol-n l-1 d-1
+N3822,R163,east coast USA,39.232,-74.512,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.1,0.5,stdev.,nmol-n l-1 d-1
+N3823,R163,east coast USA,39.516,-73.88,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.0,0.1,stdev.,nmol-n l-1 d-1
+N3824,R163,east coast USA,40.063,-73.388,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.4,0.4,stdev.,nmol-n l-1 d-1
+N3825,R163,east coast USA,40.33,-71.74,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.2,0.6,stdev.,nmol-n l-1 d-1
+N3826,R163,east coast USA,40.164,-69.991,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,0.3,0.1,stdev.,nmol-n l-1 d-1
+N3827,R163,east coast USA,40.641,-69.912,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.5,1.0,stdev.,nmol-n l-1 d-1
+N3828,R163,east coast USA,41.16,-69.324,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.1,0.4,stdev.,nmol-n l-1 d-1
+N3829,R163,east coast USA,40.607,-68.529,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,4.5,0.2,stdev.,nmol-n l-1 d-1
+N3830,R163,east coast USA,41.404,-68.214,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,4.7,0.5,stdev.,nmol-n l-1 d-1
+N3831,R163,east coast USA,41.268,-67.822,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,12.2,1.2,stdev.,nmol-n l-1 d-1
+N3832,R163,east coast USA,40.984,-67.203,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.6,1.0,stdev.,nmol-n l-1 d-1
+N3833,R163,east coast USA,41.572,-66.955,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.2,0.0,stdev.,nmol-n l-1 d-1
+N3834,R163,east coast USA,41.687,-66.442,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.0,1.9,stdev.,nmol-n l-1 d-1
+N3835,R163,east coast USA,42.057,-65.736,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.0,0.2,stdev.,nmol-n l-1 d-1
+N3836,R163,east coast USA,42.478,-66.652,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,3.2,0.2,stdev.,nmol-n l-1 d-1
+N3837,R163,east coast USA,41.995,-66.797,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,5.0,0.3,stdev.,nmol-n l-1 d-1
+N3838,R163,east coast USA,42.05,-67.601,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,1.3,0.3,stdev.,nmol-n l-1 d-1
+N3839,R163,east coast USA,42.181,-69.282,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,2.0,0.0,stdev.,nmol-n l-1 d-1
+N3840,R163,east coast USA,42.498,-69.672,continental shelves,2009.0,8.0,1.0,,,wc,water column,nfix_rate,3.3,0.3,stdev.,nmol-n l-1 d-1
+N3841,R164,Off,27.1,-83.066,continental shelves,2007.0,10.0,16.0,,,wc,water column,nfix_rate,0.37,0.06,,nmol-n l-1 d-1
+N3842,R164,CH-out,26.716,-82.286,continental shelves,2007.0,10.0,17.0,,,wc,water column,nfix_rate,0.23,0.03,,nmol-n l-1 d-1
+N3843,R164,CR-out,26.26,-82.009,continental shelves,2007.0,10.0,18.0,,,wc,water column,nfix_rate,6.03,2.75,,nmol-n l-1 d-1
+N3844,R164,CH-in,26.727,-82.191,continental shelves,2007.0,10.0,19.0,,,wc,water column,nfix_rate,0.2,0.03,,nmol-n l-1 d-1
+N3845,R164,SB-out,27.267,-82.585,continental shelves,2007.0,10.0,20.0,,,wc,water column,nfix_rate,1.49,1.47,,nmol-n l-1 d-1
+N3846,R164,TB-in,27.682,-82.593,continental shelves,2007.0,10.0,21.0,,,wc,water column,nfix_rate,0.79,0.27,,nmol-n l-1 d-1
+N3847,R164,TB-in,26.334,-82.117,continental shelves,2007.0,10.0,22.0,,,wc,water column,nfix_rate,3.88,2.77,,nmol-n l-1 d-1
+N3848,R164,Kb bloom,26.381,-82.177,continental shelves,2007.0,10.0,23.0,,,wc,water column,nfix_rate,2.93,1.73,,nmol-n l-1 d-1
+N3849,R164,Kb bloom,26.468,-82.234,continental shelves,2007.0,10.0,24.0,,,wc,water column,nfix_rate,9.02,0.41,,nmol-n l-1 d-1
+N3850,R164,Kb bloom,26.397,-82.184,continental shelves,2007.0,10.0,25.0,,,wc,water column,nfix_rate,3.66,3.6,,nmol-n l-1 d-1
+N3851,R164,Kb bloom,26.467,-82.234,continental shelves,2007.0,10.0,26.0,,,wc,water column,nfix_rate,6.93,1.21,,nmol-n l-1 d-1
+N3852,R164,Off,27.108,-83.076,continental shelves,2008.0,10.0,2.0,,,wc,water column,nfix_rate,0.56,0.55,,nmol-n l-1 d-1
+N3853,R164,Off,27.108,-83.076,continental shelves,2008.0,10.0,2.0,,,wc,water column,nfix_rate,0.54,0.03,,nmol-n l-1 d-1
+N3854,R164,CH-out,26.716,-82.287,continental shelves,2008.0,10.0,3.0,,,wc,water column,nfix_rate,3.89,,,nmol-n l-1 d-1
+N3855,R164,CH-out,26.716,-82.287,continental shelves,2008.0,10.0,3.0,,,wc,water column,nfix_rate,0.47,0.19,,nmol-n l-1 d-1
+N3856,R164,CR-out,26.256,-82.009,continental shelves,2008.0,10.0,4.0,,,wc,water column,nfix_rate,0.63,0.18,,nmol-n l-1 d-1
+N3857,R164,CR-out,26.256,-82.009,continental shelves,2008.0,10.0,4.0,,,wc,water column,nfix_rate,0.51,0.21,,nmol-n l-1 d-1
+N3858,R164,CH-in,26.729,-82.192,continental shelves,2008.0,10.0,5.0,,,wc,water column,nfix_rate,0.04,0.67,,nmol-n l-1 d-1
+N3859,R164,CH-out,26.716,-82.286,continental shelves,2007.0,10.0,17.0,,,wc,water column,nfix_rate,0.29,0.07,,nmol-n l-1 d-1
+N3860,R164,CR-out,26.26,-82.009,continental shelves,2007.0,10.0,18.0,,,wc,water column,nfix_rate,3.51,0.83,,nmol-n l-1 d-1
+N3861,R164,CH-in,26.727,-82.191,continental shelves,2007.0,10.0,19.0,,,wc,water column,nfix_rate,0.32,0.14,,nmol-n l-1 d-1
+N3862,R164,SB-out,27.267,-82.585,continental shelves,2007.0,10.0,20.0,,,wc,water column,nfix_rate,0.38,0.09,,nmol-n l-1 d-1
+N3863,R164,TB-in,27.682,-82.593,continental shelves,2007.0,10.0,21.0,,,wc,water column,nfix_rate,0.69,0.06,,nmol-n l-1 d-1
+N3864,R164,TB-in,26.334,-82.117,continental shelves,2007.0,10.0,22.0,,,wc,water column,nfix_rate,3.85,2.28,,nmol-n l-1 d-1
+N3865,R164,Kb bloom,26.381,-82.177,continental shelves,2007.0,10.0,23.0,,,wc,water column,nfix_rate,2.57,0.62,,nmol-n l-1 d-1
+N3866,R164,Kb bloom,26.468,-82.234,continental shelves,2007.0,10.0,24.0,,,wc,water column,nfix_rate,3.31,0.07,,nmol-n l-1 d-1
+N3867,R164,Kb bloom,26.397,-82.184,continental shelves,2007.0,10.0,25.0,,,wc,water column,nfix_rate,5.15,2.64,,nmol-n l-1 d-1
+N3868,R164,Kb bloom,26.467,-82.234,continental shelves,2007.0,10.0,26.0,,,wc,water column,nfix_rate,1.28,0.1,,nmol-n l-1 d-1
+N3869,R164,Off,27.108,-83.076,continental shelves,2008.0,10.0,2.0,,,wc,water column,nfix_rate,0.83,0.5,,nmol-n l-1 d-1
+N3870,R164,Off,27.108,-83.076,continental shelves,2008.0,10.0,2.0,,,wc,water column,nfix_rate,0.38,0.15,,nmol-n l-1 d-1
+N3871,R164,CH-out,26.716,-82.287,continental shelves,2008.0,10.0,3.0,,,wc,water column,nfix_rate,5.73,1.64,,nmol-n l-1 d-1
+N3872,R164,CH-out,26.716,-82.287,continental shelves,2008.0,10.0,3.0,,,wc,water column,nfix_rate,0.52,0.19,,nmol-n l-1 d-1
+N3873,R164,CR-out,26.256,-82.009,continental shelves,2008.0,10.0,4.0,,,wc,water column,nfix_rate,0.57,0.23,,nmol-n l-1 d-1
+N3874,R164,CR-out,26.256,-82.009,continental shelves,2008.0,10.0,4.0,,,wc,water column,nfix_rate,0.51,0.24,,nmol-n l-1 d-1
+N3875,R164,CH-in,26.729,-82.192,continental shelves,2008.0,10.0,5.0,,,wc,water column,nfix_rate,0.73,0.03,,nmol-n l-1 d-1
+N3876,R164,SB-out,27.296,-82.602,continental shelves,2008.0,10.0,6.0,,,wc,water column,nfix_rate,0.12,1.8,,nmol-n l-1 d-1
+N3877,R164,TB-out,27.578,-82.818,continental shelves,2008.0,10.0,7.0,,,wc,water column,nfix_rate,0.99,0.85,,nmol-n l-1 d-1
+N3878,R164,CR,26.384,-82.106,continental shelves,2008.0,10.0,9.0,,,wc,water column,nfix_rate,0.23,0.43,,nmol-n l-1 d-1
+N3879,R164,Sanibel,26.384,-82.106,continental shelves,2008.0,10.0,9.0,,,wc,water column,nfix_rate,0.65,0.15,,nmol-n l-1 d-1
+N3880,R164,Sanibel,26.384,-82.106,continental shelves,2008.0,10.0,9.0,,,wc,water column,nfix_rate,1.31,0.95,,nmol-n l-1 d-1
+N3881,R164,Sanibel,26.384,-82.106,continental shelves,2008.0,10.0,9.0,,,wc,water column,nfix_rate,4.29,0.68,,nmol-n l-1 d-1
+N3882,R164,Kb bloom,26.618,-82.246,continental shelves,2008.0,10.0,10.0,,,wc,water column,nfix_rate,7.98,2.74,,nmol-n l-1 d-1
+N3883,R164,Kb bloom,26.618,-82.246,continental shelves,2008.0,10.0,10.0,,,wc,water column,nfix_rate,0.17,3.2,,nmol-n l-1 d-1
+N3884,R164,Kb bloom,26.618,-82.244,continental shelves,2008.0,10.0,11.0,,,wc,water column,nfix_rate,1.6,0.53,,nmol-n l-1 d-1
+N3885,R164,Kb bloom,26.618,-82.244,continental shelves,2008.0,10.0,11.0,,,wc,water column,nfix_rate,1.39,0.21,,nmol-n l-1 d-1
+N3886,R164,Kb bloom,26.56,-82.216,continental shelves,2008.0,10.0,11.0,,,wc,water column,nfix_rate,1.08,0.81,,nmol-n l-1 d-1
+N3887,R164,Kb bloom,26.581,-82.272,continental shelves,2008.0,10.0,11.0,,,wc,water column,nfix_rate,2.56,1.39,,nmol-n l-1 d-1
+N3888,R164,Off,27.108,-83.075,continental shelves,2009.0,10.0,2.0,,,wc,water column,nfix_rate,0.03,0.09,,nmol-n l-1 d-1
+N3889,R164,CH-out,26.716,-82.286,continental shelves,2009.0,10.0,3.0,,,wc,water column,nfix_rate,0.54,0.29,,nmol-n l-1 d-1
+N3890,R164,CR-out,26.258,-82.005,continental shelves,2009.0,10.0,4.0,,,wc,water column,nfix_rate,7.41,2.4,,nmol-n l-1 d-1
+N3891,R164,CH-in,26.727,-82.191,continental shelves,2009.0,10.0,5.0,,,wc,water column,nfix_rate,0.07,0.78,,nmol-n l-1 d-1
+N3892,R164,SB-out,27.296,-82.602,continental shelves,2009.0,10.0,6.0,,,wc,water column,nfix_rate,5.5,0.35,,nmol-n l-1 d-1
+N3893,R164,TB-out,27.578,-82.818,continental shelves,2009.0,10.0,7.0,,,wc,water column,nfix_rate,7.26,0.36,,nmol-n l-1 d-1
+N3894,R164,Kb bloom,26.438,-82.518,continental shelves,2009.0,10.0,12.0,,,wc,water column,nfix_rate,5.27,1.17,,nmol-n l-1 d-1
+N3895,R164,CH-in,26.72,-82.286,continental shelves,2010.0,10.0,13.0,,,wc,water column,nfix_rate,1.25,0.63,,nmol-n l-1 d-1
+N3896,R164,CR-out,26.261,-82.006,continental shelves,2010.0,10.0,14.0,,,wc,water column,nfix_rate,2.13,0.71,,nmol-n l-1 d-1
+N3897,R164,unnamed station 1,26.176,-82.265,continental shelves,2010.0,10.0,16.0,,,wc,water column,nfix_rate,2.91,1.4,,nmol-n l-1 d-1
+N3898,R164,CH-in,26.732,-82.192,continental shelves,2010.0,10.0,17.0,,,wc,water column,nfix_rate,0.43,0.36,,nmol-n l-1 d-1
+N3899,R164,TB-in,27.685,-82.593,continental shelves,2010.0,10.0,18.0,,,wc,water column,nfix_rate,8.55,7.82,,nmol-n l-1 d-1
+N3900,R164,unnamed station 2,26.225,-82.066,continental shelves,2010.0,10.0,19.0,,,wc,water column,nfix_rate,7.53,3.07,,nmol-n l-1 d-1
+N3901,R164,Kb bloom,26.674,-82.417,continental shelves,2010.0,10.0,23.0,,,wc,water column,nfix_rate,0.41,0.11,,nmol-n l-1 d-1
+N3902,R164,Off,27.108,-83.075,continental shelves,2009.0,10.0,2.0,,,wc,water column,nfix_rate,0.02,0.01,,nmol-n l-1 d-1
+N3903,R164,CH-out,26.716,-82.286,continental shelves,2009.0,10.0,3.0,,,wc,water column,nfix_rate,2.13,0.28,,nmol-n l-1 d-1
+N3904,R164,CH-out,26.716,-82.286,continental shelves,2009.0,10.0,3.0,,,wc,water column,nfix_rate,2.34,1.84,,nmol-n l-1 d-1
+N3905,R164,CR-out,26.258,-82.005,continental shelves,2009.0,10.0,4.0,,,wc,water column,nfix_rate,4.39,0.85,,nmol-n l-1 d-1
+N3906,R164,SB-out,27.296,-82.602,continental shelves,2009.0,10.0,6.0,,,wc,water column,nfix_rate,69.0,3.92,,nmol-n l-1 d-1
+N3907,R164,TB-out,27.578,-82.818,continental shelves,2009.0,10.0,7.0,,,wc,water column,nfix_rate,5.61,2.26,,nmol-n l-1 d-1
+N3908,R164,CH-in,26.72,-82.286,continental shelves,2010.0,10.0,13.0,,,wc,water column,nfix_rate,1.74,1.91,,nmol-n l-1 d-1
+N3909,R164,CR-out,26.261,-82.006,continental shelves,2010.0,10.0,14.0,,,wc,water column,nfix_rate,0.77,0.04,,nmol-n l-1 d-1
+N3910,R164,unnamed station 3,26.31,-81.936,continental shelves,2010.0,10.0,15.0,,,wc,water column,nfix_rate,0.52,,,nmol-n l-1 d-1
+N3911,R164,unnamed station 1,26.176,-82.265,continental shelves,2010.0,10.0,16.0,,,wc,water column,nfix_rate,3.89,0.65,,nmol-n l-1 d-1
+N3912,R164,CH-in,26.732,-82.192,continental shelves,2010.0,10.0,17.0,,,wc,water column,nfix_rate,0.49,0.09,,nmol-n l-1 d-1
+N3913,R164,TB-in,27.685,-82.593,continental shelves,2010.0,10.0,18.0,,,wc,water column,nfix_rate,13.6,2.62,,nmol-n l-1 d-1
+N3914,R164,unnamed station 2,26.225,-82.066,continental shelves,2010.0,10.0,19.0,,,wc,water column,nfix_rate,6.87,1.79,,nmol-n l-1 d-1
+N3915,R164,Kb bloom,26.674,-82.417,continental shelves,2010.0,10.0,23.0,,,wc,water column,nfix_rate,0.27,0.16,,nmol-n l-1 d-1
+N3916,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,3.0,,,wc,water column,nfix_rate,1.85,0.67,,nmol-n l-1 d-1
+N3917,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,3.0,,,wc,water column,nfix_rate,1.4,0.63,,nmol-n l-1 d-1
+N3918,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,4.0,,,wc,water column,nfix_rate,0.97,0.0,,nmol-n l-1 d-1
+N3919,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,4.0,,,wc,water column,nfix_rate,1.53,2.89,,nmol-n l-1 d-1
+N3920,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,4.0,,,wc,water column,nfix_rate,2.09,,,nmol-n l-1 d-1
+N3921,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,4.0,,,wc,water column,nfix_rate,0.37,0.75,,nmol-n l-1 d-1
+N3922,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,5.0,,,wc,water column,nfix_rate,0.23,2.5,,nmol-n l-1 d-1
+N3923,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,5.0,,,wc,water column,nfix_rate,1.45,1.51,,nmol-n l-1 d-1
+N3924,R164,WFS,26.8,-84.33,continental shelves,2006.0,10.0,5.0,,,wc,water column,nfix_rate,0.92,,,nmol-n l-1 d-1
+N3925,R166,Bitter-1,51.671972,79.905667,lakes,2008.0,7.0,,,,benthos,phototrophic biomass-dark,nfix_rate,0.0,,range,nmol-c2h4 ml-1 h-1
+N3926,R166,Bitter-1,51.671972,79.905667,lakes,2011.0,7.0,,,,benthos,phototrophic biomass-dark,nfix_rate,0.0,,range,nmol-c2h4 ml-1 h-1
+N3927,R166,Bitter-1,51.671972,79.905667,lakes,2012.0,7.0,,,,benthos,phototrophic biomass-dark,nfix_rate,0.59,0.07,range,nmol-c2h4 ml-1 h-1
+N3928,R166,Bitter-1,51.671972,79.905667,lakes,2014.0,7.0,,,,benthos,phototrophic biomass-dark,nfix_rate,0.009,0.003,range,nmol-c2h4 ml-1 h-1
+N3929,R166,Bitter-1,51.671972,79.905667,lakes,2016.0,7.0,,,,benthos,phototrophic biomass-dark,nfix_rate,0.47,0.38,range,nmol-c2h4 ml-1 h-1
+N3930,R166,Bitter-1,51.671972,79.905667,lakes,2008.0,7.0,,,,benthos,phototrophic biomass-light,nfix_rate,0.0,,range,nmol-c2h4 ml-1 h-1
+N3931,R166,Bitter-1,51.671972,79.905667,lakes,2011.0,7.0,,,,benthos,phototrophic biomass-light,nfix_rate,1.24,0.17,range,nmol-c2h4 ml-1 h-1
+N3932,R166,Bitter-1,51.671972,79.905667,lakes,2012.0,7.0,,,,benthos,phototrophic biomass-light,nfix_rate,0.56,0.005,range,nmol-c2h4 ml-1 h-1
+N3933,R166,Bitter-1,51.671972,79.905667,lakes,2014.0,7.0,,,,benthos,phototrophic biomass-light,nfix_rate,0.27,0.14,range,nmol-c2h4 ml-1 h-1
+N3934,R166,Bitter-1,51.671972,79.905667,lakes,2016.0,7.0,,,,benthos,phototrophic biomass-light,nfix_rate,11.19,0.46,range,nmol-c2h4 ml-1 h-1
+N3974,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1993.0,1.0,,,,other,dead spartina alterniflora stems,nfix_rate,1.26,0.29,std. err,nmol-c2h4 cm-2 h-1
+N3975,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1993.0,3.0,,,,other,dead spartina alterniflora stems,nfix_rate,8.93,2.69,std. err,nmol-c2h4 cm-2 h-1
+N3976,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1993.0,3.0,,,,other,dead spartina alterniflora stems,nfix_rate,0.73,0.33,std. err,nmol-c2h4 cm-2 h-1
+N3977,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1991.0,4.0,,,,other,dead spartina alterniflora stems,nfix_rate,14.02,6.68,std. err,nmol-c2h4 cm-2 h-1
+N3978,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1991.0,5.0,,,,other,dead spartina alterniflora stems,nfix_rate,4.91,1.08,std. err,nmol-c2h4 cm-2 h-1
+N3979,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1993.0,6.0,,,,other,dead spartina alterniflora stems,nfix_rate,4.35,0.46,std. err,nmol-c2h4 cm-2 h-1
+N3980,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1993.0,6.0,,,,other,dead spartina alterniflora stems,nfix_rate,0.94,0.36,std. err,nmol-c2h4 cm-2 h-1
+N3981,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,7.0,,,,other,dead spartina alterniflora stems,nfix_rate,1.63,1.18,std. err,nmol-c2h4 cm-2 h-1
+N3982,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,8.0,,,,other,dead spartina alterniflora stems,nfix_rate,4.47,1.15,std. err,nmol-c2h4 cm-2 h-1
+N3983,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,9.0,,,,other,dead spartina alterniflora stems,nfix_rate,1.21,0.29,std. err,nmol-c2h4 cm-2 h-1
+N3984,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,9.0,,,,other,dead spartina alterniflora stems,nfix_rate,4.39,1.36,std. err,nmol-c2h4 cm-2 h-1
+N3985,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,10.0,,,,other,dead spartina alterniflora stems,nfix_rate,2.76,0.76,std. err,nmol-c2h4 cm-2 h-1
+N3986,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,11.0,,,,other,dead spartina alterniflora stems,nfix_rate,0.85,0.15,std. err,nmol-c2h4 cm-2 h-1
+N3987,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,12.0,,,,other,dead spartina alterniflora stems,nfix_rate,0.61,0.33,std. err,nmol-c2h4 cm-2 h-1
+N3988,R54,"Newport River Estuary, North Carolina",34.79104,-76.716147,salt marshes,1992.0,12.0,,,,other,dead spartina alterniflora stems,nfix_rate,0.04,0.01,std. err,nmol-c2h4 cm-2 h-1
+N3996,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,summer,benthos,sediment with seagrass,nfix_rate,1.5,1.3,stdev.,mg-n m-2 d-1
+N3997,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,2.0,2.5,stdev.,mg-n m-2 d-1
+N3998,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,fall,benthos,sediment with seagrass,nfix_rate,0.1,0.1,stdev.,mg-n m-2 d-1
+N3999,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,fall,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.1,0.0,stdev.,mg-n m-2 d-1
+N4000,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,winter,benthos,sediment with seagrass,nfix_rate,0.1,0.0,stdev.,mg-n m-2 d-1
+N4001,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2012.0,,,,winter,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.0,0.0,stdev.,mg-n m-2 d-1
+N4002,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2013.0,,,,spring,benthos,sediment with seagrass,nfix_rate,0.3,0.2,stdev.,mg-n m-2 d-1
+N4003,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2013.0,,,,spring,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.1,0.0,stdev.,mg-n m-2 d-1
+N4004,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2013.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.4,0.2,stdev.,mg-n m-2 d-1
+N4005,R3,"Alcanada, Mediterranean Sea",39.836667,3.170833333,seagrasses,2013.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.8,0.5,stdev.,mg-n m-2 d-1
+N4006,R3,"Albufera, Mediterranean Sea",39.832556,3.143055556,seagrasses,2012.0,,,,summer,benthos,sediment with seagrass,nfix_rate,2.2,2.3,stdev.,mg-n m-2 d-1
+N4007,R3,"Albufera, Mediterranean Sea",39.832556,3.143055556,seagrasses,2013.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.6,0.3,stdev.,mg-n m-2 d-1
+N4008,R3,"Arenal, Mediterranean Sea",39.498667,2.745833333,seagrasses,2012.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.2,0.1,stdev.,mg-n m-2 d-1
+N4009,R3,"Arenal, Mediterranean Sea",39.498667,2.745833333,seagrasses,2013.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.5,0.1,stdev.,mg-n m-2 d-1
+N4010,R3,"Calanova, Mediterranean Sea",39.550583,2.600833333,seagrasses,2012.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.5,0.1,stdev.,mg-n m-2 d-1
+N4011,R3,"Calanova, Mediterranean Sea",39.550583,2.600833333,seagrasses,2013.0,,,,summer,benthos,sediment with seagrass,nfix_rate,0.4,0.1,stdev.,mg-n m-2 d-1
+N4012,R3,"Albufera, Mediterranean Sea",39.832556,3.143055556,seagrasses,2012.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.4,0.2,stdev.,mg-n m-2 d-1
+N4013,R3,"Albufera, Mediterranean Sea",39.832556,3.143055556,seagrasses,2013.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.6,0.4,stdev.,mg-n m-2 d-1
+N4014,R3,"Arenal, Mediterranean Sea",39.498667,2.745833333,seagrasses,2012.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,1.0,0.4,stdev.,mg-n m-2 d-1
+N4015,R3,"Arenal, Mediterranean Sea",39.498667,2.745833333,seagrasses,2013.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,1.4,0.7,stdev.,mg-n m-2 d-1
+N4016,R3,"Calanova, Mediterranean Sea",39.550583,2.600833333,seagrasses,2012.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.3,0.2,stdev.,mg-n m-2 d-1
+N4017,R3,"Calanova, Mediterranean Sea",39.550583,2.600833333,seagrasses,2013.0,,,,summer,benthos,unvegetated sediment within seagrass meadow,nfix_rate,0.2,0.1,stdev.,mg-n m-2 d-1
+N4045,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,2.0,3.0,,summer,benthos,sediment,nfix_rate,78.49,,,umol-n m-2 h-1
+N4046,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,2.0,3.0,,summer,benthos,sediment,nfix_rate,41.37,,,umol-n m-2 h-1
+N4047,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,2.0,13.0,,summer,benthos,sediment,nfix_rate,253.14,,,umol-n m-2 h-1
+N4048,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,1.217,,,umol-n m-2 h-1
+N4049,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,1.825,,,umol-n m-2 h-1
+N4050,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,8.0,,,winter,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4051,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,8.0,,,winter,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4052,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,1.83,,,umol-n m-2 h-1
+N4053,R51,Castle Forbes - Upper,-43.1402,146.9767,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,2.43,,,umol-n m-2 h-1
+N4054,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,2.0,,,summer,benthos,sediment,nfix_rate,52.65,,,umol-n m-2 h-1
+N4055,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,2.0,,,summer,benthos,sediment,nfix_rate,12.24,,,umol-n m-2 h-1
+N4056,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,46.53,,,umol-n m-2 h-1
+N4057,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,4.28,,,umol-n m-2 h-1
+N4058,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,8.0,,,winter,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4059,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,8.0,,,winter,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4060,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,1.22,,,umol-n m-2 h-1
+N4061,R51,Castle Forbes - Lower,-43.1402,146.9767,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,1.22,,,umol-n m-2 h-1
+N4062,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,2.0,,,summer,benthos,sediment,nfix_rate,0.504,,,umol-n m-2 h-1
+N4063,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,2.0,,,summer,benthos,sediment,nfix_rate,0.443,,,umol-n m-2 h-1
+N4064,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,0.667,,,umol-n m-2 h-1
+N4065,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,1.42,,,umol-n m-2 h-1
+N4066,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4067,R51,Port Cygnet - Upper,-43.1661,147.082114,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,0.0,,,umol-n m-2 h-1
+N4068,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,2.0,6.0,,summer,benthos,sediment,nfix_rate,4.78,,,umol-n m-2 h-1
+N4069,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,2.0,6.0,,summer,benthos,sediment,nfix_rate,22.8,,,umol-n m-2 h-1
+N4070,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,2.0,10.0,,summer,benthos,sediment,nfix_rate,15.37,,,umol-n m-2 h-1
+N4071,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,2.0,10.0,,summer,benthos,sediment,nfix_rate,35.13,,,umol-n m-2 h-1
+N4072,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,2.03,,,umol-n m-2 h-1
+N4073,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,4.0,,,autumn,benthos,sediment,nfix_rate,0.721,,,umol-n m-2 h-1
+N4074,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,1.12,,,umol-n m-2 h-1
+N4075,R51,Port Cygnet - Lower,-43.1661,147.082114,tidal flats,2002.0,10.0,,,spring,benthos,sediment,nfix_rate,1.629,,,umol-n m-2 h-1
+N4094,R71,Byers Peninsula pond,-62.58655,-60.758899,lakes,2002.0,1.0,18.0,,,benthos,microbial mat,nfix_rate,0.02,,stdev.,ug-n cm-2 h-1
+N4095,R71,Byers Peninsula stream,-62.58655,-60.758899,rivers,2002.0,1.0,18.0,,,benthos,microbial mat,nfix_rate,0.002,,stdev.,ug-n cm-2 h-1
+N4096,R73,Waquoit Bay South Basin,41.5567,-70.524,estuaries,2011.0,8.0,24.0,,,benthos,sediment,nfix_rate,-7.6,23.0,std. err,umol-n m-2 h-1
+N4097,R73,Waquoit Bay Metoxit Point,41.5689,-70.5212,estuaries,2011.0,7.0,7.0,,,benthos,sediment,nfix_rate,-19.0,7.2,std. err,umol-n m-2 h-1
+N4098,R73,Waquoit Bay Metoxit Point,41.5689,-70.5212,estuaries,2011.0,8.0,24.0,,,benthos,sediment,nfix_rate,-28.0,12.0,std. err,umol-n m-2 h-1
+N4099,R73,Waquoit Bay Metoxit Point,41.5689,-70.5212,estuaries,2011.0,10.0,11.0,,,benthos,sediment,nfix_rate,-4.0,26.0,std. err,umol-n m-2 h-1
+N4100,R73,Waquoit Bay Metoxit Point,41.5689,-70.5212,estuaries,2012.0,7.0,11.0,,,benthos,sediment,nfix_rate,-19.0,39.0,std. err,umol-n m-2 h-1
+N4101,R75,1 Fields Point,41.775456,-71.378618,estuaries,2006.0,7.0,8.0,,,benthos,sediment,nfix_rate,-26.6,3.6,stdev.,umol-n m-2 h-1
+N4102,R75,1 Fields Point,41.775456,-71.378618,estuaries,2006.0,8.0,31.0,,,benthos,sediment,nfix_rate,-246.4,9.8,stdev.,umol-n m-2 h-1
+N4103,R75,2 Conimicut Point,41.726049,-71.360468,estuaries,2006.0,7.0,8.0,,,benthos,sediment,nfix_rate,-30.3,5.2,stdev.,umol-n m-2 h-1
+N4104,R75,3 Barrington,41.716735,-71.323388,estuaries,2006.0,7.0,17.0,,,benthos,sediment,nfix_rate,-136.6,19.4,stdev.,umol-n m-2 h-1
+N4105,R75,3 Barrington,41.716735,-71.323388,estuaries,2006.0,8.0,31.0,,,benthos,sediment,nfix_rate,-652.0,200.5,stdev.,umol-n m-2 h-1
+N4106,R75,6 Greenwich Bay Outer,41.667129,-71.400147,estuaries,2005.0,8.0,18.0,,,benthos,sediment,nfix_rate,-4.8,29.2,stdev.,umol-n m-2 h-1
+N4107,R75,7 Jamestown,41.582189,-71.376124,estuaries,2006.0,7.0,17.0,,,benthos,sediment,nfix_rate,-174.9,13.2,stdev.,umol-n m-2 h-1
+N4108,R75,7 Jamestown,41.582189,-71.376124,estuaries,2006.0,8.0,12.0,,,benthos,sediment,nfix_rate,-213.5,37.8,stdev.,umol-n m-2 h-1
+N4227,R82,Laguna Madre 155,27.54495016,-97.29926466,estuaries,1999.0,12.0,,,,benthos,sediment,nfix_rate,-28.0,,,umol-n m-2 h-1
+N4228,R82,Laguna Madre 189,27.54495016,-97.29926466,estuaries,1999.0,12.0,,,,benthos,sediment,nfix_rate,-16.0,,,umol-n m-2 h-1
+N4229,R82,Laguna Madre 189,27.54495016,-97.29926466,estuaries,2000.0,4.0,,,,benthos,sediment,nfix_rate,-6.0,,,umol-n m-2 h-1
+N4230,R82,Baffin Bay 6,27.2739776,-97.56339575,estuaries,2000.0,4.0,,,,benthos,sediment,nfix_rate,-18.0,,,umol-n m-2 h-1
+N4231,R82,Baffin Bay 24,27.2739776,-97.56339575,estuaries,2000.0,4.0,,,,benthos,sediment,nfix_rate,-24.0,,,umol-n m-2 h-1
+N4300,R95,Lake Okeechobee Central,26.949262,-80.798476,lakes,1996.0,6.0,5.0,,,wc,water column,nfix_rate,0.01,,,umol-n l-1 h-1
+N4301,R95,Lake Okeechobee North,26.949262,-80.798476,lakes,1996.0,6.0,5.0,,,wc,water column,nfix_rate,0.01,,,umol-n l-1 h-1
+N4302,R95,Lake Okeechobee South,26.949262,-80.798476,lakes,1996.0,6.0,6.0,,,wc,water column,nfix_rate,0.2,,,umol-n l-1 h-1
+N4303,R95,Lake Okeechobee West,26.949262,-80.798476,lakes,1996.0,6.0,6.0,,,wc,water column,nfix_rate,0.38,,,umol-n l-1 h-1
+N4313,R99,Wax Lake Delta - young,29.532976,-91.431318,rivers,2011.0,1.0,,,winter,benthos,sediment,nfix_rate,-23.61,45.13,std. err,umol-n m-2 h-1
+N4366,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2004.0,10.0,,,,benthos,sediment,nfix_rate,19.2,5.8,stdev.,umol-n2 l-1 d-1
+N4367,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2004.0,12.0,,,,benthos,sediment,nfix_rate,25.6,16.4,stdev.,umol-n2 l-1 d-1
+N4368,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,2.0,,,,benthos,sediment,nfix_rate,38.4,34.2,stdev.,umol-n2 l-1 d-1
+N4369,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,4.0,,,,benthos,sediment,nfix_rate,12.8,3.2,stdev.,umol-n2 l-1 d-1
+N4370,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,6.0,,,,benthos,sediment,nfix_rate,76.8,23.8,stdev.,umol-n2 l-1 d-1
+N4371,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,7.0,,,,benthos,sediment,nfix_rate,44.8,32.3,stdev.,umol-n2 l-1 d-1
+N4372,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,8.0,,,,benthos,sediment,nfix_rate,3.2,2.9,stdev.,umol-n2 l-1 d-1
+N4373,R150,"Carteau Cove, Station D",43.383333,4.883333333,estuaries,2005.0,10.0,,,,benthos,sediment,nfix_rate,12.8,7.5,stdev.,umol-n2 l-1 d-1
+N4374,R151,"Shiraho Reef, site 500 m offshore",24.416667,124.3333333,estuaries,1998.0,3.0,5.0,,,benthos,bare-sand sediment,nfix_rate,0.16,0.03,stdev.,nmol-n g-1 h-1
+N4375,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,3.0,5.0,,,benthos,seagrass-bed sediment,nfix_rate,0.61,0.21,stdev.,nmol-n g-1 h-1
+N4376,R151,"Shiraho Reef, site 500 m offshore",24.416667,124.3333333,estuaries,1998.0,9.0,1.0,,,benthos,bare-sand sediment,nfix_rate,0.89,0.49,stdev.,nmol-n g-1 h-1
+N4377,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,9.0,1.0,,,benthos,seagrass-bed sediment,nfix_rate,1.23,0.05,stdev.,nmol-n g-1 h-1
+N4378,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,3.0,5.0,,,other,seagrass leaf,nfix_rate,1.65,1.39,stdev.,nmol-n g-1 h-1
+N4379,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,3.0,5.0,,,other,seagrass rhizosphere,nfix_rate,0.5,0.07,stdev.,nmol-n g-1 h-1
+N4380,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,3.0,5.0,,,other,benthic alga thallus,nfix_rate,5.81,0.25,stdev.,nmol-n g-1 h-1
+N4381,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,3.0,5.0,,,other,benthic alga rhizosphere,nfix_rate,0.4,0.15,stdev.,nmol-n g-1 h-1
+N4382,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,3.0,5.0,,,benthos,cyanobacterial mat,nfix_rate,1.23,1.22,stdev.,nmol-n g-1 h-1
+N4383,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,9.0,1.0,,,other,seagrass leaf,nfix_rate,6.38,5.08,stdev.,nmol-n g-1 h-1
+N4384,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,9.0,1.0,,,other,seagrass leaf,nfix_rate,39.02,1.41,stdev.,nmol-n g-1 h-1
+N4385,R151,"Shiraho Reef, site 150 m offshore",24.416667,124.3333333,seagrasses,1998.0,9.0,1.0,,,other,seagrass rhizosphere,nfix_rate,2.53,2.16,stdev.,nmol-n g-1 h-1
+N4386,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,9.0,1.0,,,other,seagrass keaf,nfix_rate,9.14,4.39,stdev.,nmol-n g-1 h-1
+N4387,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,9.0,1.0,,,other,benthic alga thallus,nfix_rate,35.35,6.64,stdev.,nmol-n g-1 h-1
+N4388,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,9.0,1.0,,,other,benthic alga rhizosphere,nfix_rate,9.55,7.25,stdev.,nmol-n g-1 h-1
+N4389,R151,Intertidal reefrock,24.416667,124.3333333,estuaries,1998.0,9.0,1.0,,,benthos,cyanobacterial mat,nfix_rate,55.15,27.46,stdev.,nmol-n g-1 h-1
+N4575,R170,"Miers Lake 1, ML1-1",-78.093583,163.774383,lakes,2009.0,1.0,,,,benthos,sediment,nfix_rate,0.7,0.28,stdev.,nmol-n cm-3 h-1
+N4576,R170,"Miers Stream 1, MS1-1",-78.0958,163.74703,rivers,2009.0,1.0,,,,benthos,gravel,nfix_rate,0.0,,stdev.,nmol-n cm-3 h-1
+N4577,R182,"Goat Island control, 0 weeks",33.333333,-79.16666667,salt marshes,1997.0,5.0,6.0,,,benthos,sediment,nfix_rate,0.93,0.56,stdev.,umol-c2h4 l-1 d-1
+N4578,R182,"Goat Island control, 2 weeks",33.333333,-79.16666667,salt marshes,1997.0,5.0,20.0,,,benthos,sediment,nfix_rate,0.42,0.18,stdev.,umol-c2h4 l-1 d-1
+N4579,R182,"Goat Island control, 8 weeks",33.333333,-79.16666667,salt marshes,1997.0,7.0,2.0,,,benthos,sediment,nfix_rate,0.9,0.44,stdev.,umol-c2h4 l-1 d-1
+N4580,R189,Lake Balaton - eastern basin,46.833626,17.719346,lakes,2001.0,6.0,22.0,,,wc,water column,nfix_rate,1.33,,,mg-n m-2 d-1
+N4581,R189,Lake Balaton - eastern basin,46.833626,17.719346,lakes,2001.0,8.0,16.0,,,wc,water column,nfix_rate,18.64,,,mg-n m-2 d-1
+N4582,R189,Lake Balaton - western basin,46.833626,17.719346,lakes,2001.0,6.0,18.0,,,wc,water column,nfix_rate,10.23,,,mg-n m-2 d-1
+N4583,R189,Lake Balaton - western basin,46.833626,17.719346,lakes,2001.0,8.0,8.0,,,wc,water column,nfix_rate,50.68,,,mg-n m-2 d-1
+N4700,R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,4.0,,,dry season,benthos,periphyton,nfix_rate,2.18,,,nmol-c2h4 m-2 h-1
+N4701,R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,8.0,,,rainy season,benthos,periphyton,nfix_rate,9.13,,,nmol-c2h4 m-2 h-1
+N4702,R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,11.0,,,end of rainy season,benthos,periphyton,nfix_rate,31.38,,,nmol-c2h4 m-2 h-1
+N4703,R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,4.0,,,dry season,benthos,periphyton,nfix_rate,0.0,,,nmol-c2h4 m-2 h-1
+N4704,R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,8.0,,,rainy season,benthos,periphyton,nfix_rate,32.61,,,nmol-c2h4 m-2 h-1
+N4705,R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,11.0,,,end of rainy season,benthos,periphyton,nfix_rate,19.09,,,nmol-c2h4 m-2 h-1
+N4706,R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,4.0,,,dry season,benthos,periphyton,nfix_rate,18.03,,,nmol-c2h4 m-2 h-1
+N4707,R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,8.0,,,rainy season,benthos,periphyton,nfix_rate,33.9,,,nmol-c2h4 m-2 h-1
+N4708,R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,11.0,,,end of rainy season,benthos,periphyton,nfix_rate,23.7,,,nmol-c2h4 m-2 h-1
+N4709,R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,4.0,,,dry season,benthos,periphyton,nfix_rate,2.57,,,nmol-c2h4 m-2 h-1
+N4710,R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,8.0,,,rainy season,benthos,periphyton,nfix_rate,63.94,,,nmol-c2h4 m-2 h-1
+N4711,R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",21.183333,-87.16666667,freshwater wetlands,2000.0,11.0,,,end of rainy season,benthos,periphyton,nfix_rate,17.14,,,nmol-c2h4 m-2 h-1
+N4718,R243,Arcochon Bay bare sediment,44.700286,-1.147551,estuaries,1994.0,1.0,,,winter,benthos,sediment,nfix_rate,0.02,,,mg-n m-2 d-1
+N4719,R243,Arcochon Bay bare sediment,44.700286,-1.147551,estuaries,1994.0,7.0,,,summer,benthos,sediment,nfix_rate,3.7,,,mg-n m-2 d-1
+N4720,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,3.0,,,spring,benthos,sediment with seagrass,nfix_rate,0.2,,,mg-n m-2 d-1
+N4721,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,3.0,,,spring,benthos,sediment with seagrass,nfix_rate,0.4,,,mg-n m-2 d-1
+N4722,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,7.0,,,summer,benthos,sediment with seagrass,nfix_rate,2.0,,,mg-n m-2 d-1
+N4723,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,7.0,,,summer,benthos,sediment with seagrass,nfix_rate,7.3,,,mg-n m-2 d-1
+N4724,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,10.0,,,autumn,benthos,sediment with seagrass,nfix_rate,1.8,,,mg-n m-2 d-1
+N4725,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1994.0,10.0,,,autumn,benthos,sediment with seagrass,nfix_rate,4.4,,,mg-n m-2 d-1
+N4726,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1995.0,1.0,,,winter,benthos,sediment with seagrass,nfix_rate,0.1,,,mg-n m-2 d-1
+N4727,R243,Arcochon Bay Zolstera noltii colonized sediment,44.700286,-1.147551,seagrasses,1995.0,1.0,,,winter,benthos,sediment with seagrass,nfix_rate,0.2,,,mg-n m-2 d-1
+N4734,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,1.14,,,umol-n m-2 d-1
+N4735,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,7.36,,,umol-n m-2 d-1
+N4736,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,3.43,,,umol-n m-2 d-1
+N4737,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,4.5,,,umol-n m-2 d-1
+N4738,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,2.22,,,umol-n m-2 d-1
+N4739,R250,Northern South China Sea & Kuroshio,15.0,115.0,continental shelves,2009.0,,,,summer,wc,water column,nfix_rate,4.12,,,umol-n m-2 d-1

@@ -50,16 +50,33 @@ pip install -e ".[gpu]"
 ## Usage
 
 ### Examples (notebooks)
-Interactive walkthroughs are in `examples/`:
+Interactive walkthroughs are in `examples/` and `analysis/`:
 - `examples/ocr.ipynb` — OCR a PDF to markdown
-- `examples/pond_lake_extraction.ipynb` — end-to-end measurement extraction pipeline
+- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
+- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
 
 ### Experiments (scripts)
-Runnable experiment scripts are in `experiments/`:
-- `experiments/pond/ocr.py` — OCR a batch of PDFs
-- `experiments/pond/pond.py` — run the measurement extraction pipeline
-- `experiments/pond/judge_llama.py` — validate extracted measurements with a local LLM judge
-- `experiments/pond/validate.py` — evaluate extraction results against a ground-truth dataset
+Runnable experiment scripts are in `experiments/`. See [EXPERIMENTS.md](EXPERIMENTS.md) for the full guide.
+
+```bash
+# Extract
+python experiments/run_extraction.py --dataset pond_ten --model gemma-3-27b
+
+# Judge (frontier, async) + combine
+python experiments/run_judge_frontier_v2.py \
+    --dataset pond_ten --extraction-model gemma-3-27b \
+    --judge openai --frontier-model gpt-4o-mini --extraction-date 2026_04_14
+python experiments/run_judge_combine.py \
+    --dataset pond_ten --extraction-model gemma-3-27b --extraction-date 2026_04_14
+```
+
+### Ground truth preprocessing
+Each dataset ships a preprocessing script that builds the ground truth CSVs:
+
+```bash
+python data/pond/preprocessing.py   # → data/pond/ground_truth{_ten}.csv
+python data/nfix/preprocessing.py   # → data/nfix/ground_truth{_ten}.csv
+```
 
 ## License
 

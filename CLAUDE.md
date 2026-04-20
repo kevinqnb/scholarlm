@@ -39,6 +39,7 @@ Every path in the output tree is constructed here. Never build paths by hand in 
 **Analysis utilities** (`src/scholarlm/utils/`)  
 - `probe.py` — logistic-regression probe on attention activations
 - `calibration.py` — ECE and reliability diagram
+- `unit_conversion.py` — `apply_unit_conversion(df, unit_conversion_table)` converts extracted values to standard units before ground-truth matching
 
 **Experiment analysis** (`analysis/`)  
 - `loaders.py` — load experiment outputs by (dataset, model, date)
@@ -90,8 +91,10 @@ python experiments/run_analysis.py probe-heatmap \
 ## Adding a new dataset
 
 1. Create `experiments/configs/{name}.py` exporting `CONFIG: DatasetConfig`.
-2. Set `ground_truth_file` if a manual ground-truth CSV exists.
-3. Run `run_extraction.py --dataset {name}` to verify the pipeline end-to-end.
+2. Create `data/{name}/preprocessing.py` to generate `ground_truth.csv` (and `ground_truth_ten.csv` if a subset exists). Use `data/pond/preprocessing.py` or `data/nfix/preprocessing.py` as a template.
+3. Set `ground_truth_file` in the config. If units vary across papers, populate `unit_conversion_table` with per-attribute `{unit: multiplier}` entries.
+4. Run `python data/{name}/preprocessing.py` to generate the ground truth CSVs.
+5. Run `run_extraction.py --dataset {name}` to verify the pipeline end-to-end.
 
 ## Adding a new model
 

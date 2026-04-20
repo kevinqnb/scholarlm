@@ -11,8 +11,7 @@ Python package for extracting entity-attribute-value triplets from scientific PD
 | `config.py` | `DatasetConfig` and `ModelConfig` dataclasses |
 | `judgementlm.py` | NNsight-based judge (collects attention activations) |
 | `instruction_prompts.py` | All LLM system prompts |
-| `utils/` | Shared utilities (data matching, file I/O) |
-| `analysis/` | Probe, calibration, loaders, metrics, plots |
+| `utils/` | Shared utilities: data matching, file I/O, probe, calibration, unit conversion |
 
 ## Extraction pipeline
 
@@ -50,3 +49,4 @@ Each step writes a JSON checkpoint; `run_extraction.py --resume` skips steps who
 | `ablation3_entity_schema` | `type[BaseModel] \| None` | Enables Ablation 3 |
 | `ablation3_entity_identification_prompt` | `str \| None` | Prompt for Ablation 3 |
 | `ground_truth_file` | `str \| None` | Path to manual ground-truth CSV/JSON |
+| `unit_conversion_table` | `dict[str, dict[str, float]]` | Per-attribute `{unit: multiplier}` map; see `scholarlm.utils.unit_conversion` |

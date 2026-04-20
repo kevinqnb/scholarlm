@@ -27,3 +27,4 @@ from .ml import (
 )
 from .probe import build_feature_matrix, train_probe, eval_probe
 from .calibration import compute_ece, reliability_diagram_data
+from .unit_conversion import apply_unit_conversion

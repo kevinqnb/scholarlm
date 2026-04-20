@@ -89,6 +89,7 @@ class DatasetConfig:
     ablation3_entity_schema: type[BaseModel] | None = None
     ablation3_entity_identification_prompt: str | None = None
     ground_truth_file: str | None = None
+    unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass
