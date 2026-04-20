@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 
@@ -78,9 +77,10 @@ def calibration_curve(
 
     for label, (judge, diag) in zip(judge_labels, diag_dict.items()):
         ece = diag.get("ece", float("nan"))
+        valid = ~np.isnan(diag["bin_accuracy"])
         ax.plot(
-            diag["bin_centers"],
-            diag["bin_accuracy"],
+            diag["bin_centers"][valid],
+            diag["bin_accuracy"][valid],
             "o-",
             label=f"{label} (ECE={ece:.3f})",
         )

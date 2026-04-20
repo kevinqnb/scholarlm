@@ -20,6 +20,8 @@ Typical usage
 """
 from __future__ import annotations
 
+from typing import Generator
+
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -164,3 +166,114 @@ def eval_probe(
     preds = probe.predict(X)
     accuracy = float((preds == y).mean())
     return {"accuracy": accuracy, "n_samples": len(y)}
+
+
+def eval_probe_detailed(
+    probe: Pipeline,
+    X: np.ndarray,
+    y: np.ndarray,
+) -> dict:
+    """Evaluate a probe, returning accuracy, precision, recall, f1, and per-sample probs.
+
+    Args:
+        probe: Fitted probe returned by ``train_probe``.
+        X: Feature matrix of shape ``(n_samples, n_features)``.
+        y: Binary label array of shape ``(n_samples,)``.
+
+    Returns:
+        Dict with keys ``accuracy``, ``precision``, ``recall``, ``f1``,
+        ``tp``, ``tn``, ``fp``, ``fn``, ``n_samples``, ``probs``.
+    """
+    y = np.asarray(y, dtype=bool)
+    preds = np.asarray(probe.predict(X), dtype=bool)
+    probs = probe.predict_proba(X)[:, 1]
+    tp = int((preds & y).sum())
+    tn = int((~preds & ~y).sum())
+    fp = int((preds & ~y).sum())
+    fn = int((~preds & y).sum())
+    n = len(y)
+    acc  = (tp + tn) / n if n > 0 else float("nan")
+    prec = tp / (tp + fp) if (tp + fp) > 0 else float("nan")
+    rec  = tp / (tp + fn) if (tp + fn) > 0 else float("nan")
+    f1   = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else float("nan")
+    return {
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
+        "tp": tp, "tn": tn, "fp": fp, "fn": fn,
+        "n_samples": n,
+        "probs": probs,
+    }
+
+
+def get_head_features(
+    activations: "dict[str, np.ndarray] | np.lib.npyio.NpzFile",
+    measurement_ids: list,
+    layer: int,
+    head: int,
+) -> np.ndarray:
+    """Extract activation features for a single (layer, head) pair.
+
+    Args:
+        activations: Mapping from ``str(measurement_id)`` to arrays of shape
+            ``(n_layers, n_heads, head_dim)``.
+        measurement_ids: Ordered list of measurement IDs.
+        layer: Layer index to extract.
+        head: Head index to extract.
+
+    Returns:
+        Float32 array of shape ``(n_samples, head_dim)``.
+    """
+    rows: list = []
+    ref_dim: int | None = None
+    for mid in measurement_ids:
+        key = str(mid)
+        if key in activations:
+            arr = np.array(activations[key], dtype=np.float32)
+            vec = arr[layer, head, :]
+            if ref_dim is None:
+                ref_dim = vec.shape[0]
+            rows.append(vec)
+        else:
+            rows.append(None)
+    fill = np.zeros(ref_dim or 128, dtype=np.float32)
+    rows = [r if r is not None else fill for r in rows]
+    return np.stack(rows, axis=0)
+
+
+def grouped_kfold_split(
+    groups: np.ndarray,
+    n_splits: int = 5,
+    random_state: int = 42,
+) -> Generator[tuple[np.ndarray, np.ndarray], None, None]:
+    """Group-aware k-fold split: no group appears in both train and test folds.
+
+    Greedily assigns groups to folds to keep fold sizes balanced.  Every sample
+    belongs to exactly one test fold across the full iteration.
+
+    Args:
+        groups: Array of group labels (e.g., paper titles) for each sample.
+        n_splits: Number of folds.
+        random_state: Random seed for reproducibility.
+
+    Yields:
+        ``(train_idx, test_idx)`` integer arrays for each fold.
+    """
+    rng = np.random.RandomState(random_state)
+    groups = np.asarray(groups)
+    unique_groups = np.array(sorted(set(groups)))
+    rng.shuffle(unique_groups)
+
+    group_counts = {g: int((groups == g).sum()) for g in unique_groups}
+    fold_groups: list[set] = [set() for _ in range(n_splits)]
+    fold_sizes = [0] * n_splits
+
+    for g in unique_groups:
+        best_fold = min(range(n_splits), key=lambda f: fold_sizes[f])
+        fold_groups[best_fold].add(g)
+        fold_sizes[best_fold] += group_counts[g]
+
+    for i in range(n_splits):
+        test_mask = np.isin(groups, list(fold_groups[i]))
+        yield np.where(~test_mask)[0], np.where(test_mask)[0]
