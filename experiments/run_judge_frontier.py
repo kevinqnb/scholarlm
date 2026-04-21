@@ -5,7 +5,7 @@ Runs judge validation for a given (dataset, extraction_model, judge_model) tripl
 using a frontier model via its provider's batch API.
 
 Output path:
-    data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
+    data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{YYYY_mm_dd}/
 
 Saves:
   - ``responses.json`` — per-measurement judgement + raw text response
@@ -35,8 +35,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -45,19 +43,14 @@ from typing import Any
 # Path setup
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
 _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
-# Make 'batch' importable as a package (experiments/batch/)
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 from dotenv import load_dotenv
 load_dotenv()
 
 from scholarlm.config import DatasetConfig
-from scholarlm.utils import get_filenames_in_directory
-
-random.seed(342)
 
 FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
 
@@ -70,209 +63,29 @@ import paths
 
 
 def _analyze_batch_errors(batch_id: str, client: Any) -> None:
-    """Retrieve and analyze errors from a failed batch."""
+    """Retrieve and print per-request errors from a failed OpenAI batch."""
     try:
         batch = client.batches.retrieve(batch_id)
-        print(f"\n  Batch status details:")
-        print(f"    Status: {batch.status}")
-        print(f"    Total: {batch.request_counts.total}")
-        print(f"    Completed: {batch.request_counts.completed}")
-        print(f"    Failed: {batch.request_counts.failed}")
-        
+        print(f"\n  Batch {batch_id}:")
+        print(f"    Status    : {batch.status}")
+        print(f"    Total     : {batch.request_counts.total}")
+        print(f"    Completed : {batch.request_counts.completed}")
+        print(f"    Failed    : {batch.request_counts.failed}")
         if batch.errors_file_id:
             err_content = client.files.content(batch.errors_file_id)
-            errors = err_content.text.splitlines()
-            print(f"    Error file has {len(errors)} entries")
-            print(f"    First few errors:")
-            for i, line in enumerate(errors[:5]):
-                if line.strip():
-                    try:
-                        err = json.loads(line)
-                        if isinstance(err, dict):
-                            print(f"      - custom_id: {err.get('custom_id')}")
-                            print(f"        error: {err.get('error')}")
-                        else:
-                            print(f"      - {err}")
-                    except json.JSONDecodeError:
-                        print(f"      - {line[:120]}")
+            errors = [ln for ln in err_content.text.splitlines() if ln.strip()]
+            print(f"    Error file: {len(errors)} entries (first 5):")
+            for line in errors[:5]:
+                try:
+                    err = json.loads(line)
+                    if isinstance(err, dict):
+                        print(f"      custom_id={err.get('custom_id')} error={err.get('error')}")
+                    else:
+                        print(f"      {err}")
+                except json.JSONDecodeError:
+                    print(f"      {line[:120]}")
     except Exception as e:
         print(f"    Could not retrieve batch details: {e}")
-
-# ---------------------------------------------------------------------------
-# Runner
-# ---------------------------------------------------------------------------
-
-
-def run_frontier_judge(
-    dataset_config: DatasetConfig,
-    extraction_model: str,
-    provider: str,
-    frontier_model: str,
-    output_dir: Path,
-    extraction_date: str | None = None,
-    ocr_dir: str | None = None,
-    dest_gcs: str | None = None,
-    gcp_project: str | None = None,
-    gcp_location: str | None = None,
-    interval: int = 60,
-    state_file: str | None = None,
-    ablation: str | None = None,
-) -> None:
-    """Run a frontier batch judge and save responses.
-
-    Args:
-        dataset_config: Dataset configuration.
-        extraction_model: Short name of the extraction model.
-        provider: One of ``"openai"``, ``"anthropic"``, ``"gemini"``.
-        frontier_model: Provider-specific model name (e.g. ``"gpt-4o-mini"``).
-        output_dir: Directory to write ``responses.json``.
-        extraction_date: Optional date tag for locating extraction results.
-        ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
-        dest_gcs: GCS URI (Gemini only).
-        gcp_project: GCP project (Gemini only).
-        gcp_location: GCP region (Gemini only).
-        interval: Poll interval in seconds.
-        state_file: Optional path for batch state JSON.
-    """
-    if provider not in FRONTIER_PROVIDERS:
-        raise ValueError(f"Unknown provider '{provider}'. Choose from: {FRONTIER_PROVIDERS}")
-
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
-    print(f"Input   : {input_file}")
-
-    with open(input_file) as f:
-        data: list[dict] = json.load(f)
-
-    effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    from batch import common as batch_common
-    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    if state_file is None:
-        state_file = str(output_dir / f".batch_state_{provider}.json")
-
-    from batch import openai_batch, anthropic_batch, gemini_batch
-
-    # Submit
-    state: dict[str, Any] = {"provider": provider, "model": frontier_model}
-    if provider == "openai":
-        from openai import OpenAI
-        client = OpenAI()
-        requests = openai_batch.build_requests(chat_entries, frontier_model)
-        
-        # Validate first request before submitting (helps catch format issues early)
-        if requests:
-            sample_req = requests[0]
-            print(f"Sample request (first of {len(requests)}):")
-            print(f"  custom_id: {sample_req.get('custom_id')}")
-            print(f"  model: {sample_req.get('body', {}).get('model')}")
-            msg_count = len(sample_req.get('body', {}).get('messages', []))
-            print(f"  messages: {msg_count}")
-            if msg_count > 0:
-                first_msg = sample_req.get('body', {}).get('messages', [])[0]
-                content_preview = str(first_msg.get('content', ''))[:80]
-                print(f"  first message content: {content_preview}...")
-        
-        batch_ids = openai_batch.submit_batch(requests, client=client)
-        state["batch_ids"] = batch_ids
-
-    elif provider == "anthropic":
-        import anthropic
-        client = anthropic.Anthropic()
-        requests = anthropic_batch.build_requests(chat_entries, frontier_model)
-        batch_ids = anthropic_batch.submit_batch(requests, client=client)
-        state["batch_ids"] = batch_ids
-
-    elif provider == "gemini":
-        requests = gemini_batch.build_requests(chat_entries, frontier_model)
-        batch_names = gemini_batch.submit_batch(
-            requests, frontier_model,
-            dest_gcs=dest_gcs, project=gcp_project, location=gcp_location,
-        )
-        state["batch_names"] = batch_names
-        state["dest_gcs"] = dest_gcs
-        if gcp_project:
-            state["gcp_project"] = gcp_project
-        if gcp_location:
-            state["gcp_location"] = gcp_location
-
-    Path(state_file).write_text(json.dumps(state, indent=2))
-    print(f"Batch submitted. State saved to {state_file}")
-
-    # Poll then fetch results
-    if provider == "openai":
-        from openai import OpenAI
-        client = OpenAI()
-        try:
-            openai_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
-        except RuntimeError as e:
-            # Batch ended in a non-completed terminal state (failed/expired/cancelled).
-            # Dump per-request error details before re-raising so the cause is visible.
-            print(f"⚠ Batch ended with error: {e}")
-            print("Fetching per-request error details...")
-            for batch_id in state["batch_ids"]:
-                _analyze_batch_errors(batch_id, client)
-            raise
-        try:
-            results = openai_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
-        except RuntimeError as e:
-            # Handle batches that failed completely (no output file)
-            if "has no output file" in str(e):
-                print(f"⚠ {e}")
-                print("This typically means all requests in the batch failed.")
-                print("Checking for error details and attempting partial recovery...")
-
-                # Try to get error details from the batch
-                for batch_id in state["batch_ids"]:
-                    _analyze_batch_errors(batch_id, client)
-
-                # Try to fetch results from individual batches
-                results = {}
-                for batch_id in state["batch_ids"]:
-                    try:
-                        batch_result = openai_batch.fetch_results([batch_id], client=client, model=frontier_model)
-                        results.update(batch_result)
-                    except RuntimeError:
-                        continue
-
-                if not results:
-                    raise RuntimeError(
-                        "All batches failed completely. Common causes:\n"
-                        "  1. Invalid model name or model not accessible\n"
-                        "  2. Account rate limits or quota exceeded\n"
-                        "  3. Batch API specific quota limits\n"
-                        "  4. Invalid characters in request IDs or content\n"
-                        "  5. Deprecated or unsupported parameters\n"
-                        "Please check the error details above and verify your account status."
-                    ) from e
-            else:
-                raise
-
-    elif provider == "anthropic":
-        import anthropic
-        client = anthropic.Anthropic()
-        anthropic_batch.poll_batch(state["batch_ids"], client=client, interval=interval)
-        results = anthropic_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
-
-    elif provider == "gemini":
-        gemini_batch.poll_batch(
-            state["batch_names"],
-            project=state.get("gcp_project"),
-            location=state.get("gcp_location"),
-            interval=interval,
-        )
-        results = gemini_batch.fetch_results(
-            state["batch_names"], model=frontier_model,
-            dest_gcs=state["dest_gcs"],
-            project=state.get("gcp_project"),
-        )
-
-    data_out = batch_common.merge_results(data, results)
-    responses_file = output_dir / "responses.json"
-    with open(responses_file, "w") as f:
-        json.dump(data_out, f, indent=4, ensure_ascii=False)
-    print(f"Responses saved to {responses_file}")
 
 
 # ---------------------------------------------------------------------------
@@ -293,9 +106,13 @@ def _submit(
     gcp_project: str | None = None,
     gcp_location: str | None = None,
     ablation: str | None = None,
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
 ) -> None:
     """Submit batch requests and save state file."""
     input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    print(f"Input   : {input_file}")
+
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
@@ -310,15 +127,27 @@ def _submit(
     state: dict[str, Any] = {"provider": provider, "model": frontier_model}
     if provider == "openai":
         from openai import OpenAI
-        requests = openai_batch.build_requests(chat_entries, frontier_model)
+        requests = openai_batch.build_requests(
+            chat_entries, frontier_model,
+            max_completion_tokens=max_tokens,
+            temperature=temperature,
+        )
         state["batch_ids"] = openai_batch.submit_batch(requests, client=OpenAI())
     elif provider == "anthropic":
         import anthropic
         client = anthropic.Anthropic()
-        requests = anthropic_batch.build_requests(chat_entries, frontier_model)
+        requests = anthropic_batch.build_requests(
+            chat_entries, frontier_model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
         state["batch_ids"] = anthropic_batch.submit_batch(requests, client=client)
     elif provider == "gemini":
-        requests = gemini_batch.build_requests(chat_entries, frontier_model)
+        requests = gemini_batch.build_requests(
+            chat_entries, frontier_model,
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+        )
         batch_names = gemini_batch.submit_batch(
             requests, frontier_model,
             dest_gcs=dest_gcs, project=gcp_project, location=gcp_location,
@@ -381,30 +210,11 @@ def _process(
         try:
             results = openai_batch.fetch_results(state["batch_ids"], client=client, model=frontier_model)
         except RuntimeError as e:
-            # Handle batches that failed completely (no output file)
             if "has no output file" in str(e):
                 print(f"⚠ {e}")
-                print("Checking for error details...")
                 for batch_id in state["batch_ids"]:
-                    try:
-                        batch = client.batches.retrieve(batch_id)
-                        if batch.errors_file_id:
-                            err_content = client.files.content(batch.errors_file_id)
-                            print(f"\n  Batch {batch_id} errors (first few):")
-                            for i, line in enumerate(err_content.text.splitlines()[:3]):
-                                if line.strip():
-                                    try:
-                                        err = json.loads(line)
-                                        print(f"    {err}")
-                                    except:
-                                        print(f"    {line[:100]}")
-                                if i >= 2:
-                                    break
-                    except Exception:
-                        pass
-                raise
-            else:
-                raise
+                    _analyze_batch_errors(batch_id, client)
+            raise
     elif provider == "anthropic":
         import anthropic
         results = anthropic_batch.fetch_results(
@@ -416,6 +226,8 @@ def _process(
             dest_gcs=state["dest_gcs"],
             project=state.get("gcp_project"),
         )
+    else:
+        raise ValueError(f"Unknown provider in state file: {provider!r}")
 
     data_out = batch_common.merge_results(data, results)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -423,6 +235,91 @@ def _process(
     with open(responses_file, "w") as f:
         json.dump(data_out, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
+
+
+# ---------------------------------------------------------------------------
+# Runner
+# ---------------------------------------------------------------------------
+
+
+def run_frontier_judge(
+    dataset_config: DatasetConfig,
+    extraction_model: str,
+    provider: str,
+    frontier_model: str,
+    output_dir: Path,
+    extraction_date: str | None = None,
+    ocr_dir: str | None = None,
+    dest_gcs: str | None = None,
+    gcp_project: str | None = None,
+    gcp_location: str | None = None,
+    interval: int = 60,
+    state_file: str | None = None,
+    ablation: str | None = None,
+    max_tokens: int = 2048,
+    temperature: float = 0.0,
+) -> None:
+    """Run a frontier batch judge and save responses.
+
+    Args:
+        dataset_config: Dataset configuration.
+        extraction_model: Short name of the extraction model.
+        provider: One of ``"openai"``, ``"anthropic"``, ``"gemini"``.
+        frontier_model: Provider-specific model name (e.g. ``"gpt-4o-mini"``).
+        output_dir: Directory to write ``responses.json``.
+        extraction_date: Optional date tag for locating extraction results.
+        ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
+        dest_gcs: GCS URI (Gemini only).
+        gcp_project: GCP project (Gemini only).
+        gcp_location: GCP region (Gemini only).
+        interval: Poll interval in seconds.
+        state_file: Optional path for batch state JSON.
+        max_tokens: Max output tokens per judge response.
+        temperature: Sampling temperature.
+    """
+    if provider not in FRONTIER_PROVIDERS:
+        raise ValueError(f"Unknown provider '{provider}'. Choose from: {FRONTIER_PROVIDERS}")
+
+    if state_file is None:
+        state_file = str(output_dir / f".batch_state_{provider}.json")
+
+    _submit(
+        dataset_config=dataset_config,
+        extraction_model=extraction_model,
+        provider=provider,
+        frontier_model=frontier_model,
+        output_dir=output_dir,
+        state_file=state_file,
+        extraction_date=extraction_date,
+        ocr_dir=ocr_dir,
+        dest_gcs=dest_gcs,
+        gcp_project=gcp_project,
+        gcp_location=gcp_location,
+        ablation=ablation,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+    state = json.loads(Path(state_file).read_text())
+    try:
+        _poll(state_file=state_file, interval=interval)
+    except RuntimeError as e:
+        if provider == "openai":
+            from openai import OpenAI
+            client = OpenAI()
+            print(f"⚠ Poll failed: {e}\nFetching per-request error details ...")
+            for batch_id in state.get("batch_ids", []):
+                _analyze_batch_errors(batch_id, client)
+        raise
+
+    _process(
+        dataset_config=dataset_config,
+        extraction_model=extraction_model,
+        output_dir=output_dir,
+        state_file=state_file,
+        extraction_date=extraction_date,
+        ablation=ablation,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +359,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--gcp-location", default=None, help="GCP region (Gemini only).")
     p.add_argument("--interval", type=int, default=60, help="Poll interval in seconds.")
     p.add_argument(
+        "--max-tokens", type=int, default=2048, metavar="N",
+        help="Max output tokens per judge response (default: 2048). Mapped to the correct "
+             "provider-specific parameter: max_completion_tokens (OpenAI), max_tokens "
+             "(Anthropic), maxOutputTokens (Gemini).",
+    )
+    p.add_argument(
+        "--temperature", type=float, default=0.0,
+        help="Sampling temperature (default: 0.0).",
+    )
+    p.add_argument(
         "--state", default=None, metavar="FILE",
         help="Batch state JSON file (for poll/process sub-commands).",
     )
@@ -490,6 +397,8 @@ def main(argv: list[str] | None = None) -> None:
     if args.ablation:
         print(f"Ablation         : {args.ablation}")
     print(f"Judge            : {args.judge} / {args.frontier_model}")
+    print(f"Max tokens       : {args.max_tokens}")
+    print(f"Temperature      : {args.temperature}")
     print(f"Output           : {output_dir}\n")
 
     if args.subcommand == "submit":
@@ -506,6 +415,8 @@ def main(argv: list[str] | None = None) -> None:
             gcp_project=args.gcp_project,
             gcp_location=args.gcp_location,
             ablation=args.ablation,
+            max_tokens=args.max_tokens,
+            temperature=args.temperature,
         )
     elif args.subcommand == "poll":
         _poll(state_file=state_file, interval=args.interval)
@@ -534,6 +445,8 @@ def main(argv: list[str] | None = None) -> None:
             interval=args.interval,
             state_file=state_file,
             ablation=args.ablation,
+            max_tokens=args.max_tokens,
+            temperature=args.temperature,
         )
 
 
