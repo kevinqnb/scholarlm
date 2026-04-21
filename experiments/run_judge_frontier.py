@@ -130,7 +130,7 @@ def _submit(
         requests = openai_batch.build_requests(
             chat_entries, frontier_model,
             max_completion_tokens=max_tokens,
-            temperature=temperature,
+            # temperature omitted — OpenAI reasoning models don't support it
         )
         state["batch_ids"] = openai_batch.submit_batch(requests, client=OpenAI())
     elif provider == "anthropic":
