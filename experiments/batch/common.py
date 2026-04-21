@@ -137,7 +137,7 @@ def build_judge_query(
         f"Extracted units: {units_str}"
     )
 
-    closing = "Is this extraction correct? (true/false)"
+    closing = "Is this extraction correct? (true or false)"
 
     return "\n\n".join([
         entity_section, attribute_section, source_section, value_section, closing
