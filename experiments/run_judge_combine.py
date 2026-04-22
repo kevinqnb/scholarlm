@@ -46,10 +46,12 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
-# Frontier provider keys — only these votes count toward ground truth
+# Voting judge keys — only these votes count toward ground truth.
+# "human" is included so human-validation runs produced by validation.py
+# can participate in majority voting (use --voting-threshold 1 for standalone use).
 # ---------------------------------------------------------------------------
 
-FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"}
+FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini", "human"}
 
 import paths
 
