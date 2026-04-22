@@ -166,6 +166,7 @@ def find_activations(
     extraction_model: str,
     extraction_date: str,
     judge_model: str,
+    judge_date: str | None = None,
 ) -> Path:
     """Return path to the most-recent attention_outputs.npz for the given extraction date.
 
@@ -177,12 +178,52 @@ def find_activations(
     )
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory: {judge_dir}")
-    for date_dir in sorted(judge_dir.iterdir(), reverse=True):
-        candidate = date_dir / "attention_outputs.npz"
+    if judge_date is None:
+        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+            candidate = date_dir / "attention_outputs.npz"
+            if candidate.exists():
+                return candidate
+    else:
+        candidate = judge_dir / judge_date / "attention_outputs.npz"
         if candidate.exists():
             return candidate
+    
     raise FileNotFoundError(
         f"No attention_outputs.npz for dataset='{dataset}' "
+        f"extraction_model='{extraction_model}' extraction_date='{extraction_date}' "
+        f"judge='{judge_model}' under {judge_dir}"
+    )
+
+
+def find_layer_outputs(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """Return path to the most-recent layer_outputs.npz for the given extraction date.
+
+    Raises:
+        FileNotFoundError: If no layer_outputs.npz exists.
+    """
+    judge_dir = (
+        EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / extraction_date / judge_model
+    )
+    if not judge_dir.exists():
+        raise FileNotFoundError(f"No judge directory: {judge_dir}")
+    if judge_date is None:
+        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+            candidate = date_dir / "layer_outputs.npz"
+            if candidate.exists():
+                return candidate
+    else:
+        candidate = judge_dir / judge_date / "layer_outputs.npz"
+        if candidate.exists():
+            return candidate
+    
+    raise FileNotFoundError(
+        f"No layer_outputs.npz for dataset='{dataset}' "
         f"extraction_model='{extraction_model}' extraction_date='{extraction_date}' "
         f"judge='{judge_model}' under {judge_dir}"
     )

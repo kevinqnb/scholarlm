@@ -239,7 +239,7 @@ class JudgementLM:
                         .to(tensor_device)
                     )
                     layer_outputs[token_idx, layer_idx, :] = (
-                        layer.output[0][-1, -1, :]
+                        layer.output[0][-1, :]
                         .detach()
                         .to(tensor_device)
                     )

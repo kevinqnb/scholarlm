@@ -360,7 +360,7 @@ Respond 'true' ONLY if ALL of the following hold:
 
 (F) The units are correct. The units match those reported in the document for that value. Accept only trivial notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
 
-(G) For table-sourced extractions: the row name and column name are consistent with the extraction. The row name must appear as a row identifier in the cited table and must correspond to the described entity (including any measurement event context). The column name must appear as a column header in the cited table and must correspond to the described attribute. Respond 'false' if the row name maps to a different entity or event than described, or if the column name maps to a different attribute than described.
+(G) For table-sourced extractions: the row name and column name are consistent with the extraction. Respond 'false' if the row or column name maps to a different entity or attribute than described.
 
 Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous. Prefer 'false' when uncertain — the goal is high precision.
 
