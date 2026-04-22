@@ -336,6 +336,38 @@ Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
 """
 
 
+# Variant of JUDGE_INSTRUCTIONS_UNIFIED that also receives the row name and
+# column name used for table-sourced extractions, and checks their consistency.
+JUDGE_INSTRUCTIONS_UNIFIED_TABLE = """You are an expert in data extraction for systematic scientific literature reviews.
+
+You will be given:
+1) One or more pages from a research paper (in ## CONTEXT) — the specific page(s) where the value was reported.
+2) In ## QUERY: a description of the extracted entity instance and its type, the target attribute description and terminology, the source location where the value was reported (a specific table or prose text), and the extracted value with its units. For table-sourced extractions, the query also includes the row name and column name used to locate the value in the table.
+
+Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified attribute and entity.
+
+Respond 'true' ONLY if ALL of the following hold:
+
+(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or abbreviations fields in the extracted entity description.
+
+(B) The value is present within the context. It appears explicitly in the specified table, or in the prose text if no table is cited. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
+
+(C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity, not to a different site, condition, subgroup, or an aggregate that includes other entities.
+
+(D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
+
+(E) The value is a directly reported quantity. It is a raw measurement or descriptive summary statistic (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
+
+(F) The units are correct. The units match those reported in the document for that value. Accept only trivial notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
+
+(G) For table-sourced extractions: the row name and column name are consistent with the extraction. The row name must appear as a row identifier in the cited table and must correspond to the described entity (including any measurement event context). The column name must appear as a column header in the cited table and must correspond to the described attribute. Respond 'false' if the row name maps to a different entity or event than described, or if the column name maps to a different attribute than described.
+
+Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous. Prefer 'false' when uncertain — the goal is high precision.
+
+Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
+"""
+
+
 _JUDGE_INSTRUCTIONS_UNIFIED_EXAMPLES = """
 ---
 

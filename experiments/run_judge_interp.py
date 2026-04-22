@@ -11,6 +11,7 @@ Output path:
 Saves:
   - ``responses.json``        — per-measurement judgement + probability scores
   - ``attention_outputs.npz`` — per-layer, per-head attention output activations
+  - ``layer_outputs.npz``     — per-layer residual stream outputs (last generated token)
 
 Usage
 -----
@@ -74,6 +75,7 @@ def run_interp_judge(
     extraction_date: str | None = None,
     ocr_dir: str | None = None,
     ablation: str | None = None,
+    include_row_col: bool = False,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
@@ -88,9 +90,11 @@ def run_interp_judge(
         dataset_config: Dataset configuration.
         extraction_model: Short name of the extraction model whose results to judge.
         judge_key: Key in ``JUDGE_REGISTRY``.
-        output_dir: Directory to write ``responses.json`` and ``attention_outputs.npz``.
+        output_dir: Directory to write ``responses.json``, ``attention_outputs.npz``, and ``layer_outputs.npz``.
         extraction_date: Optional date tag for locating extraction results.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
+        include_row_col: If ``True``, append row/column names to the query for
+            table-sourced extractions and use ``JUDGE_INSTRUCTIONS_UNIFIED_TABLE``.
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -111,7 +115,7 @@ def run_interp_judge(
     # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config, include_row_col=include_row_col)
 
     # JudgementLM takes (instructions, context, query) triples separately.
     # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
@@ -131,13 +135,16 @@ def run_interp_judge(
     # Map results back to original data order via custom_id.
     result_by_orig_idx: dict[int, dict] = {}
     attn_output_dict: dict[str, Any] = {}
+    layer_output_dict: dict[str, Any] = {}
 
     for entry, response in zip(chat_entries, responses):
         orig_idx = int(entry["custom_id"])
         result_by_orig_idx[orig_idx] = response
+        mid = str(data[orig_idx]["measurement_id"])
         if response.get("attn_output") is not None:
-            mid = str(data[orig_idx]["measurement_id"])
             attn_output_dict[mid] = response["attn_output"]
+        if response.get("layer_output") is not None:
+            layer_output_dict[mid] = response["layer_output"]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     judged_data: list[dict] = []
@@ -164,7 +171,12 @@ def run_interp_judge(
     if attn_output_dict:
         attn_file = output_dir / "attention_outputs.npz"
         np.savez_compressed(attn_file, **attn_output_dict)
-        print(f"Activations saved to {attn_file}")
+        print(f"Attention activations saved to {attn_file}")
+
+    if layer_output_dict:
+        layer_file = output_dir / "layer_outputs.npz"
+        np.savez_compressed(layer_file, **layer_output_dict)
+        print(f"Layer outputs saved to {layer_file}")
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +213,15 @@ def _build_parser() -> argparse.ArgumentParser:
             "Defaults to {data_dir}/ocr_output_raw/."
         ),
     )
+    p.add_argument(
+        "--include-row-col", action="store_true", default=False,
+        help=(
+            "For table-sourced extractions, append the row name and column name "
+            "to the query and use JUDGE_INSTRUCTIONS_UNIFIED_TABLE, which adds "
+            "criterion (G) checking that both names are consistent with the "
+            "described entity and attribute."
+        ),
+    )
     return p
 
 
@@ -230,6 +251,7 @@ def main(argv: list[str] | None = None) -> None:
         extraction_date=extraction_date_resolved,
         ocr_dir=args.ocr_dir,
         ablation=args.ablation,
+        include_row_col=args.include_row_col,
     )
 
 

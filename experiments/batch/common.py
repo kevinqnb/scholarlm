@@ -25,7 +25,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from scholarlm.config import DatasetConfig
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_UNIFIED
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_UNIFIED, JUDGE_INSTRUCTIONS_UNIFIED_TABLE
 from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
@@ -72,7 +72,7 @@ def _extract_page_text(document: str, page_numbers: list[int]) -> str:
 
 def build_judge_query(
     *,
-    source: str,
+    sources: list[str],
     attribute_description: str,
     attribute_terms: list[Any],
     entity_type_description: str,
@@ -80,6 +80,8 @@ def build_judge_query(
     table_numbers: list[int | None],
     measurement_val: Any,
     units: Any = None,
+    row_indices: list[str] | None = None,
+    column_indices: list[str] | None = None,
 ) -> str:
     """Build the ## QUERY content for the unified judge prompt.
 
@@ -94,16 +96,23 @@ def build_judge_query(
     dataset has an event schema.
 
     Args:
-        source: ``"table"`` or ``"text"`` (scalar, already unwrapped from list).
+        sources: Full list of source types for this extraction (e.g.
+            ``["text"]``, ``["table"]``, or ``["text", "table"]``).  All
+            source types are reflected in the query's Source line.
         attribute_description: Full attribute description string.
         attribute_terms: List of terminology strings for the attribute.
         entity_type_description: One-sentence entity type description.
         entity_description: Dict of entity field values (may include event
             fields merged in by ``prepare_chat_entries``).
         table_numbers: List of table numbers (may contain ``None``).  Unique
-            non-``None`` values are shown when ``source == "table"``.
+            non-``None`` values are shown when any source is ``"table"``.
         measurement_val: The extracted scalar value.
         units: Extracted units string, or ``None`` if not reported.
+        row_indices: Non-``None`` row names from table-sourced occurrences,
+            pre-filtered by ``prepare_chat_entries``.  Appended to the query
+            only when non-empty (requires ``JUDGE_INSTRUCTIONS_UNIFIED_TABLE``).
+        column_indices: Non-``None`` column names from table-sourced
+            occurrences.  Same conditions as ``row_indices``.
 
     Returns:
         Multi-section query string ready to follow ``## QUERY:\\n``.
@@ -121,16 +130,17 @@ def build_judge_query(
         f"Attribute terminology: {attribute_terms}"
     )
 
-    # Source location — table number(s) if applicable, otherwise prose text.
-    if source == "table":
+    # Source location — handle mixed text/table origins.
+    unique_src = set(sources)
+    source_parts: list[str] = []
+    if "text" in unique_src:
+        source_parts.append("prose text")
+    if "table" in unique_src:
         unique_tables = sorted({tn for tn in table_numbers if tn is not None})
-        if unique_tables:
-            table_str = ", ".join(f"Table {tn}" for tn in unique_tables)
-            source_section = f"Source: {table_str}"
-        else:
-            source_section = "Source: table"
-    else:
-        source_section = "Source: prose text"
+        source_parts.append(
+            ", ".join(f"Table {tn}" for tn in unique_tables) if unique_tables else "table"
+        )
+    source_section = "Source: " + " and ".join(source_parts) if source_parts else "Source: not reported"
 
     value_section = (
         f"Extracted value: {measurement_val}\n"
@@ -139,9 +149,15 @@ def build_judge_query(
 
     closing = "Is this extraction correct? (true or false)"
 
-    return "\n\n".join([
-        entity_section, attribute_section, source_section, value_section, closing
-    ])
+    sections = [entity_section, attribute_section, source_section, value_section]
+    if row_indices and column_indices:
+        row_label = "Row names" if len(row_indices) > 1 else "Row name"
+        col_label = "Column names" if len(column_indices) > 1 else "Column name"
+        sections.append(
+            f"{row_label}: {', '.join(row_indices)}\n{col_label}: {', '.join(column_indices)}"
+        )
+    sections.append(closing)
+    return "\n\n".join(sections)
 
 
 def build_user_prompt(
@@ -163,7 +179,7 @@ def build_user_prompt(
     the full document.
     """
     query = build_judge_query(
-        source=source,
+        sources=[source],
         attribute_description=attribute_description,
         attribute_terms=attribute_terms,
         entity_type_description=entity_type_description,
@@ -182,6 +198,7 @@ def prepare_chat_entries(
     data: list[dict],
     documents: list[str],
     dataset_config: DatasetConfig,
+    include_row_col: bool = False,
 ) -> list[dict[str, Any]]:
     """Convert raw extraction data to provider-agnostic chat entries.
 
@@ -205,6 +222,10 @@ def prepare_chat_entries(
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
             attribute catalogue, entity type description, and optional
             measurement event schema.
+        include_row_col: If ``True``, append ``Row name`` / ``Column name``
+            fields to the query for table-sourced extractions and switch the
+            system prompt to ``JUDGE_INSTRUCTIONS_UNIFIED_TABLE``.  Defaults
+            to ``False`` to preserve the standard prompt for all other runners.
 
     Returns:
         List of chat entry dicts ready for any provider batch module or the
@@ -242,10 +263,10 @@ def prepare_chat_entries(
         units = entry.get("units")
         measurement_val = entry.get("value")
 
-        # Provenance fields are stored as lists in final.json.
-        # source: take the first element as the effective source type.
+        # Provenance fields are stored as lists in final.json — one element per
+        # source occurrence (a value may appear in both prose and a table).
         source_raw = entry.get("source", "text")
-        source = source_raw[0] if isinstance(source_raw, list) else source_raw
+        source_list: list[str] = source_raw if isinstance(source_raw, list) else [source_raw]
 
         # page_number / table_number: keep all unique non-None values for
         # page extraction and table identification.
@@ -265,10 +286,22 @@ def prepare_chat_entries(
         # Extract only the relevant page(s) from the raw OCR document.
         page_text = _extract_page_text(document, page_numbers)
 
-        system = JUDGE_INSTRUCTIONS_UNIFIED
+        system = JUDGE_INSTRUCTIONS_UNIFIED_TABLE if include_row_col else JUDGE_INSTRUCTIONS_UNIFIED
+
+        # For row/col mode: zip source_list with the index lists so that we
+        # only pick up row/column names from table-sourced occurrences.
+        if include_row_col:
+            ri_raw = entry.get("row_index") or []
+            ci_raw = entry.get("column_index") or []
+            ri_list = ri_raw if isinstance(ri_raw, list) else [ri_raw]
+            ci_list = ci_raw if isinstance(ci_raw, list) else [ci_raw]
+            row_indices = [ri for src, ri in zip(source_list, ri_list) if src == "table" and ri is not None]
+            col_indices = [ci for src, ci in zip(source_list, ci_list) if src == "table" and ci is not None]
+        else:
+            row_indices, col_indices = [], []
 
         query = build_judge_query(
-            source=source,
+            sources=source_list,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
             entity_type_description=_entity_type_desc,
@@ -276,6 +309,8 @@ def prepare_chat_entries(
             table_numbers=table_numbers,
             measurement_val=measurement_val,
             units=units,
+            row_indices=row_indices or None,
+            column_indices=col_indices or None,
         )
 
         user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
