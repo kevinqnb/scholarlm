@@ -130,6 +130,11 @@ def build_judge_query(
         f"Attribute terminology: {attribute_terms}"
     )
 
+    value_section = (
+        f"Extracted value: {measurement_val}\n"
+        f"Extracted units: {units_str}"
+    )
+
     # Source location — handle mixed text/table origins.
     unique_src = set(sources)
     source_parts: list[str] = []
@@ -142,21 +147,16 @@ def build_judge_query(
         )
     source_section = "Source: " + " and ".join(source_parts) if source_parts else "Source: not reported"
 
-    value_section = (
-        f"Extracted value: {measurement_val}\n"
-        f"Extracted units: {units_str}"
-    )
 
-    closing = "Is this extraction correct? (true or false)"
-
-    sections = [entity_section, attribute_section, source_section, value_section]
     if row_indices and column_indices:
         row_label = "Row names" if len(row_indices) > 1 else "Row name"
         col_label = "Column names" if len(column_indices) > 1 else "Column name"
-        sections.append(
-            f"{row_label}: {', '.join(row_indices)}\n{col_label}: {', '.join(column_indices)}"
-        )
-    sections.append(closing)
+        source_section += f"\n{row_label}: {', '.join(row_indices)}\n{col_label}: {', '.join(column_indices)}"
+
+    sections = [entity_section, attribute_section, value_section, source_section]
+
+    closing = "Is this extraction correct? (true or false)"
+    sections = [entity_section, attribute_section, value_section, source_section, closing]
     return "\n\n".join(sections)
 
 
