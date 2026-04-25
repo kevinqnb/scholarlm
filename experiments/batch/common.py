@@ -208,11 +208,11 @@ def prepare_chat_entries(
     )
     _attr_dict = dataset_config.attribute_info_dict
     _entity_type_desc = dataset_config.entity_type_description
-    _event_fields = (
-        set(dataset_config.measurement_event_schema.model_fields.keys())
-        if dataset_config.measurement_event_schema is not None
-        else set()
-    )
+    #_event_fields = (
+    #    set(dataset_config.measurement_event_schema.model_fields.keys())
+    #    if dataset_config.measurement_event_schema is not None
+    #    else set()
+    #)
 
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
@@ -235,7 +235,7 @@ def prepare_chat_entries(
         # passing noisy or irrelevant fields (e.g. coordinates) to the judge.
         entity_description = {
             k: v for k, v in entry.items()
-            if k in _judge_entity_fields or k in _event_fields
+            if k in _judge_entity_fields #or k in _event_fields
         }
         units = entry.get("units")
         measurement_val = entry.get("value")
