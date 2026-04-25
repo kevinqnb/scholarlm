@@ -160,37 +160,6 @@ def build_judge_query(
     return "\n\n".join(sections)
 
 
-def build_user_prompt(
-    *,
-    page_text: str,
-    source: str,
-    attribute_description: str,
-    attribute_terms: list[Any],
-    entity_type_description: str,
-    entity_description: dict[str, Any],
-    table_numbers: list[int | None],
-    measurement_val: Any,
-    units: Any = None,
-) -> str:
-    """Build the full user prompt string (## CONTEXT page text + ## QUERY content).
-
-    Identical across all chat-API providers (OpenAI, Anthropic, Gemini, vLLM).
-    ``page_text`` should be only the page(s) where the value was reported, not
-    the full document.
-    """
-    query = build_judge_query(
-        sources=[source],
-        attribute_description=attribute_description,
-        attribute_terms=attribute_terms,
-        entity_type_description=entity_type_description,
-        entity_description=entity_description,
-        table_numbers=table_numbers,
-        measurement_val=measurement_val,
-        units=units,
-    )
-    return f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-
-
 # ─── Data preparation ─────────────────────────────────────────────────────────
 
 
@@ -231,7 +200,12 @@ def prepare_chat_entries(
         List of chat entry dicts ready for any provider batch module or the
         interpretability judge runner.
     """
-    _fields = dataset_config.entity_schema.model_fields.keys()
+    _all_entity_fields = dataset_config.entity_schema.model_fields.keys()
+    _judge_entity_fields = (
+        set(dataset_config.judge_entity_fields)
+        if dataset_config.judge_entity_fields is not None
+        else set(_all_entity_fields)
+    )
     _attr_dict = dataset_config.attribute_info_dict
     _entity_type_desc = dataset_config.entity_type_description
     _event_fields = (
@@ -257,8 +231,11 @@ def prepare_chat_entries(
         attribute_terms = entry.get("attribute_terms", [])
         # Fold event fields into the entity description so the query structure
         # is always identical regardless of whether the dataset has an event schema.
+        # Entity fields are filtered to judge_entity_fields when defined, to avoid
+        # passing noisy or irrelevant fields (e.g. coordinates) to the judge.
         entity_description = {
-            k: v for k, v in entry.items() if k in _fields or k in _event_fields
+            k: v for k, v in entry.items()
+            if k in _judge_entity_fields or k in _event_fields
         }
         units = entry.get("units")
         measurement_val = entry.get("value")
@@ -313,10 +290,10 @@ def prepare_chat_entries(
             column_indices=col_indices or None,
         )
 
-        user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+        user = f"## CONTEXT:\n{document}\n\n## QUERY:\n{query}"
         # Cached prefix for Anthropic — the page text shared across requests
         # for the same source page.  OpenAI and Gemini ignore this field.
-        user_document = f"## CONTEXT:\n{page_text}\n\n"
+        user_document = f"## CONTEXT:\n{document}\n\n"
 
         entries.append({
             "custom_id": str(orig_idx),
@@ -325,7 +302,7 @@ def prepare_chat_entries(
             "user": user,
             "user_query": query,
             "user_document": user_document,
-            "page_text": page_text,
+            "page_text": document,
         })
 
     return entries

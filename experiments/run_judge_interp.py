@@ -5,8 +5,11 @@ Runs judge validation for a given (dataset, extraction_model, judge_model) tripl
 using a local model loaded through NNsight, collecting per-layer, per-head
 attention output activations alongside binary judgement probabilities.
 
-Output path:
+Standard output path:
     data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/
+
+Synthetic probe output path (when --synthetic is used):
+    data/experiments/{dataset}/synthetic_probe/{judge_model}/{judge_date}/
 
 Saves:
   - ``responses.json``        — per-measurement judgement + probability scores
@@ -15,11 +18,18 @@ Saves:
 
 Usage
 -----
+    # Standard extraction run
     python experiments/run_judge_interp.py \\
         --dataset pond \\
         --extraction-model gemma-3-27b \\
         --judge llama-3.1-8b \\
         --extraction-date 2026_04_01
+
+    # Synthetic probe dataset
+    python experiments/run_judge_interp.py \\
+        --dataset pond \\
+        --synthetic \\
+        --judge llama-3.1-8b
 
 Available judge models: llama-3.1-8b, gemma-2-9b, mistral-7b (see JUDGE_REGISTRY in code for details).
 """
@@ -69,13 +79,14 @@ import paths
 
 def run_interp_judge(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     judge_key: str,
     output_dir: Path,
     extraction_date: str | None = None,
     ocr_dir: str | None = None,
     ablation: str | None = None,
     include_row_col: bool = False,
+    input_file: Path | None = None,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
@@ -89,12 +100,15 @@ def run_interp_judge(
     Args:
         dataset_config: Dataset configuration.
         extraction_model: Short name of the extraction model whose results to judge.
+            Not used when ``input_file`` is provided explicitly (synthetic mode).
         judge_key: Key in ``JUDGE_REGISTRY``.
         output_dir: Directory to write ``responses.json``, ``attention_outputs.npz``, and ``layer_outputs.npz``.
         extraction_date: Optional date tag for locating extraction results.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
         include_row_col: If ``True``, append row/column names to the query for
             table-sourced extractions and use ``JUDGE_INSTRUCTIONS_UNIFIED_TABLE``.
+        input_file: If provided, load data from this path instead of looking up
+            the extraction run (synthetic probe mode).
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -102,7 +116,8 @@ def run_interp_judge(
         )
     judge_cfg = JUDGE_REGISTRY[judge_key]
 
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    if input_file is None:
+        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -192,8 +207,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
     p.add_argument(
-        "--extraction-model", required=True,
-        help="Short name of the extraction model whose results to judge.",
+        "--extraction-model", default=None,
+        help="Short name of the extraction model whose results to judge. Required unless --synthetic is used.",
     )
     p.add_argument(
         "--judge", required=True,
@@ -222,6 +237,14 @@ def _build_parser() -> argparse.ArgumentParser:
             "described entity and attribute."
         ),
     )
+    p.add_argument(
+        "--synthetic", action="store_true", default=False,
+        help=(
+            "Run on the synthetic probe dataset from data/{dataset}/probe_dataset.json "
+            "instead of an extraction run. Output goes to synthetic_probe/{judge}/{date}/. "
+            "--extraction-model and --ablation are ignored."
+        ),
+    )
     return p
 
 
@@ -229,30 +252,57 @@ def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
     dataset_config = load_dataset_config(args.dataset)
-    input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
-    extraction_date_resolved = input_file.parent.name
-    output_dir = paths.judge(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
-        ablation=args.ablation,
-    )
-    print(f"\nDataset          : {args.dataset}")
-    print(f"Extraction model : {args.extraction_model}")
-    print(f"Extraction date  : {extraction_date_resolved}")
-    if args.ablation:
-        print(f"Ablation         : {args.ablation}")
-    print(f"Judge            : {args.judge}")
-    print(f"Output           : {output_dir}\n")
 
-    run_interp_judge(
-        dataset_config=dataset_config,
-        extraction_model=args.extraction_model,
-        judge_key=args.judge,
-        output_dir=output_dir,
-        extraction_date=extraction_date_resolved,
-        ocr_dir=args.ocr_dir,
-        ablation=args.ablation,
-        include_row_col=args.include_row_col,
-    )
+    if args.synthetic:
+        probe_file = _REPO_ROOT / "data" / args.dataset / "probe_dataset.json"
+        if not probe_file.exists():
+            raise FileNotFoundError(
+                f"Probe dataset not found: {probe_file}. "
+                f"Run data/{args.dataset}/create_probe_dataset.py first."
+            )
+        output_dir = paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Mode             : synthetic probe")
+        print(f"Input            : {probe_file}")
+        print(f"Judge            : {args.judge}")
+        print(f"Output           : {output_dir}\n")
+        run_interp_judge(
+            dataset_config=dataset_config,
+            extraction_model=None,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            ocr_dir=args.ocr_dir,
+            include_row_col=args.include_row_col,
+            input_file=probe_file,
+        )
+    else:
+        if args.extraction_model is None:
+            _build_parser().error("--extraction-model is required unless --synthetic is used.")
+        input_file = paths.find_extraction_final(
+            args.dataset, args.extraction_model, args.extraction_date, args.ablation
+        )
+        extraction_date_resolved = input_file.parent.name
+        output_dir = paths.judge(
+            args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
+            ablation=args.ablation,
+        )
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Extraction model : {args.extraction_model}")
+        print(f"Extraction date  : {extraction_date_resolved}")
+        if args.ablation:
+            print(f"Ablation         : {args.ablation}")
+        print(f"Judge            : {args.judge}")
+        print(f"Output           : {output_dir}\n")
+        run_interp_judge(
+            dataset_config=dataset_config,
+            extraction_model=args.extraction_model,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            extraction_date=extraction_date_resolved,
+            ocr_dir=args.ocr_dir,
+            ablation=args.ablation,
+            include_row_col=args.include_row_col,
+        )
 
 
 if __name__ == "__main__":

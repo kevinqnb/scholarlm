@@ -229,6 +229,84 @@ def find_layer_outputs(
     )
 
 
+def synthetic_probe(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/synthetic_probe/{judge_model}/{judge_date}/"""
+    return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / (judge_date or today())
+
+
+def find_synthetic_activations(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """Return path to the most-recent attention_outputs.npz in synthetic_probe."""
+    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if not judge_dir.exists():
+        raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
+    if judge_date is not None:
+        candidate = judge_dir / judge_date / "attention_outputs.npz"
+        if candidate.exists():
+            return candidate
+    else:
+        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+            candidate = date_dir / "attention_outputs.npz"
+            if candidate.exists():
+                return candidate
+    raise FileNotFoundError(
+        f"No attention_outputs.npz for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
+    )
+
+
+def find_synthetic_layer_outputs(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """Return path to the most-recent layer_outputs.npz in synthetic_probe."""
+    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if not judge_dir.exists():
+        raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
+    if judge_date is not None:
+        candidate = judge_dir / judge_date / "layer_outputs.npz"
+        if candidate.exists():
+            return candidate
+    else:
+        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+            candidate = date_dir / "layer_outputs.npz"
+            if candidate.exists():
+                return candidate
+    raise FileNotFoundError(
+        f"No layer_outputs.npz for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
+    )
+
+
+def find_synthetic_responses(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """Return path to the most-recent responses.json in synthetic_probe."""
+    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if not judge_dir.exists():
+        raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
+    if judge_date is not None:
+        candidate = judge_dir / judge_date / "responses.json"
+        if candidate.exists():
+            return candidate
+    else:
+        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+            candidate = date_dir / "responses.json"
+            if candidate.exists():
+                return candidate
+    raise FileNotFoundError(
+        f"No responses.json for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
+    )
+
+
 def find_combined(
     dataset: str,
     extraction_model: str,

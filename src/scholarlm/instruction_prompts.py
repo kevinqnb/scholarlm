@@ -308,11 +308,12 @@ Guidelines:
 
 # Unified judge prompt — works for both prose text and table sources.
 # The page context is limited to the page(s) where the value was reported.
+# 1) One or more pages from a research paper (in ## CONTEXT) — the specific page(s) where the value was reported.
 JUDGE_INSTRUCTIONS_UNIFIED = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) One or more pages from a research paper (in ## CONTEXT) — the specific page(s) where the value was reported.
-2) In ## QUERY: a description of the extracted entity instance and its type, the target attribute description and terminology, the source location where the value was reported (a specific table or prose text), and the extracted value with its units.
+1) In ## CONTEXT: A full text document for a research paper.
+2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, and the corresponding extracted value with its units.
 
 Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified attribute and entity.
 
