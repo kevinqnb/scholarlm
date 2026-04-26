@@ -22,7 +22,7 @@ class ObservationSchema(BaseModel):
     """Site-level entity fields for an aquatic dinitrogen fixation study."""
 
     name: str | None
-    abbreviations: str | None
+    identifiers: str | None
     site_type: str | None
     latitude: float | None
     longitude: float | None
@@ -43,7 +43,7 @@ class DirectExtractionItemSchema(BaseModel):
 
     # Entity fields
     name: str | None
-    abbreviations: str | None
+    identifiers: str | None
     site_type: str | None
     latitude: float | None
     longitude: float | None
@@ -64,7 +64,7 @@ class Ablation3ObservationSchema(BaseModel):
 
     # Entity fields (same as ObservationSchema)
     name: str | None
-    abbreviations: str | None
+    identifiers: str | None
     site_type: str | None
     latitude: float | None
     longitude: float | None
@@ -85,14 +85,10 @@ A dinitrogen fixation measurement site is a distinct physical location or ecosys
 Response schema:
 Site identifying information includes the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
-- abbreviations: any secondary numerical or coded identifiers and abbreviations used elsewhere in the text to refer to the same site (e.g. "L1", "Lake 1", "Lake M.", "Mend."). If the primary identifier is already a code and no alternatives are used, set this to None.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
 - latitude: the latitude of the site, reported exactly as stated in the text.
 - longitude: the longitude of the site, reported exactly as stated in the text.
-
-NOTE: While a site might be introduced by its full name (e.g., "Lake Mendota"), many papers use numerical or coded identifiers and abbreviations (e.g. "L1", "Lake 1", "Lake M.", "Mend.") to refer to the same site later on. It is very important that these secondary identifiers are collected and reported in the "abbreviations" field so that cross-references within the paper can be resolved.
-
-NOTE: Site names may appear in row or column headers in tables. Location metadata may be encoded in table captions or table footnotes. Check all of these when identifying sites.
 
 
 Identification rules:
@@ -109,8 +105,8 @@ Strict rules about missing information:
 
 Extraction procedure:
 1. Scan the entire text, including all tables, table captions, and table footnotes, for any mentions of dinitrogen fixation measurement sites.
-2. Resolve all abbreviations and coded identifiers back to their associated site.
-3. Determine which mentions correspond to distinct sites using the identification guidelines above.
+2. Determine which mentions correspond to distinct sites using the identification rules above.
+3. For each distinct site, actively scan the full text — including table row and column headers, table captions, and table footnotes — for any alternate short-form references (codes, numeric tags, abbreviated names) that refer to it. Record all such identifiers in the identifiers field.
 4. Output one JSON item per distinct site.
 5. Collect all items into a single JSON array under the key "items".
 
@@ -124,7 +120,7 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "abbreviations": "...",
+      "identifiers": "...",
       "site_type": "...",
       "latitude": ...,
       "longitude": ...
@@ -168,7 +164,7 @@ IMPORTANT: Only emit a pair when a direct numerical measurement exists in the do
 Response schema:
 For each (site, attribute) pair, output one item with the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- abbreviations: any secondary codes or abbreviations used to refer to the same site. Set to None if none.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 - latitude: the latitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
 - longitude: the longitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
@@ -197,7 +193,7 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "abbreviations": "...",
+      "identifiers": "...",
       "site_type": "...",
       "latitude": ...,
       "longitude": ...,
@@ -299,7 +295,7 @@ Extract all distinct dinitrogen fixation measurement sites mentioned in the docu
 
 Entity fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- abbreviations: any secondary codes or abbreviations used to refer to the same site. Set to None if the primary identifier has no alternatives.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 - latitude: the latitude of the site, exactly as stated in the text (numeric).
 - longitude: the longitude of the site, exactly as stated in the text (numeric).
@@ -335,7 +331,7 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "abbreviations": "...",
+      "identifiers": "...",
       "site_type": "...",
       "latitude": ...,
       "longitude": ...,
@@ -403,6 +399,6 @@ CONFIG = DatasetConfig(
     paper_filter=_nfix_paper_filter,
     ablation3_entity_schema=Ablation3ObservationSchema,
     ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
-    judge_entity_fields=["name", "abbreviations", "site_type"],
+    judge_entity_fields=["name", "identifiers", "site_type", "additional_details"],
     ground_truth_file="data/nfix/ground_truth.csv",
 )

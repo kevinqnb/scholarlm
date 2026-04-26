@@ -319,7 +319,7 @@ Your task: decide whether this extraction is correct — that is, whether the ex
 
 Respond 'true' ONLY if ALL of the following hold:
 
-(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or abbreviations fields in the extracted entity description.        
+(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or identifiers fields in the extracted entity description.        
 
 (B) The value is present within the context. It appears explicitly in the specified table, or in the prose text if no table is cited. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
 
@@ -349,7 +349,7 @@ Your task: decide whether this extraction is correct — that is, whether the ex
 
 Respond 'true' ONLY if ALL of the following hold:
 
-(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or abbreviations fields in the extracted entity description.
+(A) The entity is real and distinct. It corresponds to an actual, clearly identified instance of the specified entity type in the page context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or identifiers fields in the extracted entity description.
 
 (B) The value is present within the context. It appears explicitly in the specified table, or in the prose text if no table is cited. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
 
