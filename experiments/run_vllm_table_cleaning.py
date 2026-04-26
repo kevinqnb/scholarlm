@@ -131,9 +131,9 @@ def run_vllm_table_cleaning(
         pending_text = []
         pending_info = []
         for t, info in zip(text, text_info):
-            out_file = effective_output_dir / f"{info['paper_code']}.txt"
+            out_file = effective_output_dir / f"{info['document_id']}.txt"
             if out_file.exists():
-                print(f"  Skipping {info['paper_code']} (already cleaned).")
+                print(f"  Skipping {info['document_id']} (already cleaned).")
             else:
                 pending_text.append(t)
                 pending_info.append(info)
@@ -152,7 +152,7 @@ def run_vllm_table_cleaning(
             f"Processed PDF directory not found: {processed_pdf_root}\n"
             f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
         )
-    processed_pdf_dirs = [str(processed_pdf_root / info["paper_code"]) for info in text_info]
+    processed_pdf_dirs = [str(processed_pdf_root / info["document_id"]) for info in text_info]
 
     mlm = MeasurementLM(
         model_name=model_config.model_id,

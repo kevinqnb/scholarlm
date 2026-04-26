@@ -237,7 +237,7 @@ def run_ablation(
                 f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
             )
         processed_pdf_dirs = [
-            str(processed_pdf_root / info["paper_code"]) for info in text_info
+            str(processed_pdf_root / info["document_id"]) for info in text_info
         ]
         text = mlm._clean_tables(text, processed_pdf_dirs)
         # Tables are now cleaned; disable the check inside fit() to avoid a second pass.
@@ -247,8 +247,9 @@ def run_ablation(
     data = mlm.fit(text)
 
     dataset = [
-        text_info[dp["document_id"]] | dp | {"measurement_id": i}
+        info | dp | {"document_id": info["document_id"], "measurement_id": i}
         for i, dp in enumerate(data)
+        for info in [text_info[dp["document_id"]]]
     ]
 
     output_dir.mkdir(parents=True, exist_ok=True)

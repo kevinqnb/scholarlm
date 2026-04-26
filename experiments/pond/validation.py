@@ -49,7 +49,7 @@ def load_dataset(filename, n_sample):
     result_dict_sample = sorted(result_dict_sample, key=lambda x: (x['document_id'], x['page_id']))
     
     #drops = ['context', 'context_scores', 'parametric_scores', 'copying_scores', 'linear_probes']
-    display = ['paper_code', 'document_id', 'page_id', 'title', 'author', 'year', 'name', 'location', 'date', 'ecosystem', 'measurement', 'value', 'units', 'judgement']
+    display = ['document_id', 'page_id', 'title', 'author', 'year', 'name', 'location', 'date', 'ecosystem', 'measurement', 'value', 'units', 'judgement']
     result_dict_data_points = [{feature: entry.get(feature, None) for feature in display} for entry in result_dict_sample]
     markdown_content = [entry['context'] for entry in result_dict_sample]
     
@@ -156,13 +156,12 @@ def save_results():
 # --- Display Current Data Point ---
 if st.session_state.current_index < dataset_len and not st.session_state.stopped_early:
     current_item = st.session_state.dataset[st.session_state.current_index]
-    paper_code = current_item['data']['paper_code']
     document_id = current_item['data']['document_id']
     page_id = int(current_item['data']['page_id'])
     #chunk_id = current_item['data']['chunk_id']
-    
+
     #image_path = os.path.join(image_directory, image_folders[document_id], f"chunk_{chunk_id}.png")
-    pdf_path = os.path.join(pdf_directory, f"{paper_code}.pdf")
+    pdf_path = os.path.join(pdf_directory, f"{document_id}.pdf")
     
     # Load the PDF page using the cached function - this will only convert once per page
     current_img = load_pdf_page(pdf_path, page_id)
@@ -181,7 +180,7 @@ if st.session_state.current_index < dataset_len and not st.session_state.stopped
     with col1:
         st.warning("Image:")
         if current_img is not None:
-            st.image(current_img, caption=f"Paper: {image_folders[document_id]}, Page ID: {page_id}")
+            st.image(current_img, caption=f"Paper: {document_id}, Page ID: {page_id}")
         #st.image(image_path, caption=f"Paper: {image_folders[document_id]}, Chunk ID: {chunk_id}")#, use_column_width=True)
         st.warning("Markdown Text:")
         st.markdown(current_item['markdown_text'], unsafe_allow_html=True)

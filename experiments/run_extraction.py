@@ -168,7 +168,7 @@ def load_papers(
         with open(filepath, "r", encoding="utf-8") as fh:
             text.append(fh.read())
         metadata = dict(paper_info.get(paper_code, {}))
-        metadata["paper_code"] = paper_code
+        metadata["document_id"] = paper_code
         text_info.append(metadata)
 
     return text, text_info
@@ -443,9 +443,9 @@ def step_standardize_and_deduplicate(
 
     dataset = []
     for i, dp in enumerate(deduplicated):
-        paper_code = text_info[dp["document_id"]]["paper_code"]
+        info = text_info[dp["document_id"]]
         record = {k: v for k, v in dp.items() if k != "document_id"}
-        record["document_id"] = paper_code
+        record["document_id"] = info["document_id"]
         record["measurement_id"] = i
         dataset.append(record)
 
@@ -618,7 +618,7 @@ def run_pipeline(
                 f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
             )
         processed_pdf_dirs = [
-            str(processed_pdf_root / info["paper_code"]) for info in text_info
+            str(processed_pdf_root / info["document_id"]) for info in text_info
         ]
         text = mlm._clean_tables(text, processed_pdf_dirs)
 

@@ -407,6 +407,7 @@ CONFIG = DatasetConfig(
     paper_filter=None,
     ablation3_entity_schema=Ablation3ObservationSchema,
     ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
+    judge_entity_fields=["name", "abbreviations", "ecosystem"],
     ground_truth_file="data/pond/ground_truth_ten.csv",
     unit_conversion_table={
         "max_depth":        {"m": 1.0, "cm": 0.01, "feet": 0.3048, "km": 1000.0},

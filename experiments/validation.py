@@ -268,7 +268,7 @@ def _show_data_card(record: dict, cfg) -> None:
             st.markdown(f"**Table(s):** {', '.join(str(t) for t in tnums)}")
 
     with st.expander("Paper metadata", expanded=False):
-        for k in ("paper_code", "title", "author", "year"):
+        for k in ("document_id", "title", "author", "year"):
             if v := record.get(k):
                 st.markdown(f"- **{k}:** {v}")
         st.markdown(f"- **measurement_id:** `{record.get('measurement_id')}`")
@@ -315,10 +315,8 @@ def _show_item(
 ) -> None:
     pages = _all_pages(record)
     first = pages[0] if pages else None
-    paper_code = record.get("paper_code", "")
-
-    doc_id = record.get("document_id", 0)
-    document = docs[doc_id] if doc_id < len(docs) else ""
+    doc_id = record.get("document_id", "")
+    document = docs.get(doc_id, "") if isinstance(docs, dict) else ""
     page_text = batch_common._extract_page_text(document, pages)
 
     st.markdown(f"### Item {idx + 1} of {n_total}")
@@ -328,10 +326,10 @@ def _show_item(
 
     with left:
         if _PDF2IMAGE_OK and first is not None:
-            pdf_path = str(pdf_dir / f"{paper_code}.pdf")
+            pdf_path = str(pdf_dir / f"{doc_id}.pdf")
             img_bytes = _load_pdf_page_bytes(pdf_path, first)
             if img_bytes is not None:
-                st.image(img_bytes, caption=f"{paper_code} · page {first}", use_container_width=True)
+                st.image(img_bytes, caption=f"{doc_id} · page {first}", use_container_width=True)
             else:
                 st.warning(f"PDF not found or unreadable: `{pdf_path}`")
         elif not _PDF2IMAGE_OK:

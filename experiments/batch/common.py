@@ -135,28 +135,25 @@ def build_judge_query(
         f"Extracted units: {units_str}"
     )
 
-    # Source location — handle mixed text/table origins.
-    unique_src = set(sources)
-    source_parts: list[str] = []
-    if "text" in unique_src:
-        source_parts.append("prose text")
-    if "table" in unique_src:
-        unique_tables = sorted({tn for tn in table_numbers if tn is not None})
-        source_parts.append(
-            ", ".join(f"Table {tn}" for tn in unique_tables) if unique_tables else "table"
-        )
-    source_section = "Source: " + " and ".join(source_parts) if source_parts else "Source: not reported"
-
-
-    if row_indices and column_indices:
-        row_label = "Row names" if len(row_indices) > 1 else "Row name"
-        col_label = "Column names" if len(column_indices) > 1 else "Column name"
-        source_section += f"\n{row_label}: {', '.join(row_indices)}\n{col_label}: {', '.join(column_indices)}"
-
-    sections = [entity_section, attribute_section, value_section, source_section]
+    # Source location — commented out to keep prompts consistent between extraction
+    # and synthetic probe runs (probe records have no source/page provenance).
+    # unique_src = set(sources)
+    # source_parts: list[str] = []
+    # if "text" in unique_src:
+    #     source_parts.append("prose text")
+    # if "table" in unique_src:
+    #     unique_tables = sorted({tn for tn in table_numbers if tn is not None})
+    #     source_parts.append(
+    #         ", ".join(f"Table {tn}" for tn in unique_tables) if unique_tables else "table"
+    #     )
+    # source_section = "Source: " + " and ".join(source_parts) if source_parts else "Source: not reported"
+    # if row_indices and column_indices:
+    #     row_label = "Row names" if len(row_indices) > 1 else "Row name"
+    #     col_label = "Column names" if len(column_indices) > 1 else "Column name"
+    #     source_section += f"\n{row_label}: {', '.join(row_indices)}\n{col_label}: {', '.join(column_indices)}"
 
     closing = "Is this extraction correct? (true or false)"
-    sections = [entity_section, attribute_section, value_section, source_section, closing]
+    sections = [entity_section, attribute_section, value_section, closing]
     return "\n\n".join(sections)
 
 
