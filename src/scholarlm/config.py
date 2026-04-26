@@ -42,6 +42,9 @@ class DatasetConfig:
         paper_filter: Optional predicate ``(paper_metadata: dict) -> bool`` applied
             to each paper's metadata dict.  Only papers for which this returns
             ``True`` are included.  Applied *before* ``paper_subset`` intersection.
+        paper_exclude: Optional list of paper codes to unconditionally exclude from
+            processing (e.g. papers whose data comes from figures or supplemental
+            text).  Applied after ``paper_filter`` and before ``paper_subset``.
         measurement_event_schema: Optional Pydantic ``BaseModel`` subclass whose
             fields define a single measurement event (e.g. date, method, substrate,
             depth).  When set, the pipeline inserts an event-resolution step between
@@ -87,6 +90,7 @@ class DatasetConfig:
     attribute_info_dict: dict[str, dict]
     paper_subset: list[str] | None = None
     paper_filter: Callable[[dict], bool] | None = None
+    paper_exclude: list[str] | None = None
     measurement_event_schema: type[BaseModel] | None = None
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None

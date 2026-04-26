@@ -3,11 +3,11 @@ Ground truth preprocessing for the nfix (aquatic nitrogen fixation) dataset.
 
 Pipeline
 --------
-    meta/aquatic_N2fix_rates.csv  (raw database export)
+    raw_data/aquatic_N2fix_rates.csv  (raw database export)
         ↓  filter to text/table-extractable papers
-        ↓  reshape to long format (one row per nfix_rate measurement)
-    ground_truth.csv              (all registered text/table papers)
-    ground_truth_ten.csv          (top-10 paper development subset)
+        ↓  reshape: one row per nfix_rate measurement
+    ground_truth.csv                  (all registered text/table papers)
+    ground_truth_ten.csv              (top-10 paper development subset)
 
 Paper inclusion filter
 ----------------------
@@ -19,6 +19,11 @@ No unit conversion is applied — values are kept as ``nfix_rate_original``
 (the units as reported in each paper).  The matching step in
 ``analysis/metrics.py`` therefore compares extracted values directly to the
 original reported values.
+
+Output columns
+--------------
+document_id, name, identifiers, location, site_type, date, nfix_method,
+substrate_type, sample_depth, additional_details, attribute, value, units.
 
 Usage
 -----
@@ -44,27 +49,42 @@ _TOP_PAPERS = [
     "R51", "R59", "R114", "R43", "R103",
 ]
 
-_ID_COLS = [
-    "nfix_rate_id", "reference_id", "site_name", "latitude", "longitude",
-    "habitat", "year", "month", "day", "hour_minute", "season",
-    "substrate", "substrate_details",
-]
-
 
 def _is_text_or_table(location: str) -> bool:
     """Return True if the paper's data can be extracted from text or tables."""
     return not any(x in location for x in ("figure", "supplement", "archive", "author"))
 
 
+def _format_date(year, month, day) -> str | None:
+    """Format year/month/day into a partial ISO date string.
+
+    Returns YYYY-mm-dd if all three components are present, YYYY-mm if day is
+    missing, YYYY if only year is known, and None if year is NaN.
+    """
+    if pd.isna(year):
+        return None
+    y = int(year)
+    if pd.isna(month):
+        return str(y)
+    m = int(month)
+    if pd.isna(day):
+        return f"{y}-{m:02d}"
+    return f"{y}-{m:02d}-{int(day):02d}"
+
+
 def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> None:
     """Build ground_truth.csv and ground_truth_ten.csv from the raw nfix database.
 
-    Filters to papers with text/table extractable data, reshapes to long format
-    (attribute=nfix_rate, value=nfix_rate_original), drops rows with missing
-    values, and writes two output files.
+    Filters to papers with text/table-extractable data, constructs the output
+    columns, assigns attribute='nfix_rate' with value=nfix_rate_original and
+    units=nfix_unit_original, and writes two output files.
+
+    Output schema: document_id, name, identifiers, location, site_type, date,
+    nfix_method, substrate_type, sample_depth, additional_details, attribute,
+    value, units.
 
     Args:
-        raw_path: Path to ``meta/aquatic_N2fix_rates.csv``.
+        raw_path: Path to ``raw_data/aquatic_N2fix_rates.csv``.
         directory_path: Path to ``directory.json``.
         out_dir: Directory where the output files are written.
     """
@@ -77,21 +97,37 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         if _is_text_or_table(info.get("extraction_location", ""))
     ]
 
-    nfix_df = pd.read_csv(raw_path)
-    df = nfix_df[nfix_df.reference_id.isin(registered_ids)].copy()
+    df = pd.read_csv(raw_path)
+    df = df[df.reference_id.isin(registered_ids)].copy()
 
-    gt = df[_ID_COLS].assign(
-        attribute="nfix_rate",
-        value=df["nfix_rate_original"],
-        error=df["nfix_error_original"],
-        error_type=df["nfix_error_type"],
-        units=df["nfix_unit_original"],
-    ).dropna(subset=["value"]).reset_index(drop=True)
+    df["_location"] = df.apply(
+        lambda r: f"({r.latitude}, {r.longitude})"
+        if not (pd.isna(r.latitude) or pd.isna(r.longitude))
+        else None,
+        axis=1,
+    )
+    df["_date"] = df.apply(lambda r: _format_date(r.year, r.month, r.day), axis=1)
+
+    gt = pd.DataFrame({
+        "document_id":        df["reference_id"],
+        "name":               df["site_name"],
+        "identifiers":        None,
+        "location":           df["_location"],
+        "site_type":          df["habitat"],
+        "date":               df["_date"],
+        "nfix_method":        df["nfix_method"],
+        "substrate_type":     df["substrate"],
+        "sample_depth":       df["sample_depth"],
+        "additional_details": None,
+        "attribute":          "nfix_rate",
+        "value":              df["nfix_rate_original"],
+        "units":              df["nfix_unit_original"],
+    }).dropna(subset=["value"]).reset_index(drop=True)
 
     gt.to_csv(out_dir / "ground_truth.csv", index=False)
     print(f"  Saved {len(gt):,} rows → ground_truth.csv")
 
-    gt_ten = gt.loc[gt.reference_id.isin(_TOP_PAPERS)].reset_index(drop=True)
+    gt_ten = gt[gt["document_id"].isin(_TOP_PAPERS)].reset_index(drop=True)
     gt_ten.to_csv(out_dir / "ground_truth_ten.csv", index=False)
     print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.csv")
 
@@ -99,7 +135,7 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
 def main() -> None:
     print("Building nfix ground truth CSVs ...")
     build_ground_truth(
-        raw_path=BASE / "meta" / "aquatic_N2fix_rates.csv",
+        raw_path=BASE / "raw_data" / "aquatic_N2fix_rates.csv",
         directory_path=BASE / "directory.json",
         out_dir=BASE,
     )

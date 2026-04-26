@@ -38,6 +38,7 @@ driven by per-dataset config objects rather than hardcoded values.
 | `attribute_info_dict` | `{attr_name: {description, units}}` passed to `MeasurementLM` |
 | `paper_subset` | Optional explicit list of paper codes to process |
 | `paper_filter` | Optional callable `(metadata: dict) -> bool` applied before `paper_subset` |
+| `paper_exclude` | Optional list of paper codes to unconditionally skip (applied after `paper_filter`, before `paper_subset`); used for papers whose data comes from figures or supplemental text only |
 | `measurement_event_schema` | Optional Pydantic `BaseModel` defining a measurement event; enables event-resolution step |
 | `measurement_event_prompt` | Dataset-specific instructions for the event-resolution step |
 | `direct_extraction_schema` | Optional Pydantic `BaseModel` for Ablation 1 (direct triple extraction) |
@@ -57,6 +58,12 @@ driven by per-dataset config objects rather than hardcoded values.
 Each dataset has a config file at `experiments/configs/{name}.py` that exports
 a module-level `CONFIG: DatasetConfig`. Runner scripts load these dynamically
 via `importlib` — no runner imports any dataset-specific code directly.
+
+**Document IDs (paper codes):** every paper is identified by a single string that is
+used consistently everywhere — as the key in `directory.json`, as the stem of its
+`.txt` file in `ocr_output_raw/`, as the `document_id` column in ground-truth CSVs,
+and as the values in `paper_subset` / `paper_exclude`. For example, `"classification_trees"`
+is both the directory.json key and the filename `ocr_output_raw/classification_trees.txt`.
 
 ---
 

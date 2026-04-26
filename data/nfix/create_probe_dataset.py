@@ -30,15 +30,14 @@ Subset 3 — OCR-table invalids (~half the valid set):
 
 nfix has only one generic attribute in the GT ("nfix_rate"); the specific
 sub-type (nfix_rate_mass / nfix_rate_areal / nfix_rate_volumetric) is inferred
-from the units string.  Attribute swapping is therefore not applicable.
-
-The nfix paper_filter (exclude figure/supplement/archive/author papers) is
-applied when building document_id values, matching the extraction pipeline.
+from the units string so the judge can look up the correct attribute description.
+Attribute swapping is not applicable.
 
 Output
 ------
-    data/nfix/probe_dataset.json   (final.json-compatible format, plus
-                                   "label" and "modification_type" fields)
+    data/nfix/probe_dataset.json   (same column schema as ground_truth.csv, plus
+                                   "label", "modification_type", "gt_row_index",
+                                   "donor_gt_row_index", "measurement_id")
 
 Usage
 -----
@@ -68,10 +67,8 @@ from configs.nfix import CONFIG
 
 _JUDGE_ENTITY_FIELDS: list[str] = CONFIG.judge_entity_fields  # ["name", "abbreviations", "site_type"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
-_PAPER_FILTER = CONFIG.paper_filter
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.csv"
-_META_FILE = BASE / "directory.json"
 _OUTPUT_FILE = BASE / "probe_dataset.json"
 
 DEFAULT_SEED = 42
@@ -160,27 +157,12 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
     return str(int(round(new_val)))
 
 
-def _format_date(row: pd.Series) -> str | None:
-    """Format nfix date from year / month / day GT columns."""
-    year = _clean(row.get("year"))
-    month = _clean(row.get("month"))
-    day = _clean(row.get("day"))
-    if year is None:
-        return None
-    y = str(int(year))
-    if month is None:
-        return y
-    m = f"{int(month):02d}"
-    if day is None:
-        return f"{m}-{y}"
-    d = f"{int(day):02d}"
-    return f"{d}-{m}-{y}"
-
-
 def _classify_attribute(units_str: str | None) -> str:
     """Infer nfix_rate_* sub-type from a units string using token-level matching.
 
-    Returns "nfix_rate" (unclassified) if the units don't match any known pattern.
+    The judge requires a specific attribute key (nfix_rate_mass, nfix_rate_areal,
+    or nfix_rate_volumetric) to look up the attribute description.  Returns the
+    generic "nfix_rate" fallback if units don't match any known pattern.
     """
     if not units_str:
         return "nfix_rate"
@@ -202,109 +184,65 @@ def _unit_candidates(attribute: str, current_units: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Document-ID and metadata map (with paper_filter applied)
-# ---------------------------------------------------------------------------
-
-
-def build_document_id_map() -> tuple[dict[str, int], dict[str, dict]]:
-    """Return (paper_code → document_id, paper_code → metadata) mappings.
-
-    Applies the nfix paper_filter before computing document_ids, exactly
-    mirroring the ordering used by the extraction pipeline.
-    """
-    with open(_META_FILE) as f:
-        paper_info: dict[str, dict] = json.load(f)
-
-    # Registered IDs that pass the paper_filter
-    registered_ids = {
-        k for k, v in paper_info.items() if _PAPER_FILTER(v)
-    }
-
-    ocr_files = sorted(
-        f for f in os.listdir(_OCR_DIR)
-        if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
-    )
-    # Apply filter (same logic as load_papers in run_extraction.py)
-    ocr_files = [f for f in ocr_files if f.removesuffix(".txt") in registered_ids]
-
-    code_to_docid: dict[str, int] = {}
-    code_to_meta: dict[str, dict] = {}
-    for i, fname in enumerate(ocr_files):
-        code = fname.removesuffix(".txt")
-        code_to_docid[code] = i
-        meta = {k: _clean(v) for k, v in paper_info.get(code, {}).items()}
-        meta["paper_code"] = code
-        code_to_meta[code] = meta
-
-    return code_to_docid, code_to_meta
-
-
-# ---------------------------------------------------------------------------
 # Ground truth → record conversion
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(
-    df: pd.DataFrame,
-    code_to_docid: dict[str, int],
-    code_to_meta: dict[str, dict],
-) -> list[dict]:
-    """Convert GT DataFrame rows to final.json-compatible dicts.
+def build_gt_records(df: pd.DataFrame) -> list[dict]:
+    """Convert ground-truth DataFrame rows to probe record dicts.
 
-    Rows whose reference_id has no OCR file (or was filtered out) are skipped.
-    Internal bookkeeping fields are prefixed with '_' and stripped before output.
+    Output schema matches ground_truth.csv (document_id, name, identifiers,
+    location, site_type, date, nfix_method, substrate_type, sample_depth,
+    additional_details, attribute, value, units) plus internal bookkeeping
+    fields prefixed with '_'.
+
+    The 'attribute' field is re-classified from the units string so the judge
+    can resolve the specific nfix_rate_* description; the ground truth stores
+    "nfix_rate" for all records.
+
+    Rows whose paper has no OCR file are skipped (the judge requires document
+    access to verify each record).
+
+    Args:
+        df: Ground-truth DataFrame loaded from ground_truth.csv.
+
+    Returns:
+        List of record dicts ready for synthetic modification.
     """
+    ocr_codes = {
+        f.removesuffix(".txt")
+        for f in os.listdir(_OCR_DIR)
+        if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
+    }
+
     records: list[dict] = []
     for i, row in df.iterrows():
-        ref_id = str(row["reference_id"])
-        if ref_id not in code_to_docid:
+        ref_id = str(row["document_id"])
+        if ref_id not in ocr_codes:
             continue
 
-        meta = code_to_meta[ref_id]
-        record: dict = dict(meta)  # metadata + paper_code
-
-        record["document_id"] = code_to_docid[ref_id]
-
-        # Entity schema fields (ObservationSchema: name, abbreviations, site_type, latitude, longitude)
-        record["name"] = _clean(row.get("site_name"))
-        record["abbreviations"] = None   # not in GT; always None for synthetic data
-        record["site_type"] = _clean(row.get("habitat"))
-        record["latitude"] = _clean(row.get("latitude"))
-        record["longitude"] = _clean(row.get("longitude"))
-        record["entity_id"] = f"gt_{i}"
-
-        # Measurement event fields
-        # (MeasurementEventSchema: date, nfix_method, substrate_type, sample_depth, additional_details)
-        record["date"] = _format_date(row)
-        record["nfix_method"] = None    # not in GT
-        record["substrate_type"] = _clean(row.get("substrate"))
-        record["sample_depth"] = None   # not in GT
-        record["additional_details"] = _clean(row.get("substrate_details"))
-
-        # Measurement fields — infer specific attribute type from units
         units_raw = _clean(row.get("units"))
         inferred_attr = _classify_attribute(units_raw)
-        record["attribute"] = inferred_attr
-        record["attribute_terms"] = []
-        record["value"] = str(row["value"])
-        record["units"] = units_raw
 
-        # Provenance (unknown for synthetic records; judge falls back to full doc)
-        record["page_number"] = None
-        record["table_number"] = None
-        record["row_index"] = None
-        record["column_index"] = None
-        record["source"] = "text"
-        record["context"] = None
-
-        # Provenance tracking for train/test exclusion
-        record["gt_row_index"] = i
-        record["donor_gt_row_index"] = None  # set by create_invalid_record for invalid entries
-
-        # Internal bookkeeping (stripped before output)
-        record["_orig_idx"] = i
-        record["_paper_code"] = ref_id
-
+        record: dict = {
+            "document_id":        ref_id,
+            "name":               _clean(row.get("name")),
+            "identifiers":        None,
+            "location":           _clean(row.get("location")),
+            "site_type":          _clean(row.get("site_type")),
+            "date":               _clean(row.get("date")),
+            "nfix_method":        _clean(row.get("nfix_method")),
+            "substrate_type":     _clean(row.get("substrate_type")),
+            "sample_depth":       _clean(row.get("sample_depth")),
+            "additional_details": _clean(row.get("additional_details")),
+            "attribute":          inferred_attr,
+            "value":              str(row["value"]),
+            "units":              units_raw,
+            "gt_row_index":       i,
+            "donor_gt_row_index": None,
+            "_orig_idx":          i,
+            "_paper_code":        ref_id,
+        }
         records.append(record)
 
     return records
@@ -404,7 +342,8 @@ def create_invalid_record(
     elif mod_type == "change_entity":
         src = rng.choice(ent_cands)
         for f in _JUDGE_ENTITY_FIELDS:
-            invalid[f] = src.get(f)
+            if f in src:
+                invalid[f] = src.get(f)
         donor_idx = src["_orig_idx"]
     elif mod_type == "change_units":
         invalid["units"] = rng.choice(unit_cands)
@@ -437,14 +376,15 @@ def create_noise_record(record: dict, rng: random.Random) -> dict:
 
     if mod_type == "noise_value":
         scale = max(abs(val) * 0.3, 0.1)
+        new_val = val
         for _ in range(100):
             new_val = val + rng.gauss(0, scale)
-            if abs(new_val - val) > 1e-10:
+            if _format_noisy_value(record["value"], new_val) != record["value"]:
                 break
         invalid["value"] = _format_noisy_value(record["value"], new_val)
     else:
-        invalid["name"] = rng.choice(_MADE_UP_NAMES)
-        invalid["abbreviations"] = None
+        name_cands = [n for n in _MADE_UP_NAMES if n != record.get("name")]
+        invalid["name"] = rng.choice(name_cands or _MADE_UP_NAMES)
 
     invalid["donor_gt_row_index"] = None
     invalid["label"] = "invalid"
@@ -492,15 +432,11 @@ def main(argv: list[str] | None = None) -> None:
     rng = random.Random(args.seed)
     print(f"Seed: {args.seed}")
 
-    # Build lookup maps
-    code_to_docid, code_to_meta = build_document_id_map()
-    print(f"Document map: {len(code_to_docid)} papers pass filter and have OCR files")
-
     # Load and convert GT
     df = pd.read_csv(_GT_FILE)
     print(f"Loaded {len(df):,} GT rows from {_GT_FILE.name}")
 
-    all_records = build_gt_records(df, code_to_docid, code_to_meta)
+    all_records = build_gt_records(df)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
 
     # Attribute distribution after inference
@@ -575,10 +511,19 @@ def main(argv: list[str] | None = None) -> None:
 
     # Combine and assign sequential measurement_ids; strip internal fields
     combined = xv + xi + xi_noise + xi_table
+    _GT_COLS = [
+        "document_id", "name", "identifiers", "location", "site_type",
+        "date", "nfix_method", "substrate_type", "sample_depth",
+        "additional_details", "attribute", "value", "units",
+    ]
     output: list[dict] = []
-    for mid, r in enumerate(combined):
-        rec = {k: v for k, v in r.items() if not k.startswith("_")}
-        rec["measurement_id"] = mid
+    for measurement_id, r in enumerate(combined):
+        rec = {k: r[k] for k in _GT_COLS if k in r}
+        rec["label"] = r["label"]
+        rec["modification_type"] = r.get("modification_type")
+        rec["gt_row_index"] = r["gt_row_index"]
+        rec["donor_gt_row_index"] = r.get("donor_gt_row_index")
+        rec["measurement_id"] = measurement_id
         output.append(rec)
 
     # Summary

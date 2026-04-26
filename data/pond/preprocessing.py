@@ -3,26 +3,32 @@ Ground truth preprocessing for the pond (aquatic ecosystem) dataset.
 
 Pipeline
 --------
-    pond_data.csv          (raw database export)
-        ↓  step 1: reshape to long format, filter to registered papers
-    pond_data_cleaned.csv  (reproducible; committed alongside raw data)
-        ↓  manual corrections applied offline (not reproduced here)
-    pond_data_corrected.csv  (source of truth for the ground truth)
-        ↓  step 2: filter to registered/subset papers, strip index column
-    ground_truth.csv         (all registered papers)
-    ground_truth_ten.csv     (top-10 paper development subset)
+    raw_data/pond_data_corrected_.csv  (corrected raw data, wide format)
+        ↓  filter to registered papers, melt, add document_id + units
+    ground_truth.csv                   (all registered papers)
+    ground_truth_ten.csv               (top-10 paper development subset)
 
-Note on manual corrections
----------------------------
-``pond_data_corrected.csv`` was produced by manually inspecting
-``pond_data_cleaned.csv`` and fixing measurement errors.  The correction
-step cannot be reproduced automatically; if new corrections are needed,
-edit ``pond_data_corrected.csv`` directly and re-run step 2.
+Building pond_data_corrected_.csv
+----------------------------------
+``pond_data_corrected_.csv`` encodes manual value corrections in the original
+wide-format column layout.  It is derived from ``pond_data_corrected.csv`` (a
+manually-edited long-format file) by pivoting it back to wide format with the
+original raw column names.
 
-To reproduce ``pond_data_cleaned.csv`` (step 1) without corrections, pass
-``use_corrected=False`` to ``build_ground_truth``, or run:
+Run once to create it, or pass ``--build-corrected`` to force a rebuild:
 
-    python data/pond/preprocessing.py --uncorrected
+    python data/pond/preprocessing.py --build-corrected
+
+This file should be committed alongside the raw data; it is the authoritative
+source of truth for ground-truth measurements.
+
+Note on entity assignment
+--------------------------
+``pond_data_corrected.csv`` stores measurements in attribute-first order (all
+values for one attribute, then all values for the next).  Within each
+``(title, name)`` group every attribute appears the same number of times — one
+occurrence per entity.  Entity IDs are therefore assigned via ``cumcount``
+within each ``(title, name, attribute)`` group.
 
 Usage
 -----
@@ -57,88 +63,180 @@ _TOP_PAPERS = [
     "environmental_conditions",
 ]
 
+# attribute name (in corrected long format) → raw column name (in corrected_ wide format)
+_ATTR_TO_COL: dict[str, str] = {
+    "max_depth":        "max_depth_m",
+    "surface_area":     "mean_surfacearea_m2",
+    "vegetation_cover": "macrophytes_percentcover",
+    "ph":               "ph",
+    "tn":               "tn_ugpl",
+    "tp":               "tp_ugpl",
+    "chla":             "chla_ugpl",
+}
+_COL_TO_ATTR: dict[str, str] = {v: k for k, v in _ATTR_TO_COL.items()}
 
-def build_cleaned(raw_path: Path, out_path: Path) -> pd.DataFrame:
-    """Reshape raw pond_data.csv into long format and save as pond_data_cleaned.csv.
+_UNITS: dict[str, str | None] = {
+    "max_depth":        "m",
+    "surface_area":     "m^2",
+    "vegetation_cover": "percent",
+    "tn":               "µg/L",
+    "tp":               "µg/L",
+    "chla":             "µg/L",
+    "ph":               None,
+}
 
-    Selects the relevant columns, renames them to the canonical schema
-    (author, title, name, location, ecosystem, attribute, value), melts
-    to one row per (entity, attribute) measurement, and filters to papers
-    present in directory.json.
+# Conversion factors from each attribute's standard unit (above) to a paper's
+# original unit.  paper_value = standard_value * factor.
+# Add entries here as new paper units are encountered.
+_UNIT_CONVERSION: dict[str, float] = {
+    # surface_area (standard: m^2)
+    "m^2":           1.0,
+    "ha":            1e-4,
+    "km^2":          1e-6,
+    "acres":         1.0 / 4046.856,
+    "x10^-2 km^2":   1e-4,   # 10^-2 km^2 = 1 ha
+    "x10^-6 m^2":    1e-6,   # column in paper labelled ×10^6 m^2 (= km^2)
+    # max_depth (standard: m)
+    "m":             1.0,
+    "cm":            100.0,
+    "ft":            3.28084,
+    # tn / tp / chla (standard: µg/L)
+    "µg/L":          1.0,
+    "mg/L":          1e-3,
+    "mg/m^3":        1.0,    # 1 µg/L == 1 mg/m^3
+    "µg/cm^2":       1.0,    # area-based unit; no volume conversion, kept as-is
+    # vegetation_cover (standard: percent)
+    "percent":       1.0,
+    "fraction":      0.01,
+}
 
-    Args:
-        raw_path: Path to the raw ``pond_data.csv``.
-        out_path: Destination path for the cleaned CSV.
-
-    Returns:
-        The cleaned DataFrame.
-    """
-    with open(BASE / "directory.json") as f:
-        paper_info = json.load(f)
-    registered_titles = [entry["title"] for entry in paper_info.values()]
-
-    df = pd.read_csv(raw_path, encoding_errors="ignore")
-    df = df.loc[df.title.isin(registered_titles)].reset_index(drop=True)
-
-    df = df.loc[
-        :,
-        [
-            "author", "title", "pondname", "location", "author_term",
-            "max_depth_m", "mean_surfacearea_m2", "macrophytes_percentcover",
-            "ph", "tn_ugpl", "tp_ugpl", "chla_ugpl",
-        ],
-    ]
-    df.columns = [
-        "author", "title", "name", "location", "ecosystem",
-        "max_depth", "surface_area", "vegetation_cover", "ph", "tn", "tp", "chla",
-    ]
-
-    df = df.melt(
-        id_vars=["author", "title", "name", "location", "ecosystem"],
-        value_vars=["max_depth", "surface_area", "vegetation_cover", "ph", "tn", "tp", "chla"],
-        var_name="attribute",
-        value_name="value",
-    )
-    df = df.dropna(subset=["value"]).reset_index(drop=True)
-    df["date"] = None
-    df["state"] = None
-    df = df[["author", "title", "name", "location", "ecosystem", "date", "state", "attribute", "value"]]
-
-    df.to_csv(out_path, index=False)
-    print(f"  Saved {len(df):,} rows → {out_path.name}")
-    return df
+# Papers excluded from ground truth (data quality issues).
+_EXCLUDED_FROM_GT: frozenset[str] = frozenset({
+    "bacterioplankton",   # values digitised from figures, not tables
+    "summer_assessment",  # data only in supplemental text
+})
 
 
-def build_ground_truth(corrected_path: Path, out_dir: Path) -> None:
-    """Filter pond_data_corrected.csv to registered papers and save ground truth CSVs.
+def build_corrected_wide(corrected_path: Path, out_path: Path) -> pd.DataFrame:
+    """Pivot pond_data_corrected.csv (long) to wide format and save as pond_data_corrected_.csv.
 
-    Produces two files:
-    - ``ground_truth.csv``     — all papers present in directory.json
-    - ``ground_truth_ten.csv`` — the top-10 paper development subset only
-
-    Values are already in standard units in the corrected file (max_depth in m,
-    surface_area in m², vegetation_cover in %, tn/tp/chla in µg/L, ph dimensionless).
+    Assigns entity IDs via cumcount within each (title, name, attribute) group
+    (which is valid because every attribute appears the same number of times
+    per (title, name) group, one occurrence per entity).  Then groups by
+    (title, name, entity_id) to collect one row per entity, and renames
+    measurement columns to match the original raw column names.
 
     Args:
         corrected_path: Path to ``pond_data_corrected.csv``.
+        out_path: Destination path for ``pond_data_corrected_.csv``.
+
+    Returns:
+        The wide-format DataFrame.
+    """
+    corr = pd.read_csv(corrected_path, index_col=0, encoding_errors="ignore")
+    corr["_eid"] = corr.groupby(["title", "name", "attribute"], dropna=False).cumcount()
+
+    rows = []
+    for (title, name, _eid), group in corr.groupby(["title", "name", "_eid"], dropna=False):
+        location = group["location"].dropna().iloc[0] if group["location"].notna().any() else None
+        ecosystem = group["ecosystem"].dropna().iloc[0] if group["ecosystem"].notna().any() else None
+        author = group["author"].dropna().iloc[0] if group["author"].notna().any() else None
+        row: dict = {
+            "author":      author,
+            "title":       title,
+            "pondname":    name,
+            "location":    location,
+            "author_term": ecosystem,
+        }
+        for _, r in group.iterrows():
+            col = _ATTR_TO_COL.get(r["attribute"])
+            if col:
+                row[col] = r["value"]
+        rows.append(row)
+
+    result = pd.DataFrame(rows)
+    for col in _ATTR_TO_COL.values():
+        if col not in result.columns:
+            result[col] = pd.NA
+
+    ordered = ["author", "title", "pondname", "location", "author_term"] + list(_ATTR_TO_COL.values())
+    result = result[ordered]
+    result.to_csv(out_path, index=False)
+    print(f"  Saved {len(result):,} rows → {out_path.name}")
+    return result
+
+
+def build_ground_truth(corrected_wide_path: Path, out_dir: Path) -> None:
+    """Build ground_truth.csv and ground_truth_ten.csv from pond_data_corrected_.csv.
+
+    Filters to registered papers, melts measurement columns to long format, adds
+    document_id, and applies per-document unit conversions using the ``"units"``
+    field in ``directory.json``.  The ``units`` column in the output reflects each
+    paper's original units (as recorded in ``directory.json``), not the standard
+    internal units.
+
+    Output schema: document_id, name, identifiers, location, ecosystem, date,
+    additional_details, attribute, value, units.
+
+    Args:
+        corrected_wide_path: Path to ``pond_data_corrected_.csv``.
         out_dir: Directory where the output files are written.
     """
     with open(BASE / "directory.json") as f:
         paper_info = json.load(f)
 
-    all_registered_titles = [entry["title"] for entry in paper_info.values()]
-    ten_titles = [
-        paper_info[code]["title"] for code in _TOP_PAPERS if code in paper_info
+    title_to_id = {info["title"]: doc_id for doc_id, info in paper_info.items()}
+
+    # (document_id, attribute) → paper's original unit
+    paper_unit_lookup: dict[tuple[str, str], str | None] = {
+        (doc_id, attr): unit
+        for doc_id, info in paper_info.items()
+        for attr, unit in info.get("units", {}).items()
+    }
+
+    df = pd.read_csv(corrected_wide_path, encoding_errors="ignore")
+    df = df[df.title.isin(title_to_id)].copy()
+
+    meas_cols = [c for c in _ATTR_TO_COL.values() if c in df.columns]
+    df_long = df.melt(
+        id_vars=["title", "pondname", "location", "author_term"],
+        value_vars=meas_cols,
+        var_name="attribute",
+        value_name="value",
+    ).dropna(subset=["value"]).reset_index(drop=True)
+
+    df_long["attribute"] = df_long["attribute"].map(_COL_TO_ATTR)
+    df_long["document_id"] = df_long["title"].map(title_to_id)
+    df_long = df_long[~df_long["document_id"].isin(_EXCLUDED_FROM_GT)].reset_index(drop=True)
+    df_long["identifiers"] = None
+    df_long["date"] = None
+    df_long["additional_details"] = None
+    df_long = df_long.rename(columns={"pondname": "name", "author_term": "ecosystem"})
+
+    # Resolve each row's paper unit from directory.json, falling back to the
+    # standard unit when the paper's units field is absent.
+    df_long["units"] = [
+        paper_unit_lookup.get((doc_id, attr), _UNITS.get(attr))
+        for doc_id, attr in zip(df_long["document_id"], df_long["attribute"])
     ]
 
-    # index_col=0 because pond_data_corrected.csv has an unnamed integer index column
-    df = pd.read_csv(corrected_path, encoding_errors="ignore", index_col=0)
+    # Apply conversion: paper_value = standard_value * factor
+    factors = [
+        _UNIT_CONVERSION.get(u, 1.0) if u is not None and u != _UNITS.get(a) else 1.0
+        for u, a in zip(df_long["units"], df_long["attribute"])
+    ]
+    df_long["value"] = df_long["value"] * factors
 
-    gt_full = df.loc[df.title.isin(all_registered_titles)].reset_index(drop=True)
-    gt_full.to_csv(out_dir / "ground_truth.csv", index=False)
-    print(f"  Saved {len(gt_full):,} rows → ground_truth.csv")
+    final_cols = [
+        "document_id", "name", "identifiers", "location", "ecosystem",
+        "date", "additional_details", "attribute", "value", "units",
+    ]
+    df_final = df_long[final_cols].reset_index(drop=True)
 
-    gt_ten = df.loc[df.title.isin(ten_titles)].reset_index(drop=True)
+    df_final.to_csv(out_dir / "ground_truth.csv", index=False)
+    print(f"  Saved {len(df_final):,} rows → ground_truth.csv")
+
+    gt_ten = df_final[df_final["document_id"].isin(_TOP_PAPERS)].reset_index(drop=True)
     gt_ten.to_csv(out_dir / "ground_truth_ten.csv", index=False)
     print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.csv")
 
@@ -146,33 +244,27 @@ def build_ground_truth(corrected_path: Path, out_dir: Path) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
-        "--uncorrected",
+        "--build-corrected",
         action="store_true",
-        help="Build ground truth from pond_data_cleaned.csv instead of pond_data_corrected.csv.",
-    )
-    parser.add_argument(
-        "--skip-clean",
-        action="store_true",
-        help="Skip step 1 (rebuilding pond_data_cleaned.csv) and go straight to step 2.",
+        help="Rebuild pond_data_corrected_.csv from pond_data_corrected.csv.",
     )
     args = parser.parse_args(argv)
 
-    raw_path = BASE / "pond_data.csv"
-    cleaned_path = BASE / "pond_data_cleaned.csv"
-    corrected_path = BASE / "pond_data_corrected.csv"
+    raw_data = BASE / "raw_data"
+    corrected_path = raw_data / "pond_data_corrected.csv"
+    corrected_wide_path = raw_data / "pond_data_corrected_.csv"
 
-    if not args.skip_clean:
-        print("Step 1: Rebuilding pond_data_cleaned.csv from pond_data.csv ...")
-        build_cleaned(raw_path, cleaned_path)
+    if args.build_corrected or not corrected_wide_path.exists():
+        if not args.build_corrected:
+            print("pond_data_corrected_.csv not found; building it now ...")
+        else:
+            print("Step 1: Rebuilding pond_data_corrected_.csv ...")
+        build_corrected_wide(corrected_path, corrected_wide_path)
     else:
-        print("Step 1: Skipped (--skip-clean).")
+        print("Step 1: Skipped (pond_data_corrected_.csv exists; pass --build-corrected to rebuild).")
 
-    source = cleaned_path if args.uncorrected else corrected_path
-    if args.uncorrected:
-        print(f"\nStep 2: Building ground truth from uncorrected data ({source.name}) ...")
-    else:
-        print(f"\nStep 2: Building ground truth from manually corrected data ({source.name}) ...")
-    build_ground_truth(source, BASE)
+    print("\nStep 2: Building ground truth CSVs ...")
+    build_ground_truth(corrected_wide_path, BASE)
 
 
 if __name__ == "__main__":

@@ -42,6 +42,7 @@ Each step writes a JSON checkpoint; `run_extraction.py --resume` skips steps who
 | `attribute_info_dict` | `dict` | `{attr: {description, units}}` |
 | `paper_subset` | `list[str] \| None` | Restrict to these paper codes |
 | `paper_filter` | `Callable \| None` | Predicate on paper metadata |
+| `paper_exclude` | `list[str] \| None` | Paper codes to unconditionally skip (applied after `paper_filter`, before `paper_subset`) |
 | `measurement_event_schema` | `type[BaseModel] \| None` | Enables event resolution step |
 | `measurement_event_prompt` | `str \| None` | Instructions for event resolution |
 | `direct_extraction_schema` | `type[BaseModel] \| None` | Enables Ablation 1 |

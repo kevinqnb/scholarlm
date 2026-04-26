@@ -130,7 +130,10 @@ def run_interp_judge(
     # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config, include_row_col=include_row_col)
+    chat_entries = batch_common.prepare_chat_entries(
+        data, documents, dataset_config,
+        include_row_col=include_row_col,
+    )
 
     # JudgementLM takes (instructions, context, query) triples separately.
     # instructions = system prompt, context = extracted page(s), query = ## QUERY content.

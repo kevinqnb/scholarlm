@@ -78,6 +78,18 @@ python data/pond/preprocessing.py   # → data/pond/ground_truth{_ten}.csv
 python data/nfix/preprocessing.py   # → data/nfix/ground_truth{_ten}.csv
 ```
 
+### Probe dataset creation
+Synthetic valid/invalid records for judge calibration and probe analysis:
+
+```bash
+python data/pond/create_probe_dataset.py   # → data/pond/probe_dataset.json
+python data/nfix/create_probe_dataset.py   # → data/nfix/probe_dataset.json
+```
+
+Each script samples ~50% of ground-truth records as valid and generates two invalid
+counterparts per valid record (2:1 ratio) using swap, noise, and OCR-table strategies.
+See `data/pond/README.md` and `data/nfix/README.md` for full details.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

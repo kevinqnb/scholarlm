@@ -165,7 +165,7 @@ def build_judge_query(
 
 def prepare_chat_entries(
     data: list[dict],
-    documents: list[str],
+    documents: dict[str, str],
     dataset_config: DatasetConfig,
     include_row_col: bool = False,
 ) -> list[dict[str, Any]]:
@@ -173,7 +173,7 @@ def prepare_chat_entries(
 
     Entries are sorted by document_id for cache locality. Each entry contains:
         custom_id     – str(original index in data), used to map results back
-        document_id   – int index into documents list
+        document_id   – string paper code identifying the source document
         system        – system prompt string (JUDGE_INSTRUCTIONS_UNIFIED)
         user          – full user prompt string (## CONTEXT page text + ## QUERY)
         user_query    – the ## QUERY content only (for JudgementLM interp runner)
@@ -187,7 +187,8 @@ def prepare_chat_entries(
 
     Args:
         data: List of extraction records from a ``final.json`` file.
-        documents: List of raw OCR text strings indexed by ``document_id``.
+        documents: Dict mapping paper_code strings to raw OCR text, as returned
+            by ``load_documents_for_dataset``.
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
             attribute catalogue, entity type description, and optional
             measurement event schema.
@@ -208,19 +209,17 @@ def prepare_chat_entries(
     )
     _attr_dict = dataset_config.attribute_info_dict
     _entity_type_desc = dataset_config.entity_type_description
-    #_event_fields = (
-    #    set(dataset_config.measurement_event_schema.model_fields.keys())
-    #    if dataset_config.measurement_event_schema is not None
-    #    else set()
-    #)
 
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
     entries: list[dict[str, Any]] = []
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
-        document_id = entry["document_id"]
-        document = documents[document_id]
+        document_id = str(entry["document_id"])
+        document = documents.get(document_id)
+        if document is None:
+            print(f"Warning: document_id '{document_id}' not found in documents, skipping")
+            continue
         attribute = entry.get("attribute")
         try:
             attribute_description = _attr_dict[attribute]["description"]
@@ -328,12 +327,11 @@ def load_documents(ocr_directory: str) -> list[str]:
     return documents
 
 
-def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> list[str]:
+def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> dict[str, str]:
     """Load OCR documents applying the same paper_filter and paper_subset as extraction.
 
-    ``document_id`` values in ``final.json`` are indices into the list produced
-    by this function.  Using a plain directory listing (without filtering) causes
-    index misalignment whenever a subset config (e.g. ``pond_ten``) is used.
+    Returns a dict keyed by paper_code so that ``document_id`` values (which are
+    string paper codes) can be looked up directly without any index mapping.
 
     Args:
         dataset_config: Dataset configuration supplying metadata_file, paper_filter,
@@ -341,7 +339,7 @@ def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str
         ocr_directory: Directory containing ``.txt`` OCR files.
 
     Returns:
-        List of document strings in the same order as during extraction.
+        Dict mapping paper_code strings to document text.
     """
     with open(dataset_config.metadata_file) as f:
         paper_info: dict = json.load(f)
@@ -357,10 +355,11 @@ def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str
         subset_set = set(dataset_config.paper_subset)
         text_files = [f for f in text_files if f.replace(".txt", "") in subset_set]
 
-    documents: list[str] = []
+    documents: dict[str, str] = {}
     for fname in text_files:
+        paper_code = fname.replace(".txt", "")
         with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as fh:
-            documents.append(fh.read())
+            documents[paper_code] = fh.read()
     return documents
 
 

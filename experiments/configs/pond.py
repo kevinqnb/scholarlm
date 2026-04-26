@@ -359,6 +359,27 @@ other_things = """
 # Config instance
 # ---------------------------------------------------------------------------
 
+# Papers excluded from extraction and ground truth.
+# - No-data papers: not in ground truth (no target attributes reported in tables).
+# - Quality-excluded: data sourced from figures or supplemental text only.
+_EXCLUDED_PAPERS = [
+    # No target attributes in tables
+    "application_and_transferability",
+    "comprehensive_approach",
+    "improved_method",
+    "livin'_on_the_edge",
+    "predictions_of_climate_change",
+    "satellite_radar",
+    "spatio-temporal_surface",
+    "species_numbers",
+    "temporary_wetlands",
+    "the_effects_of_ambient",
+    "the_influence_of_an_in-network",
+    # Data quality exclusions
+    "bacterioplankton",   # values from figures only
+    "summer_assessment",  # data only in supplemental text
+]
+
 # Development subset used in early experiments
 _DEV_SUBSET = [
     'physical_and_chemical_limnological',
@@ -404,10 +425,11 @@ CONFIG = DatasetConfig(
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,
     paper_filter=None,
+    paper_exclude=_EXCLUDED_PAPERS,
     ablation3_entity_schema=Ablation3ObservationSchema,
     ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
     judge_entity_fields=["name", "abbreviations", "ecosystem"],
-    ground_truth_file="/projectnb/mcnet/kevin/coastal/scholarlm/data/pond/ground_truth.csv",
+    ground_truth_file="data/pond/ground_truth.csv",
     unit_conversion_table={
         "max_depth":        {"m": 1.0, "cm": 0.01, "feet": 0.3048, "km": 1000.0},
         "surface_area":     {"m^2": 1.0, "km^2": 1e6, "ha": 1e4, "mi^2": 2.59e6, "acres": 4046.86},

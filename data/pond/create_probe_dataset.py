@@ -13,6 +13,9 @@ Subset 1 — swap invalids (one per valid record):
                       falls back to cross-paper if needed.
   change_entity    -- swap judge_entity_fields values with a same-paper record
                       whose entity differs; falls back to cross-paper if needed.
+  change_units     -- replace the units field with a different valid unit for the
+                      same attribute type (value is kept unchanged, making the
+                      stated unit incorrect relative to the document).
 
 Subset 2 — noise invalids (~half the valid set):
   noise_value      -- add Gaussian noise (std = 30% of |value|) to the numeric
@@ -27,13 +30,14 @@ Subset 3 — OCR-table invalids (~half the valid set):
                       noise_value / noise_entity when no suitable table value is
                       found.
 
-Only judge_entity_fields (name, abbreviations, ecosystem) are swapped in the
-entity modification -- other entity fields (location) are left unchanged.
+Only judge_entity_fields (name, ecosystem) are swapped in the entity modification
+(abbreviations is not present in the ground truth schema).
 
 Output
 ------
-    data/pond/probe_dataset.json   (final.json-compatible format, plus
-                                   "label" and "modification_type" fields)
+    data/pond/probe_dataset.json   (same column schema as ground_truth.csv, plus
+                                   "label", "modification_type", "gt_row_index",
+                                   "donor_gt_row_index", "measurement_id")
 
 Usage
 -----
@@ -65,7 +69,6 @@ _JUDGE_ENTITY_FIELDS: list[str] = CONFIG.judge_entity_fields  # ["name", "abbrev
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.csv"
-_META_FILE = BASE / "directory.json"
 _OUTPUT_FILE = BASE / "probe_dataset.json"
 
 DEFAULT_SEED = 42
@@ -144,6 +147,14 @@ def _extract_text_values(ocr_path: Path) -> list[str]:
     return values
 
 
+def _unit_candidates(attribute: str, current_units: str | None) -> list[str]:
+    """Return alternative canonical units for attribute, excluding current_units."""
+    all_units = _ATTR_DICT.get(attribute, {}).get("units", [])
+    if current_units is None:
+        return list(all_units)
+    return [u for u in all_units if u.lower() != current_units.lower()]
+
+
 def _format_noisy_value(original_str: str, new_val: float) -> str:
     """Format new_val with the same decimal precision as original_str."""
     if "." in original_str:
@@ -153,98 +164,54 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Document-ID and metadata map
-# ---------------------------------------------------------------------------
-
-
-def build_document_id_map() -> tuple[dict[str, int], dict[str, dict]]:
-    """Return (paper_code → document_id, paper_code → metadata) mappings.
-
-    document_id is the 0-based index in the sorted OCR file list, matching the
-    ordering used by the extraction pipeline.
-    """
-    with open(_META_FILE) as f:
-        paper_info: dict[str, dict] = json.load(f)
-
-    ocr_files = sorted(
-        f for f in os.listdir(_OCR_DIR)
-        if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
-    )
-
-    code_to_docid: dict[str, int] = {}
-    code_to_meta: dict[str, dict] = {}
-    for i, fname in enumerate(ocr_files):
-        code = fname.removesuffix(".txt")
-        code_to_docid[code] = i
-        meta = {k: _clean(v) for k, v in paper_info.get(code, {}).items()}
-        meta["paper_code"] = code
-        code_to_meta[code] = meta
-
-    return code_to_docid, code_to_meta
-
-
-# ---------------------------------------------------------------------------
 # Ground truth → record conversion
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(
-    df: pd.DataFrame,
-    title_to_code: dict[str, str],
-    code_to_docid: dict[str, int],
-    code_to_meta: dict[str, dict],
-) -> list[dict]:
-    """Convert GT DataFrame rows to final.json-compatible dicts.
+def build_gt_records(df: pd.DataFrame) -> list[dict]:
+    """Convert ground-truth DataFrame rows to probe record dicts.
 
-    Rows whose title cannot be mapped to an OCR file are silently skipped.
-    Each record carries internal fields prefixed with '_' that are stripped
-    before writing the output file.
+    Output schema matches ground_truth.csv (document_id, name, identifiers,
+    location, ecosystem, date, additional_details, attribute, value, units)
+    plus internal bookkeeping fields prefixed with '_'.
+
+    Rows whose paper has no OCR file are skipped (the judge requires document
+    access to verify each record).
+
+    Args:
+        df: Ground-truth DataFrame loaded from ground_truth.csv.
+
+    Returns:
+        List of record dicts ready for synthetic modification.
     """
+    ocr_codes = {
+        f.removesuffix(".txt")
+        for f in os.listdir(_OCR_DIR)
+        if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
+    }
+
     records: list[dict] = []
     for i, row in df.iterrows():
-        title_key = str(row["title"]).lower().strip()
-        paper_code = title_to_code.get(title_key)
-        if paper_code is None or paper_code not in code_to_docid:
+        paper_code = str(row["document_id"])
+        if paper_code not in ocr_codes:
             continue
 
-        meta = code_to_meta[paper_code]
-        record: dict = dict(meta)  # title, author, year, paper_code
-
-        record["document_id"] = code_to_docid[paper_code]
-
-        # Entity schema fields (ObservationSchema: name, abbreviations, location, ecosystem)
-        record["name"] = _clean(row.get("name"))
-        record["abbreviations"] = None   # not in GT; always None for synthetic data
-        record["location"] = _clean(row.get("location"))
-        record["ecosystem"] = _clean(row.get("ecosystem"))
-        record["entity_id"] = f"gt_{i}"
-
-        # Measurement event fields (MeasurementEventSchema: date, additional_details)
-        record["date"] = _clean(row.get("date"))
-        record["additional_details"] = _clean(row.get("state"))
-
-        # Measurement fields
-        record["attribute"] = str(row["attribute"])
-        record["attribute_terms"] = []
-        record["value"] = str(row["value"])
-        record["units"] = None   # GT has no units column
-
-        # Provenance (unknown for synthetic records; judge falls back to full doc)
-        record["page_number"] = None
-        record["table_number"] = None
-        record["row_index"] = None
-        record["column_index"] = None
-        record["source"] = "text"
-        record["context"] = None
-
-        # Provenance tracking for train/test exclusion
-        record["gt_row_index"] = i
-        record["donor_gt_row_index"] = None  # set by create_invalid_record for invalid entries
-
-        # Internal bookkeeping (stripped before output)
-        record["_orig_idx"] = i
-        record["_paper_code"] = paper_code
-
+        record: dict = {
+            "document_id":        paper_code,
+            "name":               _clean(row.get("name")),
+            "identifiers":        None,
+            "location":           _clean(row.get("location")),
+            "ecosystem":          _clean(row.get("ecosystem")),
+            "date":               _clean(row.get("date")),
+            "additional_details": _clean(row.get("additional_details")),
+            "attribute":          str(row["attribute"]),
+            "value":              str(row["value"]),
+            "units":              _clean(row.get("units")),
+            "gt_row_index":       i,
+            "donor_gt_row_index": None,
+            "_orig_idx":          i,
+            "_paper_code":        paper_code,
+        }
         records.append(record)
 
     return records
@@ -303,6 +270,7 @@ def create_invalid_record(
     ek = _entity_key(record)
     attr = record["attribute"]
     val = record["value"]
+    units = record.get("units")
 
     def val_pred(r):
         return r["value"] != val and (_entity_key(r) != ek or r["attribute"] != attr)
@@ -323,6 +291,7 @@ def create_invalid_record(
     val_cands = resolve(val_pred)
     attr_cands = resolve(attr_pred)
     ent_cands = resolve(ent_pred)
+    unit_cands = _unit_candidates(attr, units)
 
     options: list[str] = []
     if val_cands:
@@ -331,6 +300,8 @@ def create_invalid_record(
         options.append("change_attribute")
     if ent_cands:
         options.append("change_entity")
+    if unit_cands:
+        options.append("change_units")
 
     if not options:
         return None
@@ -350,8 +321,11 @@ def create_invalid_record(
     elif mod_type == "change_entity":
         src = rng.choice(ent_cands)
         for f in _JUDGE_ENTITY_FIELDS:
-            invalid[f] = src.get(f)
+            if f in src:
+                invalid[f] = src.get(f)
         donor_idx = src["_orig_idx"]
+    elif mod_type == "change_units":
+        invalid["units"] = rng.choice(unit_cands)
 
     invalid["donor_gt_row_index"] = donor_idx
     invalid["label"] = "invalid"
@@ -380,14 +354,15 @@ def create_noise_record(record: dict, rng: random.Random) -> dict:
 
     if mod_type == "noise_value":
         scale = max(abs(val) * 0.3, 0.1)
+        new_val = val
         for _ in range(100):
             new_val = val + rng.gauss(0, scale)
-            if abs(new_val - val) > 1e-10:
+            if _format_noisy_value(record["value"], new_val) != record["value"]:
                 break
         invalid["value"] = _format_noisy_value(record["value"], new_val)
     else:
-        invalid["name"] = rng.choice(_MADE_UP_NAMES)
-        invalid["abbreviations"] = None
+        name_cands = [n for n in _MADE_UP_NAMES if n != record.get("name")]
+        invalid["name"] = rng.choice(name_cands or _MADE_UP_NAMES)
 
     invalid["donor_gt_row_index"] = None
     invalid["label"] = "invalid"
@@ -435,17 +410,11 @@ def main(argv: list[str] | None = None) -> None:
     rng = random.Random(args.seed)
     print(f"Seed: {args.seed}")
 
-    # Build lookup maps
-    code_to_docid, code_to_meta = build_document_id_map()
-    with open(_META_FILE) as f:
-        paper_info: dict = json.load(f)
-    title_to_code = {v["title"].lower().strip(): k for k, v in paper_info.items()}
-
     # Load and convert GT
     df = pd.read_csv(_GT_FILE)
     print(f"Loaded {len(df):,} GT rows from {_GT_FILE.name}")
 
-    all_records = build_gt_records(df, title_to_code, code_to_docid, code_to_meta)
+    all_records = build_gt_records(df)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
 
     # Sample valid set (X_V)
@@ -512,10 +481,18 @@ def main(argv: list[str] | None = None) -> None:
 
     # Combine and assign sequential measurement_ids; strip internal fields
     combined = xv + xi + xi_noise + xi_table
+    _GT_COLS = [
+        "document_id", "name", "identifiers", "location", "ecosystem",
+        "date", "additional_details", "attribute", "value", "units",
+    ]
     output: list[dict] = []
-    for mid, r in enumerate(combined):
-        rec = {k: v for k, v in r.items() if not k.startswith("_")}
-        rec["measurement_id"] = mid
+    for measurement_id, r in enumerate(combined):
+        rec = {k: r[k] for k in _GT_COLS if k in r}
+        rec["label"] = r["label"]
+        rec["modification_type"] = r.get("modification_type")
+        rec["gt_row_index"] = r["gt_row_index"]
+        rec["donor_gt_row_index"] = r.get("donor_gt_row_index")
+        rec["measurement_id"] = measurement_id
         output.append(rec)
 
     # Summary

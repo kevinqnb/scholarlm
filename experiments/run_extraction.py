@@ -149,6 +149,11 @@ def load_papers(
         }
         text_files = [f for f in text_files if f.replace(".txt", "") in registered_ids]
 
+    # Apply exclusion list
+    if dataset_config.paper_exclude is not None:
+        exclude_set = set(dataset_config.paper_exclude)
+        text_files = [f for f in text_files if f.replace(".txt", "") not in exclude_set]
+
     # Determine effective paper subset
     effective_subset = paper_subset_override if paper_subset_override is not None else dataset_config.paper_subset
     if effective_subset is not None:
@@ -436,10 +441,13 @@ def step_standardize_and_deduplicate(
     standardized = mlm._standardize()
     deduplicated = mlm._deduplicate(standardized)
 
-    dataset = [
-        text_info[dp["document_id"]] | dp | {"measurement_id": i}
-        for i, dp in enumerate(deduplicated)
-    ]
+    dataset = []
+    for i, dp in enumerate(deduplicated):
+        paper_code = text_info[dp["document_id"]]["paper_code"]
+        record = {k: v for k, v in dp.items() if k != "document_id"}
+        record["document_id"] = paper_code
+        record["measurement_id"] = i
+        dataset.append(record)
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     with open(outfile, "w") as f:

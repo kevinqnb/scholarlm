@@ -163,19 +163,9 @@ def run_local_vllm_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    # Build prompts using the shared batch prompt builder
     from batch import common as batch_common
     documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
     print(f"Documents: {len(documents)} loaded from {effective_ocr_dir}")
-
-    # Verify document alignment: show which paper each document_id maps to.
-    doc_ids_in_data = sorted({r["document_id"] for r in data if r.get("document_id") is not None})
-    print(f"document_ids in extraction data: {doc_ids_in_data}")
-    print(f"  max document_id={max(doc_ids_in_data) if doc_ids_in_data else 'n/a'}, len(documents)={len(documents)}")
-    # Show the first few chars of each document referenced by the data, to spot misalignment.
-    for doc_id in doc_ids_in_data[:3]:
-        snippet = documents[doc_id][:80].replace("\n", " ") if doc_id < len(documents) else "OUT OF RANGE"
-        print(f"  documents[{doc_id}]: {snippet!r}")
 
     chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
 
