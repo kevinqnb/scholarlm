@@ -210,7 +210,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
             "or the stated ecosystem boundary at the time of measurement or description. This is NOT "
             "the same as watershed area, drainage basin area, catchment area, or littoral zone area."
         ),
-        "units": ["km^2", "mi^2", "ha", "m^2", "acres"],
+        "units": ["km^2", "mi^2", "ha", "m^2", "acres", "x10^-2 km^2", "x10^-6 km^2"],
     },
     "max_depth": {
         "description": (
@@ -244,7 +244,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
             "(e.g., NO3- alone, NO2- alone, NH3 alone, combined NO3-+NO2-, or particulate organic nitrogen "
             "[PON]) unless they are explicitly labeled as total nitrogen."
         ),
-        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"],
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb", "mg/m^3", "µg/cm^2"],
     },
     "tp": {
         "description": (
@@ -255,7 +255,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
             "dissolved reactive phosphorus [DRP], or particulate phosphorus [PP]) unless they are "
             "explicitly labeled as total phosphorus."
         ),
-        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb"],
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb", "mg/m^3", "µg/cm^2"],
     },
     "chla": {
         "description": (
@@ -264,7 +264,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
             "NOT the same as total chlorophyll, chlorophyll-b, chlorophyll-c, pheophytin, or other "
             "pigment measurements unless they are explicitly labeled as chlorophyll-a."
         ),
-        "units": ["µg/L", "mg/L", "mg/m^3"],
+        "units": ["µg/L", "mg/L", "μmol/L", "ppm", "ppb", "mg/m^3", "µg/cm^2"],
     },
 }
 

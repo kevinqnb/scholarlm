@@ -99,7 +99,7 @@ class JudgementLM:
         self.n_layers = len(self.llm.model.layers)
         self.n_heads = self.llm.config.num_attention_heads
         self.n_kv_heads = self.llm.config.num_key_value_heads
-        self.head_dim = getattr(self.llm.config, 'head_dim', self.llm.config.hidden_size // self.n_heads)
+        self.head_dim = getattr(self.llm.config, 'head_dim', None) or (self.llm.config.hidden_size // self.n_heads)
         self.hidden_size = self.llm.config.hidden_size
 
         self.responses = []
@@ -232,17 +232,25 @@ class JudgementLM:
 
             with tracer.iter[:] as token_idx:
                 for layer_idx, layer in enumerate(self.llm.model.layers):
+                    # Handle attention output: extract last token's attention output
+                    attn_input = layer.self_attn.o_proj.input
+                    if attn_input.ndim == 3:  # (batch, seq_len, hidden_size)
+                        attn_vec = attn_input[0, -1, :]
+                    else:  # (seq_len, hidden_size)
+                        attn_vec = attn_input[-1, :]
                     attention_outputs[token_idx, layer_idx, :, :] = (
-                        layer.self_attn.o_proj.input[-1, -1, :]
+                        attn_vec
                         .view(self.n_heads, self.head_dim)
                         .detach()
                         .to(tensor_device)
                     )
-                    layer_outputs[token_idx, layer_idx, :] = (
-                        layer.output[0][-1, :]
-                        .detach()
-                        .to(tensor_device)
-                    )
+                    
+                    # Handle layer output: extract last token's residual stream
+                    layer_out = layer.output[0]
+                    if layer_out.ndim == 3:  # (batch, seq_len, hidden_size)
+                        layer_outputs[token_idx, layer_idx, :] = layer_out[0, -1, :].detach().to(tensor_device)
+                    else:  # (seq_len, hidden_size)
+                        layer_outputs[token_idx, layer_idx, :] = layer_out[-1, :].detach().to(tensor_device)
                 
                 logits_last = self.llm.logits[0, -1, :]
                 tok_id = int(torch.argmax(logits_last).item())
