@@ -85,6 +85,7 @@ class StandardizeResponse(BaseModel):
     """Response for standardizing an extracted measurement value."""
     explanation: str
     value: str
+    units: str | None = None
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -1268,15 +1269,19 @@ class MeasurementLM:
             attribute = datapoint.get('attribute')
             attr_description = self.attribute_info_dict[attribute]['description']
             attr_terms = datapoint.get('attribute_terms', [])
+            unit_options = self.attribute_info_dict[attribute].get('units', [])
             entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
+            measurement_units = datapoint.get('units')
 
             query = (
+                f"Entity description: {entity_description}\n"
                 f"Attribute description: {attr_description}\n"
                 f"Terminology used for the attribute: {attr_terms}\n"
-                f"Entity description: {entity_description}\n"
-                f"Extracted measurement: {measurement_val}\n\n"
-                f"Standardize the measurement value for the given data point. "
+                f"Available units for the attribute: {unit_options}\n\n"
+                f"Extracted measurement: {measurement_val}\n"
+                f"Extracted units: {measurement_units}\n"
+                f"Standardize the measurement value and units for the extracted data point. "
             )
             prompt = (
                 f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
@@ -1305,11 +1310,12 @@ class MeasurementLM:
             try:
                 result = response_validator(StandardizeResponse, resp)
                 standardized_data[message_data_ids[i]]['value'] = result['value']
+                standardized_data[message_data_ids[i]]['units'] = result['units']
             except Exception as e:
-                print(f"Validation error in standardize response (keeping original value): {e}")
+                print(f"Validation error in standardize response (keeping original value/units): {e}")
                 print(f"Response text: {resp}")
-                # fallback: leave value unchanged (standardized_data was initialised
-                # as a copy of self.data, so the original value is already in place)
+                # fallback: leave value and units unchanged (standardized_data was initialised
+                # as a copy of self.data, so the originals are already in place)
 
         return standardized_data
     

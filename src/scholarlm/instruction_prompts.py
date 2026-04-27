@@ -84,17 +84,23 @@ Guidelines:
 """
 
 
-STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, along with an extracted measurement value. Your task is to standardize the extracted measurement value according to the following guidelines.
+STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Your task is to standardize both the extracted value and the units according to the following guidelines.
 
-Guidelines:
+Value standardization guidelines:
 - For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information, unless the queried attribute specifically directs otherwise.
 - For numerical values reported as ranges with a central value (e.g., 5 (3-7)) report only the central value, unless the queried attribute specifically directs otherwise.
 - For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
 - For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
-- Provide a brief explanation of what standardization was applied (or why none was needed), then the standardized (or unchanged) value.
-- Structure your response as a JSON object with "explanation" and "value" fields.
+
+Units standardization guidelines:
+- If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the exact matching entry from the available units list.
+- If the extracted units are not a notational variant of any available unit (i.e., they would require unit conversion to match, or there are no available units listed), return the extracted units unchanged.
+- If the extracted units are null (not reported), return null.
+
+- Provide a brief explanation of what standardization was applied to both value and units (or why none was needed).
+- Structure your response as a JSON object with "explanation", "value", and "units" fields.
 """
 
 
