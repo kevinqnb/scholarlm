@@ -168,6 +168,8 @@ experiments/*/*/out/*
 experiments/*/*/*/out/*
 *.sh
 
+analysis/*.npy
+
 data/experiments/*/*
 
 data/pond/pdfs/*.pdf

@@ -47,7 +47,7 @@ def recovery_rate(
         extraction_df,
         strict_matching=strict_matching,
         fuzzy_matching=fuzzy_matching,
-        fuzzy_threshold=fuzzy_threshold,
+        fuzzy_threshold=0.0,
         cache_path=cache_path,
     )
 
@@ -62,11 +62,11 @@ def recovery_rate(
 def hallucination_rate(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
-    judged_df: pd.DataFrame,
     *,
     strict_matching: dict,
     fuzzy_matching: dict | None = None,
     fuzzy_threshold: float = 0.0,
+    judged_df: pd.DataFrame | None = None,
     cache_path: Path | None = None,
     label_col: str = "judgement_combined",
 ) -> float:
@@ -85,7 +85,7 @@ def hallucination_rate(
     Returns:
         Hallucination rate (float) representing the fraction of extracted items that are hallucinated.
     """
-    if len(judged_df) != len(extraction_df):
+    if judged_df is not None and len(judged_df) != len(extraction_df):
         raise ValueError(
             f"judged_df length ({len(judged_df)}) must match extraction_df length ({len(extraction_df)})"
         )
@@ -97,7 +97,7 @@ def hallucination_rate(
         extraction_df,
         strict_matching=strict_matching,
         fuzzy_matching=fuzzy_matching,
-        fuzzy_threshold=fuzzy_threshold,
+        fuzzy_threshold=0.0,
         cache_path=cache_path,
     )
 
@@ -106,7 +106,12 @@ def hallucination_rate(
         if edge_weights[i] > fuzzy_threshold:
             ex_edge_exists[ex_idx] = True
 
-    jlabels = judged_df[label_col].to_numpy(dtype = bool)
+    if judged_df is not None:
+        jlabels = judged_df[label_col].to_numpy(dtype = bool)
+    else:
+        # Default to edge existence by setting all judgements as false. 
+        jlabels = np.zeros(len(extraction_df), dtype = bool)
+
     labels = jlabels | ex_edge_exists
 
     return 1 - np.mean(labels)
