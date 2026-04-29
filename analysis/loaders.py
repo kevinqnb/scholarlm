@@ -124,6 +124,34 @@ def load_synthetic_layer_outputs(
     return np.load(path)
 
 
+def load_trained_probe(dataset: str, judge_model: str) -> dict:
+    """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
+
+    Returns a dict with keys:
+        ``probe``            — fitted sklearn Pipeline (StandardScaler + LogisticRegression)
+        ``top_k_heads``      — list of (layer, head) tuples used by the probe
+        ``train_prevalence`` — fraction of positive labels in the training set
+        ``syn_document_ids`` — list of paper IDs in the synthetic training set
+        ``judge_model``      — judge model name
+        ``dataset``          — training dataset name
+        ``n_layers``         — number of layers in the judge model
+        ``n_heads``          — number of attention heads per layer
+        ``head_dim``         — dimension of each attention head
+
+    Raises:
+        FileNotFoundError: If no probe has been saved for this (dataset, judge_model).
+    """
+    import joblib
+
+    path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Trained probe not found: {path}. "
+            f"Run synthetic_probe_analysis.ipynb for dataset='{dataset}' judge='{judge_model}' first."
+        )
+    return joblib.load(path)
+
+
 # ---------------------------------------------------------------------------
 # Cached match_datasets wrapper
 # ---------------------------------------------------------------------------

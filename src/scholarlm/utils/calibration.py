@@ -24,6 +24,87 @@ from __future__ import annotations
 import numpy as np
 
 
+def rescale_probabilities_em(
+    probs: np.ndarray,
+    train_labels: np.ndarray | None = None,
+    *,
+    pi_tr: float | None = None,
+    max_iter: int = 1000,
+    tol: float = 1e-8,
+    init_pi_te: float | None = None,
+    return_history: bool = False,
+    eps: float = 1e-12,
+) -> tuple:
+    """Rescale predicted probabilities under label shift via Saerens et al. (2002) EM.
+
+    Estimates the test-set prevalence from unlabeled test predictions and adjusts
+    the probabilities accordingly.  Assumes label shift (P(X|Y) constant across
+    domains) and that the source-domain probabilities are calibrated.
+
+    Args:
+        probs: Predicted probabilities P_train(Y=1 | x) on the test set. Shape ``(n_test,)``.
+        train_labels: Binary training labels (0/1). Used only to estimate the
+            training prevalence.  Mutually exclusive with ``pi_tr``.
+        pi_tr: Training prevalence as a scalar in ``(0, 1)``.  Use this when
+            the full label array is unavailable (e.g., when loading a saved
+            probe).  Mutually exclusive with ``train_labels``.
+        max_iter: Maximum EM iterations.
+        tol: Convergence tolerance on the change in estimated test prevalence.
+        init_pi_te: Initial guess for test prevalence. Defaults to the training
+            prevalence (neutral starting point).
+        return_history: If True, also return the list of pi_te estimates per iteration.
+        eps: Numerical stability constant.
+
+    Returns:
+        ``(rescaled, pi_te_hat)`` — rescaled probabilities and estimated test
+        prevalence.  If ``return_history=True``, returns ``(rescaled, pi_te_hat,
+        history)``.
+
+    Reference:
+        Saerens, Latinne, and Decaestecker (2002), Neural Computation 14(1):21-41.
+    """
+    if train_labels is None and pi_tr is None:
+        raise ValueError("Provide exactly one of 'train_labels' or 'pi_tr'.")
+    if train_labels is not None and pi_tr is not None:
+        raise ValueError("Provide exactly one of 'train_labels' or 'pi_tr', not both.")
+
+    probs = np.asarray(probs, dtype=float)
+
+    if pi_tr is None:
+        pi_tr = float(np.mean(np.asarray(train_labels)))
+    if not (eps < pi_tr < 1 - eps):
+        raise ValueError(
+            f"Training prevalence pi_tr={pi_tr:.4g} is degenerate; cannot rescale."
+        )
+
+    probs_clipped = np.clip(probs, eps, 1 - eps)
+
+    pi_te = float(init_pi_te) if init_pi_te is not None else pi_tr
+    if init_pi_te is not None and not (eps < pi_te < 1 - eps):
+        raise ValueError(f"init_pi_te={pi_te:.4g} must be strictly between 0 and 1.")
+
+    history = [pi_te]
+
+    for _ in range(max_iter):
+        num = probs_clipped * (pi_te / pi_tr)
+        den = num + (1 - probs_clipped) * ((1 - pi_te) / (1 - pi_tr))
+        rescaled = num / den
+        pi_te_new = float(np.mean(rescaled))
+        history.append(pi_te_new)
+        if abs(pi_te_new - pi_te) < tol:
+            pi_te = pi_te_new
+            break
+        pi_te = pi_te_new
+
+    num = probs_clipped * (pi_te / pi_tr)
+    den = num + (1 - probs_clipped) * ((1 - pi_te) / (1 - pi_tr))
+    rescaled = num / den
+
+    if return_history:
+        return rescaled, pi_te, history
+    return rescaled, pi_te
+
+
 def compute_ece(
     probs: np.ndarray,
     labels: np.ndarray,
