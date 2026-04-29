@@ -6,6 +6,7 @@ Pipeline
     raw_data/aquatic_N2fix_rates.csv  (raw database export)
         ↓  filter to text/table-extractable papers
         ↓  reshape: one row per nfix_rate measurement
+        ↓  page attribution via OCR scoring
     ground_truth.csv                  (all registered text/table papers)
     ground_truth_ten.csv              (top-10 paper development subset)
 
@@ -23,7 +24,8 @@ original reported values.
 Output columns
 --------------
 document_id, name, identifiers, location, site_type, date, nfix_method,
-substrate_type, sample_depth, additional_details, attribute, value, units.
+substrate_type, sample_depth, additional_details, attribute, value, units,
+page, page_score, page_confidence.
 
 Usage
 -----
@@ -38,9 +40,21 @@ Or from data/nfix/:
 from __future__ import annotations
 
 import json
+import logging
+from collections import Counter
 from pathlib import Path
 
 import pandas as pd
+
+from scholarlm.utils.page_attribution import (
+    NFIX_WEIGHTS,
+    attribute_page,
+    extract_table_numbers,
+    get_candidate_pages_from_tables,
+    parse_ocr,
+)
+
+logger = logging.getLogger(__name__)
 
 BASE = Path(__file__).parent  # data/nfix/
 
@@ -70,6 +84,73 @@ def _format_date(year, month, day) -> str | None:
     if pd.isna(day):
         return f"{y}-{m:02d}"
     return f"{y}-{m:02d}-{int(day):02d}"
+
+
+def _add_page_attribution(
+    gt: pd.DataFrame,
+    paper_info: dict,
+    ocr_dir: Path,
+) -> pd.DataFrame:
+    """Append page_number, page_score, and page_confidence columns to *gt*.
+
+    ``page_number`` is a JSON-encoded list of all candidate page numbers within
+    the confidence margin (e.g. ``[8]`` or ``[7, 8]``).  For each document,
+    attempts table pre-filtering from ``extraction_location_details`` in
+    *paper_info* before scoring all pages.  Rows whose OCR file is missing
+    receive NaN attribution columns.
+
+    Prints a summary: rows attributed, missing-OCR count, confidence distribution.
+    """
+    gt = gt.copy()
+    gt["page_number"] = pd.NA
+    gt["page_score"] = pd.NA
+    gt["page_confidence"] = pd.NA
+
+    n_attributed = 0
+    n_missing_ocr = 0
+    confidence_counts: Counter[str] = Counter()
+
+    for doc_id, group in gt.groupby("document_id"):
+        ocr_path = ocr_dir / f"{doc_id}.txt"
+        if not ocr_path.exists():
+            n_missing_ocr += 1
+            logger.warning("OCR file not found: %s", ocr_path)
+            continue
+
+        parsed = parse_ocr(ocr_path)
+        doc_meta = paper_info.get(doc_id, {})
+        detail_str = str(doc_meta.get("extraction_location_details", ""))
+
+        table_nums = extract_table_numbers(detail_str)
+        if table_nums:
+            candidate_pages = get_candidate_pages_from_tables(table_nums, parsed)
+        else:
+            candidate_pages = None
+
+        for idx, row in group.iterrows():
+            result = attribute_page(row.to_dict(), parsed, NFIX_WEIGHTS, candidate_pages)
+
+            confidence = result["confidence"]
+            # Promote to table-anchored when a single table resolves to a single page
+            if (
+                table_nums
+                and candidate_pages
+                and len(candidate_pages) == 1
+                and len(result["candidates"]) == 1
+            ):
+                confidence = "table-anchored"
+
+            gt.at[idx, "page_number"] = json.dumps(result["candidates"])
+            gt.at[idx, "page_score"] = result["score"]
+            gt.at[idx, "page_confidence"] = confidence
+            confidence_counts[confidence] += 1
+            n_attributed += 1
+
+    total = len(gt)
+    print(f"  Page attribution: {n_attributed:,}/{total:,} rows attributed "
+          f"({n_missing_ocr} docs with missing OCR)")
+    print(f"  Confidence distribution: {dict(confidence_counts)}")
+    return gt
 
 
 def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> None:
@@ -123,6 +204,8 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "value":              df["nfix_rate_original"],
         "units":              df["nfix_unit_original"],
     }).dropna(subset=["value"]).reset_index(drop=True)
+
+    gt = _add_page_attribution(gt, paper_info, BASE / "ocr_output_raw")
 
     gt.to_csv(out_dir / "ground_truth.csv", index=False)
     print(f"  Saved {len(gt):,} rows → ground_truth.csv")

@@ -286,10 +286,10 @@ def prepare_chat_entries(
             column_indices=col_indices or None,
         )
 
-        user = f"## CONTEXT:\n{document}\n\n## QUERY:\n{query}"
+        user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
         # Cached prefix for Anthropic — the page text shared across requests
         # for the same source page.  OpenAI and Gemini ignore this field.
-        user_document = f"## CONTEXT:\n{document}\n\n"
+        user_document = f"## CONTEXT:\n{page_text}\n\n"
 
         entries.append({
             "custom_id": str(orig_idx),
@@ -298,7 +298,7 @@ def prepare_chat_entries(
             "user": user,
             "user_query": query,
             "user_document": user_document,
-            "page_text": document,
+            "page_text": page_text,
         })
 
     return entries

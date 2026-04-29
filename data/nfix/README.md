@@ -45,7 +45,20 @@ python data/nfix/preprocessing.py
 
 ### Output schema
 
-`document_id, name, identifiers, location, site_type, date, nfix_method, substrate_type, sample_depth, additional_details, attribute, value, units`
+`document_id, name, identifiers, location, site_type, date, nfix_method, substrate_type, sample_depth, additional_details, attribute, value, units, page_number, page_score, page_confidence`
+
+| Column | Description |
+|---|---|
+| `page_number` | JSON list of candidate 1-indexed page numbers within the score margin (e.g. `[8]` or `[7, 8]`); `NaN` if OCR file is missing |
+| `page_score` | Weighted similarity score in [0, 1] for the top attributed page |
+| `page_confidence` | `"table-anchored"` (page inferred from `extraction_location_details`), `"high"`, `"medium"`, or `"ambiguous"` |
+
+**Table pre-filtering**: for each paper, `extraction_location_details` from `directory.json` is
+parsed to extract referenced table numbers.  If table numbers resolve to pages in the OCR,
+only those pages are scored; otherwise all pages are scored.  A single resolved page is
+labelled `"table-anchored"`.
+
+Attribution is implemented in `src/scholarlm/utils/page_attribution.py`.
 
 ### Attributes
 
@@ -72,6 +85,10 @@ python data/nfix/create_probe_dataset.py [--seed N]
 The probe dataset calibrates and evaluates the judge model's ability to distinguish
 valid from invalid extraction records. It is built from `ground_truth.csv` and the
 OCR text files in `ocr_output_raw/`.
+
+Two files are produced: `probe_dataset.json` (train, ~50% of papers) and
+`probe_dataset_test.json` (test, remaining ~50% of papers). Both use identical
+generation logic; the split is at the paper level so no paper appears in both.
 
 ### Structure
 
@@ -120,6 +137,7 @@ Same columns as `ground_truth.csv`, plus:
 
 | Field | Description |
 |---|---|
+| `page_number` | Inherited from the parent ground-truth row (JSON list of candidate page numbers) |
 | `label` | `"valid"` or `"invalid"` |
 | `modification_type` | One of the types above, or `null` for valid records |
 | `gt_row_index` | Index into `ground_truth.csv` for the base record |

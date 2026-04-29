@@ -56,6 +56,7 @@ raw_data/pond_data_corrected_.csv   (wide format, standard units)
     ↓  map attribute column names → canonical attribute names
     ↓  assign document_id from directory.json
     ↓  apply per-paper unit conversions from directory.json
+    ↓  page attribution (score all pages per document via OCR)
 ground_truth.csv                    (all papers, paper-original units)
 ground_truth_ten.csv                (top-10 development subset)
 ```
@@ -68,7 +69,16 @@ python data/pond/preprocessing.py --build-corrected
 
 ### Output schema
 
-`document_id, name, identifiers, location, ecosystem, date, additional_details, attribute, value, units`
+`document_id, name, identifiers, location, ecosystem, date, additional_details, attribute, value, units, page_number, page_score, page_confidence`
+
+| Column | Description |
+|---|---|
+| `page_number` | JSON list of candidate 1-indexed page numbers within the score margin (e.g. `[3]` or `[3, 4]`); `NaN` if OCR file is missing |
+| `page_score` | Weighted similarity score in [0, 1] for the top attributed page |
+| `page_confidence` | `"high"`, `"medium"`, or `"ambiguous"` |
+
+Attribution is implemented in `src/scholarlm/utils/page_attribution.py`.
+Pond attribution scores all pages (no table pre-filtering).
 
 ### Attributes and standard units
 
@@ -167,6 +177,10 @@ The probe dataset is used to calibrate and evaluate the judge model's ability to
 distinguish valid from invalid extraction records. It is built from `ground_truth.csv`
 and the OCR text files in `ocr_output_raw/`.
 
+Two files are produced: `probe_dataset.json` (train, ~50% of papers) and
+`probe_dataset_test.json` (test, remaining ~50% of papers). Both use identical
+generation logic; the split is at the paper level so no paper appears in both.
+
 ### Structure
 
 Approximately 50% of ground-truth records (sampled whole papers at a time) are
@@ -214,6 +228,7 @@ Same columns as `ground_truth.csv`, plus:
 
 | Field | Description |
 |---|---|
+| `page_number` | Inherited from the parent ground-truth row (JSON list of candidate page numbers) |
 | `label` | `"valid"` or `"invalid"` |
 | `modification_type` | One of the types above, or `null` for valid records |
 | `gt_row_index` | Index into `ground_truth.csv` for the base record |

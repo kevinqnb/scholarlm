@@ -5,6 +5,7 @@ Pipeline
 --------
     raw_data/pond_data_corrected_.csv  (corrected raw data, wide format)
         ↓  filter to registered papers, melt, add document_id + units
+        ↓  page attribution via OCR scoring
     ground_truth.csv                   (all registered papers)
     ground_truth_ten.csv               (top-10 paper development subset)
 
@@ -44,9 +45,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+from collections import Counter
 from pathlib import Path
 
+
 import pandas as pd
+
+from scholarlm.utils.page_attribution import POND_WEIGHTS, attribute_page, parse_ocr
+
+logger = logging.getLogger(__name__)
 
 BASE = Path(__file__).parent  # data/pond/
 
@@ -166,6 +174,51 @@ def build_corrected_wide(corrected_path: Path, out_path: Path) -> pd.DataFrame:
     return result
 
 
+def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
+    """Append page_number, page_score, and page_confidence columns to *gt*.
+
+    ``page_number`` is a JSON-encoded list of all candidate page numbers within
+    the confidence margin (e.g. ``[3]`` or ``[3, 4]``).  Scores all pages for
+    each document (no table pre-filtering for pond).  Rows whose OCR file is
+    missing receive NaN attribution columns.
+
+    Prints a summary: rows attributed, missing-OCR count, confidence distribution.
+    """
+    gt = gt.copy()
+    gt["page_number"] = pd.NA
+    gt["page_score"] = pd.NA
+    gt["page_confidence"] = pd.NA
+
+    n_attributed = 0
+    n_missing_ocr = 0
+    confidence_counts: Counter[str] = Counter()
+
+    for doc_id, group in gt.groupby("document_id"):
+        ocr_path = ocr_dir / f"{doc_id}.txt"
+        if not ocr_path.exists():
+            n_missing_ocr += 1
+            logger.warning("OCR file not found: %s", ocr_path)
+            continue
+
+        parsed = parse_ocr(ocr_path)
+
+        for idx, row in group.iterrows():
+            result = attribute_page(row.to_dict(), parsed, POND_WEIGHTS)
+            gt.at[idx, "page_number"] = json.dumps(result["candidates"])
+            gt.at[idx, "page_score"] = result["score"]
+            gt.at[idx, "page_confidence"] = result["confidence"]
+            confidence_counts[result["confidence"]] += 1
+            n_attributed += 1
+
+    total = len(gt)
+    print(f"  Page attribution: {n_attributed:,}/{total:,} rows attributed "
+          f"({n_missing_ocr} docs with missing OCR)")
+    print(f"  Confidence distribution: {dict(confidence_counts)}")
+    return gt
+
+
+
+
 def build_ground_truth(corrected_wide_path: Path, out_dir: Path) -> None:
     """Build ground_truth.csv and ground_truth_ten.csv from pond_data_corrected_.csv.
 
@@ -176,7 +229,7 @@ def build_ground_truth(corrected_wide_path: Path, out_dir: Path) -> None:
     internal units.
 
     Output schema: document_id, name, identifiers, location, ecosystem, date,
-    additional_details, attribute, value, units.
+    additional_details, attribute, value, units, page, page_score, page_confidence.
 
     Args:
         corrected_wide_path: Path to ``pond_data_corrected_.csv``.
@@ -232,6 +285,8 @@ def build_ground_truth(corrected_wide_path: Path, out_dir: Path) -> None:
         "date", "additional_details", "attribute", "value", "units",
     ]
     df_final = df_long[final_cols].reset_index(drop=True)
+
+    df_final = _add_page_attribution(df_final, BASE / "ocr_output_raw")
 
     df_final.to_csv(out_dir / "ground_truth.csv", index=False)
     print(f"  Saved {len(df_final):,} rows → ground_truth.csv")

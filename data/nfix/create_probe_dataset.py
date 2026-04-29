@@ -3,7 +3,8 @@ Probe dataset creation for the nfix (aquatic dinitrogen fixation) dataset.
 
 Samples approximately 50% of ground-truth data by paper, labelling those rows
 as valid (label="valid"), then creates two invalid counterparts per valid record
-(2:1 invalid:valid ratio).
+(2:1 invalid:valid ratio).  The remaining ~50% of papers form a held-out test
+set built with the same logic.
 
 Subset 1 — swap invalids (one per valid record):
   change_value  -- swap value with a same-paper record measuring a different
@@ -35,9 +36,12 @@ Attribute swapping is not applicable.
 
 Output
 ------
-    data/nfix/probe_dataset.json   (same column schema as ground_truth.csv, plus
-                                   "label", "modification_type", "gt_row_index",
-                                   "donor_gt_row_index", "measurement_id")
+    data/nfix/probe_dataset.json        (train split — ~50% of papers)
+    data/nfix/probe_dataset_test.json   (test split  — remaining ~50% of papers)
+
+    Both files share the same column schema as ground_truth.csv, plus:
+    "label", "modification_type", "gt_row_index", "donor_gt_row_index",
+    "measurement_id".  page_number is inherited from the parent ground-truth row.
 
 Usage
 -----
@@ -70,6 +74,7 @@ _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.csv"
 _OUTPUT_FILE = BASE / "probe_dataset.json"
+_OUTPUT_TEST_FILE = BASE / "probe_dataset_test.json"
 
 DEFAULT_SEED = 42
 
@@ -86,6 +91,12 @@ _MADE_UP_NAMES: list[str] = [
     "Northern Transect Y", "Southern Platform Z", "Central Mat Site",
     "Outer Estuary AA", "Inner Lagoon BB", "Transition Zone CC",
     "Carbonate Platform DD", "Hypersaline Pond EE",
+]
+
+_GT_COLS = [
+    "document_id", "name", "identifiers", "location", "site_type",
+    "date", "nfix_method", "substrate_type", "sample_depth",
+    "additional_details", "attribute", "value", "units", "page_number",
 ]
 
 
@@ -193,8 +204,8 @@ def build_gt_records(df: pd.DataFrame) -> list[dict]:
 
     Output schema matches ground_truth.csv (document_id, name, identifiers,
     location, site_type, date, nfix_method, substrate_type, sample_depth,
-    additional_details, attribute, value, units) plus internal bookkeeping
-    fields prefixed with '_'.
+    additional_details, attribute, value, units, page_number) plus internal
+    bookkeeping fields prefixed with '_'.
 
     The 'attribute' field is re-classified from the units string so the judge
     can resolve the specific nfix_rate_* description; the ground truth stores
@@ -238,6 +249,7 @@ def build_gt_records(df: pd.DataFrame) -> list[dict]:
             "attribute":          inferred_attr,
             "value":              str(row["value"]),
             "units":              units_raw,
+            "page_number":        _clean(row.get("page_number")),
             "gt_row_index":       i,
             "donor_gt_row_index": None,
             "_orig_idx":          i,
@@ -253,8 +265,15 @@ def build_gt_records(df: pd.DataFrame) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def sample_valid_set(records: list[dict], rng: random.Random) -> list[dict]:
-    """Greedy paper sampling: add papers one at a time until ≥50% of rows selected."""
+def sample_valid_set(
+    records: list[dict],
+    rng: random.Random,
+) -> tuple[list[dict], list[dict]]:
+    """Greedy paper sampling: add papers one at a time until ≥50% of rows selected.
+
+    Returns:
+        (selected, remaining) — whole-paper splits, selected ≥ 50% of records.
+    """
     by_paper: dict[str, list[dict]] = {}
     for r in records:
         by_paper.setdefault(r["_paper_code"], []).append(r)
@@ -264,12 +283,15 @@ def sample_valid_set(records: list[dict], rng: random.Random) -> list[dict]:
 
     threshold = len(records) / 2
     selected: list[dict] = []
+    selected_papers: set[str] = set()
     for paper in papers:
         selected.extend(by_paper[paper])
+        selected_papers.add(paper)
         if len(selected) >= threshold:
             break
 
-    return selected
+    remaining = [r for r in records if r["_paper_code"] not in selected_papers]
+    return selected, remaining
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +436,112 @@ def create_table_record(
 
 
 # ---------------------------------------------------------------------------
+# Probe dataset builder (shared by train and test)
+# ---------------------------------------------------------------------------
+
+
+def build_probe_output(
+    valid_records: list[dict],
+    by_paper: dict[str, list[dict]],
+    all_records: list[dict],
+    rng: random.Random,
+    split_label: str,
+) -> list[dict]:
+    """Build a full probe output list from a set of valid base records.
+
+    Generates swap invalids (Subset 1), noise invalids (Subset 2), and
+    OCR-table invalids (Subset 3) for each valid record, then serializes
+    everything into the output schema.
+
+    Args:
+        valid_records: Records to use as the valid set for this split.
+        by_paper: Full paper-indexed record pool (for same-paper candidate lookup).
+        all_records: Full record pool (for cross-paper fallback).
+        rng: Seeded RNG (caller manages state for reproducibility).
+        split_label: Human-readable label for console output (e.g. "train").
+
+    Returns:
+        List of output dicts in the probe dataset schema.
+    """
+    xv = list(valid_records)
+
+    # Create swap invalids (Subset 1)
+    xi: list[dict] = []
+    skipped = 0
+    for record in xv:
+        paper_recs = by_paper[record["_paper_code"]]
+        inv = create_invalid_record(record, paper_recs, all_records, rng)
+        if inv is None:
+            skipped += 1
+            continue
+        xi.append(inv)
+
+    if skipped:
+        print(f"  [{split_label}] Warning: {skipped} valid record(s) had no invalid candidate — dropped for balance.")
+        xv = xv[: len(xi)]
+
+    # Label valid records
+    for r in xv:
+        r["label"] = "valid"
+        r["modification_type"] = None
+
+    # Split valid set for Subsets 2 & 3
+    xv_shuffled = list(xv)
+    rng.shuffle(xv_shuffled)
+    mid = len(xv_shuffled) // 2
+    xv_noise = xv_shuffled[:mid]
+    xv_table = xv_shuffled[mid:]
+
+    # Subset 2: noise invalids
+    xi_noise: list[dict] = [create_noise_record(r, rng) for r in xv_noise]
+    print(f"  [{split_label}] Created {len(xi_noise):,} noise invalid records")
+
+    # Subset 3: OCR-table invalids
+    ocr_table_cache: dict[str, list[str]] = {}
+    ocr_text_cache: dict[str, list[str]] = {}
+    for code in {r["_paper_code"] for r in xv_table}:
+        path = _OCR_DIR / f"{code}.txt"
+        ocr_table_cache[code] = _extract_table_values(path)
+        ocr_text_cache[code] = _extract_text_values(path)
+
+    xi_table: list[dict] = []
+    n_noise_fallback = 0
+    for r in xv_table:
+        code = r["_paper_code"]
+        vals = ocr_table_cache.get(code, []) or ocr_text_cache.get(code, [])
+        rec = create_table_record(r, vals, rng)
+        if rec is None:
+            rec = create_noise_record(r, rng)
+            n_noise_fallback += 1
+        xi_table.append(rec)
+    if n_noise_fallback:
+        print(f"    ({n_noise_fallback} table records fell back to noise — no numeric values in OCR)")
+    print(f"  [{split_label}] Created {len(xi_table):,} table/fallback invalid records")
+
+    # Serialize
+    combined = xv + xi + xi_noise + xi_table
+    output: list[dict] = []
+    for measurement_id, r in enumerate(combined):
+        rec = {k: r[k] for k in _GT_COLS if k in r}
+        rec["label"] = r["label"]
+        rec["modification_type"] = r.get("modification_type")
+        rec["gt_row_index"] = r["gt_row_index"]
+        rec["donor_gt_row_index"] = r.get("donor_gt_row_index")
+        rec["measurement_id"] = measurement_id
+        output.append(rec)
+
+    mod_counts: dict[str | None, int] = {}
+    for r in output:
+        mt = r.get("modification_type")
+        mod_counts[mt] = mod_counts.get(mt, 0) + 1
+    print(f"  [{split_label}] Label / modification-type distribution:")
+    for k, v in sorted(mod_counts.items(), key=lambda x: str(x[0])):
+        print(f"    {str(k):20s} {v:5d}")
+
+    return output
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -447,99 +575,33 @@ def main(argv: list[str] | None = None) -> None:
     for k, v in sorted(attr_counts.items()):
         print(f"  {k}: {v}")
 
-    # Sample valid set (X_V)
-    xv = sample_valid_set(all_records, rng)
-    print(f"\nSampled {len(xv):,} valid records ({len(xv) / len(all_records) * 100:.1f}% of total)")
-
-    # Build same-paper index over the full record pool
+    # Build full paper index (used by both splits for same-paper candidate lookup)
     by_paper: dict[str, list[dict]] = {}
     for r in all_records:
         by_paper.setdefault(r["_paper_code"], []).append(r)
 
-    # Create invalid counterparts (X_I)
-    xi: list[dict] = []
-    skipped = 0
-    for record in xv:
-        paper_recs = by_paper[record["_paper_code"]]
-        inv = create_invalid_record(record, paper_recs, all_records, rng)
-        if inv is None:
-            skipped += 1
-            continue
-        xi.append(inv)
+    # Split into train and test valid sets (whole-paper splits)
+    xv_train, xv_test = sample_valid_set(all_records, rng)
+    print(f"\nTrain valid: {len(xv_train):,} records ({len(xv_train) / len(all_records) * 100:.1f}% of total)")
+    print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
 
-    if skipped:
-        print(f"Warning: {skipped} valid record(s) had no invalid candidate — dropped for balance.")
-        xv = xv[: len(xi)]
+    # Build train probe dataset
+    print("\nBuilding train probe dataset ...")
+    train_output = build_probe_output(xv_train, by_paper, all_records, rng, "train")
 
-    # Label valid records
-    for r in xv:
-        r["label"] = "valid"
-        r["modification_type"] = None
-
-    # --- Additional diversity subsets (each ~half the valid set) ---
-    xv_shuffled = list(xv)
-    rng.shuffle(xv_shuffled)
-    mid = len(xv_shuffled) // 2
-    xv_noise = xv_shuffled[:mid]
-    xv_table = xv_shuffled[mid:]
-
-    # Subset 2: noise invalids
-    xi_noise: list[dict] = [create_noise_record(r, rng) for r in xv_noise]
-    print(f"Created {len(xi_noise):,} noise invalid records")
-
-    # Subset 3: OCR-table invalids (text fallback if no table numbers; noise last resort)
-    ocr_table_cache: dict[str, list[str]] = {}
-    ocr_text_cache: dict[str, list[str]] = {}
-    for code in {r["_paper_code"] for r in xv_table}:
-        path = _OCR_DIR / f"{code}.txt"
-        ocr_table_cache[code] = _extract_table_values(path)
-        ocr_text_cache[code] = _extract_text_values(path)
-
-    xi_table: list[dict] = []
-    n_noise_fallback = 0
-    for r in xv_table:
-        code = r["_paper_code"]
-        vals = ocr_table_cache.get(code, []) or ocr_text_cache.get(code, [])
-        rec = create_table_record(r, vals, rng)
-        if rec is None:
-            rec = create_noise_record(r, rng)
-            n_noise_fallback += 1
-        xi_table.append(rec)
-    if n_noise_fallback:
-        print(f"  ({n_noise_fallback} table records fell back to noise — no numeric values in OCR)")
-    print(f"Created {len(xi_table):,} table/fallback invalid records")
-
-    # Combine and assign sequential measurement_ids; strip internal fields
-    combined = xv + xi + xi_noise + xi_table
-    _GT_COLS = [
-        "document_id", "name", "identifiers", "location", "site_type",
-        "date", "nfix_method", "substrate_type", "sample_depth",
-        "additional_details", "attribute", "value", "units",
-    ]
-    output: list[dict] = []
-    for measurement_id, r in enumerate(combined):
-        rec = {k: r[k] for k in _GT_COLS if k in r}
-        rec["label"] = r["label"]
-        rec["modification_type"] = r.get("modification_type")
-        rec["gt_row_index"] = r["gt_row_index"]
-        rec["donor_gt_row_index"] = r.get("donor_gt_row_index")
-        rec["measurement_id"] = measurement_id
-        output.append(rec)
-
-    # Summary
-    mod_counts: dict[str | None, int] = {}
-    for r in output:
-        mt = r.get("modification_type")
-        mod_counts[mt] = mod_counts.get(mt, 0) + 1
-    print("\nLabel / modification-type distribution:")
-    for k, v in sorted(mod_counts.items(), key=lambda x: str(x[0])):
-        print(f"  {str(k):20s} {v:5d}")
+    # Build test probe dataset
+    print("\nBuilding test probe dataset ...")
+    test_output = build_probe_output(xv_test, by_paper, all_records, rng, "test")
 
     # Save
     _OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(_OUTPUT_FILE, "w") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-    print(f"\nSaved {len(output):,} records → {_OUTPUT_FILE}")
+        json.dump(train_output, f, indent=2, ensure_ascii=False)
+    print(f"\nSaved {len(train_output):,} records → {_OUTPUT_FILE.name}")
+
+    with open(_OUTPUT_TEST_FILE, "w") as f:
+        json.dump(test_output, f, indent=2, ensure_ascii=False)
+    print(f"Saved {len(test_output):,} records → {_OUTPUT_TEST_FILE.name}")
 
 
 if __name__ == "__main__":
