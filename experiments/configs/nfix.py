@@ -383,6 +383,6 @@ CONFIG = DatasetConfig(
     paper_filter=_nfix_paper_filter,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_entity_fields=["name", "identifiers", "site_type", "additional_details"],
+    judge_filter_fields=["location"],
     ground_truth_file="data/nfix/ground_truth.csv",
 )

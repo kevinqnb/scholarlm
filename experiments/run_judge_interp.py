@@ -82,7 +82,6 @@ def run_interp_judge(
     extraction_date: str | None = None,
     ocr_dir: str | None = None,
     ablation: str | None = None,
-    include_row_col: bool = False,
     input_file: Path | None = None,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
@@ -102,8 +101,6 @@ def run_interp_judge(
         output_dir: Directory to write ``responses.json``, ``attention_outputs.npz``, and ``layer_outputs.npz``.
         extraction_date: Optional date tag for locating extraction results.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
-        include_row_col: If ``True``, append row/column names to the query for
-            table-sourced extractions and use ``JUDGE_INSTRUCTIONS_UNIFIED_TABLE``.
         input_file: If provided, load data from this path instead of looking up
             the extraction run (synthetic probe mode).
     """
@@ -129,7 +126,6 @@ def run_interp_judge(
     # preserves the original index so results can be merged back in order.
     chat_entries = batch_common.prepare_chat_entries(
         data, documents, dataset_config,
-        include_row_col=include_row_col,
     )
 
     # JudgementLM takes (instructions, context, query) triples separately.
@@ -240,15 +236,6 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "--include-row-col", action="store_true", default=False,
-        help=(
-            "For table-sourced extractions, append the row name and column name "
-            "to the query and use JUDGE_INSTRUCTIONS_UNIFIED_TABLE, which adds "
-            "criterion (G) checking that both names are consistent with the "
-            "described entity and attribute."
-        ),
-    )
-    p.add_argument(
         "--synthetic", action="store_true", default=False,
         help=(
             "Run on the synthetic probe dataset from data/{dataset}/probe_dataset.json "
@@ -288,7 +275,6 @@ def main(argv: list[str] | None = None) -> None:
             judge_key=args.judge,
             output_dir=output_dir,
             ocr_dir=args.ocr_dir,
-            include_row_col=args.include_row_col,
             input_file=probe_file,
         )
     else:
@@ -317,7 +303,6 @@ def main(argv: list[str] | None = None) -> None:
             extraction_date=extraction_date_resolved,
             ocr_dir=args.ocr_dir,
             ablation=args.ablation,
-            include_row_col=args.include_row_col,
         )
 
 

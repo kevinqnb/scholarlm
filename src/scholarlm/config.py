@@ -74,11 +74,12 @@ class DatasetConfig:
             2 that instructs the model to emit one item per (entity, attribute) pair
             rather than one item per entity.  Required when
             ``ablation2_entity_schema`` is set; ignored otherwise.
-        judge_entity_fields: Optional ordered list of ``entity_schema`` field names
-            to include in the judge prompt's entity description.  When set, only
-            these fields (plus all measurement event fields) are shown to the judge,
-            excluding noisy or irrelevant entity fields such as coordinates.  When
-            ``None``, all entity schema fields are included (legacy behaviour).
+        judge_filter_fields: Optional list of field names to exclude from the
+            judge prompt's entity and event descriptions.  Applied as a blocklist
+            across both sections, so a single entry removes a field regardless of
+            whether it belongs to the entity or event schema.  Use this to suppress
+            noisy or irrelevant fields (e.g. ``location``) without altering the
+            underlying schemas.  ``None`` applies no filtering.
     """
 
     name: str
@@ -99,7 +100,7 @@ class DatasetConfig:
     ablation2_entity_identification_prompt: str | None = None
     ground_truth_file: str | None = None
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
-    judge_entity_fields: list[str] | None = None
+    judge_filter_fields: list[str] | None = None
 
 
 @dataclass

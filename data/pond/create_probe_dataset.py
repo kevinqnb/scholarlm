@@ -69,7 +69,7 @@ sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from configs.pond import CONFIG
 
-_JUDGE_ENTITY_FIELDS: list[str] = CONFIG.judge_entity_fields  # ["name", "identifiers", "ecosystem"]
+_JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "ecosystem", "additional_details"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.csv"
