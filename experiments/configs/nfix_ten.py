@@ -57,15 +57,15 @@ class DirectExtractionItemSchema(BaseModel):
     units: str | None
 
 
-class Ablation3ObservationSchema(BaseModel):
-    """Entity schema for Ablation 3: one item per (site, attribute) pair."""
+class Ablation2ObservationSchema(BaseModel):
+    """Entity schema for Ablation 2: one item per (site, attribute) pair."""
 
     # Entity fields (same as ObservationSchema)
     name: str | None
     identifiers: str | None
     site_type: str | None
     location: str | None
-    # Reserved fields required by Ablation 3
+    # Reserved fields required by Ablation 2
     attribute: str
     attribute_terms: list[str]
 
@@ -207,10 +207,10 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
-# Ablation 3: combined entity-attribute extraction prompt
+# Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
-_ABLATION3_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
+_ABLATION2_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
 
 A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Emit one item per (site, attribute) pair. If a site has multiple attributes measured, emit one item per attribute.
 
@@ -381,8 +381,8 @@ CONFIG = DatasetConfig(
     # paper_subset=_DEV_SUBSET,
     paper_subset=_TOP_PAPERS,
     paper_filter=_nfix_paper_filter,
-    ablation3_entity_schema=Ablation3ObservationSchema,
-    ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
+    ablation2_entity_schema=Ablation2ObservationSchema,
+    ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_entity_fields=["name", "identifiers", "site_type", "additional_details"],
     ground_truth_file="data/nfix/ground_truth_ten.csv",
 )

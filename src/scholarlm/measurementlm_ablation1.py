@@ -80,7 +80,7 @@ class MeasurementLMAblation1(MeasurementLM):
             query = "Extract all measurement records from this document as described in the instructions."
             prompt = (
                 f"## INSTRUCTIONS:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
-                f"## EVENT DETAILS:\n{self.direct_extraction_prompt}\n\n"
+                f"## DATASET SPECIFIC INSTRUCTIONS:\n{self.direct_extraction_prompt}\n\n"
                 f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])

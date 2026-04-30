@@ -52,15 +52,15 @@ class DirectExtractionItemSchema(BaseModel):
     units: str | None
 
 
-class Ablation3ObservationSchema(BaseModel):
-    """Entity schema for Ablation 3: one item per (ecosystem, attribute) pair."""
+class Ablation2ObservationSchema(BaseModel):
+    """Entity schema for Ablation 2: one item per (ecosystem, attribute) pair."""
 
     # Entity fields (same as ObservationSchema)
     name: str | None
     identifiers: str | None
     location: str | None
     ecosystem: str | None
-    # Reserved fields required by Ablation 3
+    # Reserved fields required by Ablation 2
     attribute: str
     attribute_terms: list[str]
 
@@ -210,10 +210,10 @@ other_things = """
 
 
 # ---------------------------------------------------------------------------
-# Ablation 3: combined entity-attribute extraction prompt
+# Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
-_ABLATION3_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature, and in detecting which measurement attributes are reported for each ecosystem. Given the provided text (including any tables), extract all distinct (aquatic ecosystem, measured attribute) pairs for which a direct numerical measurement is reported.
+_ABLATION2_IDENTIFICATION_PROMPT = """You are an expert in identifying ponds, lakes, and wetlands referenced in scientific literature, and in detecting which measurement attributes are reported for each ecosystem. Given the provided text (including any tables), extract all distinct (aquatic ecosystem, measured attribute) pairs for which a direct numerical measurement is reported.
 
 An aquatic ecosystem is a specific pond, lake, wetland, or similar water body. Emit one item per (ecosystem, attribute) pair. If an ecosystem has multiple attributes measured, emit one item per attribute.
 
@@ -392,8 +392,8 @@ CONFIG = DatasetConfig(
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=_TOP_PAPERS,
     paper_filter=None,
-    ablation3_entity_schema=Ablation3ObservationSchema,
-    ablation3_entity_identification_prompt=_ABLATION3_IDENTIFICATION_PROMPT,
+    ablation2_entity_schema=Ablation2ObservationSchema,
+    ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_entity_fields=["name", "identifiers", "ecosystem", "additional_details"],
     ground_truth_file="data/pond/ground_truth_ten.csv",
     unit_conversion_table={

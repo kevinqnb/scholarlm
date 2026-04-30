@@ -7,18 +7,15 @@ page or table.
 Changes from the baseline MeasurementLM:
 
 1. `_resolve_events()`: instead of slicing out a single page's text and asking
-   about events there, the full document context is given to the model. The page
-   number identified during provenance is referenced in the query so the model
-   knows where to focus. Uses MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT.
+   about events there, the full document context is given to the model.
+   Uses MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT.
 
 2. `_extract_values_from_text()`: instead of slicing out the matched page's text
    and passing it as context, the full document context from the record's 'context'
-   field is given to the model. The page number identified during provenance is
-   included in the query so the model knows where to look.
+   field is given to the model.
 
 3. `_extract_values_from_tables()`: instead of slicing out the matched table's HTML
-   and passing it as context, the full document context is given to the model. The
-   page number and table number are included in the query for reference.
+   and passing it as context, the full document context is given to the model.
 
 4. Uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT and
    EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT for value extraction, and
@@ -59,10 +56,7 @@ class MeasurementLMAblation4(MeasurementLM):
     def _resolve_events(self, entity_data, doc_attributes, entity_prov, attr_prov):
         """
         CHANGED: uses full document context instead of per-page text.
-
-        The model receives the complete document and a query referencing the
-        specific target page, entity, and attribute.  Uses
-        MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT.
+        Uses MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT.
         """
         if self.measurement_event_schema is None:
             return {}
@@ -84,7 +78,7 @@ class MeasurementLMAblation4(MeasurementLM):
         message_ids = []  # (doc_id, entity_id, attr_name, page_number)
 
         for (doc_id, entity_id), record in unique_entities.items():
-            context = record["context"]  # CHANGED: full document
+            context = record["context"]
             entity_description = {k: v for k, v in record.items() if k in entity_fields}
 
             for attr_name, _terms in doc_attributes.get(doc_id, {}).items():
@@ -95,14 +89,12 @@ class MeasurementLMAblation4(MeasurementLM):
                 intersecting_pages = sorted(e_pages & a_pages)
 
                 for p in intersecting_pages:
-                    # CHANGED: reference target page in query; pass full document context
                     query = (
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n\n"
-                        f"Target page: {p}\n\n"
                         f"Enumerate all distinct measurement events for the above entity "
-                        f"and attribute found on page {p} of the document.\n\n"
+                        f"and attribute found in the document.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT}\n\n"
@@ -153,8 +145,7 @@ class MeasurementLMAblation4(MeasurementLM):
         Extract measurement values from prose text using full document context.
 
         CHANGED: the model receives the full document context (record['context'])
-        instead of only the matched page's text.  The page number identified during
-        provenance is included in the query so the model knows where to look.
+        instead of only the matched page's text.
         Uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
@@ -212,20 +203,16 @@ class MeasurementLMAblation4(MeasurementLM):
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
 
-                        # CHANGED: page number is added to the query as a reference;
-                        # the context passed below is the full document.
                         query = (
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
                             f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"Target page: {p}\n\n"
                             f"{units_guidance}"
-                            f"Does page {p} of the document contain a measured value for "
+                            f"Does the document contain a measured value for "
                             f"the given attribute and entity? "
                             f"If yes, extract the value and its units.\n\n"
                         )
-                        # CHANGED: full document context instead of page_text
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT}\n\n"
                             f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
@@ -263,7 +250,6 @@ class MeasurementLMAblation4(MeasurementLM):
             if result.get("has_value") and result.get("value") is not None:
                 text_values.append(
                     event_record | {
-                        # CHANGED: store full document context in the output record
                         "context": event_record["context"],
                         "value": result["value"],
                         "units": result.get("units"),
@@ -283,10 +269,8 @@ class MeasurementLMAblation4(MeasurementLM):
         Extract measurement values from HTML tables using full document context.
 
         CHANGED: the model receives the full document context (record['context'])
-        instead of only the matched table's HTML.  The page number and table number
-        are added to the query so the model knows where to look.
+        instead of only the matched table's HTML.
         Uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT.
-        Row and column name lists are still provided for the model's reference.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
@@ -389,20 +373,16 @@ class MeasurementLMAblation4(MeasurementLM):
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
 
-                        # CHANGED: page and table number are added to the query as references;
-                        # the context passed below is the full document.
                         query = (
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
                             f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\nTarget page: {table_page_number}, Target table: {t}\n\n"
                             f"{units_guidance}"
-                            f"Does table {t} on page {table_page_number} of the document contain "
-                            f"a measured value for the given attribute and entity? "
+                            f"Does the document contain a measured value for the given attribute "
+                            f"and entity in a table? "
                             f"If yes, provide the row_index and column_index names, and the units.\n\n"
                         )
-                        # CHANGED: full document context instead of table_text
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT}\n\n"
                             f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
@@ -471,7 +451,6 @@ class MeasurementLMAblation4(MeasurementLM):
             if val is not None:
                 table_values.append(
                     event_record | {
-                        # CHANGED: store full document context in the output record
                         "context": event_record["context"],
                         "value": val,
                         "units": result.get("units"),

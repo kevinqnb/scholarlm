@@ -64,16 +64,16 @@ class DatasetConfig:
             describes entities, measurement events, and attributes in a single
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
-        ablation3_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
-            Ablation 3 (combined entity-attribute extraction).  Must include all
+        ablation2_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
+            Ablation 2 (combined entity-attribute extraction).  Must include all
             normal entity fields plus two reserved fields: ``attribute (str)`` (exact
             attribute name from ``attribute_info_dict``) and ``attribute_terms
             (list[str])`` (terminology used in the document).  ``None`` disables
-            ablation 3.
-        ablation3_entity_identification_prompt: Dataset-specific prompt for Ablation
-            3 that instructs the model to emit one item per (entity, attribute) pair
+            ablation 2.
+        ablation2_entity_identification_prompt: Dataset-specific prompt for Ablation
+            2 that instructs the model to emit one item per (entity, attribute) pair
             rather than one item per entity.  Required when
-            ``ablation3_entity_schema`` is set; ignored otherwise.
+            ``ablation2_entity_schema`` is set; ignored otherwise.
         judge_entity_fields: Optional ordered list of ``entity_schema`` field names
             to include in the judge prompt's entity description.  When set, only
             these fields (plus all measurement event fields) are shown to the judge,
@@ -95,8 +95,8 @@ class DatasetConfig:
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None
     direct_extraction_prompt: str | None = None
-    ablation3_entity_schema: type[BaseModel] | None = None
-    ablation3_entity_identification_prompt: str | None = None
+    ablation2_entity_schema: type[BaseModel] | None = None
+    ablation2_entity_identification_prompt: str | None = None
     ground_truth_file: str | None = None
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
     judge_entity_fields: list[str] | None = None

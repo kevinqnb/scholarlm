@@ -20,8 +20,8 @@ Available ablations: 1–6 (see ABLATION_REGISTRY below).
 
 Notes
 -----
-Ablation 3 requires the dataset config to define ablation3_entity_schema and
-ablation3_entity_identification_prompt. The schema must include two reserved
+Ablation 2 requires the dataset config to define ablation2_entity_schema and
+ablation2_entity_identification_prompt. The schema must include two reserved
 fields beyond the usual entity fields:
     - attribute (str)             : one of the keys in attribute_info_dict
     - attribute_terms (list[str]) : terminology used in the document
@@ -75,13 +75,13 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
     "2": (
         MeasurementLMAblation2,
-        "Direct table value extraction; the model returns the value directly from the "
-        "table instead of first identifying row/column indices for programmatic lookup.",
+        "Combined entity-attribute extraction; entity detection and attribute detection "
+        "merged into a single step, plus a combined per-page provenance step.",
     ),
     "3": (
         MeasurementLMAblation3,
-        "Combined entity-attribute extraction; entity detection and attribute detection "
-        "merged into a single step, plus a combined per-page provenance step.",
+        "Full-document pair provenance; both provenance steps are replaced by a single "
+        "full-document query per (entity, attribute) pair that returns a list of locations.",
     ),
     "4": (
         MeasurementLMAblation4,
@@ -91,13 +91,13 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
     "5": (
         MeasurementLMAblation5,
-        "No chain-of-thought explanations; all structured JSON responses drop the "
-        "'explanation' field so the model does not produce reasoning traces.",
+        "Direct table value extraction; the model returns the value directly from the "
+        "table instead of first identifying row/column indices for programmatic lookup.",
     ),
     "6": (
         MeasurementLMAblation6,
-        "Full-document pair provenance; both provenance steps are replaced by a single "
-        "full-document query per (entity, attribute) pair that returns a list of locations.",
+        "No chain-of-thought explanations; all structured JSON responses drop the "
+        "'explanation' field so the model does not produce reasoning traces.",
     ),
 }
 
@@ -180,33 +180,33 @@ def run_ablation(
     text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
-    # Ablation 3 runtime check: dataset config must provide ablation3_entity_schema
-    # and ablation3_entity_identification_prompt with the required reserved fields.
-    if ablation == "3":
-        if dataset_config.ablation3_entity_schema is None:
+    # Ablation 2 runtime check: dataset config must provide ablation2_entity_schema
+    # and ablation2_entity_identification_prompt with the required reserved fields.
+    if ablation == "2":
+        if dataset_config.ablation2_entity_schema is None:
             raise ValueError(
-                f"Ablation 3 requires 'ablation3_entity_schema' to be set in the "
+                f"Ablation 2 requires 'ablation2_entity_schema' to be set in the "
                 f"dataset config for '{dataset_config.name}'. "
                 f"Define the schema (entity fields + attribute + attribute_terms) and "
-                f"set ablation3_entity_schema in the DatasetConfig."
+                f"set ablation2_entity_schema in the DatasetConfig."
             )
-        schema_fields = set(dataset_config.ablation3_entity_schema.model_fields.keys())
+        schema_fields = set(dataset_config.ablation2_entity_schema.model_fields.keys())
         missing = {"attribute", "attribute_terms"} - schema_fields
         if missing:
             raise ValueError(
-                f"Ablation 3 requires the ablation3_entity_schema to include the "
+                f"Ablation 2 requires the ablation2_entity_schema to include the "
                 f"fields {sorted(missing)}. The schema "
-                f"({dataset_config.ablation3_entity_schema.__name__}) is missing "
+                f"({dataset_config.ablation2_entity_schema.__name__}) is missing "
                 f"these fields. Please add them."
             )
-        if dataset_config.ablation3_entity_identification_prompt is None:
+        if dataset_config.ablation2_entity_identification_prompt is None:
             raise ValueError(
-                f"Ablation 3 requires 'ablation3_entity_identification_prompt' to be "
+                f"Ablation 2 requires 'ablation2_entity_identification_prompt' to be "
                 f"set in the dataset config for '{dataset_config.name}'."
             )
         # Use the ablation-specific schema and prompt for this run
-        entity_schema = dataset_config.ablation3_entity_schema
-        entity_identification_prompt = dataset_config.ablation3_entity_identification_prompt
+        entity_schema = dataset_config.ablation2_entity_schema
+        entity_identification_prompt = dataset_config.ablation2_entity_identification_prompt
     else:
         entity_schema = dataset_config.entity_schema
         entity_identification_prompt = dataset_config.entity_identification_prompt
