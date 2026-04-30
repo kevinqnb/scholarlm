@@ -143,26 +143,17 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         "nnsight_kwargs": {"torch_dtype": _bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
-    "qwen-3-8b": {
-        "model_id": "Qwen/Qwen3-8B",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-3-12b": {
-        "model_id": "google/gemma-3-12b-it",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-2-9b": {
-        "model_id": "google/gemma-2-9b-it",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
     "mistral-7b": {
         "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
         "nnsight_kwargs": {"torch_dtype": _bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
+    "qwen-2.5-7b": {
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
+    },
+
 }
 
 
