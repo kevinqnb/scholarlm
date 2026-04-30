@@ -24,8 +24,7 @@ class ObservationSchema(BaseModel):
     name: str | None
     identifiers: str | None
     site_type: str | None
-    latitude: float | None
-    longitude: float | None
+    location: str | None
 
 
 class MeasurementEventSchema(BaseModel):
@@ -45,8 +44,7 @@ class DirectExtractionItemSchema(BaseModel):
     name: str | None
     identifiers: str | None
     site_type: str | None
-    latitude: float | None
-    longitude: float | None
+    location: str | None
     # Event fields
     date: str | None
     nfix_method: str | None
@@ -66,8 +64,7 @@ class Ablation3ObservationSchema(BaseModel):
     name: str | None
     identifiers: str | None
     site_type: str | None
-    latitude: float | None
-    longitude: float | None
+    location: str | None
     # Reserved fields required by Ablation 3
     attribute: str
     attribute_terms: list[str]
@@ -87,12 +84,11 @@ Site identifying information includes the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
-- latitude: the latitude of the site, reported exactly as stated in the text.
-- longitude: the longitude of the site, reported exactly as stated in the text.
+- location: the general geographic location of the site.
 
 
 Identification rules:
-Treat sites with the same name as multiple separate items ONLY if their geographic location clearly differs (e.g., different latitude and longitude, or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, using different methods, or at different depths — those distinctions will be captured separately as measurement events.
+Treat sites with the same name as multiple separate items ONLY if their geographic location clearly differs. Do NOT create separate items for the same site because measurements were taken on different dates, using different methods, or at different depths — those distinctions will be captured separately as measurement events.
 
 
 Strict rules about missing information:
@@ -100,7 +96,6 @@ Strict rules about missing information:
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
 - Do NOT infer site_type from the entity name.
-- Do NOT infer coordinates from general geographic descriptions.
 
 
 Extraction procedure:
@@ -114,7 +109,6 @@ Extraction procedure:
 Output format requirements:
 - Output must be valid, strictly parseable JSON.
 - Do NOT include markdown, comments, or explanatory text.
-- Latitude and longitude values must be numeric (not strings). All other values are strings or None.
 - The top-level object must have this form:
 {
   "items": [
@@ -122,8 +116,7 @@ Output format requirements:
       "name": "...",
       "identifiers": "...",
       "site_type": "...",
-      "latitude": ...,
-      "longitude": ...
+      "location": "..."
     }
   ]
 }
@@ -151,6 +144,69 @@ _MEASUREMENT_EVENT_PROMPT = """Event fields:
 
 
 # ---------------------------------------------------------------------------
+# Ablation 1: direct extraction prompt
+# ---------------------------------------------------------------------------
+
+_DIRECT_EXTRACTION_PROMPT = """Entity identification:
+Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
+
+Entity fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
+- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- location: the general geographic location of the site.
+
+Entity identification rules:
+- Treat sites as separate only if their geographic location clearly differs.
+- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each site and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
+- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
+- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
+- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "identifiers": "...",
+      "site_type": "...",
+      "location": "...",
+      "date": "...",
+      "nfix_method": "...",
+      "substrate_type": "...",
+      "sample_depth": "...",
+      "additional_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# ---------------------------------------------------------------------------
 # Ablation 3: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
@@ -166,8 +222,7 @@ For each (site, attribute) pair, output one item with the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- latitude: the latitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
-- longitude: the longitude of the site, exactly as stated in the text (numeric). Set to None if not stated.
+- location: the general geographic location of the site.
 - attribute: the exact attribute name from the list below.
 - attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
 
@@ -182,7 +237,6 @@ Identification guidelines:
 - Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths.
 - Multiple measurements of the same site for the same attribute should produce only one (site, attribute) pair — not one per measurement event.
 - Do NOT infer, guess, or derive any identifying information. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set its value to None.
-- Latitude and longitude values must be numeric (not strings).
 
 
 Output format requirements:
@@ -195,8 +249,7 @@ Output format requirements:
       "name": "...",
       "identifiers": "...",
       "site_type": "...",
-      "latitude": ...,
-      "longitude": ...,
+      "location": "...",
       "attribute": "...",
       "attribute_terms": [...]
     }
@@ -286,76 +339,13 @@ other_attributes = {
     },
 }
 
-# ---------------------------------------------------------------------------
-# Direct extraction prompt (Ablation 6)
-# ---------------------------------------------------------------------------
-
-_DIRECT_EXTRACTION_PROMPT = """Entity identification:
-Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
-
-Entity fields:
-- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- latitude: the latitude of the site, exactly as stated in the text (numeric).
-- longitude: the longitude of the site, exactly as stated in the text (numeric).
-
-Entity identification rules:
-- Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations).
-- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
-- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
-
-
-Measurement event fields:
-For each site and each detected attribute measurement, also identify the measurement event context:
-- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
-- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
-- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
-- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
-- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
-
-
-Attributes to extract:
-For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
-
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
-
-
-Output format requirements:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- The top-level object must have this form:
-{
-  "items": [
-    {
-      "name": "...",
-      "identifiers": "...",
-      "site_type": "...",
-      "latitude": ...,
-      "longitude": ...,
-      "date": "...",
-      "nfix_method": "...",
-      "substrate_type": "...",
-      "sample_depth": "...",
-      "additional_details": "...",
-      "attribute": "...",
-      "value": "...",
-      "units": "..."
-    }
-  ]
-}
-- If no measurements are found, output exactly:
-{ "items": [] }
-"""
-
 
 # ---------------------------------------------------------------------------
 # Paper filter
 # ---------------------------------------------------------------------------
 
-
+# Excludes papers whose extraction_location indicates figures, supplements, archives, or author notes.
+# This is a heuristic to exclude papers that are unlikely to contain extractable data.
 def _nfix_paper_filter(metadata: dict) -> bool:
     """Exclude papers whose extraction_location indicates figures, supplements, archives, or author notes."""
     location = metadata.get("extraction_location", "")
@@ -365,12 +355,6 @@ def _nfix_paper_filter(metadata: dict) -> bool:
 # ---------------------------------------------------------------------------
 # Config instance
 # ---------------------------------------------------------------------------
-
-# Development subset used in early experiments
-_DEV_SUBSET = [
-    "R163", "R164", "R172", "R248", "R124",
-    "R51", "R59", "R114", "R43", "R103",
-]
 
 # Subset of 10 papers with the most data points:
 _TOP_PAPERS = [

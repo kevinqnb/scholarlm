@@ -128,6 +128,88 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
+# Measurement event prompt
+# ---------------------------------------------------------------------------
+
+_MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
+- date: The date the measurement was taken. Use one of the following formats depending on available precision:
+  - Full date: "dd-mm-yyyy"
+  - Month and year only: "mm-yyyy"
+  - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
+  - Year only: "yyyy"
+  Set to None if no date is stated on this page.
+- additional_details: Any other distinguishing context not captured by date — for example, treatment site or sub-site (e.g., "inlet zone", "P1"), treatment state (e.g., "restored", "control", "fertilized"), or other sampling conditions. Keep this to one sentence or fewer. Set to None if not applicable.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Ablation 1: direct extraction prompt
+# ---------------------------------------------------------------------------
+
+_DIRECT_EXTRACTION_PROMPT = """Entity Identification:
+Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar water bodies) mentioned in the document.
+
+Entity fields:
+- name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
+- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
+- location: the general geographic location of the ecosystem, if explicitly stated.
+- ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
+
+Entity identification rules:
+- Treat ecosystems as separate only if they are clearly distinct physical water bodies.
+- Do NOT create separate items for the same ecosystem because measurements were taken on different dates or conditions — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each ecosystem and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- additional_details: Any other distinguishing context not captured by date (e.g., treatment site, treatment state, sampling conditions). One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (ecosystem, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. surface_area — Surface area of the water body (NOT watershed, catchment, or littoral zone area). Units: km^2, mi^2, ha, m^2, or acres.
+2. max_depth — Maximum physical water depth (NOT mean depth, average depth, or Secchi depth). Units: m, km, or ft.
+3. vegetation_cover — Fraction or percentage of the ecosystem surface covered by aquatic macrophytes or rooted/floating vegetation (NOT algal cover, periphyton, or phytoplankton). Units: percent or fraction.
+4. ph — pH of the water (dimensionless). NOT soil or sediment pH.
+5. tn — Total nitrogen (TN): the aggregate sum of ALL nitrogen forms — dissolved and particulate. NOT individual species (NO3-, NO2-, NH3, etc.) unless explicitly labeled as total nitrogen. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+6. tp — Total phosphorus (TP): the aggregate sum of ALL phosphorus forms. NOT individual species (SRP, PO4(3-), DRP, PP, etc.) unless explicitly labeled as total phosphorus. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+7. chla — Chlorophyll-a (Chl-a) concentration. NOT total chlorophyll, chlorophyll-b, pheophytin, or other pigments unless explicitly labeled as chlorophyll-a. Units: µg/L, mg/L, or mg/m^3.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "identifiers": "...",
+      "location": "...",
+      "ecosystem": "...",
+      "date": "...",
+      "additional_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+# Not currently in use
+other_things = """
+1. latitude — Geographic latitude of the ecosystem location. Units: degrees or radians.
+2. longitude — Geographic longitude of the ecosystem location. Units: degrees or radians.
+"""
+
+
+# ---------------------------------------------------------------------------
 # Ablation 3: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
@@ -185,19 +267,6 @@ Output format requirements:
 """
 
 
-# ---------------------------------------------------------------------------
-# Measurement event prompt
-# ---------------------------------------------------------------------------
-
-_MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
-- date: The date the measurement was taken. Use one of the following formats depending on available precision:
-  - Full date: "dd-mm-yyyy"
-  - Month and year only: "mm-yyyy"
-  - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
-  - Year only: "yyyy"
-  Set to None if no date is stated on this page.
-- additional_details: Any other distinguishing context not captured by date — for example, treatment site or sub-site (e.g., "inlet zone", "P1"), treatment state (e.g., "restored", "control", "fertilized"), or other sampling conditions. Keep this to one sentence or fewer. Set to None if not applicable.
-"""
 
 # ---------------------------------------------------------------------------
 # Attribute catalogue
@@ -268,6 +337,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
     },
 }
 
+# Not currently in use
 other_attributes = {
     "latitude": {
         "description": (
@@ -286,71 +356,6 @@ other_attributes = {
         "units": ["degrees", "radians"],
     },
 }
-
-# ---------------------------------------------------------------------------
-# Direct extraction prompt (Ablation 6)
-# ---------------------------------------------------------------------------
-
-_DIRECT_EXTRACTION_PROMPT = """Entity Identification:
-Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar water bodies) mentioned in the document.
-
-Entity fields:
-- name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- location: the general geographic location of the ecosystem, if explicitly stated.
-- ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
-
-Entity identification rules:
-- Treat ecosystems as separate only if they are clearly distinct physical water bodies.
-- Do NOT create separate items for the same ecosystem because measurements were taken on different dates or conditions — those distinctions are captured as measurement events.
-- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
-
-
-Measurement event fields:
-For each ecosystem and each detected attribute measurement, also identify the measurement event context:
-- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
-- additional_details: Any other distinguishing context not captured by date (e.g., treatment site, treatment state, sampling conditions). One sentence or fewer. Set to None if not applicable.
-
-
-Attributes to extract:
-For each (ecosystem, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
-
-1. surface_area — Surface area of the water body (NOT watershed, catchment, or littoral zone area). Units: km^2, mi^2, ha, m^2, or acres.
-2. max_depth — Maximum physical water depth (NOT mean depth, average depth, or Secchi depth). Units: m, km, or ft.
-3. vegetation_cover — Fraction or percentage of the ecosystem surface covered by aquatic macrophytes or rooted/floating vegetation (NOT algal cover, periphyton, or phytoplankton). Units: percent or fraction.
-4. ph — pH of the water (dimensionless). NOT soil or sediment pH.
-5. tn — Total nitrogen (TN): the aggregate sum of ALL nitrogen forms — dissolved and particulate. NOT individual species (NO3-, NO2-, NH3, etc.) unless explicitly labeled as total nitrogen. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
-6. tp — Total phosphorus (TP): the aggregate sum of ALL phosphorus forms. NOT individual species (SRP, PO4(3-), DRP, PP, etc.) unless explicitly labeled as total phosphorus. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
-7. chla — Chlorophyll-a (Chl-a) concentration. NOT total chlorophyll, chlorophyll-b, pheophytin, or other pigments unless explicitly labeled as chlorophyll-a. Units: µg/L, mg/L, or mg/m^3.
-
-
-Output format requirements:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- The top-level object must have this form:
-{
-  "items": [
-    {
-      "name": "...",
-      "identifiers": "...",
-      "location": "...",
-      "ecosystem": "...",
-      "date": "...",
-      "additional_details": "...",
-      "attribute": "...",
-      "value": "...",
-      "units": "..."
-    }
-  ]
-}
-- If no measurements are found, output exactly:
-{ "items": [] }
-"""
-
-other_things = """
-1. latitude — Geographic latitude of the ecosystem location. Units: degrees or radians.
-2. longitude — Geographic longitude of the ecosystem location. Units: degrees or radians.
-"""
 
 # ---------------------------------------------------------------------------
 # Config instance
@@ -375,20 +380,6 @@ _EXCLUDED_PAPERS = [
     # Data quality exclusions
     "bacterioplankton",   # values from figures only
     "summer_assessment",  # data only in supplemental text
-]
-
-# Development subset used in early experiments
-_DEV_SUBSET = [
-    'physical_and_chemical_limnological',
-    'physical-chemical_influences',
-    'prairie_wetland',
-    'net_heterotrophy',
-    'habitat_characteristics',
-    'biodiversity_of_constructed',
-    'fish_production_in_lakes',
-    'long-term_stability',
-    'diversity_of_macroinvertebrates',
-    'impact_of_macrophytes'
 ]
 
 _TOP_PAPERS = [

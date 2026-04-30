@@ -15,10 +15,9 @@ Guidelines:
 - Set detected to false if the context does not explicitly provide data for the given attribute.
 - Set detected to false if the data reported is not a direct numerical measurement.
 - Set detected to false if the data reported only contains values for parameter estimates or measures of fit for a statistical model.
-- Set detected to false for cases where there is not a clear choice for a single, numerical data value.
 - Set detected to true only if the context explicitly provides a direct numerical measurement for the given attribute.
 - For each attribute, provide a brief explanation justifying your decision.
-- When detected is true, populate the terms list with any terminology or abbreviations used in the context to refer to that attribute. Pay close attention to tables and figure captions, as these often contain abbreviations used in the main text. Do not infer, guess, or fabricate terms not explicitly present in the context.
+- When detected is true, populate a list called "terms" with any terminology or abbreviations used in the context to refer to that attribute. Pay close attention to tables and figure captions, which often contain abbreviations. Do not infer, guess, or fabricate terms not explicitly present in the context.
 - When detected is false, return an empty list for terms.
 - Structure your response as a JSON object with an "items" list, where each item has "attribute_name", "explanation", "detected", and "terms" fields.
 """
@@ -53,20 +52,35 @@ Guidelines:
 """
 
 
-EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a page of text from a research paper contains a measured value for a given attribute and entity, and if so, to extract it.
+MEASUREMENT_EVENT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a page of text from a research paper.
 
 Guidelines:
-- If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
-- If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
-- Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
+- You will be provided with a single page of text from a research paper, a description of an entity, and a description of an attribute to be measured.
+- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
+- There may be multiple distinct measurement events for the same entity and attribute.
+- You will also be given a list of possible measurement event fields (e.g., date, method, treatment, substrate).
+- For each distinct measurement event you identify, populate the given fields as completely as the page text allows. Use ONLY information explicitly stated on the page. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
+- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
+- If the page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
+- Structure your response as a JSON object with an "items" list.
+"""
+
+
+EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a page of text from a research paper contains a measurement value for a given attribute and entity, and if so, to extract it.
+
+Guidelines:
+- A measurement is relevant only if it is directly associated with the given entity, attribute, and event.
+- If the page does not contain a relevant measurement, set the has_value field to false and leave the value and units fields as null.
+- If a relevant measurement is found, set has_value to true and proceed to extract the value and units.
+- Copy the value of the measurement directly to the value field of your response — do not convert, round, or modify it in any way.
+- Do not include any extra uncertainty information, confidence intervals, range bounds, descriptors, or explanations in the value field.
+- If there are multiple types of relevant measurements reported (e.g., mean, min, max), extract the mean or central value unless the attribute description unambiguously directs otherwise.
+- Copy the units of measurement directly to the units field of your response — do not convert or modify them in any way. If no units are reported, set units to null.
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
 
 
-EXTRACT_TABLE_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measured value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
+EXTRACT_TABLE_VALUE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if an HTML table from a research paper contains a measurement value for a given attribute and entity, and if so, to identify the row and column needed to locate it.
 
 You will be provided with:
 - The full HTML table
@@ -75,48 +89,35 @@ You will be provided with:
 - A description of the entity and attribute to find
 
 Guidelines:
+- A measurement is relevant only if it is directly associated with the given entity, attribute, and event.
 - If the table does not contain a relevant measurement, set has_value to false and leave row_index, column_index, and units as null.
-- If a measurement is found, set has_value to true, and provide the exact row_index name and column_index name needed to locate the cell.
-- Your row_index and column_index must exactly match names from the provided lists.
-- Also extract the units of measurement if identifiable from the table headers or context.
-- If there are multiple types of values reported (e.g., mean, min, max), choose the row/column for the mean or central value unless the attribute description directs otherwise.
+- If a relevant measurement is found, set has_value to true and proceed to extract the row index, column index, and units.
+- A row or column index is relevant if it locates the cell containing the measurement for the given entity, attribute, and event.
+- If there are multiple types of relevant measurements reported (e.g., mean, min, max) extract the indices which locate the mean or central value, unless the attribute description unambiguously directs otherwise.
+- Copy the name for the relevant row index directly to the row_index field of your response — do not convert or modify it in any way.
+- Copy the name for the relevant column index directly to the column_index field of your response — do not convert or modify it in any way.
+- Copy the units of measurement directly to the units field of your response — do not convert or modify them in any way. If no units are reported, set units to null.
 - Structure your response as a JSON object with "explanation", "has_value", "row_index", "column_index", and "units" fields.
 """
 
 
-STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Your task is to standardize both the extracted value and the units according to the following guidelines.
+STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units. You will be queried with a complete description of an extracted measurement, as well as a list of available (preferred) units to report in. Your task is to standardize both the extracted measurement's value and units according to the following guidelines.
 
 Value standardization guidelines:
 - For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information, unless the queried attribute specifically directs otherwise.
 - For numerical values reported as ranges with a central value (e.g., 5 (3-7)) report only the central value, unless the queried attribute specifically directs otherwise.
 - For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
 - For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
-- For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
+- For numerical values which are reported with attached units of measurement or other descriptor, convert the value to a standardized numerical format without any attached units or descriptors.
 - If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
 
 Units standardization guidelines:
-- If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the exact matching entry from the available units list.
+- If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the best matching entry from the available units list. You may infer notational variants based on common scientific usage.
 - If the extracted units are not a notational variant of any available unit (i.e., they would require unit conversion to match, or there are no available units listed), return the extracted units unchanged.
 - If the extracted units are null (not reported), return null.
 
 - Provide a brief explanation of what standardization was applied to both value and units (or why none was needed).
 - Structure your response as a JSON object with "explanation", "value", and "units" fields.
-"""
-
-
-# --------------------------------------------
-# Measurement Event Resolution
-# --------------------------------------------
-
-MEASUREMENT_EVENT_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify all distinct measurement events for a given entity and attribute on a page of text from a research paper.
-
-Guidelines:
-- You will be provided with a single page of text from a research paper, a description of an entity, and a description of a measurement attribute.
-- A measurement event is a specific instance of the attribute being measured for the entity — distinguished by contextual factors such as date, method, treatment condition, or other identifying information.
-- For each distinct measurement event you identify, populate its fields as completely as the page text allows. Use ONLY information explicitly stated on the page. Do not infer, guess, or derive any field value. If a field value is not explicitly stated, set it to None.
-- IMPORTANT: Do NOT produce multiple events that differ only by having a subset of the same information. Each event must capture as much identifying context as the text provides for that measurement. If date, method, and substrate are all stated for a particular measurement, output one event with all three fields populated — not three separate events for each possible subset.
-- If the page contains no directly reported numerical measurements for the described entity and attribute, return an empty items list.
-- Structure your response as a JSON object with an "items" list.
 """
 
 

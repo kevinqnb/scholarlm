@@ -852,9 +852,8 @@ class MeasurementLM:
                     query = (
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
-                        f"Attribute description: {attr_description}\n\n"
-                        f"Enumerate all distinct measurement events for the above entity "
-                        f"and attribute found on this page.\n\n"
+                        f"Attribute description: {attr_description}\n"
+                        f"Identify all distinct measurement events for the given entity and attribute.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
@@ -942,7 +941,6 @@ class MeasurementLM:
                     continue
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
-                unit_options = self.attribute_info_dict[attr_name].get('units', [])
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
 
                 pair_record = record | {
@@ -954,14 +952,6 @@ class MeasurementLM:
                     page_text = self._get_page_text(context, p)
                     if not page_text:
                         continue
-
-                    units_guidance = ""
-                    if unit_options:
-                        units_guidance = (
-                            f"Preferred unit options: {unit_options}. "
-                            f"Strongly prioritize choosing the best option from this list. "
-                            f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
-                        )
 
                     # Determine measurement events for this (entity, attribute, page)
                     if event_resolution is not None:
@@ -982,7 +972,6 @@ class MeasurementLM:
                             f"Terminology used for the attribute: {terms}\n"
                             f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\n{units_guidance}"
                             f"Does this page contain a measured value for the given attribute and entity? "
                             f"If yes, extract the value and its units.\n\n"
                         )
@@ -1118,7 +1107,6 @@ class MeasurementLM:
                     continue
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
-                unit_options = self.attribute_info_dict[attr_name].get('units', [])
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
 
                 pair_record = record | {
@@ -1132,14 +1120,6 @@ class MeasurementLM:
                         continue
                     table_text, row_names, column_names = parsed
                     table_page_number = table_to_page.get(t)
-
-                    units_guidance = ""
-                    if unit_options:
-                        units_guidance = (
-                            f"Preferred unit options: {unit_options}. "
-                            f"Strongly prioritize choosing the best option from this list. "
-                            f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
-                        )
 
                     # Determine measurement events for this (entity, attribute, page)
                     if event_resolution is not None:
@@ -1164,7 +1144,6 @@ class MeasurementLM:
                             f"{event_context}"
                             f"\nRow names in the table: {row_names}\n"
                             f"Column names in the table: {column_names}\n\n"
-                            f"{units_guidance}"
                             f"Does this table contain a measured value for the given attribute and entity? "
                             f"If yes, provide the row_index and column_index names, and the units.\n\n"
                         )
