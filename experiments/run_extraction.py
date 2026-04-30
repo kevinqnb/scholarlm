@@ -26,10 +26,10 @@ import argparse
 import importlib.util
 import json
 import os
-import random
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -45,9 +45,7 @@ from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 from model_registry import MODEL_REGISTRY
 import paths
-
-# Reproducibility
-random.seed(342)
+from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -622,6 +620,9 @@ def run_pipeline(
         ]
         text = mlm._clean_tables(text, processed_pdf_dirs)
 
+    gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
+
+    start_time = time.time()
     if final_only:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -632,6 +633,17 @@ def run_pipeline(
         output_dir.mkdir(parents=True, exist_ok=True)
         _run_all_steps(mlm, text, text_info, output_dir, resume=resume)
 
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ocr_dir=effective_ocr_dir,
+        gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+    )
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
 
 
@@ -829,6 +841,11 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit("error: --final-only and --step are mutually exclusive.")
     if args.resume and args.step:
         raise SystemExit("error: --resume has no effect when --step is given.")
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)

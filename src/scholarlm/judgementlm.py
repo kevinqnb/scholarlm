@@ -102,6 +102,7 @@ class JudgementLM:
         self.head_dim = getattr(self.llm.config, 'head_dim', None) or (self.llm.config.hidden_size // self.n_heads)
         self.hidden_size = self.llm.config.hidden_size
 
+        self.max_prompt_tokens: int = 0
         self.responses = []
         self.parametric_score_arrays = []
         self.context_score_array = []
@@ -190,6 +191,7 @@ class JudgementLM:
             instructions, context, query, self.tokenizer
         )
         prompt_len = len(tokenized_prompt)
+        self.max_prompt_tokens = max(self.max_prompt_tokens, prompt_len)
 
         llm_device = self.llm.device
         tensor_device = self.tensor_device

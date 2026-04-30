@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,7 @@ FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
 
 from run_extraction import load_dataset_config
 import paths
+from utils import set_seeds, write_run_metadata
 
 # ---------------------------------------------------------------------------
 # Diagnostics
@@ -191,6 +193,7 @@ def _process(
     state_file: str,
     extraction_date: str | None = None,
     ablation: str | None = None,
+    start_time: float | None = None,
 ) -> None:
     """Fetch results from a completed batch and write responses.json."""
     state = json.loads(Path(state_file).read_text())
@@ -235,6 +238,15 @@ def _process(
     with open(responses_file, "w") as f:
         json.dump(data_out, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_provider=provider,
+        judge_model=frontier_model,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +295,7 @@ def run_frontier_judge(
     if state_file is None:
         state_file = str(output_dir / f".batch_state_{provider}.json")
 
+    start_time = time.time()
     _submit(
         dataset_config=dataset_config,
         extraction_model=extraction_model,
@@ -319,6 +332,7 @@ def run_frontier_judge(
         state_file=state_file,
         extraction_date=extraction_date,
         ablation=ablation,
+        start_time=start_time,
     )
 
 
@@ -381,6 +395,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
     input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)

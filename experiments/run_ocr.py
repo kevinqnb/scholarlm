@@ -1,12 +1,16 @@
 """
 OCR pipeline runner.
 
-Runs olmOCR on all PDF files for a dataset, writing plain-text output to:
+Runs olmOCR on all PDF files for a dataset by calling a running vLLM server
+(OpenAI-compatible API), writing plain-text output to:
 
     data/{dataset}/ocr_output_raw/
 
-Use ``--resume`` to skip PDFs that already have a corresponding ``.txt`` file in
-the output directory.
+Start the OCR model server first:
+    qsub experiments/serve_olmocr.sh
+
+Use ``--resume`` to skip PDFs that already have a corresponding ``.txt`` file
+in the output directory.
 
 Usage
 -----
@@ -16,63 +20,33 @@ Usage
     python experiments/run_ocr.py --dataset pond \\
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
+    # Point at a non-default server:
+    python experiments/run_ocr.py --dataset pond \\
+        --api-base http://node042:8081/v1
+
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
 """
 from __future__ import annotations
 
 import argparse
-import importlib.util
-import random
 import sys
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Path setup — make scholarlm importable when run directly from the repo root
+# Path setup — make scholarlm and utils importable when run from the repo root
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
+_EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
-import torch
 from scholarlm import DocumentLM
-from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 from olmocr.prompts import build_no_anchoring_v4_yaml_prompt as olmocr_prompt
 
-# Reproducibility
-random.seed(342)
-torch.manual_seed(342)
-torch.cuda.manual_seed(342)
-
-# ---------------------------------------------------------------------------
-# OCR model
-# ---------------------------------------------------------------------------
-
-OCR_MODEL = "allenai/olmOCR-2-7B-1025-FP8"
-
-# ---------------------------------------------------------------------------
-# Config loading
-# ---------------------------------------------------------------------------
-
-
-def load_dataset_config(name: str) -> DatasetConfig:
-    """Load a DatasetConfig by name from experiments/configs/<name>.py."""
-    config_path = _CONFIGS_DIR / f"{name}.py"
-    if not config_path.exists():
-        available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
-        raise FileNotFoundError(
-            f"No config found for dataset '{name}'. "
-            f"Available datasets: {available}"
-        )
-    spec = importlib.util.spec_from_file_location(f"_dataset_config_{name}", config_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    if not hasattr(mod, "CONFIG"):
-        raise AttributeError(
-            f"Config file {config_path} must define a module-level 'CONFIG' variable "
-            f"of type DatasetConfig."
-        )
-    return mod.CONFIG
+from run_extraction import load_dataset_config
+from utils import load_config, set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -81,14 +55,22 @@ def load_dataset_config(name: str) -> DatasetConfig:
 
 
 def run_ocr(
-    dataset_config: DatasetConfig,
+    dataset_config,
+    model_id: str,
+    sampling_params: dict,
+    api_base: str = "http://localhost:8081/v1",
+    api_key: str = "EMPTY",
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
 ) -> None:
-    """Run olmOCR on all PDFs for a dataset.
+    """Run olmOCR on all PDFs for a dataset via a vLLM server.
 
     Args:
         dataset_config: Dataset configuration loaded from experiments/configs/.
+        model_id: HuggingFace model ID string (must match what the server is serving).
+        sampling_params: Sampling parameters forwarded to DocumentLM.
+        api_base: Base URL of the vLLM OpenAI-compatible server.
+        api_key: API key for the server (use "EMPTY" for local vLLM).
         paper_subset_override: If provided, process only these paper codes
             (filename stems without .pdf).
         resume: If True, skip PDFs whose output .txt file already exists.
@@ -119,7 +101,8 @@ def run_ocr(
         return
 
     print(f"\nDataset : {dataset_config.name}")
-    print(f"Model   : {OCR_MODEL}")
+    print(f"Model   : {model_id}")
+    print(f"Server  : {api_base}")
     print(f"Input   : {pdf_dir}")
     print(f"Output  : {output_dir}")
     print(f"Papers  : {len(pdf_files)}\n")
@@ -128,14 +111,26 @@ def run_ocr(
     out_filepaths = [str(output_dir / f.replace(".pdf", ".txt")) for f in pdf_files]
 
     doclm = DocumentLM(
-        model=OCR_MODEL,
+        model_name=model_id,
         ocr_prompt=olmocr_prompt(),
-        sampling_params={"temperature": 0.1, "max_tokens": 8192, "seed": 342},
+        sampling_params=sampling_params,
+        api_base=api_base,
+        api_key=api_key,
     )
 
+    start_time = time.time()
     doclm.fit(filepaths)
     doclm.save(out_filepaths)
     print(f"\nDone. OCR output written to {output_dir}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model_id=model_id,
+        api_base=api_base,
+        papers_processed=len(pdf_files),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +140,7 @@ def run_ocr(
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Run olmOCR on all PDFs for a dataset.",
+        description="Run olmOCR on all PDFs for a dataset via a vLLM server.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -166,14 +161,39 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip PDFs whose output .txt already exists in the output directory.",
     )
+    p.add_argument(
+        "--api-base",
+        default="http://localhost:8081/v1",
+        metavar="URL",
+        help="Base URL of the vLLM server (default: http://localhost:8081/v1).",
+    )
+    p.add_argument(
+        "--api-key",
+        default="EMPTY",
+        metavar="KEY",
+        help="API key for the vLLM server (default: EMPTY).",
+    )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
+
+    ocr_cfg = cfg.get("models", {}).get("olmocr", {})
+    model_id = ocr_cfg.get("model_id", "allenai/olmOCR-7B-0225-preview")
+    sampling_params = ocr_cfg.get("sampling_params", {"temperature": 0.1, "max_tokens": 8192, "seed": 342})
+
     dataset_config = load_dataset_config(args.dataset)
     run_ocr(
         dataset_config=dataset_config,
+        model_id=model_id,
+        sampling_params=sampling_params,
+        api_base=args.api_base,
+        api_key=args.api_key,
         paper_subset_override=args.paper_subset,
         resume=args.resume,
     )

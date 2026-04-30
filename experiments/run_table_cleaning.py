@@ -1,47 +1,65 @@
 """
-Legacy table-cleaning script using the OpenAI API.
+Table-cleaning script using a vLLM server (OpenAI-compatible API).
 
-Cleans and normalizes tables in OCR-processed text files using an OpenAI model.
-For each PDF/text pair the cleaner re-renders pages that contain ``<table>`` tags
-using the PDF image, then rewrites the table into a normalized, machine-readable
-format.
+Cleans and normalizes tables in OCR-processed text files using a local
+open-source model served by vLLM.  For each page that contains ``<table>``
+tags the model is shown the pre-rendered page image and asked to correct
+the table markup.  Pages without tables are returned unchanged.
 
-For local (vLLM) table cleaning, use ``run_extraction.py`` without ``--ocr-dir``:
-the extraction model cleans tables automatically before running extraction.
+The vLLM server must be started separately before running this script.
+See the vLLM startup examples below.
 
 Results are written to:
 
-    data/{dataset}/ocr_output_cleaned_openai_{model_tag}/
+    data/{dataset}/ocr_output_cleaned_{model_name}/
 
-where ``model_tag`` is derived from the model name with ``/``, ``-``, and ``.``
-replaced by ``_``.  The output directory can then be passed to
-``run_extraction.py`` via ``--ocr-dir`` to skip the integrated cleaning step.
+where ``model_name`` is the short key from the model registry (e.g.
+``gemma-3-27b``).  This directory can then be passed to ``run_extraction.py``
+via ``--ocr-dir`` to skip the integrated cleaning step.
+
+Prerequisites
+-------------
+1. Run ``process_pdfs.py`` first (preprocessing environment) to produce
+   pre-rendered page images at ``data/{dataset}/processed_pdfs/``.
+
+2. Start a vLLM server serving the chosen model, e.g.:
+
+       vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \\
+           --tensor-parallel-size 1 --port 8000
+
+   Wait for "Application startup complete" before running this script.
 
 Usage
 -----
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gpt-4o-mini
+    python experiments/run_vllm_table_cleaning.py \\
+        --dataset pond --model gemma-3-27b
 
-    # Resume a partial run:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gpt-4o-mini --resume
+    # Resume a partial run (skip papers whose output file already exists):
+    python experiments/run_vllm_table_cleaning.py \\
+        --dataset pond --model gemma-3-27b --resume
 
-    # Override the input OCR directory:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gpt-4o-mini \\
-        --input-dir data/pond/ocr_output_raw
+    # Custom server URL:
+    python experiments/run_vllm_table_cleaning.py \\
+        --dataset pond --model gemma-3-27b \\
+        --api-base http://gpu-node-01:8000/v1
+
+    # Custom input/output directories:
+    python experiments/run_vllm_table_cleaning.py \\
+        --dataset pond --model gemma-3-27b \\
+        --ocr-dir data/pond/ocr_output_raw \\
+        --output-dir data/pond/ocr_output_cleaned_gemma-3-27b
 
     # Process a subset of papers:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gpt-4o-mini \\
-        --paper-subset physical_and_chemical_limnological prairie_wetland
+    python experiments/run_vllm_table_cleaning.py \\
+        --dataset pond --model gemma-3-27b \\
+        --paper-subset paper_a paper_b
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available models:   keys of MODEL_REGISTRY in experiments/run_extraction.py.
 """
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -49,145 +67,109 @@ from pathlib import Path
 # Path setup — make scholarlm importable when run directly from the repo root
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
+_EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
-from dotenv import load_dotenv
-load_dotenv()
-
-from scholarlm import TableCleaner
-from scholarlm.config import DatasetConfig
-from scholarlm.utils import get_filenames_in_directory
-
-
-# ---------------------------------------------------------------------------
-# Config loading
-# ---------------------------------------------------------------------------
-
-
-def load_dataset_config(name: str) -> DatasetConfig:
-    """Load a DatasetConfig by name from experiments/configs/<name>.py."""
-    config_path = _CONFIGS_DIR / f"{name}.py"
-    if not config_path.exists():
-        available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
-        raise FileNotFoundError(
-            f"No config found for dataset '{name}'. "
-            f"Available datasets: {available}"
-        )
-    spec = importlib.util.spec_from_file_location(f"_dataset_config_{name}", config_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    if not hasattr(mod, "CONFIG"):
-        raise AttributeError(
-            f"Config file {config_path} must define a module-level 'CONFIG' variable "
-            f"of type DatasetConfig."
-        )
-    return mod.CONFIG
+# Import shared registry and helpers from run_extraction to keep model list
+# and config loading in sync.
+from run_extraction import MODEL_REGISTRY, load_dataset_config, get_model_config, load_papers
+from scholarlm import MeasurementLM
+from scholarlm.config import DatasetConfig, ModelConfig
+from utils import set_seeds
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Main cleaning function
 # ---------------------------------------------------------------------------
 
 
-def _model_tag(model: str) -> str:
-    """Return a filesystem-safe tag derived from the model name."""
-    return model.replace("/", "_").replace("-", "_").replace(".", "_").lower()
-
-
-# ---------------------------------------------------------------------------
-# Main pipeline
-# ---------------------------------------------------------------------------
-
-
-def run_table_cleaning(
+def run_vllm_table_cleaning(
     dataset_config: DatasetConfig,
-    model: str,
-    input_dir: str | None = None,
+    model_config: ModelConfig,
+    ocr_dir: str | None = None,
     output_dir: str | None = None,
-    rate_limit: int = 100,
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
+    api_base: str = "http://localhost:8000/v1",
+    api_key: str = "EMPTY",
 ) -> None:
-    """Clean tables in OCR text files using the OpenAI API.
+    """Clean tables in OCR text files using a vLLM-served model.
+
+    Loads raw OCR text, passes each page with tables through the model
+    (alongside its pre-rendered page image), and writes cleaned texts to
+    ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from experiments/configs/.
-        model: OpenAI model name (e.g. ``"gpt-4o-mini"``).
-        input_dir: Directory containing OCR ``.txt`` files.  Defaults to
+        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        model_config: Model configuration from ``MODEL_REGISTRY``.
+        ocr_dir: Input directory of ``.txt`` OCR files.  Defaults to
             ``{data_dir}/ocr_output_raw/``.
         output_dir: Destination directory for cleaned ``.txt`` files.  Defaults
-            to ``{data_dir}/ocr_output_cleaned_openai_{model_tag}/``.
-        rate_limit: Max requests per minute.
-        paper_subset_override: If provided, process only these paper codes
-            (filename stems without .pdf).
-        resume: If True, skip files whose output .txt already exists.
+            to ``{data_dir}/ocr_output_cleaned_{model_name}/``.
+        paper_subset_override: If provided, process only these paper codes.
+        resume: If ``True``, skip papers whose output ``.txt`` already exists.
+        api_base: Base URL of the vLLM OpenAI-compatible server.
+        api_key: API key for the vLLM server (any non-empty string works).
     """
     data_dir = Path(dataset_config.data_dir)
-    pdf_dir = data_dir / "pdfs"
+    effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
+    effective_output_dir = Path(output_dir) if output_dir else data_dir / f"ocr_output_cleaned_{model_config.name}"
 
-    ocr_input = Path(input_dir) if input_dir else data_dir / "ocr_output_raw"
-    tag = f"openai_{_model_tag(model)}"
-    ocr_output = Path(output_dir) if output_dir else data_dir / f"ocr_output_cleaned_{tag}"
-    ocr_output.mkdir(parents=True, exist_ok=True)
+    print(f"\nDataset   : {dataset_config.name}")
+    print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"OCR input : {effective_ocr_dir}")
+    print(f"Output    : {effective_output_dir}")
+    print(f"API base  : {api_base}\n")
 
-    print(f"\nDataset  : {dataset_config.name}")
-    print(f"Model    : {model}")
-    print(f"Input    : {ocr_input}")
-    print(f"Output   : {ocr_output}\n")
-
-    # Discover PDFs — drives the file list so we can pair PDFs with text files.
-    pdf_files = get_filenames_in_directory(str(pdf_dir), ignore=[".DS_Store", ".gitkeep"])
-    pdf_files = [f for f in pdf_files if f.endswith(".pdf")]
-    pdf_files.sort()
-
-    if paper_subset_override is not None:
-        subset_set = set(paper_subset_override)
-        pdf_files = [f for f in pdf_files if f.replace(".pdf", "") in subset_set]
-
-    # Only keep PDFs that have an OCR text file in the input directory.
-    available = [f for f in pdf_files if (ocr_input / f.replace(".pdf", ".txt")).exists()]
-    missing = len(pdf_files) - len(available)
-    if missing:
-        print(f"Warning: {missing} PDF(s) have no OCR text in {ocr_input} — skipping.")
-    pdf_files = available
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
+    print(f"Loaded {len(text)} papers.")
 
     if resume:
-        before = len(pdf_files)
-        pdf_files = [
-            f for f in pdf_files
-            if not (ocr_output / f.replace(".pdf", ".txt")).exists()
-        ]
-        print(f"Resume: {before - len(pdf_files)} already done, {len(pdf_files)} remaining.")
+        pending_text = []
+        pending_info = []
+        for t, info in zip(text, text_info):
+            out_file = effective_output_dir / f"{info['document_id']}.txt"
+            if out_file.exists():
+                print(f"  Skipping {info['document_id']} (already cleaned).")
+            else:
+                pending_text.append(t)
+                pending_info.append(info)
+        skipped = len(text) - len(pending_text)
+        print(f"Resume: {skipped} already done, {len(pending_text)} remaining.\n")
+        text = pending_text
+        text_info = pending_info
 
-    if not pdf_files:
-        print("No files to process.")
+    if not text:
+        print("Nothing to clean.")
         return
 
-    print(f"Processing {len(pdf_files)} file(s)...")
+    processed_pdf_root = data_dir / "processed_pdfs"
+    if not processed_pdf_root.exists():
+        raise FileNotFoundError(
+            f"Processed PDF directory not found: {processed_pdf_root}\n"
+            f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
+        )
+    processed_pdf_dirs = [str(processed_pdf_root / info["document_id"]) for info in text_info]
 
-    pdf_filepaths = [str(pdf_dir / f) for f in pdf_files]
-    txt_in = [str(ocr_input / f.replace(".pdf", ".txt")) for f in pdf_files]
-    txt_out = [str(ocr_output / f.replace(".pdf", ".txt")) for f in pdf_files]
-
-    texts = []
-    for p in txt_in:
-        with open(p, "r", encoding="utf-8") as fh:
-            texts.append(fh.read())
-
-    cleaner = TableCleaner(
-        backend="openai",
-        openai_model=model,
-        openai_rate_limit=rate_limit,
-        sampling_params={"max_completion_tokens": 16384},
-        target_longest_dim=1536,
+    mlm = MeasurementLM(
+        model_name=model_config.model_id,
+        entity_identification_prompt="",
+        entity_identification_schema=dataset_config.entity_schema,
+        attribute_info_dict=dataset_config.attribute_info_dict,
+        sampling_params=model_config.sampling_params,
+        api_base=api_base,
+        api_key=api_key,
+        clean_tables=True,
+        cleaned_ocr_output_dir=str(effective_output_dir),
     )
 
-    cleaned_texts = cleaner.clean(texts=texts, pdf_paths=pdf_filepaths)
-    cleaner.save(cleaned_texts, txt_out)
-    print(f"\nDone. Cleaned texts written to {ocr_output}")
-    print(f"\nTo use these cleaned texts for extraction, pass:")
-    print(f"  --ocr-dir {ocr_output}")
+    print(f"Cleaning tables for {len(text)} paper(s)...")
+    mlm._clean_tables(text, processed_pdf_dirs)
+
+    print(f"\nDone. Cleaned texts written to {effective_output_dir}")
+    print(f"To use these cleaned texts for extraction, pass:")
+    print(f"  --ocr-dir {effective_output_dir}")
     print(f"to run_extraction.py.")
 
 
@@ -198,7 +180,7 @@ def run_table_cleaning(
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Clean tables in OCR text files using the OpenAI API.",
+        description="Clean tables in OCR text files using a vLLM-served model.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -210,13 +192,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--model",
         required=True,
-        help="OpenAI model name (e.g. 'gpt-4o-mini', 'gpt-4o').",
+        choices=sorted(MODEL_REGISTRY.keys()),
+        help="Model key from MODEL_REGISTRY in run_extraction.py.",
     )
     p.add_argument(
-        "--input-dir",
+        "--ocr-dir",
         default=None,
         metavar="DIR",
-        help="OCR input directory (default: data/{dataset}/ocr_output_raw/).",
+        help="Input OCR directory (default: data/{dataset}/ocr_output_raw/).",
     )
     p.add_argument(
         "--output-dir",
@@ -224,42 +207,54 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help=(
             "Output directory for cleaned texts "
-            "(default: data/{dataset}/ocr_output_cleaned_openai_{model_tag}/)."
+            "(default: data/{dataset}/ocr_output_cleaned_{model_name}/)."
         ),
-    )
-    p.add_argument(
-        "--rate-limit",
-        type=int,
-        default=100,
-        metavar="RPM",
-        help="Max requests per minute (default: 100).",
     )
     p.add_argument(
         "--paper-subset",
         nargs="+",
         default=None,
         metavar="PAPER_CODE",
-        help="Process only these paper codes (filename stems without .pdf).",
+        help="Process only these paper codes (overrides the config's default subset).",
     )
     p.add_argument(
         "--resume",
         action="store_true",
-        help="Skip files whose output .txt already exists in the output directory.",
+        help="Skip papers whose output .txt already exists in the output directory.",
+    )
+    p.add_argument(
+        "--api-base",
+        default="http://localhost:8081/v1",
+        metavar="URL",
+        help="Base URL of the vLLM OpenAI-compatible server (default: http://localhost:8081/v1).",
+    )
+    p.add_argument(
+        "--api-key",
+        default="EMPTY",
+        metavar="KEY",
+        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    set_seeds(cfg.get("defaults", {}).get("seed", 342))
+
     dataset_config = load_dataset_config(args.dataset)
-    run_table_cleaning(
+    model_config = get_model_config(args.model)
+    run_vllm_table_cleaning(
         dataset_config=dataset_config,
-        model=args.model,
-        input_dir=args.input_dir,
+        model_config=model_config,
+        ocr_dir=args.ocr_dir,
         output_dir=args.output_dir,
-        rate_limit=args.rate_limit,
         paper_subset_override=args.paper_subset,
         resume=args.resume,
+        api_base=args.api_base,
+        api_key=args.api_key,
     )
 
 

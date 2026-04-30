@@ -25,6 +25,67 @@ if str(_EXPERIMENTS_DIR) not in sys.path:
 
 import paths as _paths
 
+_UTILS_DIR = Path(__file__).parent.parent / "experiments"
+if str(_UTILS_DIR) not in sys.path:
+    sys.path.insert(0, str(_UTILS_DIR))
+
+import utils as _utils
+
+
+def load_run_metadata(output_dir: Path) -> dict | None:
+    """Load run_metadata.json from an output directory, or return None if absent."""
+    return _utils.load_run_metadata(output_dir)
+
+
+def check_run_for_issues(
+    dataset: str,
+    model: str,
+    date: str | None = None,
+    ablation: str | None = None,
+    *,
+    raise_on_warning: bool = False,
+) -> list[str]:
+    """Load run_metadata.json and return any recorded compatibility warnings.
+
+    Args:
+        dataset: Dataset name.
+        model: Extraction model short name.
+        date: Optional date tag.
+        ablation: Optional ablation number.
+        raise_on_warning: If True, raise RuntimeError when warnings are present.
+
+    Returns:
+        List of warning strings from ``gpu_compatibility_warnings``; empty if clean.
+    """
+    import warnings
+
+    if ablation is not None:
+        base = _paths.EXPERIMENTS_ROOT / dataset / "ablations" / f"ablation{ablation}" / model
+    else:
+        base = _paths.EXPERIMENTS_ROOT / dataset / "extraction" / model
+
+    if date:
+        output_dir = base / date
+    else:
+        date_dirs = sorted(base.iterdir(), reverse=True) if base.exists() else []
+        output_dir = next(
+            (d for d in date_dirs if (d / "final.json").exists()),
+            base,
+        )
+
+    meta = load_run_metadata(output_dir)
+    if meta is None:
+        return []
+
+    issues = meta.get("gpu_compatibility_warnings", [])
+    for w in issues:
+        msg = f"Run {dataset}/{model}/{output_dir.name}: {w}"
+        if raise_on_warning:
+            raise RuntimeError(msg)
+        warnings.warn(msg, stacklevel=2)
+
+    return issues
+
 
 def load_extraction(
     dataset: str, model: str, date: str | None = None

@@ -40,8 +40,8 @@ import asyncio
 import json
 import math
 import os
-import random
 import sys
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -61,11 +61,10 @@ from openai import AsyncOpenAI
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 
-random.seed(342)
-
 from model_registry import VLLM_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 import paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +115,7 @@ async def _judge_one(
     return {
         "judgement": judgement,
         "judgement_model": response.model,
+        "_prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
     }
 
 
@@ -176,6 +176,7 @@ def run_local_vllm_judge(
     print(f"Sending {len(chat_entries)} requests to {api_base} (model: {model_id}) ...")
     print(f"max_concurrent={max_concurrent}\n")
 
+    start_time = time.time()
     client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
     sem = asyncio.Semaphore(max_concurrent)
 
@@ -188,6 +189,8 @@ def run_local_vllm_judge(
 
     raw_results = asyncio.run(_run_all())
 
+    max_pt = max((r.get("_prompt_tokens", 0) or 0) for r in raw_results)
+
     # Map results back to the original data order using custom_id
     result_by_orig_idx: dict[int, dict] = {}
     for entry, result in zip(chat_entries, raw_results):
@@ -197,13 +200,23 @@ def run_local_vllm_judge(
     judged_data: list[dict] = []
     for i, record in enumerate(data):
         result = result_by_orig_idx.get(i, {})
-        judged_data.append(record | result)
+        judged_data.append(record | {k: v for k, v in result.items() if k != "_prompt_tokens"})
 
     output_dir.mkdir(parents=True, exist_ok=True)
     responses_file = output_dir / "responses.json"
     with open(responses_file, "w") as f:
         json.dump(judged_data, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_model=judge_key,
+        judge_model_id=model_id,
+        max_prompt_tokens=max_pt,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +267,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
     input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)

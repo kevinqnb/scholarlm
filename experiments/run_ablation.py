@@ -33,7 +33,9 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
+
 
 # ---------------------------------------------------------------------------
 # Path setup — make scholarlm and run_extraction importable
@@ -59,6 +61,7 @@ from run_extraction import (
     load_papers,
 )
 import paths
+from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------
 # Ablation registry
@@ -243,7 +246,10 @@ def run_ablation(
         # Tables are now cleaned; disable the check inside fit() to avoid a second pass.
         mlm.clean_tables = False
 
+    gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
+
     print("Running ablation pipeline...")
+    start_time = time.time()
     data = mlm.fit(text)
 
     dataset = [
@@ -257,6 +263,16 @@ def run_ablation(
     with open(out_path, "w") as f:
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ablation=ablation,
+        gpu_compatibility_warnings=gpu_warnings,
+    )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")
 
@@ -332,6 +348,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)

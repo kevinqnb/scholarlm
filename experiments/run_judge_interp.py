@@ -39,8 +39,8 @@ import argparse
 import json
 import math
 import os
-import random
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -63,13 +63,10 @@ from scholarlm import JudgementLM
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 
-random.seed(342)
-torch.manual_seed(342)
-torch.cuda.manual_seed(342)
-
 from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 import paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +145,7 @@ def run_interp_judge(
         nnsight_kwargs=judge_cfg["nnsight_kwargs"],
     )
 
+    start_time = time.time()
     responses = llm.predict(messages)
 
     # Map results back to original data order via custom_id.
@@ -195,6 +193,16 @@ def run_interp_judge(
         layer_file = output_dir / "layer_outputs.npz"
         np.savez_compressed(layer_file, **layer_output_dict)
         print(f"Layer outputs saved to {layer_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_model=judge_key,
+        judge_model_id=judge_cfg["model_id"],
+        max_prompt_tokens=llm.max_prompt_tokens,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +261,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
 

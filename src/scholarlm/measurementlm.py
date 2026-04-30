@@ -153,6 +153,7 @@ class MeasurementLM:
         self.measurement_event_schema = measurement_event_schema
         self.measurement_event_prompt = measurement_event_prompt
         self.use_extra_body = use_extra_body
+        self.max_prompt_tokens: int = 0
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -203,6 +204,9 @@ class MeasurementLM:
                 kwargs["extra_body"] = extra
         try:
             response = await self.async_client.chat.completions.create(**kwargs)
+            if response.usage is not None and response.usage.prompt_tokens:
+                if response.usage.prompt_tokens > self.max_prompt_tokens:
+                    self.max_prompt_tokens = response.usage.prompt_tokens
             return response.choices[0].message.content
         except Exception as e:
             print(f"API call failed: {e}")

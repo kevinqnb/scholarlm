@@ -50,6 +50,7 @@ import json
 import os
 import random
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,7 @@ FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
 
 from run_extraction import load_dataset_config
 import paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +97,7 @@ async def _judge_openai(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -110,6 +113,7 @@ async def _judge_openai(
                         call_kwargs["temperature"] = temperature
                     resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                pt = resp.usage.prompt_tokens if resp.usage else 0
                 break
             except openai.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -129,6 +133,7 @@ async def _judge_openai(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -148,6 +153,7 @@ async def _judge_anthropic(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -184,6 +190,7 @@ async def _judge_anthropic(
                 raw = "".join(
                     block.text for block in (resp.content or []) if hasattr(block, "text")
                 ).strip()
+                pt = resp.usage.input_tokens if resp.usage else 0
                 break
             except anthropic.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -203,6 +210,7 @@ async def _judge_anthropic(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -228,6 +236,7 @@ async def _judge_gemini(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -243,6 +252,7 @@ async def _judge_gemini(
                         call_kwargs["temperature"] = temperature
                     resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                pt = resp.usage.prompt_tokens if resp.usage else 0
                 break
             except openai.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -262,6 +272,7 @@ async def _judge_gemini(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -327,16 +338,29 @@ def run_frontier_judge_v2(
     print(f"Calling {provider} ({frontier_model}) for {len(chat_entries)} entries "
           f"[max_concurrent={max_concurrent}] ...")
 
+    start_time = time.time()
     results = asyncio.run(
         _run_judge_async(chat_entries, provider, frontier_model, max_tokens, temperature, max_concurrent)
     )
 
-    data_out = batch_common.merge_results(data, results)
+    max_pt = max((v.get("_prompt_tokens", 0) or 0) for v in results.values())
+    results_clean = {k: {kk: vv for kk, vv in v.items() if kk != "_prompt_tokens"} for k, v in results.items()}
+    data_out = batch_common.merge_results(data, results_clean)
     output_dir.mkdir(parents=True, exist_ok=True)
     responses_file = output_dir / "responses.json"
     with open(responses_file, "w") as f:
         json.dump(data_out, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_provider=provider,
+        judge_model=frontier_model,
+        max_prompt_tokens=max_pt,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +412,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
     input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)

@@ -112,10 +112,11 @@ class ModelConfig:
             (e.g. ``"qwen-2.5-72b"``).
         model_id: HuggingFace model ID (vLLM) or API model name (frontier).
             Also used as the ``model`` field in API requests.
+        hf_revision: HuggingFace commit SHA pinned for reproducibility.
+            ``None`` means the default branch HEAD was used (less reproducible).
         sampling_params: Generation parameters forwarded to the API.
             Supported keys: ``temperature``, ``top_p``, ``top_k``,
-            ``max_tokens``, ``repetition_penalty``.  ``seed`` is not forwarded
-            (the OpenAI-compatible API does not support it).
+            ``max_tokens``, ``repetition_penalty``, ``seed``.
         api_base: API base URL for frontier models (e.g.
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``
@@ -124,6 +125,7 @@ class ModelConfig:
 
     name: str
     model_id: str
+    hf_revision: str | None = None
     sampling_params: dict = field(
         default_factory=lambda: {
             "temperature": 0.1,
