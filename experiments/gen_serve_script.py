@@ -16,6 +16,7 @@ All runtime paths still come from environment variables (VLLM_SIF_DIR, etc.).
 from __future__ import annotations
 
 import argparse
+import os
 import stat
 import sys
 from pathlib import Path
@@ -44,7 +45,7 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
     model_id: str = model_cfg["model_id"]
     name = _script_name(model_key)
 
-    sge_project: str = cluster.get("sge_project", "")
+    sge_project: str = cluster.get("sge_project", "") or os.environ.get("SGE_PROJECT", "")
     sge_mail: str = cluster.get("sge_mail_events", "e")
 
     walltime: str = serve["walltime"]
