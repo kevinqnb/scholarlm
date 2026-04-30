@@ -5,7 +5,7 @@ Supports two probability sources:
 1. **Probe probabilities** — ``predict_proba`` output from a trained probe
    (``scholarlm.utils.probe``).
 2. **Next-token probabilities** — ``judgement_p_true`` values stored by
-   ``run_judge.py`` in ``responses.json`` (local judges) or frontier judge
+   ``run_judge_local.py`` in ``responses.json`` (local judges) or frontier judge
    response files.
 
 Typical usage

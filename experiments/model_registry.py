@@ -1,20 +1,17 @@
 """
 Central model registry for all experiment runners.
 
-Defines four registries imported by the various runner scripts:
+Defines three registries imported by the various runner scripts:
 
     MODEL_REGISTRY         — extraction models (ModelConfig); used by
                              run_extraction.py, run_ablation.py,
-                             run_vllm_table_cleaning.py.
+                             run_table_cleaning.py.
 
     INTERP_JUDGE_REGISTRY  — NNsight/JudgementLM judge models; used by
-                             run_judge.py and run_judge_interp.py.
+                             run_judge_interp.py.
 
     VLLM_JUDGE_REGISTRY    — vLLM logprob judge models; used by
                              run_judge_local.py.
-
-    FRONTIER_JUDGE_PROVIDERS — set of supported frontier batch-API
-                               judge providers; used by run_judge.py.
 """
 from __future__ import annotations
 
@@ -145,8 +142,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
 # ---------------------------------------------------------------------------
 # Interpretability / NNsight judge registry
 #
-# Used by run_judge.py (as LOCAL_JUDGE_REGISTRY) and run_judge_interp.py
-# (as JUDGE_REGISTRY).  Merged from both runners' prior inline definitions.
+# Used by run_judge_interp.py (as JUDGE_REGISTRY).
 # ---------------------------------------------------------------------------
 
 INTERP_JUDGE_REGISTRY: dict[str, dict] = {
@@ -195,10 +191,3 @@ VLLM_JUDGE_REGISTRY: dict[str, dict] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Frontier batch-API judge providers
-#
-# Used by run_judge.py (as FRONTIER_PROVIDERS).
-# ---------------------------------------------------------------------------
-
-FRONTIER_JUDGE_PROVIDERS: set[str] = {"openai", "anthropic", "gemini"}

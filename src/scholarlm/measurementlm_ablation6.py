@@ -90,14 +90,9 @@ class MeasurementLMAblation6(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _detect_attributes(self):
-        """
-        CHANGED: uses DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS
-        and BatchAttributeDetectionResponseNoExp (no explanation field).
-        """
         attr_names = list(self.attribute_info_dict.keys())
         attribute_list_text = self._format_attribute_list()
 
-        # CHANGED: no-explanation schema
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -116,7 +111,6 @@ class MeasurementLMAblation6(MeasurementLM):
                 f"contains any direct numerical measurements for that attribute. "
                 f"Return one item per attribute using the exact attribute name.\n\n"
             )
-            # CHANGED: no-explanation prompt
             prompt = (
                 f"## Instructions:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
                 f"## Context:\n{context}\n\n## Query:\n{query}"
@@ -137,7 +131,6 @@ class MeasurementLMAblation6(MeasurementLM):
         for msg_idx, resp in enumerate(response_texts):
             doc_idx = message_ids[msg_idx]
             try:
-                # CHANGED: no-explanation schema
                 batch = response_validator(BatchAttributeDetectionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in batched attribute detection response: {e}")
@@ -175,10 +168,6 @@ class MeasurementLMAblation6(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _entity_provenance(self, entity_data):
-        """
-        CHANGED: uses ENTITY_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS
-        and ProvenanceResponseNoExp (no explanation field).
-        """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
 
         unique_entities = {}
@@ -206,7 +195,6 @@ class MeasurementLMAblation6(MeasurementLM):
                     f"for the described entity? If yes, indicate whether the data "
                     f"appears in a table or in prose text.\n\n"
                 )
-                # CHANGED: no-explanation prompt
                 prompt = (
                     f"## Instructions:\n{ENTITY_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
                     f"## Context:\n{page_text}\n\n## Query:\n{query}"
@@ -217,7 +205,6 @@ class MeasurementLMAblation6(MeasurementLM):
         if not messages:
             return {}
 
-        # CHANGED: no-explanation schema
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -236,7 +223,6 @@ class MeasurementLMAblation6(MeasurementLM):
         for msg_idx, resp in enumerate(response_texts):
             doc_id, entity_id, page_number = message_ids[msg_idx]
             try:
-                # CHANGED: no-explanation schema
                 result = response_validator(ProvenanceResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in entity provenance response: {e}")
@@ -268,9 +254,7 @@ class MeasurementLMAblation6(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _attribute_provenance(self, doc_attributes):
-        """
-        CHANGED: uses ATTRIBUTE_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS
-        and ProvenanceResponseNoExp (no explanation field).
+        """Overrides attribute provenance to use no-explanation schema.
         """
         messages = []
         message_ids = []  # (doc_id, attr_name, page_number)
@@ -296,7 +280,6 @@ class MeasurementLMAblation6(MeasurementLM):
                         f"for the described attribute? If yes, indicate whether the data "
                         f"appears in a table or in prose text.\n\n"
                     )
-                    # CHANGED: no-explanation prompt
                     prompt = (
                         f"## INSTRUCTIONS:\n{ATTRIBUTE_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
                         f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
@@ -307,7 +290,6 @@ class MeasurementLMAblation6(MeasurementLM):
         if not messages:
             return {}
 
-        # CHANGED: no-explanation schema
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -326,7 +308,6 @@ class MeasurementLMAblation6(MeasurementLM):
         for msg_idx, resp in enumerate(response_texts):
             doc_id, attr_name, page_number = message_ids[msg_idx]
             try:
-                # CHANGED: no-explanation schema
                 result = response_validator(ProvenanceResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in attribute provenance response: {e}")
@@ -358,11 +339,7 @@ class MeasurementLMAblation6(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _extract_values_from_text(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
-        """
-        CHANGED: uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
-        and TextValueExtractionResponseNoExp (no explanation field).
-        Accepts event_resolution and incorporates event context into the query.
-        """
+        """Accepts event_resolution and incorporates event context into the query."""
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
         message_ids = []  # (record_dict, page_number)
@@ -431,7 +408,6 @@ class MeasurementLMAblation6(MeasurementLM):
                             f"Does this page contain a measured value for the given attribute and entity? "
                             f"If yes, extract the value and its units.\n\n"
                         )
-                        # CHANGED: no-explanation prompt
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
                             f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
@@ -442,7 +418,6 @@ class MeasurementLMAblation6(MeasurementLM):
         if not messages:
             return []
 
-        # CHANGED: no-explanation schema
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -461,7 +436,6 @@ class MeasurementLMAblation6(MeasurementLM):
         for msg_idx, resp in enumerate(response_texts):
             event_record, page_number = message_ids[msg_idx]
             try:
-                # CHANGED: no-explanation schema
                 result = response_validator(TextValueExtractionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in text value extraction response: {e}")
@@ -487,11 +461,7 @@ class MeasurementLMAblation6(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _extract_values_from_tables(self, entity_data, doc_attributes, entity_prov, attr_prov, event_resolution=None):
-        """
-        CHANGED: uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS
-        and TableValueExtractionResponseNoExp (no explanation field).
-        Accepts event_resolution and incorporates event context into the query.
-        """
+        """Accepts event_resolution and incorporates event context into the query."""
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
         message_ids = []  # (record_dict, table_number, page_number)
@@ -600,7 +570,6 @@ class MeasurementLMAblation6(MeasurementLM):
                             f"Does this table contain a measured value for the given attribute and entity? "
                             f"If yes, provide the row_index and column_index names, and the units.\n\n"
                         )
-                        # CHANGED: no-explanation prompt
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
                             f"## CONTEXT:\n{table_text}\n\n## QUERY:\n{query}"
@@ -611,7 +580,6 @@ class MeasurementLMAblation6(MeasurementLM):
         if not messages:
             return []
 
-        # CHANGED: no-explanation schema
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -630,7 +598,6 @@ class MeasurementLMAblation6(MeasurementLM):
         for msg_idx, resp in enumerate(response_texts):
             event_record, table_number, page_number = message_ids[msg_idx]
             try:
-                # CHANGED: no-explanation schema
                 result = response_validator(TableValueExtractionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in table value extraction response: {e}")

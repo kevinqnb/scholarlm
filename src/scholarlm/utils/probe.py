@@ -1,7 +1,7 @@
 """
 Logistic-regression probe utilities for JudgementLM attention activations.
 
-Activations are stored by ``run_judge.py`` as ``attention_outputs.npz`` files
+Activations are stored by ``run_judge_interp.py`` as ``attention_outputs.npz`` files
 where each key is a ``str(measurement_id)`` and each value is a NumPy array of
 shape ``(n_layers, n_heads, head_dim)``.  The probe operates on a flattened
 feature representation of these arrays.

@@ -54,10 +54,7 @@ class MeasurementLMAblation4(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _resolve_events(self, entity_data, doc_attributes, entity_prov, attr_prov):
-        """
-        CHANGED: uses full document context instead of per-page text.
-        Uses MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT.
-        """
+        """Uses full document context with MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT."""
         if self.measurement_event_schema is None:
             return {}
 
@@ -144,9 +141,8 @@ class MeasurementLMAblation4(MeasurementLM):
         """
         Extract measurement values from prose text using full document context.
 
-        CHANGED: the model receives the full document context (record['context'])
-        instead of only the matched page's text.
-        Uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT.
+        The model receives the full document context instead of only the matched
+        page's text. Uses EXTRACT_TEXT_VALUE_INSTRUCTIONS_FULL_CONTEXT.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
@@ -268,9 +264,8 @@ class MeasurementLMAblation4(MeasurementLM):
         """
         Extract measurement values from HTML tables using full document context.
 
-        CHANGED: the model receives the full document context (record['context'])
-        instead of only the matched table's HTML.
-        Uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT.
+        The model receives the full document context instead of only the matched
+        table's HTML. Uses EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []

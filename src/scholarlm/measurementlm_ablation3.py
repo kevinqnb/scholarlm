@@ -118,12 +118,11 @@ class MeasurementLMAblation3(MeasurementLM):
         For each (entity, attribute) pair in each document, query the full
         document context to directly obtain a list of provenance locations.
 
-        CHANGED: replaces both _entity_provenance() and _attribute_provenance()
-        from the baseline. Instead of asking a per-page binary question, the
-        model receives the entire document and returns a list of
-        (page_number, table_number) items identifying where the (entity,
-        attribute) pair has data. Page numbers are read from <page number="x">
-        tags; table numbers from <table number="x"> tags (null if prose).
+        Instead of asking a per-page binary question, the model receives the
+        entire document and returns a list of (page_number, table_number) items
+        identifying where the (entity, attribute) pair has data. Page numbers
+        are read from <page number="x"> tags; table numbers from
+        <table number="x"> tags (null if prose).
 
         Args:
             entity_data   : list of entity records from _extract_entities()
@@ -151,7 +150,6 @@ class MeasurementLMAblation3(MeasurementLM):
             for attr_name, terms in doc_attributes.get(doc_id, {}).items():
                 attr_description = self.attribute_info_dict[attr_name].get("description", "")
 
-                # CHANGED: single full-document query per (entity, attribute) pair
                 query = (
                     f"Entity description: {entity_description}\n"
                     f"Attribute: {attr_name}\n"
@@ -164,7 +162,6 @@ class MeasurementLMAblation3(MeasurementLM):
                     f"table, the table number (from the enclosing <table number=\"x\"> "
                     f"tag). Set table_number to null if the data is in prose text.\n\n"
                 )
-                # CHANGED: uses FULL_CONTEXT_PROVENANCE_INSTRUCTIONS and full context
                 prompt = (
                     f"## INSTRUCTIONS:\n{FULL_CONTEXT_PROVENANCE_INSTRUCTIONS}\n\n"
                     f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
@@ -175,7 +172,6 @@ class MeasurementLMAblation3(MeasurementLM):
         if not messages:
             return {}
 
-        # CHANGED: response schema is ProvenanceListResponse (list of items)
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -221,11 +217,11 @@ class MeasurementLMAblation3(MeasurementLM):
         """
         Runs the ablation 3 pipeline on the provided documents.
 
-        CHANGED: Steps 3 and 4 (entity provenance, attribute provenance) are
-        replaced by a single _pair_provenance_full_context() call. Its output
-        is adapted via _adapt_pair_prov() before being passed to the unchanged
-        extraction methods. Event resolution is run after provenance adaptation
-        and passed to value extraction steps.
+        Steps 3 and 4 (entity provenance, attribute provenance) are replaced by
+        a single _pair_provenance_full_context() call. Its output is adapted via
+        _adapt_pair_prov() before being passed to the extraction methods. Event
+        resolution is run after provenance adaptation and passed to value
+        extraction steps.
         """
         if self.clean_tables:
             if processed_pdf_dirs is None:
@@ -240,23 +236,22 @@ class MeasurementLMAblation3(MeasurementLM):
             self.data.append({"document_id": i, "context": doc})
         doc_data = list(self.data)
 
-        # Step 1: Entity extraction (unchanged)
+        # Step 1: Entity extraction
         entity_data = self._extract_entities()
 
-        # Step 2: Document-level attribute detection (unchanged)
+        # Step 2: Document-level attribute detection
         self.data = doc_data
         doc_attributes = self._detect_attributes()
 
-        # Steps 3 + 4 (CHANGED): full-document pair provenance
+        # Steps 3 + 4: full-document pair provenance
         pair_prov = self._pair_provenance_full_context(entity_data, doc_attributes)
 
-        # Adapt pair_prov into the (entity_prov, attr_prov) interface that the
-        # unchanged extraction methods expect.
+        # Adapt pair_prov into the (entity_prov, attr_prov) interface the extraction methods expect.
         extended_entity_data, entity_prov, attr_prov = _adapt_pair_prov(
             pair_prov, entity_data, doc_attributes
         )
 
-        # Step 4.5: Event resolution (optional, unchanged)
+        # Step 4.5: Event resolution (optional)
         if self.measurement_event_schema is not None:
             event_resolution = self._resolve_events(
                 extended_entity_data, doc_attributes, entity_prov, attr_prov
@@ -264,22 +259,22 @@ class MeasurementLMAblation3(MeasurementLM):
         else:
             event_resolution = None
 
-        # Step 5: Extract values from text (unchanged)
+        # Step 5: Extract values from text
         text_values = self._extract_values_from_text(
             extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
-        # Step 6: Extract values from tables (unchanged)
+        # Step 6: Extract values from tables
         table_values = self._extract_values_from_tables(
             extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
         self.data = text_values + table_values
 
-        # Step 7: Standardize (unchanged)
+        # Step 7: Standardize
         self.data = self._standardize()
 
-        # Step 8: Deduplicate (unchanged)
+        # Step 8: Deduplicate
         self.data = self._deduplicate(self.data)
 
         return self.data

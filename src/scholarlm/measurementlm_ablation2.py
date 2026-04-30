@@ -25,7 +25,7 @@ Changes from the baseline MeasurementLM:
 
 4. `fit()` is reduced from 8 steps to 6 steps by eliminating the standalone
    attribute detection and merging the two provenance steps into one. Before
-   calling the (unchanged) extraction methods, `fit()` adapts the pair provenance
+   calling the extraction methods, `fit()` adapts the pair provenance
    into the `(entity_prov, attr_prov, doc_attributes)` interface those methods
    expect, and passes event_resolution through to the value extraction steps.
 
@@ -79,10 +79,8 @@ class MeasurementLMAblation2(MeasurementLM):
         """
         Extract (entity, attribute) pairs in a single LLM pass.
 
-        CHANGED: replaces the separate _extract_entities() + _detect_attributes()
-        steps of the baseline.  The parent's _extract_entities() implementation
-        is reused here unchanged — the only difference is that the caller supplies
-        an entity_identification_schema that also contains 'attribute' and
+        Reuses the parent's _extract_entities() implementation with an
+        entity_identification_schema that includes 'attribute' and
         'attribute_terms' fields, and a prompt that instructs the model to emit
         one item per (entity, attribute) pair rather than one item per entity.
         """
@@ -97,9 +95,8 @@ class MeasurementLMAblation2(MeasurementLM):
         For each unique (document, entity-attribute pair), determine which pages
         contain data for that pair.
 
-        CHANGED: replaces both _entity_provenance() and _attribute_provenance()
-        from the baseline.  Uses ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS, which
-        requires evidence for BOTH the entity and the attribute on the same page.
+        Uses ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS, requiring evidence for
+        both the entity and the attribute on the same page.
 
         Args:
             pair_data: list of pair records from _extract_entity_attribute_pairs()
@@ -206,10 +203,10 @@ class MeasurementLMAblation2(MeasurementLM):
 
     def _resolve_events(self, entity_data, doc_attributes, entity_prov, attr_prov):
         """
-        CHANGED: for each entity record (which already has a specific attribute
-        embedded), only resolve events for that specific (entity, attribute)
-        combination — not all attributes in doc_attributes. Uses entity_prov
-        directly to determine the relevant pages.
+        For each entity record (which already has a specific attribute embedded),
+        resolves events only for that specific (entity, attribute) combination
+        rather than all attributes in doc_attributes. Uses entity_prov directly
+        to determine the relevant pages.
 
         Args:
             entity_data: pair records from _extract_entity_attribute_pairs().
@@ -318,18 +315,16 @@ class MeasurementLMAblation2(MeasurementLM):
         """
         Runs the ablation 2 pipeline on the provided documents.
 
-        CHANGED: 6-step pipeline instead of 8 steps.
-          Step 1: Extract (entity, attribute) pairs [was: steps 1 + 2]
-          Step 2: Combined pair provenance          [was: steps 3 + 4]
-          Step 3: Event resolution (optional)       [new; uses overridden _resolve_events]
-          Step 4: Extract values from text          [unchanged]
-          Step 5: Extract values from tables        [unchanged]
+          Step 1: Extract (entity, attribute) pairs
+          Step 2: Combined pair provenance
+          Step 3: Event resolution (optional)
+          Step 4: Extract values from text
+          Step 5: Extract values from tables
           Step 6: Standardize
           Step 7: Deduplicate
 
         After pair provenance, pair_prov is adapted into the (entity_prov,
-        attr_prov, doc_attributes) format expected by the unchanged extraction
-        methods before calling them.
+        attr_prov, doc_attributes) format expected by the extraction methods.
         """
         if self.clean_tables:
             if processed_pdf_dirs is None:

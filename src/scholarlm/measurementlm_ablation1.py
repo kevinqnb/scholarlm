@@ -134,11 +134,8 @@ class MeasurementLMAblation1(MeasurementLM):
         """
         Runs the ablation 1 pipeline on the provided documents.
 
-        CHANGED: all intermediate extraction steps replaced by a single
-        _extract_triples() call.
-          Step 1: Extract all measurement records directly  [was: steps 1-6]
-          Step 2: Standardize                               [unchanged, currently disabled]
-          Step 3: Deduplicate                               [unchanged, currently disabled]
+        Replaces the multi-step baseline pipeline with a single _extract_triples()
+        call. Standardize and deduplicate steps are intentionally skipped.
         """
         if self.clean_tables:
             if processed_pdf_dirs is None:
@@ -154,11 +151,5 @@ class MeasurementLMAblation1(MeasurementLM):
 
         # Step 1: Extract all measurement records directly
         self.data = self._extract_triples()
-
-        # Step 2: Standardize
-        #self.data = self._standardize()
-
-        # Step 3: Deduplicate
-        #self.data = self._deduplicate(self.data)
 
         return self.data

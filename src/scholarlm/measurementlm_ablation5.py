@@ -55,13 +55,10 @@ class MeasurementLMAblation5(MeasurementLM):
         Extract measurement values from HTML tables by asking the model to
         return the value directly.
 
-        CHANGED:
-        - Row and column name lists are NOT included in the query.
-        - The model responds with TextValueExtractionResponse (value + units)
-          instead of TableValueExtractionResponse (row_index + column_index + units).
-        - No pandas indexing step after the model call; the value is used as-is.
-        - EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS is used instead of
-          EXTRACT_TABLE_VALUE_INSTRUCTIONS.
+        Row and column name lists are not included in the query. The model
+        responds with TextValueExtractionResponse (value + units) rather than
+        TableValueExtractionResponse, so no pandas indexing step is needed.
+        Uses EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS.
         - event_resolution is accepted and used to provide measurement event context.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
@@ -144,7 +141,6 @@ class MeasurementLMAblation5(MeasurementLM):
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
 
-                        # CHANGED: query no longer lists row/column names; asks for value directly
                         query = (
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
@@ -154,7 +150,6 @@ class MeasurementLMAblation5(MeasurementLM):
                             f"Does this table contain a measured value for the given attribute and entity? "
                             f"If yes, extract the value and its units directly from the table.\n\n"
                         )
-                        # CHANGED: uses EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS}\n\n"
                             f"## CONTEXT:\n{table_text}\n\n## QUERY:\n{query}"
@@ -165,7 +160,6 @@ class MeasurementLMAblation5(MeasurementLM):
         if not messages:
             return []
 
-        # CHANGED: response schema is TextValueExtractionResponse, not TableValueExtractionResponse
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -190,7 +184,6 @@ class MeasurementLMAblation5(MeasurementLM):
                 print(f"Response text: {resp[:500]}")
                 continue
 
-            # CHANGED: no pandas indexing; value comes directly from the model response
             if result.get("has_value") and result.get("value") is not None:
                 table_values.append(
                     event_record | {
@@ -199,7 +192,6 @@ class MeasurementLMAblation5(MeasurementLM):
                         "units": result.get("units"),
                         "page_number": page_number,
                         "table_number": table_number,
-                        # CHANGED: no row_index or column_index fields
                         "source": "table",
                     }
                 )

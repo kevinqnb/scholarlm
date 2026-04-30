@@ -56,28 +56,6 @@ def load_config(path: Path | str = _CONFIG_PATH) -> dict:
     return yaml.safe_load(expanded)
 
 
-def get_model_config(config: dict, model_name: str) -> dict:
-    """Return the config block for a named model.
-
-    Args:
-        config: Parsed config dict from load_config().
-        model_name: Key in config["models"].
-
-    Returns:
-        Model config dict (model_id, hf_revision, sampling_params, optionally serve).
-
-    Raises:
-        KeyError: If model_name is not in config["models"].
-    """
-    models = config.get("models", {})
-    if model_name not in models:
-        raise KeyError(
-            f"Model '{model_name}' not found in config. "
-            f"Available: {sorted(models.keys())}"
-        )
-    return models[model_name]
-
-
 # ---------------------------------------------------------------------------
 # Seeding
 # ---------------------------------------------------------------------------
