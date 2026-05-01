@@ -33,6 +33,9 @@ pip install -e ".[gpu]"   # Full
 
 ## Usage
 
+### Examples
+Please see the [demo](demo.ipynb) notebook for a look at how the extraction system operates. 
+
 ### Experiments
 Please see the [experiments](experiments/README.md) directory for the full workflow guide. The following are some quick examples.
 
