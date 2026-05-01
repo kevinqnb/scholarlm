@@ -8,7 +8,9 @@ Core capabilities:
 - **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
 - **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
 
-![Extraction Flowchart](figures/extraction_flowchart.svg)
+<div align="center">
+  <img src="figures/extraction_flowchart.svg" alt="Extraction Flowchart" width="500">
+</div>
 
 ## Installation
 
