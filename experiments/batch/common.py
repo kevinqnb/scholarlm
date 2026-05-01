@@ -30,6 +30,9 @@ from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
 
+# Debug: set to None to print all, or a small number to limit output
+_DEBUG_PAPERS_LIMIT: int | None = 3
+
 
 # ─── Page extraction ──────────────────────────────────────────────────────────
 
@@ -184,6 +187,7 @@ def prepare_chat_entries(
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
     entries: list[dict[str, Any]] = []
+    papers_printed: int = 0
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         document_id = str(entry["document_id"])
         document = documents.get(document_id)
@@ -245,6 +249,11 @@ def prepare_chat_entries(
         # Cached prefix for Anthropic — the page text shared across requests
         # for the same source page.  OpenAI and Gemini ignore this field.
         user_document = f"## CONTEXT:\n{page_text}\n\n"
+
+        if _DEBUG_PAPERS_LIMIT is None or papers_printed < _DEBUG_PAPERS_LIMIT:
+            print(f"DEBUG: User message for document_id={document_id}, orig_idx={orig_idx}:\n{user}\n")
+            print()
+            papers_printed += 1
 
         entries.append({
             "custom_id": str(orig_idx),

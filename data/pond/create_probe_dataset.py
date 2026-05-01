@@ -72,7 +72,7 @@ from configs.pond import CONFIG
 _JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "ecosystem", "additional_details"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
-_GT_FILE = BASE / "ground_truth.csv"
+_GT_FILE = BASE / "ground_truth.json"
 _OUTPUT_FILE = BASE / "probe_dataset.json"
 _OUTPUT_TEST_FILE = BASE / "probe_dataset_test.json"
 
@@ -178,10 +178,10 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(df: pd.DataFrame) -> list[dict]:
-    """Convert ground-truth DataFrame rows to probe record dicts.
+def build_gt_records(gt_records: list[dict]) -> list[dict]:
+    """Convert ground-truth records to probe record dicts.
 
-    Output schema matches ground_truth.csv (document_id, name, identifiers,
+    Output schema matches ground_truth.json (document_id, name, identifiers,
     location, ecosystem, date, additional_details, attribute, value, units,
     page_number) plus internal bookkeeping fields prefixed with '_'.
 
@@ -189,7 +189,7 @@ def build_gt_records(df: pd.DataFrame) -> list[dict]:
     access to verify each record).
 
     Args:
-        df: Ground-truth DataFrame loaded from ground_truth.csv.
+        gt_records: List of ground-truth record dicts loaded from ground_truth.json.
 
     Returns:
         List of record dicts ready for synthetic modification.
@@ -201,7 +201,7 @@ def build_gt_records(df: pd.DataFrame) -> list[dict]:
     }
 
     records: list[dict] = []
-    for i, row in df.iterrows():
+    for i, row in enumerate(gt_records):
         paper_code = str(row["document_id"])
         if paper_code not in ocr_codes:
             continue
@@ -538,10 +538,11 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Seed: {args.seed}")
 
     # Load and convert GT
-    df = pd.read_csv(_GT_FILE)
-    print(f"Loaded {len(df):,} GT rows from {_GT_FILE.name}")
+    with open(_GT_FILE) as f:
+        gt_records = json.load(f)
+    print(f"Loaded {len(gt_records):,} GT rows from {_GT_FILE.name}")
 
-    all_records = build_gt_records(df)
+    all_records = build_gt_records(gt_records)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
 
     # Build full paper index (used by both splits for same-paper candidate lookup)

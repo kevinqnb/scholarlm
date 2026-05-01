@@ -204,7 +204,7 @@ def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
 
         for idx, row in group.iterrows():
             result = attribute_page(row.to_dict(), parsed, POND_WEIGHTS)
-            gt.at[idx, "page_number"] = json.dumps(result["candidates"])
+            gt.at[idx, "page_number"] = result["candidates"]
             gt.at[idx, "page_score"] = result["score"]
             gt.at[idx, "page_confidence"] = result["confidence"]
             confidence_counts[result["confidence"]] += 1
@@ -288,12 +288,12 @@ def build_ground_truth(corrected_wide_path: Path, out_dir: Path) -> None:
 
     df_final = _add_page_attribution(df_final, BASE / "ocr_output_raw")
 
-    df_final.to_csv(out_dir / "ground_truth.csv", index=False)
-    print(f"  Saved {len(df_final):,} rows → ground_truth.csv")
+    df_final.to_json(out_dir / "ground_truth.json", orient="records", indent=2)
+    print(f"  Saved {len(df_final):,} rows → ground_truth.json")
 
     gt_ten = df_final[df_final["document_id"].isin(_TOP_PAPERS)].reset_index(drop=True)
-    gt_ten.to_csv(out_dir / "ground_truth_ten.csv", index=False)
-    print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.csv")
+    gt_ten.to_json(out_dir / "ground_truth_ten.json", orient="records", indent=2)
+    print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.json")
 
 
 def main(argv: list[str] | None = None) -> None:
