@@ -30,8 +30,7 @@ pip install -e ".[gpu]"   # Full
 ## Usage
 
 ### Experiments
-Please see [EXPERIMENTS.md](EXPERIMENTS.md) for the full workflow guide. The following 
-are some quick examples.
+Please see the [experiments/README.md](README) for the full workflow guide. The following are some quick examples.
 
 ```bash
 # Extract
