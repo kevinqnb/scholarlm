@@ -1,66 +1,57 @@
-# ScholarLM :microscope: :books:
+# ScholarlM :microscope: :books:
 
-**Extract structured data from scientific research papers using large language models.**
-
-*Please note:* This project is a work in progress.
-
-This library implements a pipeline for extracting data from scientific papers (PDFs) using large language models.
-It supports both API-backed models (Anthropic, OpenAI, Google Gemini) and local open-source models (via vLLM / HuggingFace Transformers).
+Extract structured (entity, attribute, value) triplets from scientific PDFs using large language models.
+Supports API-backed models (Anthropic, OpenAI, Gemini) and local open-source models via vLLM.
 
 Core capabilities:
-* **Document OCR**: convert PDF pages to markdown text, with HTML table extraction.
-* **Measurement extraction**: systematically collect (entity, attribute, value) triplets from document text and tables.
-* **Table cleaning**: normalize and restructure OCR-extracted HTML tables using a VLM.
-* **Hallucination detection** *(experimental)*: mechanistic intervention on model activations to detect and reduce hallucinated responses.
+- **Document OCR** — convert PDF pages to markdown text with HTML table extraction
+- **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
+- **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
 
 ## Installation
 
-### Prerequisites
-- **Python**: 3.12+
-- **GPU** *(optional)*: required for local model inference with vLLM, `transformers`, or `nnsight`. API-backed workflows run on CPU.
-
-### Install (recommended: `uv`)
+**Prerequisites:** Python 3.12+; GPU required for local inference (vLLM / transformers / nnsight).
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/scholarlm.git
 cd scholarlm
 
-# CPU-only / API-backed workflows
-uv sync --no-extra gpu
-
-# Full install including local GPU inference
-uv sync
+uv sync --no-extra gpu   # CPU-only / API-backed workflows
+uv sync                  # Full install including local GPU inference
 ```
 
-### Install (alternative: pip + venv)
-
+Alternative (pip):
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-
-# CPU-only / API-backed workflows
-pip install -e .
-
-# Full install including local GPU inference
-pip install -e ".[gpu]"
+python -m venv .venv && source .venv/bin/activate && pip install -U pip
+pip install -e .          # CPU-only
+pip install -e ".[gpu]"   # Full
 ```
 
 ## Usage
 
-### Examples (notebooks)
-Interactive walkthroughs are in `examples/`:
-- `examples/ocr.ipynb` — OCR a PDF to markdown
-- `examples/pond_lake_extraction.ipynb` — end-to-end measurement extraction pipeline
+### Experiments
+Please see the [experiments](experiments/README.md) directory for the full workflow guide. The following are some quick examples.
 
-### Experiments (scripts)
-Runnable experiment scripts are in `experiments/`:
-- `experiments/pond/ocr.py` — OCR a batch of PDFs
-- `experiments/pond/pond.py` — run the measurement extraction pipeline
-- `experiments/pond/judge_llama.py` — validate extracted measurements with a local LLM judge
-- `experiments/pond/validate.py` — evaluate extraction results against a ground-truth dataset
+```bash
+# Extract
+python experiments/run_extraction.py --dataset pond --model gemma-3-27b
+
+# Judge with a local model
+python experiments/run_judge_local.py \
+        --dataset pond  --extraction-model gemma-3-27b \
+        --judge gpt-oss-120b --api-base http://localhost:{PORT}/v1
+
+# Judge and collect model activations (attention head & layer output) 
+python experiments/run_judge_interp.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge llama-3.1-8b --extraction-date 2026_04_01
+```
+
+### Analysis Notebooks
+- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
+- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
+
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).

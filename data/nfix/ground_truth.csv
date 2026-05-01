@@ -1,0 +1,992 @@
+document_id,name,identifiers,location,site_type,date,nfix_method,substrate_type,sample_depth,additional_details,attribute,value,units,page_number,page_score,page_confidence
+R231,south west coast of Australia,,"(-28.0, 114.0)",continental shelves,2003-10,15N2,wc,0.0,,nfix_rate,0.017,nmol-n l-1 h-1,[8],0.7572,table-anchored
+R231,south west coast of Australia,,"(-28.0, 114.0)",continental shelves,2003-10,15N2,wc,,,nfix_rate,0.003,nmol-n l-1 h-1,[8],0.7572,table-anchored
+R231,south west coast of Australia,,"(-28.0, 114.0)",continental shelves,2003-10,15N2,wc,0.0,,nfix_rate,0.007,nmol-n l-1 h-1,[8],0.7572,table-anchored
+R231,south west coast of Australia,,"(-28.0, 114.0)",continental shelves,2003-10,15N2,wc,,,nfix_rate,0.001,nmol-n l-1 h-1,[8],0.7572,table-anchored
+R147,Arafura and Timor Sea,,"(-10.44, 122.16)",continental shelves,2012-10,15N2,wc,22.5,,nfix_rate,23.0,nmol-n l-1 d-1,"[1, 2, 13]",0.8296,ambiguous
+R147,Coral Sea,,"(-9.23, 139.96)",continental shelves,2013-07,15N2,wc,60.5,,nfix_rate,6.0,nmol-n l-1 d-1,"[4, 6, 7, 10, 12, 13, 14]",0.8502,ambiguous
+R21,upwelling affected (G17),,"(30.9, -10.8)",continental shelves,2009-08,15N2,wc,,,nfix_rate,5e-06,umol-n2 l-1 h-1,[7],0.3986,table-anchored
+R135,Mesohaline 1 st. 3,,"(7.29131986, -52.9813819)",continental shelves,2010-05,15N2,wc,,,nfix_rate,13.0,umol-n m-2 d-1,[10],0.7739,table-anchored
+R135,Mesohaline 1 st. 9,,"(5.95957194, -50.790271)",continental shelves,2010-05,15N2,wc,,,nfix_rate,99.0,umol-n m-2 d-1,[10],0.7745,table-anchored
+R135,Mesohaline 1 st. 23,,"(11.1533888, -54.4385935)",continental shelves,2010-05,15N2,wc,,,nfix_rate,187.0,umol-n m-2 d-1,[10],0.7729,table-anchored
+R135,Mesohaline 2 st. 2,,"(10.2877527, -54.5392884)",continental shelves,2010-05,15N2,wc,,,nfix_rate,121.0,umol-n m-2 d-1,[10],0.772,table-anchored
+R135,Mesohaline 2 st. 19,,"(8.2901308, -50.7542832)",continental shelves,2010-05,15N2,wc,,,nfix_rate,95.0,umol-n m-2 d-1,[10],0.779,table-anchored
+R135,Mesohaline 2 st. 25,,"(12.4185493, -56.3640027)",continental shelves,2010-05,15N2,wc,,,nfix_rate,253.0,umol-n m-2 d-1,[10],0.7765,table-anchored
+R155,YPC,,"(5.0, -52.0)",continental shelves,2010-05,15N2,wc,,,nfix_rate,17.2,umol-n m-2 d-1,[8],0.8444,table-anchored
+R155,OPC,,"(7.0, -53.0)",continental shelves,2010-05,15N2,wc,,,nfix_rate,75.9,umol-n m-2 d-1,[8],0.8406,table-anchored
+R155,WPM,,"(10.0, -55.0)",continental shelves,2010-05,15N2,wc,,,nfix_rate,118.3,umol-n m-2 d-1,[8],0.8424,table-anchored
+R155,EPM,,"(11.0, -51.0)",continental shelves,2010-05,15N2,wc,,,nfix_rate,97.3,umol-n m-2 d-1,[8],0.8424,table-anchored
+R155,OSW,,"(6.0, -47.5)",continental shelves,2010-05,15N2,wc,,,nfix_rate,104.7,umol-n m-2 d-1,[8],0.8444,table-anchored
+R218,Arctic Shelf 1,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,5.41,umol-n m-2 d-1,[6],0.7512,table-anchored
+R218,Arctic Shelf 6,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,50.8,umol-n m-2 d-1,[6],0.7512,table-anchored
+R218,Arctic Shelf 11,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,0.0,umol-n m-2 d-1,[6],0.3352,table-anchored
+R218,Arctic Shelf 13,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,26.6,umol-n m-2 d-1,[6],0.7443,table-anchored
+R218,Arctic Shelf 47,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,14.3,umol-n m-2 d-1,[6],0.7443,table-anchored
+R218,Arctic Shelf 102,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,6.53,umol-n m-2 d-1,[6],0.7496,table-anchored
+R218,Arctic Shelf 108,,"(72.0, -160.0)",continental shelves,2015-09-06,15N2,wc,,,nfix_rate,19.5,umol-n m-2 d-1,[6],0.7496,table-anchored
+R44,South China Sea-upwelling,,"(25.574264, 122.1608333)",continental shelves,1995-03-01,ARA,wc,5.0,,nfix_rate,0.3,umol-n m-2 d-1,[12],0.7425,table-anchored
+R44,South China Sea-upwelling,,"(25.574264, 122.1608333)",continental shelves,1994-07-01,ARA,wc,12.0,,nfix_rate,33.6,umol-n m-2 d-1,[12],0.7425,table-anchored
+R44,South China Sea-upwelling,,"(25.574264, 122.1608333)",continental shelves,1995-09-01,ARA,wc,12.0,,nfix_rate,2.1,umol-n m-2 d-1,[12],0.7471,table-anchored
+R44,South China Sea-Kuroshio,,"(24.884903, 123.2277778)",continental shelves,1995-03-01,ARA,wc,5.0,,nfix_rate,6.2,umol-n m-2 d-1,[12],0.7452,table-anchored
+R44,South China Sea-Kuroshio,,"(24.884903, 123.2277778)",continental shelves,1995-05-01,ARA,wc,12.0,,nfix_rate,59.4,umol-n m-2 d-1,[12],0.7452,table-anchored
+R44,South China Sea-Kuroshio,,"(24.884903, 123.2277778)",continental shelves,1995-09-01,ARA,wc,12.0,,nfix_rate,3.4,umol-n m-2 d-1,[12],0.7497,table-anchored
+R44,South China Sea-Kuroshio,,"(24.884903, 123.2277778)",continental shelves,1996-01-01,ARA,wc,12.0,,nfix_rate,0.1,umol-n m-2 d-1,[12],0.7497,table-anchored
+R34,Mornington Island,,"(-15.96, 139.44)",continental shelves,2005-03-02,ARA,wc,,,nfix_rate,76.0,umol-n m-2 h-1,"[3, 5, 6, 9]",0.8178,ambiguous
+R34,Mornington Island,,"(-15.96, 139.44)",continental shelves,2005-03-02,ARA,wc,,,nfix_rate,42.0,umol-n m-2 h-1,[6],0.8166,high
+R34,Mornington Island,,"(-15.96, 139.44)",continental shelves,2005-03-02,ARA,wc,,,nfix_rate,27.0,umol-n m-2 h-1,"[2, 3, 4, 5, 6]",0.8178,ambiguous
+R34,Mornington Island,,"(-15.96, 139.44)",continental shelves,2005-03-02,ARA,wc,,,nfix_rate,578.0,umol-n m-2 d-1,"[5, 9]",0.8178,ambiguous
+R96,northern Beibu Gulf,,"(21.552818, 108.84322)",estuaries,2017-08,ARA,wc,0.0,,nfix_rate,0.33,nmol-n l-1 h-1,"[5, 6]",0.8184,ambiguous
+R96,northern Beibu Gulf,,"(21.552818, 108.84322)",estuaries,2017-12,ARA,wc,0.0,,nfix_rate,0.23,nmol-n l-1 h-1,"[3, 5, 6]",0.8185,ambiguous
+R32,New Caledonia lagoon,,"(-22.480917, 166.4454)",estuaries,2013-01-13,15N2,wc,,,nfix_rate,18.5,nmol-n l-1 d-1,[18],0.8561,high
+R32,New Caledonia lagoon,,"(-22.480917, 166.4454)",estuaries,2013-01-13,15N2,wc,0.0,,nfix_rate,9.2,nmol-n l-1 d-1,"[15, 18]",0.8584,ambiguous
+R135,Estuarine st. 4,,"(5.95957194, -51.4879455)",estuaries,2010-05,15N2,wc,,,nfix_rate,48.0,umol-n m-2 d-1,[10],0.7784,table-anchored
+R135,Estuarine st. 10,,"(4.8941736, -51.3895418)",estuaries,2010-05,15N2,wc,,,nfix_rate,9.0,umol-n m-2 d-1,[10],0.7808,table-anchored
+R135,Estuarine st. 11,,"(5.49346017, -51.4884985)",estuaries,2010-05,15N2,wc,,,nfix_rate,10.0,umol-n m-2 d-1,[10],0.7804,table-anchored
+R135,Estuarine st. 14,,"(5.92627824, -51.5544301)",estuaries,2010-05,15N2,wc,,,nfix_rate,11.0,umol-n m-2 d-1,[10],0.7822,table-anchored
+R135,Estuarine st. 16,,"(6.69203329, -51.8193023)",estuaries,2010-05,15N2,wc,,,nfix_rate,28.0,umol-n m-2 d-1,[10],0.7858,table-anchored
+R4,"Alcanada, Alcudia Bay",,"(39.84, 3.17)",estuaries,2012,ARA,benthos,,,nfix_rate,1.988,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Alcanada, Alcudia Bay",,"(39.84, 3.17)",estuaries,2012,ARA,benthos,,,nfix_rate,0.115,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Alcanada, Alcudia Bay",,"(39.84, 3.17)",estuaries,2012,ARA,benthos,,,nfix_rate,0.012,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Alcanada, Alcudia Bay",,"(39.84, 3.17)",estuaries,2013,ARA,benthos,,,nfix_rate,0.074,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Alcanada, Alcudia Bay",,"(39.84, 3.17)",estuaries,2013,ARA,benthos,,,nfix_rate,0.842,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Albufera, Alcudia Bay",,"(39.83, 3.14)",estuaries,2012,ARA,benthos,,,nfix_rate,2.204,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Albufera, Alcudia Bay",,"(39.83, 3.14)",estuaries,2013,ARA,benthos,,,nfix_rate,0.56,mg-n m-2 d-1,[9],0.8369,table-anchored
+R4,"Arenal, Palma Bay",,"(39.5, 2.75)",estuaries,2012,ARA,benthos,,,nfix_rate,0.196,mg-n m-2 d-1,[9],0.8384,table-anchored
+R4,"Arenal, Palma Bay",,"(39.5, 2.75)",estuaries,2013,ARA,benthos,,,nfix_rate,0.483,mg-n m-2 d-1,[9],0.8384,table-anchored
+R4,"Calanova, Palma Bay",,"(39.54, 2.6)",estuaries,2012,ARA,benthos,,,nfix_rate,0.511,mg-n m-2 d-1,[9],0.8384,table-anchored
+R4,"Calanova, Palma Bay",,"(39.54, 2.6)",estuaries,2013,ARA,benthos,,,nfix_rate,0.417,mg-n m-2 d-1,[9],0.8384,table-anchored
+R116,Subtidal at East end of Dauphin Island,,"(30.250833, -88.07777778)",estuaries,2014-06,ARA,benthos,,,nfix_rate,2.47,umol-n m-2 h-1,[7],0.7489,table-anchored
+R116,Subtidal at East end of Dauphin Island,,"(30.250833, -88.07777778)",estuaries,2014-12,ARA,benthos,,,nfix_rate,2.36,umol-n m-2 h-1,[7],0.7489,table-anchored
+R59,"Stn B1, <20um Day",,"(58.815945, 17.63698)",estuaries,2000-08,15N2,wc,,,nfix_rate,14.8,ng-n l-1 h-1,[6],0.7487,high
+R59,"Stn B1, >20um Day",,"(58.815945, 17.63698)",estuaries,2000-08,15N2,wc,,,nfix_rate,26.7,ng-n l-1 h-1,[6],0.7487,high
+R59,Stn BY31 <20um Day,,"(58.365723, 17.905116)",estuaries,2000-08,15N2,wc,,,nfix_rate,1.4,ng-n l-1 h-1,[6],0.7399,high
+R59,Stn BY31 >20um Day,,"(58.365723, 17.905116)",estuaries,2000-08,15N2,wc,,,nfix_rate,125.5,ng-n l-1 h-1,[6],0.7399,high
+R59,"Stn B1, <20um Night",,"(58.815945, 17.63698)",estuaries,2000-08,15N2,wc,,,nfix_rate,1.2,ng-n l-1 h-1,[6],0.7375,high
+R59,"Stn B1, >20um Night",,"(58.815945, 17.63698)",estuaries,2000-08,15N2,wc,,,nfix_rate,4.8,ng-n l-1 h-1,[6],0.7375,high
+R59,Stn BY31 <20um Night,,"(58.365723, 17.905116)",estuaries,2000-08,15N2,wc,,,nfix_rate,4.1,ng-n l-1 h-1,[6],0.748,high
+R59,Stn BY31 >20um Night,,"(58.365723, 17.905116)",estuaries,2000-08,15N2,wc,,,nfix_rate,30.0,ng-n l-1 h-1,"[6, 10]",0.7777,ambiguous
+R59,"Total N2 Fix 1998, Stn BY31",,"(58.365723, 17.905116)",estuaries,1998,15N2,wc,,,nfix_rate,655.0,mg-n m-2 y-1,[10],0.7758,high
+R59,"Total N2 Fix 1999, Stn BY31",,"(58.365723, 17.905116)",estuaries,1999,15N2,wc,,,nfix_rate,709.0,mg-n m-2 y-1,[10],0.7758,high
+R59,"Total N2 Fix 2000, Stn BY31",,"(58.365723, 17.905116)",estuaries,2000,15N2,wc,,,nfix_rate,301.0,mg-n m-2 y-1,[10],0.7758,high
+R59,"N2 fix, cells >20um 1998, Stn BY31",,"(58.365723, 17.905116)",estuaries,1998,15N2,wc,,,nfix_rate,494.0,mg-n m-2 y-1,[10],0.7818,high
+R59,"N2 fix, cells >20um 1999, Stn BY31",,"(58.365723, 17.905116)",estuaries,1999,15N2,wc,,,nfix_rate,549.0,mg-n m-2 y-1,[10],0.7818,high
+R59,"N2 fix, cells >20um 2000, Stn BY31",,"(58.365723, 17.905116)",estuaries,2000,15N2,wc,,,nfix_rate,227.0,mg-n m-2 y-1,[10],0.7818,high
+R59,"Total N2 Fix 1998, Stn X1",,"(58.844572, 17.669744)",estuaries,1998,15N2,wc,,,nfix_rate,242.0,mg-n m-2 y-1,[10],0.7787,high
+R59,"Total N2 Fix 1999, Stn X1",,"(58.844572, 17.669744)",estuaries,1999,15N2,wc,,,nfix_rate,422.0,mg-n m-2 y-1,[10],0.7787,high
+R59,"Total N2 Fix 2000, Stn X1",,"(58.844572, 17.669744)",estuaries,2000,15N2,wc,,,nfix_rate,970.0,mg-n m-2 y-1,[10],0.7787,high
+R59,"N2 fix, cells >20um 1998, Stn X1",,"(58.844572, 17.669744)",estuaries,1998,15N2,wc,,,nfix_rate,212.0,mg-n m-2 y-1,[10],0.7905,high
+R59,"N2 fix, cells >20um 1999, Stn X1",,"(58.844572, 17.669744)",estuaries,1999,15N2,wc,,,nfix_rate,283.0,mg-n m-2 y-1,[10],0.7905,high
+R59,"N2 fix, cells >20um 2000, Stn X1",,"(58.844572, 17.669744)",estuaries,2000,15N2,wc,,,nfix_rate,821.0,mg-n m-2 y-1,[10],0.7905,high
+R59,"Total N2 Fix 1998, Stn H4",,"(58.991685, 17.731885)",estuaries,1998,15N2,wc,,,nfix_rate,259.0,mg-n m-2 y-1,[10],0.7773,high
+R59,"Total N2 Fix 1999, Stn H4",,"(58.991685, 17.731885)",estuaries,1999,15N2,wc,,,nfix_rate,121.0,mg-n m-2 y-1,[10],0.7773,high
+R59,"Total N2 Fix 2000, Stn H4",,"(58.991685, 17.731885)",estuaries,2000,15N2,wc,,,nfix_rate,821.0,mg-n m-2 y-1,[10],0.7773,high
+R59,"N2 fix, cells >20um 1998, Stn H4",,"(58.991685, 17.731885)",estuaries,1998,15N2,wc,,,nfix_rate,213.0,mg-n m-2 y-1,[10],0.7891,high
+R59,"N2 fix, cells >20um 1999, Stn H4",,"(58.991685, 17.731885)",estuaries,1999,15N2,wc,,,nfix_rate,78.0,mg-n m-2 y-1,[10],0.7891,high
+R59,"N2 fix, cells >20um 2000, Stn H4",,"(58.991685, 17.731885)",estuaries,2000,15N2,wc,,,nfix_rate,598.0,mg-n m-2 y-1,[10],0.7891,high
+R156,Weipa seagrass bed,,"(-12.648099, 141.811)",estuaries,1986-11,ARA,benthos,0.12,,nfix_rate,25.0,mg-n m-2 d-1,[3],0.761,high
+R156,Weipa mud flat,,"(-12.648099, 141.9528)",estuaries,1986-11,ARA,benthos,0.12,,nfix_rate,19.6,mg-n m-2 d-1,"[3, 5]",0.7499,ambiguous
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",estuaries,2008-03-24,ARA,benthos,0.04,,nfix_rate,1.7,nmol-n cm-2 h-1,[8],0.8016,table-anchored
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",estuaries,2008-03-24,ARA,benthos,0.04,,nfix_rate,0.47,nmol-n cm-2 h-1,[8],0.8269,table-anchored
+R154,Gotland Basin - Central Baltic,,"(57.283333, 20.08333333)",estuaries,1994-07-15,ARA,wc,,,nfix_rate,3.58,nmol-c2h4 ml-1 h-1,[3],0.7274,table-anchored
+R154,Gotland Basin - Central Baltic,,"(57.283333, 20.08333333)",estuaries,1994-07-15,ARA,wc,,,nfix_rate,1.31,nmol-c2h4 ml-1 h-1,[3],0.7274,table-anchored
+R154,Gotland Basin - Central Baltic,,"(57.283333, 20.08333333)",estuaries,1994-07-15,ARA,wc,,,nfix_rate,1.6,nmol-c2h4 ml-1 h-1,[3],0.7274,table-anchored
+R154,Gotland Basin - Central Baltic,,"(57.283333, 20.08333333)",estuaries,1994-07-15,ARA,wc,,,nfix_rate,0.026,nmol-c2h4 ml-1 h-1,[3],0.7274,table-anchored
+R154,Gotland Basin - Central Baltic,,"(57.283333, 20.08333333)",estuaries,1994-07-15,ARA,wc,,,nfix_rate,0.032,nmol-c2h4 ml-1 h-1,[3],0.7274,table-anchored
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1990-07,ARA,benthos,,,nfix_rate,8.3,nmol-c2h4 cm-2 h-1,"[2, 4, 5, 6, 7]",0.7052,ambiguous
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1990-11,ARA,benthos,,,nfix_rate,5.5,nmol-c2h4 cm-2 h-1,[7],0.7492,high
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1991-03,ARA,benthos,,,nfix_rate,25.0,nmol-c2h4 cm-2 h-1,"[1, 7]",0.7871,ambiguous
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1991-07,ARA,benthos,,,nfix_rate,47.8,nmol-c2h4 cm-2 h-1,[7],0.776,high
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1991-11,ARA,benthos,,,nfix_rate,24.7,nmol-c2h4 cm-2 h-1,"[1, 7]",0.7817,ambiguous
+R173,"Walker Creek Delta, Tomales Bay California",,"(38.1713, -122.9128)",estuaries,1992-03,ARA,benthos,,,nfix_rate,8.3,nmol-c2h4 cm-2 h-1,"[2, 4, 5, 6, 7]",0.7098,ambiguous
+R173,"Lagunitas Creek, Tomales Bay, CA",,"(38.1713, -122.9128)",estuaries,1990-07,ARA,benthos,,,nfix_rate,22.7,nmol-c2h4 cm-2 h-1,"[1, 7, 8]",0.7628,ambiguous
+R173,"Lagunitas Creek, Tomales Bay, CA",,"(38.1713, -122.9128)",estuaries,1990-11,ARA,benthos,,,nfix_rate,7.3,nmol-c2h4 cm-2 h-1,"[3, 4, 5, 6, 7]",0.6931,ambiguous
+R173,"Lagunitas Creek, Tomales Bay, CA",,"(38.1713, -122.9128)",estuaries,1991-03,ARA,benthos,,,nfix_rate,20.3,nmol-c2h4 cm-2 h-1,"[2, 4, 7, 8]",0.7401,ambiguous
+R173,"Lagunitas Creek, Tomales Bay, CA",,"(38.1713, -122.9128)",estuaries,1991-07,ARA,benthos,,,nfix_rate,5.2,nmol-c2h4 cm-2 h-1,"[7, 8]",0.7584,ambiguous
+R173,"Lagunitas Creek, Tomales Bay, CA",,"(38.1713, -122.9128)",estuaries,1991-11,ARA,benthos,,,nfix_rate,2.7,nmol-c2h4 cm-2 h-1,"[1, 2, 7, 8]",0.7298,ambiguous
+R25,"East Weeks Bay, AL",,"(30.4, 87.8)",estuaries,2012-02,ARA,benthos,,,nfix_rate,1.6,umol-n m-2 h-1,[10],0.7444,table-anchored
+R25,"Weeks Bay Mouth, AL",,"(30.4, 87.8)",estuaries,2012-02,ARA,benthos,,,nfix_rate,2.4,umol-n m-2 h-1,[10],0.7497,table-anchored
+R25,"West Weeks Bay, AL",,"(30.4, 87.8)",estuaries,2012-02,ARA,benthos,,,nfix_rate,2.6,umol-n m-2 h-1,[10],0.7444,table-anchored
+R109,"Pearl River Estuary, South China Sea",,"(22.747341, 113.652219)",estuaries,2018-07-31,15N2,benthos,,,nfix_rate,0.19,ug-N g-1 d-1,[5],0.7867,table-anchored
+R109,"Pearl River Estuary, South China Sea",,"(22.747341, 113.652219)",estuaries,2018-07-31,15N2,benthos,,,nfix_rate,0.37,ug-N g-1 d-1,[5],0.7867,table-anchored
+R47,"1 Cape Martin, France",,"(43.752417, 7.489444444)",estuaries,2001-10-01,ARA,benthos,0.125,,nfix_rate,0.138,nmol-c2h4 cm-3 h-1,[3],0.7743,table-anchored
+R47,"1 Cape Martin, France",,"(43.752417, 7.489444444)",estuaries,2001-10-01,ARA,benthos,0.125,,nfix_rate,3.96,nmol-c2h4 cm-3 h-1,[3],0.7743,table-anchored
+R47,2 Monaco,,"(43.730333, 7.426666667)",estuaries,2001-10-02,ARA,benthos,0.125,,nfix_rate,0.106,nmol-c2h4 cm-3 h-1,[3],0.8016,table-anchored
+R47,2 Monaco,,"(43.730333, 7.426666667)",estuaries,2001-10-03,ARA,benthos,0.125,,nfix_rate,0.128,nmol-c2h4 cm-3 h-1,[3],0.8016,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,15N2,benthos,,,nfix_rate,1.69,umol-n g-1 d-1,[5],0.7278,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,ARA,benthos,,,nfix_rate,1.25,umol-c2h4 g-1 d-1,[5],0.7567,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.1,,nfix_rate,78.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.2,,nfix_rate,77.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.5,,nfix_rate,194.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.1,,nfix_rate,72.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.2,,nfix_rate,61.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"SKY Southern Patagonia, Chile",,"(-52.508667, -72.127278)",freshwater wetlands,2014-03,15N2,benthos,0.5,,nfix_rate,216.0,mg-n m-2 d-1,[5],0.7287,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.1,,nfix_rate,69.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.2,,nfix_rate,44.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.5,,nfix_rate,127.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.1,,nfix_rate,63.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.2,,nfix_rate,27.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R117,"OBS Southern Patagonia, Chile",,"(-52.135907, -72.446037)",freshwater wetlands,2014-03,15N2,benthos,0.5,,nfix_rate,59.0,mg-n m-2 d-1,[5],0.7268,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.46,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.27,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.45,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.38,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.07,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.29,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.26,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.02,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R79,"Imboacica Lagoon, Brazil",,"(-22.833333, -44.7)",freshwater wetlands,1993,ARA,benthos,,,nfix_rate,0.19,nmol-n g-1 h-1,[6],0.7666,table-anchored
+R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",,"(39.407328, -0.315413)",freshwater wetlands,1989-05,ARA,benthos,,,nfix_rate,74.1,umol-c2h4 m-2 h-1,[4],0.7596,table-anchored
+R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",,"(39.407328, -0.315413)",freshwater wetlands,1989-06,ARA,benthos,,,nfix_rate,12.9,umol-c2h4 m-2 h-1,[4],0.7596,table-anchored
+R192,"Coastal Lagoon (La Albufera) near Valencia, Spain",,"(39.407328, -0.315413)",freshwater wetlands,1989-07,ARA,benthos,,,nfix_rate,108.7,umol-c2h4 m-2 h-1,[4],0.7596,table-anchored
+R103,"Lake Malawi, Africa, site LI-Makalawe",,"(-12.0, 34.5)",lakes,1988-05,ARA,benthos,5.0,,nfix_rate,642.0,ug-n2 m-2 h-1,[2],0.794,high
+R103,"Lake Malawi, Africa, site LI-Makalawe",,"(-12.0, 34.5)",lakes,1988-05,ARA,benthos,10.0,,nfix_rate,743.0,ug-n2 m-2 h-1,[2],0.794,high
+R103,"Lake Malawi, Africa, site LI-Membe",,"(-12.0, 34.5)",lakes,1988-05,ARA,benthos,2.0,,nfix_rate,1276.0,ug-n2 m-2 h-1,"[2, 4]",0.7033,ambiguous
+R103,"Lake Malawi, Africa, site LI-Membe",,"(-12.0, 34.5)",lakes,1988-05,ARA,benthos,5.0,,nfix_rate,590.0,ug-n2 m-2 h-1,[2],0.8147,high
+R103,"Lake Malawi, Africa, site LI-Membe",,"(-12.0, 34.5)",lakes,1988-05,ARA,benthos,10.0,,nfix_rate,445.0,ug-n2 m-2 h-1,[2],0.8147,high
+R103,"Lake Malawi, Africa, site Maleri N",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,2.0,,nfix_rate,1190.0,ug-n2 m-2 h-1,"[2, 4]",0.718,ambiguous
+R103,"Lake Malawi, Africa, site Maleri N",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,5.0,,nfix_rate,1068.0,ug-n2 m-2 h-1,"[2, 4]",0.7517,ambiguous
+R103,"Lake Malawi, Africa, site Maleri N",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,10.0,,nfix_rate,443.0,ug-n2 m-2 h-1,[2],0.8093,high
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,2.0,,nfix_rate,1310.0,ug-n2 m-2 h-1,"[2, 4]",0.6935,ambiguous
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,5.0,,nfix_rate,782.0,ug-n2 m-2 h-1,[2],0.8093,high
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-05,ARA,benthos,10.0,,nfix_rate,108.0,ug-n2 m-2 h-1,[2],0.8093,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-05,ARA,benthos,2.0,,nfix_rate,2585.0,ug-n2 m-2 h-1,"[2, 4]",0.7247,ambiguous
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-05,ARA,benthos,5.0,,nfix_rate,1029.0,ug-n2 m-2 h-1,"[2, 4]",0.7566,ambiguous
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-05,ARA,benthos,10.0,,nfix_rate,387.0,ug-n2 m-2 h-1,[2],0.8087,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-05,ARA,benthos,16.0,,nfix_rate,327.0,ug-n2 m-2 h-1,[2],0.8087,high
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-06-24,ARA,benthos,2.0,,nfix_rate,718.0,ug-n2 m-2 h-1,[4],0.7725,high
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-06-24,ARA,benthos,2.0,,nfix_rate,899.0,ug-n2 m-2 h-1,[4],0.7725,high
+R103,"Lake Malawi, Africa, site Maleri S",,"(-12.0, 34.5)",lakes,1997-06-24,ARA,benthos,2.0,,nfix_rate,948.0,ug-n2 m-2 h-1,[4],0.7725,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-09-13,ARA,benthos,1.0,,nfix_rate,383.0,ug-n2 m-2 h-1,[4],0.7687,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-09-13,ARA,benthos,1.0,,nfix_rate,492.0,ug-n2 m-2 h-1,[4],0.7687,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-09-13,ARA,benthos,1.0,,nfix_rate,349.0,ug-n2 m-2 h-1,[4],0.7687,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-09-13,ARA,benthos,2.0,,nfix_rate,982.0,ug-n2 m-2 h-1,[4],0.7687,high
+R103,"Lake Malawi, Africa, site Thumbi West",,"(-12.0, 34.5)",lakes,1998-09-13,ARA,benthos,2.0,,nfix_rate,721.0,ug-n2 m-2 h-1,[4],0.7687,high
+R225,"Mono Lake, Sierra Nevada, California - Station 3, 2 m depth",,"(37.98783, -119.097427)",lakes,2001-05,15N2,wc,2.0,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.7244,ambiguous
+R225,"Mono Lake, Sierra Nevada, California - Station 3, 18.5 m depth",,"(37.98783, -119.097427)",lakes,2001-05,15N2,wc,18.5,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.7157,ambiguous
+R225,"Mono Lake, Sierra Nevada, California - Station 3, 30 m depth",,"(37.98783, -119.097427)",lakes,2001-05,15N2,wc,30.0,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.7152,ambiguous
+R225,"Mono Lake, Sierra Nevada, California - Station 6, 2 m depth",,"(37.964174, -119.028387)",lakes,2001-08,15N2,wc,2.0,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.7257,ambiguous
+R225,"Mono Lake, Sierra Nevada, California - Station 6, 18.5 m depth",,"(37.964174, -119.028387)",lakes,2001-08,15N2,wc,18.5,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.715,ambiguous
+R225,"Mono Lake, Sierra Nevada, California - Station 6, 30 m depth",,"(37.964174, -119.028387)",lakes,2001-08,15N2,wc,30.0,,nfix_rate,0.0,nmol-n l-1 d-1,"[7, 9]",0.7166,ambiguous
+R264,Lake Chiprana,,"(41.2398386, -0.183341102)",lakes,2000-03-07,ARA,benthos,,,nfix_rate,5.5,nmol-c2h4 cm-2 d-1,"[1, 5, 6, 7, 8]",0.6751,ambiguous
+R230,Lake Verevi,,"(58.231361, 26.40416667)",lakes,2000-08,ARA,wc,2.0,,nfix_rate,2.8,mg-n m-3 d-1,"[1, 2, 3, 4, 5, 6, 8]",0.8423,ambiguous
+R230,Lake Verevi,,"(58.231361, 26.40416667)",lakes,2000-08-28,ARA,wc,0.5,,nfix_rate,0.3,mg-n m-3 d-1,"[1, 4]",0.8345,ambiguous
+R230,Lake Verevi,,"(58.231361, 26.40416667)",lakes,2001-08-28,ARA,wc,3.0,,nfix_rate,0.38,mg-n m-3 d-1,[4],0.8345,high
+R85,"2001, Fog 2, ambient",,"(68.616667, -149.5833333)",lakes,2001-06,ARA,benthos,,,nfix_rate,0.097,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2001, Fog 2, control",,"(68.616667, -149.5833333)",lakes,2001-06,ARA,benthos,,,nfix_rate,0.24,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2002, Fog 2, ambient",,"(68.616667, -149.5833333)",lakes,2002-06,ARA,benthos,,,nfix_rate,0.88,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2002, Fog 2, control",,"(68.616667, -149.5833333)",lakes,2002-06,ARA,benthos,,,nfix_rate,0.39,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2002, S-6, ambient",,"(68.616667, -149.5833333)",lakes,2002-06,ARA,benthos,,,nfix_rate,0.36,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2002, S-6, control",,"(68.616667, -149.5833333)",lakes,2002-06,ARA,benthos,,,nfix_rate,0.35,mg-n m-2 d-1,[4],0.7889,table-anchored
+R85,"2003, Fog 2, ambient",,"(68.616667, -149.5833333)",lakes,2003-06,ARA,benthos,,,nfix_rate,0.27,mg-n m-2 d-1,[4],0.7915,table-anchored
+R85,"2003, Fog 2, control",,"(68.616667, -149.5833333)",lakes,2003-06,ARA,benthos,,,nfix_rate,0.24,mg-n m-2 d-1,[4],0.7915,table-anchored
+R70,Shelburne Pond,,"(44.383333, -73.158333)",lakes,1999-06-29,ARA,wc,0.5,,nfix_rate,0.8,nmol-n l-1 h-1,[11],0.8202,table-anchored
+R70,Shelburne Pond,,"(44.383333, -73.158333)",lakes,1999-07-25,ARA,wc,0.5,,nfix_rate,9.62,nmol-n l-1 h-1,[11],0.8202,table-anchored
+R70,Shelburne Pond,,"(44.383333, -73.158333)",lakes,1999-08-20,ARA,wc,0.5,,nfix_rate,1.28,nmol-n l-1 h-1,[11],0.8202,table-anchored
+R70,Shelburne Pond,,"(44.383333, -73.158333)",lakes,1999-09-18,ARA,wc,0.5,,nfix_rate,0.0,nmol-n l-1 h-1,[11],0.8202,table-anchored
+R70,Shelburne Pond,,"(44.383333, -73.158333)",lakes,1999-10-19,ARA,wc,0.5,,nfix_rate,0.38,nmol-n l-1 h-1,[11],0.8202,table-anchored
+R39,Pond Baltazar,,"(-27.45, -58.91667)",lakes,1991-01,ARA,wc,,,nfix_rate,0.07,umol-n2 l-1 d-1,[22],0.7625,table-anchored
+R39,Pond Baltazar,,"(-27.45, -58.91667)",lakes,1991-01,ARA,wc,,,nfix_rate,0.0,umol-n2 l-1 d-1,[22],0.7625,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2003-06-06,ARA,wc,,,nfix_rate,0.1,ug-n2 l-1 h-1,[3],0.5569,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2003-10-09,ARA,wc,,,nfix_rate,0.0,ug-n2 l-1 h-1,[3],0.7084,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2003-11-04,ARA,wc,,,nfix_rate,0.0,ug-n2 l-1 h-1,[3],0.7129,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2003-07-03,ARA,wc,,,nfix_rate,0.0,ug-n2 l-1 h-1,[3],0.7084,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2003-10-09,ARA,wc,,,nfix_rate,0.0,ug-n2 l-1 h-1,[3],0.7084,table-anchored
+R142,Gilbert Bay Great Salt Lake,,"(41.08962096, -112.3751136)",lakes,2004-10-20,ARA,wc,,,nfix_rate,0.0,ug-n2 l-1 h-1,[3],0.7139,table-anchored
+R142,Farmington Bay Great Salt Lake,,"(41.05884227, -112.2036352)",lakes,2005-05-19,ARA,wc,,,nfix_rate,2.0,ug-n2 l-1 h-1,[3],0.7084,table-anchored
+R11,"Hurun Bay, Sumatra, Station HBA",,"(-5.05, 105.25)",mangroves,2007-04,ARA,benthos,,,nfix_rate,567.0,umol-n m-2 d-1,,,
+R11,"Hurun Bay, Sumatra, Station HBR",,"(-5.05, 105.25)",mangroves,2007-04,ARA,benthos,,,nfix_rate,97.0,umol-n m-2 d-1,,,
+R11,"Hurun Bay, Sumatra, Station HBS",,"(-5.05, 105.25)",mangroves,2007-04,ARA,benthos,,,nfix_rate,305.0,umol-n m-2 d-1,,,
+R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",,"(-4.233333, 119.5916667)",mangroves,2007-04,ARA,benthos,,,nfix_rate,1648.0,umol-n m-2 d-1,,,
+R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",,"(-4.233333, 119.5916667)",mangroves,2006-08,ARA,benthos,,,nfix_rate,238.0,umol-n m-2 d-1,,,
+R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",,"(-4.233333, 119.5916667)",mangroves,2007-04,ARA,benthos,,,nfix_rate,4316.0,umol-n m-2 d-1,,,
+R11,"Awerange Bay, Barru Regency, South Sulawesi, Station AWM",,"(-4.233333, 119.5916667)",mangroves,2006-08,ARA,benthos,,,nfix_rate,860.0,umol-n m-2 d-1,,,
+R8,Matang Mangrove Forest MVR,,"(4.837833, 100.617)",mangroves,1998,ARA,benthos,0.05,,nfix_rate,2.3,mmol-n2 m-2 d-1,[11],0.7502,table-anchored
+R8,Matang Mangrove Forest MVR,,"(4.837833, 100.617)",mangroves,1999,ARA,benthos,0.05,,nfix_rate,0.0,mmol-n2 m-2 d-1,[11],0.7502,table-anchored
+R8,Matang Mangrove Forest M18,,"(4.850667, 100.612)",mangroves,1998,ARA,benthos,0.05,,nfix_rate,3.0,mmol-n2 m-2 d-1,[11],0.7478,table-anchored
+R8,Matang Mangrove Forest M18,,"(4.850667, 100.612)",mangroves,1999,ARA,benthos,0.05,,nfix_rate,0.0,mmol-n2 m-2 d-1,[11],0.7478,table-anchored
+R8,Matang Mangrove Forest M5,,"(4.8595, 100.6155)",mangroves,1998,ARA,benthos,0.05,,nfix_rate,0.0,mmol-n2 m-2 d-1,[11],0.7546,table-anchored
+R8,Matang Mangrove Forest M5,,"(4.8595, 100.6155)",mangroves,1999,ARA,benthos,0.05,,nfix_rate,0.0,mmol-n2 m-2 d-1,[11],0.7546,table-anchored
+R7,Sawi Bay S1,,"(10.28, 99.16333333)",mangroves,1999-04,ARA,benthos,0.1,,nfix_rate,0.0,umol-n m-2 h-1,[6],0.8133,table-anchored
+R7,Sawi Bay S2,,"(10.278333, 99.16333333)",mangroves,1999-04,ARA,benthos,0.1,,nfix_rate,8.0,umol-n m-2 h-1,[6],0.8133,table-anchored
+R7,Sawi Bay S3,,"(10.373333, 99.22)",mangroves,1999-04,ARA,benthos,0.1,,nfix_rate,24.0,umol-n m-2 h-1,[6],0.8145,table-anchored
+R7,Sawi Bay S4,,"(10.373333, 99.22166667)",mangroves,1999-04,ARA,benthos,0.1,,nfix_rate,2.0,umol-n m-2 h-1,[6],0.8152,table-anchored
+R7,Sawi Bay S1,,"(10.28, 99.16333333)",mangroves,1999-10,ARA,benthos,0.1,,nfix_rate,0.0,umol-n m-2 h-1,[6],0.8133,table-anchored
+R7,Sawi Bay S2,,"(10.278333, 99.16333333)",mangroves,1999-10,ARA,benthos,0.1,,nfix_rate,2.0,umol-n m-2 h-1,[6],0.8133,table-anchored
+R7,Sawi Bay S3,,"(10.373333, 99.22)",mangroves,1999-10,ARA,benthos,0.1,,nfix_rate,10.0,umol-n m-2 h-1,[6],0.8145,table-anchored
+R7,Sawi Bay S4,,"(10.373333, 99.22166667)",mangroves,1999-10,ARA,benthos,0.1,,nfix_rate,6.0,umol-n m-2 h-1,[6],0.8152,table-anchored
+R6,"lower Mekong delta, Vietnam",,"(8.8, 105.2)",mangroves,1997-05,ARA,benthos,,,nfix_rate,245.0,umol-n2 m-2 d-1,"[1, 14]",0.8782,ambiguous
+R6,"lower Mekong delta, Vietnam",,"(8.8, 105.2)",mangroves,1997-05,ARA,benthos,,,nfix_rate,1425.0,umol-n2 m-2 d-1,[1],0.8782,high
+R6,"lower Mekong delta, Vietnam",,"(8.8, 105.2)",mangroves,1997-05,ARA,benthos,,,nfix_rate,444.0,umol-n2 m-2 d-1,[1],0.8782,high
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,9.1,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,821.3,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,306.9,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,148.5,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,264.5,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,1.0,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,25.1,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,14.6,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,65.5,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,170.3,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,0.6,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,38.2,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,19.2,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,318.2,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,0.1,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,2.7,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,2.1,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,20.2,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,1.2,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,6.0,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,20.9,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,25.8,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R114,"channel near Solimoes A-B, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,0.0,nmol-n2 g-1 h-1,[12],0.7407,table-anchored
+R114,"Lake Camaleao D, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,3.3,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Camaleao E, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,2.1,nmol-n2 g-1 h-1,[12],0.7484,table-anchored
+R114,"Lake Novo center, Marchantaria Island",,"(-3.243347, -59.947108)",rivers,2001-04,ARA,benthos,,,nfix_rate,7.3,nmol-n2 g-1 h-1,[12],0.745,table-anchored
+R43,Kings Creek N4D,,"(39.08785, -96.58445)",rivers,2003,ARA,benthos,0.04,,nfix_rate,18.6,fmol-n g-1 h-1,[21],0.8351,high
+R43,Kings Creek N4D,,"(39.08785, -96.58445)",rivers,2003,ARA,benthos,0.04,,nfix_rate,13.3,fmol-n g-1 h-1,[21],0.8351,high
+R43,Kings Creek K2A,,"(39.100133, -96.57423333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,2.9,fmol-n g-1 h-1,[21],0.837,high
+R43,Kings Creek K2A,,"(39.100133, -96.57423333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,3.2,fmol-n g-1 h-1,[21],0.837,high
+R43,Kings Creek K2A,,"(39.100133, -96.57423333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,78.1,fmol-n g-1 h-1,[21],0.837,high
+R43,North Creek,,"(39.21235, -96.59306667)",rivers,2003,ARA,benthos,0.04,,nfix_rate,6.2,fmol-n g-1 h-1,[21],0.8357,high
+R43,North Creek,,"(39.21235, -96.59306667)",rivers,2003,ARA,benthos,0.04,,nfix_rate,6.2,fmol-n g-1 h-1,[21],0.8357,high
+R43,North Creek,,"(39.21235, -96.59306667)",rivers,2003,ARA,benthos,0.04,,nfix_rate,14.8,fmol-n g-1 h-1,[21],0.8357,high
+R43,Natalie s Creek,,"(39.228717, -96.65883333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,2.1,fmol-n g-1 h-1,[21],0.8213,high
+R43,Natalie s Creek,,"(39.228717, -96.65883333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,2.3,fmol-n g-1 h-1,[21],0.8213,high
+R43,Natalie s Creek,,"(39.228717, -96.65883333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,5.6,fmol-n g-1 h-1,[21],0.8213,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,2.3,fmol-n g-1 h-1,[21],0.8334,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,2.6,fmol-n g-1 h-1,[21],0.8334,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,0.04,,nfix_rate,3.0,fmol-n g-1 h-1,[21],0.8334,high
+R43,Campus Creek,,"(39.228717, -96.65883333)",rivers,2003,ARA,benthos,0.04,,nfix_rate,1.9,fmol-n g-1 h-1,[21],0.8334,high
+R43,Campus Creek,,"(39.228717, -96.65883333)",rivers,2003,ARA,benthos,0.04,,nfix_rate,1.5,fmol-n g-1 h-1,[21],0.8334,high
+R43,Campus Creek,,"(39.228717, -96.65883333)",rivers,2003,ARA,benthos,0.04,,nfix_rate,1.5,fmol-n g-1 h-1,[21],0.8334,high
+R43,Natalie s Creek,,"(39.228717, -96.65883333)",rivers,2004,ARA,benthos,,,nfix_rate,112.8,fmol-n g-1 h-1,[22],0.8195,high
+R43,Natalie s Creek,,"(39.228717, -96.65883333)",rivers,2004,ARA,benthos,,,nfix_rate,82.8,fmol-n g-1 h-1,[22],0.8195,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,,,nfix_rate,93.5,fmol-n g-1 h-1,[22],0.8316,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,,,nfix_rate,62.7,fmol-n g-1 h-1,[22],0.8316,high
+R43,Big Blue River Ditch,,"(39.185583, -96.55833333)",rivers,2004,ARA,benthos,,,nfix_rate,69.7,fmol-n g-1 h-1,[22],0.8316,high
+R102,"Whangateau Harbour, New Zealand",,"(-36.3, 174.7666667)",salt marshes,1975-01,ARA,benthos,,,nfix_rate,24.7,umol-c2h4 m-2 h-1,[4],0.7215,table-anchored
+R102,"Whangateau Harbour, New Zealand",,"(-36.3, 174.7666667)",salt marshes,1975-01,ARA,benthos,,,nfix_rate,4.5,umol-c2h4 m-2 h-1,[4],0.7215,table-anchored
+R159,"Northern Wildlife Preserve, San Diego, California - Native habitat",,"(32.793056, -117.2166667)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,29.0,umol-c2h4 m-2 h-1,[11],0.7357,high
+R159,"Northern Wildlife Preserve, San Diego, California - Habitat with mussels",,"(32.793056, -117.2166667)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,11.0,umol-c2h4 m-2 h-1,[5],0.6575,medium
+R159,"Tijuana Estuary, Imperial Beach, California - Native habitat",,"(32.566667, -117.1166667)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,3.1,umol-c2h4 m-2 h-1,"[1, 2, 11, 12]",0.7599,ambiguous
+R159,"Tijuana Estuary, Imperial beach, California - Habitat with tamarisk shrubs",,"(32.566667, -117.1166667)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,6.1,umol-c2h4 m-2 h-1,"[1, 2, 11, 12]",0.7363,ambiguous
+R124,Connector Marsh - sediment surface,,"(32.651482, -117.105304)",salt marshes,1988-02,ARA,benthos,0.01,,nfix_rate,14.98,nmol-c2h4 m-2 h-1,[9],0.7648,high
+R124,Connector Marsh - sediment surface,,"(32.651482, -117.105304)",salt marshes,1988-04,ARA,benthos,0.01,,nfix_rate,42.62,nmol-c2h4 m-2 h-1,[9],0.7648,high
+R124,Connector Marsh - sediment surface,,"(32.651482, -117.105304)",salt marshes,1988-07,ARA,benthos,0.01,,nfix_rate,45.42,nmol-c2h4 m-2 h-1,[9],0.7648,high
+R124,Connector Marsh - sediment surface,,"(32.651482, -117.105304)",salt marshes,1988-09,ARA,benthos,0.01,,nfix_rate,34.68,nmol-c2h4 m-2 h-1,[9],0.7648,high
+R124,Connector Marsh - sediment surface,,"(32.651482, -117.105304)",salt marshes,1989-02,ARA,benthos,0.01,,nfix_rate,24.54,nmol-c2h4 m-2 h-1,[9],0.7648,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1988-02,ARA,benthos,0.01,,nfix_rate,7.26,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1988-04,ARA,benthos,0.01,,nfix_rate,15.56,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1988-07,ARA,benthos,0.01,,nfix_rate,47.58,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1988-09,ARA,benthos,0.01,,nfix_rate,46.53,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1989-02,ARA,benthos,0.01,,nfix_rate,26.76,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,North Bank - sediment surface,,"(32.653876, -117.10731)",salt marshes,1989-03,ARA,benthos,0.01,,nfix_rate,19.53,nmol-c2h4 m-2 h-1,[9],0.7703,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1988-02,ARA,benthos,0.01,,nfix_rate,33.03,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1988-04,ARA,benthos,0.01,,nfix_rate,118.93,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1988-07,ARA,benthos,0.01,,nfix_rate,70.25,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1988-09,ARA,benthos,0.01,,nfix_rate,33.99,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1989-02,ARA,benthos,0.01,,nfix_rate,61.48,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Paradise Creek Marsh - sediment surface,,"(32.655999, -117.10834)",salt marshes,1989-03,ARA,benthos,0.01,,nfix_rate,24.67,nmol-c2h4 m-2 h-1,[9],0.7791,high
+R124,Connector Marsh - rhizosphere,,"(32.651482, -117.105304)",salt marshes,1988-02,ARA,benthos,0.1,,nfix_rate,105.52,nmol-c2h4 m-2 h-1,[9],0.7654,high
+R124,Connector Marsh - rhizosphere,,"(32.651482, -117.105304)",salt marshes,1988-04,ARA,benthos,0.1,,nfix_rate,96.24,nmol-c2h4 m-2 h-1,[9],0.7654,high
+R124,Connector Marsh - rhizosphere,,"(32.651482, -117.105304)",salt marshes,1988-07,ARA,benthos,0.1,,nfix_rate,118.07,nmol-c2h4 m-2 h-1,[9],0.7654,high
+R124,Connector Marsh - rhizosphere,,"(32.651482, -117.105304)",salt marshes,1988-09,ARA,benthos,0.1,,nfix_rate,251.73,nmol-c2h4 m-2 h-1,[9],0.7654,high
+R124,North Bank - rhizosphere,,"(32.653876, -117.10731)",salt marshes,1987-12,ARA,benthos,0.1,,nfix_rate,2.96,nmol-c2h4 m-2 h-1,[9],0.7724,high
+R124,North Bank - rhizosphere,,"(32.653876, -117.10731)",salt marshes,1988-02,ARA,benthos,0.1,,nfix_rate,44.33,nmol-c2h4 m-2 h-1,[9],0.7724,high
+R124,North Bank - rhizosphere,,"(32.653876, -117.10731)",salt marshes,1988-04,ARA,benthos,0.1,,nfix_rate,77.03,nmol-c2h4 m-2 h-1,[9],0.7724,high
+R124,North Bank - rhizosphere,,"(32.653876, -117.10731)",salt marshes,1988-07,ARA,benthos,0.1,,nfix_rate,223.76,nmol-c2h4 m-2 h-1,[9],0.7724,high
+R124,North Bank - rhizosphere,,"(32.653876, -117.10731)",salt marshes,1988-09,ARA,benthos,0.1,,nfix_rate,251.76,nmol-c2h4 m-2 h-1,[9],0.7724,high
+R124,Paradise Creek Marsh - rhizosphere,,"(32.655999, -117.10834)",salt marshes,1987-12,ARA,benthos,0.1,,nfix_rate,7.49,nmol-c2h4 m-2 h-1,[9],0.7815,high
+R124,Paradise Creek Marsh - rhizosphere,,"(32.655999, -117.10834)",salt marshes,1988-02,ARA,benthos,0.1,,nfix_rate,104.29,nmol-c2h4 m-2 h-1,[9],0.7815,high
+R124,Paradise Creek Marsh - rhizosphere,,"(32.655999, -117.10834)",salt marshes,1988-04,ARA,benthos,0.1,,nfix_rate,161.91,nmol-c2h4 m-2 h-1,[9],0.7815,high
+R124,Paradise Creek Marsh - rhizosphere,,"(32.655999, -117.10834)",salt marshes,1988-07,ARA,benthos,0.1,,nfix_rate,177.42,nmol-c2h4 m-2 h-1,[9],0.7815,high
+R124,Paradise Creek Marsh - rhizosphere,,"(32.655999, -117.10834)",salt marshes,1988-09,ARA,benthos,0.1,,nfix_rate,73.68,nmol-c2h4 m-2 h-1,[9],0.7815,high
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-07,ARA,benthos,,,nfix_rate,3.6,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-07,ARA,benthos,,,nfix_rate,7.5,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-07,ARA,benthos,,,nfix_rate,1.5,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-07,ARA,benthos,,,nfix_rate,0.5,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-05,ARA,benthos,,,nfix_rate,4.1,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-05,ARA,benthos,,,nfix_rate,6.5,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-05,ARA,benthos,,,nfix_rate,0.7,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-02,ARA,benthos,,,nfix_rate,1.4,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-02,ARA,benthos,,,nfix_rate,0.3,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-10,ARA,benthos,,,nfix_rate,2.7,ng-n g-1 h-1,[6],0.7163,table-anchored
+R13,Virginia Coastal Reserve,,"(37.422715, -75.68776)",salt marshes,1994-10,ARA,benthos,,,nfix_rate,0.6,ng-n g-1 h-1,[6],0.7163,table-anchored
+R156,Groote Eylandt open bay,,"(-13.789127, 136.567)",salt marshes,1987-02,ARA,benthos,0.12,,nfix_rate,33.0,mg-n m-2 d-1,[3],0.774,high
+R156,Groote Eylandt open bay,,"(-13.789127, 136.567)",salt marshes,1987-02,ARA,benthos,0.12,,nfix_rate,41.0,mg-n m-2 d-1,[3],0.774,high
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",salt marshes,1997-06-25,ARA,benthos,0.12,,nfix_rate,0.087,nmol-n cm-3 h-1,[6],0.74,table-anchored
+R102,"Whangateau Harbour, New Zealand",,"(-36.3, 174.7666667)",seagrasses,1975-01,ARA,benthos,,,nfix_rate,15.2,umol-c2h4 m-2 h-1,[4],0.7184,table-anchored
+R102,"Whangateau Harbour, New Zealand",,"(-36.3, 174.7666667)",seagrasses,1975-01,ARA,benthos,,,nfix_rate,2.9,umol-c2h4 m-2 h-1,[4],0.7184,table-anchored
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,26.9,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,9.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,6.4,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,5.0,umol-c2h4 m-2 h-1,"[5, 8]",0.7359,ambiguous
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,2.6,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,1.8,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,9.9,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,8.6,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,6.7,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,4.8,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,0.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,1.6,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,2.2,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,2.2,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-05,ARA,benthos,,,nfix_rate,0.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,46.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,22.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,17.5,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,13.6,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,12.1,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,24.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,18.4,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,17.5,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,13.3,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,9.8,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,0.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,2.1,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,2.9,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,4.9,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1987-02,ARA,benthos,,,nfix_rate,4.0,umol-c2h4 m-2 h-1,"[5, 8]",0.7294,ambiguous
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,33.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,31.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,14.0,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,5.1,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,1.4,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986-12,ARA,benthos,,,nfix_rate,0.3,umol-c2h4 m-2 h-1,[5],0.7282,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,benthos,,,nfix_rate,35.0,umol-n m-2 h-1,[8],0.7688,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,benthos,,,nfix_rate,6.0,umol-n m-2 h-1,"[5, 8]",0.7688,ambiguous
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,benthos,,,nfix_rate,0.9,umol-n m-2 h-1,"[5, 8]",0.7688,ambiguous
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,benthos,,,nfix_rate,8.7,umol-n m-2 h-1,[8],0.7688,high
+R244,Lle auz Oseaux - central region of Bassin d Arcachon,,"(44.697691, -1.177323)",seagrasses,1995-06,ARA,benthos,,,nfix_rate,7.66,umol-c2h4 m-2 h-1,"[1, 2, 3]",0.7061,ambiguous
+R244,Lle auz Oseaux - central region of Bassin d Arcachon,,"(44.697691, -1.177323)",seagrasses,1995-06,ARA,benthos,,,nfix_rate,4.17,umol-c2h4 m-2 h-1,"[2, 5]",0.7633,ambiguous
+R244,Lle auz Oseaux - central region of Bassin d Arcachon,,"(44.697691, -1.177323)",seagrasses,1994-10,ARA,benthos,,,nfix_rate,54.5,umol-c2h4 m-2 h-1,"[2, 5]",0.7524,ambiguous
+R244,Lle auz Oseaux - central region of Bassin d Arcachon,,"(44.697691, -1.177323)",seagrasses,1994-10,ARA,benthos,,,nfix_rate,5.0,umol-c2h4 m-2 h-1,[2],0.7871,high
+R38,Northern Gulf of Aqaba,,"(29.45, 34.9667)",seagrasses,2013-02,ARA,benthos,10.0,,nfix_rate,0.06,mmol-n m-2 d-1,[7],0.7245,table-anchored
+R38,Northern Gulf of Aqaba,,"(29.45, 34.9667)",seagrasses,2013-04,ARA,benthos,10.0,,nfix_rate,0.42,mmol-n m-2 d-1,[7],0.7245,table-anchored
+R38,Northern Gulf of Aqaba,,"(29.45, 34.9667)",seagrasses,2013-09,ARA,benthos,10.0,,nfix_rate,4.6,mmol-n m-2 d-1,[7],0.731,table-anchored
+R38,Northern Gulf of Aqaba,,"(29.45, 34.9667)",seagrasses,2013-11,ARA,benthos,10.0,,nfix_rate,0.4,mmol-n m-2 d-1,[7],0.731,table-anchored
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",seagrasses,1997-06-25,ARA,benthos,0.03,,nfix_rate,0.117,nmol-n cm-3 h-1,[6],0.7499,table-anchored
+R156,Groote Eylandt reef flat,,"(-13.789127, 136.4882)",tidal flats,1986-11,ARA,benthos,0.07,,nfix_rate,16.0,mg-n m-2 d-1,[3],0.7767,high
+R156,Groote Eylandt reef flat,,"(-13.789127, 136.4882)",tidal flats,1987-02,ARA,benthos,0.07,,nfix_rate,15.0,mg-n m-2 d-1,[3],0.7832,high
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",tidal flats,2008-03-24,ARA,benthos,0.04,,nfix_rate,2.3,nmol-n cm-2 h-1,[8],0.8246,table-anchored
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",tidal flats,2008-03-24,ARA,benthos,0.04,,nfix_rate,2.6,nmol-n cm-2 h-1,[8],0.8246,table-anchored
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",tidal flats,2008-03-26,ARA,benthos,0.04,,nfix_rate,1.6,nmol-n cm-2 h-1,[8],0.8246,table-anchored
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",tidal flats,2008-03-27,ARA,benthos,0.04,,nfix_rate,2.7,nmol-n cm-2 h-1,[8],0.8246,table-anchored
+R1,Giralia Bay,,"(-22.436944, 114.3461111)",tidal flats,2008-03-28,ARA,benthos,0.04,,nfix_rate,0.57,nmol-n cm-2 h-1,[8],0.8246,table-anchored
+R121,Kiwayuu station point 27,,"(-2.01868461, 41.2860269)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,86.9,umol-n2 m-2 d-1,[14],0.7375,high
+R121,Kiwayuu station point 28,,"(-2.02729581, 41.3315075)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,22.5,umol-n2 m-2 d-1,[14],0.7357,high
+R121,Sabaki station point 08,,"(-3.1541067, 40.144013)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,0.4,umol-n2 m-2 d-1,[14],0.7415,high
+R121,Sabaki station point 11,,"(-3.15374199, 40.1985574)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,2.6,umol-n2 m-2 d-1,[14],0.7421,high
+R121,Sabaki station point 17,,"(-3.15103706, 40.6030946)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,23.6,umol-n2 m-2 d-1,[14],0.7421,high
+R121,Sabaki station point 18,,"(-3.14872723, 40.9485422)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,0.1,umol-n2 m-2 d-1,"[9, 14]",0.7421,ambiguous
+R121,Gazi station point 03,,"(-4.37500253, 39.5522582)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,2.3,umol-n2 m-2 d-1,[14],0.7421,high
+R121,Gazi station point 03 during surface bloom,,"(-4.37500253, 39.5522582)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,15695.5,umol-n2 m-2 d-1,[14],0.7421,high
+R121,Gazi station point 05,,"(-4.36945084, 39.7158777)",continental shelves,1992-11,ARA,other,0.2,,nfix_rate,0.7,umol-n2 m-2 d-1,[14],0.7403,high
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",estuaries,1997-06-25,ARA,other,0.03,,nfix_rate,0.008,nmol-n cm-3 h-1,[6],0.7438,table-anchored
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",estuaries,1997-06-25,ARA,other,0.03,,nfix_rate,0.046,nmol-n cm-3 h-1,[6],0.7438,table-anchored
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",estuaries,1997-06-25,ARA,other,0.12,,nfix_rate,0.876,nmol-n cm-3 h-1,[6],0.7438,table-anchored
+R171,Bay of Arcachon,,"(44.697128, -1.167539)",estuaries,1997-06-25,ARA,other,0.12,,nfix_rate,0.037,nmol-n cm-3 h-1,[6],0.7438,table-anchored
+R84,"Wilmington and Morehead City, North Carolina",,"(34.479695, -77.472247)",estuaries,2010-05,ARA,other,,,nfix_rate,0.6,ug-n g-1 h-1,"[4, 8, 9]",0.7345,ambiguous
+R84,"Wilmington and Morehead City, North Carolina",,"(34.479695, -77.472247)",estuaries,2010-05,ARA,other,,,nfix_rate,0.09,ug-n g-1 h-1,"[8, 9]",0.7287,ambiguous
+R156,Weipa seagrass bed,,"(-12.648099, 141.811)",estuaries,1986-11,ARA,other,0.12,,nfix_rate,4.2,mg-n m-2 d-1,[5],0.8002,high
+R156,Weipa seagrass bed,,"(-12.648099, 141.811)",estuaries,1986-11,ARA,other,0.12,,nfix_rate,0.3,mg-n m-2 d-1,[5],0.5936,medium
+R156,Weipa seagrass bed,,"(-12.648099, 141.811)",estuaries,1986-11,ARA,other,0.12,,nfix_rate,0.1,mg-n m-2 d-1,[5],0.5936,medium
+R156,Weipa seagrass bed,,"(-12.648099, 141.811)",estuaries,1986-11,ARA,other,0.12,,nfix_rate,0.1,ug-n g-1 d-1,[5],0.5879,medium
+R33,Seno Skyring (SKY),,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,15N2,other,,,nfix_rate,1.02,umol-n g-1 d-1,[5],0.7123,table-anchored
+R33,Seno Obstruccion (OBS),,"(-52.135907, -72.446037)",freshwater wetlands,2014-04,15N2,other,,,nfix_rate,1.25,umol-n g-1 d-1,[5],0.7243,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,15N2,other,,,nfix_rate,3.09,umol-n g-1 d-1,[5],0.7278,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,15N2,other,,,nfix_rate,2.47,umol-n g-1 d-1,[5],0.7278,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,15N2,other,,,nfix_rate,3.94,umol-n g-1 d-1,[5],0.7278,table-anchored
+R33,Seno Skyring (SKY),,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,ARA,other,,,nfix_rate,2.43,umol-c2h4 g-1 d-1,[5],0.7413,table-anchored
+R33,Seno Obstruccion (OBS),,"(-52.135907, -72.446037)",freshwater wetlands,2014-04,ARA,other,,,nfix_rate,1.68,umol-c2h4 g-1 d-1,[5],0.7533,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,ARA,other,,,nfix_rate,0.0,umol-c2h4 g-1 d-1,[5],0.7567,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,ARA,other,,,nfix_rate,2.35,umol-c2h4 g-1 d-1,[5],0.7567,table-anchored
+R33,SKY & OBS average,,"(-52.508667, -72.127278)",freshwater wetlands,2014-04,ARA,other,,,nfix_rate,18.01,umol-c2h4 g-1 d-1,[5],0.7567,table-anchored
+R39,Pond San Nicolas,,"(-27.45, -58.91667)",lakes,1990-04,ARA,other,,,nfix_rate,0.37,umol-n2 g-1 d-1,[22],0.7749,table-anchored
+R39,Pond San Nicolas,,"(-27.45, -58.91667)",lakes,1990-04,ARA,other,,,nfix_rate,0.17,umol-n2 g-1 d-1,[22],0.7749,table-anchored
+R39,Pond Baltazar,,"(-27.45, -58.91667)",lakes,1991-01,ARA,other,,,nfix_rate,3.18,umol-n2 g-1 d-1,[22],0.7671,table-anchored
+R39,Pond Baltazar,,"(-27.45, -58.91667)",lakes,1991-01,ARA,other,,,nfix_rate,0.54,umol-n2 g-1 d-1,[22],0.7671,table-anchored
+R43,Kings Creek N4D,,"(39.08785, -96.58445)",rivers,2003,ARA,other,,,nfix_rate,81.9,fmol-n g-1 h-1,[22],0.8351,high
+R43,Kings Creek N4D,,"(39.08785, -96.58445)",rivers,2003,ARA,other,,,nfix_rate,63.3,fmol-n g-1 h-1,[22],0.8351,high
+R43,Kings Creek K2A,,"(39.100133, -96.57423333)",rivers,2004,ARA,other,,,nfix_rate,9.2,fmol-n g-1 h-1,[22],0.8352,high
+R152,Apr,,"(34.724813, -76.659535)",salt marshes,2002-04-24,ARA,other,,,nfix_rate,56.5,nmol-c2h4 cm-2 h-1,[5],0.8378,table-anchored
+R152,Jun,,"(34.724813, -76.659535)",salt marshes,2002-04-25,ARA,other,,,nfix_rate,72.1,nmol-c2h4 cm-2 h-1,[5],0.8378,table-anchored
+R152,Jul,,"(34.724813, -76.659535)",salt marshes,2002-04-26,ARA,other,,,nfix_rate,34.2,nmol-c2h4 cm-2 h-1,[5],0.8378,table-anchored
+R152,Aug,,"(34.724813, -76.659535)",salt marshes,2002-04-27,ARA,other,,,nfix_rate,16.3,nmol-c2h4 cm-2 h-1,[5],0.8378,table-anchored
+R152,Sep,,"(34.724813, -76.659535)",salt marshes,2002-04-28,ARA,other,,,nfix_rate,17.1,nmol-c2h4 cm-2 h-1,[5],0.8378,table-anchored
+R152,Oct,,"(34.724813, -76.659535)",salt marshes,2002-04-29,ARA,other,,,nfix_rate,14.6,nmol-c2h4 cm-2 h-1,[5],0.798,table-anchored
+R156,Groote Eylandt open bay,,"(-13.789127, 136.567)",salt marshes,1987-02,ARA,other,0.12,,nfix_rate,2.2,mg-n m-2 d-1,"[3, 5]",0.7361,ambiguous
+R156,Groote Eylandt open bay,,"(-13.789127, 136.567)",salt marshes,1987-02,ARA,other,0.12,,nfix_rate,2.6,mg-n m-2 d-1,"[3, 5]",0.7134,ambiguous
+R156,Groote Eylandt open bay,,"(-13.789127, 136.567)",salt marshes,1987-02,ARA,other,0.12,,nfix_rate,4.1,ug-n g-1 d-1,"[3, 5]",0.7575,ambiguous
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,other,,,nfix_rate,61.0,umol-n m-2 h-1,[8],0.7688,high
+R172,"Moreton bay, Australia",,"(-27.633333, 153.4166667)",seagrasses,1986,15N2,other,,,nfix_rate,8.5,umol-n m-2 h-1,[8],0.7688,high
+R156,Groote Eylandt reef flat,,"(-13.789127, 136.4882)",tidal flats,1987-02,ARA,other,0.08,,nfix_rate,0.3,mg-n m-2 d-1,[5],0.5353,medium
+R156,Groote Eylandt reef flat,,"(-13.789127, 136.4882)",tidal flats,1987-02,ARA,other,0.08,,nfix_rate,1.6,mg-n m-2 d-1,"[3, 5]",0.6923,ambiguous
+R156,Groote Eylandt reef flat,,"(-13.789127, 136.4882)",tidal flats,1987-02,ARA,other,0.08,,nfix_rate,3.7,ug-n g-1 d-1,"[3, 5]",0.7434,ambiguous
+R221,Northeastern Chukchi Sea Shelf,,"(71.251, -163.197)",continental shelves,2010-07-25,N2/Ar,benthos,46.0,,nfix_rate,-27.0,umol-n2 m-2 h-1,[5],0.7896,table-anchored
+R221,Northeastern Chukchi Sea Shelf,,"(71.251, -163.197)",continental shelves,2010-07-25,N2/Ar,benthos,46.0,,nfix_rate,-27.0,umol-n2 m-2 h-1,[5],0.7896,table-anchored
+R78,"Narragansett Bay, RI",,"(41.588333, -71.371667)",estuaries,2011-06,N2/Ar,benthos,,,nfix_rate,-10.3,umol-n m-2 h-1,[4],0.7116,table-anchored
+R194,24-Jun-08,,"(41.580028, -70.525069)",estuaries,2008-06-24,N2/Ar,benthos,,,nfix_rate,-0.768,mmol-n m-2 h-1,[7],0.7056,table-anchored
+R194,25-Jun-08,,"(41.580028, -70.525069)",estuaries,2008-06-25,N2/Ar,benthos,,,nfix_rate,-0.173,mmol-n m-2 h-1,[7],0.7056,table-anchored
+R76,Narragansett Bay,,"(41.778333, -71.38)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-25.0,umol-n m-2 h-1,[2],0.9142,table-anchored
+R76,Narragansett Bay,,"(41.778333, -71.38)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-245.0,umol-n m-2 h-1,[2],0.9142,table-anchored
+R76,Narragansett Bay,,"(41.718333, -71.36)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-30.0,umol-n m-2 h-1,[2],0.9166,table-anchored
+R76,Narragansett Bay,,"(41.72, -71.30833333)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-135.0,umol-n m-2 h-1,[2],0.915,table-anchored
+R76,Narragansett Bay,,"(41.72, -71.30833333)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-650.0,umol-n m-2 h-1,[2],0.915,table-anchored
+R76,Narragansett Bay,,"(41.588333, -71.37166667)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-75.0,umol-n m-2 h-1,[2],0.9126,table-anchored
+R76,Narragansett Bay,,"(41.588333, -71.37166667)",estuaries,2006,N2/Ar,benthos,7.0,,nfix_rate,-276.0,umol-n m-2 h-1,[2],0.9126,table-anchored
+R105,"Gainsville, FL USA",,"(29.64752, -82.3136)",lakes,2019-01,N2/Ar,benthos,1.875,,nfix_rate,-0.39,mg-n m-2 h-1,[10],0.7591,table-anchored
+R105,"Gainsville, FL USA",,"(29.65419, -82.38285)",lakes,2019-01,N2/Ar,benthos,1.875,,nfix_rate,-0.72,mg-n m-2 h-1,[10],0.7582,table-anchored
+R105,"Miami, FL USA",,"(25.72118, -80.46256)",lakes,2019-01,N2/Ar,benthos,0.625,,nfix_rate,-0.48,mg-n m-2 h-1,[10],0.737,table-anchored
+R105,"Miami, FL USA",,"(25.69417, -80.43774)",lakes,2019-01,N2/Ar,benthos,0.625,,nfix_rate,-0.29,mg-n m-2 h-1,[10],0.737,table-anchored
+R105,"Miami, FL USA",,"(25.71638, -80.45018)",lakes,2019-06,N2/Ar,benthos,0.875,,nfix_rate,-0.28,mg-n m-2 h-1,[10],0.7284,table-anchored
+R144,"Lake Taihu, China",,"(31.374645, 120.173805)",lakes,2002-09-26,N2/Ar,benthos,2.8,,nfix_rate,-14.0,umol-n m-2 h-1,"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13]",0.5472,ambiguous
+R235,Plum Island Estuary Long Term Ecological Research Site-Reference,,"(42.733333, -70.83333333)",salt marshes,2011-06,N2/Ar,benthos,0.15,,nfix_rate,-70.2,umol-n m-2 h-1,[6],0.6651,table-anchored
+R219,Chukchi Sea Station 1,,"(71.3444, -156.6902)",continental shelves,2011-08-18,15N2,wc,4.0,,nfix_rate,5.7,nmol-n l-1 d-1,[11],0.6743,table-anchored
+R219,Chukchi Sea Station 2,,"(71.3444, -156.6902)",continental shelves,2011-08-18,15N2,wc,8.0,,nfix_rate,17.2,nmol-n l-1 d-1,[11],0.5354,table-anchored
+R219,Chukchi Sea Station 3,,"(71.3433, -156.6583)",continental shelves,2011-08-18,15N2,wc,2.0,,nfix_rate,3.5,nmol-n l-1 d-1,[11],0.6672,table-anchored
+R219,Chukchi Sea Station 4,,"(71.3444, -156.6902)",continental shelves,2011-08-18,15N2,wc,8.0,,nfix_rate,4.4,nmol-n l-1 d-1,[11],0.6861,table-anchored
+R219,Chukchi Sea Station 8,,"(71.3172, -156.855)",continental shelves,2011-08-18,15N2,wc,8.0,,nfix_rate,7.7,nmol-n l-1 d-1,[11],0.6068,table-anchored
+R219,Walakpa Bay Station 5,,"(71.1188, -156.9066)",estuaries,2011-08-18,15N2,wc,0.0,,nfix_rate,4.9,nmol-n l-1 d-1,[11],0.7052,table-anchored
+R219,Walakpa Bay Station 6,,"(71.1291, -157.0194)",estuaries,2011-08-18,15N2,wc,0.0,,nfix_rate,5.4,nmol-n l-1 d-1,[11],0.6829,table-anchored
+R219,Walakpa Bay Station 7,,"(71.1458, -157.0625)",estuaries,2011-08-18,15N2,wc,0.0,,nfix_rate,5.6,nmol-n l-1 d-1,[11],0.6703,table-anchored
+R9,HAY,,"(-13.66, 143.685)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,132.0,umol-n m-2 d-1,[21],0.8221,table-anchored
+R9,HAN,,"(-13.853333, 143.7083333)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,181.0,umol-n m-2 d-1,[21],0.8188,table-anchored
+R9,BUK,,"(-13.935, 143.7416667)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,374.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,PCB,,"(-14.34, 144.12)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,308.0,umol-n m-2 d-1,[21],0.8231,table-anchored
+R9,HIG,,"(-17.15, 145.9933333)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,70.0,umol-n m-2 d-1,[21],0.8191,table-anchored
+R9,RUS,,"(-17.225, 146.0833333)",continental shelves,2001-09,ARA,benthos,0.2,,nfix_rate,191.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,HAY,,"(-13.66, 143.685)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8221,table-anchored
+R9,HAN,,"(-13.853333, 143.7083333)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8188,table-anchored
+R9,BUK,,"(-13.935, 143.7416667)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,PCB,,"(-14.34, 144.12)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,72.0,umol-n m-2 d-1,[21],0.8231,table-anchored
+R9,LOW,,"(-16.383333, 145.555)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,313.0,umol-n m-2 d-1,[21],0.8169,table-anchored
+R9,CNS,,"(-16.823333, 145.79)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8197,table-anchored
+R9,HIG,,"(-17.15, 145.9933333)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8191,table-anchored
+R9,RUS,,"(-17.225, 146.0833333)",continental shelves,2002-09,ARA,benthos,0.2,,nfix_rate,93.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,HAY,,"(-13.66, 143.685)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8221,table-anchored
+R9,HAN,,"(-13.853333, 143.7083333)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,100.0,umol-n m-2 d-1,[21],0.8188,table-anchored
+R9,BUK,,"(-13.935, 143.7416667)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,PCB,,"(-14.34, 144.12)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,10.0,umol-n m-2 d-1,[21],0.8231,table-anchored
+R9,LOW,,"(-16.383333, 145.555)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,54.0,umol-n m-2 d-1,[21],0.8169,table-anchored
+R9,CNS,,"(-16.823333, 145.79)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8197,table-anchored
+R9,HIG,,"(-17.15, 145.9933333)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8191,table-anchored
+R9,RUS,,"(-17.225, 146.0833333)",continental shelves,2003-02,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R9,FIZ,,"(-16.965, 145.9966667)",continental shelves,2000-07,ARA,benthos,0.2,,nfix_rate,0.0,umol-n m-2 d-1,[21],0.8185,table-anchored
+R2,Alcudia Bay,,"(39.836667, 3.170833333)",seagrasses,2010-07-19,ARA,wc,,,nfix_rate,0.0356,ug-n m-3 h-1,[6],0.5628,table-anchored
+R2,Alcudia Bay,,"(39.836667, 3.170833333)",seagrasses,2012-05-14,ARA,wc,,,nfix_rate,0.282,ug-n m-3 h-1,[6],0.5628,table-anchored
+R2,Alcudia Bay,,"(39.836667, 3.170833333)",seagrasses,2010-07-19,ARA,other,,,nfix_rate,0.129,ug-n g-1 h-1,[6],0.5628,table-anchored
+R2,Alcudia Bay,,"(39.836667, 3.170833333)",seagrasses,2012-05-14,ARA,other,,,nfix_rate,0.0703,ug-n g-1 h-1,[6],0.5628,table-anchored
+R2,Alcudia Bay,,"(39.836667, 3.170833333)",seagrasses,2012-05-14,ARA,other,,,nfix_rate,15.2,mg-n m-2 d-1,[6],0.6798,table-anchored
+R30,Beaufort Sea,,"(71.120723, -132.21301)",continental shelves,2008,15N2,wc,,,nfix_rate,0.14,nmol-n l-1 d-1,[5],0.8616,table-anchored
+R30,Lancaster Sound,,"(74.248064, -88.428787)",continental shelves,2008,15N2,wc,,,nfix_rate,0.08,nmol-n l-1 d-1,[5],0.8556,table-anchored
+R30,Baffin Bay,,"(76.568077, -72.983032)",continental shelves,2008,15N2,wc,,,nfix_rate,0.02,nmol-n l-1 d-1,[5],0.8556,table-anchored
+R30,Gibbs Fjord,,"(71.070217, -71.332696)",continental shelves,2008,15N2,wc,,,nfix_rate,0.46,nmol-n l-1 d-1,[5],0.8576,table-anchored
+R30,Kugmallit Bay,,"(69.432051, -133.315194)",estuaries,2008,15N2,wc,,,nfix_rate,1.36,nmol-n l-1 d-1,[5],0.871,table-anchored
+R30,Mackenzie River,,"(69.205088, -134.246941)",rivers,2008,15N2,wc,,,nfix_rate,4.45,nmol-n l-1 d-1,[5],0.8685,table-anchored
+R45,South China Sea,,"(20.949203, 118.023756)",continental shelves,2009,15N2,wc,,,nfix_rate,45.3,umol-n m-2 d-1,[5],0.8405,table-anchored
+R45,South China Sea,,"(20.949203, 118.023756)",continental shelves,2009,15N2,wc,,,nfix_rate,68.7,umol-n m-2 d-1,[5],0.8405,table-anchored
+R69,Green Lake,,"(51.289256, -94.50055556)",lakes,1990,ARA,wc,1.5,,nfix_rate,28.0,umol-n m-2 d-1,[7],0.766,table-anchored
+R69,Orange Lake,,"(51.231717, -94.53638889)",lakes,1990,ARA,wc,1.5,,nfix_rate,12.0,umol-n m-2 d-1,[7],0.7883,table-anchored
+R69,Ling Lake,,"(51.253894, -94.28861111)",lakes,1990,ARA,wc,1.5,,nfix_rate,104.0,umol-n m-2 d-1,[7],0.7687,table-anchored
+R69,Musclow Lake,,"(51.397944, -94.94638889)",lakes,1990,ARA,wc,1.5,,nfix_rate,216.0,umol-n m-2 d-1,[7],0.7645,table-anchored
+R69,Syndey Lake,,"(50.655378, -94.44)",lakes,1990,ARA,wc,1.5,,nfix_rate,36.0,umol-n m-2 d-1,[7],0.7905,table-anchored
+R69,Trout Lake,,"(51.19385, -93.31972222)",lakes,1990,ARA,wc,1.5,,nfix_rate,45.0,umol-n m-2 d-1,[7],0.7705,table-anchored
+R72,"Cockburn SOund, Western Australia",,"(-32.146149, 115.7247753)",estuaries,2004-02,ARA,benthos,14.0,,nfix_rate,0.13,umol-c2h4 m-2 h-1,"[2, 5, 11, 13]",0.7189,ambiguous
+R72,"Cockburn SOund, Western Australia",,"(-32.146149, 115.7247753)",estuaries,2004-02,ARA,benthos,4.0,,nfix_rate,0.29,umol-c2h4 m-2 h-1,"[1, 4, 9, 11]",0.7167,ambiguous
+R72,"Cockburn SOund, Western Australia",,"(-32.146149, 115.7247753)",estuaries,2004-02,ARA,benthos,14.0,,nfix_rate,0.11,umol-c2h4 m-2 h-1,"[2, 5, 9, 11, 13]",0.7508,ambiguous
+R72,"Cockburn SOund, Western Australia",,"(-32.146149, 115.7247753)",estuaries,2004-02,ARA,benthos,14.0,,nfix_rate,0.29,umol-c2h4 m-2 h-1,"[1, 4, 9, 11]",0.7167,ambiguous
+R87,Smeerenburgfjorden,,"(79.7001, 11.0867)",estuaries,2008-08,ARA,benthos,211.0,,nfix_rate,20.0,umol-n m-2 h-1,[9],0.8126,table-anchored
+R87,Kongsfjorden,,"(78.9905, 12.2978)",estuaries,2008-08,ARA,benthos,51.0,,nfix_rate,0.0,umol-n m-2 h-1,[9],0.8277,table-anchored
+R93,Mekong River Delta,,"(9.821398, 106.687945)",estuaries,2007-04,15N2,wc,0.0,,nfix_rate,1.13,nmol-n l-1 h-1,[6],0.7411,table-anchored
+R93,Mekong River Delta,,"(9.821398, 106.687945)",estuaries,2007-04,15N2,wc,0.0,,nfix_rate,14.33,nmol-n l-1 h-1,[6],0.7411,table-anchored
+R93,Mekong River Delta,,"(9.821398, 106.687945)",estuaries,2007-04,15N2,wc,0.0,,nfix_rate,10.55,nmol-n l-1 h-1,[6],0.7411,table-anchored
+R93,Mekong River Delta,,"(9.821398, 106.687945)",estuaries,2008-09,15N2,wc,0.0,,nfix_rate,0.26,nmol-n l-1 h-1,[6],0.7411,table-anchored
+R93,Mekong River Delta,,"(9.821398, 106.687945)",estuaries,2008-09,15N2,wc,0.0,,nfix_rate,1.81,nmol-n l-1 h-1,[6],0.7411,table-anchored
+R122,Thoreaus Bog - dark,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.02,,nfix_rate,0.205,umol-n g-1 h-1,[6],0.7371,table-anchored
+R122,Thoreaus Bog - dark,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.06,,nfix_rate,0.16,umol-n g-1 h-1,[6],0.7371,table-anchored
+R122,Thoreaus Bog - dark,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.1,,nfix_rate,0.083,umol-n g-1 h-1,[6],0.7371,table-anchored
+R122,Thoreaus Bog - dark,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.14,,nfix_rate,0.123,umol-n g-1 h-1,[6],0.7371,table-anchored
+R122,Thoreaus Bog - dark,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.18,,nfix_rate,0.076,umol-n g-1 h-1,[6],0.7371,table-anchored
+R122,Thoreaus Bog - light,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.02,,nfix_rate,0.166,umol-n g-1 h-1,[6],0.7605,table-anchored
+R122,Thoreaus Bog - light,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.06,,nfix_rate,0.183,umol-n g-1 h-1,[6],0.7605,table-anchored
+R122,Thoreaus Bog - light,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.1,,nfix_rate,0.128,umol-n g-1 h-1,[6],0.7605,table-anchored
+R122,Thoreaus Bog - light,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.14,,nfix_rate,0.091,umol-n g-1 h-1,[6],0.7605,table-anchored
+R122,Thoreaus Bog - light,,"(42.46345316, -71.32882765)",freshwater wetlands,1991,15N2,benthos,0.18,,nfix_rate,0.097,umol-n g-1 h-1,[6],0.7605,table-anchored
+R130,Jiaozhou Bay,,"(36.05, 120.3)",estuaries,2015-07,15N2,wc,,,nfix_rate,0.29,nmol-n l-1 h-1,"[2, 3, 4, 6]",0.7652,ambiguous
+R130,Jiaozhou Bay,,"(36.05, 120.3)",estuaries,2016-04,15N2,wc,,,nfix_rate,0.23,nmol-n l-1 h-1,"[2, 4]",0.8067,ambiguous
+R130,Jiaozhou Bay,,"(36.05, 120.3)",estuaries,2016-11,15N2,wc,,,nfix_rate,0.1,nmol-n l-1 h-1,[4],0.7652,high
+R130,Jiaozhou Bay,,"(36.05, 120.3)",estuaries,2016-01,15N2,wc,,,nfix_rate,0.27,nmol-n l-1 h-1,"[2, 4, 6]",0.7655,ambiguous
+R158,"Kendall Frost Reserve, Mission Bay, CA",,"(32.7833, -117.2167)",salt marshes,2005-04,ARA,benthos,,,nfix_rate,4.8,nmol-c2h4 g-1 h-1,"[1, 3, 7, 10]",0.8117,ambiguous
+R158,"Kendall Frost Reserve, Mission Bay, CA",,"(32.7833, -117.2167)",salt marshes,2005-04,ARA,benthos,,,nfix_rate,5.4,nmol-c2h4 g-1 h-1,"[1, 3, 7, 10]",0.7985,ambiguous
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-06-01,ARA,wc,,,nfix_rate,2.1,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-07-04,ARA,wc,,,nfix_rate,1.6,mg-n m-2 d-1,[7],0.7171,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-08-05,ARA,wc,,,nfix_rate,4.3,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-09-06,ARA,wc,,,nfix_rate,58.5,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-10-18,ARA,wc,,,nfix_rate,0.4,mg-n m-2 d-1,[7],0.7262,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-06-01,ARA,wc,,,nfix_rate,1.0,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-07-04,ARA,wc,,,nfix_rate,163.6,mg-n m-2 d-1,[7],0.7171,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-08-05,ARA,wc,,,nfix_rate,406.8,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-09-06,ARA,wc,,,nfix_rate,72.8,mg-n m-2 d-1,[7],0.7216,table-anchored
+R187,"Lake Balaton, Hungary",,"(46.8303, 17.734)",lakes,1994-10-18,ARA,wc,,,nfix_rate,0.3,mg-n m-2 d-1,[7],0.7262,table-anchored
+R200,Western English Channel,,"(50.116, -4.12)",continental shelves,2006-07,15N2,wc,,,nfix_rate,20.0,nmol-n l-1 d-1,[3],0.7948,table-anchored
+R200,Western English Channel,,"(49.322, -5.145)",continental shelves,2006-07,15N2,wc,,,nfix_rate,18.9,nmol-n l-1 d-1,[3],0.7956,table-anchored
+R201,Bay of Calvi,,"(42.564901, 8.769236)",estuaries,2012-06,15N2,wc,,,nfix_rate,2.0,nmol-n l-1 d-1,[4],0.8267,high
+R203,Lake Tahoe - North,,"(39.083333, -120.05)",lakes,2009-10,ARA,wc,0.5,,nfix_rate,0.0071,nmol-n l-1 h-1,[4],0.7172,table-anchored
+R203,Lake Tahoe - South,,"(39.083333, -120.05)",lakes,2009-10,ARA,wc,0.5,,nfix_rate,0.022,nmol-n l-1 h-1,[4],0.7415,table-anchored
+R203,Lake Tahoe - Middle,,"(39.083333, -120.05)",lakes,2009-10,ARA,wc,0.5,,nfix_rate,0.051,nmol-n l-1 h-1,[4],0.7359,table-anchored
+R203,Lake Tahoe - West,,"(39.083333, -120.05)",lakes,2009-10,ARA,wc,0.5,,nfix_rate,0.002,nmol-n l-1 h-1,[4],0.6294,table-anchored
+R203,Lake Tahoe - North,,"(39.083333, -120.05)",lakes,2010-09,ARA,wc,0.5,,nfix_rate,0.051,nmol-n l-1 h-1,[4],0.7327,table-anchored
+R203,Lake Tahoe - South,,"(39.083333, -120.05)",lakes,2010-09,ARA,wc,0.5,,nfix_rate,0.28,nmol-n l-1 h-1,[4],0.7258,table-anchored
+R203,Walker Lake,,"(38.683333, -118.733333)",lakes,2010-04,ARA,wc,0.5,,nfix_rate,1.2,nmol-n l-1 h-1,[4],0.7994,table-anchored
+R203,Walker Lake,,"(38.683333, -118.733333)",lakes,2010-09,ARA,wc,0.5,,nfix_rate,2.4,nmol-n l-1 h-1,[4],0.7994,table-anchored
+R203,Clear Lake - North,,"(39.05, -122.8)",lakes,2010-06,ARA,wc,0.5,,nfix_rate,41.0,nmol-n l-1 h-1,[4],0.7228,table-anchored
+R203,Clear Lake - South,,"(39.05, -122.8)",lakes,2010-06,ARA,wc,0.5,,nfix_rate,48.0,nmol-n l-1 h-1,[4],0.7337,table-anchored
+R204,cyano Feb-02 low salinity,,"(18.199599, -88.485157)",salt marshes,2002-02,ARA,benthos,,,nfix_rate,0.87,g-n m-2 y-1,[10],0.7218,table-anchored
+R204,cyano Mar-02 low salinity,,"(18.199599, -88.485157)",salt marshes,2002-03,ARA,benthos,,,nfix_rate,1.94,g-n m-2 y-1,[10],0.7291,table-anchored
+R204,cyano Jan-04 low salinity,,"(18.199599, -88.485157)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,3.69,g-n m-2 y-1,[10],0.7218,table-anchored
+R204,cyano Feb-08 low salinity,,"(18.199599, -88.485157)",salt marshes,2008-02,ARA,benthos,,,nfix_rate,2.64,g-n m-2 y-1,[10],0.7218,table-anchored
+R204,cyano Jun-08 low salinity,,"(18.199599, -88.485157)",salt marshes,2008-06,ARA,benthos,,,nfix_rate,1.06,g-n m-2 y-1,[10],0.7218,table-anchored
+R204,cyano Feb-09 low salinity,,"(18.199599, -88.485157)",salt marshes,2009-02,ARA,benthos,,,nfix_rate,3.02,g-n m-2 y-1,[10],0.7283,table-anchored
+R204,cyano Feb-02 high salinity,,"(18.199599, -88.485157)",salt marshes,2002-02,ARA,benthos,,,nfix_rate,3.76,g-n m-2 y-1,[10],0.7319,table-anchored
+R204,cyano Mar-02 high salinity,,"(18.199599, -88.485157)",salt marshes,2002-03,ARA,benthos,,,nfix_rate,5.94,g-n m-2 y-1,[10],0.7389,table-anchored
+R204,cyano Jan-04 high salinity,,"(18.199599, -88.485157)",salt marshes,2004-01,ARA,benthos,,,nfix_rate,1.84,g-n m-2 y-1,[10],0.7459,table-anchored
+R204,cyano Jun-08 high salinity,,"(18.199599, -88.485157)",salt marshes,2008-06,ARA,benthos,,,nfix_rate,0.42,g-n m-2 y-1,[10],0.7389,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-05,ARA,benthos,,,nfix_rate,0.0,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-05,ARA,benthos,,,nfix_rate,42.6,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-05,ARA,benthos,,,nfix_rate,222.0,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-07,ARA,benthos,,,nfix_rate,0.0,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-07,ARA,benthos,,,nfix_rate,67.8,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-07,ARA,benthos,,,nfix_rate,385.0,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-09,ARA,benthos,,,nfix_rate,0.0,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-09,ARA,benthos,,,nfix_rate,6.1,ug-n g-1 d-1,[7],0.7043,table-anchored
+R209,"Lake Waco, Texas",,"(31.551524, -97.222549)",freshwater wetlands,2004-09,ARA,benthos,,,nfix_rate,60.7,ug-n g-1 d-1,[7],0.7043,table-anchored
+R217,"Tamsui estuary, Taipei, Taiwan",,"(25.15, 121.4333)",mangroves,,ARA,benthos,,,nfix_rate,1.74,umol-c2h4 m-2 h-1,[5],0.7647,table-anchored
+R217,"Tamsui estuary, Taipei, Taiwan",,"(25.15, 121.4333)",mangroves,,ARA,benthos,,,nfix_rate,0.39,umol-c2h4 m-2 h-1,[5],0.7647,table-anchored
+R217,"Tamsui estuary, Taipei, Taiwan",,"(25.15, 121.4333)",mangroves,,ARA,benthos,,,nfix_rate,0.45,umol-c2h4 m-2 h-1,[5],0.7647,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-04-16,ARA,benthos,,,nfix_rate,62.6,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-05-07,ARA,benthos,,,nfix_rate,97.4,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-11-04,ARA,benthos,,,nfix_rate,145.2,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-07-10,ARA,benthos,,,nfix_rate,340.3,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-08-14,ARA,benthos,,,nfix_rate,307.1,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-09-10,ARA,benthos,,,nfix_rate,315.8,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1998-06-03,ARA,benthos,,,nfix_rate,704.3,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1997-05-21,ARA,benthos,,,nfix_rate,105.1,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1998-06-30,ARA,benthos,,,nfix_rate,256.0,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1998-07-29,ARA,benthos,,,nfix_rate,226.9,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1998-10-14,ARA,benthos,,,nfix_rate,134.9,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R224,Rachel Carson Natinal Estuarine Research Researve,,"(34.666667, -76.7)",tidal flats,1999-07-10,ARA,benthos,,,nfix_rate,230.8,nmol-c2h4 cm-2 d-1,[3],0.7123,table-anchored
+R240,Great Peconic Bay,,"(40.93425, -72.49795)",estuaries,2015-11,ARA,benthos,0.075,,nfix_rate,0.19,mmol-n m-2 d-1,[5],0.8707,table-anchored
+R240,Great Peconic Bay,,"(40.93425, -72.49795)",estuaries,2015-11,ARA,benthos,0.075,,nfix_rate,0.55,mmol-n m-2 d-1,[5],0.8707,table-anchored
+R240,Great Peconic Bay,,"(40.93425, -72.49795)",estuaries,2015-11,ARA,benthos,0.075,,nfix_rate,0.3,mmol-n m-2 d-1,[5],0.8707,table-anchored
+R241,"Great Peconic Bay, USA",,"(40.963735, -72.469414)",estuaries,2015-05,ARA,benthos,,,nfix_rate,0.17,nmol-c2h4 cm-2 h-1,"[25, 38]",0.7844,ambiguous
+R241,"Great Peconic Bay, USA",,"(40.963735, -72.469414)",estuaries,2014-05,N2/Ar,benthos,,,nfix_rate,-0.84,mmol-n m-2 d-1,[35],0.8068,high
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,59.0,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,57.4,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,318.5,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,80.8,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,32.0,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,117.7,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,100.4,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Kent Bog,,"(41.126565, -81.354814)",freshwater wetlands,,ARA,benthos,,,nfix_rate,26.7,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Kent Bog,,"(41.126565, -81.354814)",freshwater wetlands,,ARA,benthos,,,nfix_rate,11.4,nmol-c2h4 g-1 d-1,[3],0.8126,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,91.8,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,112.1,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,122.3,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,10.6,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,263.3,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,12.0,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,35.4,nmol-c2h4 g-1 d-1,[3],0.8146,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,205.5,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,98.9,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,30.7,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Fern Lake Bog,,"(40.682785, -82.067557)",freshwater wetlands,,ARA,benthos,,,nfix_rate,130.9,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,571.8,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,798.1,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,J. Arthur Herrick Fen,,"(41.213913, -81.370971)",freshwater wetlands,,ARA,benthos,,,nfix_rate,1000.8,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Kent Bog,,"(41.126565, -81.354814)",freshwater wetlands,,ARA,benthos,,,nfix_rate,37.1,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Kent Bog,,"(41.126565, -81.354814)",freshwater wetlands,,ARA,benthos,,,nfix_rate,54.7,nmol-c2h4 m-2 d-1,[3],0.8126,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,286.0,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,490.0,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,433.5,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,35.5,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,392.7,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,58.8,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R248,Triangle Lake Bog,,"(41.120772, -81.262271)",freshwater wetlands,,ARA,benthos,,,nfix_rate,126.3,nmol-c2h4 m-2 d-1,[3],0.8146,table-anchored
+R249,east African coastal lagoon,,"(-4.4244, 39.519224)",mangroves,1991,ARA,other,,,nfix_rate,1.22,mg-n m-2 d-1,[18],0.7515,table-anchored
+R249,east African coastal lagoon,,"(-4.4244, 39.519224)",mangroves,1992,ARA,other,,,nfix_rate,4.15,mg-n m-2 d-1,[18],0.7515,table-anchored
+R249,east African coastal lagoon,,"(-4.4244, 39.519224)",mangroves,1991,ARA,other,,,nfix_rate,0.36,mg-n m-2 d-1,[18],0.7515,table-anchored
+R249,east African coastal lagoon,,"(-4.4244, 39.519224)",mangroves,1992,ARA,other,,,nfix_rate,0.28,mg-n m-2 d-1,[18],0.7515,table-anchored
+R256,East China Sea and Southern Yellow Sea,,"(31.38007427, 124.8090035)",continental shelves,2006-06,15N2,wc,,,nfix_rate,4.2,nmol-n m-3 h-1,"[2, 4, 5, 6, 7, 10]",0.7167,ambiguous
+R256,East China Sea and Southern Yellow Sea,,"(31.38007427, 124.8090035)",continental shelves,2006-06,15N2,wc,,,nfix_rate,38.3,nmol-n m-3 h-1,"[1, 9, 10]",0.7409,ambiguous
+R256,East China Sea and Southern Yellow Sea,,"(31.38007427, 124.8090035)",continental shelves,2006-06,15N2,wc,,,nfix_rate,193.1,nmol-n m-3 h-1,"[9, 10]",0.7442,ambiguous
+R163,east coast USA,,"(37.695, -75.298)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,3.7,nmol-n l-1 d-1,"[3, 8]",0.7961,ambiguous
+R163,east coast USA,,"(37.631, -75.152)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,2.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14, 15]",0.7961,ambiguous
+R163,east coast USA,,"(37.519, -75.05)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,12.9,nmol-n l-1 d-1,[3],0.7946,high
+R163,east coast USA,,"(36.686, -74.683)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,19.3,nmol-n l-1 d-1,"[3, 7]",0.7961,ambiguous
+R163,east coast USA,,"(36.627, -74.863)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,10.8,nmol-n l-1 d-1,[3],0.7961,high
+R163,east coast USA,,"(36.601, -75.058)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,11.7,nmol-n l-1 d-1,[3],0.7961,high
+R163,east coast USA,,"(36.532, -75.273)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,17.3,nmol-n l-1 d-1,"[3, 6, 7, 8, 9]",0.7961,ambiguous
+R163,east coast USA,,"(36.972, -76.019)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,22.5,nmol-n l-1 d-1,"[3, 9]",0.7961,ambiguous
+R163,east coast USA,,"(36.9, -75.908)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,24.5,nmol-n l-1 d-1,[3],0.7989,high
+R163,east coast USA,,"(36.803, -75.857)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,30.9,nmol-n l-1 d-1,"[3, 5, 6, 8]",0.7961,ambiguous
+R163,east coast USA,,"(36.671, -75.766)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,35.1,nmol-n l-1 d-1,[3],0.7961,high
+R163,east coast USA,,"(36.885, -75.719)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,39.0,nmol-n l-1 d-1,"[3, 12]",0.7961,ambiguous
+R163,east coast USA,,"(38.042, -74.299)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,23.3,nmol-n l-1 d-1,[3],0.7961,high
+R163,east coast USA,,"(38.122, -74.384)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,3.8,nmol-n l-1 d-1,"[3, 5, 7]",0.7961,ambiguous
+R163,east coast USA,,"(37.695, -75.298)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,4.1,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7664,ambiguous
+R163,east coast USA,,"(37.631, -75.152)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,2.1,nmol-n l-1 d-1,"[3, 5, 9]",0.7961,ambiguous
+R163,east coast USA,,"(37.519, -75.05)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,1.4,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7674,ambiguous
+R163,east coast USA,,"(36.686, -74.683)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,1.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12]",0.7961,ambiguous
+R163,east coast USA,,"(36.627, -74.863)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,1.7,nmol-n l-1 d-1,"[5, 7]",0.7798,ambiguous
+R163,east coast USA,,"(36.601, -75.058)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,4.2,nmol-n l-1 d-1,[5],0.756,high
+R163,east coast USA,,"(36.532, -75.273)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,3.2,nmol-n l-1 d-1,"[5, 9, 14]",0.7655,ambiguous
+R163,east coast USA,,"(36.972, -76.019)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,5.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14]",0.7961,ambiguous
+R163,east coast USA,,"(36.9, -75.908)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,4.3,nmol-n l-1 d-1,"[5, 6, 8]",0.7685,ambiguous
+R163,east coast USA,,"(36.803, -75.857)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,3.5,nmol-n l-1 d-1,[5],0.756,high
+R163,east coast USA,,"(36.671, -75.766)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,2.2,nmol-n l-1 d-1,"[5, 8]",0.756,ambiguous
+R163,east coast USA,,"(36.885, -75.719)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,8.8,nmol-n l-1 d-1,"[5, 8]",0.756,ambiguous
+R163,east coast USA,,"(38.042, -74.299)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,2.6,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7664,ambiguous
+R163,east coast USA,,"(38.122, -74.384)",continental shelves,2006-07-01,15N2,wc,,,nfix_rate,3.8,nmol-n l-1 d-1,"[3, 5, 7]",0.7961,ambiguous
+R163,east coast USA,,"(38.933, -74.933)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,5.6,nmol-n l-1 d-1,"[6, 7, 8, 9, 15]",0.7911,ambiguous
+R163,east coast USA,,"(36.9, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,2.7,nmol-n l-1 d-1,"[7, 8, 9]",0.7848,ambiguous
+R163,east coast USA,,"(36.967, -76.017)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,8.6,nmol-n l-1 d-1,"[6, 8]",0.769,ambiguous
+R163,east coast USA,,"(36.884, -75.9)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,15.7,nmol-n l-1 d-1,[6],0.7715,high
+R163,east coast USA,,"(36.8, -75.85)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,17.3,nmol-n l-1 d-1,"[3, 6, 7, 8, 9]",0.7974,ambiguous
+R163,east coast USA,,"(36.667, -75.75)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,20.3,nmol-n l-1 d-1,"[6, 9]",0.7702,ambiguous
+R163,east coast USA,,"(36.417, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,6.5,nmol-n l-1 d-1,[6],0.7715,high
+R163,east coast USA,,"(36.417, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 12, 14]",0.7929,ambiguous
+R163,east coast USA,,"(36.434, -75.517)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,7.2,nmol-n l-1 d-1,"[3, 6]",0.7934,ambiguous
+R163,east coast USA,,"(36.45, -75.25)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,2.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14, 15]",0.7933,ambiguous
+R163,east coast USA,,"(36.467, -75.05)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,2.3,nmol-n l-1 d-1,"[3, 6, 7, 8, 9]",0.7946,ambiguous
+R163,east coast USA,,"(36.483, -74.833)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.4,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.769,ambiguous
+R163,east coast USA,,"(36.484, -74.667)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.3,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.769,ambiguous
+R163,east coast USA,,"(37.417, -74.4)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.1,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7715,ambiguous
+R163,east coast USA,,"(37.517, -74.567)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.5,nmol-n l-1 d-1,"[6, 8, 9, 14]",0.769,ambiguous
+R163,east coast USA,,"(37.7, -75.034)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.1,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7715,ambiguous
+R163,east coast USA,,"(38.933, -74.933)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,11.3,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(36.9, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.9,nmol-n l-1 d-1,[7],0.7848,high
+R163,east coast USA,,"(36.967, -76.017)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,4.4,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(36.884, -75.9)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,13.9,nmol-n l-1 d-1,"[7, 9]",0.785,ambiguous
+R163,east coast USA,,"(36.8, -75.85)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,6.0,nmol-n l-1 d-1,"[6, 7]",0.7833,ambiguous
+R163,east coast USA,,"(36.667, -75.75)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,10.9,nmol-n l-1 d-1,"[7, 9]",0.7837,ambiguous
+R163,east coast USA,,"(36.417, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,5.6,nmol-n l-1 d-1,"[6, 7, 8, 9, 15]",0.7933,ambiguous
+R163,east coast USA,,"(36.417, -75.7)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.5,nmol-n l-1 d-1,"[7, 8, 9]",0.785,ambiguous
+R163,east coast USA,,"(36.434, -75.517)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,7.1,nmol-n l-1 d-1,"[3, 7, 9]",0.7934,ambiguous
+R163,east coast USA,,"(36.45, -75.25)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.9,nmol-n l-1 d-1,"[3, 7, 8, 9]",0.7929,ambiguous
+R163,east coast USA,,"(36.467, -75.05)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12]",0.7946,ambiguous
+R163,east coast USA,,"(36.483, -74.833)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,0.7,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(36.484, -74.667)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,0.2,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9]",0.7907,ambiguous
+R163,east coast USA,,"(37.417, -74.4)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,0.9,nmol-n l-1 d-1,"[3, 5, 7, 8, 9]",0.7929,ambiguous
+R163,east coast USA,,"(37.517, -74.567)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,2.7,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(37.7, -75.034)",continental shelves,2006-10-01,15N2,wc,,,nfix_rate,1.8,nmol-n l-1 d-1,"[7, 8, 9]",0.785,ambiguous
+R163,east coast USA,,"(41.314, -70.944)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.1,nmol-n l-1 d-1,"[6, 8, 9]",0.7736,ambiguous
+R163,east coast USA,,"(41.304, -71.811)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,9.2,nmol-n l-1 d-1,[8],0.756,high
+R163,east coast USA,,"(40.059, -72.837)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.2,nmol-n l-1 d-1,"[5, 8]",0.7579,ambiguous
+R163,east coast USA,,"(39.098, -73.344)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,21.9,nmol-n l-1 d-1,"[5, 8]",0.756,ambiguous
+R163,east coast USA,,"(38.464, -73.3)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,11.9,nmol-n l-1 d-1,[8],0.7585,high
+R163,east coast USA,,"(37.855, -74.642)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,8.6,nmol-n l-1 d-1,"[6, 8]",0.7709,ambiguous
+R163,east coast USA,,"(36.946, -75.18)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.2,nmol-n l-1 d-1,"[6, 7, 8, 9, 14]",0.7808,ambiguous
+R163,east coast USA,,"(35.745, -75.395)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.3,nmol-n l-1 d-1,[8],0.756,high
+R163,east coast USA,,"(36.554, -75.706)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,25.7,nmol-n l-1 d-1,"[3, 8, 9]",0.7889,ambiguous
+R163,east coast USA,,"(37.428, -75.477)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,49.8,nmol-n l-1 d-1,[8],0.756,high
+R163,east coast USA,,"(39.007, -74.515)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.3,nmol-n l-1 d-1,"[3, 6, 7, 8, 9]",0.7889,ambiguous
+R163,east coast USA,,"(39.232, -74.512)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.6,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7736,ambiguous
+R163,east coast USA,,"(39.516, -73.88)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,3.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 12, 14]",0.7872,ambiguous
+R163,east coast USA,,"(40.063, -73.388)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.8,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(40.33, -71.74)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,9.1,nmol-n l-1 d-1,"[5, 8, 9]",0.7634,ambiguous
+R163,east coast USA,,"(40.164, -69.991)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,4.5,nmol-n l-1 d-1,"[6, 8, 9, 14]",0.7736,ambiguous
+R163,east coast USA,,"(40.641, -69.912)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,28.6,nmol-n l-1 d-1,"[8, 9]",0.7609,ambiguous
+R163,east coast USA,,"(41.16, -69.324)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.6,nmol-n l-1 d-1,"[6, 7, 8, 9, 15]",0.7848,ambiguous
+R163,east coast USA,,"(40.607, -68.529)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,3.7,nmol-n l-1 d-1,"[3, 8]",0.7889,ambiguous
+R163,east coast USA,,"(41.404, -68.214)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,7.0,nmol-n l-1 d-1,"[6, 7, 8, 15]",0.7839,ambiguous
+R163,east coast USA,,"(41.268, -67.822)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,10.6,nmol-n l-1 d-1,[8],0.756,high
+R163,east coast USA,,"(40.984, -67.203)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,4.1,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7736,ambiguous
+R163,east coast USA,,"(41.572, -66.955)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.5,nmol-n l-1 d-1,"[5, 8]",0.7606,ambiguous
+R163,east coast USA,,"(41.687, -66.442)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,4.3,nmol-n l-1 d-1,"[5, 6, 8]",0.7709,ambiguous
+R163,east coast USA,,"(42.057, -65.736)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,3.1,nmol-n l-1 d-1,"[8, 14]",0.756,ambiguous
+R163,east coast USA,,"(42.478, -66.652)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.9,nmol-n l-1 d-1,"[3, 7, 8, 9]",0.7889,ambiguous
+R163,east coast USA,,"(41.995, -66.797)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,7.5,nmol-n l-1 d-1,"[6, 8]",0.7709,ambiguous
+R163,east coast USA,,"(42.05, -67.601)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.2,nmol-n l-1 d-1,"[5, 8]",0.7646,ambiguous
+R163,east coast USA,,"(42.181, -69.282)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,22.2,nmol-n l-1 d-1,[8],0.756,high
+R163,east coast USA,,"(42.498, -69.672)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,18.3,nmol-n l-1 d-1,"[6, 7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(41.314, -70.944)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.1,nmol-n l-1 d-1,"[6, 8, 9]",0.7736,ambiguous
+R163,east coast USA,,"(41.304, -71.811)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.8,nmol-n l-1 d-1,"[7, 8, 9]",0.7825,ambiguous
+R163,east coast USA,,"(40.059, -72.837)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12]",0.7889,ambiguous
+R163,east coast USA,,"(39.098, -73.344)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.9,nmol-n l-1 d-1,"[3, 7, 8, 9]",0.7915,ambiguous
+R163,east coast USA,,"(38.464, -73.3)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,20.3,nmol-n l-1 d-1,"[6, 9]",0.773,ambiguous
+R163,east coast USA,,"(37.855, -74.642)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.7,nmol-n l-1 d-1,"[7, 8, 9]",0.7798,ambiguous
+R163,east coast USA,,"(37.516, -74.974)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.8,nmol-n l-1 d-1,[9],0.7609,high
+R163,east coast USA,,"(36.946, -75.18)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,0.7,nmol-n l-1 d-1,"[7, 8, 9]",0.7808,ambiguous
+R163,east coast USA,,"(35.745, -75.395)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.3,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7789,ambiguous
+R163,east coast USA,,"(36.554, -75.706)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,10.9,nmol-n l-1 d-1,"[7, 9]",0.7825,ambiguous
+R163,east coast USA,,"(37.428, -75.477)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,9.1,nmol-n l-1 d-1,"[5, 8, 9]",0.7609,ambiguous
+R163,east coast USA,,"(39.007, -74.515)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.8,nmol-n l-1 d-1,"[7, 8, 9]",0.7798,ambiguous
+R163,east coast USA,,"(39.232, -74.512)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.1,nmol-n l-1 d-1,"[3, 5, 9]",0.7889,ambiguous
+R163,east coast USA,,"(39.516, -73.88)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14, 15]",0.7876,ambiguous
+R163,east coast USA,,"(40.063, -73.388)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.4,nmol-n l-1 d-1,[9],0.7609,high
+R163,east coast USA,,"(40.33, -71.74)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.2,nmol-n l-1 d-1,"[6, 7, 8, 9, 14]",0.782,ambiguous
+R163,east coast USA,,"(40.164, -69.991)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,0.3,nmol-n l-1 d-1,"[3, 5, 6, 8, 9, 14]",0.7862,ambiguous
+R163,east coast USA,,"(40.641, -69.912)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.5,nmol-n l-1 d-1,[9],0.7609,high
+R163,east coast USA,,"(41.16, -69.324)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.1,nmol-n l-1 d-1,"[3, 5, 9]",0.7872,ambiguous
+R163,east coast USA,,"(40.607, -68.529)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,4.5,nmol-n l-1 d-1,"[6, 8, 9, 14]",0.7736,ambiguous
+R163,east coast USA,,"(41.404, -68.214)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,4.7,nmol-n l-1 d-1,"[8, 9]",0.7609,ambiguous
+R163,east coast USA,,"(41.268, -67.822)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,12.2,nmol-n l-1 d-1,[9],0.7609,high
+R163,east coast USA,,"(40.984, -67.203)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.6,nmol-n l-1 d-1,"[6, 7, 8, 9, 15]",0.7866,ambiguous
+R163,east coast USA,,"(41.572, -66.955)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.2,nmol-n l-1 d-1,"[6, 7, 8, 9, 14]",0.7798,ambiguous
+R163,east coast USA,,"(41.687, -66.442)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14]",0.7835,ambiguous
+R163,east coast USA,,"(42.057, -65.736)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12]",0.7862,ambiguous
+R163,east coast USA,,"(42.478, -66.652)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,3.2,nmol-n l-1 d-1,"[5, 9, 14]",0.7609,ambiguous
+R163,east coast USA,,"(41.995, -66.797)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,5.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14]",0.7889,ambiguous
+R163,east coast USA,,"(42.05, -67.601)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,1.3,nmol-n l-1 d-1,"[5, 6, 8, 9]",0.7747,ambiguous
+R163,east coast USA,,"(42.181, -69.282)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,2.0,nmol-n l-1 d-1,"[3, 5, 6, 7, 8, 9, 12, 14, 15]",0.7862,ambiguous
+R163,east coast USA,,"(42.498, -69.672)",continental shelves,2009-08-01,15N2,wc,,,nfix_rate,3.3,nmol-n l-1 d-1,"[8, 9]",0.7609,ambiguous
+R164,Off,,"(27.1, -83.066)",continental shelves,2007-10-16,15N2,wc,0.5,,nfix_rate,0.37,nmol-n l-1 d-1,[5],0.8528,table-anchored
+R164,CH-out,,"(26.716, -82.286)",continental shelves,2007-10-17,15N2,wc,0.5,,nfix_rate,0.23,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.26, -82.009)",continental shelves,2007-10-18,15N2,wc,0.5,,nfix_rate,6.03,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,CH-in,,"(26.727, -82.191)",continental shelves,2007-10-19,15N2,wc,0.5,,nfix_rate,0.2,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,SB-out,,"(27.267, -82.585)",continental shelves,2007-10-20,15N2,wc,0.5,,nfix_rate,1.49,nmol-n l-1 d-1,[5],0.8545,table-anchored
+R164,TB-in,,"(27.682, -82.593)",continental shelves,2007-10-21,15N2,wc,0.5,,nfix_rate,0.79,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,TB-in,,"(26.334, -82.117)",continental shelves,2007-10-22,15N2,wc,0.5,,nfix_rate,3.88,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.381, -82.177)",continental shelves,2007-10-23,15N2,wc,0.5,,nfix_rate,2.93,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.468, -82.234)",continental shelves,2007-10-24,15N2,wc,0.5,,nfix_rate,9.02,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.397, -82.184)",continental shelves,2007-10-25,15N2,wc,0.5,,nfix_rate,3.66,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.467, -82.234)",continental shelves,2007-10-26,15N2,wc,0.5,,nfix_rate,6.93,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Off,,"(27.108, -83.076)",continental shelves,2008-10-02,15N2,wc,0.5,,nfix_rate,0.56,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Off,,"(27.108, -83.076)",continental shelves,2008-10-02,15N2,wc,31.0,,nfix_rate,0.54,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.287)",continental shelves,2008-10-03,15N2,wc,0.5,,nfix_rate,3.89,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.287)",continental shelves,2008-10-03,15N2,wc,4.0,,nfix_rate,0.47,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.256, -82.009)",continental shelves,2008-10-04,15N2,wc,0.5,,nfix_rate,0.63,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.256, -82.009)",continental shelves,2008-10-04,15N2,wc,10.0,,nfix_rate,0.51,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-in,,"(26.729, -82.192)",continental shelves,2008-10-05,15N2,wc,0.5,,nfix_rate,0.04,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.286)",continental shelves,2007-10-17,15N2,wc,0.5,,nfix_rate,0.29,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.26, -82.009)",continental shelves,2007-10-18,15N2,wc,0.5,,nfix_rate,3.51,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,CH-in,,"(26.727, -82.191)",continental shelves,2007-10-19,15N2,wc,0.5,,nfix_rate,0.32,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,SB-out,,"(27.267, -82.585)",continental shelves,2007-10-20,15N2,wc,0.5,,nfix_rate,0.38,nmol-n l-1 d-1,[5],0.8545,table-anchored
+R164,TB-in,,"(27.682, -82.593)",continental shelves,2007-10-21,15N2,wc,0.5,,nfix_rate,0.69,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,TB-in,,"(26.334, -82.117)",continental shelves,2007-10-22,15N2,wc,0.5,,nfix_rate,3.85,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.381, -82.177)",continental shelves,2007-10-23,15N2,wc,0.5,,nfix_rate,2.57,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.468, -82.234)",continental shelves,2007-10-24,15N2,wc,0.5,,nfix_rate,3.31,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.397, -82.184)",continental shelves,2007-10-25,15N2,wc,0.5,,nfix_rate,5.15,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.467, -82.234)",continental shelves,2007-10-26,15N2,wc,0.5,,nfix_rate,1.28,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Off,,"(27.108, -83.076)",continental shelves,2008-10-02,15N2,wc,0.5,,nfix_rate,0.83,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Off,,"(27.108, -83.076)",continental shelves,2008-10-02,15N2,wc,31.0,,nfix_rate,0.38,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.287)",continental shelves,2008-10-03,15N2,wc,0.5,,nfix_rate,5.73,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.287)",continental shelves,2008-10-03,15N2,wc,4.0,,nfix_rate,0.52,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.256, -82.009)",continental shelves,2008-10-04,15N2,wc,0.5,,nfix_rate,0.57,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.256, -82.009)",continental shelves,2008-10-04,15N2,wc,10.0,,nfix_rate,0.51,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-in,,"(26.729, -82.192)",continental shelves,2008-10-05,15N2,wc,0.5,,nfix_rate,0.73,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,SB-out,,"(27.296, -82.602)",continental shelves,2008-10-06,15N2,wc,0.5,,nfix_rate,0.12,nmol-n l-1 d-1,[5],0.8526,table-anchored
+R164,TB-out,,"(27.578, -82.818)",continental shelves,2008-10-07,15N2,wc,0.5,,nfix_rate,0.99,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,CR,,"(26.384, -82.106)",continental shelves,2008-10-09,15N2,wc,4.0,,nfix_rate,0.23,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Sanibel,,"(26.384, -82.106)",continental shelves,2008-10-09,15N2,wc,0.5,,nfix_rate,0.65,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Sanibel,,"(26.384, -82.106)",continental shelves,2008-10-09,15N2,wc,0.5,,nfix_rate,1.31,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Sanibel,,"(26.384, -82.106)",continental shelves,2008-10-09,15N2,wc,0.5,,nfix_rate,4.29,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Kb bloom,,"(26.618, -82.246)",continental shelves,2008-10-10,15N2,wc,0.5,,nfix_rate,7.98,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.618, -82.246)",continental shelves,2008-10-10,15N2,wc,0.5,,nfix_rate,0.17,nmol-n l-1 d-1,[5],0.8247,table-anchored
+R164,Kb bloom,,"(26.618, -82.244)",continental shelves,2008-10-11,15N2,wc,0.5,,nfix_rate,1.6,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.618, -82.244)",continental shelves,2008-10-11,15N2,wc,0.5,,nfix_rate,1.39,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,Kb bloom,,"(26.56, -82.216)",continental shelves,2008-10-11,15N2,wc,0.5,,nfix_rate,1.08,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,Kb bloom,,"(26.581, -82.272)",continental shelves,2008-10-11,15N2,wc,0.5,,nfix_rate,2.56,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Off,,"(27.108, -83.075)",continental shelves,2009-10-02,15N2,wc,0.5,,nfix_rate,0.03,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.286)",continental shelves,2009-10-03,15N2,wc,0.5,,nfix_rate,0.54,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CR-out,,"(26.258, -82.005)",continental shelves,2009-10-04,15N2,wc,0.5,,nfix_rate,7.41,nmol-n l-1 d-1,[5],0.8341,table-anchored
+R164,CH-in,,"(26.727, -82.191)",continental shelves,2009-10-05,15N2,wc,0.5,,nfix_rate,0.07,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,SB-out,,"(27.296, -82.602)",continental shelves,2009-10-06,15N2,wc,0.5,,nfix_rate,5.5,nmol-n l-1 d-1,[5],0.8374,table-anchored
+R164,TB-out,,"(27.578, -82.818)",continental shelves,2009-10-07,15N2,wc,0.5,,nfix_rate,7.26,nmol-n l-1 d-1,[5],0.8429,table-anchored
+R164,Kb bloom,,"(26.438, -82.518)",continental shelves,2009-10-12,15N2,wc,0.5,,nfix_rate,5.27,nmol-n l-1 d-1,[5],0.851,table-anchored
+R164,CH-in,,"(26.72, -82.286)",continental shelves,2010-10-13,15N2,wc,0.5,,nfix_rate,1.25,nmol-n l-1 d-1,[5],0.8484,table-anchored
+R164,CR-out,,"(26.261, -82.006)",continental shelves,2010-10-14,15N2,wc,0.5,,nfix_rate,2.13,nmol-n l-1 d-1,[5],0.8436,table-anchored
+R164,unnamed station 1,,"(26.176, -82.265)",continental shelves,2010-10-16,15N2,wc,0.5,,nfix_rate,2.91,nmol-n l-1 d-1,[5],0.7826,table-anchored
+R164,CH-in,,"(26.732, -82.192)",continental shelves,2010-10-17,15N2,wc,0.5,,nfix_rate,0.43,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,TB-in,,"(27.685, -82.593)",continental shelves,2010-10-18,15N2,wc,0.5,,nfix_rate,8.55,nmol-n l-1 d-1,[5],0.8421,table-anchored
+R164,unnamed station 2,,"(26.225, -82.066)",continental shelves,2010-10-19,15N2,wc,0.5,,nfix_rate,7.53,nmol-n l-1 d-1,[5],0.7634,table-anchored
+R164,Kb bloom,,"(26.674, -82.417)",continental shelves,2010-10-23,15N2,wc,0.5,,nfix_rate,0.41,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,Off,,"(27.108, -83.075)",continental shelves,2009-10-02,15N2,wc,0.5,,nfix_rate,0.02,nmol-n l-1 d-1,[5],0.8499,table-anchored
+R164,CH-out,,"(26.716, -82.286)",continental shelves,2009-10-03,15N2,wc,0.5,,nfix_rate,2.13,nmol-n l-1 d-1,[5],0.8436,table-anchored
+R164,CH-out,,"(26.716, -82.286)",continental shelves,2009-10-03,15N2,wc,0.5,,nfix_rate,2.34,nmol-n l-1 d-1,[5],0.8423,table-anchored
+R164,CR-out,,"(26.258, -82.005)",continental shelves,2009-10-04,15N2,wc,0.5,,nfix_rate,4.39,nmol-n l-1 d-1,[5],0.8462,table-anchored
+R164,SB-out,,"(27.296, -82.602)",continental shelves,2009-10-06,15N2,wc,0.5,,nfix_rate,69.0,nmol-n l-1 d-1,[5],0.7901,table-anchored
+R164,TB-out,,"(27.578, -82.818)",continental shelves,2009-10-07,15N2,wc,0.5,,nfix_rate,5.61,nmol-n l-1 d-1,[5],0.8377,table-anchored
+R164,CH-in,,"(26.72, -82.286)",continental shelves,2010-10-13,15N2,wc,0.5,,nfix_rate,1.74,nmol-n l-1 d-1,[5],0.8458,table-anchored
+R164,CR-out,,"(26.261, -82.006)",continental shelves,2010-10-14,15N2,wc,0.5,,nfix_rate,0.77,nmol-n l-1 d-1,[5],0.8441,table-anchored
+R164,unnamed station 3,,"(26.31, -81.936)",continental shelves,2010-10-15,15N2,wc,0.5,,nfix_rate,0.52,nmol-n l-1 d-1,[5],0.7871,table-anchored
+R164,unnamed station 1,,"(26.176, -82.265)",continental shelves,2010-10-16,15N2,wc,0.5,,nfix_rate,3.89,nmol-n l-1 d-1,[5],0.7857,table-anchored
+R164,CH-in,,"(26.732, -82.192)",continental shelves,2010-10-17,15N2,wc,0.5,,nfix_rate,0.49,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,TB-in,,"(27.685, -82.593)",continental shelves,2010-10-18,15N2,wc,0.5,,nfix_rate,13.6,nmol-n l-1 d-1,[5],0.8369,table-anchored
+R164,unnamed station 2,,"(26.225, -82.066)",continental shelves,2010-10-19,15N2,wc,0.5,,nfix_rate,6.87,nmol-n l-1 d-1,[5],0.7811,table-anchored
+R164,Kb bloom,,"(26.674, -82.417)",continental shelves,2010-10-23,15N2,wc,0.5,,nfix_rate,0.27,nmol-n l-1 d-1,[5],0.8472,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-03,15N2,wc,,,nfix_rate,1.85,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-03,15N2,wc,,,nfix_rate,1.4,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-04,15N2,wc,,,nfix_rate,0.97,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-04,15N2,wc,,,nfix_rate,1.53,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-04,15N2,wc,,,nfix_rate,2.09,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-04,15N2,wc,,,nfix_rate,0.37,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-05,15N2,wc,,,nfix_rate,0.23,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-05,15N2,wc,,,nfix_rate,1.45,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R164,WFS,,"(26.8, -84.33)",continental shelves,2006-10-05,15N2,wc,,,nfix_rate,0.92,nmol-n l-1 d-1,[5],0.8513,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2008-07,ARA,benthos,,,nfix_rate,0.0,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2011-07,ARA,benthos,,,nfix_rate,0.0,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2012-07,ARA,benthos,,,nfix_rate,0.59,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2014-07,ARA,benthos,,,nfix_rate,0.009,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2016-07,ARA,benthos,,,nfix_rate,0.47,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2008-07,ARA,benthos,,,nfix_rate,0.0,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2011-07,ARA,benthos,,,nfix_rate,1.24,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2012-07,ARA,benthos,,,nfix_rate,0.56,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2014-07,ARA,benthos,,,nfix_rate,0.27,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R166,Bitter-1,,"(51.671972, 79.905667)",lakes,2016-07,ARA,benthos,,,nfix_rate,11.19,nmol-c2h4 ml-1 h-1,[3],0.8268,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1993-01,ARA,other,,,nfix_rate,1.26,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1993-03,ARA,other,,,nfix_rate,8.93,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1993-03,ARA,other,,,nfix_rate,0.73,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1991-04,ARA,other,,,nfix_rate,14.02,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1991-05,ARA,other,,,nfix_rate,4.91,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1993-06,ARA,other,,,nfix_rate,4.35,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1993-06,ARA,other,,,nfix_rate,0.94,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-07,ARA,other,,,nfix_rate,1.63,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-08,ARA,other,,,nfix_rate,4.47,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-09,ARA,other,,,nfix_rate,1.21,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-09,ARA,other,,,nfix_rate,4.39,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-10,ARA,other,,,nfix_rate,2.76,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-11,ARA,other,,,nfix_rate,0.85,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-12,ARA,other,,,nfix_rate,0.61,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R54,"Newport River Estuary, North Carolina",,"(34.79104, -76.716147)",salt marshes,1992-12,ARA,other,,,nfix_rate,0.04,nmol-c2h4 cm-2 h-1,[4],0.7826,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,1.5,mg-n m-2 d-1,[12],0.7327,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,2.0,mg-n m-2 d-1,[12],0.7357,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.1,mg-n m-2 d-1,[12],0.5842,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.1,mg-n m-2 d-1,[12],0.5842,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.1,mg-n m-2 d-1,[12],0.5842,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.0,mg-n m-2 d-1,[12],0.7357,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.3,mg-n m-2 d-1,[12],0.6822,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.1,mg-n m-2 d-1,[12],0.5842,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.4,mg-n m-2 d-1,[12],0.6178,table-anchored
+R3,"Alcanada, Mediterranean Sea",,"(39.836667, 3.170833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.8,mg-n m-2 d-1,[12],0.6852,table-anchored
+R3,"Albufera, Mediterranean Sea",,"(39.832556, 3.143055556)",seagrasses,2012,ARA,benthos,,,nfix_rate,2.2,mg-n m-2 d-1,[12],0.7025,table-anchored
+R3,"Albufera, Mediterranean Sea",,"(39.832556, 3.143055556)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.6,mg-n m-2 d-1,[12],0.6573,table-anchored
+R3,"Arenal, Mediterranean Sea",,"(39.498667, 2.745833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.2,mg-n m-2 d-1,[12],0.6469,table-anchored
+R3,"Arenal, Mediterranean Sea",,"(39.498667, 2.745833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.5,mg-n m-2 d-1,[12],0.608,table-anchored
+R3,"Calanova, Mediterranean Sea",,"(39.550583, 2.600833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.5,mg-n m-2 d-1,[12],0.5991,table-anchored
+R3,"Calanova, Mediterranean Sea",,"(39.550583, 2.600833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.4,mg-n m-2 d-1,[12],0.6111,table-anchored
+R3,"Albufera, Mediterranean Sea",,"(39.832556, 3.143055556)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.4,mg-n m-2 d-1,[12],0.6044,table-anchored
+R3,"Albufera, Mediterranean Sea",,"(39.832556, 3.143055556)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.6,mg-n m-2 d-1,[12],0.6573,table-anchored
+R3,"Arenal, Mediterranean Sea",,"(39.498667, 2.745833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,1.0,mg-n m-2 d-1,[12],0.7379,table-anchored
+R3,"Arenal, Mediterranean Sea",,"(39.498667, 2.745833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,1.4,mg-n m-2 d-1,[12],0.7104,table-anchored
+R3,"Calanova, Mediterranean Sea",,"(39.550583, 2.600833333)",seagrasses,2012,ARA,benthos,,,nfix_rate,0.3,mg-n m-2 d-1,[12],0.6755,table-anchored
+R3,"Calanova, Mediterranean Sea",,"(39.550583, 2.600833333)",seagrasses,2013,ARA,benthos,,,nfix_rate,0.2,mg-n m-2 d-1,[12],0.638,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-02-03,ARA,benthos,,,nfix_rate,78.49,umol-n m-2 h-1,[8],0.7492,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-02-03,ARA,benthos,,,nfix_rate,41.37,umol-n m-2 h-1,[8],0.7405,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-02-13,ARA,benthos,,,nfix_rate,253.14,umol-n m-2 h-1,[8],0.7357,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,1.217,umol-n m-2 h-1,[8],0.6967,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,1.825,umol-n m-2 h-1,[8],0.7257,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-08,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7655,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-08,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7655,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,1.83,umol-n m-2 h-1,[8],0.7269,table-anchored
+R51,Castle Forbes - Upper,,"(-43.1402, 146.9767)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,2.43,umol-n m-2 h-1,[8],0.6972,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-02,ARA,benthos,,,nfix_rate,52.65,umol-n m-2 h-1,[8],0.7625,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-02,ARA,benthos,,,nfix_rate,12.24,umol-n m-2 h-1,[8],0.7568,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,46.53,umol-n m-2 h-1,[8],0.7426,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,4.28,umol-n m-2 h-1,[8],0.7376,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-08,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7655,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-08,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7655,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,1.22,umol-n m-2 h-1,[8],0.6961,table-anchored
+R51,Castle Forbes - Lower,,"(-43.1402, 146.9767)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,1.22,umol-n m-2 h-1,[8],0.6961,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-02,ARA,benthos,,,nfix_rate,0.504,umol-n m-2 h-1,[8],0.5354,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-02,ARA,benthos,,,nfix_rate,0.443,umol-n m-2 h-1,[8],0.5336,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,0.667,umol-n m-2 h-1,[8],0.6095,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,1.42,umol-n m-2 h-1,[8],0.6571,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7609,table-anchored
+R51,Port Cygnet - Upper,,"(-43.1661, 147.082114)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,0.0,umol-n m-2 h-1,[8],0.7609,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-02-06,ARA,benthos,,,nfix_rate,4.78,umol-n m-2 h-1,[8],0.7331,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-02-06,ARA,benthos,,,nfix_rate,22.8,umol-n m-2 h-1,[8],0.7491,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-02-10,ARA,benthos,,,nfix_rate,15.37,umol-n m-2 h-1,[8],0.7352,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-02-10,ARA,benthos,,,nfix_rate,35.13,umol-n m-2 h-1,[8],0.7389,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,2.03,umol-n m-2 h-1,[8],0.7542,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-04,ARA,benthos,,,nfix_rate,0.721,umol-n m-2 h-1,[8],0.634,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,1.12,umol-n m-2 h-1,[8],0.7169,table-anchored
+R51,Port Cygnet - Lower,,"(-43.1661, 147.082114)",tidal flats,2002-10,ARA,benthos,,,nfix_rate,1.629,umol-n m-2 h-1,[8],0.6765,table-anchored
+R71,Byers Peninsula pond,,"(-62.58655, -60.758899)",lakes,2002-01-18,ARA,benthos,,,nfix_rate,0.02,ug-n cm-2 h-1,[6],0.7994,table-anchored
+R71,Byers Peninsula stream,,"(-62.58655, -60.758899)",rivers,2002-01-18,ARA,benthos,,,nfix_rate,0.002,ug-n cm-2 h-1,[6],0.7702,table-anchored
+R73,Waquoit Bay South Basin,,"(41.5567, -70.524)",estuaries,2011-08-24,N2/Ar,benthos,0.14,,nfix_rate,-7.6,umol-n m-2 h-1,[5],0.8129,table-anchored
+R73,Waquoit Bay Metoxit Point,,"(41.5689, -70.5212)",estuaries,2011-07-07,N2/Ar,benthos,0.14,,nfix_rate,-19.0,umol-n m-2 h-1,[5],0.8122,table-anchored
+R73,Waquoit Bay Metoxit Point,,"(41.5689, -70.5212)",estuaries,2011-08-24,N2/Ar,benthos,0.14,,nfix_rate,-28.0,umol-n m-2 h-1,[5],0.8122,table-anchored
+R73,Waquoit Bay Metoxit Point,,"(41.5689, -70.5212)",estuaries,2011-10-11,N2/Ar,benthos,0.14,,nfix_rate,-4.0,umol-n m-2 h-1,[5],0.8122,table-anchored
+R73,Waquoit Bay Metoxit Point,,"(41.5689, -70.5212)",estuaries,2012-07-11,N2/Ar,benthos,0.14,,nfix_rate,-19.0,umol-n m-2 h-1,[5],0.8122,table-anchored
+R75,1 Fields Point,,"(41.775456, -71.378618)",estuaries,2006-07-08,N2/Ar,benthos,,,nfix_rate,-26.6,umol-n m-2 h-1,[6],0.7736,table-anchored
+R75,1 Fields Point,,"(41.775456, -71.378618)",estuaries,2006-08-31,N2/Ar,benthos,,,nfix_rate,-246.4,umol-n m-2 h-1,[6],0.7736,table-anchored
+R75,2 Conimicut Point,,"(41.726049, -71.360468)",estuaries,2006-07-08,N2/Ar,benthos,,,nfix_rate,-30.3,umol-n m-2 h-1,[6],0.7804,table-anchored
+R75,3 Barrington,,"(41.716735, -71.323388)",estuaries,2006-07-17,N2/Ar,benthos,,,nfix_rate,-136.6,umol-n m-2 h-1,[6],0.7822,table-anchored
+R75,3 Barrington,,"(41.716735, -71.323388)",estuaries,2006-08-31,N2/Ar,benthos,,,nfix_rate,-652.0,umol-n m-2 h-1,[6],0.7822,table-anchored
+R75,6 Greenwich Bay Outer,,"(41.667129, -71.400147)",estuaries,2005-08-18,N2/Ar,benthos,,,nfix_rate,-4.8,umol-n m-2 h-1,[6],0.7866,table-anchored
+R75,7 Jamestown,,"(41.582189, -71.376124)",estuaries,2006-07-17,N2/Ar,benthos,,,nfix_rate,-174.9,umol-n m-2 h-1,[6],0.7795,table-anchored
+R75,7 Jamestown,,"(41.582189, -71.376124)",estuaries,2006-08-12,N2/Ar,benthos,,,nfix_rate,-213.5,umol-n m-2 h-1,[6],0.7795,table-anchored
+R82,Laguna Madre 155,,"(27.54495016, -97.29926466)",estuaries,1999-12,N2/Ar,benthos,0.15,,nfix_rate,-28.0,umol-n m-2 h-1,[6],0.811,table-anchored
+R82,Laguna Madre 189,,"(27.54495016, -97.29926466)",estuaries,1999-12,N2/Ar,benthos,0.15,,nfix_rate,-16.0,umol-n m-2 h-1,[6],0.811,table-anchored
+R82,Laguna Madre 189,,"(27.54495016, -97.29926466)",estuaries,2000-04,N2/Ar,benthos,0.15,,nfix_rate,-6.0,umol-n m-2 h-1,[6],0.811,table-anchored
+R82,Baffin Bay 6,,"(27.2739776, -97.56339575)",estuaries,2000-04,N2/Ar,benthos,0.15,,nfix_rate,-18.0,umol-n m-2 h-1,[6],0.8304,table-anchored
+R82,Baffin Bay 24,,"(27.2739776, -97.56339575)",estuaries,2000-04,N2/Ar,benthos,0.15,,nfix_rate,-24.0,umol-n m-2 h-1,[6],0.8176,table-anchored
+R95,Lake Okeechobee Central,,"(26.949262, -80.798476)",lakes,1996-06-05,15N2,wc,,,nfix_rate,0.01,umol-n l-1 h-1,[7],0.3174,table-anchored
+R95,Lake Okeechobee North,,"(26.949262, -80.798476)",lakes,1996-06-05,15N2,wc,,,nfix_rate,0.01,umol-n l-1 h-1,[7],0.3091,table-anchored
+R95,Lake Okeechobee South,,"(26.949262, -80.798476)",lakes,1996-06-06,15N2,wc,,,nfix_rate,0.2,umol-n l-1 h-1,[7],0.35,table-anchored
+R95,Lake Okeechobee West,,"(26.949262, -80.798476)",lakes,1996-06-06,15N2,wc,,,nfix_rate,0.38,umol-n l-1 h-1,[7],0.4361,table-anchored
+R99,Wax Lake Delta - young,,"(29.532976, -91.431318)",rivers,2011-01,N2/Ar,benthos,,,nfix_rate,-23.61,umol-n m-2 h-1,[10],0.687,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2004-10,ARA,benthos,,,nfix_rate,19.2,umol-n2 l-1 d-1,[10],0.7265,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2004-12,ARA,benthos,,,nfix_rate,25.6,umol-n2 l-1 d-1,[10],0.7016,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-02,ARA,benthos,,,nfix_rate,38.4,umol-n2 l-1 d-1,[10],0.6948,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-04,ARA,benthos,,,nfix_rate,12.8,umol-n2 l-1 d-1,[10],0.7544,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-06,ARA,benthos,,,nfix_rate,76.8,umol-n2 l-1 d-1,[10],0.7379,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-07,ARA,benthos,,,nfix_rate,44.8,umol-n2 l-1 d-1,[10],0.7594,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-08,ARA,benthos,,,nfix_rate,3.2,umol-n2 l-1 d-1,[10],0.7476,table-anchored
+R150,"Carteau Cove, Station D",,"(43.383333, 4.883333333)",estuaries,2005-10,ARA,benthos,,,nfix_rate,12.8,umol-n2 l-1 d-1,[10],0.7544,table-anchored
+R151,"Shiraho Reef, site 500 m offshore",,"(24.416667, 124.3333333)",estuaries,1998-03-05,15N2,benthos,,,nfix_rate,0.16,nmol-n g-1 h-1,[6],0.7294,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-03-05,15N2,benthos,,,nfix_rate,0.61,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,"Shiraho Reef, site 500 m offshore",,"(24.416667, 124.3333333)",estuaries,1998-09-01,15N2,benthos,,,nfix_rate,0.89,nmol-n g-1 h-1,[6],0.7294,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-09-01,15N2,benthos,,,nfix_rate,1.23,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-03-05,15N2,other,,,nfix_rate,1.65,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-03-05,15N2,other,,,nfix_rate,0.5,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-03-05,15N2,other,,,nfix_rate,5.81,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-03-05,15N2,other,,,nfix_rate,0.4,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-03-05,15N2,benthos,,,nfix_rate,1.23,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-09-01,15N2,other,,,nfix_rate,6.38,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-09-01,15N2,other,,,nfix_rate,39.02,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,"Shiraho Reef, site 150 m offshore",,"(24.416667, 124.3333333)",seagrasses,1998-09-01,15N2,other,,,nfix_rate,2.53,nmol-n g-1 h-1,[6],0.7496,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-09-01,15N2,other,,,nfix_rate,9.14,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-09-01,15N2,other,,,nfix_rate,35.35,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-09-01,15N2,other,,,nfix_rate,9.55,nmol-n g-1 h-1,[6],0.819,table-anchored
+R151,Intertidal reefrock,,"(24.416667, 124.3333333)",estuaries,1998-09-01,15N2,benthos,,,nfix_rate,55.15,nmol-n g-1 h-1,[6],0.819,table-anchored
+R170,"Miers Lake 1, ML1-1",,"(-78.093583, 163.774383)",lakes,2009-01,ARA,benthos,,,nfix_rate,0.7,nmol-n cm-3 h-1,[6],0.7634,table-anchored
+R170,"Miers Stream 1, MS1-1",,"(-78.0958, 163.74703)",rivers,2009-01,ARA,benthos,,,nfix_rate,0.0,nmol-n cm-3 h-1,[6],0.7609,table-anchored
+R182,"Goat Island control, 0 weeks",,"(33.333333, -79.16666667)",salt marshes,1997-05-06,ARA,benthos,,,nfix_rate,0.93,umol-c2h4 l-1 d-1,[5],0.7154,table-anchored
+R182,"Goat Island control, 2 weeks",,"(33.333333, -79.16666667)",salt marshes,1997-05-20,ARA,benthos,,,nfix_rate,0.42,umol-c2h4 l-1 d-1,[5],0.7154,table-anchored
+R182,"Goat Island control, 8 weeks",,"(33.333333, -79.16666667)",salt marshes,1997-07-02,ARA,benthos,,,nfix_rate,0.9,umol-c2h4 l-1 d-1,[5],0.7154,table-anchored
+R189,Lake Balaton - eastern basin,,"(46.833626, 17.719346)",lakes,2001-06-22,ARA,wc,,,nfix_rate,1.33,mg-n m-2 d-1,[5],0.7618,table-anchored
+R189,Lake Balaton - eastern basin,,"(46.833626, 17.719346)",lakes,2001-08-16,ARA,wc,,,nfix_rate,18.64,mg-n m-2 d-1,[5],0.7618,table-anchored
+R189,Lake Balaton - western basin,,"(46.833626, 17.719346)",lakes,2001-06-18,ARA,wc,,,nfix_rate,10.23,mg-n m-2 d-1,[5],0.7553,table-anchored
+R189,Lake Balaton - western basin,,"(46.833626, 17.719346)",lakes,2001-08-08,ARA,wc,,,nfix_rate,50.68,mg-n m-2 d-1,[5],0.7553,table-anchored
+R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-04,ARA,benthos,,,nfix_rate,2.18,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-08,ARA,benthos,,,nfix_rate,9.13,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P1 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-11,ARA,benthos,,,nfix_rate,31.38,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-04,ARA,benthos,,,nfix_rate,0.0,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-08,ARA,benthos,,,nfix_rate,32.61,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P2 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-11,ARA,benthos,,,nfix_rate,19.09,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-04,ARA,benthos,,,nfix_rate,18.03,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-08,ARA,benthos,,,nfix_rate,33.9,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P3 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-11,ARA,benthos,,,nfix_rate,23.7,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-04,ARA,benthos,,,nfix_rate,2.57,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-08,ARA,benthos,,,nfix_rate,63.94,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R233,"P4 - La Reserva Ecologica El Eden, Quintana Roo - Yucatan",,"(21.183333, -87.16666667)",freshwater wetlands,2000-11,ARA,benthos,,,nfix_rate,17.14,nmol-c2h4 m-2 h-1,[7],0.6781,table-anchored
+R243,Arcochon Bay bare sediment,,"(44.700286, -1.147551)",estuaries,1994-01,ARA,benthos,,,nfix_rate,0.02,mg-n m-2 d-1,[5],0.5557,table-anchored
+R243,Arcochon Bay bare sediment,,"(44.700286, -1.147551)",estuaries,1994-07,ARA,benthos,,,nfix_rate,3.7,mg-n m-2 d-1,[5],0.7042,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-03,ARA,benthos,,,nfix_rate,0.2,mg-n m-2 d-1,[5],0.5799,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-03,ARA,benthos,,,nfix_rate,0.4,mg-n m-2 d-1,[5],0.7754,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-07,ARA,benthos,,,nfix_rate,2.0,mg-n m-2 d-1,[5],0.8071,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-07,ARA,benthos,,,nfix_rate,7.3,mg-n m-2 d-1,[5],0.6982,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-10,ARA,benthos,,,nfix_rate,1.8,mg-n m-2 d-1,[5],0.7682,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1994-10,ARA,benthos,,,nfix_rate,4.4,mg-n m-2 d-1,[5],0.7591,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1995-01,ARA,benthos,,,nfix_rate,0.1,mg-n m-2 d-1,[5],0.5863,table-anchored
+R243,Arcochon Bay Zolstera noltii colonized sediment,,"(44.700286, -1.147551)",seagrasses,1995-01,ARA,benthos,,,nfix_rate,0.2,mg-n m-2 d-1,[5],0.5863,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,1.14,umol-n m-2 d-1,[6],0.7465,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,7.36,umol-n m-2 d-1,[6],0.7465,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,3.43,umol-n m-2 d-1,[6],0.7465,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,4.5,umol-n m-2 d-1,[6],0.7465,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,2.22,umol-n m-2 d-1,[6],0.7465,table-anchored
+R250,Northern South China Sea & Kuroshio,,"(15.0, 115.0)",continental shelves,2009,ARA,wc,,,nfix_rate,4.12,umol-n m-2 d-1,[6],0.7465,table-anchored

@@ -25,7 +25,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from scholarlm.config import DatasetConfig
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_UNIFIED
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 from scholarlm.utils import get_filenames_in_directory
 
 load_dotenv()
@@ -72,38 +72,32 @@ def _extract_page_text(document: str, page_numbers: list[int]) -> str:
 
 def build_judge_query(
     *,
-    source: str,
     attribute_description: str,
     attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
-    table_numbers: list[int | None],
     measurement_val: Any,
     units: Any = None,
+    event_description: dict[str, Any] | None = None,
 ) -> str:
-    """Build the ## QUERY content for the unified judge prompt.
+    """Build the ## QUERY content for the judge prompt.
 
     Returns the joined sections string that appears after ``## QUERY:`` in the
     full prompt.  Both ``build_user_prompt`` and the interpretability judge
     runner call this function so the query content is identical across all
     judge runners.
 
-    Measurement event fields, when present in the dataset, are folded into
-    ``entity_description`` by ``prepare_chat_entries`` before this function is
-    called, so the query structure is always the same regardless of whether the
-    dataset has an event schema.
-
     Args:
-        source: ``"table"`` or ``"text"`` (scalar, already unwrapped from list).
         attribute_description: Full attribute description string.
         attribute_terms: List of terminology strings for the attribute.
         entity_type_description: One-sentence entity type description.
-        entity_description: Dict of entity field values (may include event
-            fields merged in by ``prepare_chat_entries``).
-        table_numbers: List of table numbers (may contain ``None``).  Unique
-            non-``None`` values are shown when ``source == "table"``.
+        entity_description: Dict of entity field values (entity fields only;
+            event fields are passed separately via ``event_description``).
         measurement_val: The extracted scalar value.
         units: Extracted units string, or ``None`` if not reported.
+        event_description: Dict of measurement event field values extracted
+            from ``measurement_event_schema`` fields.  ``None`` or empty dict
+            omits the event section entirely (datasets with no event schema).
 
     Returns:
         Multi-section query string ready to follow ``## QUERY:\\n``.
@@ -121,58 +115,19 @@ def build_judge_query(
         f"Attribute terminology: {attribute_terms}"
     )
 
-    # Source location — table number(s) if applicable, otherwise prose text.
-    if source == "table":
-        unique_tables = sorted({tn for tn in table_numbers if tn is not None})
-        if unique_tables:
-            table_str = ", ".join(f"Table {tn}" for tn in unique_tables)
-            source_section = f"Source: {table_str}"
-        else:
-            source_section = "Source: table"
-    else:
-        source_section = "Source: prose text"
-
     value_section = (
         f"Extracted value: {measurement_val}\n"
         f"Extracted units: {units_str}"
     )
 
-    closing = "Is this extraction correct? (true/false)"
-
-    return "\n\n".join([
-        entity_section, attribute_section, source_section, value_section, closing
-    ])
-
-
-def build_user_prompt(
-    *,
-    page_text: str,
-    source: str,
-    attribute_description: str,
-    attribute_terms: list[Any],
-    entity_type_description: str,
-    entity_description: dict[str, Any],
-    table_numbers: list[int | None],
-    measurement_val: Any,
-    units: Any = None,
-) -> str:
-    """Build the full user prompt string (## CONTEXT page text + ## QUERY content).
-
-    Identical across all chat-API providers (OpenAI, Anthropic, Gemini, vLLM).
-    ``page_text`` should be only the page(s) where the value was reported, not
-    the full document.
-    """
-    query = build_judge_query(
-        source=source,
-        attribute_description=attribute_description,
-        attribute_terms=attribute_terms,
-        entity_type_description=entity_type_description,
-        entity_description=entity_description,
-        table_numbers=table_numbers,
-        measurement_val=measurement_val,
-        units=units,
-    )
-    return f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+    closing = "(true or false) Is this extraction correct?"
+    sections = [entity_section, attribute_section]
+    if event_description:
+        event_display = {k: v for k, v in event_description.items() if v is not None}
+        if event_display:
+            sections.append(f"Measurement event: {event_display}")
+    sections += [value_section, closing]
+    return "\n\n".join(sections)
 
 
 # ─── Data preparation ─────────────────────────────────────────────────────────
@@ -180,15 +135,15 @@ def build_user_prompt(
 
 def prepare_chat_entries(
     data: list[dict],
-    documents: list[str],
+    documents: dict[str, str],
     dataset_config: DatasetConfig,
 ) -> list[dict[str, Any]]:
     """Convert raw extraction data to provider-agnostic chat entries.
 
     Entries are sorted by document_id for cache locality. Each entry contains:
         custom_id     – str(original index in data), used to map results back
-        document_id   – int index into documents list
-        system        – system prompt string (JUDGE_INSTRUCTIONS_UNIFIED)
+        document_id   – string paper code identifying the source document
+        system        – system prompt string (JUDGE_INSTRUCTIONS)
         user          – full user prompt string (## CONTEXT page text + ## QUERY)
         user_query    – the ## QUERY content only (for JudgementLM interp runner)
         user_document – ## CONTEXT prefix only (used for Anthropic prompt caching)
@@ -201,7 +156,8 @@ def prepare_chat_entries(
 
     Args:
         data: List of extraction records from a ``final.json`` file.
-        documents: List of raw OCR text strings indexed by ``document_id``.
+        documents: Dict mapping paper_code strings to raw OCR text, as returned
+            by ``load_documents_for_dataset``.
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
             attribute catalogue, entity type description, and optional
             measurement event schema.
@@ -210,22 +166,30 @@ def prepare_chat_entries(
         List of chat entry dicts ready for any provider batch module or the
         interpretability judge runner.
     """
-    _fields = dataset_config.entity_schema.model_fields.keys()
+    _filter: set[str] = set(dataset_config.judge_filter_fields or [])
+    _entity_fields: list[str] = [
+        k for k in dataset_config.entity_schema.model_fields.keys()
+        if k not in _filter
+    ]
+    _event_fields: list[str] = (
+        [k for k in dataset_config.measurement_event_schema.model_fields.keys()
+         if k not in _filter]
+        if dataset_config.measurement_event_schema is not None
+        else []
+    )
     _attr_dict = dataset_config.attribute_info_dict
     _entity_type_desc = dataset_config.entity_type_description
-    _event_fields = (
-        set(dataset_config.measurement_event_schema.model_fields.keys())
-        if dataset_config.measurement_event_schema is not None
-        else set()
-    )
 
     data_with_idx = list(enumerate(data))
     data_with_idx.sort(key=lambda it: str(it[1].get("document_id", "")))
 
     entries: list[dict[str, Any]] = []
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
-        document_id = entry["document_id"]
-        document = documents[document_id]
+        document_id = str(entry["document_id"])
+        document = documents.get(document_id)
+        if document is None:
+            print(f"Warning: document_id '{document_id}' not found in documents, skipping")
+            continue
         attribute = entry.get("attribute")
         try:
             attribute_description = _attr_dict[attribute]["description"]
@@ -234,18 +198,18 @@ def prepare_chat_entries(
             continue
 
         attribute_terms = entry.get("attribute_terms", [])
-        # Fold event fields into the entity description so the query structure
-        # is always identical regardless of whether the dataset has an event schema.
-        entity_description = {
-            k: v for k, v in entry.items() if k in _fields or k in _event_fields
-        }
+        entity_description = {k: entry.get(k) for k in _entity_fields}
+        event_description = (
+            {k: entry.get(k) for k in _event_fields}
+            if _event_fields else None
+        )
         units = entry.get("units")
         measurement_val = entry.get("value")
 
-        # Provenance fields are stored as lists in final.json.
-        # source: take the first element as the effective source type.
+        # Provenance fields are stored as lists in final.json — one element per
+        # source occurrence (a value may appear in both prose and a table).
         source_raw = entry.get("source", "text")
-        source = source_raw[0] if isinstance(source_raw, list) else source_raw
+        source_list: list[str] = source_raw if isinstance(source_raw, list) else [source_raw]
 
         # page_number / table_number: keep all unique non-None values for
         # page extraction and table identification.
@@ -265,17 +229,16 @@ def prepare_chat_entries(
         # Extract only the relevant page(s) from the raw OCR document.
         page_text = _extract_page_text(document, page_numbers)
 
-        system = JUDGE_INSTRUCTIONS_UNIFIED
+        system = JUDGE_INSTRUCTIONS
 
         query = build_judge_query(
-            source=source,
             attribute_description=attribute_description,
             attribute_terms=attribute_terms,
             entity_type_description=_entity_type_desc,
             entity_description=entity_description,
-            table_numbers=table_numbers,
             measurement_val=measurement_val,
             units=units,
+            event_description=event_description,
         )
 
         user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
@@ -316,12 +279,11 @@ def load_documents(ocr_directory: str) -> list[str]:
     return documents
 
 
-def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> list[str]:
+def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> dict[str, str]:
     """Load OCR documents applying the same paper_filter and paper_subset as extraction.
 
-    ``document_id`` values in ``final.json`` are indices into the list produced
-    by this function.  Using a plain directory listing (without filtering) causes
-    index misalignment whenever a subset config (e.g. ``pond_ten``) is used.
+    Returns a dict keyed by paper_code so that ``document_id`` values (which are
+    string paper codes) can be looked up directly without any index mapping.
 
     Args:
         dataset_config: Dataset configuration supplying metadata_file, paper_filter,
@@ -329,7 +291,7 @@ def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str
         ocr_directory: Directory containing ``.txt`` OCR files.
 
     Returns:
-        List of document strings in the same order as during extraction.
+        Dict mapping paper_code strings to document text.
     """
     with open(dataset_config.metadata_file) as f:
         paper_info: dict = json.load(f)
@@ -345,10 +307,11 @@ def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str
         subset_set = set(dataset_config.paper_subset)
         text_files = [f for f in text_files if f.replace(".txt", "") in subset_set]
 
-    documents: list[str] = []
+    documents: dict[str, str] = {}
     for fname in text_files:
+        paper_code = fname.replace(".txt", "")
         with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as fh:
-            documents.append(fh.read())
+            documents[paper_code] = fh.read()
     return documents
 
 

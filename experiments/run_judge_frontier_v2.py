@@ -46,12 +46,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import importlib.util
 import json
 import os
 import random
 import sys
-from datetime import datetime
+import time
 from pathlib import Path
 from typing import Any
 
@@ -71,73 +70,9 @@ from scholarlm.config import DatasetConfig
 
 FRONTIER_PROVIDERS = {"openai", "anthropic", "gemini"}
 
-# ---------------------------------------------------------------------------
-# Config / path helpers (mirrors run_judge_frontier.py)
-# ---------------------------------------------------------------------------
-
-
-def _load_dataset_config(name: str) -> DatasetConfig:
-    config_path = _CONFIGS_DIR / f"{name}.py"
-    if not config_path.exists():
-        available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
-        raise FileNotFoundError(
-            f"No config found for dataset '{name}'. Available: {available}"
-        )
-    spec = importlib.util.spec_from_file_location(f"_dataset_config_{name}", config_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.CONFIG
-
-
-def get_judge_output_dir(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    judge_model: str,
-    judge_date: str | None = None,
-    ablation: str | None = None,
-) -> Path:
-    if judge_date is None:
-        judge_date = datetime.now().strftime("%Y_%m_%d")
-    if ablation is not None:
-        return (
-            _REPO_ROOT
-            / "data" / "experiments"
-            / dataset_name / "ablations" / f"ablation{ablation}"
-            / extraction_model / extraction_date / "judge" / judge_model / judge_date
-        )
-    return (
-        _REPO_ROOT
-        / "data" / "experiments"
-        / dataset_name / "judge"
-        / extraction_model / extraction_date / judge_model / judge_date
-    )
-
-
-def _find_extraction_final(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str | None,
-    ablation: str | None = None,
-) -> Path:
-    if ablation is not None:
-        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "ablations" / f"ablation{ablation}" / extraction_model
-    else:
-        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / extraction_model
-    if extraction_date:
-        candidate = base / extraction_date / "final.json"
-        if not candidate.exists():
-            raise FileNotFoundError(f"Extraction results not found: {candidate}")
-        return candidate
-    date_dirs = sorted(base.iterdir(), reverse=True) if base.exists() else []
-    for d in date_dirs:
-        candidate = d / "final.json"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"No extraction results found for dataset='{dataset_name}' model='{extraction_model}' "
-        f"under {base}. Run run_extraction.py first."
-    )
+from run_extraction import load_dataset_config
+import paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -162,6 +97,7 @@ async def _judge_openai(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -177,6 +113,7 @@ async def _judge_openai(
                         call_kwargs["temperature"] = temperature
                     resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                pt = resp.usage.prompt_tokens if resp.usage else 0
                 break
             except openai.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -196,6 +133,7 @@ async def _judge_openai(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -215,6 +153,7 @@ async def _judge_anthropic(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -251,6 +190,7 @@ async def _judge_anthropic(
                 raw = "".join(
                     block.text for block in (resp.content or []) if hasattr(block, "text")
                 ).strip()
+                pt = resp.usage.input_tokens if resp.usage else 0
                 break
             except anthropic.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -270,6 +210,7 @@ async def _judge_anthropic(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -295,6 +236,7 @@ async def _judge_gemini(
 
     async def _call(entry: dict) -> tuple[str, dict]:
         raw = ""
+        pt = 0
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 async with sem:
@@ -310,6 +252,7 @@ async def _judge_gemini(
                         call_kwargs["temperature"] = temperature
                     resp = await client.chat.completions.create(**call_kwargs)
                 raw = (resp.choices[0].message.content or "").strip()
+                pt = resp.usage.prompt_tokens if resp.usage else 0
                 break
             except openai.RateLimitError:
                 if attempt < _MAX_RETRIES:
@@ -329,6 +272,7 @@ async def _judge_gemini(
             "prob": None,
             "model": model,
             "raw_text": raw,
+            "_prompt_tokens": pt,
         }
 
     return list(await asyncio.gather(*[_call(e) for e in entries]))
@@ -380,7 +324,7 @@ def run_frontier_judge_v2(
     if provider not in FRONTIER_PROVIDERS:
         raise ValueError(f"Unknown provider '{provider}'. Choose from: {FRONTIER_PROVIDERS}")
 
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -394,16 +338,29 @@ def run_frontier_judge_v2(
     print(f"Calling {provider} ({frontier_model}) for {len(chat_entries)} entries "
           f"[max_concurrent={max_concurrent}] ...")
 
+    start_time = time.time()
     results = asyncio.run(
         _run_judge_async(chat_entries, provider, frontier_model, max_tokens, temperature, max_concurrent)
     )
 
-    data_out = batch_common.merge_results(data, results)
+    max_pt = max((v.get("_prompt_tokens", 0) or 0) for v in results.values())
+    results_clean = {k: {kk: vv for kk, vv in v.items() if kk != "_prompt_tokens"} for k, v in results.items()}
+    data_out = batch_common.merge_results(data, results_clean)
     output_dir.mkdir(parents=True, exist_ok=True)
     responses_file = output_dir / "responses.json"
     with open(responses_file, "w") as f:
         json.dump(data_out, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_provider=provider,
+        judge_model=frontier_model,
+        max_prompt_tokens=max_pt,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -456,10 +413,15 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
-    dataset_config = _load_dataset_config(args.dataset)
-    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
+
+    dataset_config = load_dataset_config(args.dataset)
+    input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
     extraction_date_resolved = input_file.parent.name
-    output_dir = get_judge_output_dir(
+    output_dir = paths.judge(
         args.dataset, args.extraction_model, extraction_date_resolved,
         args.judge, args.judge_date, ablation=args.ablation,
     )

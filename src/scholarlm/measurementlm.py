@@ -85,6 +85,7 @@ class StandardizeResponse(BaseModel):
     """Response for standardizing an extracted measurement value."""
     explanation: str
     value: str
+    units: str | None = None
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -152,6 +153,7 @@ class MeasurementLM:
         self.measurement_event_schema = measurement_event_schema
         self.measurement_event_prompt = measurement_event_prompt
         self.use_extra_body = use_extra_body
+        self.max_prompt_tokens: int = 0
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -202,6 +204,9 @@ class MeasurementLM:
                 kwargs["extra_body"] = extra
         try:
             response = await self.async_client.chat.completions.create(**kwargs)
+            if response.usage is not None and response.usage.prompt_tokens:
+                if response.usage.prompt_tokens > self.max_prompt_tokens:
+                    self.max_prompt_tokens = response.usage.prompt_tokens
             return response.choices[0].message.content
         except Exception as e:
             print(f"API call failed: {e}")
@@ -847,9 +852,8 @@ class MeasurementLM:
                     query = (
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
-                        f"Attribute description: {attr_description}\n\n"
-                        f"Enumerate all distinct measurement events for the above entity "
-                        f"and attribute found on this page.\n\n"
+                        f"Attribute description: {attr_description}\n"
+                        f"Identify all distinct measurement events for the given entity and attribute.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
@@ -937,7 +941,6 @@ class MeasurementLM:
                     continue
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
-                unit_options = self.attribute_info_dict[attr_name].get('units', [])
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
 
                 pair_record = record | {
@@ -949,14 +952,6 @@ class MeasurementLM:
                     page_text = self._get_page_text(context, p)
                     if not page_text:
                         continue
-
-                    units_guidance = ""
-                    if unit_options:
-                        units_guidance = (
-                            f"Preferred unit options: {unit_options}. "
-                            f"Strongly prioritize choosing the best option from this list. "
-                            f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
-                        )
 
                     # Determine measurement events for this (entity, attribute, page)
                     if event_resolution is not None:
@@ -977,7 +972,6 @@ class MeasurementLM:
                             f"Terminology used for the attribute: {terms}\n"
                             f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\n{units_guidance}"
                             f"Does this page contain a measured value for the given attribute and entity? "
                             f"If yes, extract the value and its units.\n\n"
                         )
@@ -1113,7 +1107,6 @@ class MeasurementLM:
                     continue
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
-                unit_options = self.attribute_info_dict[attr_name].get('units', [])
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
 
                 pair_record = record | {
@@ -1127,14 +1120,6 @@ class MeasurementLM:
                         continue
                     table_text, row_names, column_names = parsed
                     table_page_number = table_to_page.get(t)
-
-                    units_guidance = ""
-                    if unit_options:
-                        units_guidance = (
-                            f"Preferred unit options: {unit_options}. "
-                            f"Strongly prioritize choosing the best option from this list. "
-                            f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
-                        )
 
                     # Determine measurement events for this (entity, attribute, page)
                     if event_resolution is not None:
@@ -1159,7 +1144,6 @@ class MeasurementLM:
                             f"{event_context}"
                             f"\nRow names in the table: {row_names}\n"
                             f"Column names in the table: {column_names}\n\n"
-                            f"{units_guidance}"
                             f"Does this table contain a measured value for the given attribute and entity? "
                             f"If yes, provide the row_index and column_index names, and the units.\n\n"
                         )
@@ -1268,15 +1252,19 @@ class MeasurementLM:
             attribute = datapoint.get('attribute')
             attr_description = self.attribute_info_dict[attribute]['description']
             attr_terms = datapoint.get('attribute_terms', [])
+            unit_options = self.attribute_info_dict[attribute].get('units', [])
             entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
+            measurement_units = datapoint.get('units')
 
             query = (
+                f"Entity description: {entity_description}\n"
                 f"Attribute description: {attr_description}\n"
                 f"Terminology used for the attribute: {attr_terms}\n"
-                f"Entity description: {entity_description}\n"
-                f"Extracted measurement: {measurement_val}\n\n"
-                f"Standardize the measurement value for the given data point. "
+                f"Available units for the attribute: {unit_options}\n\n"
+                f"Extracted measurement: {measurement_val}\n"
+                f"Extracted units: {measurement_units}\n"
+                f"Standardize the measurement value and units for the extracted data point. "
             )
             prompt = (
                 f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
@@ -1305,11 +1293,12 @@ class MeasurementLM:
             try:
                 result = response_validator(StandardizeResponse, resp)
                 standardized_data[message_data_ids[i]]['value'] = result['value']
+                standardized_data[message_data_ids[i]]['units'] = result['units']
             except Exception as e:
-                print(f"Validation error in standardize response (keeping original value): {e}")
+                print(f"Validation error in standardize response (keeping original value/units): {e}")
                 print(f"Response text: {resp}")
-                # fallback: leave value unchanged (standardized_data was initialised
-                # as a copy of self.data, so the original value is already in place)
+                # fallback: leave value and units unchanged (standardized_data was initialised
+                # as a copy of self.data, so the originals are already in place)
 
         return standardized_data
     

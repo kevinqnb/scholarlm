@@ -121,28 +121,35 @@ def build_requests(
     model: str,
     *,
     max_completion_tokens: int = 100,
-    temperature: float = 0.0,
+    temperature: float | None = None,
 ) -> list[dict]:
-    """Convert chat entries to OpenAI batch JSONL records."""
+    """Convert chat entries to OpenAI batch JSONL records.
+
+    ``temperature`` is omitted from the request body when ``None`` (the
+    default) so that reasoning models that reject the parameter are not
+    broken.
+    """
     requests = []
     for entry in chat_entries:
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": entry["system"]},
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": entry["user"]}],
+                },
+            ],
+            "max_completion_tokens": max_completion_tokens,
+        }
+        if temperature is not None:
+            body["temperature"] = temperature
         requests.append(
             {
                 "custom_id": entry["custom_id"],
                 "method": "POST",
                 "url": "/v1/chat/completions",
-                "body": {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": entry["system"]},
-                        {
-                            "role": "user",
-                            "content": [{"type": "text", "text": entry["user"]}],
-                        },
-                    ],
-                    "max_completion_tokens": max_completion_tokens,
-                    "temperature": temperature,
-                },
+                "body": body,
             }
         )
     return requests

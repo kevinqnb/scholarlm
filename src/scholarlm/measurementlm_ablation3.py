@@ -1,160 +1,173 @@
-"""MeasurementLM Ablation 3: Combined Entity-Attribute Extraction
+"""MeasurementLM Ablation 3: Full-Document Pair Provenance with Direct List Response
 
-Ablation goal: understand what happens when entity identification and attribute
-detection are combined into a single extraction step rather than run independently.
+Ablation goal: understand what happens when the model is asked to directly return
+a list of (page, table) provenance locations for each (entity, attribute) pair
+using the full document context, rather than iterating page-by-page and asking a
+binary has_data question for each one.
 
 Changes from the baseline MeasurementLM:
 
-1. The two-step baseline (entity extraction → attribute detection) is replaced by
-   a single step that extracts (entity, attribute) pairs directly. Only pairs for
-   which the model believes a direct numerical measurement exists are emitted.
-   This reuses `_extract_entities()` from the parent; the difference is that the
-   caller-supplied `entity_identification_schema` must include two reserved fields:
-     - attribute (str)             : exact attribute name from attribute_info_dict
-     - attribute_terms (list[str]) : terminology used in the document
+1. Both `_entity_provenance()` and `_attribute_provenance()` are replaced by a
+   single `_pair_provenance_full_context()` method that operates over all
+   (entity, attribute) combinations per document. For each pair it gives the model
+   the full document context and asks it to return a JSON list of provenance items,
+   each with 'explanation', 'page_number', and 'table_number' fields. Page numbers
+   are identified via <page number="x"> tags and table numbers via <table number="x">
+   tags in the document text.
 
-2. Separate entity provenance and attribute provenance are replaced by a single
-   `_entity_attribute_provenance()` that checks per page whether BOTH the entity
-   AND the attribute have a measurement together, using the new
-   ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS prompt.
+2. Two new Pydantic response models are defined in this module:
+     - ProvenanceItem  : a single provenance location (page_number, table_number)
+     - ProvenanceListResponse : the list wrapper returned by the model
 
-3. `_resolve_events()` is overridden to correctly handle the paired structure:
-   for each entity record (which already embeds a specific attribute), events are
-   resolved only for that specific (entity, attribute) combination rather than
-   iterating over all doc-level attributes.
+3. `fit()` is updated to call `_pair_provenance_full_context()` instead of the two
+   separate provenance methods, then adapts its output into the (entity_prov,
+   attr_prov) format expected by the unchanged extraction methods via the module-level
+   helper `_adapt_pair_prov()`. Event resolution is run after provenance adaptation
+   and passed through to value extraction.
 
-4. `fit()` is reduced from 8 steps to 6 steps by eliminating the standalone
-   attribute detection and merging the two provenance steps into one. Before
-   calling the (unchanged) extraction methods, `fit()` adapts the pair provenance
-   into the `(entity_prov, attr_prov, doc_attributes)` interface those methods
-   expect, and passes event_resolution through to the value extraction steps.
-
-Unchanged from baseline: `_extract_values_from_text()`,
-`_extract_values_from_tables()`, `_standardize()`, `_deduplicate()`, `save()`.
-
-Dataset config requirements:
-  - `ablation3_entity_schema` must be set (entity fields + attribute + attribute_terms).
-  - `ablation3_entity_identification_prompt` must be set (instructs model to emit
-    one item per (entity, attribute) pair).
-  These are passed via run_ablation.py as the entity_identification_schema and
-  entity_identification_prompt constructor arguments.
+Unchanged from baseline: `_extract_entities()`, `_detect_attributes()`,
+`_extract_values_from_text()`, `_extract_values_from_tables()`,
+`_standardize()`, `_deduplicate()`, `save()`.
 """
 
-from .measurementlm import (
-    MeasurementLM,
-    ProvenanceResponse,
-    response_validator,
-)
-from .instruction_prompts import (
-    ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS,  # combined provenance prompt
-    MEASUREMENT_EVENT_INSTRUCTIONS,
-)
-from pydantic import create_model
+from pydantic import BaseModel
+from .measurementlm import MeasurementLM, response_validator
+from .instruction_prompts import FULL_CONTEXT_PROVENANCE_INSTRUCTIONS
 
 
-# Fields that carry attribute identity inside the combined schema.
-# The entity_identification_schema in ablation 3 must define these fields.
-_ATTRIBUTE_FIELDS = frozenset({"attribute", "attribute_terms"})
+# -----------------------------------------------------------------------
+# Response models for full-document provenance
+# -----------------------------------------------------------------------
+
+class ProvenanceItem(BaseModel):
+    """A single provenance location for an (entity, attribute) pair."""
+    explanation: str
+    page_number: int
+    table_number: int | None = None
+
+
+class ProvenanceListResponse(BaseModel):
+    """All provenance locations for an (entity, attribute) pair in one document."""
+    items: list[ProvenanceItem]
+
+
+# -----------------------------------------------------------------------
+# Shared adaptation helper (also used by the experiment script)
+# -----------------------------------------------------------------------
+
+def _adapt_pair_prov(pair_prov, entity_data, doc_attributes):
+    """
+    Adapts pair_prov (keyed by (doc_id, entity_id, attr_name)) into the
+    (extended_entity_data, entity_prov, attr_prov) format expected by the
+    baseline extraction methods.
+
+    Creates a unique pair_id = f"{entity_id}|{attr_name}" for each
+    (entity, attribute) combination so that entity_prov holds a distinct
+    page-set per pair. Because entity_prov[(doc_id, pair_id)] is a subset
+    of attr_prov[(doc_id, attr_name)] by construction, the intersection
+    inside the extraction methods reduces exactly to the pair's own pages.
+
+    Args:
+        pair_prov : dict mapping (doc_id, entity_id, attr_name)
+                    -> list[{"page": int, "table": int|None}]
+        entity_data   : list of entity records (with 'document_id', 'entity_id')
+        doc_attributes: {doc_id: {attr_name: terms}} mapping
+
+    Returns:
+        extended_entity_data : entity records with entity_id replaced by pair_id
+        entity_prov          : dict (doc_id, pair_id) -> list[{page, table}]
+        attr_prov            : dict (doc_id, attr_name) -> list[{page, table}]
+    """
+    unique_entities = {}
+    for record in entity_data:
+        key = (record["document_id"], record["entity_id"])
+        if key not in unique_entities:
+            unique_entities[key] = record
+
+    extended_entity_data = []
+    entity_prov = {}
+    attr_prov = {}
+
+    for (doc_id, entity_id), record in unique_entities.items():
+        for attr_name in doc_attributes.get(doc_id, {}):
+            pair_id = f"{entity_id}|{attr_name}"
+            entries = pair_prov.get((doc_id, entity_id, attr_name), [])
+
+            extended_entity_data.append(record | {"entity_id": pair_id})
+            entity_prov[(doc_id, pair_id)] = entries
+
+            attr_key = (doc_id, attr_name)
+            for entry in entries:
+                attr_prov.setdefault(attr_key, []).append(entry)
+
+    return extended_entity_data, entity_prov, attr_prov
 
 
 class MeasurementLMAblation3(MeasurementLM):
     """
-    Ablation 3: entity and attribute detection combined into one extraction step.
-
-    The entity_identification_schema passed to __init__ must include:
-      - attribute (str)           : one of the keys in attribute_info_dict
-      - attribute_terms (list[str]): terminology used in the document
-    in addition to the usual entity-identifying fields.
-
-    Use the dataset config's ablation3_entity_schema and
-    ablation3_entity_identification_prompt fields; run_ablation.py passes these
-    as the entity_identification_schema and entity_identification_prompt arguments.
+    Ablation 3: both provenance steps are replaced by a single full-document
+    query per (entity, attribute) pair that returns a list of provenance locations.
     """
 
     # -----------------------------------------------------------------------
-    # Step 1 + 2 combined: Extract (entity, attribute) pairs
+    # Steps 3 + 4 combined: full-document (entity, attribute) pair provenance
     # -----------------------------------------------------------------------
 
-    def _extract_entity_attribute_pairs(self):
+    def _pair_provenance_full_context(self, entity_data, doc_attributes):
         """
-        Extract (entity, attribute) pairs in a single LLM pass.
+        For each (entity, attribute) pair in each document, query the full
+        document context to directly obtain a list of provenance locations.
 
-        CHANGED: replaces the separate _extract_entities() + _detect_attributes()
-        steps of the baseline.  The parent's _extract_entities() implementation
-        is reused here unchanged — the only difference is that the caller supplies
-        an entity_identification_schema that also contains 'attribute' and
-        'attribute_terms' fields, and a prompt that instructs the model to emit
-        one item per (entity, attribute) pair rather than one item per entity.
-        """
-        return self._extract_entities()
-
-    # -----------------------------------------------------------------------
-    # Step 3 combined: (Entity, attribute) pair provenance
-    # -----------------------------------------------------------------------
-
-    def _entity_attribute_provenance(self, pair_data):
-        """
-        For each unique (document, entity-attribute pair), determine which pages
-        contain data for that pair.
-
-        CHANGED: replaces both _entity_provenance() and _attribute_provenance()
-        from the baseline.  Uses ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS, which
-        requires evidence for BOTH the entity and the attribute on the same page.
+        Instead of asking a per-page binary question, the model receives the
+        entire document and returns a list of (page_number, table_number) items
+        identifying where the (entity, attribute) pair has data. Page numbers
+        are read from <page number="x"> tags; table numbers from
+        <table number="x"> tags (null if prose).
 
         Args:
-            pair_data: list of pair records from _extract_entity_attribute_pairs()
+            entity_data   : list of entity records from _extract_entities()
+            doc_attributes: {doc_id: {attr_name: terms}} from _detect_attributes()
 
         Returns:
-            dict mapping (doc_id, entity_id) -> list[{"page": int, "table": int|None}]
+            dict mapping (doc_id, entity_id, attr_name)
+                -> list[{"page": int, "table": int|None}]
         """
-        entity_fields = [
-            f for f in self.entity_identification_schema.model_fields.keys()
-            if f not in _ATTRIBUTE_FIELDS
-        ]
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
 
-        unique_pairs = {}
-        for record in pair_data:
+        unique_entities = {}
+        for record in entity_data:
             key = (record["document_id"], record["entity_id"])
-            if key not in unique_pairs:
-                unique_pairs[key] = record
+            if key not in unique_entities:
+                unique_entities[key] = record
 
         messages = []
-        message_ids = []  # (doc_id, entity_id, page_number)
+        message_ids = []  # (doc_id, entity_id, attr_name)
 
-        for (doc_id, entity_id), record in unique_pairs.items():
+        for (doc_id, entity_id), record in unique_entities.items():
             context = record["context"]
             entity_description = {k: v for k, v in record.items() if k in entity_fields}
-            attr_name = record["attribute"]
 
-            try:
+            for attr_name, terms in doc_attributes.get(doc_id, {}).items():
                 attr_description = self.attribute_info_dict[attr_name].get("description", "")
-            except KeyError:
-                print(f"Warning: attribute '{attr_name}' not found in attribute_info_dict. Skipping.")
-                continue
-
-            attr_terms = record.get("attribute_terms", [])
-            pages = self._get_page_numbers(context)
-
-            for p in pages:
-                page_text = self._get_page_text(context, p)
-                if not page_text:
-                    continue
 
                 query = (
                     f"Entity description: {entity_description}\n"
                     f"Attribute: {attr_name}\n"
                     f"Attribute description: {attr_description}\n"
-                    f"Terminology used for the attribute: {attr_terms}\n\n"
-                    f"Does this page contain directly reported numerical measurements "
-                    f"for the described attribute AND entity? If yes, indicate whether "
-                    f"the data appears in a table or in prose text.\n\n"
+                    f"Terminology used for the attribute: {terms}\n\n"
+                    f"List all locations in this document where a direct numerical "
+                    f"measurement for this entity and attribute appears. "
+                    f"For each location, provide the page number (from the nearest "
+                    f"preceding <page number=\"x\"> tag) and, if the data is in a "
+                    f"table, the table number (from the enclosing <table number=\"x\"> "
+                    f"tag). Set table_number to null if the data is in prose text.\n\n"
                 )
                 prompt = (
-                    f"## INSTRUCTIONS:\n{ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS}\n\n"
-                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+                    f"## INSTRUCTIONS:\n{FULL_CONTEXT_PROVENANCE_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
                 )
                 messages.append([{"role": "user", "content": prompt}])
-                message_ids.append((doc_id, entity_id, p))
+                message_ids.append((doc_id, entity_id, attr_name))
 
         if not messages:
             return {}
@@ -162,152 +175,38 @@ class MeasurementLMAblation3(MeasurementLM):
         response_format = {
             "type": "json_schema",
             "json_schema": {
-                "name": "provenance_response",
-                "schema": ProvenanceResponse.model_json_schema(),
+                "name": "provenance_list_response",
+                "schema": ProvenanceListResponse.model_json_schema(),
             },
         }
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
             max_retries=1,
-            validator=lambda r: response_validator(ProvenanceResponse, r),
+            validator=lambda r: response_validator(ProvenanceListResponse, r),
         )
 
-        provenance = {}
+        pair_prov = {}
         for msg_idx, resp in enumerate(response_texts):
-            doc_id, entity_id, page_number = message_ids[msg_idx]
+            doc_id, entity_id, attr_name = message_ids[msg_idx]
             try:
-                result = response_validator(ProvenanceResponse, resp)
-            except Exception:
-                print("Validation error in entity-attribute provenance response.")
-                continue
-
-            if result.get("has_data"):
-                key = (doc_id, entity_id)
-                if result.get("in_table"):
-                    page_text = self._get_page_text(
-                        unique_pairs[(doc_id, entity_id)]["context"],
-                        page_number,
-                    )
-                    for t in self._get_table_numbers_on_page(page_text):
-                        provenance.setdefault(key, []).append(
-                            {"page": page_number, "table": t}
-                        )
-                else:
-                    provenance.setdefault(key, []).append(
-                        {"page": page_number, "table": None}
-                    )
-
-        return provenance
-
-    # -----------------------------------------------------------------------
-    # Step 4 (optional): Measurement event resolution
-    # -----------------------------------------------------------------------
-
-    def _resolve_events(self, entity_data, doc_attributes, entity_prov, attr_prov):
-        """
-        CHANGED: for each entity record (which already has a specific attribute
-        embedded), only resolve events for that specific (entity, attribute)
-        combination — not all attributes in doc_attributes. Uses entity_prov
-        directly to determine the relevant pages.
-
-        Args:
-            entity_data: pair records from _extract_entity_attribute_pairs().
-            doc_attributes: {doc_id: {attr_name: terms}} (used for attr descriptions).
-            entity_prov: pair_prov keyed by (doc_id, entity_id).
-            attr_prov: unused in this override (kept for signature compatibility).
-
-        Returns:
-            dict mapping (doc_id, entity_id, attr_name, page_number) -> list[event_dict]
-        """
-        if self.measurement_event_schema is None:
-            return {}
-
-        EventList = create_model(
-            "EventList",
-            items=(list[self.measurement_event_schema], ...),
-        )
-        event_list_json = EventList.model_json_schema()
-
-        entity_fields = [
-            f for f in self.entity_identification_schema.model_fields.keys()
-            if f not in _ATTRIBUTE_FIELDS
-        ]
-
-        unique_pairs = {}
-        for record in entity_data:
-            key = (record["document_id"], record["entity_id"])
-            if key not in unique_pairs:
-                unique_pairs[key] = record
-
-        messages = []
-        message_ids = []  # (doc_id, entity_id, attr_name, page_number)
-
-        for (doc_id, entity_id), record in unique_pairs.items():
-            context = record["context"]
-            entity_description = {k: v for k, v in record.items() if k in entity_fields}
-            attr_name = record["attribute"]
-            attr_description = self.attribute_info_dict.get(attr_name, {}).get("description", "")
-
-            # Use the pair's own provenance pages (not the cross-product of all attributes)
-            pair_pages = sorted(
-                entry["page"] for entry in entity_prov.get((doc_id, entity_id), [])
-            )
-
-            for p in pair_pages:
-                page_text = self._get_page_text(context, p)
-                if not page_text:
-                    continue
-
-                query = (
-                    f"Entity description: {entity_description}\n"
-                    f"Attribute: {attr_name}\n"
-                    f"Attribute description: {attr_description}\n\n"
-                    f"Enumerate all distinct measurement events for the above entity "
-                    f"and attribute found on this page.\n\n"
-                )
-                prompt = (
-                    f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
-                    f"## EVENT DETAILS:\n{self.measurement_event_prompt}\n\n"
-                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-                )
-                messages.append([{"role": "user", "content": prompt}])
-                message_ids.append((doc_id, entity_id, attr_name, p))
-
-        if not messages:
-            return {}
-
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "event_list",
-                "schema": event_list_json,
-            },
-        }
-        response_texts = self._call_batch(
-            messages,
-            response_format=response_format,
-            max_retries=1,
-            max_tokens=16384,
-            validator=lambda r: response_validator(EventList, r),
-        )
-
-        event_resolution = {}
-        for msg_idx, resp in enumerate(response_texts):
-            key = message_ids[msg_idx]
-            try:
-                result = response_validator(EventList, resp)
+                result = response_validator(ProvenanceListResponse, resp)
             except Exception as e:
-                print(f"Validation error in event resolution response: {e}")
-                print(f"Response text: {resp}")
-                event_resolution[key] = []
+                print(f"Validation error in full-context provenance response: {e}")
+                print(f"Response text: {resp[:500]}")
                 continue
-            event_resolution[key] = result["items"]
 
-        return event_resolution
+            for item in result["items"]:
+                key = (doc_id, entity_id, attr_name)
+                pair_prov.setdefault(key, []).append({
+                    "page": item["page_number"],
+                    "table": item.get("table_number"),
+                })
+
+        return pair_prov
 
     # -----------------------------------------------------------------------
-    # Full pipeline (simplified: 6 steps instead of 8)
+    # Full pipeline
     # -----------------------------------------------------------------------
 
     def fit(
@@ -318,18 +217,11 @@ class MeasurementLMAblation3(MeasurementLM):
         """
         Runs the ablation 3 pipeline on the provided documents.
 
-        CHANGED: 6-step pipeline instead of 8 steps.
-          Step 1: Extract (entity, attribute) pairs [was: steps 1 + 2]
-          Step 2: Combined pair provenance          [was: steps 3 + 4]
-          Step 3: Event resolution (optional)       [new; uses overridden _resolve_events]
-          Step 4: Extract values from text          [unchanged]
-          Step 5: Extract values from tables        [unchanged]
-          Step 6: Standardize
-          Step 7: Deduplicate
-
-        After pair provenance, pair_prov is adapted into the (entity_prov,
-        attr_prov, doc_attributes) format expected by the unchanged extraction
-        methods before calling them.
+        Steps 3 and 4 (entity provenance, attribute provenance) are replaced by
+        a single _pair_provenance_full_context() call. Its output is adapted via
+        _adapt_pair_prov() before being passed to the extraction methods. Event
+        resolution is run after provenance adaptation and passed to value
+        extraction steps.
         """
         if self.clean_tables:
             if processed_pdf_dirs is None:
@@ -342,60 +234,47 @@ class MeasurementLMAblation3(MeasurementLM):
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})
+        doc_data = list(self.data)
 
-        # Step 1: Extract (entity, attribute) pairs
-        pair_data = self._extract_entity_attribute_pairs()
+        # Step 1: Entity extraction
+        entity_data = self._extract_entities()
 
-        # Step 2: Combined (entity, attribute) pair provenance
-        pair_prov = self._entity_attribute_provenance(pair_data)
+        # Step 2: Document-level attribute detection
+        self.data = doc_data
+        doc_attributes = self._detect_attributes()
 
-        # Adapt pair_prov to the (entity_prov, attr_prov, doc_attributes) interface
-        # expected by the unchanged _extract_values_from_text / _extract_values_from_tables.
-        #
-        # entity_prov: reuse pair_prov as-is — keyed by (doc_id, entity_id).
-        # attr_prov: for each (doc_id, attr_name), union pair_prov page entries across
-        #   all pairs sharing that attr_name. This ensures the entity_prov ∩ attr_prov
-        #   intersection inside the extraction methods reduces to the pair's own pages.
-        # doc_attributes: {doc_id: {attr_name: terms}} derived from pair_data.
-        entity_prov = pair_prov
-        attr_prov = {}
-        doc_attributes = {}
-        for record in pair_data:
-            doc_id = record["document_id"]
-            entity_id = record["entity_id"]
-            attr_name = record["attribute"]
-            terms = record.get("attribute_terms", [])
+        # Steps 3 + 4: full-document pair provenance
+        pair_prov = self._pair_provenance_full_context(entity_data, doc_attributes)
 
-            doc_attributes.setdefault(doc_id, {})[attr_name] = terms
+        # Adapt pair_prov into the (entity_prov, attr_prov) interface the extraction methods expect.
+        extended_entity_data, entity_prov, attr_prov = _adapt_pair_prov(
+            pair_prov, entity_data, doc_attributes
+        )
 
-            attr_key = (doc_id, attr_name)
-            for entry in pair_prov.get((doc_id, entity_id), []):
-                attr_prov.setdefault(attr_key, []).append(entry)
-
-        # Step 3: Event resolution (optional)
+        # Step 4.5: Event resolution (optional)
         if self.measurement_event_schema is not None:
             event_resolution = self._resolve_events(
-                pair_data, doc_attributes, entity_prov, attr_prov
+                extended_entity_data, doc_attributes, entity_prov, attr_prov
             )
         else:
             event_resolution = None
 
-        # Step 4: Extract values from text (identical to baseline)
+        # Step 5: Extract values from text
         text_values = self._extract_values_from_text(
-            pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
+            extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
-        # Step 5: Extract values from tables (identical to baseline)
+        # Step 6: Extract values from tables
         table_values = self._extract_values_from_tables(
-            pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
+            extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
         )
 
         self.data = text_values + table_values
 
-        # Step 6: Standardize
+        # Step 7: Standardize
         self.data = self._standardize()
 
-        # Step 7: Deduplicate
+        # Step 8: Deduplicate
         self.data = self._deduplicate(self.data)
 
         return self.data

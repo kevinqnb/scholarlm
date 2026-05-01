@@ -168,17 +168,19 @@ experiments/*/*/out/*
 experiments/*/*/*/out/*
 *.sh
 
+analysis/*.npy
+
 data/experiments/*/*
 
 data/pond/pdfs/*.pdf
-data/pond/meta/*
+data/pond/raw_data/*
 data/pond/ocr_output
 data/pond/ocr_output*/
 data/pond/processed_pdfs/*
 data/ocr
 
 data/nfix/pdfs/*.pdf
-data/nfix/meta/*
+data/nfix/raw_data/*
 data/nfix/ocr_output
 data/nfix/ocr_output*/
 data/nfix/processed_pdfs/*
@@ -192,3 +194,5 @@ data/nfix/processed_pdfs/*
 memory
 *.DS_STORE
 .virtual_documents/
+
+CLAUDE.MD

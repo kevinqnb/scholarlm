@@ -1,20 +1,17 @@
 """
 Central model registry for all experiment runners.
 
-Defines four registries imported by the various runner scripts:
+Defines three registries imported by the various runner scripts:
 
     MODEL_REGISTRY         — extraction models (ModelConfig); used by
                              run_extraction.py, run_ablation.py,
-                             run_vllm_table_cleaning.py.
+                             run_table_cleaning.py.
 
     INTERP_JUDGE_REGISTRY  — NNsight/JudgementLM judge models; used by
-                             run_judge.py and run_judge_interp.py.
+                             run_judge_interp.py.
 
     VLLM_JUDGE_REGISTRY    — vLLM logprob judge models; used by
                              run_judge_local.py.
-
-    FRONTIER_JUDGE_PROVIDERS — set of supported frontier batch-API
-                               judge providers; used by run_judge.py.
 """
 from __future__ import annotations
 
@@ -43,58 +40,81 @@ except ImportError:
 
 MODEL_REGISTRY: dict[str, ModelConfig] = {
     # --- vLLM models ---
-    "gemma-3-27b": ModelConfig(
-        name="gemma-3-27b",
-        model_id="gaunernst/gemma-3-27b-it-int4-awq",
+    "llama-3.1-8b": ModelConfig(
+        name="llama-3.1-8b",
+        model_id="meta-llama/Llama-3.1-8B-Instruct",
+        hf_revision=None,  # TODO: pin to commit SHA after download
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
+            "seed": 342,
+            "enable_thinking": False,
+        },
+    ),
+    "gemma-3-27b": ModelConfig(
+        name="gemma-3-27b",
+        model_id="gaunernst/gemma-3-27b-it-int4-awq",
+        hf_revision=None,  # TODO: pin to commit SHA after download
+        sampling_params={
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_tokens": 8192,
+            "seed": 342,
         },
     ),
     "llama-3.3-70b": ModelConfig(
         name="llama-3.3-70b",
         model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
+        hf_revision=None,  # TODO: pin to commit SHA after download
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "enable_thinking": False
+            "seed": 342,
+            "enable_thinking": False,
         },
     ),
     "qwen-2.5-72b": ModelConfig(
         name="qwen-2.5-72b",
         model_id="Qwen/Qwen2.5-72B-Instruct-AWQ",
+        hf_revision=None,  # TODO: pin to commit SHA after download
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "enable_thinking": False
+            "seed": 342,
+            "enable_thinking": False,
         },
     ),
     "qwen-3.5-27b": ModelConfig(
         name="qwen-3.5-27b",
         model_id="Qwen/Qwen3.5-27B-FP8",
+        hf_revision=None,  # TODO: pin to commit SHA after download
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "enable_thinking": False
+            "seed": 342,
+            "enable_thinking": False,
         },
     ),
     "gpt-oss-120b": ModelConfig(
         name="gpt-oss-120b",
         model_id="openai/gpt-oss-120b",
+        hf_revision=None,  # TODO: pin to commit SHA after download
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
             "top_k": 20,
             "max_tokens": 8192,
-            "enable_thinking": False
+            "seed": 342,
+            "enable_thinking": False,
         },
     ),
     # --- Frontier models (api_base set; runners skip --api-base and vLLM extra_body) ---
@@ -122,8 +142,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
 # ---------------------------------------------------------------------------
 # Interpretability / NNsight judge registry
 #
-# Used by run_judge.py (as LOCAL_JUDGE_REGISTRY) and run_judge_interp.py
-# (as JUDGE_REGISTRY).  Merged from both runners' prior inline definitions.
+# Used by run_judge_interp.py (as JUDGE_REGISTRY).
 # ---------------------------------------------------------------------------
 
 INTERP_JUDGE_REGISTRY: dict[str, dict] = {
@@ -132,26 +151,17 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         "nnsight_kwargs": {"torch_dtype": _bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
-    "qwen-3-8b": {
-        "model_id": "Qwen/Qwen3-8B",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-3-12b": {
-        "model_id": "google/gemma-3-12b-it",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
-    "gemma-2-9b": {
-        "model_id": "google/gemma-2-9b-it",
-        "nnsight_kwargs": {"torch_dtype": _bfloat16},
-        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
-    },
     "mistral-7b": {
         "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
         "nnsight_kwargs": {"torch_dtype": _bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
+    "qwen-2.5-7b": {
+        "model_id": "Qwen/Qwen2.5-7B-Instruct",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
+    },
+
 }
 
 
@@ -181,10 +191,3 @@ VLLM_JUDGE_REGISTRY: dict[str, dict] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Frontier batch-API judge providers
-#
-# Used by run_judge.py (as FRONTIER_PROVIDERS).
-# ---------------------------------------------------------------------------
-
-FRONTIER_JUDGE_PROVIDERS: set[str] = {"openai", "anthropic", "gemini"}

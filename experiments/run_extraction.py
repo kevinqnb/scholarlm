@@ -26,11 +26,10 @@ import argparse
 import importlib.util
 import json
 import os
-import random
 import shutil
 import sys
 import tempfile
-from datetime import datetime
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -45,9 +44,8 @@ from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 from model_registry import MODEL_REGISTRY
-
-# Reproducibility
-random.seed(342)
+import paths
+from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -108,27 +106,6 @@ def get_model_config(name: str) -> ModelConfig:
     return MODEL_REGISTRY[name]
 
 
-# ---------------------------------------------------------------------------
-# Output path helper
-# ---------------------------------------------------------------------------
-
-
-def get_output_dir(dataset_name: str, model_name: str, date: str | None = None) -> Path:
-    """Return the output directory for a given (dataset, model, date) triple.
-
-    Path convention: ``data/experiments/{dataset}/extraction/{model}/{YYYY_mm_dd}/``
-
-    Args:
-        dataset_name: Dataset identifier (e.g. ``"pond"``).
-        model_name: Model identifier (e.g. ``"qwen-2.5-72b"``).
-        date: Optional date string ``"YYYY_mm_dd"``. Defaults to today.
-
-    Returns:
-        A ``Path`` object (not yet created on disk).
-    """
-    if date is None:
-        date = datetime.now().strftime("%Y_%m_%d")
-    return _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / model_name / date
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +147,11 @@ def load_papers(
         }
         text_files = [f for f in text_files if f.replace(".txt", "") in registered_ids]
 
+    # Apply exclusion list
+    if dataset_config.paper_exclude is not None:
+        exclude_set = set(dataset_config.paper_exclude)
+        text_files = [f for f in text_files if f.replace(".txt", "") not in exclude_set]
+
     # Determine effective paper subset
     effective_subset = paper_subset_override if paper_subset_override is not None else dataset_config.paper_subset
     if effective_subset is not None:
@@ -184,7 +166,7 @@ def load_papers(
         with open(filepath, "r", encoding="utf-8") as fh:
             text.append(fh.read())
         metadata = dict(paper_info.get(paper_code, {}))
-        metadata["paper_code"] = paper_code
+        metadata["document_id"] = paper_code
         text_info.append(metadata)
 
     return text, text_info
@@ -457,10 +439,13 @@ def step_standardize_and_deduplicate(
     standardized = mlm._standardize()
     deduplicated = mlm._deduplicate(standardized)
 
-    dataset = [
-        text_info[dp["document_id"]] | dp | {"measurement_id": i}
-        for i, dp in enumerate(deduplicated)
-    ]
+    dataset = []
+    for i, dp in enumerate(deduplicated):
+        info = text_info[dp["document_id"]]
+        record = {k: v for k, v in dp.items() if k != "document_id"}
+        record["document_id"] = info["document_id"]
+        record["measurement_id"] = i
+        dataset.append(record)
 
     outfile.parent.mkdir(parents=True, exist_ok=True)
     with open(outfile, "w") as f:
@@ -631,10 +616,13 @@ def run_pipeline(
                 f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
             )
         processed_pdf_dirs = [
-            str(processed_pdf_root / info["paper_code"]) for info in text_info
+            str(processed_pdf_root / info["document_id"]) for info in text_info
         ]
         text = mlm._clean_tables(text, processed_pdf_dirs)
 
+    gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
+
+    start_time = time.time()
     if final_only:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
@@ -645,6 +633,17 @@ def run_pipeline(
         output_dir.mkdir(parents=True, exist_ok=True)
         _run_all_steps(mlm, text, text_info, output_dir, resume=resume)
 
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ocr_dir=effective_ocr_dir,
+        gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+    )
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
 
 
@@ -843,9 +842,14 @@ def main(argv: list[str] | None = None) -> None:
     if args.resume and args.step:
         raise SystemExit("error: --resume has no effect when --step is given.")
 
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
+
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)
-    output_dir = get_output_dir(args.dataset, args.model, args.date)
+    output_dir = paths.extraction(args.dataset, args.model, args.date)
 
     if args.step:
         run_single_step(

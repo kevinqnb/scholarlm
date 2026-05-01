@@ -42,6 +42,9 @@ class DatasetConfig:
         paper_filter: Optional predicate ``(paper_metadata: dict) -> bool`` applied
             to each paper's metadata dict.  Only papers for which this returns
             ``True`` are included.  Applied *before* ``paper_subset`` intersection.
+        paper_exclude: Optional list of paper codes to unconditionally exclude from
+            processing (e.g. papers whose data comes from figures or supplemental
+            text).  Applied after ``paper_filter`` and before ``paper_subset``.
         measurement_event_schema: Optional Pydantic ``BaseModel`` subclass whose
             fields define a single measurement event (e.g. date, method, substrate,
             depth).  When set, the pipeline inserts an event-resolution step between
@@ -61,16 +64,22 @@ class DatasetConfig:
             describes entities, measurement events, and attributes in a single
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
-        ablation3_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
-            Ablation 3 (combined entity-attribute extraction).  Must include all
+        ablation2_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
+            Ablation 2 (combined entity-attribute extraction).  Must include all
             normal entity fields plus two reserved fields: ``attribute (str)`` (exact
             attribute name from ``attribute_info_dict``) and ``attribute_terms
             (list[str])`` (terminology used in the document).  ``None`` disables
-            ablation 3.
-        ablation3_entity_identification_prompt: Dataset-specific prompt for Ablation
-            3 that instructs the model to emit one item per (entity, attribute) pair
+            ablation 2.
+        ablation2_entity_identification_prompt: Dataset-specific prompt for Ablation
+            2 that instructs the model to emit one item per (entity, attribute) pair
             rather than one item per entity.  Required when
-            ``ablation3_entity_schema`` is set; ignored otherwise.
+            ``ablation2_entity_schema`` is set; ignored otherwise.
+        judge_filter_fields: Optional list of field names to exclude from the
+            judge prompt's entity and event descriptions.  Applied as a blocklist
+            across both sections, so a single entry removes a field regardless of
+            whether it belongs to the entity or event schema.  Use this to suppress
+            noisy or irrelevant fields (e.g. ``location``) without altering the
+            underlying schemas.  ``None`` applies no filtering.
     """
 
     name: str
@@ -82,12 +91,16 @@ class DatasetConfig:
     attribute_info_dict: dict[str, dict]
     paper_subset: list[str] | None = None
     paper_filter: Callable[[dict], bool] | None = None
+    paper_exclude: list[str] | None = None
     measurement_event_schema: type[BaseModel] | None = None
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None
     direct_extraction_prompt: str | None = None
-    ablation3_entity_schema: type[BaseModel] | None = None
-    ablation3_entity_identification_prompt: str | None = None
+    ablation2_entity_schema: type[BaseModel] | None = None
+    ablation2_entity_identification_prompt: str | None = None
+    ground_truth_file: str | None = None
+    unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
+    judge_filter_fields: list[str] | None = None
 
 
 @dataclass
@@ -100,10 +113,11 @@ class ModelConfig:
             (e.g. ``"qwen-2.5-72b"``).
         model_id: HuggingFace model ID (vLLM) or API model name (frontier).
             Also used as the ``model`` field in API requests.
+        hf_revision: HuggingFace commit SHA pinned for reproducibility.
+            ``None`` means the default branch HEAD was used (less reproducible).
         sampling_params: Generation parameters forwarded to the API.
             Supported keys: ``temperature``, ``top_p``, ``top_k``,
-            ``max_tokens``, ``repetition_penalty``.  ``seed`` is not forwarded
-            (the OpenAI-compatible API does not support it).
+            ``max_tokens``, ``repetition_penalty``, ``seed``.
         api_base: API base URL for frontier models (e.g.
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``
@@ -112,6 +126,7 @@ class ModelConfig:
 
     name: str
     model_id: str
+    hf_revision: str | None = None
     sampling_params: dict = field(
         default_factory=lambda: {
             "temperature": 0.1,

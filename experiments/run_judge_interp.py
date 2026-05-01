@@ -5,33 +5,42 @@ Runs judge validation for a given (dataset, extraction_model, judge_model) tripl
 using a local model loaded through NNsight, collecting per-layer, per-head
 attention output activations alongside binary judgement probabilities.
 
-Output path:
+Standard output path:
     data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/
+
+Synthetic probe output path (when --synthetic is used):
+    data/experiments/{dataset}/synthetic_probe/{judge_model}/{judge_date}/
 
 Saves:
   - ``responses.json``        — per-measurement judgement + probability scores
   - ``attention_outputs.npz`` — per-layer, per-head attention output activations
+  - ``layer_outputs.npz``     — per-layer residual stream outputs (last generated token)
 
 Usage
 -----
+    # Standard extraction run
     python experiments/run_judge_interp.py \\
         --dataset pond \\
         --extraction-model gemma-3-27b \\
         --judge llama-3.1-8b \\
         --extraction-date 2026_04_01
 
+    # Synthetic probe dataset
+    python experiments/run_judge_interp.py \\
+        --dataset pond \\
+        --synthetic \\
+        --judge llama-3.1-8b
+
 Available judge models: llama-3.1-8b, gemma-2-9b, mistral-7b (see JUDGE_REGISTRY in code for details).
 """
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import math
 import os
-import random
 import sys
-from datetime import datetime
+import time
 from pathlib import Path
 from typing import Any
 
@@ -54,86 +63,10 @@ from scholarlm import JudgementLM
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 
-random.seed(342)
-torch.manual_seed(342)
-torch.cuda.manual_seed(342)
-
 from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
-
-# ---------------------------------------------------------------------------
-# Config / path helpers
-# ---------------------------------------------------------------------------
-
-
-def _load_dataset_config(name: str) -> DatasetConfig:
-    config_path = _CONFIGS_DIR / f"{name}.py"
-    if not config_path.exists():
-        available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
-        raise FileNotFoundError(
-            f"No config found for dataset '{name}'. Available: {available}"
-        )
-    spec = importlib.util.spec_from_file_location(f"_dataset_config_{name}", config_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.CONFIG
-
-
-def get_judge_output_dir(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    judge_model: str,
-    judge_date: str | None = None,
-    ablation: str | None = None,
-) -> Path:
-    """Return the judge output directory.
-
-    Without ablation:
-        ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_model}/{judge_date}/``
-    With ablation:
-        ``data/experiments/{dataset}/ablations/ablation{N}/{extraction_model}/{extraction_date}/judge/{judge_model}/{judge_date}/``
-    """
-    if judge_date is None:
-        judge_date = datetime.now().strftime("%Y_%m_%d")
-    if ablation is not None:
-        return (
-            _REPO_ROOT
-            / "data" / "experiments"
-            / dataset_name / "ablations" / f"ablation{ablation}"
-            / extraction_model / extraction_date / "judge" / judge_model / judge_date
-        )
-    return (
-        _REPO_ROOT
-        / "data" / "experiments"
-        / dataset_name / "judge"
-        / extraction_model / extraction_date / judge_model / judge_date
-    )
-
-
-def _find_extraction_final(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str | None,
-    ablation: str | None = None,
-) -> Path:
-    if ablation is not None:
-        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "ablations" / f"ablation{ablation}" / extraction_model
-    else:
-        base = _REPO_ROOT / "data" / "experiments" / dataset_name / "extraction" / extraction_model
-    if extraction_date:
-        candidate = base / extraction_date / "final.json"
-        if not candidate.exists():
-            raise FileNotFoundError(f"Extraction results not found: {candidate}")
-        return candidate
-    date_dirs = sorted(base.iterdir(), reverse=True) if base.exists() else []
-    for d in date_dirs:
-        candidate = d / "final.json"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"No extraction results found for dataset='{dataset_name}' model='{extraction_model}' "
-        f"under {base}. Run run_extraction.py first."
-    )
+from run_extraction import load_dataset_config
+import paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -143,12 +76,13 @@ def _find_extraction_final(
 
 def run_interp_judge(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     judge_key: str,
     output_dir: Path,
     extraction_date: str | None = None,
     ocr_dir: str | None = None,
     ablation: str | None = None,
+    input_file: Path | None = None,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
@@ -162,10 +96,13 @@ def run_interp_judge(
     Args:
         dataset_config: Dataset configuration.
         extraction_model: Short name of the extraction model whose results to judge.
+            Not used when ``input_file`` is provided explicitly (synthetic mode).
         judge_key: Key in ``JUDGE_REGISTRY``.
-        output_dir: Directory to write ``responses.json`` and ``attention_outputs.npz``.
+        output_dir: Directory to write ``responses.json``, ``attention_outputs.npz``, and ``layer_outputs.npz``.
         extraction_date: Optional date tag for locating extraction results.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
+        input_file: If provided, load data from this path instead of looking up
+            the extraction run (synthetic probe mode).
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -173,7 +110,8 @@ def run_interp_judge(
         )
     judge_cfg = JUDGE_REGISTRY[judge_key]
 
-    input_file = _find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    if input_file is None:
+        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -186,7 +124,9 @@ def run_interp_judge(
     # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = batch_common.prepare_chat_entries(
+        data, documents, dataset_config,
+    )
 
     # JudgementLM takes (instructions, context, query) triples separately.
     # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
@@ -201,18 +141,22 @@ def run_interp_judge(
         nnsight_kwargs=judge_cfg["nnsight_kwargs"],
     )
 
+    start_time = time.time()
     responses = llm.predict(messages)
 
     # Map results back to original data order via custom_id.
     result_by_orig_idx: dict[int, dict] = {}
     attn_output_dict: dict[str, Any] = {}
+    layer_output_dict: dict[str, Any] = {}
 
     for entry, response in zip(chat_entries, responses):
         orig_idx = int(entry["custom_id"])
         result_by_orig_idx[orig_idx] = response
+        mid = str(data[orig_idx]["measurement_id"])
         if response.get("attn_output") is not None:
-            mid = str(data[orig_idx]["measurement_id"])
             attn_output_dict[mid] = response["attn_output"]
+        if response.get("layer_output") is not None:
+            layer_output_dict[mid] = response["layer_output"]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     judged_data: list[dict] = []
@@ -239,7 +183,22 @@ def run_interp_judge(
     if attn_output_dict:
         attn_file = output_dir / "attention_outputs.npz"
         np.savez_compressed(attn_file, **attn_output_dict)
-        print(f"Activations saved to {attn_file}")
+        print(f"Attention activations saved to {attn_file}")
+
+    if layer_output_dict:
+        layer_file = output_dir / "layer_outputs.npz"
+        np.savez_compressed(layer_file, **layer_output_dict)
+        print(f"Layer outputs saved to {layer_file}")
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        extraction_model=extraction_model,
+        judge_model=judge_key,
+        judge_model_id=judge_cfg["model_id"],
+        max_prompt_tokens=llm.max_prompt_tokens,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -255,8 +214,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
     p.add_argument(
-        "--extraction-model", required=True,
-        help="Short name of the extraction model whose results to judge.",
+        "--extraction-model", default=None,
+        help="Short name of the extraction model whose results to judge. Required unless --synthetic is used.",
     )
     p.add_argument(
         "--judge", required=True,
@@ -276,36 +235,75 @@ def _build_parser() -> argparse.ArgumentParser:
             "Defaults to {data_dir}/ocr_output_raw/."
         ),
     )
+    p.add_argument(
+        "--synthetic", action="store_true", default=False,
+        help=(
+            "Run on the synthetic probe dataset from data/{dataset}/probe_dataset.json "
+            "instead of an extraction run. Output goes to synthetic_probe/{judge}/{date}/. "
+            "--extraction-model and --ablation are ignored."
+        ),
+    )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
-    dataset_config = _load_dataset_config(args.dataset)
-    input_file = _find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
-    extraction_date_resolved = input_file.parent.name
-    output_dir = get_judge_output_dir(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
-        ablation=args.ablation,
-    )
-    print(f"\nDataset          : {args.dataset}")
-    print(f"Extraction model : {args.extraction_model}")
-    print(f"Extraction date  : {extraction_date_resolved}")
-    if args.ablation:
-        print(f"Ablation         : {args.ablation}")
-    print(f"Judge            : {args.judge}")
-    print(f"Output           : {output_dir}\n")
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
 
-    run_interp_judge(
-        dataset_config=dataset_config,
-        extraction_model=args.extraction_model,
-        judge_key=args.judge,
-        output_dir=output_dir,
-        extraction_date=extraction_date_resolved,
-        ocr_dir=args.ocr_dir,
-        ablation=args.ablation,
-    )
+    dataset_config = load_dataset_config(args.dataset)
+
+    if args.synthetic:
+        probe_file = _REPO_ROOT / "data" / args.dataset / "probe_dataset.json"
+        if not probe_file.exists():
+            raise FileNotFoundError(
+                f"Probe dataset not found: {probe_file}. "
+                f"Run data/{args.dataset}/create_probe_dataset.py first."
+            )
+        output_dir = paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Mode             : synthetic probe")
+        print(f"Input            : {probe_file}")
+        print(f"Judge            : {args.judge}")
+        print(f"Output           : {output_dir}\n")
+        run_interp_judge(
+            dataset_config=dataset_config,
+            extraction_model=None,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            ocr_dir=args.ocr_dir,
+            input_file=probe_file,
+        )
+    else:
+        if args.extraction_model is None:
+            _build_parser().error("--extraction-model is required unless --synthetic is used.")
+        input_file = paths.find_extraction_final(
+            args.dataset, args.extraction_model, args.extraction_date, args.ablation
+        )
+        extraction_date_resolved = input_file.parent.name
+        output_dir = paths.judge(
+            args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
+            ablation=args.ablation,
+        )
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Extraction model : {args.extraction_model}")
+        print(f"Extraction date  : {extraction_date_resolved}")
+        if args.ablation:
+            print(f"Ablation         : {args.ablation}")
+        print(f"Judge            : {args.judge}")
+        print(f"Output           : {output_dir}\n")
+        run_interp_judge(
+            dataset_config=dataset_config,
+            extraction_model=args.extraction_model,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            extraction_date=extraction_date_resolved,
+            ocr_dir=args.ocr_dir,
+            ablation=args.ablation,
+        )
 
 
 if __name__ == "__main__":

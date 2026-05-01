@@ -20,8 +20,8 @@ Available ablations: 1–6 (see ABLATION_REGISTRY below).
 
 Notes
 -----
-Ablation 3 requires the dataset config to define ablation3_entity_schema and
-ablation3_entity_identification_prompt. The schema must include two reserved
+Ablation 2 requires the dataset config to define ablation2_entity_schema and
+ablation2_entity_identification_prompt. The schema must include two reserved
 fields beyond the usual entity fields:
     - attribute (str)             : one of the keys in attribute_info_dict
     - attribute_terms (list[str]) : terminology used in the document
@@ -33,8 +33,9 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+import time
 from pathlib import Path
+
 
 # ---------------------------------------------------------------------------
 # Path setup — make scholarlm and run_extraction importable
@@ -59,6 +60,8 @@ from run_extraction import (
     get_model_config,
     load_papers,
 )
+import paths
+from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------
 # Ablation registry
@@ -72,13 +75,13 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
     "2": (
         MeasurementLMAblation2,
-        "Direct table value extraction; the model returns the value directly from the "
-        "table instead of first identifying row/column indices for programmatic lookup.",
+        "Combined entity-attribute extraction; entity detection and attribute detection "
+        "merged into a single step, plus a combined per-page provenance step.",
     ),
     "3": (
         MeasurementLMAblation3,
-        "Combined entity-attribute extraction; entity detection and attribute detection "
-        "merged into a single step, plus a combined per-page provenance step.",
+        "Full-document pair provenance; both provenance steps are replaced by a single "
+        "full-document query per (entity, attribute) pair that returns a list of locations.",
     ),
     "4": (
         MeasurementLMAblation4,
@@ -88,53 +91,16 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
     ),
     "5": (
         MeasurementLMAblation5,
-        "No chain-of-thought explanations; all structured JSON responses drop the "
-        "'explanation' field so the model does not produce reasoning traces.",
+        "Direct table value extraction; the model returns the value directly from the "
+        "table instead of first identifying row/column indices for programmatic lookup.",
     ),
     "6": (
         MeasurementLMAblation6,
-        "Full-document pair provenance; both provenance steps are replaced by a single "
-        "full-document query per (entity, attribute) pair that returns a list of locations.",
+        "No chain-of-thought explanations; all structured JSON responses drop the "
+        "'explanation' field so the model does not produce reasoning traces.",
     ),
 }
 
-# ---------------------------------------------------------------------------
-# Output path helper
-# ---------------------------------------------------------------------------
-
-
-def get_output_dir(
-    dataset_name: str,
-    ablation: str,
-    model_name: str,
-    date: str | None = None,
-) -> Path:
-    """Return the output directory for a given (dataset, ablation, model, date) tuple.
-
-    Path convention:
-        ``data/experiments/{dataset}/ablations/ablation{N}/{model}/{YYYY_mm_dd}/``
-
-    Args:
-        dataset_name: Dataset identifier (e.g. ``"pond"``).
-        ablation: Ablation number as a string (e.g. ``"1"``).
-        model_name: Model identifier (e.g. ``"qwen-2.5-72b"``).
-        date: Optional date string ``"YYYY_mm_dd"``. Defaults to today.
-
-    Returns:
-        A ``Path`` object (not yet created on disk).
-    """
-    if date is None:
-        date = datetime.now().strftime("%Y_%m_%d")
-    return (
-        _REPO_ROOT
-        / "data"
-        / "experiments"
-        / dataset_name
-        / "ablations"
-        / f"ablation{ablation}"
-        / model_name
-        / date
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -214,33 +180,33 @@ def run_ablation(
     text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
-    # Ablation 3 runtime check: dataset config must provide ablation3_entity_schema
-    # and ablation3_entity_identification_prompt with the required reserved fields.
-    if ablation == "3":
-        if dataset_config.ablation3_entity_schema is None:
+    # Ablation 2 runtime check: dataset config must provide ablation2_entity_schema
+    # and ablation2_entity_identification_prompt with the required reserved fields.
+    if ablation == "2":
+        if dataset_config.ablation2_entity_schema is None:
             raise ValueError(
-                f"Ablation 3 requires 'ablation3_entity_schema' to be set in the "
+                f"Ablation 2 requires 'ablation2_entity_schema' to be set in the "
                 f"dataset config for '{dataset_config.name}'. "
                 f"Define the schema (entity fields + attribute + attribute_terms) and "
-                f"set ablation3_entity_schema in the DatasetConfig."
+                f"set ablation2_entity_schema in the DatasetConfig."
             )
-        schema_fields = set(dataset_config.ablation3_entity_schema.model_fields.keys())
+        schema_fields = set(dataset_config.ablation2_entity_schema.model_fields.keys())
         missing = {"attribute", "attribute_terms"} - schema_fields
         if missing:
             raise ValueError(
-                f"Ablation 3 requires the ablation3_entity_schema to include the "
+                f"Ablation 2 requires the ablation2_entity_schema to include the "
                 f"fields {sorted(missing)}. The schema "
-                f"({dataset_config.ablation3_entity_schema.__name__}) is missing "
+                f"({dataset_config.ablation2_entity_schema.__name__}) is missing "
                 f"these fields. Please add them."
             )
-        if dataset_config.ablation3_entity_identification_prompt is None:
+        if dataset_config.ablation2_entity_identification_prompt is None:
             raise ValueError(
-                f"Ablation 3 requires 'ablation3_entity_identification_prompt' to be "
+                f"Ablation 2 requires 'ablation2_entity_identification_prompt' to be "
                 f"set in the dataset config for '{dataset_config.name}'."
             )
         # Use the ablation-specific schema and prompt for this run
-        entity_schema = dataset_config.ablation3_entity_schema
-        entity_identification_prompt = dataset_config.ablation3_entity_identification_prompt
+        entity_schema = dataset_config.ablation2_entity_schema
+        entity_identification_prompt = dataset_config.ablation2_entity_identification_prompt
     else:
         entity_schema = dataset_config.entity_schema
         entity_identification_prompt = dataset_config.entity_identification_prompt
@@ -274,18 +240,22 @@ def run_ablation(
                 f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
             )
         processed_pdf_dirs = [
-            str(processed_pdf_root / info["paper_code"]) for info in text_info
+            str(processed_pdf_root / info["document_id"]) for info in text_info
         ]
         text = mlm._clean_tables(text, processed_pdf_dirs)
         # Tables are now cleaned; disable the check inside fit() to avoid a second pass.
         mlm.clean_tables = False
 
+    gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
+
     print("Running ablation pipeline...")
+    start_time = time.time()
     data = mlm.fit(text)
 
     dataset = [
-        text_info[dp["document_id"]] | dp | {"measurement_id": i}
+        info | dp | {"document_id": info["document_id"], "measurement_id": i}
         for i, dp in enumerate(data)
+        for info in [text_info[dp["document_id"]]]
     ]
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -293,6 +263,16 @@ def run_ablation(
     with open(out_path, "w") as f:
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ablation=ablation,
+        gpu_compatibility_warnings=gpu_warnings,
+    )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")
 
@@ -369,9 +349,14 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
+    from utils import load_config
+    cfg = load_config()
+    seed = cfg.get("defaults", {}).get("seed", 342)
+    set_seeds(seed)
+
     dataset_config = load_dataset_config(args.dataset)
     model_config = get_model_config(args.model)
-    output_dir = get_output_dir(args.dataset, args.ablation, args.model, args.date)
+    output_dir = paths.ablation(args.dataset, args.ablation, args.model, args.date)
 
     run_ablation(
         dataset_config=dataset_config,

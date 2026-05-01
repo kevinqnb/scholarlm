@@ -99,8 +99,10 @@ class JudgementLM:
         self.n_layers = len(self.llm.model.layers)
         self.n_heads = self.llm.config.num_attention_heads
         self.n_kv_heads = self.llm.config.num_key_value_heads
-        self.head_dim = getattr(self.llm.config, 'head_dim', self.llm.config.hidden_size // self.n_heads)
+        self.head_dim = getattr(self.llm.config, 'head_dim', None) or (self.llm.config.hidden_size // self.n_heads)
+        self.hidden_size = self.llm.config.hidden_size
 
+        self.max_prompt_tokens: int = 0
         self.responses = []
         self.parametric_score_arrays = []
         self.context_score_array = []
@@ -179,6 +181,8 @@ class JudgementLM:
                 'logprob' (float): Summed log-probability of the generated tokens.
                 'attn_output' (np.ndarray): Attention output for the last generated
                     token, shape (n_layers, n_heads, head_dim).
+                'layer_output' (np.ndarray): Residual stream output for the last
+                    generated token at each layer, shape (n_layers, hidden_size).
         """
         (tokenized_prompt,
          instruction_token_indices,
@@ -187,6 +191,7 @@ class JudgementLM:
             instructions, context, query, self.tokenizer
         )
         prompt_len = len(tokenized_prompt)
+        self.max_prompt_tokens = max(self.max_prompt_tokens, prompt_len)
 
         llm_device = self.llm.device
         tensor_device = self.tensor_device
@@ -200,6 +205,12 @@ class JudgementLM:
         with self.llm.generate(tokenized_prompt, **self.sampling_params) as tracer:
             attention_outputs = torch.zeros(
                 size=(self.max_new_tokens, self.n_layers, self.n_heads, self.head_dim),
+                device=tensor_device,
+                dtype=torch.bfloat16,
+            ).save()
+
+            layer_outputs = torch.zeros(
+                size=(self.max_new_tokens, self.n_layers, self.hidden_size),
                 device=tensor_device,
                 dtype=torch.bfloat16,
             ).save()
@@ -223,15 +234,25 @@ class JudgementLM:
 
             with tracer.iter[:] as token_idx:
                 for layer_idx, layer in enumerate(self.llm.model.layers):
-                    # Output of attention is the input to the MLP
-                    #print("Storing attention output for layer", layer_idx)
-                    #print(layer.self_attn.o_proj.input[-1, -1, :].shape)
+                    # Handle attention output: extract last token's attention output
+                    attn_input = layer.self_attn.o_proj.input
+                    if attn_input.ndim == 3:  # (batch, seq_len, hidden_size)
+                        attn_vec = attn_input[0, -1, :]
+                    else:  # (seq_len, hidden_size)
+                        attn_vec = attn_input[-1, :]
                     attention_outputs[token_idx, layer_idx, :, :] = (
-                        layer.self_attn.o_proj.input[-1, -1, :]
+                        attn_vec
                         .view(self.n_heads, self.head_dim)
                         .detach()
                         .to(tensor_device)
                     )
+                    
+                    # Handle layer output: extract last token's residual stream
+                    layer_out = layer.output[0]
+                    if layer_out.ndim == 3:  # (batch, seq_len, hidden_size)
+                        layer_outputs[token_idx, layer_idx, :] = layer_out[0, -1, :].detach().to(tensor_device)
+                    else:  # (seq_len, hidden_size)
+                        layer_outputs[token_idx, layer_idx, :] = layer_out[-1, :].detach().to(tensor_device)
                 
                 logits_last = self.llm.logits[0, -1, :]
                 tok_id = int(torch.argmax(logits_last).item())
@@ -270,9 +291,11 @@ class JudgementLM:
             "logit_p_false": float(log_p_false.item()),
         }
         response_dict["attn_output"] = attention_outputs[n_generated_tokens - 1].float().cpu().numpy()
+        response_dict["layer_output"] = layer_outputs[n_generated_tokens - 1].float().cpu().numpy()
 
         # Explicitly delete large tensors to free memory after .save() references
         del attention_outputs
+        del layer_outputs
         del response_tokens_cpu
         del binary_logits
         del tracer
