@@ -1,0 +1,14 @@
+{
+  "run_timestamp": "2026-05-01T04:51:32.754820+00:00",
+  "commit": "8c99a00",
+  "dirty": true,
+  "gpu_info": [],
+  "dataset": "pond",
+  "model": "gpt-oss-120b",
+  "model_id": "openai/gpt-oss-120b",
+  "hf_revision": null,
+  "ocr_dir": "data/pond/ocr_output_cleaned_qwen-3.5-27b",
+  "gpu_compatibility_warnings": [],
+  "max_prompt_tokens": 17607,
+  "runtime_seconds": 328.5
+}

@@ -1,0 +1,86 @@
+{
+    "0|surface_area": [
+        {
+            "page": 2,
+            "table": null
+        }
+    ],
+    "0|max_depth": [
+        {
+            "page": 1,
+            "table": null
+        },
+        {
+            "page": 3,
+            "table": 1
+        },
+        {
+            "page": 4,
+            "table": 2
+        }
+    ],
+    "0|vegetation_cover": [
+        {
+            "page": 3,
+            "table": 1
+        },
+        {
+            "page": 4,
+            "table": 2
+        }
+    ],
+    "0|ph": [
+        {
+            "page": 3,
+            "table": 1
+        },
+        {
+            "page": 4,
+            "table": 2
+        },
+        {
+            "page": 6,
+            "table": null
+        },
+        {
+            "page": 8,
+            "table": null
+        },
+        {
+            "page": 9,
+            "table": null
+        },
+        {
+            "page": 12,
+            "table": null
+        }
+    ],
+    "0|tp": [
+        {
+            "page": 3,
+            "table": 1
+        },
+        {
+            "page": 4,
+            "table": 2
+        },
+        {
+            "page": 8,
+            "table": null
+        }
+    ],
+    "0|chla": [
+        {
+            "page": 3,
+            "table": 1
+        },
+        {
+            "page": 4,
+            "table": 2
+        },
+        {
+            "page": 6,
+            "table": null
+        }
+    ]
+}

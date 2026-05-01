@@ -1,0 +1,29 @@
+{
+    "0": {
+        "surface_area": [
+            "surface area",
+            "ha"
+        ],
+        "max_depth": [
+            "maximum depth",
+            "max depth"
+        ],
+        "vegetation_cover": [
+            "submerged vegetation cover",
+            "SV",
+            "sv_percent_cover"
+        ],
+        "ph": [
+            "pH",
+            "ph"
+        ],
+        "tp": [
+            "TP",
+            "tp"
+        ],
+        "chla": [
+            "Chl a",
+            "chl_a"
+        ]
+    }
+}

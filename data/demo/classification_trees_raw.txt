@@ -1,0 +1,347 @@
+<page number="0">
+
+Classification trees as a tool for predicting cyanobacterial blooms
+
+Anatoly Peretyatko · Samuel Teissier · Sylvia De Backer · Ludwig Triest
+
+Received: 25 October 2010 / Accepted: 18 June 2011 / Published online: 7 July 2011
+© Springer Science+Business Media B.V. 2011
+
+Abstract  Nutrient enrichment of aquatic ecosystems caused dramatic increase in the frequency, magnitude and duration of cyanobacterial blooms. Such blooms may cause fish kills, have adverse health effects on humans and contribute to the loss of biodiversity in aquatic ecosystems. Some 50 eutrophic to hypereutrophic ponds from the Brussels Capital Region (Belgium) were studied between 2003 and 2009. A number of the ponds studied are prone to persistent cyanobacterial blooms. Because of the related health concerns and adverse effects on ecological quality of the affected ponds, a tool for assessment of the risk of cyanobacterial bloom occurrence was needed. The data acquired showed that cyanobacteria have threshold relationships with most of the environmental factors that control them. This is negatively reflected on the predictive capacity of conventional statistical methods based on linear relationships. Therefore, classification trees designed for the treatment of complex data and non-linear relationships were used to assess the risk of cyanobacterial bloom occurrence.
+
+The main factors determining cyanobacterial bloom development appeared to be phytoplankton biomass, pH and, to a lesser degree, nitrogen availability. These results suggest that to outcompete eukaryotic phytoplankters cyanobacteria need the presence of environmental constraints: carbon limitation, light limitation and nitrogen limitation, for which they developed a number of adaptations. In the absence of constraints, eukaryotic phytoplankters appear to be more competitive. Therefore, prior build up of phytoplankton biomass seems to be essential for cyanobacterial dominance. Classification trees proved to be an efficient tool for the bloom risk assessment and allowed the main factors controlling bloom development to be identified as well as the risk of bloom occurrence corresponding to the conditions determined by these factors to be quantified. The results produced by the classification trees are consistent with those obtained earlier by probabilistic approach to bloom risk assessment. They can facilitate planning management interventions and setting restoration priorities.
+
+Keywords  Classification trees · Cyanobacteria · Phytoplankton biomass · Bloom risk assessment · Threshold relationship
+
+Introduction
+
+Nutrient enrichment of aquatic ecosystems because of urban, agricultural and industrial development caused
+
+</page>
+
+<page number="1">
+
+dramatic increase in the frequency, magnitude and duration of cyanobacterial blooms (Hudnell, 2008; Paerl & Huisman, 2008). Such blooms may cause fish kills through anoxia, have adverse health effects on humans and contribute to the loss of biodiversity in aquatic ecosystems (Carmichael, 2001; Briand et al., 2003; Pflugmacher, 2004). Effective management of cyanobacterial blooms requires understanding of the conditions that allow bloom-forming cyanobacteria to become dominant. Quantifying the risk of bloom occurrence corresponding to different environmental conditions can greatly facilitate setting restoration priorities and planning remediation efforts.
+
+While phytoplankton biomass levels in ponds and lakes can be predicted fairly accurately (Dillon & Rigler, 1974; Phillips et al., 2008), predicting compositional changes is much more difficult because they depend on a large number of interrelated environmental factors subject to stochastic changes (Reynolds, 1998, 2000). The outcomes of stochastic interaction between different factors cannot be predicted with certainty. Under certain conditions, however, some phytoplankters tend to increase in biomass more strongly than others suggesting that their recruitment and dominance are not completely stochastic and that some factors favour them more than other species (Reynolds, 1998). Hence they become, at least temporarily, more represented. The patterns in the relationships between environmental conditions and phytoplankton responses to them allow prediction of changes in phytoplankton assemblages. Phytoplankters with a broad adaptive overlap are able to constitute phytoplankton assemblages characteristic of a range of conditions. More specialised phytoplankters are preferentially selected by conditions they developed adaptations for and, when these conditions persist, can become dominant (Reynolds, 1998, 2006).
+
+Bloom-forming cyanobacteria developed a number of adaptations, like CO\(_2\) kinetics superior to that of eukaryotic algae assuring their survival at low CO\(_2\) concentrations (Shapiro, 1997; Graham & Wilcox, 2000), ability to fix atmospheric nitrogen to counter nitrogen limitation or produce gas vesicles to regulate their position in the water column (Ferber et al., 2004; Reynolds, 2006). Aggregation of cyanobacterial cells in large colonies or long filaments makes them less vulnerable to zooplankton grazing (Gliwicz, 1990; Benndorf et al., 2002). Toxin production is considered to further contribute to grazing resistance (Rohrlack et al., 1999; Thostrup & Christoffersen, 1999). These adaptations have a cost of slower growth that makes cyanobacteria less competitive and vulnerable to flushing (Reynolds et al., 1998; Scheffer, 1998). Thus, cyanobacteria differ in many ways from most of the eukaryotic phytoplankters and under conditions of prolonged carbon or nitrogen limitation combined with reduced grazing pressure and low flushing rates can become dominant. Individual species of cyanobacteria do not seem to be adapted to a full range of environmental variability, they rather selectively exploit different parts of the wide range of environmental conditions. This accounts for their ecological success as a group (Reynolds, 2006).
+
+Although the conditions that favour cyanobacteria are well known (Reynolds, 1998; Dokulil & Teubner, 2000), integration of the responses to multiple controlling factors is difficult (Hudnell, 2008). On the basis of the data from 48 Brussels ponds, Peretyatko et al. (2010) found that conventional methods based on linear relationships have limited predictive capacity for cyanobacterial blooms, whereas probabilistic approach based on calculation of conditional probabilities permitted the main bloom predictors to be identified and the bloom risk corresponding to different environmental conditions to be quantified. The aim here is to test whether classification trees, designed for the treatment of complex data (De’ath & Fabricius, 2000), are more suitable for bloom prediction. The main objectives are to use classification trees: (1) to determine the relative importance of the environmental factors measured for the control of cyanobacterial blooms; (2) to quantify the risk of bloom occurrence corresponding to environmental conditions determined by the factors having the strongest bearing on cyanobacteria in the ponds studied; (3) to verify whether the results produced by the classification trees are consistent with those produced by the probabilistic approach to bloom risk assessment presented in Peretyatko et al. (2010).
+
+Methods
+
+48 ponds from the Brussels Capital Region (Belgium) were studied between 2003 and 2009. All the ponds are located within a radius of 10 km. They are all shallow (maximum depth < 3 m; mean depth around
+
+</page>
+
+<page number="2">
+
+1 m; Table 1), flat-bottomed and range in surface area from 0.1 to 6 ha. A number of ponds are used for different recreational activities of which fishing and boating are the most common. The ponds are populated by fish communities typical of northern Europe. Many of them harbour large stocks of plankti-benthivorous fish (mainly common carp: Cyprinus carpio, and bream: Abramis brama).
+
+During the study period, the ponds were sampled mostly during the warm season (May–September on 6 to 27 occasions per pond) for phytoplankton, zooplankton, main nutrients and submerged vegetation. They were sampled monthly or at least on three occasions per warm season.
+
+One integrated water column sample of 10 l based on 10 random sub-samples of 1 l was taken from each pond with a plastic tube sampler. A special extension was fixed to the sampler to reach the deeper parts of the ponds when appropriate. Secchi depth (SD) was measured with a Secchi disc of 30 cm diameter. When the SD was greater than the depth of the pond, depending on whether the disc was well or poorly visible, 1 or 0.1 m was added to the depth value, respectively.
+
+After stirring the collected water, dissolved oxygen, pH, conductivity and temperature were measured with a portable meter (WTW 340i); 500 ml of the water were taken for phytoplankton identification and enumeration and 1 l for Chl \( a \) analysis. For soluble reactive phosphorus (SRP), and dissolved inorganic nitrogen (DIN) determination, a 100 ml water sample was filtered through a GF/C glass microfiber filter and stored in a cooler. In the laboratory, the samples were frozen until analysis on a Quatro segmented flow analysis system (Seal Analytical limited) according to the manufacturer procedures. For total phosphorus determination, a 100 ml water sample was stored in a cooler. Total phosphorus was determined using the persulfate digestion method (APHA-AWWA-WEF, 1995). The samples for Chl \( a \) determination were kept in a cooler until delivery to the laboratory where they were immediately filtered onto GF/C glass microfiber filters. Filters were stored at \(-18^{\circ}\mathrm{C}\) for several days before analysis. Pigments were extracted in 90% acetone in the dark, at 4\(^{\circ}\mathrm{C}\), overnight. Chl \( a \) concentrations were measured spectrophotometrically with a correction for pheophytin \( a \) (APHA-AWWA-WEF, 1995).
+
+Phytoplankton samples were preserved with Lugol’s solution, sodium thiosulfate and buffered formalin (Kemp et al., 1993). Phytoplankton was then identified to genus level and counted using a modified Utermöhl sedimentation technique (Hasle, 1978). Biovolumes were calculated using the approximations of cell shapes to simple geometrical forms (Wetzel & Likens, 1990).
+
+For zooplankton, a mixed 10 l sample consisting of 10 random sub-samples of 1 l was taken from each pond. Zooplankton samples were filtered in the field through a 64 \( \mu \)m mesh net and preserved in 4% formaldehyde (final concentration) before being identified and counted using an inverted microscope. The length of large Cladocera (Daphnia spp., Eurycercus spp., Sida spp. and Simocephalus spp.; Moss et al. 2003) was measured and taken as an indicator of grazing intensity and size-selective predation (Pourriot, 1995; Carpenter et al., 2001).
+
+Surface cover of aquatic vegetation was mapped visually from a boat during each field visit. The presence/absence of the vegetation was verified with a rake when water was not sufficiently transparent. Since submerged macrophytes were often associated with filamentous green algae, which are also known to inhibit phytoplankton growth (Irfanullah & Moss, 2005; Peretyatko et al., 2007a, b), their combined surface cover was used in statistical analyses.
+
+Hydraulic retention time was estimated on the basis of the outlet discharge and the corresponding pond volume once a year in 2003–2006 and during each field visit in 2007–2009.
+
+Since even neighbouring ponds often showed very contrasting phytoplankton dynamics, thus underlying the importance of local factors, meteorological data, obtained from the nearest meteorological station, were not used in the analyses presented here.
+
+For the reason of cyanobacterial bloom occurrence in the ponds studied being restricted almost exclusively to the summer time and to avoid the blurring effect of seasonal periodicity on the relationship between cyanobacteria and factors controlling them, only warm season data were used in the analyses.
+
+Statistical analyses
+
+Spatial autocorrelation in cyanobacterial biovolumes was assessed using Moran’s I test (SAM, version 4; Rangel et al., 2010). Classification trees (Breiman
+
+</page>
+
+<page number="3">
+
+Table 1  Mean general characteristics of the ponds studied
+
+<table number="1">
+  <tr>
+    <th>Site</th>
+    <th>Chl a (µg l<sup>−1</sup>)</th>
+    <th>TP (mg Pl<sup>−1</sup>)</th>
+    <th>SRP (mg Pl<sup>−1</sup>)</th>
+    <th>DIN (mg Nl<sup>−1</sup>)</th>
+    <th>pH</th>
+    <th>T (°C)</th>
+    <th>Cond (µS cm<sup>−1</sup>)</th>
+    <th>SD (m)</th>
+    <th>MD (m)</th>
+    <th>RT (day)</th>
+    <th>AvgLCL (mm)</th>
+    <th>LCD (ind l<sup>−1</sup>)</th>
+    <th>SV % cover</th>
+  </tr>
+  <tr><td>3Fnt</td><td>4.8</td><td>1.001</td><td>0.412</td><td>0.999</td><td>7.8</td><td>19.3</td><td>563</td><td>1.07</td><td>0.4</td><td>34</td><td>0.9</td><td>246</td><td>42</td></tr>
+  <tr><td>BCmb</td><td>165.7</td><td>0.389</td><td>0.036</td><td>0.247</td><td>8.5</td><td>21.8</td><td>384</td><td>0.47</td><td>0.8</td><td>30</td><td>0.8</td><td>91</td><td>0</td></tr>
+  <tr><td>Beml</td><td>26.9</td><td>0.357</td><td>0.138</td><td>0.550</td><td>7.6</td><td>20.4</td><td>838</td><td>1.62</td><td>1.0</td><td>&gt;300</td><td>1.0</td><td>39</td><td>3</td></tr>
+  <tr><td>Blkd</td><td>5.1</td><td>0.343</td><td>0.051</td><td>1.832</td><td>7.8</td><td>18.4</td><td>1824</td><td>0.82</td><td>1.4</td><td>37</td><td>1.0</td><td>272</td><td>0</td></tr>
+  <tr><td>Botn</td><td>67.6</td><td>0.317</td><td>0.017</td><td>0.101</td><td>8.2</td><td>20.5</td><td>585</td><td>0.43</td><td>0.8</td><td>33</td><td>0.5</td><td>43</td><td>0</td></tr>
+  <tr><td>BrPk</td><td>3.9</td><td>0.228</td><td>0.066</td><td>0.362</td><td>8.4</td><td>21.2</td><td>571</td><td>1.37</td><td>0.7</td><td>28</td><td>0.8</td><td>100</td><td>90</td></tr>
+  <tr><td>CKrv</td><td>269.7</td><td>0.635</td><td>0.016</td><td>1.397</td><td>8.2</td><td>22.2</td><td>588</td><td>0.20</td><td>0.7</td><td>31</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td>Dens</td><td>42.9</td><td>0.242</td><td>0.052</td><td>0.556</td><td>8.0</td><td>21.4</td><td>412</td><td>1.15</td><td>0.7</td><td>&gt;300</td><td>1.1</td><td>77</td><td>0</td></tr>
+  <tr><td>Esec</td><td>4.6</td><td>0.237</td><td>0.100</td><td>0.157</td><td>7.5</td><td>18.2</td><td>196</td><td>1.30</td><td>0.6</td><td>34</td><td>0.9</td><td>82</td><td>0</td></tr>
+  <tr><td>Hoef</td><td>4.1</td><td>0.092</td><td>0.016</td><td>0.152</td><td>8.1</td><td>17.3</td><td>322</td><td>1.66</td><td>0.8</td><td>86</td><td>1.0</td><td>56</td><td>94</td></tr>
+  <tr><td>Hrt1</td><td>24.9</td><td>0.233</td><td>0.065</td><td>0.276</td><td>8.0</td><td>17.1</td><td>582</td><td>1.37</td><td>1.1</td><td>&gt;300</td><td>1.0</td><td>54</td><td>22</td></tr>
+  <tr><td>Hrt2</td><td>63.3</td><td>0.298</td><td>0.067</td><td>0.283</td><td>8.0</td><td>16.5</td><td>624</td><td>0.85</td><td>1.5</td><td>190</td><td>0.9</td><td>24</td><td>2</td></tr>
+  <tr><td>IxP1</td><td>64.8</td><td>0.136</td><td>0.006</td><td>0.164</td><td>8.2</td><td>19.5</td><td>781</td><td>0.59</td><td>1.7</td><td>242</td><td>0.6</td><td>45</td><td>0</td></tr>
+  <tr><td>IxP2</td><td>140.9</td><td>0.306</td><td>0.028</td><td>0.043</td><td>8.4</td><td>19.4</td><td>676</td><td>0.42</td><td>1.3</td><td>&gt;300</td><td>0.7</td><td>113</td><td>0</td></tr>
+  <tr><td>Leyb-a</td><td>212.3</td><td>0.765</td><td>0.419</td><td>0.179</td><td>8.6</td><td>21.0</td><td>562</td><td>1.16</td><td>0.6</td><td>152</td><td>0.8</td><td>32</td><td>49</td></tr>
+  <tr><td>Leyb-b</td><td>202.5</td><td>0.359</td><td>0.114</td><td>0.142</td><td>8.4</td><td>20.6</td><td>592</td><td>1.23</td><td>0.8</td><td>237</td><td>1.2</td><td>13</td><td>32</td></tr>
+  <tr><td>Malu</td><td>82.2</td><td>0.236</td><td>0.021</td><td>0.641</td><td>8.1</td><td>19.5</td><td>601</td><td>0.82</td><td>1.8</td><td>1</td><td>0.5</td><td>1</td><td>0</td></tr>
+  <tr><td>MlGr</td><td>27.0</td><td>0.212</td><td>0.037</td><td>0.226</td><td>8.1</td><td>20.3</td><td>516</td><td>1.29</td><td>1.2</td><td>78</td><td>1.1</td><td>35</td><td>40</td></tr>
+  <tr><td>MlKl</td><td>85.4</td><td>0.377</td><td>0.114</td><td>0.131</td><td>8.3</td><td>19.5</td><td>495</td><td>0.91</td><td>0.9</td><td>14</td><td>0.8</td><td>72</td><td>0</td></tr>
+  <tr><td>MrCn</td><td>81.3</td><td>0.448</td><td>0.177</td><td>0.644</td><td>8.0</td><td>17.0</td><td>938</td><td>0.65</td><td>0.5</td><td>38</td><td>0.6</td><td>121</td><td>0</td></tr>
+  <tr><td>NrPd1</td><td>581.2</td><td>1.312</td><td>0.256</td><td>2.575</td><td>8.4</td><td>22.2</td><td>576</td><td>0.65</td><td>0.9</td><td>20</td><td>0.9</td><td>150</td><td>11</td></tr>
+  <tr><td>NrPd2</td><td>129.0</td><td>0.752</td><td>0.088</td><td>0.034</td><td>8.6</td><td>23.6</td><td>547</td><td>0.20</td><td>0.5</td><td>30</td><td>0.7</td><td>36</td><td>0</td></tr>
+  <tr><td>NrPd4</td><td>192.3</td><td>0.566</td><td>0.128</td><td>0.042</td><td>8.6</td><td>23.1</td><td>510</td><td>0.32</td><td>0.7</td><td>65</td><td>0.6</td><td>9</td><td>0</td></tr>
+  <tr><td>PchR</td><td>77.6</td><td>0.263</td><td>0.024</td><td>0.083</td><td>8.1</td><td>21.5</td><td>612</td><td>0.48</td><td>1.0</td><td>&gt;300</td><td>0.6</td><td>31</td><td>0</td></tr>
+  <tr><td>Plbs</td><td>33.8</td><td>0.262</td><td>0.072</td><td>0.545</td><td>7.8</td><td>18.3</td><td>926</td><td>1.25</td><td>1.5</td><td>57</td><td>0.6</td><td>12</td><td>0</td></tr>
+  <tr><td>PRB1</td><td>119.0</td><td>0.627</td><td>0.295</td><td>0.114</td><td>8.5</td><td>21.6</td><td>879</td><td>1.15</td><td>1.2</td><td>30</td><td>0.7</td><td>26</td><td>15</td></tr>
+  <tr><td>PRB2</td><td>105.9</td><td>0.355</td><td>0.037</td><td>0.230</td><td>8.0</td><td>20.7</td><td>700</td><td>0.44</td><td>0.8</td><td>&gt;300</td><td>0.5</td><td>28</td><td>0</td></tr>
+  <tr><td>Prm2</td><td>97.7</td><td>0.712</td><td>0.448</td><td>0.444</td><td>7.8</td><td>17.1</td><td>832</td><td>0.95</td><td>1.1</td><td>37</td><td>0.8</td><td>8</td><td>0</td></tr>
+  <tr><td>RKI2</td><td>39.3</td><td>0.137</td><td>0.010</td><td>0.200</td><td>8.1</td><td>18.6</td><td>593</td><td>1.05</td><td>2.0</td><td>14</td><td>0.8</td><td>37</td><td>0</td></tr>
+  <tr><td>RKI3</td><td>39.5</td><td>0.134</td><td>0.009</td><td>0.145</td><td>8.1</td><td>19.9</td><td>581</td><td>1.08</td><td>2.9</td><td>13</td><td>0.6</td><td>104</td><td>0</td></tr>
+  <tr><td>RKI4</td><td>7.8</td><td>0.097</td><td>0.033</td><td>0.242</td><td>7.9</td><td>20.1</td><td>590</td><td>2.28</td><td>1.3</td><td>2</td><td>0.8</td><td>142</td><td>77</td></tr>
+</table>
+
+</page>
+
+<page number="4">
+
+<table number="2">
+  <tr>
+    <th>Site</th>
+    <th>Chl a (µg l<sup>−1</sup>)</th>
+    <th>TP (mg Pl<sup>−1</sup>)</th>
+    <th>SRP (mg Pl<sup>−1</sup>)</th>
+    <th>DIN (mg Nl<sup>−1</sup>)</th>
+    <th>pH</th>
+    <th>T (°C)</th>
+    <th>Cond (µS cm<sup>−1</sup>)</th>
+    <th>SD (m)</th>
+    <th>MD (m)</th>
+    <th>RT (day)</th>
+    <th>AvgLCL (mm)</th>
+    <th>LCD (ind l<sup>−1</sup>)</th>
+    <th>SV % cover</th>
+  </tr>
+  <tr><td>RKI5</td><td>13.7</td><td>0.190</td><td>0.036</td><td>0.149</td><td>7.9</td><td>19.9</td><td>576</td><td>1.45</td><td>0.8</td><td>6</td><td>0.7</td><td>42</td><td>40</td></tr>
+  <tr><td>Sbsk</td><td>39.9</td><td>0.267</td><td>0.103</td><td>0.369</td><td>8.0</td><td>20.7</td><td>653</td><td>1.54</td><td>0.8</td><td>&gt;300</td><td>1.0</td><td>191</td><td>44</td></tr>
+  <tr><td>SClm</td><td>169.1</td><td>0.508</td><td>0.029</td><td>0.013</td><td>8.1</td><td>22.2</td><td>591</td><td>0.25</td><td>1.2</td><td>30</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td>Silx</td><td>21.9</td><td>0.175</td><td>0.037</td><td>0.192</td><td>8.4</td><td>19.7</td><td>510</td><td>1.50</td><td>1.2</td><td>27</td><td>0.9</td><td>29</td><td>63</td></tr>
+  <tr><td>Tenr</td><td>9.3</td><td>0.209</td><td>0.084</td><td>0.252</td><td>8.0</td><td>19.8</td><td>504</td><td>1.67</td><td>1.3</td><td>15</td><td>0.9</td><td>76</td><td>31</td></tr>
+  <tr><td>TrBr</td><td>165.2</td><td>0.344</td><td>0.038</td><td>0.491</td><td>7.9</td><td>19.3</td><td>650</td><td>0.50</td><td>1.1</td><td>63</td><td>0.5</td><td>27</td><td>0</td></tr>
+  <tr><td>TrCg</td><td>79.1</td><td>0.336</td><td>0.011</td><td>0.165</td><td>8.1</td><td>22.4</td><td>628</td><td>0.56</td><td>1.1</td><td>23</td><td>0.5</td><td>207</td><td>0</td></tr>
+  <tr><td>Trln</td><td>98.4</td><td>0.452</td><td>0.186</td><td>0.136</td><td>8.0</td><td>21.5</td><td>688</td><td>0.74</td><td>0.8</td><td>227</td><td>0.7</td><td>1</td><td>0</td></tr>
+  <tr><td>TrSG</td><td>52.6</td><td>0.213</td><td>0.101</td><td>0.270</td><td>7.9</td><td>19.8</td><td>563</td><td>1.09</td><td>1.4</td><td>18</td><td>0.5</td><td>2</td><td>0</td></tr>
+  <tr><td>TrSP</td><td>8.3</td><td>0.228</td><td>0.082</td><td>1.346</td><td>7.8</td><td>17.8</td><td>595</td><td>0.98</td><td>0.6</td><td>33</td><td>0.5</td><td>7</td><td>0</td></tr>
+  <tr><td>Vbk1</td><td>2.2</td><td>0.159</td><td>0.022</td><td>0.977</td><td>7.7</td><td>14.4</td><td>582</td><td>1.50</td><td>1.2</td><td>3</td><td>1.1</td><td>37</td><td>24</td></tr>
+  <tr><td>Vbk2</td><td>6.2</td><td>0.170</td><td>0.043</td><td>0.793</td><td>7.6</td><td>14.6</td><td>588</td><td>1.75</td><td>1.4</td><td>5</td><td>1.1</td><td>111</td><td>25</td></tr>
+  <tr><td>VKn1</td><td>30.5</td><td>0.156</td><td>0.040</td><td>0.197</td><td>7.7</td><td>18.1</td><td>476</td><td>1.65</td><td>1.2</td><td>36</td><td>1.0</td><td>27</td><td>45</td></tr>
+  <tr><td>VKn2</td><td>30.7</td><td>0.201</td><td>0.063</td><td>0.257</td><td>7.6</td><td>17.3</td><td>525</td><td>1.29</td><td>1.0</td><td>4</td><td>0.8</td><td>5</td><td>53</td></tr>
+  <tr><td>WPk1</td><td>21.2</td><td>0.176</td><td>0.023</td><td>0.358</td><td>7.8</td><td>20.1</td><td>909</td><td>1.30</td><td>1.1</td><td>35</td><td>0.8</td><td>107</td><td>10</td></tr>
+  <tr><td>WPk2</td><td>40.7</td><td>0.202</td><td>0.020</td><td>0.300</td><td>8.1</td><td>21.3</td><td>733</td><td>0.98</td><td>1.1</td><td>22</td><td>1.0</td><td>109</td><td>0</td></tr>
+  <tr><td>WtMl</td><td>10.2</td><td>0.161</td><td>0.040</td><td>0.183</td><td>8.0</td><td>20.5</td><td>512</td><td>1.73</td><td>1.1</td><td>7</td><td>0.9</td><td>51</td><td>49</td></tr>
+</table>
+
+T temperature, Cond conductivity, SD Secchi depth, MD maximum depth, RT retention time, AvgLCL averaged per sample large Cladocera length, LCD large Cladocera density, SV submerged vegetation
+
+</page>
+
+<page number="5">
+
+Fig. 1  Mean total and relative phytoplankton biovolumes in the ponds studied arranged in order of biovolume increase; error bars indicate maximum biovolumes
+
+et al., 1984) were used to determine the thresholds corresponding to different environmental factors as well as their relative importance for cyanobacterial bloom development. The goodness of fit of each split was assessed with Chi-square statistics. The stopping rule was set at the ‘Prune on deviance’ option and 45 cases in a parent node. The thresholds that followed a node that contained less than 5% of the total cyanobacterial blooms were not taken into consideration. Classification trees analysis was performed in StatSoft, Inc. STATISTICA version 8.0.
+
+SD, pH, DIN, TP, SRP, temperature, hydraulic retention time, submerged vegetation cover, large Cladocera density and length were used as continuous predictors. Because of strong correlation with phytoplankton biovolumes (Spearman rank-order correlation: \( r = -0.81; \ P < 0.001; \ n = 564 \)) and to facilitate the use of the analysis results by the managers, SD was used as a proxy for total phytoplankton biomass. Three arbitrarily selected levels of cyanobacterial biovolume, \( \geq 2, \geq 5 \) and \( \geq 10 \) mm\(^3\) l\(^{-1}\), were used as dependent categorical variables in order to test whether the effects of the predictors would vary with the change in the magnitude of cyanobacterial blooms. The variables with sampling gaps that did not appear on classification trees in the test runs of the analysis (submerged vegetation cover and large Cladocera density not available for 2003, large Cladocera length not available for 2003 and 2004) were excluded from the final analysis to increase the number of cases used and thus the representativeness of the final results. The resulting classification trees were validated by a 10-fold cross-validation procedure. The number of cases and cyanobacterial blooms corresponding to different nodes of the classification trees were used to calculate the probability of bloom occurrence and the percentage of all blooms accounted by each node. The relationships of these probabilities to main predictors were graphically represented on the respective 3D plots.
+
+The results of the classification trees analysis were compared with the results of the probabilistic approach to cyanobacterial blooms prediction (Peretyatko et al., 2010).
+
+Results
+
+The ponds studied showed contrasting ecology spanning over a number of environmental gradients. TP
+
+</page>
+
+<page number="6">
+
+Fig. 2 Classification tree for two categories of cyanobacterial biovolume. Category 0: <2 mm³ l⁻¹ and category 1: ≥2 mm³ l⁻¹. The box of each node contains: top left node ID; middle prevailing category; right, top-down number of cases per node, number of cases for 0 and 1 categories, respectively (also graphically represented by bars), probability of bloom per node and percentage of blooms accounted by node. The predictor variables and respective thresholds identified by the trees link the nodes. Dashed line outlines the optimal tree denoted by the 10-fold cross-validation procedure
+
+concentrations ranged from <50 μgP l⁻¹ to >1 mgP l⁻¹; DIN concentrations from below detection (1 μgN l⁻¹) to >3 mgN l⁻¹; pH from 7.1 to 9.7. Submerged vegetation cover varied from absence through sparse and patchy to dense and extensive, at times covering the whole surface of a pond (Table 1). Some ponds were fishless, whereas others harboured more than 1,000 kg ha⁻¹ of plankti-benthivorous fish (data not shown). Because of the differences in submerged vegetation cover and fish biomass and community structure, zooplankton composition, densities and size were also very variable ranging from Rotifera to large-bodied Cladocera dominated communities.
+
+Contrasting ecology was reflected on phytoplankton biomass and composition. Chl a concentrations covered the range from oligotrophic to hypereutrophic state (from <2 to >800 μg l⁻¹; UNEP-IETC, 1999). The ponds with low phytoplankton biomass were generally dominated by cryptophytes, diatoms and chrysophytes, whereas the ponds with higher biomass tended towards chlorophyte, euglenophyte
+
+</page>
+
+<page number="7">
+
+Fig. 3  Classification tree for two categories of cyanobacterial biovolume. Category 0: <5 mm^3 l^{-1} and category 1: \( \geq 5 \) mm^3 l^{-1}. See the legend of Fig. 2 for details
+
+and cyanobacterial dominance (Fig. 1). Diatoms were common all along the phytoplankton biomass gradient. Pennate (detached periphytic) diatoms were typical of the lower part of the gradient, whereas the upper part of the gradient was mostly populated with centric (planktonic) diatoms. Persistent cyanobacterial blooms were often associated with hypoxic/anoxic conditions and occasionally led to fish and waterfowl kills (data not shown). Moran’s I test showed that cyanobacterial biovolumes have non-significant spatial autocorrelation (\( P > 0.05 \)) suggesting lack of spatial structure and, therefore, control of cyanobacterial blooms by local (intra-pond) factors.
+
+The three levels of cyanobacterial biovolume (\( \geq 2 \), \( \geq 5 \) and \( \geq 10 \) mm^3 l^{-1} ) used in the classification tree analysis rendered 70, 46 and 27 blooms out of 542 samples, respectively. SD and pH were identified as the best predictors of cyanobacterial blooms at all the three levels of cyanobacterial biovolume. The classification trees identified 1 SD threshold at cyanobacterial biovolume \( \geq 2 \) mm^3 l^{-1} (0.57 m; Fig. 2) and 2 SD thresholds at cyanobacterial biovolumes \( \geq 5 \) mm^3 l^{-1} (0.42 and 0.57 m; Fig. 3) and \( \geq 10 \) mm^3 l^{-1} (0.36 m and 0.57 m; Fig. 4). For pH, two thresholds at cyanobacterial biovolume \( \geq 2 \) mm^3 l^{-1} (8.0 and 8.7; Fig. 2), three thresholds at cyanobacterial biovolume \( \geq 5 \) mm^3 l^{-1} (8.7, 8.0 and 8.15; Fig. 3) and one threshold at cyanobacterial biovolume \( \geq 10 \) mm^3 l^{-1} (8.7; Fig. 4) were identified.
+
+Most cyanobacterial blooms were restricted to conditions characterised by high phytoplankton biomass (SD < 0.57) and high pH (>8.0). High phytoplankton biomass (SD < 0.57) at low pH (<8.0), however, was associated with low probability of cyanobacterial blooms at cyanobacterial biovolumes \( \geq 2 \) and \( \geq 5 \) mm^3 l^{-1} (see Fig. 2, node 4; Fig. 3, nodes 6 and 12). Only one bloom of cyanobacterial biovolume \( \geq 10 \) mm^3 l^{-1} was observed at these conditions implying further decrease in the bloom probability at this cyanobacterial biovolume level.
+
+</page>
+
+<page number="8">
+
+Fig. 4  Classification tree for two categories of cyanobacterial biovolume. Category 0: <10 mm³ l⁻¹ and category 1: ≥10 mm³ l⁻¹. See the legend of Fig. 2 for details
+
+This was not reflected on the respective classification tree (Fig. 4), probably because at SD between 0.36 and 0.57 m DIN had a higher discriminative power than pH, as suggested by the next split based on the DIN concentration threshold (Fig. 4; nodes 10, 11).
+
+Low phytoplankton biomass (SD > 0.57) irrespective of the pH level was associated with low probability of cyanobacterial blooms (Fig. 2 node 3; Fig. 3, node 11; Fig. 4, node 9). At this phytoplankton biomass level, cyanobacterial blooms of low magnitude were observed mostly at pH > 8. This, however, was also not reflected on the classification trees.
+
+Besides SD and pH thresholds, the classification trees produced DIN thresholds at cyanobacterial biovolumes ≥2 mm³ l⁻¹ (0.047 mgN l⁻¹; Fig. 2) and ≥10 mm³ l⁻¹ (0.021 and 0.039 mgN l⁻¹; Fig. 4). The probability of cyanobacterial bloom occurrence was markedly higher below these thresholds. There was no DIN threshold for cyanobacterial biovolume ≥5 mm³ l⁻¹ (Fig. 3). In more than 75% cases, cyanobacterial blooms that occurred below the DIN thresholds were dominated by non-heterocystous cyanobacteria, mainly Planktothrix spp., Microcystis spp. and Woronichinia spp., whereas heterocystous cyanobacteria, Anabaena spp., Aphanizomenon spp. and Anabaenopsis spp., dominated cyanobacterial blooms that occurred above the DIN thresholds in more than 35% cases.
+
+The classification tree for cyanobacterial biovolume ≥2 mm³ l⁻¹ produced a TP threshold of 0.481 mgP l⁻¹ at SD > 0.57 (Fig. 2, nodes 10, 11). The classification tree for cyanobacterial biovolume ≥5 mm³ l⁻¹ produced a temperature threshold of 21°C confined to the pH range between 8.0 and 8.7 (Fig. 3, nodes 8, 9). Lower pH, DIN and temperature thresholds were not retained on the optimal classification trees corresponding to cyanobacterial biovolumes ≥5 mm³ l⁻¹ and ≥10 mm³ l⁻¹ denoted by the 10-fold cross-validation procedure (Figs. 3, 4).
+
+The two best predictors (SD and pH) showed strong threshold relationship with cyanobacterial biovolume (Fig. 5A). This was reflected on the probabilities of cyanobacterial bloom occurrence as well as the percentages of all blooms accounted by the most informative nodes along the pH and SD
+
+</page>
+
+<page number="9">
+
+Fig. 5  A Relationship of cyanobacterial biovolume to SD and pH. B–D Risk of cyanobacterial bloom occurrence corresponding to different ranges of SD and pH as predicted by the classification trees for different levels of cyanobacterial biovolume (B: \( \geq 2 \) mm\(^3\) l\(^{-1}\), C: \( \geq 5 \) mm\(^3\) l\(^{-1}\), D: \( \geq 10 \) mm\(^3\) l\(^{-1}\)).
+
+Each bar shows bloom probability corresponding to the node of the respective classification tree with an indication of the ID as well as the percentage of all blooms accounted by the node
+
+gradients that are summarised on the graphs corresponding to the three levels of cyanobacterial biovolume used in the analysis (Fig. 5B–D). Most of cyanobacterial blooms occurred at SD < 0.57 m and pH > 8. Increase in the magnitude of cyanobacterial blooms was associated with a trend towards decrease in the SD and increase in the pH thresholds.
+
+The best predictors of cyanobacterial blooms (SD and pH) detected by the classification trees are the same as those identified by the probabilistic approach to bloom risk assessment (Peretyatko et al., 2010). The thresholds corresponding to these predictors as well as probabilities of bloom occurrence are also comparable (Fig. 6).
+
+Discussion
+
+The classification trees allowed the relative importance of environmental factors measured to be
+
+</page>
+
+<page number="10">
+
+Fig. 6  A–C Risk of cyanobacterial bloom occurrence corresponding to different ranges of pH and SD calculated stepwise (step length for SD = 0.25, for pH 0.5) for different levels of cyanobacterial biovolume (A: \( \geq 2 \) mm\(^3\) l\(^{-1}\), B: \( \geq 5 \) mm\(^3\) l\(^{-1}\), C: \( \geq 10 \) mm\(^3\) l\(^{-1}\)). D number of samples corresponding to each region used in probability calculation
+
+identified as well as the risk of bloom occurrence corresponding to the conditions determined by the most important factors to be quantified. Different levels of cyanobacterial biovolume used in the analyses allowed the relationships between the main predictors and the magnitude of cyanobacterial blooms to be elucidated.
+
+Phytoplankton biomass, expressed as SD in the analysis, appeared to be the best predictor of cyanobacterial blooms. The majority of cyanobacterial blooms occurred at SD below 0.6 m. This is consistent with the report of Downing et al. (2001) based on a large number of temperate zone’s most studied lakes, who also identified phytoplankton biomass as an important predictor of cyanobacterial dominance. Besides biomass, SD is also an indicator of light availability. Cyanobacteria are known to be better light harvesters than most of eukaryotic algae (Presing et al., 1999; Dokulil & Teubner, 2000). In addition, many cyanobacteria can change their buoyancy by production of gas vacuoles and thereby regulate exposure to light (Walsby et al., 1997; Graham & Wilcox, 2000). Thus, low water transparency favours cyanobacterial dominance. In the ponds studied, however, high phytoplankton biomass was often dominated by eukaryotic phytoplankters (Fig. 1). This limited the
+
+</page>
+
+<page number="11">
+
+predictive capacity for blooms of phytoplankton biomass alone. It should also be noted that elevated cyanobacterial biomass represented by very large colonies of Aphanizomenon spp. or Microcystis spp. was, at times, associated with relatively high water transparency. Such blooms may be missed by the SD measurements. They, however, are visible by a naked eye.
+
+Strong affinity of cyanobacteria to high pH conditions and threshold relationship between them in the ponds studied allowed the blooms dominated by cyanobacteria to be discriminated from those dominated by eukaryotic phytoplankters. The majority of cyanobacterial blooms occurred at pH above 8 (Fig. 5A). Above this threshold, the probability as well as the magnitude of cyanobacterial blooms increased with the increase in pH and phytoplankton biomass. Below this threshold, phytoplankton assemblages were mostly dominated by eukaryotic phytoplankters even when phytoplankton biomass was high. This was reflected on the probability of bloom occurrence, which was markedly lower as compared to the probability above this threshold (Fig. 5B, C). Increase in probabilities of bloom occurrence with increase in pH supports the idea that cyanobacteria are better adapted to the conditions of carbon limitation associated with the elevated pH levels (Shapiro, 1973, 1997). It should be noted that some eukaryotes, such as chlorophytes Pediastrum boryanum and Scenedemus quadricauda, showed CO₂ kinetics comparable or superior to that of cyanobacteria (Shapiro, 1997) suggesting that they may compete with the latter at the conditions of low CO₂ availability. They, however, are much poorer competitors for light and are more vulnerable to zooplankton grazing than the bloom-forming cyanobacteria. This makes them overall less competitive.
+
+The fact that in some cases pH did not follow phytoplankton biomass increase in the ponds studied was probably due to CO₂ supply by detritus mineralisation that offset the effect of CO₂ consumption by phytoplankton (Brönmark & Hansson, 2005). As mineralisation is generally more intense in the sediment, decoupling of the relationship between pH and phytoplankton biomass is more likely to occur in shallow water bodies with continuous sediment-watercolumn exchange, like the ponds studied, and is unlikely in lakes, which, for that reason, are generally characterised by elevated pH (Søndergaard et al., 2005).
+
+Different cyanobacterial biovolume levels used in the analysis rendered comparable results in terms of the main predictors and related thresholds. SD of 0.57 m appeared on all classification trees suggesting a critical phytoplankton biomass level below which the risk of bloom occurrence rapidly increased and above which it was virtually inexistent. At higher cyanobacterial biovolume levels (≥5 and ≥ 10 mm³ l⁻¹) another SD threshold of about 0.4 m was identified that allowed further differentiation of the bloom risk. A pH threshold of 8.7 also appeared on all three classification trees and in combination with the SD thresholds delimited the conditions of the highest risk of bloom occurrence apparently induced by carbon limitation (Reynolds, 2006; Shapiro, 1973, 1997). A pH threshold of 8 appeared at the two lower levels of cyanobacterial biovolumes (≥2 and ≥ 5 mm³ l⁻¹) and delimited the conditions with a markedly lower risk of bloom occurrence, suggesting that at pH ranging between 8 and 8.7 some eukaryotic phytoplankters are still able to compete with cyanobacteria for dominance. This is supported by the fact that this threshold was not validated by the cross-validation procedure for cyanobacterial biovolume ≥5 mm³ l⁻¹ and suggests a decrease in its predictive capacity with the increase in the magnitude of cyanobacterial blooms.
+
+Besides phytoplankton biomass and pH, nitrogen availability seems to have played a role, although visibly less important than the former two factors, in determining cyanobacterial bloom occurrence. The DIN thresholds allow predicting relatively high percentage of cyanobacterial blooms. The probabilities related to them are higher at lower cyanobacterial biovolume level suggesting that in the ponds studied low DIN concentrations are more important for cyanobacterial bloom initiation than when a bloom is established. The established blooms were often associated with elevated concentrations of NH₄⁺ likely produced by the mineralisation of dead phytoplankton, suggesting that nitrogen limitation was not the main factor responsible for the maintenance of cyanobacterial dominance.
+
+The fact that DIN thresholds are much lower than nitrogen concentrations below which the phytoplankton growth is generally slowed down because of nitrogen limitation (50–100 μgN l⁻¹; Reynolds, 2006) prompts a competitive advantage for heterocystous cyanobacteria capable of nitrogen fixing.
+
+</page>
+
+<page number="12">
+
+Fig. 7 Examples of conditions favouring cyanobacteria (elevated phytoplankton biomass and pH) preceding bloom development
+
+![Examples of conditions favouring cyanobacteria (elevated phytoplankton biomass and pH) preceding bloom development](page_324_180_1442_670.png)
+
+These results suggest, however, that low nitrogen concentrations favour not only heterocystous cyanobacteria, but vacuolated cyanobacteria in general, for the blooms that occurred below the DIN thresholds were often dominated by non-heterocystous cyanobacteria, mainly Planktothrix spp., and Microcystis spp. This is consistent with the findings of Ferber et al. (2004) who suggested that both non-heterocystous and heterocystous vacuolated cyanobacteria can outcompete eukaryotic phytoplankters owing to their ability to regulate their position in the watercolumn that allows them reaching nutrients released by the sediment. The strong migratory abilities of the vacuolated cyanobacterial genera that dominated cyanobacterial blooms as well as their preference for NH$_4^+$ as a nutrient source are well documented (Hyenstrand et al., 1998; Ferber et al., 2004; Reynolds, 2006). This is consistent with the low depth of the ponds studied (around 1 m on average) and high rates of ammonium release from the sediment (mean = 75.8 ± 92.8 (sd) mg NH$_4^+$-N/m$^2$/day; $n$ = 98; pond number = 22; unpublished data). Thus, reaching abundant benthic ammonium and bringing it stored to the surface for photosynthesis can give cyanobacteria a strong competitive advantage over eukaryotic phytoplankters unable to regulate their position in the water column. It should be noted that because of very low depth, the ponds studied are often well mixed, which implies that mixing can considerably reduce this advantage of cyanobacteria by facilitating access of eukaryotic phytoplankters to benthic nitrogen. Shifts in the phytoplankton assemblages towards flagellated eukaryotes, whose motility is mostly superior to that of cyanobacteria (Reynolds, 2006), also reduce the competitive advantages of cyanobacteria. These are probably the reasons why DIN concentrations showed limited predictive capacity for cyanobacterial blooms.
+
+Contributions of temperature and TP to determine cyanobacterial bloom occurrence seem to have been marginal, probably because the effects of these two factors were largely integrated by phytoplankton biomass and pH. The TP threshold at cyanobacterial biovolume \( \geq 2 \) mm$^3$ l$^{-1}$ suggests, however, that high nutrient levels favour development of small blooms even at relatively low phytoplankton biomass, and, therefore, nutrient rich ponds pose greater risk of bloom occurrence. This is consistent with the report of Downing et al. (2001) who stressed the association of cyanobacterial blooms with the increase in nutrient concentrations. The temperature threshold suggests that at intermediate pH level (8–8.7; Fig. 3) elevated temperature can shift the balance in favour of cyanobacterial dominance. A number of other studies also reported positive relationship between water temperature and cyanobacterial bloom occurrence (e.g. Dokulil & Teubner, 2000; Paerl & Huisman, 2008).
+
+Numerous adaptations of cyanobacteria to environmental constraints have a cost of relatively slow growth. Therefore, in the absence of constraints, bloom-forming cyanobacteria are usually outcompeted by eukaryotic phytoplankters, generally more efficient metabolically (Hyenstrand et al., 2000; Reynolds, 2006). This can probably explain why cyanobacteria, although often present in subdominant concentrations, rarely dominated phytoplankton
+
+</page>
+
+<page number="13">
+
+assemblages at low biomass levels (it was only observed when nitrogen availability was limited by the profuse growth of green filamentous algae). Phytoplankton biomass increase eventually leads to nutrient depletion or light limitation, which makes cyanobacteria more competitive and, if such conditions persist, may result in cyanobacterial dominance (Dokulil & Teubner, 2000). Continuous growth of cyanobacteria allows maintaining the constraints and thus perpetuates the favourable conditions. This is supported by the ability of some cyanobacteria, like Planktothrix agardhii, to form perennial blooms (Pavlik-Skowronska et al., 2008). The increase in the severity of environmental constraints seems to further favour cyanobacteria and thus increases the likelihood and the magnitude of blooms. The classification trees support this idea by showing that decrease in SD and increase in pH lead to a considerable increase in the probability of cyanobacterial bloom occurrence. This is also consistent with the decrease in the SD and increase in the pH thresholds associated with the increase in the magnitude of cyanobacterial blooms, suggesting a trend towards more stringent conditions, less suitable for eukaryotic phytoplankters.
+
+The fact that most cyanobacterial blooms occured in July and August following a continuous increase in phytoplankton biomass (Peretyatko et al., 2010) as well as a generally observed time lag between the establishment of conditions favouring cyanobacterial dominance (elevated phytoplankton biomass and pH) and actual bloom development (Fig. 7) suggest that in case of regular monitoring this approach may allow cyanobacterial blooms to be anticipated. This gives the pond managers the possibility of taking preventive measures. It should be noted that the ponds studied are very shallow and nutrient rich ecosystems. Therefore, these results are not necessarily applicable to other ponds and lakes.
+
+The best predictors of cyanobacterial blooms (SD and pH) detected by the classification trees analysis are the same as those identified by the probabilistic approach to bloom risk assessment presented in Peretyatko et al. (2010). The thresholds corresponding to these predictors as well as probabilities of bloom occurrence are also comparable (Fig. 6). The probabilistic approach appears to have better resolution of bloom risk, because it is predefined by the size of the steps in the probability calculation, whereas classification trees often split the sample space into much wider regions, which was reflected on the bloom probabilities that were overestimated or underestimated as compared to the probabilistic approach (Figs. 5, 6). Thus, the probabilistic model could resolve the probabilities of bloom occurrence at SD > 0.6 m with regard to different pH levels, whereas the classification trees spread them over the whole area of SD > 0.6 (Fig. 5B, C, Fig. 6A, B). Similarly, classification trees could not resolve bloom probabilities at pH < 8 for cyanobacterial biovolumes \( \geq 10 \) mm\(^3\) l\(^{-1}\) (Fig. 5D). Besides, probabilistic model automatically recalculates the bloom probabilities and produces the related graphs for any specified cyanobacterial biovolume level and set of environmental thresholds. It also allows the assessment of seasonal and interannual variation in bloom risk. The classification trees, however, provide a possibility of cross-validation of the results, which is not yet a part of the probabilistic model. The consistent results obtained by the two independent methods prove, nevertheless, that they are not an artefact of a specific statistical approach.
+
+Conclusions
+
+These results confirm that classification trees are an efficient and simple way of tackling threshold relationships typical of cyanobacteria and factors that control them in the ponds studied. Classification trees allowed the factors that determine cyanobacterial dominance and their relative importance to be identified as well as the risk of bloom occurrence corresponding to different environmental conditions determined by these factors to be quantified. SD and pH turned out to be the best predictors of cyanobacterial blooms in the ponds studied. As both of these variables are relatively easy to measure and may allow anticipation of bloom occurrence, this approach can be applied by the managers of the ponds studied for the rapid assessment of the risk of cyanobacterial bloom occurrence and thus facilitate planning management interventions and setting restoration priorities. More research is needed to test the applicability of this approach to other ponds and lakes.
+
+Acknowledgments  This work was supported by the Brussels Institute of Environment (BIM/IBGE), the Research in
+
+</page>
+
+<page number="14">
+
+Brussels Action 2003-2006 and the Belgian Science Policy and is part of the project “B-Bloom2”: “Cyanobacterial blooms: toxicity, diversity, modelling and management”; contract SD/TE/01A. Three anonymous reviewers provided useful comments and suggestions.
+
+References
+
+APHA-AWWA-WEF, 1995. Standard methods for the examination of water and wastewater. American Public Health Association, Washington, D.C.
+Benndorf, J., W. Boing, J. Koop & I. Neubauer, 2002. Top-down control of phytoplankton: the role of time scale, lake depth and trophic state. Freshwater Biology 47: 2282–2295.
+Breiman, L., J. H. Freidman, R. A. Olshen & C. J. Stone, 1984. Classification and Regression Trees. Wadsworth & Brooks, Monterey.
+Briand, J.-F., S. Jacquet, C. Bernard & J.-F. Humbert, 2003. Health hazards for terrestrial vertebrates from toxic cyanobacteria in surface water ecosystems. Veterinary Research 34: 1–17.
+Brönmark, C. & L.-A. Hansson, 2005. The Biology of Lakes and Ponds. Oxford University Press, Oxford.
+Carmichael, W. W., 2001. Human fatalities from cyanobacteria: chemical and biological evidence for cyanotoxins. Environmental Health Perspectives 109: 663–668.
+Carpenter, S. R., J. J. Cole, J. R. Hodgson, J. F. Kitchell, M. L. Pace, D. Bade, K. L. Cottingham, T. E. Essington, J. N. Houser & D. E. Schindler, 2001. Trophic cascades, nutrients, and lake productivity: whole-lake experiments. Ecological Monographs 71: 163–186.
+De’ath, G. & K. E. Fabricius, 2000. Classification and regression trees: a powerful yet simple technique for ecological data analysis. Ecology 81: 3178–3192.
+Dillon, P. J. & F. H. Rigler, 1974. Phosphorus-chlorophyll relationship in lakes. Limnology and Oceanography 19: 767–773.
+Dokulil, M. T. & K. Teubner, 2000. Cyanobacterial dominance in lakes. Hydrobiologia 438: 1–12.
+Downing, J. A., S. B. Watson & E. McCauley, 2001. Predicting Cyanobacteria dominance in lakes. Canadian Journal of Fisheries & Aquatic Sciences 58: 1905–1908.
+Ferber, L. R., S. N. Levine, A. Lini & G. P. Livingston, 2004. Do cyanobacteria dominate in eutrophic lakes because they fix atmospheric nitrogen? Freshwater Biology 49: 690–708.
+Gliwicz, Z. M., 1990. Why do cladocerans fail to control algal blooms? Hydrobiologia 200: 83–97.
+Graham, L. E. & L. W. Wilcox, 2000. Algae. Prentice-Hall, Upper Saddle River.
+Hasle, G. R., 1978. The inverted-microscope method. In Sournia, A. (ed.), Phytoplankton manual. UNESCO, Paris: 88–96.
+Hudnell, K. H., 2008. Cyanobacterial Harmful Algal Blooms. Springer, New York.
+Hyenstrand, P., P. Nyvall, A. Pettersson & P. Blomqvist, 1998. Regulation of non-nitrogen-fixing cyanobacteria by inorganic nitrogen sources – experiments from Lake Erken. In Forsberg, C. & K. Pettersson (eds), Advances in Limnology 51 – Lake Erken – 50 Years of Limnological Research. E Schweizerbart’sche Verlagsbuchhandlung, Stuttgart pp 29–40.
+Hyenstrand, P., U. Burkert, A. Pettersson & P. Blomqvist, 2000. Competition between the green alga Scenedesmus and the cyanobacterium Synechococcus under different modes of inorganic nitrogen supply. Hydrobiologia 435: 91–98.
+Irfanullah, H. M. & B. Moss, 2005. A filamentous green algae-dominated temperate shallow lake: variations on the theme of clearwater stable states? Archiv Fur Hydrobiologie 163: 25–47.
+Kemp, P. F., B. F. Sherr, E. B. Sherr & J. J. Cole, 1993. Handbook of Methods in Aquatic Microbial Ecology. Lewis Publishers, Boca Raton.
+Moss, B., D. Stephen, C. Alvarez, E. Becares, W. Van de Bund, S.E. Collings, E. Van Donk, E. De Eyto, T. Feldmann, C. Fernandez-Alaez, M. Fernandez-Alaez, R. J. M. Franken, F. Garcia-Criado, E. M. Gross, M. Gyllstrom, L. A. Hansson, K. Irvine, A. Jarvalt, J. P. Jensen, E. Jeppeesen, T. Kairesalo, R. Kornijow, T. Krause, H. Kunnap, A. Laas, E. Lille, B. Lorens, H. Luup, M. R. Miracle, P. Noges, T. Noges, M. Nykanen, I. Ott, W. Peczula, E. Peeters, G. Phillips, S. Romo, V. Russell, J. Salujoe, M. Scheffer, K. Siewertsen, H. Smal, C. Tesch, H. Timm, L. Tuvikene, I. Tonno, T. Virro, E. Vicente & D. Wilson, 2003. The determination of ecological status in shallow lakes – a tested system (ECOFRAFME) for implementation of the European Water Framework Directive. Aquatic Conservation: Marine and Freshwater Ecosystems 13: 507–549.
+Paerl, H. W. & J. Huisman, 2008. Climate: blooms like it hot. Science 320: 57–58.
+Pavlik-Skowronska, B., J. Pirszel & R. Kornijow, 2008. Spatial and temporal variation in microcystin concentrations during perennial bloom of Planktothrix agardhii in a hypertrophic lake. Annales De Limnologie (International Journal of Limnology) 44: 145–150.
+Peretyatko, A., J.-J. Symoens & L. Triest, 2007a. Impact of macrophytes on phytoplankton in eutrophic peri-urban ponds, implications for pond management and restoration. Belgian Journal of Botany 140: 83–99.
+Peretyatko, A., S. Teissier, J.-J. Symoens & L. Triest, 2007b. Phytoplankton biomass and environmental factors over a gradient of clear to turbid peri-urban ponds. Aquatic Conservation: Marine and Freshwater Ecosystems 17: 584–601.
+Peretyatko, A., S. Teissier, S. De Backer & L. Triest, 2010. Assessment of the risk of cyanobacterial bloom occurrence in urban ponds: probabilistic approach. Annales De Limnologie (International Journal of Limnology) 46: 121–133.
+Pflugmacher, S., 2004. Promotion of oxidative stress in the aquatic macrophyte Ceratophyllum demersum during biotransformation of the cyanobacterial toxin microcystin-LR. Aquatic Toxicology 70: 169–178.
+Phillips, G., O. P. Pietilainen, L. Carvalho, A. Solimini, A. L. Solheim & A. C. Cardoso, 2008. Chlorophyll-nutrient relationships of different lake types using a large European dataset. Aquatic Ecology 42: 213–226.
+
+</page>
+
+<page number="15">
+
+Pourriot, R., 1995. Réponses adaptatives du zooplancton à la prédation. In Pourriot, R. & M. Meybeck (eds), Limnologie Générale. Masson, Paris: 610–627.
+Presing, M., S. Herodek, L. Voros, T. Preston & G. Abrusan, 1999. Nitrogen uptake by summer phytoplankton in Lake Balaton. Archiv Fur Hydrobiologie 145: 93–110.
+Rangel, T. F., J. A. F. Diniz-Filho & L. M. Bini, 2010. SAM: a comprehensive application for spatial analysis in macroecology. Ecography: 46–50.
+Reynolds, C. S., 1998. What factors influence the species composition of phytoplankton in lakes of different trophic status? Hydrobiologia 369: 11–26.
+Reynolds, C. S., 2000. Phytoplankton designer – or how to predict compositional responses to trophic-state change. Hydrobiologia 424: 123–132.
+Reynolds, C. S., 2006. Ecology of Phytoplankton. Cambridge University Press, Cambridge.
+Reynolds, C. S., G. H. M. Jaworski, J. V. Roscoe, D. P. Hewitt & D. G. George, 1998. Responses of the phytoplankton to a deliberate attempt to raise the trophic status of an acidic, oligotrophic mountain lake. Hydrobiologia 370: 127–131.
+Rohrlack, T., E. Dittmann, M. Henning, T. Borner & J. G. Kohl, 1999. Role of microcystins in poisoning and food ingestion inhibition of Daphnia galeata caused by the cyanobacterium Microcystis aeruginosa. Applied and Environmental Microbiology 65: 737–739.
+Scheffer, M., 1998. Ecology of Shallow Lakes. Kluwer Academic Publishers, Dordrecht.
+Shapiro, J., 1973. Blue-green-algae: why they become dominant. Science 179: 382–384.
+Shapiro, J., 1997. The role of carbon dioxide in the initiation and maintenance of blue-green dominance in lakes. Freshwater Biology 37: 307–323.
+Søndergaard, M., E. Jeppesen & J. P. Jensen, 2005. Pond or lake: does it make any difference? Archiv Fur Hydrobiologie 162: 143–165.
+Thostrup, L. & K. Christoffersen, 1999. Accumulation of microcystin in Daphnia magna feeding on toxic Microcystis. Archiv Fur Hydrobiologie 145: 447–467.
+UNEP-IETC, 1999. Planning and Management of Lakes and Reservoirs: An Integrated Approach to Eutrophication. UNEP International Environmental Technology Centre Technical Publication Series—Issue 11, Osaka, Shiga.
+Walsby, A. E., P. K. Hayes, R. Boje & L. J. Stal, 1997. The selective advantage of buoyancy provided by gas vesicles for planktonic cyanobacteria in the Baltic Sea. New Phytologist 136: 407–417.
+Wetzel, G. R. & E. G. Likens, 1990. Limnological Analyses. Springer-Verlag, New York.
+
+</page>
+

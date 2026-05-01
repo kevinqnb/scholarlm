@@ -33,7 +33,6 @@ from .plots import (
     probability_distribution,
     cross_dataset_matrix,
 )
-from .cross_dataset import cross_dataset_probe_matrix, load_activations_and_labels
 
 __all__ = [
     "load_extraction",

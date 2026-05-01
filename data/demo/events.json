@@ -1,0 +1,1444 @@
+{
+    "0|doc_0_entity_0|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_0|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across the study period for pond 3Fnt"
+        }
+    ],
+    "0|doc_0_entity_0|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean pH value reported in Table 1 for pond 3Fnt"
+        }
+    ],
+    "0|doc_0_entity_0|tp|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_0|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (µg L⁻¹) for pond 3Fnt as reported in Table 1 (Mean general characteristics of the ponds studied)."
+        }
+    ],
+    "0|doc_0_entity_1|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Maximum depth (md_m) of 0.8 m for pond BCmb as reported in Table 1 of Hydrobiologia (2012)."
+        }
+    ],
+    "0|doc_0_entity_1|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover value across the study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_1|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH value reported for pond BCmb in Table 1."
+        }
+    ],
+    "0|doc_0_entity_1|ph|12": [],
+    "0|doc_0_entity_1|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration for pond BCmb across study period"
+        }
+    ],
+    "0|doc_0_entity_1|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration (µg L⁻¹) for pond BCmb as reported in Table 1 (average across the study period)."
+        }
+    ],
+    "0|doc_0_entity_2|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Maximum depth (md_m) of 1.0 m for Beml reported in Table 1 of Hydrobiologia (2012)."
+        }
+    ],
+    "0|doc_0_entity_2|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover (percent) reported for pond Beml in Table 1."
+        }
+    ],
+    "0|doc_0_entity_2|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_2|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean TP value across the study period for pond Beml"
+        }
+    ],
+    "0|doc_0_entity_2|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration reported in Table 1 for pond Beml"
+        }
+    ],
+    "0|doc_0_entity_3|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_3|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean values across study period"
+        }
+    ],
+    "0|doc_0_entity_3|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_3|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_3|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristic (chlorophyll-a concentration) for pond Blkd as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_4|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_4|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean values across studied ponds"
+        }
+    ],
+    "0|doc_0_entity_4|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_4|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_4|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_5|max_depth|1": [
+        {
+            "date": null,
+            "additional_details": "All 48 ponds studied between 2003 and 2009 were shallow, with maximum depth less than 3 m."
+        }
+    ],
+    "0|doc_0_entity_5|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_5|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_5|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_5|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (TP) for pond BrPk as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_5|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration reported for BrPk in Table 1 (average across the study period)."
+        }
+    ],
+    "0|doc_0_entity_6|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "reported as mean characteristic in Table 1"
+        }
+    ],
+    "0|doc_0_entity_6|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across studied ponds"
+        }
+    ],
+    "0|doc_0_entity_6|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_6|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across studied ponds as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_6|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (µg L⁻¹) for pond CKrv across the study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_7|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Maximum depth (md_m) = 0.7 m for pond Dens as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_7|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied (average across the sampled period)."
+        }
+    ],
+    "0|doc_0_entity_7|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_7|tp|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_7|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean chlorophyll-a concentration (µg L⁻¹) across the studied period"
+        }
+    ],
+    "0|doc_0_entity_8|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_8|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_8|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across sampling period"
+        }
+    ],
+    "0|doc_0_entity_8|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Esec pond"
+        }
+    ],
+    "0|doc_0_entity_8|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean chlorophyll-a concentration (µg/L) for pond Esec across the study period"
+        }
+    ],
+    "0|doc_0_entity_9|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_9|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_9|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_9|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_9|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across the study period (as reported in Table 1)."
+        }
+    ],
+    "0|doc_0_entity_10|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_10|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean values across study period (Table 1)"
+        }
+    ],
+    "0|doc_0_entity_10|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_10|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_10|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean chlorophyll‑a concentration (24.9 µg L⁻¹) across the study period"
+        }
+    ],
+    "0|doc_0_entity_11|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_11|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover for pond Hrt2 across the study period."
+        }
+    ],
+    "0|doc_0_entity_11|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean pH across study period"
+        }
+    ],
+    "0|doc_0_entity_11|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_11|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration (µg L⁻¹) reported for pond Hrt2 in Table 1."
+        }
+    ],
+    "0|doc_0_entity_12|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Mean max depth across study period (md_m = 0.6 m) as reported in Table 1"
+        }
+    ],
+    "0|doc_0_entity_12|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean values across study period (Table 1)."
+        }
+    ],
+    "0|doc_0_entity_12|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_12|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration for pond IxP1 as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_12|chla|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_13|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_13|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_13|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_13|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_13|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value reported for pond IxP2 in the study"
+        }
+    ],
+    "0|doc_0_entity_14|max_depth|3": [],
+    "0|doc_0_entity_14|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_14|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_14|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (mg/L) for pond Leyb-a as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_14|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (µg L⁻¹) across the study period for pond Leyb-a."
+        }
+    ],
+    "0|doc_0_entity_15|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "reported as a mean characteristic in Table 1 for pond Leyb‑b"
+        }
+    ],
+    "0|doc_0_entity_15|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_15|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_15|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_15|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration of 202.5 µg L⁻¹ for pond Leyb‑b (average across the study period)."
+        }
+    ],
+    "0|doc_0_entity_16|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_16|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean values across study period"
+        }
+    ],
+    "0|doc_0_entity_16|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied (average values)."
+        }
+    ],
+    "0|doc_0_entity_16|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus (TP) concentration for pond Malu across the study period (Table 1)."
+        }
+    ],
+    "0|doc_0_entity_16|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration (µg L⁻¹) for pond Malu as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_17|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_17|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_17|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH value reported for pond MlGr in Table 1"
+        }
+    ],
+    "0|doc_0_entity_17|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied (Table 1)"
+        }
+    ],
+    "0|doc_0_entity_17|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (µg L⁻¹) reported in Table 1 for pond MlGr across the study period."
+        }
+    ],
+    "0|doc_0_entity_18|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_18|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of pond MlKl (index) across the study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_18|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_18|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_18|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_19|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_19|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "sv_percent_cover from Table 1 mean general characteristics of the ponds studied"
+        }
+    ],
+    "0|doc_0_entity_19|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean pH value reported for pond MrCn"
+        }
+    ],
+    "0|doc_0_entity_19|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (TP) for pond MrCn as reported in Table 1 (average across the study period)."
+        }
+    ],
+    "0|doc_0_entity_19|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value reported in Table 1 (mean general characteristics of the ponds studied)."
+        }
+    ],
+    "0|doc_0_entity_20|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_20|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean vegetation cover (%) across study period"
+        }
+    ],
+    "0|doc_0_entity_20|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH value across study period for pond NrPd1"
+        }
+    ],
+    "0|doc_0_entity_20|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (mg/L) across the study period for pond NrPd1."
+        }
+    ],
+    "0|doc_0_entity_20|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period (as reported in Table 1)"
+        }
+    ],
+    "0|doc_0_entity_21|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_21|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_21|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean pH value reported for pond NrPd2"
+        }
+    ],
+    "0|doc_0_entity_21|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied"
+        }
+    ],
+    "0|doc_0_entity_21|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_22|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_22|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_22|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH across study period"
+        }
+    ],
+    "0|doc_0_entity_22|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration reported for pond NrPd4 in Table 1"
+        }
+    ],
+    "0|doc_0_entity_22|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration (192.3 µg L⁻¹) reported for pond NrPd4 in Table 1 (Mean general characteristics of the ponds studied)."
+        }
+    ],
+    "0|doc_0_entity_23|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across study period (Table 1 – mean general characteristics of the ponds studied)."
+        }
+    ],
+    "0|doc_0_entity_23|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover (sv_percent_cover) reported for pond PchR in Table 1"
+        }
+    ],
+    "0|doc_0_entity_23|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across the study period"
+        }
+    ],
+    "0|doc_0_entity_23|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration reported for pond PchR (Table 1)."
+        }
+    ],
+    "0|doc_0_entity_23|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (77.6 µg/L) reported for pond PchR in Table 1 as the average value across the study period."
+        }
+    ],
+    "0|doc_0_entity_24|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Maximum depth (md_m) reported as 0 m for Plbs in Table 1 of Hydrobiologia (2012) 689:131–146."
+        }
+    ],
+    "0|doc_0_entity_24|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover (%) for pond Plbs as reported in Table 1 (sv_percent_cover = 0)."
+        }
+    ],
+    "0|doc_0_entity_24|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_24|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across studied ponds (as reported in Table 1)."
+        }
+    ],
+    "0|doc_0_entity_24|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean chlorophyll-a concentration reported in Table 1 for pond Plbs"
+        }
+    ],
+    "0|doc_0_entity_25|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_25|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "Mean vegetation cover (%) reported for pond PRB1 across the study period (sv_percent_cover = 15)."
+        }
+    ],
+    "0|doc_0_entity_25|ph|3": [
+        {
+            "date": null,
+            "additional_details": "water pH measurement for pond PRB1"
+        }
+    ],
+    "0|doc_0_entity_25|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (TP) for pond PRB1 as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_25|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration across the study period (Table 1)."
+        }
+    ],
+    "0|doc_0_entity_26|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Mean values reported in Table 1 for pond PRB2 (average characteristics across the study)."
+        }
+    ],
+    "0|doc_0_entity_26|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_26|ph|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_26|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (TP) for pond PRB2 as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_26|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll-a concentration (105.9 µg/L) reported in Table 1 for pond PRB2."
+        }
+    ],
+    "0|doc_0_entity_27|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied (Table 1), maximum depth (md_m) reported for Prm2."
+        }
+    ],
+    "0|doc_0_entity_27|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "pond Prm2"
+        }
+    ],
+    "0|doc_0_entity_27|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH value across the studied period for pond Prm2 as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_27|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_27|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_28|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_28|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_28|ph|3": [
+        {
+            "date": null,
+            "additional_details": "Mean pH value reported in Table 1 of pond characteristics for RKI2"
+        }
+    ],
+    "0|doc_0_entity_28|tp|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_28|chla|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_29|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_29|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean vegetation cover reported in Table 1 (mean general characteristics of the ponds studied)"
+        }
+    ],
+    "0|doc_0_entity_29|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across studied ponds"
+        }
+    ],
+    "0|doc_0_entity_29|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_29|chla|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across study period"
+        }
+    ],
+    "0|doc_0_entity_30|max_depth|3": [
+        {
+            "date": null,
+            "additional_details": "Mean general characteristics of the ponds studied (Table 1)."
+        }
+    ],
+    "0|doc_0_entity_30|vegetation_cover|3": [
+        {
+            "date": null,
+            "additional_details": "mean value across studied ponds"
+        }
+    ],
+    "0|doc_0_entity_30|ph|3": [
+        {
+            "date": null,
+            "additional_details": "mean pH value across study period"
+        }
+    ],
+    "0|doc_0_entity_30|tp|3": [
+        {
+            "date": null,
+            "additional_details": "Mean total phosphorus concentration (tp) for pond RKI4 across the study period as reported in Table 1."
+        }
+    ],
+    "0|doc_0_entity_30|chla|3": [
+        {
+            "date": null,
+            "additional_details": "Mean chlorophyll‑a concentration (µg L⁻¹) for pond RKI4 as reported in Table 1 (value 7.8)."
+        }
+    ],
+    "0|doc_0_entity_31|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_31|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_31|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_31|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_31|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_32|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_32|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_32|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_32|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_32|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_33|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_33|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_33|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_33|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_33|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_34|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_34|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_34|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_34|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_34|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_35|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_35|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_35|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_35|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_35|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_36|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_36|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_36|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_36|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_36|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_37|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": "Maximum depth (md_m) of 1.1 m reported for TrCg in Table 1 (Hydrobiologia 2012)."
+        }
+    ],
+    "0|doc_0_entity_37|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_37|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_37|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_37|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_38|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_38|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_38|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_38|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_38|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_39|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_39|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_39|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_39|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_39|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_40|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_40|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_40|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_40|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_40|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_41|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_41|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_41|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_41|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_41|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_42|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_42|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_42|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_42|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_42|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_43|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_43|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_43|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_43|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_43|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_44|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_44|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": "submerged vegetation percent cover measurement (sv_percent_cover = 53%)"
+        }
+    ],
+    "0|doc_0_entity_44|ph|4": [
+        {
+            "date": null,
+            "additional_details": "pH measured for site VKn2 (pond) as reported in Table 1 of the study."
+        }
+    ],
+    "0|doc_0_entity_44|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_44|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_45|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_45|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_45|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_45|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_45|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_46|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": "Recorded in Table 1 of Hydrobiologia (2012)."
+        }
+    ],
+    "0|doc_0_entity_46|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_46|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_46|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_46|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_47|max_depth|4": [
+        {
+            "date": null,
+            "additional_details": "Recorded under index WtMl in Table 1."
+        }
+    ],
+    "0|doc_0_entity_47|vegetation_cover|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_47|ph|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_47|tp|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ],
+    "0|doc_0_entity_47|chla|4": [
+        {
+            "date": null,
+            "additional_details": null
+        }
+    ]
+}
