@@ -125,10 +125,14 @@ def build_judge_query(
 
     closing = "(true or false) Is this extraction correct?"
     sections = [entity_section, attribute_section]
+
+    '''
     if event_description:
         event_display = {k: v for k, v in event_description.items() if v is not None}
         if event_display:
             sections.append(f"Measurement event: {event_display}")
+    '''
+    
     sections += [value_section, closing]
     return "\n\n".join(sections)
 
