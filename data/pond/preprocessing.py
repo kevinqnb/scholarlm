@@ -6,8 +6,8 @@ Pipeline
     raw_data/pond_data_corrected_.csv  (corrected raw data, wide format)
         ↓  filter to registered papers, melt, add document_id + units
         ↓  page attribution via OCR scoring
-    ground_truth.csv                   (all registered papers)
-    ground_truth_ten.csv               (top-10 paper development subset)
+    ground_truth.json                  (all registered papers)
+    ground_truth_ten.json              (top-10 paper development subset)
 
 Building pond_data_corrected_.csv
 ----------------------------------
@@ -177,8 +177,8 @@ def build_corrected_wide(corrected_path: Path, out_path: Path) -> pd.DataFrame:
 def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
     """Append page_number, page_score, and page_confidence columns to *gt*.
 
-    ``page_number`` is a JSON-encoded list of all candidate page numbers within
-    the confidence margin (e.g. ``[3]`` or ``[3, 4]``).  Scores all pages for
+    ``page_number`` is a list of all candidate page numbers within the confidence
+    margin (e.g. ``[3]`` or ``[3, 4]``).  Scores all pages for
     each document (no table pre-filtering for pond).  Rows whose OCR file is
     missing receive NaN attribution columns.
 

@@ -7,8 +7,8 @@ Pipeline
         ↓  filter to text/table-extractable papers
         ↓  reshape: one row per nfix_rate measurement
         ↓  page attribution via OCR scoring
-    ground_truth.csv                  (all registered text/table papers)
-    ground_truth_ten.csv              (top-10 paper development subset)
+    ground_truth.json                 (all registered text/table papers)
+    ground_truth_ten.json             (top-10 paper development subset)
 
 Paper inclusion filter
 ----------------------
@@ -93,8 +93,8 @@ def _add_page_attribution(
 ) -> pd.DataFrame:
     """Append page_number, page_score, and page_confidence columns to *gt*.
 
-    ``page_number`` is a JSON-encoded list of all candidate page numbers within
-    the confidence margin (e.g. ``[8]`` or ``[7, 8]``).  For each document,
+    ``page_number`` is a list of all candidate page numbers within the confidence
+    margin (e.g. ``[8]`` or ``[7, 8]``).  For each document,
     attempts table pre-filtering from ``extraction_location_details`` in
     *paper_info* before scoring all pages.  Rows whose OCR file is missing
     receive NaN attribution columns.
@@ -140,7 +140,7 @@ def _add_page_attribution(
             ):
                 confidence = "table-anchored"
 
-            gt.at[idx, "page_number"] = json.dumps(result["candidates"])
+            gt.at[idx, "page_number"] = result["candidates"]
             gt.at[idx, "page_score"] = result["score"]
             gt.at[idx, "page_confidence"] = confidence
             confidence_counts[confidence] += 1
@@ -207,12 +207,12 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
 
     gt = _add_page_attribution(gt, paper_info, BASE / "ocr_output_raw")
 
-    gt.to_csv(out_dir / "ground_truth.csv", index=False)
-    print(f"  Saved {len(gt):,} rows → ground_truth.csv")
+    gt.to_json(out_dir / "ground_truth.json", orient="records", indent=2)
+    print(f"  Saved {len(gt):,} rows → ground_truth.json")
 
     gt_ten = gt[gt["document_id"].isin(_TOP_PAPERS)].reset_index(drop=True)
-    gt_ten.to_csv(out_dir / "ground_truth_ten.csv", index=False)
-    print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.csv")
+    gt_ten.to_json(out_dir / "ground_truth_ten.json", orient="records", indent=2)
+    print(f"  Saved {len(gt_ten):,} rows → ground_truth_ten.json")
 
 
 def main() -> None:

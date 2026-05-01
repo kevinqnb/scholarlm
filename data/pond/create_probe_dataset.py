@@ -39,7 +39,7 @@ Output
     data/pond/probe_dataset.json        (train split — ~50% of papers)
     data/pond/probe_dataset_test.json   (test split  — remaining ~50% of papers)
 
-    Both files share the same column schema as ground_truth.csv, plus:
+    Both files share the same column schema as ground_truth.json, plus:
     "label", "modification_type", "gt_row_index", "donor_gt_row_index",
     "measurement_id".  page_number is inherited from the parent ground-truth row.
 
@@ -60,7 +60,6 @@ import re
 import sys
 from pathlib import Path
 
-import pandas as pd
 
 BASE = Path(__file__).parent        # data/pond/
 REPO_ROOT = BASE.parent.parent      # repo root
