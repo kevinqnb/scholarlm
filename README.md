@@ -1,95 +1,58 @@
-# ScholarLM :microscope: :books:
+# ScholarlM :microscope: :books:
 
-**Extract structured data from scientific research papers using large language models.**
-
-*Please note:* This project is a work in progress.
-
-This library implements a pipeline for extracting data from scientific papers (PDFs) using large language models.
-It supports both API-backed models (Anthropic, OpenAI, Google Gemini) and local open-source models (via vLLM / HuggingFace Transformers).
+Extract structured (entity, attribute, value) triplets from scientific PDFs using large language models.
+Supports API-backed models (Anthropic, OpenAI, Gemini) and local open-source models via vLLM.
 
 Core capabilities:
-* **Document OCR**: convert PDF pages to markdown text, with HTML table extraction.
-* **Measurement extraction**: systematically collect (entity, attribute, value) triplets from document text and tables.
-* **Table cleaning**: normalize and restructure OCR-extracted HTML tables using a VLM.
-* **Hallucination detection** *(experimental)*: mechanistic intervention on model activations to detect and reduce hallucinated responses.
+- **Document OCR** — convert PDF pages to markdown text with HTML table extraction
+- **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
+- **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
 
 ## Installation
 
-### Prerequisites
-- **Python**: 3.12+
-- **GPU** *(optional)*: required for local model inference with vLLM, `transformers`, or `nnsight`. API-backed workflows run on CPU.
-
-### Install (recommended: `uv`)
+**Prerequisites:** Python 3.12+; GPU required for local inference (vLLM / transformers / nnsight).
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/scholarlm.git
 cd scholarlm
 
-# CPU-only / API-backed workflows
-uv sync --no-extra gpu
-
-# Full install including local GPU inference
-uv sync
+uv sync --no-extra gpu   # CPU-only / API-backed workflows
+uv sync                  # Full install including local GPU inference
 ```
 
-### Install (alternative: pip + venv)
-
+Alternative (pip):
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-
-# CPU-only / API-backed workflows
-pip install -e .
-
-# Full install including local GPU inference
-pip install -e ".[gpu]"
+python -m venv .venv && source .venv/bin/activate && pip install -U pip
+pip install -e .          # CPU-only
+pip install -e ".[gpu]"   # Full
 ```
 
 ## Usage
 
-### Examples (notebooks)
-Interactive walkthroughs are in `examples/` and `analysis/`:
-- `examples/ocr.ipynb` — OCR a PDF to markdown
-- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
-- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
-
-### Experiments (scripts)
-Runnable experiment scripts are in `experiments/`. See [EXPERIMENTS.md](EXPERIMENTS.md) for the full guide.
+### Experiments
+Please see [EXPERIMENTS.md](EXPERIMENTS.md) for the full workflow guide. The following 
+are some quick examples.
 
 ```bash
 # Extract
-python experiments/run_extraction.py --dataset pond_ten --model gemma-3-27b
+python experiments/run_extraction.py --dataset pond --model gemma-3-27b
 
-# Judge (frontier, async) + combine
-python experiments/run_judge_frontier_v2.py \
-    --dataset pond_ten --extraction-model gemma-3-27b \
-    --judge openai --frontier-model gpt-4o-mini --extraction-date 2026_04_14
-python experiments/run_judge_combine.py \
-    --dataset pond_ten --extraction-model gemma-3-27b --extraction-date 2026_04_14
+# Judge with a local model
+python experiments/run_judge_local.py \
+        --dataset pond  --extraction-model gemma-3-27b \
+        --judge gpt-oss-120b --api-base http://localhost:{PORT}/v1
+
+# Judge and collect model activations (attention head & layer output) 
+python experiments/run_judge_interp.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge llama-3.1-8b --extraction-date 2026_04_01
 ```
 
-### Ground truth preprocessing
-Each dataset ships a preprocessing script that builds the ground truth CSVs:
+### Analysis Notebooks
+- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
+- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
 
-```bash
-python data/pond/preprocessing.py   # → data/pond/ground_truth{_ten}.csv
-python data/nfix/preprocessing.py   # → data/nfix/ground_truth{_ten}.csv
-```
-
-### Probe dataset creation
-Synthetic valid/invalid records for judge calibration and probe analysis:
-
-```bash
-python data/pond/create_probe_dataset.py   # → data/pond/probe_dataset.json
-python data/nfix/create_probe_dataset.py   # → data/nfix/probe_dataset.json
-```
-
-Each script samples ~50% of ground-truth records as valid and generates two invalid
-counterparts per valid record (2:1 ratio) using swap, noise, and OCR-table strategies.
-See `data/pond/README.md` and `data/nfix/README.md` for full details.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).

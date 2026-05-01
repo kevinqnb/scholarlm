@@ -194,3 +194,5 @@ data/nfix/processed_pdfs/*
 memory
 *.DS_STORE
 .virtual_documents/
+
+CLAUDE.MD
