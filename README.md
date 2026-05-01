@@ -8,6 +8,8 @@ Core capabilities:
 - **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
 - **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
 
+![Extraction Flowchart](figures/extraction_flowchart.png)
+
 ## Installation
 
 **Prerequisites:** Python 3.12+; GPU required for local inference (vLLM / transformers / nnsight).
