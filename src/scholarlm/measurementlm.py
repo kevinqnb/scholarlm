@@ -372,7 +372,7 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=None,
-            temperature=self.sampling_params['temperature'],
+            temperature=self.sampling_params.get('temperature'),
             max_tokens=16384,
             max_retries=1,
         )
@@ -433,7 +433,6 @@ class MeasurementLM:
             items=(list[self.entity_identification_schema], ...),
         )
         identification_list_json = IdentificationList.model_json_schema()
-        entity_fields = list(self.entity_identification_schema.model_fields.keys())
 
         # --- Pass 1: Full-context entity identification ---
         messages = []
@@ -853,7 +852,7 @@ class MeasurementLM:
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n"
-                        f"Identify all distinct measurement events for the given entity and attribute.\n\n"
+                        f"Enumerate all distinct measurement events for the given entity and attribute.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
@@ -942,11 +941,20 @@ class MeasurementLM:
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
+                unit_options = self.attribute_info_dict[attr_name].get('units', [])
 
                 pair_record = record | {
                     'attribute': attr_name,
                     'attribute_terms': terms,
                 }
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+                    )
 
                 for p in intersecting_pages:
                     page_text = self._get_page_text(context, p)
@@ -968,11 +976,12 @@ class MeasurementLM:
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"Does this page contain a measured value for the given attribute and entity? "
+                            f"{units_guidance}\n"
+                            f"Does this page contain a measured value for the given entity, attribute, and event? "
                             f"If yes, extract the value and its units.\n\n"
                         )
                         prompt = (
@@ -1108,11 +1117,20 @@ class MeasurementLM:
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
+                unit_options = self.attribute_info_dict[attr_name].get('units', [])
 
                 pair_record = record | {
                     'attribute': attr_name,
                     'attribute_terms': terms,
                 }
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+                    )
 
                 for t in intersecting_tables:
                     parsed = _get_table(context, t, doc_id)
@@ -1138,14 +1156,15 @@ class MeasurementLM:
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\nRow names in the table: {row_names}\n"
+                            f"{units_guidance}"
+                            f"Row names in the table: {row_names}\n"
                             f"Column names in the table: {column_names}\n\n"
-                            f"Does this table contain a measured value for the given attribute and entity? "
-                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                            f"Does this table contain a measured value for the given entity, attribute, and event? "
+                            f"If yes, provide the corresponding row_index and column_index names, and the units.\n\n"
                         )
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
@@ -1216,7 +1235,7 @@ class MeasurementLM:
                 print(f"Error extracting value from table {table_number} in doc {doc_id}.")
                 val = None
 
-            if val is not None:
+            if val is not None and not (isinstance(val, float) and math.isnan(val)):
                 table_values.append(
                     pair_record | {
                         'context': table_text,

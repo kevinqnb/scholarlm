@@ -193,7 +193,7 @@ class MeasurementLMAblation3(MeasurementLM):
                 result = response_validator(ProvenanceListResponse, resp)
             except Exception as e:
                 print(f"Validation error in full-context provenance response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             for item in result["items"]:

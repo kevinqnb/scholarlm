@@ -260,8 +260,7 @@ class MeasurementLMAblation2(MeasurementLM):
                     f"Entity description: {entity_description}\n"
                     f"Attribute: {attr_name}\n"
                     f"Attribute description: {attr_description}\n\n"
-                    f"Enumerate all distinct measurement events for the above entity "
-                    f"and attribute found on this page.\n\n"
+                    f"Enumerate all distinct measurement events for the given entity and attribute.\n\n"
                 )
                 prompt = (
                     f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"

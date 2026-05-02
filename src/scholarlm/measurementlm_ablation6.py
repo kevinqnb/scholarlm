@@ -33,6 +33,7 @@ Pipeline structure and all other logic are identical to the baseline.
 """
 
 from io import StringIO
+import math
 import pandas as pd
 from pydantic import BaseModel
 
@@ -112,8 +113,8 @@ class MeasurementLMAblation6(MeasurementLM):
                 f"Return one item per attribute using the exact attribute name.\n\n"
             )
             prompt = (
-                f"## Instructions:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                f"## Context:\n{context}\n\n## Query:\n{query}"
+                f"## INSTRUCTIONS:\n{DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
             message_ids.append(i)
@@ -134,7 +135,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 batch = response_validator(BatchAttributeDetectionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in batched attribute detection response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 detection_results[doc_idx] = {a: False for a in attr_names}
                 continue
 
@@ -196,8 +197,8 @@ class MeasurementLMAblation6(MeasurementLM):
                     f"appears in a table or in prose text.\n\n"
                 )
                 prompt = (
-                    f"## Instructions:\n{ENTITY_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
-                    f"## Context:\n{page_text}\n\n## Query:\n{query}"
+                    f"## INSTRUCTIONS:\n{ENTITY_PROVENANCE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
+                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
                 )
                 messages.append([{"role": "user", "content": prompt}])
                 message_ids.append((doc_id, entity_id, p))
@@ -226,7 +227,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 result = response_validator(ProvenanceResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in entity provenance response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if result.get('has_data'):
@@ -311,7 +312,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 result = response_validator(ProvenanceResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in attribute provenance response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if result.get('has_data'):
@@ -400,12 +401,12 @@ class MeasurementLMAblation6(MeasurementLM):
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\n{units_guidance}"
-                            f"Does this page contain a measured value for the given attribute and entity? "
+                            f"{units_guidance}\n"
+                            f"Does this page contain a measured value for the given entity, attribute, and event? "
                             f"If yes, extract the value and its units.\n\n"
                         )
                         prompt = (
@@ -439,7 +440,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 result = response_validator(TextValueExtractionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in text value extraction response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if result.get('has_value') and result.get('value') is not None:
@@ -560,15 +561,15 @@ class MeasurementLMAblation6(MeasurementLM):
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\nRow names in the table: {row_names}\n"
-                            f"Column names in the table: {column_names}\n\n"
                             f"{units_guidance}"
-                            f"Does this table contain a measured value for the given attribute and entity? "
-                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                            f"Row names in the table: {row_names}\n"
+                            f"Column names in the table: {column_names}\n\n"
+                            f"Does this table contain a measured value for the given entity, attribute, and event? "
+                            f"If yes, provide the corresponding row_index and column_index names, and the units.\n\n"
                         )
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_NO_EXPLANATIONS}\n\n"
@@ -601,7 +602,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 result = response_validator(TableValueExtractionResponseNoExp, resp)
             except Exception as e:
                 print(f"Validation error in table value extraction response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if not result.get('has_value'):
@@ -637,7 +638,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 print(f"Error extracting value from table {table_number} in doc {doc_id}.")
                 val = None
 
-            if val is not None:
+            if val is not None and not (isinstance(val, float) and math.isnan(val)):
                 table_values.append(
                     event_record | {
                         'context': table_text,

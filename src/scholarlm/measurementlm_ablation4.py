@@ -40,6 +40,7 @@ from .instruction_prompts import (
 )
 from io import StringIO
 from pydantic import create_model
+import math
 import pandas as pd
 
 
@@ -90,8 +91,7 @@ class MeasurementLMAblation4(MeasurementLM):
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n\n"
-                        f"Enumerate all distinct measurement events for the above entity "
-                        f"and attribute found in the document.\n\n"
+                        f"Enumerate all distinct measurement events for the given entity and attribute.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS_FULL_CONTEXT}\n\n"
@@ -200,13 +200,13 @@ class MeasurementLMAblation4(MeasurementLM):
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"{units_guidance}"
+                            f"{units_guidance}\n"
                             f"Does the document contain a measured value for "
-                            f"the given attribute and entity? "
+                            f"the given entity, attribute, and event? "
                             f"If yes, extract the value and its units.\n\n"
                         )
                         prompt = (
@@ -240,7 +240,7 @@ class MeasurementLMAblation4(MeasurementLM):
                 result = response_validator(TextValueExtractionResponse, resp)
             except Exception as e:
                 print(f"Validation error in text value extraction response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if result.get("has_value") and result.get("value") is not None:
@@ -349,7 +349,7 @@ class MeasurementLMAblation4(MeasurementLM):
                         units_guidance = (
                             f"Preferred unit options: {unit_options}. "
                             f"Strongly prioritize choosing the best option from this list. "
-                            f"If none of the options fit, specify the unit exactly as it appears in the table.\n"
+                            f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
                         )
 
                     # Determine measurement events for this (entity, attribute, page)
@@ -369,14 +369,13 @@ class MeasurementLMAblation4(MeasurementLM):
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"{units_guidance}"
-                            f"Does the document contain a measured value for the given attribute "
-                            f"and entity in a table? "
-                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                            f"{units_guidance}\n"
+                            f"Does the document contain table with a measured value for the given entity, attribute, and event? "
+                            f"If yes, provide the corresponding row_index and column_index names, and the units.\n\n"
                         )
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS_FULL_CONTEXT}\n\n"
@@ -409,7 +408,7 @@ class MeasurementLMAblation4(MeasurementLM):
                 result = response_validator(TableValueExtractionResponse, resp)
             except Exception as e:
                 print(f"Validation error in table value extraction response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if not result.get("has_value"):
@@ -443,7 +442,7 @@ class MeasurementLMAblation4(MeasurementLM):
                 print(f"Error extracting value from table {table_number} in doc {doc_id}.")
                 val = None
 
-            if val is not None:
+            if val is not None and not (isinstance(val, float) and math.isnan(val)):
                 table_values.append(
                     event_record | {
                         "context": event_record["context"],
