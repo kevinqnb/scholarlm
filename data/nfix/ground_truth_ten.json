@@ -14,7 +14,7 @@
     "value":14.8,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7487,
     "page_confidence":"high"
@@ -34,7 +34,7 @@
     "value":26.7,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7487,
     "page_confidence":"high"
@@ -54,7 +54,7 @@
     "value":1.4,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7399,
     "page_confidence":"high"
@@ -74,7 +74,7 @@
     "value":125.5,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7399,
     "page_confidence":"high"
@@ -94,7 +94,7 @@
     "value":1.2,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7375,
     "page_confidence":"high"
@@ -114,7 +114,7 @@
     "value":4.8,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7375,
     "page_confidence":"high"
@@ -134,7 +134,7 @@
     "value":4.1,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.748,
     "page_confidence":"high"
@@ -154,8 +154,8 @@
     "value":30.0,
     "units":"ng-n l-1 h-1",
     "page_number":[
-      6,
-      10
+      5,
+      9
     ],
     "page_score":0.7777,
     "page_confidence":"ambiguous"
@@ -175,7 +175,7 @@
     "value":655.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7758,
     "page_confidence":"high"
@@ -195,7 +195,7 @@
     "value":709.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7758,
     "page_confidence":"high"
@@ -215,7 +215,7 @@
     "value":301.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7758,
     "page_confidence":"high"
@@ -235,7 +235,7 @@
     "value":494.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7818,
     "page_confidence":"high"
@@ -255,7 +255,7 @@
     "value":549.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7818,
     "page_confidence":"high"
@@ -275,7 +275,7 @@
     "value":227.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7818,
     "page_confidence":"high"
@@ -295,7 +295,7 @@
     "value":242.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7787,
     "page_confidence":"high"
@@ -315,7 +315,7 @@
     "value":422.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7787,
     "page_confidence":"high"
@@ -335,7 +335,7 @@
     "value":970.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7787,
     "page_confidence":"high"
@@ -355,7 +355,7 @@
     "value":212.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7905,
     "page_confidence":"high"
@@ -375,7 +375,7 @@
     "value":283.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7905,
     "page_confidence":"high"
@@ -395,7 +395,7 @@
     "value":821.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7905,
     "page_confidence":"high"
@@ -415,7 +415,7 @@
     "value":259.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7773,
     "page_confidence":"high"
@@ -435,7 +435,7 @@
     "value":121.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7773,
     "page_confidence":"high"
@@ -455,7 +455,7 @@
     "value":821.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7773,
     "page_confidence":"high"
@@ -475,7 +475,7 @@
     "value":213.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7891,
     "page_confidence":"high"
@@ -495,7 +495,7 @@
     "value":78.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7891,
     "page_confidence":"high"
@@ -515,7 +515,7 @@
     "value":598.0,
     "units":"mg-n m-2 y-1",
     "page_number":[
-      10
+      9
     ],
     "page_score":0.7891,
     "page_confidence":"high"
@@ -535,7 +535,7 @@
     "value":642.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.794,
     "page_confidence":"high"
@@ -555,7 +555,7 @@
     "value":743.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.794,
     "page_confidence":"high"
@@ -575,8 +575,8 @@
     "value":1276.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.7033,
     "page_confidence":"ambiguous"
@@ -596,7 +596,7 @@
     "value":590.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8147,
     "page_confidence":"high"
@@ -616,7 +616,7 @@
     "value":445.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8147,
     "page_confidence":"high"
@@ -636,8 +636,8 @@
     "value":1190.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.718,
     "page_confidence":"ambiguous"
@@ -657,8 +657,8 @@
     "value":1068.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.7517,
     "page_confidence":"ambiguous"
@@ -678,7 +678,7 @@
     "value":443.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8093,
     "page_confidence":"high"
@@ -698,8 +698,8 @@
     "value":1310.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.6935,
     "page_confidence":"ambiguous"
@@ -719,7 +719,7 @@
     "value":782.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8093,
     "page_confidence":"high"
@@ -739,7 +739,7 @@
     "value":108.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8093,
     "page_confidence":"high"
@@ -759,8 +759,8 @@
     "value":2585.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.7247,
     "page_confidence":"ambiguous"
@@ -780,8 +780,8 @@
     "value":1029.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2,
-      4
+      1,
+      3
     ],
     "page_score":0.7566,
     "page_confidence":"ambiguous"
@@ -801,7 +801,7 @@
     "value":387.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8087,
     "page_confidence":"high"
@@ -821,7 +821,7 @@
     "value":327.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      2
+      1
     ],
     "page_score":0.8087,
     "page_confidence":"high"
@@ -841,7 +841,7 @@
     "value":718.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7725,
     "page_confidence":"high"
@@ -861,7 +861,7 @@
     "value":899.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7725,
     "page_confidence":"high"
@@ -881,7 +881,7 @@
     "value":948.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7725,
     "page_confidence":"high"
@@ -901,7 +901,7 @@
     "value":383.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7687,
     "page_confidence":"high"
@@ -921,7 +921,7 @@
     "value":492.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7687,
     "page_confidence":"high"
@@ -941,7 +941,7 @@
     "value":349.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7687,
     "page_confidence":"high"
@@ -961,7 +961,7 @@
     "value":982.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7687,
     "page_confidence":"high"
@@ -981,7 +981,7 @@
     "value":721.0,
     "units":"ug-n2 m-2 h-1",
     "page_number":[
-      4
+      3
     ],
     "page_score":0.7687,
     "page_confidence":"high"
@@ -1001,7 +1001,7 @@
     "value":9.1,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1021,7 +1021,7 @@
     "value":821.3,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1041,7 +1041,7 @@
     "value":306.9,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1061,7 +1061,7 @@
     "value":148.5,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1081,7 +1081,7 @@
     "value":264.5,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1101,7 +1101,7 @@
     "value":1.0,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1121,7 +1121,7 @@
     "value":25.1,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1141,7 +1141,7 @@
     "value":14.6,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1161,7 +1161,7 @@
     "value":65.5,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1181,7 +1181,7 @@
     "value":170.3,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1201,7 +1201,7 @@
     "value":0.6,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1221,7 +1221,7 @@
     "value":38.2,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1241,7 +1241,7 @@
     "value":19.2,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1261,7 +1261,7 @@
     "value":318.2,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1281,7 +1281,7 @@
     "value":0.1,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1301,7 +1301,7 @@
     "value":2.7,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1321,7 +1321,7 @@
     "value":2.1,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1341,7 +1341,7 @@
     "value":20.2,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1361,7 +1361,7 @@
     "value":1.2,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1381,7 +1381,7 @@
     "value":6.0,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1401,7 +1401,7 @@
     "value":20.9,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1421,7 +1421,7 @@
     "value":25.8,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1441,7 +1441,7 @@
     "value":0.0,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7407,
     "page_confidence":"table-anchored"
@@ -1461,7 +1461,7 @@
     "value":3.3,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1481,7 +1481,7 @@
     "value":2.1,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.7484,
     "page_confidence":"table-anchored"
@@ -1501,7 +1501,7 @@
     "value":7.3,
     "units":"nmol-n2 g-1 h-1",
     "page_number":[
-      12
+      11
     ],
     "page_score":0.745,
     "page_confidence":"table-anchored"
@@ -1521,7 +1521,7 @@
     "value":18.6,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8351,
     "page_confidence":"high"
@@ -1541,7 +1541,7 @@
     "value":13.3,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8351,
     "page_confidence":"high"
@@ -1561,7 +1561,7 @@
     "value":2.9,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.837,
     "page_confidence":"high"
@@ -1581,7 +1581,7 @@
     "value":3.2,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.837,
     "page_confidence":"high"
@@ -1601,7 +1601,7 @@
     "value":78.1,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.837,
     "page_confidence":"high"
@@ -1621,7 +1621,7 @@
     "value":6.2,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8357,
     "page_confidence":"high"
@@ -1641,7 +1641,7 @@
     "value":6.2,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8357,
     "page_confidence":"high"
@@ -1661,7 +1661,7 @@
     "value":14.8,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8357,
     "page_confidence":"high"
@@ -1681,7 +1681,7 @@
     "value":2.1,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8213,
     "page_confidence":"high"
@@ -1701,7 +1701,7 @@
     "value":2.3,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8213,
     "page_confidence":"high"
@@ -1721,7 +1721,7 @@
     "value":5.6,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8213,
     "page_confidence":"high"
@@ -1741,7 +1741,7 @@
     "value":2.3,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1761,7 +1761,7 @@
     "value":2.6,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1781,7 +1781,7 @@
     "value":3.0,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1801,7 +1801,7 @@
     "value":1.9,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1821,7 +1821,7 @@
     "value":1.5,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1841,7 +1841,7 @@
     "value":1.5,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      21
+      20
     ],
     "page_score":0.8334,
     "page_confidence":"high"
@@ -1861,7 +1861,7 @@
     "value":112.8,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8195,
     "page_confidence":"high"
@@ -1881,7 +1881,7 @@
     "value":82.8,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8195,
     "page_confidence":"high"
@@ -1901,7 +1901,7 @@
     "value":93.5,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8316,
     "page_confidence":"high"
@@ -1921,7 +1921,7 @@
     "value":62.7,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8316,
     "page_confidence":"high"
@@ -1941,7 +1941,7 @@
     "value":69.7,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8316,
     "page_confidence":"high"
@@ -1961,7 +1961,7 @@
     "value":14.98,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7648,
     "page_confidence":"high"
@@ -1981,7 +1981,7 @@
     "value":42.62,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7648,
     "page_confidence":"high"
@@ -2001,7 +2001,7 @@
     "value":45.42,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7648,
     "page_confidence":"high"
@@ -2021,7 +2021,7 @@
     "value":34.68,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7648,
     "page_confidence":"high"
@@ -2041,7 +2041,7 @@
     "value":24.54,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7648,
     "page_confidence":"high"
@@ -2061,7 +2061,7 @@
     "value":7.26,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2081,7 +2081,7 @@
     "value":15.56,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2101,7 +2101,7 @@
     "value":47.58,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2121,7 +2121,7 @@
     "value":46.53,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2141,7 +2141,7 @@
     "value":26.76,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2161,7 +2161,7 @@
     "value":19.53,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7703,
     "page_confidence":"high"
@@ -2181,7 +2181,7 @@
     "value":33.03,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2201,7 +2201,7 @@
     "value":118.93,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2221,7 +2221,7 @@
     "value":70.25,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2241,7 +2241,7 @@
     "value":33.99,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2261,7 +2261,7 @@
     "value":61.48,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2281,7 +2281,7 @@
     "value":24.67,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7791,
     "page_confidence":"high"
@@ -2301,7 +2301,7 @@
     "value":105.52,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7654,
     "page_confidence":"high"
@@ -2321,7 +2321,7 @@
     "value":96.24,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7654,
     "page_confidence":"high"
@@ -2341,7 +2341,7 @@
     "value":118.07,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7654,
     "page_confidence":"high"
@@ -2361,7 +2361,7 @@
     "value":251.73,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7654,
     "page_confidence":"high"
@@ -2381,7 +2381,7 @@
     "value":2.96,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7724,
     "page_confidence":"high"
@@ -2401,7 +2401,7 @@
     "value":44.33,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7724,
     "page_confidence":"high"
@@ -2421,7 +2421,7 @@
     "value":77.03,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7724,
     "page_confidence":"high"
@@ -2441,7 +2441,7 @@
     "value":223.76,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7724,
     "page_confidence":"high"
@@ -2461,7 +2461,7 @@
     "value":251.76,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7724,
     "page_confidence":"high"
@@ -2481,7 +2481,7 @@
     "value":7.49,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7815,
     "page_confidence":"high"
@@ -2501,7 +2501,7 @@
     "value":104.29,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7815,
     "page_confidence":"high"
@@ -2521,7 +2521,7 @@
     "value":161.91,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7815,
     "page_confidence":"high"
@@ -2541,7 +2541,7 @@
     "value":177.42,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7815,
     "page_confidence":"high"
@@ -2561,7 +2561,7 @@
     "value":73.68,
     "units":"nmol-c2h4 m-2 h-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7815,
     "page_confidence":"high"
@@ -2581,7 +2581,7 @@
     "value":26.9,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2601,7 +2601,7 @@
     "value":9.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2621,7 +2621,7 @@
     "value":6.4,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2641,8 +2641,8 @@
     "value":5.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7359,
     "page_confidence":"ambiguous"
@@ -2662,7 +2662,7 @@
     "value":2.6,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2682,7 +2682,7 @@
     "value":1.8,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2702,7 +2702,7 @@
     "value":9.9,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2722,7 +2722,7 @@
     "value":8.6,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2742,7 +2742,7 @@
     "value":6.7,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2762,7 +2762,7 @@
     "value":4.8,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2782,7 +2782,7 @@
     "value":0.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2802,7 +2802,7 @@
     "value":1.6,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2822,7 +2822,7 @@
     "value":2.2,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2842,7 +2842,7 @@
     "value":2.2,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2862,7 +2862,7 @@
     "value":0.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2882,7 +2882,7 @@
     "value":46.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2902,7 +2902,7 @@
     "value":22.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2922,7 +2922,7 @@
     "value":17.5,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2942,7 +2942,7 @@
     "value":13.6,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2962,7 +2962,7 @@
     "value":12.1,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -2982,7 +2982,7 @@
     "value":24.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3002,7 +3002,7 @@
     "value":18.4,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3022,7 +3022,7 @@
     "value":17.5,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3042,7 +3042,7 @@
     "value":13.3,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3062,7 +3062,7 @@
     "value":9.8,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3082,7 +3082,7 @@
     "value":0.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3102,7 +3102,7 @@
     "value":2.1,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3122,7 +3122,7 @@
     "value":2.9,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3142,7 +3142,7 @@
     "value":4.9,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3162,8 +3162,8 @@
     "value":4.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7294,
     "page_confidence":"ambiguous"
@@ -3183,7 +3183,7 @@
     "value":33.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3203,7 +3203,7 @@
     "value":31.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3223,7 +3223,7 @@
     "value":14.0,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3243,7 +3243,7 @@
     "value":5.1,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3263,7 +3263,7 @@
     "value":1.4,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3283,7 +3283,7 @@
     "value":0.3,
     "units":"umol-c2h4 m-2 h-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7282,
     "page_confidence":"high"
@@ -3303,7 +3303,7 @@
     "value":35.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"high"
@@ -3323,8 +3323,8 @@
     "value":6.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"ambiguous"
@@ -3344,8 +3344,8 @@
     "value":0.9,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"ambiguous"
@@ -3365,7 +3365,7 @@
     "value":8.7,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"high"
@@ -3385,7 +3385,7 @@
     "value":81.9,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8351,
     "page_confidence":"high"
@@ -3405,7 +3405,7 @@
     "value":63.3,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8351,
     "page_confidence":"high"
@@ -3425,7 +3425,7 @@
     "value":9.2,
     "units":"fmol-n g-1 h-1",
     "page_number":[
-      22
+      21
     ],
     "page_score":0.8352,
     "page_confidence":"high"
@@ -3445,7 +3445,7 @@
     "value":61.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"high"
@@ -3465,7 +3465,7 @@
     "value":8.5,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7688,
     "page_confidence":"high"
@@ -3485,7 +3485,7 @@
     "value":59.0,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3505,7 +3505,7 @@
     "value":57.4,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3525,7 +3525,7 @@
     "value":318.5,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3545,7 +3545,7 @@
     "value":80.8,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3565,7 +3565,7 @@
     "value":32.0,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3585,7 +3585,7 @@
     "value":117.7,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3605,7 +3605,7 @@
     "value":100.4,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3625,7 +3625,7 @@
     "value":26.7,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3645,7 +3645,7 @@
     "value":11.4,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3665,7 +3665,7 @@
     "value":91.8,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3685,7 +3685,7 @@
     "value":112.1,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3705,7 +3705,7 @@
     "value":122.3,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3725,7 +3725,7 @@
     "value":10.6,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3745,7 +3745,7 @@
     "value":263.3,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3765,7 +3765,7 @@
     "value":12.0,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3785,7 +3785,7 @@
     "value":35.4,
     "units":"nmol-c2h4 g-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -3805,7 +3805,7 @@
     "value":205.5,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3825,7 +3825,7 @@
     "value":98.9,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3845,7 +3845,7 @@
     "value":30.7,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3865,7 +3865,7 @@
     "value":130.9,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3885,7 +3885,7 @@
     "value":571.8,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3905,7 +3905,7 @@
     "value":798.1,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3925,7 +3925,7 @@
     "value":1000.8,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3945,7 +3945,7 @@
     "value":37.1,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3965,7 +3965,7 @@
     "value":54.7,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8126,
     "page_confidence":"table-anchored"
@@ -3985,7 +3985,7 @@
     "value":286.0,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4005,7 +4005,7 @@
     "value":490.0,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4025,7 +4025,7 @@
     "value":433.5,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4045,7 +4045,7 @@
     "value":35.5,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4065,7 +4065,7 @@
     "value":392.7,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4085,7 +4085,7 @@
     "value":58.8,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4105,7 +4105,7 @@
     "value":126.3,
     "units":"nmol-c2h4 m-2 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.8146,
     "page_confidence":"table-anchored"
@@ -4125,8 +4125,8 @@
     "value":3.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      8
+      2,
+      7
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4146,15 +4146,15 @@
     "value":2.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14,
-      15
+      11,
+      13,
+      14
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4174,7 +4174,7 @@
     "value":12.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7946,
     "page_confidence":"high"
@@ -4194,8 +4194,8 @@
     "value":19.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      7
+      2,
+      6
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4215,7 +4215,7 @@
     "value":10.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7961,
     "page_confidence":"high"
@@ -4235,7 +4235,7 @@
     "value":11.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7961,
     "page_confidence":"high"
@@ -4255,11 +4255,11 @@
     "value":17.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4279,8 +4279,8 @@
     "value":22.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      9
+      2,
+      8
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4300,7 +4300,7 @@
     "value":24.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7989,
     "page_confidence":"high"
@@ -4320,10 +4320,10 @@
     "value":30.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
-      6,
-      8
+      7
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4343,7 +4343,7 @@
     "value":35.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7961,
     "page_confidence":"high"
@@ -4363,8 +4363,8 @@
     "value":39.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      12
+      2,
+      11
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4384,7 +4384,7 @@
     "value":23.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3
+      2
     ],
     "page_score":0.7961,
     "page_confidence":"high"
@@ -4404,9 +4404,9 @@
     "value":3.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
-      7
+      2,
+      4,
+      6
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4426,10 +4426,10 @@
     "value":4.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7664,
     "page_confidence":"ambiguous"
@@ -4449,9 +4449,9 @@
     "value":2.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
-      9
+      2,
+      4,
+      8
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4471,10 +4471,10 @@
     "value":1.4,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7674,
     "page_confidence":"ambiguous"
@@ -4494,13 +4494,13 @@
     "value":1.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12
+      11
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4520,8 +4520,8 @@
     "value":1.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      7
+      4,
+      6
     ],
     "page_score":0.7798,
     "page_confidence":"ambiguous"
@@ -4541,7 +4541,7 @@
     "value":4.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -4561,9 +4561,9 @@
     "value":3.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      9,
-      14
+      4,
+      8,
+      13
     ],
     "page_score":0.7655,
     "page_confidence":"ambiguous"
@@ -4583,14 +4583,14 @@
     "value":5.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14
+      11,
+      13
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4610,9 +4610,9 @@
     "value":4.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8
+      7
     ],
     "page_score":0.7685,
     "page_confidence":"ambiguous"
@@ -4632,7 +4632,7 @@
     "value":3.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -4652,8 +4652,8 @@
     "value":2.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.756,
     "page_confidence":"ambiguous"
@@ -4673,8 +4673,8 @@
     "value":8.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.756,
     "page_confidence":"ambiguous"
@@ -4694,10 +4694,10 @@
     "value":2.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7664,
     "page_confidence":"ambiguous"
@@ -4717,9 +4717,9 @@
     "value":3.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
-      7
+      2,
+      4,
+      6
     ],
     "page_score":0.7961,
     "page_confidence":"ambiguous"
@@ -4739,11 +4739,11 @@
     "value":5.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      15
+      14
     ],
     "page_score":0.7911,
     "page_confidence":"ambiguous"
@@ -4763,9 +4763,9 @@
     "value":2.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7848,
     "page_confidence":"ambiguous"
@@ -4785,8 +4785,8 @@
     "value":8.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      8
+      5,
+      7
     ],
     "page_score":0.769,
     "page_confidence":"ambiguous"
@@ -4806,7 +4806,7 @@
     "value":15.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7715,
     "page_confidence":"high"
@@ -4826,11 +4826,11 @@
     "value":17.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7974,
     "page_confidence":"ambiguous"
@@ -4850,8 +4850,8 @@
     "value":20.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      9
+      5,
+      8
     ],
     "page_score":0.7702,
     "page_confidence":"ambiguous"
@@ -4871,7 +4871,7 @@
     "value":6.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6
+      5
     ],
     "page_score":0.7715,
     "page_confidence":"high"
@@ -4891,13 +4891,13 @@
     "value":4.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
-      8,
-      12,
-      14
+      11,
+      13
     ],
     "page_score":0.7929,
     "page_confidence":"ambiguous"
@@ -4917,8 +4917,8 @@
     "value":7.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      6
+      2,
+      5
     ],
     "page_score":0.7934,
     "page_confidence":"ambiguous"
@@ -4938,15 +4938,15 @@
     "value":2.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14,
-      15
+      11,
+      13,
+      14
     ],
     "page_score":0.7933,
     "page_confidence":"ambiguous"
@@ -4966,11 +4966,11 @@
     "value":2.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7946,
     "page_confidence":"ambiguous"
@@ -4990,10 +4990,10 @@
     "value":1.4,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.769,
     "page_confidence":"ambiguous"
@@ -5013,10 +5013,10 @@
     "value":1.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.769,
     "page_confidence":"ambiguous"
@@ -5036,10 +5036,10 @@
     "value":4.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7715,
     "page_confidence":"ambiguous"
@@ -5059,10 +5059,10 @@
     "value":4.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
+      5,
+      7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.769,
     "page_confidence":"ambiguous"
@@ -5082,10 +5082,10 @@
     "value":4.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7715,
     "page_confidence":"ambiguous"
@@ -5105,9 +5105,9 @@
     "value":11.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -5127,7 +5127,7 @@
     "value":4.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      7
+      6
     ],
     "page_score":0.7848,
     "page_confidence":"high"
@@ -5147,9 +5147,9 @@
     "value":4.4,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -5169,8 +5169,8 @@
     "value":13.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      7,
-      9
+      6,
+      8
     ],
     "page_score":0.785,
     "page_confidence":"ambiguous"
@@ -5190,8 +5190,8 @@
     "value":6.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      7
+      5,
+      6
     ],
     "page_score":0.7833,
     "page_confidence":"ambiguous"
@@ -5211,8 +5211,8 @@
     "value":10.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      7,
-      9
+      6,
+      8
     ],
     "page_score":0.7837,
     "page_confidence":"ambiguous"
@@ -5232,11 +5232,11 @@
     "value":5.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      15
+      14
     ],
     "page_score":0.7933,
     "page_confidence":"ambiguous"
@@ -5256,9 +5256,9 @@
     "value":1.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.785,
     "page_confidence":"ambiguous"
@@ -5278,9 +5278,9 @@
     "value":7.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      7,
-      9
+      2,
+      6,
+      8
     ],
     "page_score":0.7934,
     "page_confidence":"ambiguous"
@@ -5300,10 +5300,10 @@
     "value":1.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7929,
     "page_confidence":"ambiguous"
@@ -5323,13 +5323,13 @@
     "value":1.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12
+      11
     ],
     "page_score":0.7946,
     "page_confidence":"ambiguous"
@@ -5349,9 +5349,9 @@
     "value":0.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -5371,12 +5371,12 @@
     "value":0.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7907,
     "page_confidence":"ambiguous"
@@ -5396,11 +5396,11 @@
     "value":0.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
+      2,
+      4,
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7929,
     "page_confidence":"ambiguous"
@@ -5420,9 +5420,9 @@
     "value":2.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -5442,9 +5442,9 @@
     "value":1.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.785,
     "page_confidence":"ambiguous"
@@ -5464,9 +5464,9 @@
     "value":1.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      8,
-      9
+      5,
+      7,
+      8
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -5486,7 +5486,7 @@
     "value":9.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -5506,8 +5506,8 @@
     "value":2.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7579,
     "page_confidence":"ambiguous"
@@ -5527,8 +5527,8 @@
     "value":21.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.756,
     "page_confidence":"ambiguous"
@@ -5548,7 +5548,7 @@
     "value":11.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7585,
     "page_confidence":"high"
@@ -5568,8 +5568,8 @@
     "value":8.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      8
+      5,
+      7
     ],
     "page_score":0.7709,
     "page_confidence":"ambiguous"
@@ -5589,11 +5589,11 @@
     "value":1.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.7808,
     "page_confidence":"ambiguous"
@@ -5613,7 +5613,7 @@
     "value":5.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -5633,9 +5633,9 @@
     "value":25.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      8,
-      9
+      2,
+      7,
+      8
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -5655,7 +5655,7 @@
     "value":49.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -5675,11 +5675,11 @@
     "value":2.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -5699,10 +5699,10 @@
     "value":2.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -5722,13 +5722,13 @@
     "value":3.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
-      8,
-      12,
-      14
+      11,
+      13
     ],
     "page_score":0.7872,
     "page_confidence":"ambiguous"
@@ -5748,9 +5748,9 @@
     "value":1.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -5770,9 +5770,9 @@
     "value":9.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8,
-      9
+      4,
+      7,
+      8
     ],
     "page_score":0.7634,
     "page_confidence":"ambiguous"
@@ -5792,10 +5792,10 @@
     "value":4.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
+      5,
+      7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -5815,8 +5815,8 @@
     "value":28.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"ambiguous"
@@ -5836,11 +5836,11 @@
     "value":5.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      15
+      14
     ],
     "page_score":0.7848,
     "page_confidence":"ambiguous"
@@ -5860,8 +5860,8 @@
     "value":3.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      8
+      2,
+      7
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -5881,10 +5881,10 @@
     "value":7.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
-      8,
-      15
+      14
     ],
     "page_score":0.7839,
     "page_confidence":"ambiguous"
@@ -5904,7 +5904,7 @@
     "value":10.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -5924,10 +5924,10 @@
     "value":4.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -5947,8 +5947,8 @@
     "value":2.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7606,
     "page_confidence":"ambiguous"
@@ -5968,9 +5968,9 @@
     "value":4.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8
+      7
     ],
     "page_score":0.7709,
     "page_confidence":"ambiguous"
@@ -5990,8 +5990,8 @@
     "value":3.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8,
-      14
+      7,
+      13
     ],
     "page_score":0.756,
     "page_confidence":"ambiguous"
@@ -6011,10 +6011,10 @@
     "value":1.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -6034,8 +6034,8 @@
     "value":7.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      8
+      5,
+      7
     ],
     "page_score":0.7709,
     "page_confidence":"ambiguous"
@@ -6055,8 +6055,8 @@
     "value":2.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8
+      4,
+      7
     ],
     "page_score":0.7646,
     "page_confidence":"ambiguous"
@@ -6076,7 +6076,7 @@
     "value":22.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.756,
     "page_confidence":"high"
@@ -6096,10 +6096,10 @@
     "value":18.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -6119,9 +6119,9 @@
     "value":1.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      8,
-      9
+      5,
+      7,
+      8
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -6141,9 +6141,9 @@
     "value":1.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -6163,13 +6163,13 @@
     "value":1.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12
+      11
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -6189,10 +6189,10 @@
     "value":1.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7915,
     "page_confidence":"ambiguous"
@@ -6212,8 +6212,8 @@
     "value":20.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
-      9
+      5,
+      8
     ],
     "page_score":0.773,
     "page_confidence":"ambiguous"
@@ -6233,9 +6233,9 @@
     "value":2.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7798,
     "page_confidence":"ambiguous"
@@ -6255,7 +6255,7 @@
     "value":2.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"high"
@@ -6275,9 +6275,9 @@
     "value":0.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7808,
     "page_confidence":"ambiguous"
@@ -6297,10 +6297,10 @@
     "value":1.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7789,
     "page_confidence":"ambiguous"
@@ -6320,8 +6320,8 @@
     "value":10.9,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      7,
-      9
+      6,
+      8
     ],
     "page_score":0.7825,
     "page_confidence":"ambiguous"
@@ -6341,9 +6341,9 @@
     "value":9.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      8,
-      9
+      4,
+      7,
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"ambiguous"
@@ -6363,9 +6363,9 @@
     "value":1.8,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      6,
       7,
-      8,
-      9
+      8
     ],
     "page_score":0.7798,
     "page_confidence":"ambiguous"
@@ -6385,9 +6385,9 @@
     "value":2.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
-      9
+      2,
+      4,
+      8
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -6407,15 +6407,15 @@
     "value":2.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14,
-      15
+      11,
+      13,
+      14
     ],
     "page_score":0.7876,
     "page_confidence":"ambiguous"
@@ -6435,7 +6435,7 @@
     "value":2.4,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"high"
@@ -6455,11 +6455,11 @@
     "value":1.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.782,
     "page_confidence":"ambiguous"
@@ -6479,12 +6479,12 @@
     "value":0.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
-      6,
+      7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.7862,
     "page_confidence":"ambiguous"
@@ -6504,7 +6504,7 @@
     "value":5.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"high"
@@ -6524,9 +6524,9 @@
     "value":2.1,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
-      5,
-      9
+      2,
+      4,
+      8
     ],
     "page_score":0.7872,
     "page_confidence":"ambiguous"
@@ -6546,10 +6546,10 @@
     "value":4.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      6,
+      5,
+      7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.7736,
     "page_confidence":"ambiguous"
@@ -6569,8 +6569,8 @@
     "value":4.7,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"ambiguous"
@@ -6590,7 +6590,7 @@
     "value":12.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      9
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"high"
@@ -6610,11 +6610,11 @@
     "value":5.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      15
+      14
     ],
     "page_score":0.7866,
     "page_confidence":"ambiguous"
@@ -6634,11 +6634,11 @@
     "value":1.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      5,
       6,
       7,
       8,
-      9,
-      14
+      13
     ],
     "page_score":0.7798,
     "page_confidence":"ambiguous"
@@ -6658,14 +6658,14 @@
     "value":5.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14
+      11,
+      13
     ],
     "page_score":0.7835,
     "page_confidence":"ambiguous"
@@ -6685,13 +6685,13 @@
     "value":1.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12
+      11
     ],
     "page_score":0.7862,
     "page_confidence":"ambiguous"
@@ -6711,9 +6711,9 @@
     "value":3.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5,
-      9,
-      14
+      4,
+      8,
+      13
     ],
     "page_score":0.7609,
     "page_confidence":"ambiguous"
@@ -6733,14 +6733,14 @@
     "value":5.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14
+      11,
+      13
     ],
     "page_score":0.7889,
     "page_confidence":"ambiguous"
@@ -6760,10 +6760,10 @@
     "value":1.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
+      4,
       5,
-      6,
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7747,
     "page_confidence":"ambiguous"
@@ -6783,15 +6783,15 @@
     "value":2.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      3,
+      2,
+      4,
       5,
       6,
       7,
       8,
-      9,
-      12,
-      14,
-      15
+      11,
+      13,
+      14
     ],
     "page_score":0.7862,
     "page_confidence":"ambiguous"
@@ -6811,8 +6811,8 @@
     "value":3.3,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      8,
-      9
+      7,
+      8
     ],
     "page_score":0.7609,
     "page_confidence":"ambiguous"
@@ -6832,7 +6832,7 @@
     "value":0.37,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8528,
     "page_confidence":"table-anchored"
@@ -6852,7 +6852,7 @@
     "value":0.23,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -6872,7 +6872,7 @@
     "value":6.03,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -6892,7 +6892,7 @@
     "value":0.2,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -6912,7 +6912,7 @@
     "value":1.49,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8545,
     "page_confidence":"table-anchored"
@@ -6932,7 +6932,7 @@
     "value":0.79,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -6952,7 +6952,7 @@
     "value":3.88,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -6972,7 +6972,7 @@
     "value":2.93,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -6992,7 +6992,7 @@
     "value":9.02,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7012,7 +7012,7 @@
     "value":3.66,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7032,7 +7032,7 @@
     "value":6.93,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7052,7 +7052,7 @@
     "value":0.56,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7072,7 +7072,7 @@
     "value":0.54,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7092,7 +7092,7 @@
     "value":3.89,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7112,7 +7112,7 @@
     "value":0.47,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7132,7 +7132,7 @@
     "value":0.63,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7152,7 +7152,7 @@
     "value":0.51,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7172,7 +7172,7 @@
     "value":0.04,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7192,7 +7192,7 @@
     "value":0.29,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7212,7 +7212,7 @@
     "value":3.51,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -7232,7 +7232,7 @@
     "value":0.32,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7252,7 +7252,7 @@
     "value":0.38,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8545,
     "page_confidence":"table-anchored"
@@ -7272,7 +7272,7 @@
     "value":0.69,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7292,7 +7292,7 @@
     "value":3.85,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7312,7 +7312,7 @@
     "value":2.57,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7332,7 +7332,7 @@
     "value":3.31,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7352,7 +7352,7 @@
     "value":5.15,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7372,7 +7372,7 @@
     "value":1.28,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7392,7 +7392,7 @@
     "value":0.83,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7412,7 +7412,7 @@
     "value":0.38,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7432,7 +7432,7 @@
     "value":5.73,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7452,7 +7452,7 @@
     "value":0.52,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7472,7 +7472,7 @@
     "value":0.57,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7492,7 +7492,7 @@
     "value":0.51,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7512,7 +7512,7 @@
     "value":0.73,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7532,7 +7532,7 @@
     "value":0.12,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8526,
     "page_confidence":"table-anchored"
@@ -7552,7 +7552,7 @@
     "value":0.99,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7572,7 +7572,7 @@
     "value":0.23,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7592,7 +7592,7 @@
     "value":0.65,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7612,7 +7612,7 @@
     "value":1.31,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7632,7 +7632,7 @@
     "value":4.29,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7652,7 +7652,7 @@
     "value":7.98,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7672,7 +7672,7 @@
     "value":0.17,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8247,
     "page_confidence":"table-anchored"
@@ -7692,7 +7692,7 @@
     "value":1.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7712,7 +7712,7 @@
     "value":1.39,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7732,7 +7732,7 @@
     "value":1.08,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -7752,7 +7752,7 @@
     "value":2.56,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7772,7 +7772,7 @@
     "value":0.03,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7792,7 +7792,7 @@
     "value":0.54,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7812,7 +7812,7 @@
     "value":7.41,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8341,
     "page_confidence":"table-anchored"
@@ -7832,7 +7832,7 @@
     "value":0.07,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -7852,7 +7852,7 @@
     "value":5.5,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8374,
     "page_confidence":"table-anchored"
@@ -7872,7 +7872,7 @@
     "value":7.26,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8429,
     "page_confidence":"table-anchored"
@@ -7892,7 +7892,7 @@
     "value":5.27,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.851,
     "page_confidence":"table-anchored"
@@ -7912,7 +7912,7 @@
     "value":1.25,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8484,
     "page_confidence":"table-anchored"
@@ -7932,7 +7932,7 @@
     "value":2.13,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8436,
     "page_confidence":"table-anchored"
@@ -7952,7 +7952,7 @@
     "value":2.91,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7826,
     "page_confidence":"table-anchored"
@@ -7972,7 +7972,7 @@
     "value":0.43,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -7992,7 +7992,7 @@
     "value":8.55,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8421,
     "page_confidence":"table-anchored"
@@ -8012,7 +8012,7 @@
     "value":7.53,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7634,
     "page_confidence":"table-anchored"
@@ -8032,7 +8032,7 @@
     "value":0.41,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -8052,7 +8052,7 @@
     "value":0.02,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8499,
     "page_confidence":"table-anchored"
@@ -8072,7 +8072,7 @@
     "value":2.13,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8436,
     "page_confidence":"table-anchored"
@@ -8092,7 +8092,7 @@
     "value":2.34,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8423,
     "page_confidence":"table-anchored"
@@ -8112,7 +8112,7 @@
     "value":4.39,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8462,
     "page_confidence":"table-anchored"
@@ -8132,7 +8132,7 @@
     "value":69.0,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7901,
     "page_confidence":"table-anchored"
@@ -8152,7 +8152,7 @@
     "value":5.61,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8377,
     "page_confidence":"table-anchored"
@@ -8172,7 +8172,7 @@
     "value":1.74,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8458,
     "page_confidence":"table-anchored"
@@ -8192,7 +8192,7 @@
     "value":0.77,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8441,
     "page_confidence":"table-anchored"
@@ -8212,7 +8212,7 @@
     "value":0.52,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7871,
     "page_confidence":"table-anchored"
@@ -8232,7 +8232,7 @@
     "value":3.89,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7857,
     "page_confidence":"table-anchored"
@@ -8252,7 +8252,7 @@
     "value":0.49,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -8272,7 +8272,7 @@
     "value":13.6,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8369,
     "page_confidence":"table-anchored"
@@ -8292,7 +8292,7 @@
     "value":6.87,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.7811,
     "page_confidence":"table-anchored"
@@ -8312,7 +8312,7 @@
     "value":0.27,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8472,
     "page_confidence":"table-anchored"
@@ -8332,7 +8332,7 @@
     "value":1.85,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8352,7 +8352,7 @@
     "value":1.4,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8372,7 +8372,7 @@
     "value":0.97,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8392,7 +8392,7 @@
     "value":1.53,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8412,7 +8412,7 @@
     "value":2.09,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8432,7 +8432,7 @@
     "value":0.37,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8452,7 +8452,7 @@
     "value":0.23,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8472,7 +8472,7 @@
     "value":1.45,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8492,7 +8492,7 @@
     "value":0.92,
     "units":"nmol-n l-1 d-1",
     "page_number":[
-      5
+      4
     ],
     "page_score":0.8513,
     "page_confidence":"table-anchored"
@@ -8512,7 +8512,7 @@
     "value":78.49,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7492,
     "page_confidence":"table-anchored"
@@ -8532,7 +8532,7 @@
     "value":41.37,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7405,
     "page_confidence":"table-anchored"
@@ -8552,7 +8552,7 @@
     "value":253.14,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7357,
     "page_confidence":"table-anchored"
@@ -8572,7 +8572,7 @@
     "value":1.217,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6967,
     "page_confidence":"table-anchored"
@@ -8592,7 +8592,7 @@
     "value":1.825,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7257,
     "page_confidence":"table-anchored"
@@ -8612,7 +8612,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7655,
     "page_confidence":"table-anchored"
@@ -8632,7 +8632,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7655,
     "page_confidence":"table-anchored"
@@ -8652,7 +8652,7 @@
     "value":1.83,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7269,
     "page_confidence":"table-anchored"
@@ -8672,7 +8672,7 @@
     "value":2.43,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6972,
     "page_confidence":"table-anchored"
@@ -8692,7 +8692,7 @@
     "value":52.65,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7625,
     "page_confidence":"table-anchored"
@@ -8712,7 +8712,7 @@
     "value":12.24,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7568,
     "page_confidence":"table-anchored"
@@ -8732,7 +8732,7 @@
     "value":46.53,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7426,
     "page_confidence":"table-anchored"
@@ -8752,7 +8752,7 @@
     "value":4.28,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7376,
     "page_confidence":"table-anchored"
@@ -8772,7 +8772,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7655,
     "page_confidence":"table-anchored"
@@ -8792,7 +8792,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7655,
     "page_confidence":"table-anchored"
@@ -8812,7 +8812,7 @@
     "value":1.22,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6961,
     "page_confidence":"table-anchored"
@@ -8832,7 +8832,7 @@
     "value":1.22,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6961,
     "page_confidence":"table-anchored"
@@ -8852,7 +8852,7 @@
     "value":0.504,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.5354,
     "page_confidence":"table-anchored"
@@ -8872,7 +8872,7 @@
     "value":0.443,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.5336,
     "page_confidence":"table-anchored"
@@ -8892,7 +8892,7 @@
     "value":0.667,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6095,
     "page_confidence":"table-anchored"
@@ -8912,7 +8912,7 @@
     "value":1.42,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6571,
     "page_confidence":"table-anchored"
@@ -8932,7 +8932,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7609,
     "page_confidence":"table-anchored"
@@ -8952,7 +8952,7 @@
     "value":0.0,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7609,
     "page_confidence":"table-anchored"
@@ -8972,7 +8972,7 @@
     "value":4.78,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7331,
     "page_confidence":"table-anchored"
@@ -8992,7 +8992,7 @@
     "value":22.8,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7491,
     "page_confidence":"table-anchored"
@@ -9012,7 +9012,7 @@
     "value":15.37,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7352,
     "page_confidence":"table-anchored"
@@ -9032,7 +9032,7 @@
     "value":35.13,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7389,
     "page_confidence":"table-anchored"
@@ -9052,7 +9052,7 @@
     "value":2.03,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7542,
     "page_confidence":"table-anchored"
@@ -9072,7 +9072,7 @@
     "value":0.721,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.634,
     "page_confidence":"table-anchored"
@@ -9092,7 +9092,7 @@
     "value":1.12,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.7169,
     "page_confidence":"table-anchored"
@@ -9112,7 +9112,7 @@
     "value":1.629,
     "units":"umol-n m-2 h-1",
     "page_number":[
-      8
+      7
     ],
     "page_score":0.6765,
     "page_confidence":"table-anchored"

@@ -68,10 +68,14 @@ def generate_review_csv(dataset: str) -> None:
             "corrected_page":  "",
         })
 
+    df = pd.DataFrame(rows)
+    # Rank each paper by its most urgent row, so all rows from the same paper
+    # are grouped together and appear as early as the paper's best case warrants.
+    paper_min = df.groupby("document_id")["_priority"].transform("min")
     df = (
-        pd.DataFrame(rows)
-        .sort_values("_priority")
-        .drop(columns=["_priority"])
+        df.assign(_paper_priority=paper_min)
+        .sort_values(["_paper_priority", "document_id", "_priority"])
+        .drop(columns=["_priority", "_paper_priority"])
         .reset_index(drop=True)
     )
     df.to_csv(out_path, index=False)

@@ -6,7 +6,7 @@ and returns the most likely page number along with a confidence tier.
 OCR file conventions (both datasets)
 --------------------------------------
 - Pages:  ``<page number="N">`` where N is **0-indexed**.
-  Output page numbers are 1-indexed (N + 1).
+  Output page numbers are 0-indexed (N), matching the OCR tags directly.
 - Tables: ``<table number="N">`` where N is **1-indexed** and matches the
   table numbers cited in ``extraction_location_details`` strings.
 
@@ -106,7 +106,7 @@ def parse_ocr(filepath: str | Path) -> dict:
 
     ``"pages"``
         ``{page_num: {"text": str, "tables": list[int]}}``
-        where ``page_num`` is 1-indexed.
+        where ``page_num`` is 0-indexed, matching the OCR ``<page number="N">`` tags.
 
     ``"table_to_page"``
         ``{table_num: page_num}`` reverse lookup.
@@ -123,8 +123,7 @@ def parse_ocr(filepath: str | Path) -> dict:
     table_cells: dict[int, list[str]] = {}
 
     for m in _PAGE_RE.finditer(text):
-        # OCR uses 0-indexed page numbers; convert to 1-indexed for output
-        page_num = int(m.group(1)) + 1
+        page_num = int(m.group(1))  # 0-indexed, matching OCR <page number="N"> tags
         content = m.group(2)
 
         table_nums: list[int] = []

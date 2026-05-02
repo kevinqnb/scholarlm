@@ -52,8 +52,8 @@ def _extract_page_text(document: str, page_numbers: list[int]) -> str:
 
     Args:
         document: Full raw OCR document text.
-        page_numbers: Page numbers to extract (0-based integer, matching
-            ``page_number`` values stored in ``final.json``).
+        page_numbers: Page numbers to extract (0-indexed, matching the
+            ``<page number="N">`` tags in the OCR document).
 
     Returns:
         Concatenated text of the requested page blocks, or the full document

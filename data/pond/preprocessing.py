@@ -120,6 +120,7 @@ _UNIT_CONVERSION: dict[str, float] = {
 
 # Papers excluded from ground truth (data quality issues).
 _EXCLUDED_FROM_GT: frozenset[str] = frozenset({
+    "analysis_of_biological", # data not found in the paper...
     "bacterioplankton",   # values digitised from figures, not tables
     "summer_assessment",  # data only in supplemental text
 })
