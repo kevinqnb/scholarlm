@@ -384,5 +384,5 @@ CONFIG = DatasetConfig(
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_filter_fields=["location"],
-    ground_truth_file="data/nfix/ground_truth.csv",
+    ground_truth_file="data/nfix/ground_truth.json",
 )

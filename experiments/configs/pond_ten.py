@@ -395,7 +395,7 @@ CONFIG = DatasetConfig(
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_filter_fields=["location"],
-    ground_truth_file="data/pond/ground_truth_ten.csv",
+    ground_truth_file="data/pond/ground_truth_ten.json",
     unit_conversion_table={
         "max_depth":        {"m": 1.0, "cm": 0.01, "feet": 0.3048, "km": 1000.0},
         "surface_area":     {"m^2": 1.0, "km^2": 1e6, "ha": 1e4, "mi^2": 2.59e6, "acres": 4046.86},

@@ -51,7 +51,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 # can participate in majority voting (use --voting-threshold 1 for standalone use).
 # ---------------------------------------------------------------------------
 
-FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini"}
+FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini", "gpt-oss-120b"}
 
 import paths
 
