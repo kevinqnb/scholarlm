@@ -28,11 +28,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -46,11 +45,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -64,11 +62,10 @@
     "value": 1.4,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -82,11 +79,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -100,11 +96,10 @@
     "value": 0.7,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -118,11 +113,10 @@
     "value": 0.7,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -153,11 +147,10 @@
     "value": 0.6,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -171,11 +164,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -189,11 +181,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -207,11 +198,10 @@
     "value": 1.5,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -242,11 +232,10 @@
     "value": 1.3,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -260,11 +249,10 @@
     "value": 0.6,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8755,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -312,11 +300,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -330,11 +317,10 @@
     "value": 0.9,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -348,11 +334,10 @@
     "value": 0.5,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -366,11 +351,10 @@
     "value": 0.9,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8276,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -384,11 +368,10 @@
     "value": 0.5,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8276,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -402,11 +385,10 @@
     "value": 0.7,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8276,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -420,11 +402,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -438,11 +419,10 @@
     "value": 1.5,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -456,11 +436,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -474,11 +453,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -492,11 +470,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8584,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -510,11 +487,10 @@
     "value": 2.0,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -545,11 +521,10 @@
     "value": 1.3,
     "units": "m",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -563,11 +538,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -598,11 +572,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -633,11 +606,10 @@
     "value": 1.3,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8797,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -651,11 +623,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -669,11 +640,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -704,11 +674,10 @@
     "value": 1.4,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -722,11 +691,10 @@
     "value": 0.6,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -808,11 +776,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -843,11 +810,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8284,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -895,12 +861,10 @@
     "value": 3.0,
     "units": "m",
     "page_number": [
-      1,
-      2,
-      4
+      2
     ],
     "page_score": 0.8844,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -999,12 +963,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      1,
-      2,
-      4
+      2
     ],
     "page_score": 0.8844,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -1154,12 +1116,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      1,
-      2,
-      4
+      2
     ],
     "page_score": 0.8844,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -1360,11 +1320,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      5,
-      11
+      5
     ],
     "page_score": 0.8222,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -1480,11 +1439,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      5,
-      11
+      5
     ],
     "page_score": 0.8718,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -1875,7 +1833,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1892,7 +1850,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1909,7 +1867,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1923,10 +1881,10 @@
     "value": 2.1,
     "units": "m",
     "page_number": [
-      4
+      5
     ],
     "page_score": 0.8844,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1943,7 +1901,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1960,7 +1918,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1974,11 +1932,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      4,
-      11
+      5
     ],
     "page_score": 0.8844,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -1995,7 +1952,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2012,7 +1969,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2029,7 +1986,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2046,7 +2003,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2063,7 +2020,7 @@
       5
     ],
     "page_score": 0.7432,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2080,7 +2037,7 @@
       5
     ],
     "page_score": 0.7432,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2097,7 +2054,7 @@
       5
     ],
     "page_score": 0.7432,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2114,7 +2071,7 @@
       5
     ],
     "page_score": 0.7432,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -2131,7 +2088,7 @@
       5
     ],
     "page_score": 0.7945,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "macroinvertebrate_size",
@@ -2397,16 +2354,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "max_depth",
-    "value": 90.0,
+    "value": 9.0,
     "units": "cm",
     "page_number": [
-      1,
-      2,
-      5,
-      10
+      2
     ],
     "page_score": 0.7956,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "macroinvertebrate_size",
@@ -2485,15 +2439,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "max_depth",
-    "value": 32.0,
+    "value": 31.0,
     "units": "cm",
     "page_number": [
-      2,
-      3,
-      9
+      2
     ],
     "page_score": 0.8099,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2524,11 +2476,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8772,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2542,12 +2493,10 @@
     "value": 1.5,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8669,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2561,11 +2510,10 @@
     "value": 1.4,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8772,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2596,12 +2544,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2615,12 +2561,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2634,11 +2578,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2652,11 +2595,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2670,11 +2612,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2688,11 +2629,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2706,13 +2646,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6,
-      11
+      3
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2726,12 +2663,10 @@
     "value": 2.5,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2745,12 +2680,10 @@
     "value": 1.3,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2764,11 +2697,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8772,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2782,11 +2714,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2800,12 +2731,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      11
+      3
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2819,11 +2748,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2837,11 +2765,10 @@
     "value": 1.4,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2855,11 +2782,10 @@
     "value": 1.2,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2873,12 +2799,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2892,11 +2816,10 @@
     "value": 1.1,
     "units": "m",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2910,12 +2833,10 @@
     "value": 0.8,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8669,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -2929,12 +2850,10 @@
     "value": 1.0,
     "units": "m",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8669,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -3186,11 +3105,10 @@
     "value": 0.01,
     "units": "ha",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -4105,12 +4023,10 @@
     "value": 6061.0,
     "units": "m^2",
     "page_number": [
-      0,
-      2,
-      3
+      2
     ],
     "page_score": 0.6923,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4124,14 +4040,10 @@
     "value": 28039.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      11
+      2
     ],
     "page_score": 0.6198,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4145,11 +4057,10 @@
     "value": 2615.0,
     "units": "m^2",
     "page_number": [
-      2,
-      4
+      2
     ],
     "page_score": 0.81,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4163,11 +4074,10 @@
     "value": 4601.0,
     "units": "m^2",
     "page_number": [
-      0,
       2
     ],
     "page_score": 0.7107,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4181,16 +4091,10 @@
     "value": 22719.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      10
+      2
     ],
     "page_score": 0.6183,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4204,15 +4108,10 @@
     "value": 10476.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      11
+      2
     ],
     "page_score": 0.6309,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4226,12 +4125,10 @@
     "value": 6826.0,
     "units": "m^2",
     "page_number": [
-      0,
-      2,
-      11
+      2
     ],
     "page_score": 0.6569,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4245,11 +4142,10 @@
     "value": 5246.0,
     "units": "m^2",
     "page_number": [
-      0,
       2
     ],
     "page_score": 0.7041,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4263,16 +4159,10 @@
     "value": 29082.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      3,
-      4,
-      7,
-      10,
-      11
+      2
     ],
     "page_score": 0.622,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4286,13 +4176,10 @@
     "value": 31249.0,
     "units": "m^2",
     "page_number": [
-      1,
-      2,
-      3,
-      8
+      2
     ],
     "page_score": 0.6391,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4306,14 +4193,10 @@
     "value": 6763.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      4
+      2
     ],
     "page_score": 0.658,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4327,17 +4210,10 @@
     "value": 22876.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      8,
-      10,
-      11
+      2
     ],
     "page_score": 0.5992,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4351,11 +4227,10 @@
     "value": 5028.0,
     "units": "m^2",
     "page_number": [
-      0,
       2
     ],
     "page_score": 0.7285,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4369,11 +4244,10 @@
     "value": 3942.0,
     "units": "m^2",
     "page_number": [
-      0,
       2
     ],
     "page_score": 0.7549,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4404,15 +4278,10 @@
     "value": 15643.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      8,
-      11
+      2
     ],
     "page_score": 0.6213,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4426,18 +4295,10 @@
     "value": 175730.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      7,
-      8,
-      10,
-      11
+      2
     ],
     "page_score": 0.5957,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -4451,14 +4312,10 @@
     "value": 53177.0,
     "units": "m^2",
     "page_number": [
-      0,
-      1,
-      2,
-      3,
-      5
+      2
     ],
     "page_score": 0.6063,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -4894,14 +4751,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "surface_area",
-    "value": 0.661,
+    "value": 0.66,
     "units": "ha",
     "page_number": [
-      7,
-      10
+      7
     ],
     "page_score": 0.9145,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5051,11 +4907,10 @@
     "value": 0.243,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.9034,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5069,11 +4924,10 @@
     "value": 0.081,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.9034,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5087,11 +4941,10 @@
     "value": 0.081,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8933,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5105,11 +4958,10 @@
     "value": 0.162,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8561,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5140,11 +4992,10 @@
     "value": 1.215,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.864,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5192,11 +5043,10 @@
     "value": 0.041,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8718,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5210,11 +5060,10 @@
     "value": 0.081,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8718,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5245,11 +5094,10 @@
     "value": 0.024,
     "units": "ha",
     "page_number": [
-      8,
-      10
+      8
     ],
     "page_score": 0.8775,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5263,11 +5111,10 @@
     "value": 0.203,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8775,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5298,11 +5145,10 @@
     "value": 0.324,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8768,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5333,11 +5179,10 @@
     "value": 0.162,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8733,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5351,11 +5196,10 @@
     "value": 0.081,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.9152,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5369,11 +5213,10 @@
     "value": 0.028,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.864,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -5387,11 +5230,10 @@
     "value": 0.162,
     "units": "ha",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.864,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -5847,11 +5689,10 @@
     "value": 2.0,
     "units": "ha",
     "page_number": [
-      5,
-      9
+      5
     ],
     "page_score": 0.8269,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -5899,11 +5740,10 @@
     "value": 0.4,
     "units": "ha",
     "page_number": [
-      5,
-      9
+      5
     ],
     "page_score": 0.8383,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -6002,11 +5842,10 @@
     "value": 1.6,
     "units": "ha",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.8312,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -6190,11 +6029,10 @@
     "value": 1.0,
     "units": "ha",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.8037,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -6208,11 +6046,10 @@
     "value": 1.0,
     "units": "ha",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.7927,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -6277,11 +6114,10 @@
     "value": 0.0,
     "units": "percent",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8417,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -6312,11 +6148,10 @@
     "value": 0.0,
     "units": "percent",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8417,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -6347,11 +6182,10 @@
     "value": 0.0,
     "units": "percent",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8417,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -6399,11 +6233,10 @@
     "value": 0.0,
     "units": "percent",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8417,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -6655,11 +6488,10 @@
     "value": 0.0,
     "units": "percent",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8417,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -6843,12 +6675,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      4,
-      6,
-      8
+      5
     ],
     "page_score": 0.8575,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -6896,11 +6726,10 @@
     "value": 87.5,
     "units": "percent",
     "page_number": [
-      4,
       6
     ],
     "page_score": 0.8575,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -6914,12 +6743,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      4,
-      6,
-      8
+      5
     ],
     "page_score": 0.8575,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -6933,11 +6760,10 @@
     "value": 87.5,
     "units": "percent",
     "page_number": [
-      4,
       6
     ],
     "page_score": 0.8575,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "macroinvertebrate_size",
@@ -7308,11 +7134,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8509,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7326,11 +7151,10 @@
     "value": 100.0,
     "units": "percent",
     "page_number": [
-      3,
-      6
+      3
     ],
     "page_score": 0.8509,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7344,13 +7168,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      8,
-      11
+      3
     ],
     "page_score": 0.8407,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7364,11 +7185,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8509,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7382,11 +7202,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8509,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7400,11 +7219,10 @@
     "value": 100.0,
     "units": "percent",
     "page_number": [
-      3,
-      6
+      3
     ],
     "page_score": 0.8663,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7418,11 +7236,10 @@
     "value": 100.0,
     "units": "percent",
     "page_number": [
-      3,
-      6
+      3
     ],
     "page_score": 0.8663,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7436,12 +7253,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8578,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7455,12 +7270,10 @@
     "value": 38.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8626,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7474,12 +7287,10 @@
     "value": 38.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8626,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7493,12 +7304,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8626,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7512,11 +7321,10 @@
     "value": 100.0,
     "units": "percent",
     "page_number": [
-      3,
-      6
+      3
     ],
     "page_score": 0.8626,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7530,12 +7338,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      11
+      3
     ],
     "page_score": 0.8578,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7549,13 +7355,10 @@
     "value": 5.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6,
-      11
+      3
     ],
     "page_score": 0.8578,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7569,11 +7372,10 @@
     "value": 50.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8509,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7587,13 +7389,10 @@
     "value": 15.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      8,
-      11
+      3
     ],
     "page_score": 0.8578,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7607,13 +7406,10 @@
     "value": 38.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6,
-      11
+      3
     ],
     "page_score": 0.8578,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7627,11 +7423,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8626,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7679,12 +7474,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8663,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7698,12 +7491,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8663,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7717,12 +7508,10 @@
     "value": 75.0,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6
+      3
     ],
     "page_score": 0.8407,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -7736,11 +7525,10 @@
     "value": 50.0,
     "units": "percent",
     "page_number": [
-      3,
-      5
+      3
     ],
     "page_score": 0.8407,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7751,16 +7539,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 20.05,
+    "value": 21.4,
     "units": "percent",
     "page_number": [
-      6,
-      10,
-      12,
-      13
+      5
     ],
     "page_score": 0.8614,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7771,19 +7556,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 35.75,
+    "value": 46.3,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      6,
-      11,
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8465,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7811,17 +7590,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 7.25,
+    "value": 13.7,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      9,
-      13,
-      14
+      5
     ],
     "page_score": 0.837,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7832,16 +7607,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 18.35,
+    "value": 15.2,
     "units": "percent",
     "page_number": [
-      5,
-      11,
-      12,
-      13
+      5
     ],
     "page_score": 0.8554,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7886,17 +7658,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 7.95,
+    "value": 11.3,
     "units": "percent",
     "page_number": [
-      3,
-      5,
-      11,
-      12,
-      14
+      5
     ],
     "page_score": 0.8324,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7907,16 +7675,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 18.3,
+    "value": 20.6,
     "units": "percent",
     "page_number": [
-      2,
-      11,
-      12,
-      13
+      5
     ],
     "page_score": 0.8501,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7944,14 +7709,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 23.95,
+    "value": 47.9,
     "units": "percent",
     "page_number": [
-      6,
-      11
+      5
     ],
     "page_score": 0.8713,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7962,18 +7726,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 33.25,
+    "value": 44.6,
     "units": "percent",
     "page_number": [
-      4,
-      5,
-      6,
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8545,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -7984,19 +7743,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 18.45,
+    "value": 19.4,
     "units": "percent",
     "page_number": [
-      2,
-      6,
-      9,
-      10,
-      11,
-      12,
-      13
+      5
     ],
     "page_score": 0.8462,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8041,20 +7794,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 3.5,
+    "value": 6.2,
     "units": "percent",
     "page_number": [
-      3,
-      4,
-      5,
-      6,
-      9,
-      11,
-      12,
-      13
+      5
     ],
     "page_score": 0.8027,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8099,18 +7845,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 13.65,
+    "value": 24.4,
     "units": "percent",
     "page_number": [
-      1,
-      2,
-      5,
-      6,
-      13,
-      14
+      5
     ],
     "page_score": 0.8199,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8172,17 +7913,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 45.75,
+    "value": 52.9,
     "units": "percent",
     "page_number": [
-      6,
-      11,
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8507,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8193,17 +7930,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 30.55,
+    "value": 37.3,
     "units": "percent",
     "page_number": [
-      3,
-      6,
-      11,
-      12,
-      13
+      5
     ],
     "page_score": 0.8536,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8214,18 +7947,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 34.6,
+    "value": 64.0,
     "units": "percent",
     "page_number": [
-      5,
-      6,
-      11,
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8496,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8236,15 +7964,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 34.05,
+    "value": 27.4,
     "units": "percent",
     "page_number": [
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8439,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -8255,21 +7981,13 @@
     "date": null,
     "additional_details": null,
     "attribute": "vegetation_cover",
-    "value": 29.7,
+    "value": 6.2,
     "units": "percent",
     "page_number": [
-      0,
-      1,
-      3,
-      4,
-      5,
-      6,
-      12,
-      13,
-      14
+      5
     ],
     "page_score": 0.8599,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8368,11 +8086,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8403,11 +8120,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8755,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8506,11 +8222,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8575,11 +8290,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8593,11 +8307,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8611,11 +8324,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8731,11 +8443,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8766,11 +8477,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8784,11 +8494,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8802,11 +8511,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8820,11 +8528,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8838,11 +8545,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8242,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8856,11 +8562,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8874,11 +8579,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8242,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8892,11 +8596,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.837,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8910,11 +8613,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8928,11 +8630,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8946,11 +8647,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8242,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8964,11 +8664,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -8982,11 +8681,10 @@
     "value": 7.8,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -9051,11 +8749,10 @@
     "value": 7.6,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7729,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -9069,11 +8766,10 @@
     "value": 7.8,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -9087,11 +8783,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7729,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -9105,11 +8800,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -9157,13 +8851,10 @@
     "value": 7.0,
     "units": null,
     "page_number": [
-      1,
-      2,
-      3,
-      4
+      2
     ],
     "page_score": 0.8801,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -9568,12 +9259,10 @@
     "value": 6.0,
     "units": null,
     "page_number": [
-      1,
-      2,
-      4
+      2
     ],
     "page_score": 0.9046,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "environmental_conditions",
@@ -9587,12 +9276,10 @@
     "value": 6.0,
     "units": null,
     "page_number": [
-      1,
-      2,
-      4
+      2
     ],
     "page_score": 0.9046,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -10286,11 +9973,10 @@
     "value": 7.7,
     "units": null,
     "page_number": [
-      4,
-      17
+      4
     ],
     "page_score": 0.8801,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -10321,12 +10007,10 @@
     "value": 7.6,
     "units": null,
     "page_number": [
-      4,
-      6,
-      17
+      4
     ],
     "page_score": 0.8288,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -10340,12 +10024,10 @@
     "value": 7.7,
     "units": null,
     "page_number": [
-      4,
-      6,
-      17
+      4
     ],
     "page_score": 0.8307,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -10359,12 +10041,10 @@
     "value": 7.8,
     "units": null,
     "page_number": [
-      4,
-      6,
-      17
+      4
     ],
     "page_score": 0.8371,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -10854,11 +10534,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      2,
-      8
+      2
     ],
     "page_score": 0.8674,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -10957,11 +10636,10 @@
     "value": 7.7,
     "units": null,
     "page_number": [
-      2,
-      8
+      2
     ],
     "page_score": 0.8794,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -11043,11 +10721,10 @@
     "value": 7.9,
     "units": null,
     "page_number": [
-      2,
-      8
+      2
     ],
     "page_score": 0.8602,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "net_heterotrophy",
@@ -11078,10 +10755,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11095,10 +10772,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11112,11 +10789,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7189,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11130,11 +10806,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7189,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11148,11 +10823,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7873,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11166,10 +10840,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.7964,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11183,10 +10857,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11200,10 +10874,10 @@
     "value": 8.5,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11217,10 +10891,10 @@
     "value": 8.5,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11234,10 +10908,10 @@
     "value": 8.6,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.7964,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11251,11 +10925,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7189,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11269,10 +10942,10 @@
     "value": 8.5,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11286,11 +10959,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7189,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11304,10 +10976,10 @@
     "value": 8.5,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8647,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11321,10 +10993,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11338,10 +11010,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11355,11 +11027,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.8556,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11373,11 +11044,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11391,10 +11061,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11408,10 +11078,10 @@
     "value": 8.0,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11425,10 +11095,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.9331,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11442,10 +11112,10 @@
     "value": 8.4,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11459,10 +11129,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11476,10 +11146,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.9331,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11493,10 +11163,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11510,10 +11180,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11527,10 +11197,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.9331,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11544,11 +11214,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11562,11 +11231,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11580,11 +11248,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11598,10 +11265,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11615,10 +11282,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11632,10 +11299,10 @@
     "value": 8.1,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11649,10 +11316,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11666,11 +11333,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11684,11 +11350,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11702,11 +11367,10 @@
     "value": 8.3,
     "units": null,
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7531,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -11720,10 +11384,10 @@
     "value": 8.2,
     "units": null,
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8305,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -12400,11 +12064,10 @@
     "value": 7.46,
     "units": null,
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.834,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -12554,11 +12217,10 @@
     "value": 6.13,
     "units": null,
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8469,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -12708,11 +12370,10 @@
     "value": 7.57,
     "units": null,
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8772,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -12760,11 +12421,10 @@
     "value": 7.67,
     "units": null,
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8926,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -12795,11 +12455,10 @@
     "value": 7.49,
     "units": null,
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -12813,11 +12472,10 @@
     "value": 7.49,
     "units": null,
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -12882,11 +12540,10 @@
     "value": 7.6,
     "units": null,
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.884,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -14056,11 +13713,10 @@
     "value": 263.0,
     "units": "µg/L",
     "page_number": [
-      6,
-      7
+      6
     ],
     "page_score": 0.7723,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -14465,11 +14121,10 @@
     "value": 0.228,
     "units": "mg/L",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -14585,11 +14240,10 @@
     "value": 0.136,
     "units": "mg/L",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -15062,11 +14716,10 @@
     "value": 0.228,
     "units": "mg/L",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7857,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -15165,11 +14818,10 @@
     "value": 0.292,
     "units": "mg/L",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.7592,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -15319,11 +14971,10 @@
     "value": 0.24,
     "units": "mg/L",
     "page_number": [
-      4,
-      11
+      4
     ],
     "page_score": 0.848,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -16153,11 +15804,10 @@
     "value": 6.5,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.8327,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16171,13 +15821,10 @@
     "value": 4.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9,
-      15,
-      18
+      5
     ],
     "page_score": 0.8561,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16208,11 +15855,10 @@
     "value": 4.8,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.8327,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16226,11 +15872,10 @@
     "value": 5.7,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7643,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16244,10 +15889,10 @@
     "value": 5.8,
     "units": "µg/L",
     "page_number": [
-      4
+      5
     ],
     "page_score": 0.8327,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16295,11 +15940,10 @@
     "value": 16.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.7381,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16398,12 +16042,10 @@
     "value": 14.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6,
-      7
+      5
     ],
     "page_score": 0.7723,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16468,11 +16110,10 @@
     "value": 3.3,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16503,12 +16144,10 @@
     "value": 7.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      5,
-      6
+      5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16522,11 +16161,10 @@
     "value": 64.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.7723,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16540,11 +16178,10 @@
     "value": 4.7,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.9011,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16558,11 +16195,10 @@
     "value": 7.9,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16576,11 +16212,10 @@
     "value": 4.8,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16628,11 +16263,10 @@
     "value": 8.3,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.7723,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16663,11 +16297,10 @@
     "value": 3.2,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16681,11 +16314,10 @@
     "value": 3.7,
     "units": "µg/L",
     "page_number": [
-      4,
       5
     ],
     "page_score": 0.7985,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16716,12 +16348,10 @@
     "value": 14.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6,
-      7
+      5
     ],
     "page_score": 0.7723,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -16738,7 +16368,7 @@
       5
     ],
     "page_score": 0.7723,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -17313,11 +16943,10 @@
     "value": 0.5,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8306,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17331,11 +16960,10 @@
     "value": 0.44,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.838,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17383,12 +17011,10 @@
     "value": 0.66,
     "units": "mg/L",
     "page_number": [
-      7,
-      8,
-      10
+      8
     ],
     "page_score": 0.8246,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17436,11 +17062,10 @@
     "value": 0.6,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8088,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17471,11 +17096,10 @@
     "value": 2.4,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8219,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17489,12 +17113,10 @@
     "value": 1.0,
     "units": "mg/L",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.8219,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17508,12 +17130,10 @@
     "value": 1.0,
     "units": "mg/L",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.8403,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17527,11 +17147,10 @@
     "value": 0.7,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8088,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17545,11 +17164,10 @@
     "value": 1.07,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8088,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17580,11 +17198,10 @@
     "value": 1.0,
     "units": "mg/L",
     "page_number": [
-      6,
       8
     ],
     "page_score": 0.839,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17615,11 +17232,10 @@
     "value": 0.8,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8268,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17650,11 +17266,10 @@
     "value": 6.13,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8219,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17685,11 +17300,10 @@
     "value": 0.9,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.834,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17703,11 +17317,10 @@
     "value": 1.0,
     "units": "mg/L",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.8177,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical-chemical_influences",
@@ -17738,11 +17351,10 @@
     "value": 33.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8259,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17773,13 +17385,10 @@
     "value": 42.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6,
-      8,
-      11
+      5
     ],
     "page_score": 0.8156,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17810,11 +17419,10 @@
     "value": 50.0,
     "units": "µg/L",
     "page_number": [
-      3,
       5
     ],
     "page_score": 0.8259,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17879,11 +17487,10 @@
     "value": 42.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8376,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17897,11 +17504,10 @@
     "value": 42.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8376,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17932,11 +17538,10 @@
     "value": 98.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8376,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -17984,11 +17589,10 @@
     "value": 100.0,
     "units": "µg/L",
     "page_number": [
-      3,
-      6
+      5
     ],
     "page_score": 0.8216,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -18104,11 +17708,10 @@
     "value": 49.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8413,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -18139,11 +17742,10 @@
     "value": 40.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8156,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -18905,11 +18507,10 @@
     "value": 27.0,
     "units": "µg/L",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8114,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -19127,11 +18728,10 @@
     "value": 7.8,
     "units": "µg/L",
     "page_number": [
-      3,
-      4
+      3
     ],
     "page_score": 0.8114,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -19298,11 +18898,10 @@
     "value": 8.3,
     "units": "µg/L",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8114,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -19384,11 +18983,10 @@
     "value": 21.2,
     "units": "µg/L",
     "page_number": [
-      3,
       4
     ],
     "page_score": 0.8114,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "classification_trees",
@@ -20014,11 +19612,10 @@
     "value": 2.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8611,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -20372,11 +19969,10 @@
     "value": 2.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8611,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -20407,11 +20003,10 @@
     "value": 2.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8611,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "habitat_characteristics",
@@ -20476,11 +20071,10 @@
     "value": 113.3,
     "units": "µg/L",
     "page_number": [
-      4,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20494,13 +20088,10 @@
     "value": 80.4,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      8,
-      17
+      4
     ],
     "page_score": 0.8544,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20514,11 +20105,10 @@
     "value": 27.4,
     "units": "µg/L",
     "page_number": [
-      4,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20532,13 +20122,10 @@
     "value": 28.1,
     "units": "µg/L",
     "page_number": [
-      2,
-      4,
-      6,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20586,12 +20173,10 @@
     "value": 156.9,
     "units": "µg/L",
     "page_number": [
-      4,
-      16,
-      17
+      4
     ],
     "page_score": 0.8402,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20639,13 +20224,10 @@
     "value": 11.4,
     "units": "µg/L",
     "page_number": [
-      4,
-      12,
-      14,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20659,12 +20241,10 @@
     "value": 54.3,
     "units": "µg/L",
     "page_number": [
-      4,
-      7,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20678,12 +20258,10 @@
     "value": 41.4,
     "units": "µg/L",
     "page_number": [
-      4,
-      16,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -20697,13 +20275,10 @@
     "value": 50.6,
     "units": "µg/L",
     "page_number": [
-      4,
-      14,
-      16,
-      17
+      4
     ],
     "page_score": 0.8032,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "impact_of_macrophytes",
@@ -21040,12 +20615,10 @@
     "value": 0.9,
     "units": "µg/L",
     "page_number": [
-      4,
-      9,
-      10
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21059,10 +20632,10 @@
     "value": 0.2,
     "units": "µg/L",
     "page_number": [
-      9
+      6
     ],
     "page_score": 0.9091,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21076,11 +20649,10 @@
     "value": 0.8,
     "units": "µg/L",
     "page_number": [
-      4,
-      9
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21094,10 +20666,10 @@
     "value": 1.3,
     "units": "µg/L",
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21111,14 +20683,10 @@
     "value": 1.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9,
-      10,
-      15
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21132,11 +20700,10 @@
     "value": 1.2,
     "units": "µg/L",
     "page_number": [
-      4,
       6
     ],
     "page_score": 0.7899,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21150,10 +20717,10 @@
     "value": 1.1,
     "units": "µg/L",
     "page_number": [
-      4
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "high"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21167,13 +20734,10 @@
     "value": 1.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9,
-      10,
-      15
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21187,13 +20751,10 @@
     "value": 2.0,
     "units": "µg/L",
     "page_number": [
-      9,
-      10,
-      15,
-      18
+      6
     ],
     "page_score": 0.8472,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21207,12 +20768,10 @@
     "value": 0.9,
     "units": "µg/L",
     "page_number": [
-      4,
-      9,
-      10
+      6
     ],
     "page_score": 0.8344,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21226,11 +20785,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      7,
-      9
+      6
     ],
     "page_score": 0.8408,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21244,12 +20802,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21263,11 +20819,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21281,12 +20836,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8583,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21300,12 +20853,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21319,12 +20870,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21338,12 +20887,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.9267,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21357,13 +20904,10 @@
     "value": 0.2,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9,
-      10
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21377,12 +20921,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21396,12 +20938,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21415,11 +20955,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9
+      6
     ],
     "page_score": 0.9267,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21433,13 +20972,10 @@
     "value": 0.3,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9,
-      10
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21453,12 +20989,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21472,12 +21006,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.9267,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21491,12 +21023,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21510,12 +21040,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21529,11 +21057,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9
+      6
     ],
     "page_score": 0.9267,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21547,12 +21074,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21566,11 +21091,10 @@
     "value": 1.1,
     "units": "µg/L",
     "page_number": [
-      4,
       6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21584,12 +21108,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21603,12 +21125,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21622,12 +21142,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21641,11 +21159,10 @@
     "value": 1.1,
     "units": "µg/L",
     "page_number": [
-      4,
       6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21659,13 +21176,10 @@
     "value": 0.2,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9,
-      10
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21679,12 +21193,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21698,12 +21210,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21717,11 +21227,10 @@
     "value": 0.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      9
+      6
     ],
     "page_score": 0.9267,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "physical_and_chemical_limnological",
@@ -21735,14 +21244,10 @@
     "value": 1.0,
     "units": "µg/L",
     "page_number": [
-      4,
-      6,
-      9,
-      10,
-      15
+      6
     ],
     "page_score": 0.8241,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -21790,11 +21295,10 @@
     "value": 7.4,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8413,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -21944,11 +21448,10 @@
     "value": 7.4,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8632,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "prairie_wetland",
@@ -22149,11 +21652,10 @@
     "value": 4.1,
     "units": "µg/L",
     "page_number": [
-      5,
-      6
+      5
     ],
     "page_score": 0.8413,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",
@@ -22558,11 +22060,10 @@
     "value": 8.0,
     "units": "µg/L",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.7607,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "relationships_between_fish",

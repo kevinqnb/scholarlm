@@ -141,7 +141,7 @@ def load_ground_truth(config) -> "pd.DataFrame":
     if path.suffix == ".csv":
         return pd.read_csv(path)
     if path.suffix == ".json":
-        return pd.read_json(path)
+        return pd.read_json(path, orient="records")
     raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
 
 

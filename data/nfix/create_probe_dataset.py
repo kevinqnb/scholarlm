@@ -554,15 +554,20 @@ def main(argv: list[str] | None = None) -> None:
         "--seed", type=int, default=DEFAULT_SEED,
         help=f"Random seed (default: {DEFAULT_SEED})",
     )
+    parser.add_argument(
+        "--reviewed", action="store_true",
+        help="Use ground_truth_review.json instead of ground_truth.json.",
+    )
     args = parser.parse_args(argv)
 
+    gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
     rng = random.Random(args.seed)
     print(f"Seed: {args.seed}")
 
     # Load and convert GT
-    with open(_GT_FILE) as f:
+    with open(gt_file) as f:
         gt_records = json.load(f)
-    print(f"Loaded {len(gt_records):,} GT rows from {_GT_FILE.name}")
+    print(f"Loaded {len(gt_records):,} GT rows from {gt_file.name}")
 
     all_records = build_gt_records(gt_records)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
