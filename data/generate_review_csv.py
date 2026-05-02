@@ -1,5 +1,5 @@
 """
-Generate a prioritized page-review CSV for manual page-number verification.
+Generate a prioritized page-review CSV for manual verification.
 
 Reads ground_truth.json for the specified dataset and writes page_review.csv
 sorted by review priority:
@@ -9,12 +9,22 @@ sorted by review priority:
   4. high confidence, single-page
   5. table-anchored (highest confidence, least likely to need review)
 
-Fill in the ``corrected_page`` column (a single integer) for any rows that
-need correction, then run:
+Correction columns (fill in as needed, then run apply_review.py):
+  corrected_page    – integer or comma-separated list (e.g. "3" or "3, 4")
+  corrected_name    – corrected entity name string
+  corrected_value   – corrected numeric value
+  corrected_units   – corrected units string
+  excluded          – True to drop this record from ground_truth_review.json
+  excluded_reason   – brief note explaining the exclusion
 
-    python data/apply_page_corrections.py --dataset <name>
+If page_review.csv already exists, re-running this script preserves all
+filled-in correction columns (matched by gt_row_index).  New rows get blank
+corrections; rows whose gt_row_index no longer appears in ground_truth.json
+are dropped.
 
-to patch ground_truth.json.  Rows left blank are untouched.
+After filling in corrections, run:
+
+    python data/apply_review.py --dataset <name>
 
 Usage
 -----
@@ -38,6 +48,15 @@ _CONFIDENCE_RANK: dict[str, int] = {
     "table-anchored": 3,
 }
 
+_CORRECTION_COLS = [
+    "corrected_page",
+    "corrected_name",
+    "corrected_value",
+    "corrected_units",
+    "excluded",
+    "excluded_reason",
+]
+
 
 def generate_review_csv(dataset: str) -> None:
     gt_path = DATA_DIR / dataset / "ground_truth.json"
@@ -45,6 +64,17 @@ def generate_review_csv(dataset: str) -> None:
 
     with open(gt_path) as f:
         records = json.load(f)
+
+    # Load existing corrections indexed by gt_row_index (preserves user edits).
+    existing_corrections: dict[int, dict[str, str]] = {}
+    if out_path.exists():
+        existing = pd.read_csv(out_path, dtype=str, keep_default_na=False)
+        for _, row in existing.iterrows():
+            try:
+                idx = int(float(row["gt_row_index"]))
+            except (ValueError, KeyError):
+                continue
+            existing_corrections[idx] = {col: row.get(col, "") for col in _CORRECTION_COLS}
 
     rows = []
     for i, rec in enumerate(records):
@@ -55,6 +85,7 @@ def generate_review_csv(dataset: str) -> None:
         conf_rank = _CONFIDENCE_RANK.get(confidence, 0)
         # Sort key: confidence first, then single-page after multi-page within same confidence
         priority = conf_rank * 10 + (1 if n_candidates <= 1 else 0)
+        corrections = existing_corrections.get(i, {})
         rows.append({
             "_priority":       priority,
             "document_id":     rec.get("document_id"),
@@ -65,7 +96,7 @@ def generate_review_csv(dataset: str) -> None:
             "units":           rec.get("units"),
             "page_number":     page_str,
             "page_confidence": confidence,
-            "corrected_page":  "",
+            **{col: corrections.get(col, "") for col in _CORRECTION_COLS},
         })
 
     df = pd.DataFrame(rows)
@@ -82,9 +113,15 @@ def generate_review_csv(dataset: str) -> None:
 
     conf_counts = df["page_confidence"].value_counts().to_dict()
     multi_page = (df["page_number"].str.contains(",", na=False)).sum()
+    n_carried = sum(
+        1 for v in existing_corrections.values()
+        if any(v.get(c, "") for c in _CORRECTION_COLS)
+    )
     print(f"Wrote {len(df):,} rows → {out_path.relative_to(Path.cwd())}")
     print(f"Confidence distribution: {conf_counts}")
     print(f"Multi-candidate rows: {multi_page:,}")
+    if existing_corrections:
+        print(f"Carried over corrections from {n_carried} previously annotated rows.")
 
 
 def main() -> None:
