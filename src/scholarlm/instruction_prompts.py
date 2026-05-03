@@ -96,7 +96,7 @@ Guidelines:
 """
 
 
-STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units extracted from context provided for a research paper. You will be queried with a description of a specific entity and attribute to collect data for, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Your task is to standardize both the extracted value and the units according to the following guidelines.
+STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units extracted from a research paper. You will be given the source text where the measurement was extracted from (either a page of prose text or an HTML table), a description of the specific entity and attribute, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Use the provided source text to verify the original measurement context. Your task is to standardize both the extracted value and the units according to the following guidelines.
 
 Value standardization guidelines:
 - For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information, unless the queried attribute specifically directs otherwise.

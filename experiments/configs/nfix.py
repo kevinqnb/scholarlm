@@ -174,9 +174,9 @@ For each site and each detected attribute measurement, also identify the measure
 Attributes to extract:
 For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
 
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol N g⁻¹ h⁻¹, nmol C2H4 g⁻¹ h⁻¹, nmol N2 g⁻¹ h⁻¹, µg N g⁻¹ d⁻¹, nmol N2 g⁻¹ d⁻¹, µmol N g⁻¹ d⁻¹, nmol C2H4 g⁻¹ d⁻¹, nmol N g⁻¹ d⁻¹, µg N g⁻¹ h⁻¹, µg N kg⁻¹ d⁻¹, µmol N g⁻¹ h⁻¹, fmol N g⁻¹ h⁻¹, ng N g⁻¹ d⁻¹, ng N g⁻¹ h⁻¹, nmol N kg⁻¹ h⁻¹, µmol C2H4 g⁻¹ d⁻¹, µmol N kg⁻¹ h⁻¹, µmol N2 g⁻¹ d⁻¹, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: µmol N m⁻² h⁻¹, mg N m⁻² d⁻¹, µmol N m⁻² d⁻¹, µmol C2H4 m⁻² h⁻¹, nmol C2H4 cm⁻² h⁻¹, mmol N m⁻² d⁻¹, µg N m⁻² h⁻¹, mg N m⁻² h⁻¹, nmol C2H4 cm⁻² d⁻¹, nmol C2H4 m⁻² h⁻¹, µmol N2 m⁻² h⁻¹, g N m⁻² yr⁻¹, mmol N m⁻² h⁻¹, mmol N2 m⁻² d⁻¹, nmol N cm⁻² h⁻¹, µmol N2 m⁻² d⁻¹, kg N2 ha⁻¹ yr⁻¹, mg N m⁻² yr⁻¹, mg N2 m⁻² h⁻¹, ng N m⁻² h⁻¹, nmol C2H4 m⁻² d⁻¹, µg N cm⁻² h⁻¹, µg N2 m⁻² h⁻¹, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol N L⁻¹ d⁻¹, nmol N L⁻¹ h⁻¹, nmol C2H4 L⁻¹ h⁻¹, µg N L⁻¹ h⁻¹, ng N L⁻¹ h⁻¹, mg N m⁻³ d⁻¹, nmol C2H4 cm⁻³ h⁻¹, nmol C2H4 mL⁻¹ h⁻¹, nmol N cm⁻³ d⁻¹, nmol N cm⁻³ h⁻¹, µg N m⁻³ h⁻¹, µmol N2 L⁻¹ d⁻¹, µmol N2 L⁻¹ h⁻¹, mmol C2H4 m⁻³ d⁻¹, nmol C2H4 cm⁻³ d⁻¹, nmol N m⁻³ h⁻¹, nmol N2 cm⁻³ d⁻¹, nmol N2 L⁻¹ d⁻¹, nmol N2 L⁻¹ h⁻¹, µg N L⁻¹ d⁻¹, µg N2 L⁻¹ h⁻¹, µg N2 m⁻³ d⁻¹, µmol C2H4 L⁻¹ d⁻¹, µmol C2H4 mL⁻¹ 3h⁻¹, µmol N L⁻¹ d⁻¹, µmol N L⁻¹ h⁻¹, or similar volume-normalized rate units.
 
 
 Output format requirements:
@@ -228,9 +228,9 @@ For each (site, attribute) pair, output one item with the following fields:
 
 
 Attributes to detect (use these exact names in the attribute field):
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol-N g-1 h-1, ug-N g-1 d-1, nmol-C2H4 g-1 h-1).
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1).
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1).
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol N g⁻¹ h⁻¹, µg N g⁻¹ d⁻¹, nmol C2H4 g⁻¹ h⁻¹, nmol N2 g⁻¹ h⁻¹, µmol N g⁻¹ h⁻¹, ng N g⁻¹ d⁻¹, fmol N g⁻¹ h⁻¹, nmol N kg⁻¹ h⁻¹, µmol C2H4 g⁻¹ d⁻¹, µmol N kg⁻¹ h⁻¹, µmol N2 g⁻¹ d⁻¹).
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., µmol N m⁻² h⁻¹, mg N m⁻² d⁻¹, nmol C2H4 cm⁻² h⁻¹, µmol C2H4 m⁻² h⁻¹, mmol N m⁻² d⁻¹, µg N m⁻² h⁻¹, nmol C2H4 m⁻² h⁻¹, µmol N2 m⁻² h⁻¹, g N m⁻² yr⁻¹, kg N2 ha⁻¹ yr⁻¹, ng N m⁻² h⁻¹).
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol N L⁻¹ d⁻¹, nmol C2H4 L⁻¹ h⁻¹, µg N L⁻¹ h⁻¹, ng N L⁻¹ h⁻¹, mg N m⁻³ d⁻¹, nmol N cm⁻³ h⁻¹, µmol N2 L⁻¹ d⁻¹, mmol C2H4 m⁻³ d⁻¹, nmol N2 L⁻¹ d⁻¹, µmol C2H4 L⁻¹ d⁻¹, µmol N L⁻¹ h⁻¹).
 
 
 Identification guidelines:
@@ -265,30 +265,30 @@ Output format requirements:
 # ---------------------------------------------------------------------------
 
 _MASS_UNITS = [
-    "nmol-N g-1 h-1", "nmol-C2H4 g-1 h-1", "nmol-N2 g-1 h-1", "ug-N g-1 d-1",
-    "nmol-N2 g-1 d-1", "umol-N g-1 d-1", "nmol-C2H4 g-1 d-1", "nmol-N g-1 d-1",
-    "ug-N g-1 h-1", "ug-N kg-1 d-1", "umol-N g-1 h-1", "fmol-N g-1 h-1",
-    "ng-N g-1 d-1", "ng-N g-1 h-1", "nmol-N kg-1 h-1", "umol-C2H4 g-1 d-1",
-    "umol-N kg-1 h-1", "umol-N2 g-1 d-1",
+    "nmol N g⁻¹ h⁻¹", "nmol C2H4 g⁻¹ h⁻¹", "nmol N2 g⁻¹ h⁻¹", "µg N g⁻¹ d⁻¹",
+    "nmol N2 g⁻¹ d⁻¹", "µmol N g⁻¹ d⁻¹", "nmol C2H4 g⁻¹ d⁻¹", "nmol N g⁻¹ d⁻¹",
+    "µg N g⁻¹ h⁻¹", "µg N kg⁻¹ d⁻¹", "µmol N g⁻¹ h⁻¹", "fmol N g⁻¹ h⁻¹",
+    "ng N g⁻¹ d⁻¹", "ng N g⁻¹ h⁻¹", "nmol N kg⁻¹ h⁻¹", "µmol C2H4 g⁻¹ d⁻¹",
+    "µmol N kg⁻¹ h⁻¹", "µmol N2 g⁻¹ d⁻¹",
 ]
 
 _AREAL_UNITS = [
-    "umol-N m-2 h-1", "mg-N m-2 d-1", "umol-N m-2 d-1", "umol-C2H4 m-2 h-1",
-    "nmol-C2H4 cm-2 h-1", "mmol-N m-2 d-1", "ug-N m-2 h-1", "mg-N m-2 h-1",
-    "nmol-C2H4 cm-2 d-1", "nmol-C2H4 m-2 h-1", "umol-N2 m-2 h-1", "g-N m-2 yr-1",
-    "mmol-N m-2 h-1", "mmol-N2 m-2 d-1", "nmol-N cm-2 h-1", "umol-N2 m-2 d-1",
-    "kg-N2 ha-1 yr-1", "mg-N m-2 yr-1", "mg-N2 m-2 h-1", "ng-N m-2 h-1",
-    "nmol-C2H4 m-2 d-1", "ug-N cm-2 h-1", "ug-N2 m-2 h-1",
+    "µmol N m⁻² h⁻¹", "mg N m⁻² d⁻¹", "µmol N m⁻² d⁻¹", "µmol C2H4 m⁻² h⁻¹",
+    "nmol C2H4 cm⁻² h⁻¹", "mmol N m⁻² d⁻¹", "µg N m⁻² h⁻¹", "mg N m⁻² h⁻¹",
+    "nmol C2H4 cm⁻² d⁻¹", "nmol C2H4 m⁻² h⁻¹", "µmol N2 m⁻² h⁻¹", "g N m⁻² yr⁻¹",
+    "mmol N m⁻² h⁻¹", "mmol N2 m⁻² d⁻¹", "nmol N cm⁻² h⁻¹", "µmol N2 m⁻² d⁻¹",
+    "kg N2 ha⁻¹ yr⁻¹", "mg N m⁻² yr⁻¹", "mg N2 m⁻² h⁻¹", "ng N m⁻² h⁻¹",
+    "nmol C2H4 m⁻² d⁻¹", "µg N cm⁻² h⁻¹", "µg N2 m⁻² h⁻¹",
 ]
 
 _VOLUMETRIC_UNITS = [
-    "nmol-N L-1 d-1", "nmol-N L-1 h-1", "nmol-C2H4 L-1 h-1", "ug-N L-1 h-1",
-    "ng-N L-1 h-1", "mg-N m-3 d-1", "nmol-C2H4 cm-3 h-1", "nmol-C2H4 mL-1 h-1",
-    "nmol-N cm-3 d-1", "nmol-N cm-3 h-1", "ug-N m-3 h-1", "umol-N2 L-1 d-1",
-    "umol-N2 L-1 h-1", "mmol-C2H4 m-3 d-1", "nmol-C2H4 cm-3 d-1", "nmol-N m-3 h-1",
-    "nmol-N2 cm-3 d-1", "nmol-N2 L-1 d-1", "nmol-N2 L-1 h-1", "ug-N L-1 d-1",
-    "ug-N2 L-1 h-1", "ug-N2 m-3 d-1", "umol-C2H4 L-1 d-1", "umol-C2H4 mL-1 3h-1",
-    "umol-N L-1 d-1", "umol-N L-1 h-1",
+    "nmol N L⁻¹ d⁻¹", "nmol N L⁻¹ h⁻¹", "nmol C2H4 L⁻¹ h⁻¹", "µg N L⁻¹ h⁻¹",
+    "ng N L⁻¹ h⁻¹", "mg N m⁻³ d⁻¹", "nmol C2H4 cm⁻³ h⁻¹", "nmol C2H4 mL⁻¹ h⁻¹",
+    "nmol N cm⁻³ d⁻¹", "nmol N cm⁻³ h⁻¹", "µg N m⁻³ h⁻¹", "µmol N2 L⁻¹ d⁻¹",
+    "µmol N2 L⁻¹ h⁻¹", "mmol C2H4 m⁻³ d⁻¹", "nmol C2H4 cm⁻³ d⁻¹", "nmol N m⁻³ h⁻¹",
+    "nmol N2 cm⁻³ d⁻¹", "nmol N2 L⁻¹ d⁻¹", "nmol N2 L⁻¹ h⁻¹", "µg N L⁻¹ d⁻¹",
+    "µg N2 L⁻¹ h⁻¹", "µg N2 m⁻³ d⁻¹", "µmol C2H4 L⁻¹ d⁻¹", "µmol C2H4 mL⁻¹ h⁻¹",
+    "µmol N L⁻¹ d⁻¹", "µmol N L⁻¹ h⁻¹",
 ]
 
 _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
@@ -296,7 +296,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
         "description": (
             "Rate of dinitrogen fixation per unit mass: the amount of nitrogen "
             "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by substrate mass. Not equivalent to rates reported per unit area or volume."
+            "normalized by substrate mass."
         ),
         "units": _MASS_UNITS,
     },
@@ -304,7 +304,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
         "description": (
             "Rate of dinitrogen fixation per unit area: the amount of nitrogen "
             "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by area. Not equivalent to rates reported per unit mass or volume."
+            "normalized by area."
         ),
         "units": _AREAL_UNITS,
     },
@@ -312,7 +312,7 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
         "description": (
             "Rate of dinitrogen fixation per unit volume: the amount of nitrogen "
             "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by water volume. Not equivalent to rates reported per unit mass or area."
+            "normalized by water volume."
         ),
         "units": _VOLUMETRIC_UNITS,
     },
