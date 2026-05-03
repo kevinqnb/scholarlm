@@ -54,7 +54,7 @@ class DocumentLM:
             self.ocr_prompt = ocr_prompt
 
         self.client = OpenAI(api_key=api_key, base_url=api_base)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0, max_retries=3)
+        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=600.0, max_retries=3)
 
 
     # -----------------------------------------------------------------------
