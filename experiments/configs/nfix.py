@@ -356,6 +356,12 @@ def _nfix_paper_filter(metadata: dict) -> bool:
 # Config instance
 # ---------------------------------------------------------------------------
 
+_EXCLUDED_PAPERS = [
+    "R95",  # Couldn't access 
+    "R3", # Data in figures only
+    "R51", # Data not found in paper
+]
+
 # Subset of 10 papers with the most data points:
 _TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
@@ -381,6 +387,7 @@ CONFIG = DatasetConfig(
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,
     paper_filter=_nfix_paper_filter,
+    paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_filter_fields=["location"],

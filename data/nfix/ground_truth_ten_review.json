@@ -154,11 +154,10 @@
     "value": 30.0,
     "units": "ng-n l-1 h-1",
     "page_number": [
-      5,
-      9
+      5
     ],
     "page_score": 0.7777,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R59",
@@ -575,11 +574,10 @@
     "value": 1276.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.7033,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -636,11 +634,10 @@
     "value": 1190.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.718,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -657,11 +654,10 @@
     "value": 1068.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.7517,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -698,11 +694,10 @@
     "value": 1310.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.6935,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -759,11 +754,10 @@
     "value": 2585.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.7247,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -780,11 +774,10 @@
     "value": 1029.0,
     "units": "ug-n2 m-2 h-1",
     "page_number": [
-      1,
-      3
+      1
     ],
     "page_score": 0.7566,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R103",
@@ -2641,11 +2634,10 @@
     "value": 5.0,
     "units": "umol-c2h4 m-2 h-1",
     "page_number": [
-      4,
-      7
+      4
     ],
     "page_score": 0.7359,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R172",
@@ -3162,11 +3154,10 @@
     "value": 4.0,
     "units": "umol-c2h4 m-2 h-1",
     "page_number": [
-      4,
-      7
+      4
     ],
     "page_score": 0.7294,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R172",
@@ -3323,11 +3314,10 @@
     "value": 6.0,
     "units": "umol-n m-2 h-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.7688,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R172",
@@ -3344,11 +3334,10 @@
     "value": 0.9,
     "units": "umol-n m-2 h-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.7688,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R172",
@@ -4125,11 +4114,10 @@
     "value": 3.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      7
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4146,18 +4134,10 @@
     "value": 2.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13,
-      14
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4194,11 +4174,10 @@
     "value": 19.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      6
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4255,14 +4234,10 @@
     "value": 17.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      5,
-      6,
-      7,
-      8
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4279,11 +4254,10 @@
     "value": 22.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      8
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4320,13 +4294,10 @@
     "value": 30.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      7
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4363,11 +4334,10 @@
     "value": 39.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      11
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4404,12 +4374,10 @@
     "value": 3.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      6
+      2
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4426,13 +4394,10 @@
     "value": 4.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      4
     ],
     "page_score": 0.7664,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4449,12 +4414,10 @@
     "value": 2.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      8
+      4
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4471,13 +4434,10 @@
     "value": 1.4,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      4
     ],
     "page_score": 0.7674,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4494,16 +4454,10 @@
     "value": 1.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11
+      4
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4520,11 +4474,10 @@
     "value": 1.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      6
+      4
     ],
     "page_score": 0.7798,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4561,12 +4514,10 @@
     "value": 3.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      8,
-      13
+      4
     ],
     "page_score": 0.7655,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4583,17 +4534,10 @@
     "value": 5.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13
+      4
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4610,12 +4554,10 @@
     "value": 4.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7
+      4
     ],
     "page_score": 0.7685,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4652,11 +4594,10 @@
     "value": 2.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      7
+      4
     ],
     "page_score": 0.756,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4673,11 +4614,10 @@
     "value": 8.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      7
+      4
     ],
     "page_score": 0.756,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4694,13 +4634,10 @@
     "value": 2.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      4
     ],
     "page_score": 0.7664,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4717,12 +4654,10 @@
     "value": 3.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      6
+      4
     ],
     "page_score": 0.7961,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4739,14 +4674,10 @@
     "value": 5.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      14
+      5
     ],
     "page_score": 0.7911,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4763,12 +4694,10 @@
     "value": 2.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      5
     ],
     "page_score": 0.7848,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4785,11 +4714,10 @@
     "value": 8.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7
+      5
     ],
     "page_score": 0.769,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4826,14 +4754,10 @@
     "value": 17.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      5,
-      6,
-      7,
-      8
+      5
     ],
     "page_score": 0.7974,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4850,11 +4774,10 @@
     "value": 20.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      8
+      5
     ],
     "page_score": 0.7702,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4891,16 +4814,10 @@
     "value": 4.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      11,
-      13
+      5
     ],
     "page_score": 0.7929,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4917,11 +4834,10 @@
     "value": 7.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
       5
     ],
     "page_score": 0.7934,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4938,18 +4854,10 @@
     "value": 2.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13,
-      14
+      5
     ],
     "page_score": 0.7933,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4966,14 +4874,10 @@
     "value": 2.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      5,
-      6,
-      7,
-      8
+      5
     ],
     "page_score": 0.7946,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -4990,13 +4894,10 @@
     "value": 1.4,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      5
     ],
     "page_score": 0.769,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5013,13 +4914,10 @@
     "value": 1.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      5
     ],
     "page_score": 0.769,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5036,13 +4934,10 @@
     "value": 4.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      5
     ],
     "page_score": 0.7715,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5059,13 +4954,10 @@
     "value": 4.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7,
-      8,
-      13
+      5
     ],
     "page_score": 0.769,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5082,13 +4974,10 @@
     "value": 4.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      5
     ],
     "page_score": 0.7715,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5105,12 +4994,10 @@
     "value": 11.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5147,12 +5034,10 @@
     "value": 4.4,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5169,11 +5054,10 @@
     "value": 13.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      8
+      6
     ],
     "page_score": 0.785,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5190,11 +5074,10 @@
     "value": 6.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
       6
     ],
     "page_score": 0.7833,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5211,11 +5094,10 @@
     "value": 10.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      8
+      6
     ],
     "page_score": 0.7837,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5232,14 +5114,10 @@
     "value": 5.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      14
+      6
     ],
     "page_score": 0.7933,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5256,12 +5134,10 @@
     "value": 1.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.785,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5278,12 +5154,10 @@
     "value": 7.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      6,
-      8
+      6
     ],
     "page_score": 0.7934,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5300,13 +5174,10 @@
     "value": 1.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7929,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5323,16 +5194,10 @@
     "value": 1.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11
+      6
     ],
     "page_score": 0.7946,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5349,12 +5214,10 @@
     "value": 0.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5371,15 +5234,10 @@
     "value": 0.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7907,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5396,14 +5254,10 @@
     "value": 0.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7929,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5420,12 +5274,10 @@
     "value": 2.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5442,12 +5294,10 @@
     "value": 1.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      6
     ],
     "page_score": 0.785,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5464,12 +5314,10 @@
     "value": 1.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7,
-      8
+      7
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5506,11 +5354,10 @@
     "value": 2.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.7579,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5527,11 +5374,10 @@
     "value": 21.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.756,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5568,11 +5414,10 @@
     "value": 8.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
       7
     ],
     "page_score": 0.7709,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5589,14 +5434,10 @@
     "value": 1.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      13
+      7
     ],
     "page_score": 0.7808,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5633,12 +5474,10 @@
     "value": 25.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      7,
-      8
+      7
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5675,14 +5514,10 @@
     "value": 2.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      5,
-      6,
-      7,
-      8
+      7
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5699,13 +5534,10 @@
     "value": 2.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      7
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5722,16 +5554,10 @@
     "value": 3.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      11,
-      13
+      7
     ],
     "page_score": 0.7872,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5748,12 +5574,10 @@
     "value": 1.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
-      8
+      7
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5770,12 +5594,10 @@
     "value": 9.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      7,
-      8
+      7
     ],
     "page_score": 0.7634,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5792,13 +5614,10 @@
     "value": 4.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7,
-      8,
-      13
+      7
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5815,11 +5634,10 @@
     "value": 28.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      7,
-      8
+      7
     ],
     "page_score": 0.7609,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5836,14 +5654,10 @@
     "value": 5.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      14
+      7
     ],
     "page_score": 0.7848,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5860,11 +5674,10 @@
     "value": 3.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
       7
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5881,13 +5694,10 @@
     "value": 7.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      14
+      7
     ],
     "page_score": 0.7839,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5924,13 +5734,10 @@
     "value": 4.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
-      8
+      7
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5947,11 +5754,10 @@
     "value": 2.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.7606,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5968,12 +5774,10 @@
     "value": 4.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
       7
     ],
     "page_score": 0.7709,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -5990,11 +5794,10 @@
     "value": 3.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      7,
-      13
+      7
     ],
     "page_score": 0.756,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6011,13 +5814,10 @@
     "value": 1.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      6,
-      7,
-      8
+      7
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6034,11 +5834,10 @@
     "value": 7.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
       7
     ],
     "page_score": 0.7709,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6055,11 +5854,10 @@
     "value": 2.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
       7
     ],
     "page_score": 0.7646,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6096,13 +5894,10 @@
     "value": 18.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8
+      7
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6119,12 +5914,10 @@
     "value": 1.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7,
       8
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6141,12 +5934,10 @@
     "value": 1.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6163,16 +5954,10 @@
     "value": 1.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11
+      8
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6189,13 +5974,10 @@
     "value": 1.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      6,
-      7,
       8
     ],
     "page_score": 0.7915,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6212,11 +5994,10 @@
     "value": 20.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
       8
     ],
     "page_score": 0.773,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6233,12 +6014,10 @@
     "value": 2.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.7798,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6275,12 +6054,10 @@
     "value": 0.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.7808,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6297,13 +6074,10 @@
     "value": 1.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
       8
     ],
     "page_score": 0.7789,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6320,11 +6094,10 @@
     "value": 10.9,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
       8
     ],
     "page_score": 0.7825,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6341,12 +6114,10 @@
     "value": 9.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      7,
       8
     ],
     "page_score": 0.7609,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6363,12 +6134,10 @@
     "value": 1.8,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      6,
-      7,
       8
     ],
     "page_score": 0.7798,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6385,12 +6154,10 @@
     "value": 2.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
       8
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6407,18 +6174,10 @@
     "value": 2.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13,
-      14
+      8
     ],
     "page_score": 0.7876,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6455,14 +6214,10 @@
     "value": 1.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      13
+      8
     ],
     "page_score": 0.782,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6479,15 +6234,10 @@
     "value": 0.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      7,
-      8,
-      13
+      8
     ],
     "page_score": 0.7862,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6524,12 +6274,10 @@
     "value": 2.1,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
       8
     ],
     "page_score": 0.7872,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6546,13 +6294,10 @@
     "value": 4.5,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      7,
-      8,
-      13
+      8
     ],
     "page_score": 0.7736,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6569,11 +6314,10 @@
     "value": 4.7,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.7609,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6610,14 +6354,10 @@
     "value": 5.6,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      14
+      8
     ],
     "page_score": 0.7866,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6634,14 +6374,10 @@
     "value": 1.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      5,
-      6,
-      7,
-      8,
-      13
+      8
     ],
     "page_score": 0.7798,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6658,17 +6394,10 @@
     "value": 5.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13
+      8
     ],
     "page_score": 0.7835,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6685,16 +6414,10 @@
     "value": 1.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11
+      8
     ],
     "page_score": 0.7862,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6711,12 +6434,10 @@
     "value": 3.2,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      8,
-      13
+      8
     ],
     "page_score": 0.7609,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6733,17 +6454,10 @@
     "value": 5.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13
+      8
     ],
     "page_score": 0.7889,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6760,13 +6474,10 @@
     "value": 1.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      4,
-      5,
-      7,
       8
     ],
     "page_score": 0.7747,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6783,18 +6494,10 @@
     "value": 2.0,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      2,
-      4,
-      5,
-      6,
-      7,
-      8,
-      11,
-      13,
-      14
+      8
     ],
     "page_score": 0.7862,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R163",
@@ -6811,11 +6514,10 @@
     "value": 3.3,
     "units": "nmol-n l-1 d-1",
     "page_number": [
-      7,
       8
     ],
     "page_score": 0.7609,
-    "page_confidence": "ambiguous"
+    "page_confidence": "manual"
   },
   {
     "document_id": "R164",
@@ -8495,626 +8197,6 @@
       4
     ],
     "page_score": 0.8513,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-02-03",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 78.49,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7492,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-02-03",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 41.37,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7405,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-02-13",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 253.14,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7357,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.217,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6967,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.825,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7257,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-08",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7655,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-08",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7655,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.83,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7269,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Upper",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 2.43,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6972,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-02",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 52.65,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7625,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-02",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 12.24,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7568,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 46.53,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7426,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 4.28,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7376,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-08",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7655,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-08",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7655,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.22,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6961,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Castle Forbes - Lower",
-    "identifiers": null,
-    "location": "(-43.1402, 146.9767)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.22,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6961,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.504,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.5354,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.443,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.5336,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.667,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6095,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.42,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6571,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7609,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Upper",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.0,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7609,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02-06",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 4.78,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7331,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02-06",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 22.8,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7491,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 15.37,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7352,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-02-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 35.13,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7389,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 2.03,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7542,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-04",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 0.721,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.634,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.12,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.7169,
-    "page_confidence": "table-anchored"
-  },
-  {
-    "document_id": "R51",
-    "name": "Port Cygnet - Lower",
-    "identifiers": null,
-    "location": "(-43.1661, 147.082114)",
-    "site_type": "tidal flats",
-    "date": "2002-10",
-    "nfix_method": "ARA",
-    "substrate_type": "benthos",
-    "sample_depth": null,
-    "additional_details": null,
-    "attribute": "nfix_rate",
-    "value": 1.629,
-    "units": "umol-n m-2 h-1",
-    "page_number": [
-      7
-    ],
-    "page_score": 0.6765,
     "page_confidence": "table-anchored"
   }
 ]
