@@ -397,6 +397,7 @@ When restructuring involves unpivoting (melting) a wide table:
 
 - Table captions in the OCR text typically appear outside the `<table>` tags as free-standing text (e.g., "Table 1: Patient demographics..."). Move this caption text from its original position into `<caption>...</caption>` tags at the start of the corresponding `<table>` block. Remove the caption from its original location so it is not duplicated.
 - After the original caption text, append a brief note describing any structural changes made (e.g., melting, transposing, column renaming) needed to interpret the new version of the table. If no changes were made, do not append anything.
+- If a table gives units of measurement for any attribute, ensure that those units are clearly described in the caption of the output table.
 
 ### Data Integrity
 
@@ -404,6 +405,7 @@ When restructuring involves unpivoting (melting) a wide table:
 - Only correct clear OCR errors or formatting artifacts (e.g., broken Unicode, misaligned cells) — use the page image as ground truth.
 - Output tables must be valid HTML within `<table>...</table>` tags.
 - If the table has a numbered tag, keep the same number in your output (e.g., `<table number="1">` should remain `<table number="1">`).
+- If a table displays units for measurement, be sure those units are clearly presented in the caption and indicated in the column names.
 
 ## Example
 
@@ -424,7 +426,7 @@ When restructuring involves unpivoting (melting) a wide table:
 
 ```html
 <table number="1">
-<caption>Patient drug response data. Restructured from wide format: drug type (originally in column groups) moved to rows.</caption>
+<caption>Patient drug response data measured across two drug treatments. Dose is measured in milligrams (mg). Response is a dimensionless score. Restructured from wide format: drug type (originally in column groups) moved to rows for clearer entity-attribute addressing.</caption>
 <tr><th>index</th><th>drug</th><th>dose_mg</th><th>response</th></tr>
 <tr><td>('P-001', 'Drug A')</td><td>Drug A</td><td>50</td><td>0.82</td></tr>
 <tr><td>('P-001', 'Drug B')</td><td>Drug B</td><td>75</td><td>0.91</td></tr>
