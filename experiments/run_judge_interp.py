@@ -238,9 +238,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--synthetic", action="store_true", default=False,
         help=(
-            "Run on the synthetic probe dataset from data/{dataset}/probe_dataset.json "
-            "instead of an extraction run. Output goes to synthetic_probe/{judge}/{date}/. "
+            "Run on the synthetic probe dataset instead of an extraction run. "
             "--extraction-model and --ablation are ignored."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-split", choices=["train", "test"], default=None,
+        help=(
+            "Which synthetic split to run (only relevant with --synthetic). "
+            "'train' → probe_dataset.json → synthetic_probe/; "
+            "'test'  → probe_dataset_test.json → synthetic_probe_test/. "
+            "If omitted, both splits are run in sequence."
         ),
     )
     return p
@@ -257,26 +265,33 @@ def main(argv: list[str] | None = None) -> None:
     dataset_config = load_dataset_config(args.dataset)
 
     if args.synthetic:
-        probe_file = _REPO_ROOT / "data" / args.dataset / "probe_dataset.json"
-        if not probe_file.exists():
-            raise FileNotFoundError(
-                f"Probe dataset not found: {probe_file}. "
-                f"Run data/{args.dataset}/create_probe_dataset.py first."
+        splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
+        for split in splits:
+            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+            if not probe_file.exists():
+                raise FileNotFoundError(
+                    f"Probe dataset not found: {probe_file}. "
+                    f"Run data/{args.dataset}/create_probe_dataset.py first."
+                )
+            output_dir = (
+                paths.synthetic_probe_test(args.dataset, args.judge, args.judge_date)
+                if split == "test"
+                else paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
             )
-        output_dir = paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
-        print(f"\nDataset          : {args.dataset}")
-        print(f"Mode             : synthetic probe")
-        print(f"Input            : {probe_file}")
-        print(f"Judge            : {args.judge}")
-        print(f"Output           : {output_dir}\n")
-        run_interp_judge(
-            dataset_config=dataset_config,
-            extraction_model=None,
-            judge_key=args.judge,
-            output_dir=output_dir,
-            ocr_dir=args.ocr_dir,
-            input_file=probe_file,
-        )
+            print(f"\nDataset          : {args.dataset}")
+            print(f"Mode             : synthetic probe ({split})")
+            print(f"Input            : {probe_file}")
+            print(f"Judge            : {args.judge}")
+            print(f"Output           : {output_dir}\n")
+            run_interp_judge(
+                dataset_config=dataset_config,
+                extraction_model=None,
+                judge_key=args.judge,
+                output_dir=output_dir,
+                ocr_dir=args.ocr_dir,
+                input_file=probe_file,
+            )
     else:
         if args.extraction_model is None:
             _build_parser().error("--extraction-model is required unless --synthetic is used.")

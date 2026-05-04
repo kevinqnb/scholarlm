@@ -238,6 +238,15 @@ def synthetic_probe(
     return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / (judge_date or today())
 
 
+def synthetic_probe_test(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/synthetic_probe_test/{judge_model}/{judge_date}/"""
+    return EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model / (judge_date or today())
+
+
 def trained_probe_dir(dataset: str, judge_model: str) -> Path:
     """data/experiments/{dataset}/synthetic_probe/{judge_model}/trained_probe/"""
     return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / "trained_probe"

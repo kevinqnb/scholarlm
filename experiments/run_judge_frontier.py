@@ -97,7 +97,7 @@ def _analyze_batch_errors(batch_id: str, client: Any) -> None:
 
 def _submit(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     provider: str,
     frontier_model: str,
     output_dir: Path,
@@ -110,9 +110,11 @@ def _submit(
     ablation: str | None = None,
     max_tokens: int = 2048,
     temperature: float = 0.0,
+    input_file: Path | None = None,
 ) -> None:
     """Submit batch requests and save state file."""
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    if input_file is None:
+        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -188,19 +190,21 @@ def _poll(state_file: str, interval: int) -> None:
 
 def _process(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     output_dir: Path,
     state_file: str,
     extraction_date: str | None = None,
     ablation: str | None = None,
     start_time: float | None = None,
+    input_file: Path | None = None,
 ) -> None:
     """Fetch results from a completed batch and write responses.json."""
     state = json.loads(Path(state_file).read_text())
     provider = state["provider"]
     frontier_model = state["model"]
 
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    if input_file is None:
+        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
@@ -256,7 +260,7 @@ def _process(
 
 def run_frontier_judge(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     provider: str,
     frontier_model: str,
     output_dir: Path,
@@ -270,6 +274,7 @@ def run_frontier_judge(
     ablation: str | None = None,
     max_tokens: int = 2048,
     temperature: float = 0.0,
+    input_file: Path | None = None,
 ) -> None:
     """Run a frontier batch judge and save responses.
 
@@ -288,6 +293,7 @@ def run_frontier_judge(
         state_file: Optional path for batch state JSON.
         max_tokens: Max output tokens per judge response.
         temperature: Sampling temperature.
+        input_file: If provided, load data from this path instead of looking up the extraction run.
     """
     if provider not in FRONTIER_PROVIDERS:
         raise ValueError(f"Unknown provider '{provider}'. Choose from: {FRONTIER_PROVIDERS}")
@@ -311,6 +317,7 @@ def run_frontier_judge(
         ablation=ablation,
         max_tokens=max_tokens,
         temperature=temperature,
+        input_file=input_file,
     )
 
     state = json.loads(Path(state_file).read_text())
@@ -333,6 +340,7 @@ def run_frontier_judge(
         extraction_date=extraction_date,
         ablation=ablation,
         start_time=start_time,
+        input_file=input_file,
     )
 
 
@@ -349,8 +357,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
     p.add_argument(
-        "--extraction-model", required=True,
-        help="Short name of the extraction model whose results to judge.",
+        "--extraction-model", default=None,
+        help="Short name of the extraction model whose results to judge. Required unless --synthetic is used.",
     )
     p.add_argument(
         "--judge", required=True,
@@ -363,6 +371,22 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--ablation", default=None, metavar="N",
         help="Ablation number (e.g. 2). If set, reads from ablations/ablation{N}/ and writes judge output there.",
+    )
+    p.add_argument(
+        "--synthetic", action="store_true", default=False,
+        help=(
+            "Run on the synthetic probe dataset instead of an extraction run. "
+            "--extraction-model and --ablation are ignored."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-split", choices=["train", "test"], default=None,
+        help=(
+            "Which synthetic split to run (only relevant with --synthetic). "
+            "'train' → probe_dataset.json → synthetic_probe/; "
+            "'test'  → probe_dataset_test.json → synthetic_probe_test/. "
+            "If omitted, both splits are run in sequence."
+        ),
     )
     p.add_argument(
         "--ocr-dir", default=None, metavar="DIR",
@@ -402,14 +426,97 @@ def main(argv: list[str] | None = None) -> None:
     set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
-    input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
-    extraction_date_resolved = input_file.parent.name
+
+    if args.synthetic:
+        # poll takes an explicit --state file and is split-agnostic; no loop needed.
+        if args.subcommand == "poll":
+            if not args.state:
+                _build_parser().error("--state is required for the poll subcommand.")
+            _poll(state_file=args.state, interval=args.interval)
+            return
+
+        splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
+        for split in splits:
+            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+            if not probe_file.exists():
+                raise FileNotFoundError(
+                    f"Probe dataset not found: {probe_file}. "
+                    f"Run data/{args.dataset}/create_probe_dataset.py first."
+                )
+            output_dir = (
+                paths.synthetic_probe_test(args.dataset, args.judge, args.judge_date)
+                if split == "test"
+                else paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
+            )
+            state_file = args.state or str(output_dir / f".batch_state_{args.judge}.json")
+            print(f"\nDataset          : {args.dataset}")
+            print(f"Mode             : synthetic probe ({split})")
+            print(f"Input            : {probe_file}")
+            print(f"Judge            : {args.judge} / {args.frontier_model}")
+            print(f"Max tokens       : {args.max_tokens}")
+            print(f"Temperature      : {args.temperature}")
+            print(f"Output           : {output_dir}\n")
+            if args.subcommand == "submit":
+                _submit(
+                    dataset_config=dataset_config,
+                    extraction_model=None,
+                    provider=args.judge,
+                    frontier_model=args.frontier_model,
+                    output_dir=output_dir,
+                    state_file=state_file,
+                    extraction_date=None,
+                    ocr_dir=args.ocr_dir,
+                    dest_gcs=args.dest_gcs,
+                    gcp_project=args.gcp_project,
+                    gcp_location=args.gcp_location,
+                    ablation=None,
+                    max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                    input_file=probe_file,
+                )
+            elif args.subcommand == "process":
+                _process(
+                    dataset_config=dataset_config,
+                    extraction_model=None,
+                    output_dir=output_dir,
+                    state_file=state_file,
+                    extraction_date=None,
+                    ablation=None,
+                    input_file=probe_file,
+                )
+            else:
+                run_frontier_judge(
+                    dataset_config=dataset_config,
+                    extraction_model=None,
+                    provider=args.judge,
+                    frontier_model=args.frontier_model,
+                    output_dir=output_dir,
+                    extraction_date=None,
+                    ocr_dir=args.ocr_dir,
+                    dest_gcs=args.dest_gcs,
+                    gcp_project=args.gcp_project,
+                    gcp_location=args.gcp_location,
+                    interval=args.interval,
+                    state_file=state_file,
+                    ablation=None,
+                    max_tokens=args.max_tokens,
+                    temperature=args.temperature,
+                    input_file=probe_file,
+                )
+        return
+
+    # Normal extraction mode
+    if args.extraction_model is None:
+        _build_parser().error("--extraction-model is required unless --synthetic is used.")
+    resolved = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
+    input_file: Path = resolved
+    extraction_date_resolved = resolved.parent.name
     output_dir = paths.judge(
         args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
         ablation=args.ablation,
     )
     state_file = args.state or str(output_dir / f".batch_state_{args.judge}.json")
-
     print(f"\nDataset          : {args.dataset}")
     print(f"Extraction model : {args.extraction_model}")
     print(f"Extraction date  : {extraction_date_resolved}")
@@ -436,6 +543,7 @@ def main(argv: list[str] | None = None) -> None:
             ablation=args.ablation,
             max_tokens=args.max_tokens,
             temperature=args.temperature,
+            input_file=input_file,
         )
     elif args.subcommand == "poll":
         _poll(state_file=state_file, interval=args.interval)
@@ -447,9 +555,9 @@ def main(argv: list[str] | None = None) -> None:
             state_file=state_file,
             extraction_date=extraction_date_resolved,
             ablation=args.ablation,
+            input_file=input_file,
         )
     else:
-        # Default: full submit → poll → process in one shot
         run_frontier_judge(
             dataset_config=dataset_config,
             extraction_model=args.extraction_model,
@@ -466,6 +574,7 @@ def main(argv: list[str] | None = None) -> None:
             ablation=args.ablation,
             max_tokens=args.max_tokens,
             temperature=args.temperature,
+            input_file=input_file,
         )
 
 
