@@ -67,6 +67,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from configs.pond import CONFIG
+from scholarlm.utils.page_attribution import parse_ocr
 
 _JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "ecosystem", "additional_details"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
@@ -118,41 +119,59 @@ def _entity_key(record: dict) -> tuple:
     return tuple(record.get(f) for f in _JUDGE_ENTITY_FIELDS)
 
 
-def _extract_table_values(ocr_path: Path) -> list[str]:
-    """Return plain numeric cell values from all HTML tables in an OCR file."""
-    text = ocr_path.read_text(encoding="utf-8", errors="replace")
+def _numeric_table_cells(
+    parsed_ocr: dict,
+    restrict_pages: set[int] | None = None,
+) -> list[str]:
+    """Return numeric-parseable cell strings from tables in a parsed OCR document.
+
+    If restrict_pages is given, only tables whose page number is in that set are
+    considered; otherwise all tables in the document are scanned.
+    """
+    table_cells = parsed_ocr["table_cells"]
+    table_to_page = parsed_ocr["table_to_page"]
     values: list[str] = []
-    for block in re.findall(r"<table[^>]*>(.*?)</table>", text, re.DOTALL):
-        for raw in re.findall(r"<td[^>]*>(.*?)</td>", block, re.DOTALL):
-            cell = re.sub(r"<[^>]+>", "", raw).strip()
-            cell = re.sub(r"[−–−]", "-", cell)
+    for tn, cells in table_cells.items():
+        if restrict_pages is not None and table_to_page.get(tn) not in restrict_pages:
+            continue
+        for cell in cells:
+            cell_norm = re.sub(r"[−–−]", "-", cell)
             try:
-                float(cell)
-                values.append(cell)
+                float(cell_norm)
+                values.append(cell_norm)
             except ValueError:
                 pass
     return values
 
 
-def _extract_text_values(ocr_path: Path) -> list[str]:
-    """Return unique numeric tokens found anywhere in an OCR text file.
+def _numeric_text_tokens(
+    parsed_ocr: dict,
+    restrict_pages: set[int] | None = None,
+) -> list[str]:
+    """Return unique numeric tokens from page text in a parsed OCR document.
 
-    Used as a fallback when a paper has no HTML tables with plain numbers.
+    If restrict_pages is given, only those pages are scanned; otherwise all pages
+    are scanned.  Used as a fallback when no suitable table cells are found.
     """
-    text = ocr_path.read_text(encoding="utf-8", errors="replace")
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"[−–−]", "-", text)
+    pages = parsed_ocr["pages"]
+    page_nums = restrict_pages if restrict_pages is not None else set(pages.keys())
     seen: set[str] = set()
     values: list[str] = []
-    for token in re.split(r"\s+", text):
-        tok = token.strip(".,;:()[]{}\"'`")
-        if tok and tok not in seen:
-            try:
-                float(tok)
-                values.append(tok)
-                seen.add(tok)
-            except ValueError:
-                pass
+    for pn in page_nums:
+        if pn not in pages:
+            continue
+        text = pages[pn]["text"]
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"[−–−]", "-", text)
+        for token in re.split(r"\s+", text):
+            tok = token.strip(".,;:()[]{}\"'`")
+            if tok and tok not in seen:
+                try:
+                    float(tok)
+                    values.append(tok)
+                    seen.add(tok)
+                except ValueError:
+                    pass
     return values
 
 
@@ -205,6 +224,17 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
         if paper_code not in ocr_codes:
             continue
 
+        page_raw = row.get("page_number")
+        if isinstance(page_raw, list):
+            page_numbers = [int(p) for p in page_raw if p is not None]
+        elif page_raw is not None:
+            try:
+                page_numbers = [int(page_raw)]
+            except (TypeError, ValueError):
+                page_numbers = []
+        else:
+            page_numbers = []
+
         record: dict = {
             "document_id":        paper_code,
             "name":               _clean(row.get("name")),
@@ -216,11 +246,12 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
             "attribute":          str(row["attribute"]),
             "value":              str(row["value"]),
             "units":              _clean(row.get("units")),
-            "page_number":        _clean(row.get("page_number")),
+            "page_number":        _clean(page_raw),
             "gt_row_index":       i,
             "donor_gt_row_index": None,
             "_orig_idx":          i,
             "_paper_code":        paper_code,
+            "_page_numbers":      page_numbers,
         }
         records.append(record)
 
@@ -301,8 +332,14 @@ def create_invalid_record(
     def ent_pred(r):
         return _entity_key(r) != ek
 
-    # Prefer same-paper; fall back to global pool
+    # Prefer same-paper same-page; fall back to same-paper any-page, then global pool
     def resolve(pred) -> list[dict]:
+        record_pages = set(record.get("_page_numbers") or [])
+        if record_pages:
+            page_pred = lambda r: pred(r) and bool(set(r.get("_page_numbers") or []) & record_pages)
+            page_cands = _get_candidates(record, paper_pool, page_pred)
+            if page_cands:
+                return page_cands
         cands = _get_candidates(record, paper_pool, pred)
         if not cands:
             cands = _get_candidates(record, global_pool, pred)
@@ -392,23 +429,36 @@ def create_noise_record(record: dict, rng: random.Random) -> dict:
 
 def create_table_record(
     record: dict,
-    ocr_values: list[str],
+    parsed_ocr: dict,
     rng: random.Random,
 ) -> dict | None:
     """Create an invalid record by replacing value with one from an OCR table cell.
 
-    Returns None if no suitable numeric table value exists (caller should fall back).
+    Tries numeric values from tables on the record's own page(s) first, then
+    all-paper tables, then same-page free text, then all-paper free text.
+    Returns None if no suitable numeric value is found anywhere (caller should
+    fall back to create_noise_record).
     """
-    candidates = [v for v in ocr_values if v != record["value"]]
-    if not candidates:
-        return None
+    page_nums = set(record.get("_page_numbers") or [])
+    current_val = record["value"]
 
-    invalid = dict(record)
-    invalid["value"] = rng.choice(candidates)
-    invalid["donor_gt_row_index"] = None
-    invalid["label"] = "invalid"
-    invalid["modification_type"] = "table_value"
-    return invalid
+    sources = [
+        _numeric_table_cells(parsed_ocr, page_nums) if page_nums else [],
+        _numeric_text_tokens(parsed_ocr, page_nums) if page_nums else [],
+        _numeric_table_cells(parsed_ocr),
+        _numeric_text_tokens(parsed_ocr),
+    ]
+    for vals in sources:
+        cands = [v for v in vals if v != current_val]
+        if cands:
+            invalid = dict(record)
+            invalid["value"] = rng.choice(cands)
+            invalid["donor_gt_row_index"] = None
+            invalid["label"] = "invalid"
+            invalid["modification_type"] = "table_value"
+            return invalid
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -473,19 +523,15 @@ def build_probe_output(
     print(f"  [{split_label}] Created {len(xi_noise):,} noise invalid records")
 
     # Subset 3: OCR-table invalids
-    ocr_table_cache: dict[str, list[str]] = {}
-    ocr_text_cache: dict[str, list[str]] = {}
+    ocr_cache: dict[str, dict] = {}
     for code in {r["_paper_code"] for r in xv_table}:
-        path = _OCR_DIR / f"{code}.txt"
-        ocr_table_cache[code] = _extract_table_values(path)
-        ocr_text_cache[code] = _extract_text_values(path)
+        ocr_cache[code] = parse_ocr(_OCR_DIR / f"{code}.txt")
 
     xi_table: list[dict] = []
     n_noise_fallback = 0
     for r in xv_table:
         code = r["_paper_code"]
-        vals = ocr_table_cache.get(code, []) or ocr_text_cache.get(code, [])
-        rec = create_table_record(r, vals, rng)
+        rec = create_table_record(r, ocr_cache[code], rng)
         if rec is None:
             rec = create_noise_record(r, rng)
             n_noise_fallback += 1

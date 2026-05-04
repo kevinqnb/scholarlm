@@ -310,9 +310,9 @@ JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scie
 
 You will be given:
 1) In ## CONTEXT: A text document representing a page from a research paper.
-2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, and the corresponding extracted value with its units.
+2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, information about its measurement event, and the corresponding extracted value with its units.
 
-Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified attribute and entity.
+Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified entity, attribute, and (if applicable) measurement event.
 
 Respond 'true' ONLY if ALL of the following hold:
 (A) The entity is real and distinct. It corresponds to an actual instance of the specified entity type in the document context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or identifiers fields in the extracted entity description.
@@ -321,6 +321,7 @@ Respond 'true' ONLY if ALL of the following hold:
 (D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
 (E) The value is a direct measurement. It is a raw measurement or descriptive summary statistic of measurements (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
 (F) The units are correct. The units match those reported in the document for that value. Accept notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
+(G) If the context reports multiple values for the same entity and attribute (e.g. at different dates or times), the value extracted corresponds to the measurement event specified in the QUERY.
 
 Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous. Prefer 'false' when uncertain — the goal is high precision.
 
