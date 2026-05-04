@@ -161,27 +161,27 @@ def load_layer_outputs(
 
 
 def load_synthetic_responses(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> list[dict]:
     """Load responses.json from a synthetic probe run."""
-    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split)
     with open(path) as f:
         return json.load(f)
 
 
 def load_synthetic_activations(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> "np.lib.npyio.NpzFile":
     """Load attention_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split)
     return np.load(path)
 
 
 def load_synthetic_layer_outputs(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> "np.lib.npyio.NpzFile":
     """Load layer_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split)
     return np.load(path)
 
 

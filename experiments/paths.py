@@ -256,9 +256,15 @@ def find_synthetic_activations(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent attention_outputs.npz in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
@@ -279,9 +285,15 @@ def find_synthetic_layer_outputs(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent layer_outputs.npz in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
@@ -302,9 +314,15 @@ def find_synthetic_responses(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent responses.json in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
