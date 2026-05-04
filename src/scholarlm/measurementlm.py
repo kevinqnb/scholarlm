@@ -124,7 +124,7 @@ class MeasurementLM:
         sampling_params: dict[str, any] = {},
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
-        max_concurrent: int = 64,
+        max_concurrent: int = 32,
         clean_tables: bool = True,
         cleaned_ocr_output_dir: str | None = None,
         measurement_event_schema: BaseModel | None = None,
@@ -168,6 +168,7 @@ class MeasurementLM:
         response_format: dict | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        timeout: float = 600.0,
     ) -> str:
         """Single async API call to the vLLM OpenAI-compatible endpoint."""
         # Frontier models may require 'max_completion_tokens' (OpenAI o-series / gpt-5+)
@@ -203,7 +204,9 @@ class MeasurementLM:
             if extra:
                 kwargs["extra_body"] = extra
         try:
-            response = await self.async_client.chat.completions.create(**kwargs)
+            response = await self.async_client.chat.completions.create(
+                **kwargs, timeout=timeout
+            )
             if response.usage is not None and response.usage.prompt_tokens:
                 if response.usage.prompt_tokens > self.max_prompt_tokens:
                     self.max_prompt_tokens = response.usage.prompt_tokens
@@ -220,6 +223,7 @@ class MeasurementLM:
         max_tokens: int | None = None,
         max_retries: int = 0,
         validator: Callable[[str], Any] | None = None,
+        timeout: float = 600.0,
     ) -> list[str]:
         """Dispatch all message sets concurrently; return response texts in order.
 
@@ -232,7 +236,7 @@ class MeasurementLM:
 
             async def _limited(msgs):
                 async with sem:
-                    return await self._acall(msgs, response_format, temperature, max_tokens)
+                    return await self._acall(msgs, response_format, temperature, max_tokens, timeout)
 
             results = list(await asyncio.gather(*[_limited(msgs) for msgs in message_sets]))
 
@@ -374,7 +378,7 @@ class MeasurementLM:
             response_format=None,
             temperature=self.sampling_params.get('temperature'),
             max_tokens=16384,
-            max_retries=1,
+            max_retries=2,
         )
 
         cleaned_documents = deepcopy(documents)
@@ -416,7 +420,7 @@ class MeasurementLM:
     # Step 1: Document Level entity extraction
     # -----------------------------------------------------------------------
 
-    def _extract_entities(self):
+    def _extract_entities(self, max_tokens: int = 8192):
         """
         Extracts entities from documents in two passes:
         1. Full-context extraction using the entity identification prompt and schema.
@@ -459,8 +463,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=32768,
+            max_retries=2,
+            max_tokens=max_tokens,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -549,7 +553,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -646,7 +651,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=4096,
             validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
         )
 
@@ -752,7 +758,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -875,8 +882,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=16384,
+            max_retries=2,
+            max_tokens=8192,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -1004,7 +1011,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -1186,7 +1194,8 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 
@@ -1303,7 +1312,7 @@ class MeasurementLM:
             messages,
             response_format=response_format,
             max_tokens=1024,
-            max_retries=1,
+            max_retries=2,
             validator=lambda r: response_validator(StandardizeResponse, r),
         )
 

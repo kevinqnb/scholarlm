@@ -31,6 +31,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
 # Path setup — make scholarlm importable when run directly from the repo root
@@ -643,6 +644,7 @@ def run_pipeline(
         ocr_dir=effective_ocr_dir,
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
+        hostname=urlparse(effective_api_base).hostname,
     )
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
 

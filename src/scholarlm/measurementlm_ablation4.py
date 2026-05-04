@@ -50,6 +50,9 @@ class MeasurementLMAblation4(MeasurementLM):
     instead of page- or table-level context.
     """
 
+    def __init__(self, *args, max_concurrent: int = 16, **kwargs):
+        super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
+
     # -----------------------------------------------------------------------
     # Step 4.5: Measurement event resolution  (full-document context)
     # -----------------------------------------------------------------------
@@ -114,8 +117,8 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=16384,
+            max_retries=2,
+            max_tokens=8192,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -229,7 +232,8 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -397,7 +401,8 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 

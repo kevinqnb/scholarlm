@@ -122,7 +122,8 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(BatchAttributeDetectionResponseNoExp, r),
         )
 
@@ -216,7 +217,8 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
@@ -301,7 +303,8 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
@@ -429,7 +432,8 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TextValueExtractionResponseNoExp, r),
         )
 
@@ -591,7 +595,8 @@ class MeasurementLMAblation6(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TableValueExtractionResponseNoExp, r),
         )
 

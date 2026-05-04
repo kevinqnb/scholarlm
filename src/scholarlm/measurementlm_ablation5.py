@@ -170,7 +170,8 @@ class MeasurementLMAblation5(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 

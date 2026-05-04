@@ -40,11 +40,12 @@ class MeasurementLMAblation1(MeasurementLM):
     def __init__(
         self,
         *args,
+        max_concurrent: int = 4,
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
 
@@ -96,8 +97,9 @@ class MeasurementLMAblation1(MeasurementLM):
             messages,
             response_format=response_format,
             max_tokens=32768,
-            max_retries=1,
+            max_retries=2,
             validator=partial(response_validator, DirectExtractionList),
+            timeout=1800.0,
         )
 
         triple_data = []

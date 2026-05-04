@@ -109,6 +109,9 @@ class MeasurementLMAblation3(MeasurementLM):
     query per (entity, attribute) pair that returns a list of provenance locations.
     """
 
+    def __init__(self, *args, max_concurrent: int = 16, **kwargs):
+        super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
+
     # -----------------------------------------------------------------------
     # Steps 3 + 4 combined: full-document (entity, attribute) pair provenance
     # -----------------------------------------------------------------------
@@ -182,7 +185,8 @@ class MeasurementLMAblation3(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=4096,
             validator=lambda r: response_validator(ProvenanceListResponse, r),
         )
 
