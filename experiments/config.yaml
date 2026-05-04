@@ -75,7 +75,7 @@ models:
       dtype: bfloat16
       sif_image: vllm-openai_v0.19.0.sif
       gpu_memory: 48G
-      gpu_capability: 8.0
+      gpu_capability: 8.9
       walltime: "48:00:00"
       omp: 8
 
