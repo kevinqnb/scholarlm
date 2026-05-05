@@ -187,6 +187,8 @@ class MeasurementLMAblation3(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=4096,
+            max_concurrent=4,
+            timeout=600,
             validator=lambda r: response_validator(ProvenanceListResponse, r),
         )
 

@@ -170,6 +170,8 @@ class MeasurementLMAblation2(MeasurementLM):
             messages,
             response_format=response_format,
             max_retries=2,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -288,6 +290,8 @@ class MeasurementLMAblation2(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=8192,
+            max_concurrent=8,
+            timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )
 

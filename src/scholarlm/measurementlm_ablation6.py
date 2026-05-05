@@ -124,6 +124,8 @@ class MeasurementLMAblation6(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=4,
+            timeout=600,
             validator=lambda r: response_validator(BatchAttributeDetectionResponseNoExp, r),
         )
 
@@ -219,6 +221,8 @@ class MeasurementLMAblation6(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
@@ -305,6 +309,8 @@ class MeasurementLMAblation6(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
@@ -434,6 +440,8 @@ class MeasurementLMAblation6(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponseNoExp, r),
         )
 
@@ -597,6 +605,8 @@ class MeasurementLMAblation6(MeasurementLM):
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TableValueExtractionResponseNoExp, r),
         )
 

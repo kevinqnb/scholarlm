@@ -224,15 +224,18 @@ class MeasurementLM:
         max_retries: int = 0,
         validator: Callable[[str], Any] | None = None,
         timeout: float = 600.0,
+        max_concurrent: int | None = None,
     ) -> list[str]:
         """Dispatch all message sets concurrently; return response texts in order.
 
         If max_retries > 0, any response that is empty or causes validator to raise
         is retried up to max_retries times with exponential backoff between rounds.
         validator is called only to detect failure — its return value is ignored.
+        max_concurrent overrides self.max_concurrent for this call only, allowing
+        per-step concurrency tuning without changing the instance default.
         """
         async def _run():
-            sem = asyncio.Semaphore(self.max_concurrent)
+            sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
                 async with sem:
@@ -379,6 +382,8 @@ class MeasurementLM:
             temperature=self.sampling_params.get('temperature'),
             max_tokens=16384,
             max_retries=2,
+            max_concurrent=4,
+            timeout=1200,
         )
 
         cleaned_documents = deepcopy(documents)
@@ -465,6 +470,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=max_tokens,
+            max_concurrent=4,
+            timeout=600,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -555,6 +562,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -653,6 +662,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=4096,
+            max_concurrent=4,
+            timeout=600,
             validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
         )
 
@@ -760,6 +771,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -884,6 +897,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=8192,
+            max_concurrent=8,
+            timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -1013,6 +1028,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -1196,6 +1213,8 @@ class MeasurementLM:
             response_format=response_format,
             max_retries=2,
             max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 
@@ -1313,6 +1332,8 @@ class MeasurementLM:
             response_format=response_format,
             max_tokens=1024,
             max_retries=2,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(StandardizeResponse, r),
         )
 
