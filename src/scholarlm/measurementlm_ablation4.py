@@ -120,7 +120,7 @@ class MeasurementLMAblation4(MeasurementLM):
             max_retries=2,
             max_tokens=8192,
             max_concurrent=4,
-            timeout=600,
+            timeout=1800,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -237,7 +237,7 @@ class MeasurementLMAblation4(MeasurementLM):
             max_retries=2,
             max_tokens=512,
             max_concurrent=4,
-            timeout=600,
+            timeout=1800,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -408,7 +408,7 @@ class MeasurementLMAblation4(MeasurementLM):
             max_retries=2,
             max_tokens=512,
             max_concurrent=4,
-            timeout=600,
+            timeout=1800,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 

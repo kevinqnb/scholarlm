@@ -471,7 +471,7 @@ class MeasurementLM:
             max_retries=2,
             max_tokens=max_tokens,
             max_concurrent=4,
-            timeout=600,
+            timeout=1800,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -663,7 +663,7 @@ class MeasurementLM:
             max_retries=2,
             max_tokens=4096,
             max_concurrent=4,
-            timeout=600,
+            timeout=1800,
             validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
         )
 
