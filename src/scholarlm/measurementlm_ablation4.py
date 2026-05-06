@@ -117,10 +117,10 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=2,
+            max_retries=4,
             max_tokens=8192,
-            max_concurrent=4,
-            timeout=1800,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -234,10 +234,10 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=2,
+            max_retries=4,
             max_tokens=512,
-            max_concurrent=4,
-            timeout=1800,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -405,10 +405,10 @@ class MeasurementLMAblation4(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=2,
+            max_retries=4,
             max_tokens=512,
-            max_concurrent=4,
-            timeout=1800,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 

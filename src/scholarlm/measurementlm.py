@@ -221,7 +221,7 @@ class MeasurementLM:
         response_format: dict | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        max_retries: int = 0,
+        max_retries: int = 2,
         validator: Callable[[str], Any] | None = None,
         timeout: float = 600.0,
         max_concurrent: int | None = None,
@@ -381,8 +381,8 @@ class MeasurementLM:
             response_format=None,
             temperature=self.sampling_params.get('temperature'),
             max_tokens=16384,
-            max_retries=2,
-            max_concurrent=4,
+            max_retries=4,
+            max_concurrent=2,
             timeout=1200,
         )
 
@@ -468,10 +468,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=2,
+            max_retries=4,
             max_tokens=max_tokens,
-            max_concurrent=4,
-            timeout=1800,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -660,10 +660,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=2,
+            max_retries=4,
             max_tokens=4096,
-            max_concurrent=4,
-            timeout=1800,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
         )
 

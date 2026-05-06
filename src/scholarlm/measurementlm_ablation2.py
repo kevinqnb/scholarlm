@@ -87,7 +87,7 @@ class MeasurementLMAblation2(MeasurementLM):
         'attribute_terms' fields, and a prompt that instructs the model to emit
         one item per (entity, attribute) pair rather than one item per entity.
         """
-        return self._extract_entities(max_tokens=32768)
+        return self._extract_entities(max_tokens=16384)
 
     # -----------------------------------------------------------------------
     # Step 3 combined: (Entity, attribute) pair provenance

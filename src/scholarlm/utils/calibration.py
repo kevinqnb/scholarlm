@@ -176,6 +176,7 @@ def reliability_diagram_data(
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
 
     bin_accuracy = np.full(n_bins, np.nan)
+    bin_accuracy_sem = np.full(n_bins, np.nan)
     bin_confidence = np.full(n_bins, np.nan)
     bin_counts = np.zeros(n_bins, dtype=np.int64)
 
@@ -187,12 +188,15 @@ def reliability_diagram_data(
         count = mask.sum()
         bin_counts[i] = count
         if count > 0:
-            bin_accuracy[i] = labels[mask].mean()
+            p = labels[mask].mean()
+            bin_accuracy[i] = p
             bin_confidence[i] = probs[mask].mean()
+            bin_accuracy_sem[i] = np.sqrt(p * (1 - p) / count)
 
     return {
         "bin_centers": bin_centers,
         "bin_accuracy": bin_accuracy,
+        "bin_accuracy_sem": bin_accuracy_sem,
         "bin_confidence": bin_confidence,
         "bin_counts": bin_counts,
         "ece": compute_ece(probs, labels, n_bins=n_bins),

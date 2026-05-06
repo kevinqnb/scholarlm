@@ -40,7 +40,7 @@ class MeasurementLMAblation1(MeasurementLM):
     def __init__(
         self,
         *args,
-        max_concurrent: int = 4,
+        max_concurrent: int = 1,
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
         **kwargs,
@@ -97,9 +97,10 @@ class MeasurementLMAblation1(MeasurementLM):
             messages,
             response_format=response_format,
             max_tokens=32768,
-            max_retries=2,
+            max_retries=4,
+            max_concurrent=1,
             validator=partial(response_validator, DirectExtractionList),
-            timeout=1800.0,
+            timeout=600.0,
         )
 
         triple_data = []
