@@ -292,6 +292,18 @@ _VOLUMETRIC_UNITS = [
 ]
 
 _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
+    # Unified description used by the judge when judge_attribute_map collapses
+    # the three sub-attributes onto this key.  Not used during extraction.
+    "nfix_rate": {
+        "description": (
+            "Rate of dinitrogen (N₂) fixation: the amount of nitrogen "
+            "(or ethylene as a surrogate in acetylene reduction assays) fixed per unit time. "
+            "May be expressed per unit mass (e.g., nmol N g⁻¹ h⁻¹), per unit area "
+            "(e.g., µmol N m⁻² h⁻¹), or per unit volume (e.g., nmol N L⁻¹ h⁻¹) "
+            "depending on the substrate and measurement context."
+        ),
+        "units": _MASS_UNITS + _AREAL_UNITS + _VOLUMETRIC_UNITS,
+    },
     "nfix_rate_mass": {
         "description": (
             "Rate of dinitrogen fixation per unit mass: the amount of nitrogen "
@@ -392,4 +404,9 @@ CONFIG = DatasetConfig(
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_filter_fields=["location"],
     ground_truth_file="data/nfix/ground_truth_review.json",
+    judge_attribute_map={
+        "nfix_rate_mass":       "nfix_rate",
+        "nfix_rate_areal":      "nfix_rate",
+        "nfix_rate_volumetric": "nfix_rate",
+    },
 )

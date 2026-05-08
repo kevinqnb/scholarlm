@@ -80,6 +80,14 @@ class DatasetConfig:
             whether it belongs to the entity or event schema.  Use this to suppress
             noisy or irrelevant fields (e.g. ``location``) without altering the
             underlying schemas.  ``None`` applies no filtering.
+        judge_attribute_map: Optional mapping from attribute names to alias keys
+            in ``attribute_info_dict``.  When set, ``prepare_chat_entries`` uses
+            the mapped alias to look up the attribute description for judge prompts
+            instead of the original attribute name.  Use this to collapse several
+            fine-grained attributes (e.g. ``nfix_rate_mass``, ``nfix_rate_areal``,
+            ``nfix_rate_volumetric``) onto a single unified description without
+            changing the extraction pipeline or stored data.  ``None`` applies no
+            remapping.
     """
 
     name: str
@@ -101,6 +109,7 @@ class DatasetConfig:
     ground_truth_file: str | None = None
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
     judge_filter_fields: list[str] | None = None
+    judge_attribute_map: dict[str, str] | None = None
 
 
 @dataclass

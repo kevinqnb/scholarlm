@@ -113,10 +113,9 @@ def build_judge_query(
         f"Extracted entity: {entity_display}"
     )
 
-    attribute_section = (
-        f"Target attribute: {attribute_description}\n"
-        f"Attribute terminology: {attribute_terms}"
-    )
+    attribute_section = f"Target attribute: {attribute_description}"
+    if attribute_terms:
+        attribute_section += f"\nAttribute terminology: {attribute_terms}"
 
     value_section = (
         f"Extracted value: {measurement_val}\n"
@@ -197,8 +196,10 @@ def prepare_chat_entries(
             print(f"Warning: document_id '{document_id}' not found in documents, skipping")
             continue
         attribute = entry.get("attribute")
+        _judge_attr_map = dataset_config.judge_attribute_map or {}
+        judge_attribute = _judge_attr_map.get(attribute, attribute)
         try:
-            attribute_description = _attr_dict[attribute]["description"]
+            attribute_description = _attr_dict[judge_attribute]["description"]
         except KeyError:
             print(f"Attribute '{attribute}' not found in dataset_config.attribute_info_dict")
             continue
