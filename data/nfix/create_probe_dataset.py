@@ -187,21 +187,24 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
 
 
 def _classify_attribute(units_str: str | None) -> str:
-    """Infer nfix_rate_* sub-type from a units string using token-level matching.
+    """Infer nfix_rate_* sub-type from a normalized units string.
 
     The judge requires a specific attribute key (nfix_rate_mass, nfix_rate_areal,
     or nfix_rate_volumetric) to look up the attribute description.  Returns the
     generic "nfix_rate" fallback if units don't match any known pattern.
+
+    Expects units in the LLM-friendly Unicode format produced by preprocessing
+    (e.g. 'nmol N g⁻¹ h⁻¹'), not the raw CSV format ('nmol-n g-1 h-1').
     """
     if not units_str:
         return "nfix_rate"
     u = units_str.lower()
     padded = f" {u} "
-    if " g-1 " in padded or " kg-1 " in padded:
+    if " g⁻¹ " in padded or " kg⁻¹ " in padded:
         return "nfix_rate_mass"
-    if " m-2 " in padded or " cm-2 " in padded:
+    if " m⁻² " in padded or " cm⁻² " in padded:
         return "nfix_rate_areal"
-    if any(f" {tok} " in padded for tok in ["l-1", "m-3", "ml-1", "cm-3"]):
+    if any(f" {tok} " in padded for tok in ["l⁻¹", "m⁻³", "ml⁻¹", "cm⁻³"]):
         return "nfix_rate_volumetric"
     return "nfix_rate"
 

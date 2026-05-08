@@ -12,7 +12,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.017,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -32,7 +32,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.003,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -52,7 +52,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.007,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -72,7 +72,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.001,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -92,7 +92,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 23.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -112,7 +112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -132,7 +132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5e-06,
-    "units": "umol-n2 l-1 h-1",
+    "units": "µmol N2 L⁻¹ h⁻¹",
     "page_number": [
       6
     ],
@@ -152,7 +152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -172,7 +172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 99.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -192,7 +192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 187.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -212,7 +212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 121.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -232,7 +232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 95.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -252,7 +252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 253.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -272,7 +272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.2,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -292,7 +292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 75.9,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -312,7 +312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 118.3,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -332,7 +332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 97.3,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -352,7 +352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 104.7,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -372,7 +372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.41,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -392,7 +392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 50.8,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -412,7 +412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -432,7 +432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 26.6,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -452,7 +452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.3,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -472,7 +472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.53,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -492,7 +492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.5,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -512,7 +512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -532,7 +532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.6,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -552,7 +552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -572,7 +572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.2,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -592,7 +592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 59.4,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -612,7 +612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.4,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -632,7 +632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       11
     ],
@@ -652,7 +652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 76.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -672,7 +672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 42.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -692,7 +692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 27.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -712,7 +712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 578.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -732,7 +732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.33,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       4
     ],
@@ -752,7 +752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.23,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       4
     ],
@@ -772,7 +772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -792,7 +792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -812,7 +812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 48.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -832,7 +832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -852,7 +852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -872,7 +872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -892,7 +892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 28.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       9
     ],
@@ -912,7 +912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.988,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -932,7 +932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.115,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -952,7 +952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.012,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -972,7 +972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.074,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -992,7 +992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.842,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1012,7 +1012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.204,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1032,7 +1032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.56,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1052,7 +1052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.196,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1072,7 +1072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.483,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1092,7 +1092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.511,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1112,7 +1112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.417,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       8
     ],
@@ -1132,7 +1132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.47,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -1152,7 +1152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.36,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -1172,7 +1172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.8,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1192,7 +1192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 26.7,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1212,7 +1212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1232,7 +1232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 125.5,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1252,7 +1252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1272,7 +1272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.8,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1292,7 +1292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1312,7 +1312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 30.0,
-    "units": "ng-n l-1 h-1",
+    "units": "ng N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -1332,7 +1332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 655.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1352,7 +1352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 709.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1372,7 +1372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 301.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1392,7 +1392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 494.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1412,7 +1412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 549.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1432,7 +1432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 227.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1452,7 +1452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 242.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1472,7 +1472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 422.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1492,7 +1492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 970.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1512,7 +1512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 212.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1532,7 +1532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 283.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1552,7 +1552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 821.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1572,7 +1572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 259.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1592,7 +1592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 121.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1612,7 +1612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 821.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1632,7 +1632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 213.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1652,7 +1652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 78.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1672,7 +1672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 598.0,
-    "units": "mg-n m-2 y-1",
+    "units": "mg N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -1692,7 +1692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -1712,7 +1712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.6,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -1732,7 +1732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.7,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -1752,7 +1752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.47,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -1772,7 +1772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.58,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -1792,7 +1792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.31,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -1812,7 +1812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -1832,7 +1832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.026,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -1852,7 +1852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.032,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -1872,7 +1872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.3,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1892,7 +1892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.5,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1912,7 +1912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.0,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1932,7 +1932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 47.8,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1952,7 +1952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.7,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1972,7 +1972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.3,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -1992,7 +1992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 22.7,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -2012,7 +2012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.3,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -2032,7 +2032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.3,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -2052,7 +2052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.2,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -2072,7 +2072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -2092,7 +2092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -2112,7 +2112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.4,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -2132,7 +2132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -2152,7 +2152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.19,
-    "units": "ug-N g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -2172,7 +2172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.37,
-    "units": "ug-N g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -2192,7 +2192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.138,
-    "units": "nmol-c2h4 cm-3 h-1",
+    "units": "nmol C2H4 cm⁻³ h⁻¹",
     "page_number": [
       2
     ],
@@ -2212,7 +2212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.96,
-    "units": "nmol-c2h4 cm-3 h-1",
+    "units": "nmol C2H4 cm⁻³ h⁻¹",
     "page_number": [
       2
     ],
@@ -2232,7 +2232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.106,
-    "units": "nmol-c2h4 cm-3 h-1",
+    "units": "nmol C2H4 cm⁻³ h⁻¹",
     "page_number": [
       2
     ],
@@ -2252,7 +2252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.128,
-    "units": "nmol-c2h4 cm-3 h-1",
+    "units": "nmol C2H4 cm⁻³ h⁻¹",
     "page_number": [
       2
     ],
@@ -2272,7 +2272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.69,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -2292,7 +2292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.25,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -2312,7 +2312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 78.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2332,7 +2332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 77.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2352,7 +2352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 194.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2372,7 +2372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 72.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2392,7 +2392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 61.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2412,7 +2412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 216.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2432,7 +2432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 69.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2452,7 +2452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 44.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2472,7 +2472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 127.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2492,7 +2492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 63.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2512,7 +2512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 27.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2532,7 +2532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 59.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -2552,7 +2552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.46,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2572,7 +2572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.27,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2592,7 +2592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.45,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2612,7 +2612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.38,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2632,7 +2632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.07,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2652,7 +2652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.29,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2672,7 +2672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.26,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2692,7 +2692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.02,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2712,7 +2712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.19,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -2732,7 +2732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 74.1,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -2752,7 +2752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -2772,7 +2772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 108.7,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -2792,7 +2792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 642.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2812,7 +2812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 743.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2832,7 +2832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1276.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2852,7 +2852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 590.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2872,7 +2872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 445.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2892,7 +2892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1190.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2912,7 +2912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1068.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2932,7 +2932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 443.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2952,7 +2952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1310.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2972,7 +2972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 782.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -2992,7 +2992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 108.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -3012,7 +3012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2585.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -3032,7 +3032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1029.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -3052,7 +3052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 387.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -3072,7 +3072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 327.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -3092,7 +3092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 718.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3112,7 +3112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 899.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3132,7 +3132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 948.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3152,7 +3152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 383.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3172,7 +3172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 492.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3192,7 +3192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 349.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3212,7 +3212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 982.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3232,7 +3232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 721.0,
-    "units": "ug-n2 m-2 h-1",
+    "units": "µg N2 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -3252,7 +3252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.8,
-    "units": "mg-n m-3 d-1",
+    "units": "mg N m⁻³ d⁻¹",
     "page_number": [
       0
     ],
@@ -3272,7 +3272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "mg-n m-3 d-1",
+    "units": "mg N m⁻³ d⁻¹",
     "page_number": [
       0
     ],
@@ -3292,7 +3292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.38,
-    "units": "mg-n m-3 d-1",
+    "units": "mg N m⁻³ d⁻¹",
     "page_number": [
       3
     ],
@@ -3312,7 +3312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.097,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3332,7 +3332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.24,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3352,7 +3352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.88,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3372,7 +3372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.39,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3392,7 +3392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.36,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3412,7 +3412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.35,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3432,7 +3432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.27,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3452,7 +3452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.24,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       3
     ],
@@ -3472,7 +3472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.8,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       10
     ],
@@ -3492,7 +3492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.62,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       10
     ],
@@ -3512,7 +3512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.28,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       10
     ],
@@ -3532,7 +3532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       10
     ],
@@ -3552,7 +3552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.38,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       10
     ],
@@ -3572,7 +3572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.07,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -3592,7 +3592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -3612,7 +3612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3632,7 +3632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3652,7 +3652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3672,7 +3672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3692,7 +3692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3712,7 +3712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3732,7 +3732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "ug-n2 l-1 h-1",
+    "units": "µg N2 L⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -3752,7 +3752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 567.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3772,7 +3772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 97.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3792,7 +3792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 305.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3812,7 +3812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1648.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3832,7 +3832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 238.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3852,7 +3852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4316.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3872,7 +3872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 860.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       7
     ],
@@ -3892,7 +3892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -3912,7 +3912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -3932,7 +3932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.0,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -3952,7 +3952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -3972,7 +3972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -3992,7 +3992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "mmol-n2 m-2 d-1",
+    "units": "mmol N2 m⁻² d⁻¹",
     "page_number": [
       10
     ],
@@ -4012,7 +4012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4032,7 +4032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4052,7 +4052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4072,7 +4072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4092,7 +4092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4112,7 +4112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4132,7 +4132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4152,7 +4152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -4172,7 +4172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 245.0,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       0
     ],
@@ -4192,7 +4192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1425.0,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       0
     ],
@@ -4212,7 +4212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 444.0,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       0
     ],
@@ -4232,7 +4232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.1,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4252,7 +4252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 821.3,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4272,7 +4272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 306.9,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4292,7 +4292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 148.5,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4312,7 +4312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 264.5,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4332,7 +4332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4352,7 +4352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.1,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4372,7 +4372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.6,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4392,7 +4392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 65.5,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4412,7 +4412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 170.3,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4432,7 +4432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.6,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4452,7 +4452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 38.2,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4472,7 +4472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.2,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4492,7 +4492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 318.2,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4512,7 +4512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4532,7 +4532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4552,7 +4552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4572,7 +4572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.2,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4592,7 +4592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4612,7 +4612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.0,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4632,7 +4632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.9,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4652,7 +4652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.8,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4672,7 +4672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4692,7 +4692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.3,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4712,7 +4712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4732,7 +4732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.3,
-    "units": "nmol-n2 g-1 h-1",
+    "units": "nmol N2 g⁻¹ h⁻¹",
     "page_number": [
       11
     ],
@@ -4752,7 +4752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.6,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4772,7 +4772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.3,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4792,7 +4792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.9,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4812,7 +4812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.2,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4832,7 +4832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 78.1,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4852,7 +4852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.2,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4872,7 +4872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.2,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4892,7 +4892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.8,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4912,7 +4912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4932,7 +4932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4952,7 +4952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4972,7 +4972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -4992,7 +4992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -5012,7 +5012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.0,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -5032,7 +5032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.9,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -5052,7 +5052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.5,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -5072,7 +5072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.5,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       20
     ],
@@ -5092,7 +5092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 112.8,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -5112,7 +5112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 82.8,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -5132,7 +5132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 93.5,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -5152,7 +5152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 62.7,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -5172,7 +5172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 69.7,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -5192,7 +5192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.7,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -5212,7 +5212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.5,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -5232,7 +5232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.0,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       7
     ],
@@ -5252,7 +5252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.1,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       7
     ],
@@ -5272,7 +5272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.1,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -5292,7 +5292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.98,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5312,7 +5312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 42.62,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5332,7 +5332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 45.42,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5352,7 +5352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 34.68,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5372,7 +5372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.54,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5392,7 +5392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.26,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5412,7 +5412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 15.56,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5432,7 +5432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 47.58,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5452,7 +5452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 46.53,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5472,7 +5472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 26.76,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5492,7 +5492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.53,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5512,7 +5512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.03,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5532,7 +5532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 118.93,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5552,7 +5552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 70.25,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5572,7 +5572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.99,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5592,7 +5592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 61.48,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5612,7 +5612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.67,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5632,7 +5632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 105.52,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5652,7 +5652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 96.24,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5672,7 +5672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 118.07,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5692,7 +5692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 251.73,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5712,7 +5712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.96,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5732,7 +5732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 44.33,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5752,7 +5752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 77.03,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5772,7 +5772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 223.76,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5792,7 +5792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 251.76,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5812,7 +5812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.49,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5832,7 +5832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 104.29,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5852,7 +5852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 161.91,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5872,7 +5872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 177.42,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5892,7 +5892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 73.68,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -5912,7 +5912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.6,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -5932,7 +5932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.5,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -5952,7 +5952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.5,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -5972,7 +5972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.5,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -5992,7 +5992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6012,7 +6012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.5,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6032,7 +6032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.7,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6052,7 +6052,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6072,7 +6072,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6092,7 +6092,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6112,7 +6112,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.6,
-    "units": "ng-n g-1 h-1",
+    "units": "ng N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -6132,7 +6132,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -6152,7 +6152,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 41.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -6172,7 +6172,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.087,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -6192,7 +6192,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 15.2,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -6212,7 +6212,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -6232,7 +6232,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 26.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6252,7 +6252,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6272,7 +6272,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.4,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6292,7 +6292,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6312,7 +6312,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6332,7 +6332,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6352,7 +6352,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6372,7 +6372,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.6,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6392,7 +6392,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.7,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6412,7 +6412,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.8,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6432,7 +6432,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6452,7 +6452,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6472,7 +6472,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6492,7 +6492,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6512,7 +6512,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6532,7 +6532,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 46.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6552,7 +6552,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 22.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6572,7 +6572,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.5,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6592,7 +6592,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.6,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6612,7 +6612,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.1,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6632,7 +6632,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6652,7 +6652,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.4,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6672,7 +6672,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.5,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6692,7 +6692,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.3,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6712,7 +6712,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.8,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6732,7 +6732,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6752,7 +6752,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6772,7 +6772,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6792,7 +6792,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.9,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6812,7 +6812,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6832,7 +6832,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6852,7 +6852,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 31.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6872,7 +6872,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6892,7 +6892,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.1,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6912,7 +6912,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6932,7 +6932,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -6952,7 +6952,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 35.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -6972,7 +6972,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -6992,7 +6992,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.9,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7012,7 +7012,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.7,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7032,7 +7032,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.66,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       1,
       2
@@ -7053,7 +7053,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.17,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       1,
       2
@@ -7074,7 +7074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 54.5,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       2
     ],
@@ -7094,7 +7094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.0,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       2
     ],
@@ -7114,7 +7114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.06,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -7134,7 +7134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.42,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -7154,7 +7154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.6,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -7174,7 +7174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.4,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -7194,7 +7194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.117,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -7214,7 +7214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 16.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -7234,7 +7234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 15.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -7254,7 +7254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7274,7 +7274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7294,7 +7294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7314,7 +7314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7334,7 +7334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.57,
-    "units": "nmol-n cm-2 h-1",
+    "units": "nmol N cm⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -7354,7 +7354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 86.9,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7374,7 +7374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 22.5,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7394,7 +7394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.4,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7414,7 +7414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7434,7 +7434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 23.6,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7454,7 +7454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7474,7 +7474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7494,7 +7494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 15695.5,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7514,7 +7514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.7,
-    "units": "umol-n2 m-2 d-1",
+    "units": "µmol N2 m⁻² d⁻¹",
     "page_number": [
       13
     ],
@@ -7534,7 +7534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.008,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -7554,7 +7554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.046,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -7574,7 +7574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.876,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -7594,7 +7594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.037,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -7614,7 +7614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.6,
-    "units": "ug-n g-1 h-1",
+    "units": "µg N g⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -7634,7 +7634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.09,
-    "units": "ug-n g-1 h-1",
+    "units": "µg N g⁻¹ h⁻¹",
     "page_number": [
       7
     ],
@@ -7654,7 +7654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.2,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -7674,7 +7674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -7694,7 +7694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -7714,7 +7714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7734,7 +7734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.02,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7754,7 +7754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.25,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7774,7 +7774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.09,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7794,7 +7794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.47,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7814,7 +7814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.94,
-    "units": "umol-n g-1 d-1",
+    "units": "µmol N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7834,7 +7834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.43,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7854,7 +7854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.68,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7874,7 +7874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7894,7 +7894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.35,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7914,7 +7914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.01,
-    "units": "umol-c2h4 g-1 d-1",
+    "units": "µmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -7934,7 +7934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.37,
-    "units": "umol-n2 g-1 d-1",
+    "units": "µmol N2 g⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -7954,7 +7954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.17,
-    "units": "umol-n2 g-1 d-1",
+    "units": "µmol N2 g⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -7974,7 +7974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.18,
-    "units": "umol-n2 g-1 d-1",
+    "units": "µmol N2 g⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -7994,7 +7994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.54,
-    "units": "umol-n2 g-1 d-1",
+    "units": "µmol N2 g⁻¹ d⁻¹",
     "page_number": [
       21
     ],
@@ -8014,7 +8014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 81.9,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -8034,7 +8034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 63.3,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -8054,7 +8054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.2,
-    "units": "fmol-n g-1 h-1",
+    "units": "fmol N g⁻¹ h⁻¹",
     "page_number": [
       21
     ],
@@ -8074,7 +8074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 56.5,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8094,7 +8094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 72.1,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8114,7 +8114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 34.2,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8134,7 +8134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 16.3,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8154,7 +8154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.1,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8174,7 +8174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.6,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8194,7 +8194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -8214,7 +8214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -8234,7 +8234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -8254,7 +8254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 61.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -8274,7 +8274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.5,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       7
     ],
@@ -8294,7 +8294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -8314,7 +8314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -8334,7 +8334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.7,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -8354,7 +8354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -27.0,
-    "units": "umol-n2 m-2 h-1",
+    "units": "µmol N2 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8374,7 +8374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -27.0,
-    "units": "umol-n2 m-2 h-1",
+    "units": "µmol N2 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -8394,7 +8394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -10.3,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -8414,7 +8414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.768,
-    "units": "mmol-n m-2 h-1",
+    "units": "mmol N m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -8434,7 +8434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.173,
-    "units": "mmol-n m-2 h-1",
+    "units": "mmol N m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -8454,7 +8454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -25.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8474,7 +8474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -245.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8494,7 +8494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -30.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8514,7 +8514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -135.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8534,7 +8534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -650.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8554,7 +8554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -75.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8574,7 +8574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -276.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       1
     ],
@@ -8594,7 +8594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.39,
-    "units": "mg-n m-2 h-1",
+    "units": "mg N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -8614,7 +8614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.72,
-    "units": "mg-n m-2 h-1",
+    "units": "mg N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -8634,7 +8634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.48,
-    "units": "mg-n m-2 h-1",
+    "units": "mg N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -8654,7 +8654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.29,
-    "units": "mg-n m-2 h-1",
+    "units": "mg N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -8674,7 +8674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.28,
-    "units": "mg-n m-2 h-1",
+    "units": "mg N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -8694,7 +8694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -70.2,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -8714,7 +8714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8734,7 +8734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8754,7 +8754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8774,7 +8774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8794,7 +8794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8814,7 +8814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8834,7 +8834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8854,7 +8854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -8874,7 +8874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 132.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8894,7 +8894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 181.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8914,7 +8914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 374.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8934,7 +8934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 308.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8954,7 +8954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 70.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8974,7 +8974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 191.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -8994,7 +8994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9014,7 +9014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9034,7 +9034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9054,7 +9054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 72.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9074,7 +9074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 313.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9094,7 +9094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9114,7 +9114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9134,7 +9134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 93.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9154,7 +9154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9174,7 +9174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 100.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9194,7 +9194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9214,7 +9214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9234,7 +9234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 54.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9254,7 +9254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9274,7 +9274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9294,7 +9294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9314,7 +9314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       20
     ],
@@ -9334,7 +9334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.14,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9354,7 +9354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.08,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9374,7 +9374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.02,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9394,7 +9394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.46,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9414,7 +9414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.36,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9434,7 +9434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.45,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -9454,7 +9454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 45.3,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -9474,7 +9474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 68.7,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -9494,7 +9494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 28.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9514,7 +9514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9534,7 +9534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 104.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9554,7 +9554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 216.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9574,7 +9574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 36.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9594,7 +9594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 45.0,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -9614,7 +9614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.13,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       10
     ],
@@ -9634,7 +9634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.29,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       10
     ],
@@ -9654,7 +9654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.11,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       10
     ],
@@ -9674,7 +9674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.29,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       10
     ],
@@ -9694,7 +9694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -9714,7 +9714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       8
     ],
@@ -9734,7 +9734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.13,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9754,7 +9754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.33,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9774,7 +9774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.55,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9794,7 +9794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.26,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9814,7 +9814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.81,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9834,7 +9834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.205,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9854,7 +9854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.16,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9874,7 +9874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.083,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9894,7 +9894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.123,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9914,7 +9914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.076,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9934,7 +9934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.166,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9954,7 +9954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.183,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9974,7 +9974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.128,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -9994,7 +9994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.091,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -10014,7 +10014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.097,
-    "units": "umol-n g-1 h-1",
+    "units": "µmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -10034,7 +10034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.29,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10054,7 +10054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.23,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10074,7 +10074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10094,7 +10094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.27,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10114,7 +10114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.8,
-    "units": "nmol-c2h4 g-1 h-1",
+    "units": "nmol C2H4 g⁻¹ h⁻¹",
     "page_number": [
       6
     ],
@@ -10134,7 +10134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.4,
-    "units": "nmol-c2h4 g-1 h-1",
+    "units": "nmol C2H4 g⁻¹ h⁻¹",
     "page_number": [
       6
     ],
@@ -10154,7 +10154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10174,7 +10174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10194,7 +10194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.3,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10214,7 +10214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 58.5,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10234,7 +10234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.4,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10254,7 +10254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10274,7 +10274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 163.6,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10294,7 +10294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 406.8,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10314,7 +10314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 72.8,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10334,7 +10334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       6
     ],
@@ -10354,7 +10354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -10374,7 +10374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -10394,7 +10394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       3
     ],
@@ -10414,7 +10414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0071,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10434,7 +10434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.022,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10454,7 +10454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.051,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10474,7 +10474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.002,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10494,7 +10494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.051,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10514,7 +10514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.28,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10534,7 +10534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10554,7 +10554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.4,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10574,7 +10574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 41.0,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10594,7 +10594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 48.0,
-    "units": "nmol-n l-1 h-1",
+    "units": "nmol N L⁻¹ h⁻¹",
     "page_number": [
       3
     ],
@@ -10614,7 +10614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.87,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10634,7 +10634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.94,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10654,7 +10654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.69,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10674,7 +10674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.64,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10694,7 +10694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.06,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10714,7 +10714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.02,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10734,7 +10734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.76,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10754,7 +10754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.94,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10774,7 +10774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.84,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10794,7 +10794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.42,
-    "units": "g-n m-2 y-1",
+    "units": "g N m⁻² yr⁻¹",
     "page_number": [
       9
     ],
@@ -10814,7 +10814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10834,7 +10834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 42.6,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10854,7 +10854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 222.0,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10874,7 +10874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10894,7 +10894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 67.8,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10914,7 +10914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 385.0,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10934,7 +10934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10954,7 +10954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.1,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10974,7 +10974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 60.7,
-    "units": "ug-n g-1 d-1",
+    "units": "µg N g⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -10994,7 +10994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.74,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -11014,7 +11014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.39,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -11034,7 +11034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.45,
-    "units": "umol-c2h4 m-2 h-1",
+    "units": "µmol C2H4 m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -11054,7 +11054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 62.6,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11074,7 +11074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 97.4,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11094,7 +11094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 145.2,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11114,7 +11114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 340.3,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11134,7 +11134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 307.1,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11154,7 +11154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 315.8,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11174,7 +11174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 704.3,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11194,7 +11194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 105.1,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11214,7 +11214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 256.0,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11234,7 +11234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 226.9,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11254,7 +11254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 134.9,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11274,7 +11274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 230.8,
-    "units": "nmol-c2h4 cm-2 d-1",
+    "units": "nmol C2H4 cm⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11294,7 +11294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.19,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -11314,7 +11314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.55,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -11334,7 +11334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -11354,7 +11354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.17,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       17
     ],
@@ -11374,7 +11374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -0.84,
-    "units": "mmol-n m-2 d-1",
+    "units": "mmol N m⁻² d⁻¹",
     "page_number": [
       14
     ],
@@ -11394,7 +11394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 59.0,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11414,7 +11414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 57.4,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11434,7 +11434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 318.5,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11454,7 +11454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 80.8,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11474,7 +11474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 32.0,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11494,7 +11494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 117.7,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11514,7 +11514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 100.4,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11534,7 +11534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 26.7,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11554,7 +11554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.4,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11574,7 +11574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 91.8,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11594,7 +11594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 112.1,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11614,7 +11614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 122.3,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11634,7 +11634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.6,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11654,7 +11654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 263.3,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11674,7 +11674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.0,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11694,7 +11694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 35.4,
-    "units": "nmol-c2h4 g-1 d-1",
+    "units": "nmol C2H4 g⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -11714,7 +11714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 205.5,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11734,7 +11734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 98.9,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11754,7 +11754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 30.7,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11774,7 +11774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 130.9,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11794,7 +11794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 571.8,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11814,7 +11814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 798.1,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11834,7 +11834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1000.8,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11854,7 +11854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 37.1,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11874,7 +11874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 54.7,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11894,7 +11894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 286.0,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11914,7 +11914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 490.0,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11934,7 +11934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 433.5,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11954,7 +11954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 35.5,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11974,7 +11974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 392.7,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -11994,7 +11994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 58.8,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -12014,7 +12014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 126.3,
-    "units": "nmol-c2h4 m-2 d-1",
+    "units": "nmol C2H4 m⁻² d⁻¹",
     "page_number": [
       2
     ],
@@ -12034,7 +12034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.22,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       17
     ],
@@ -12054,7 +12054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.15,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       17
     ],
@@ -12074,7 +12074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.36,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       17
     ],
@@ -12094,7 +12094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.28,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       17
     ],
@@ -12114,7 +12114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.2,
-    "units": "nmol-n m-3 h-1",
+    "units": "nmol N m⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -12134,7 +12134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 38.3,
-    "units": "nmol-n m-3 h-1",
+    "units": "nmol N m⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -12154,7 +12154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 193.1,
-    "units": "nmol-n m-3 h-1",
+    "units": "nmol N m⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -12174,7 +12174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12194,7 +12194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12214,7 +12214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12234,7 +12234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12254,7 +12254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12274,7 +12274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12294,7 +12294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12314,7 +12314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 22.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12334,7 +12334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 24.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12354,7 +12354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 30.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12374,7 +12374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 35.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12394,7 +12394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 39.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12414,7 +12414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 23.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12434,7 +12434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       2
     ],
@@ -12454,7 +12454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12474,7 +12474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12494,7 +12494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12514,7 +12514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12534,7 +12534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12554,7 +12554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12574,7 +12574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12594,7 +12594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12614,7 +12614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12634,7 +12634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12654,7 +12654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12674,7 +12674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12694,7 +12694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12714,7 +12714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -12734,7 +12734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12754,7 +12754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12774,7 +12774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12794,7 +12794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 15.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12814,7 +12814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12834,7 +12834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12854,7 +12854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12874,7 +12874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12894,7 +12894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12914,7 +12914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12934,7 +12934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12954,7 +12954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12974,7 +12974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -12994,7 +12994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -13014,7 +13014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -13034,7 +13034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       5
     ],
@@ -13054,7 +13054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13074,7 +13074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13094,7 +13094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13114,7 +13114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13134,7 +13134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13154,7 +13154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13174,7 +13174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13194,7 +13194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13214,7 +13214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13234,7 +13234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13254,7 +13254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13274,7 +13274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13294,7 +13294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13314,7 +13314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13334,7 +13334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13354,7 +13354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       6
     ],
@@ -13374,7 +13374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13394,7 +13394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13414,7 +13414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13434,7 +13434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 21.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13454,7 +13454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13474,7 +13474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13494,7 +13494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13514,7 +13514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13534,7 +13534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13554,7 +13554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 49.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13574,7 +13574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13594,7 +13594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13614,7 +13614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13634,7 +13634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13654,7 +13654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13674,7 +13674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13694,7 +13694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 28.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13714,7 +13714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13734,7 +13734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13754,7 +13754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13774,7 +13774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13794,7 +13794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13814,7 +13814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13834,7 +13834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13854,7 +13854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13874,7 +13874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13894,7 +13894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13914,7 +13914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13934,7 +13934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 22.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13954,7 +13954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       7
     ],
@@ -13974,7 +13974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -13994,7 +13994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14014,7 +14014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14034,7 +14034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14054,7 +14054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 20.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14074,7 +14074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14094,7 +14094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14114,7 +14114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14134,7 +14134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14154,7 +14154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.9,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14174,7 +14174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14194,7 +14194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14214,7 +14214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14234,7 +14234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14254,7 +14254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14274,7 +14274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14294,7 +14294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14314,7 +14314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14334,7 +14334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.1,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14354,7 +14354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14374,7 +14374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.7,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14394,7 +14394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14414,7 +14414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14434,7 +14434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14454,7 +14454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14474,7 +14474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14494,7 +14494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14514,7 +14514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14534,7 +14534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14554,7 +14554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14574,7 +14574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.3,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       8
     ],
@@ -14594,7 +14594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.37,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14614,7 +14614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.23,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14634,7 +14634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.03,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14654,7 +14654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.2,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14674,7 +14674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.49,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14694,7 +14694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.79,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14714,7 +14714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.88,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14734,7 +14734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.93,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14754,7 +14754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.02,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14774,7 +14774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.66,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14794,7 +14794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.93,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14814,7 +14814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.56,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14834,7 +14834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.54,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14854,7 +14854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.89,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14874,7 +14874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.47,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14894,7 +14894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.63,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14914,7 +14914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.51,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14934,7 +14934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.04,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14954,7 +14954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.29,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14974,7 +14974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.51,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -14994,7 +14994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.32,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15014,7 +15014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.38,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15034,7 +15034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.69,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15054,7 +15054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.85,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15074,7 +15074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.57,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15094,7 +15094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.31,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15114,7 +15114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.15,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15134,7 +15134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.28,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15154,7 +15154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.83,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15174,7 +15174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.38,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15194,7 +15194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.73,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15214,7 +15214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.52,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15234,7 +15234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.57,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15254,7 +15254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.51,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15274,7 +15274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.73,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15294,7 +15294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.12,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15314,7 +15314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.99,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15334,7 +15334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.23,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15354,7 +15354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.65,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15374,7 +15374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.31,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15394,7 +15394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.29,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15414,7 +15414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.98,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15434,7 +15434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.17,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15454,7 +15454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15474,7 +15474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.39,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15494,7 +15494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.08,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15514,7 +15514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.56,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15534,7 +15534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.03,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15554,7 +15554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.54,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15574,7 +15574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.41,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15594,7 +15594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.07,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15614,7 +15614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.5,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15634,7 +15634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.26,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15654,7 +15654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.27,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15674,7 +15674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.25,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15694,7 +15694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.13,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15714,7 +15714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.91,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15734,7 +15734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.43,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15754,7 +15754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.55,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15774,7 +15774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.53,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15794,7 +15794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.41,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15814,7 +15814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.02,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15834,7 +15834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.13,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15854,7 +15854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.34,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15874,7 +15874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.39,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15894,7 +15894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 69.0,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15914,7 +15914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.61,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15934,7 +15934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.74,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15954,7 +15954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.77,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15974,7 +15974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.52,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -15994,7 +15994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.89,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16014,7 +16014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.49,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16034,7 +16034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 13.6,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16054,7 +16054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.87,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16074,7 +16074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.27,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16094,7 +16094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.85,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16114,7 +16114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.4,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16134,7 +16134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.97,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16154,7 +16154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.53,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16174,7 +16174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.09,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16194,7 +16194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.37,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16214,7 +16214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.23,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16234,7 +16234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.45,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16254,7 +16254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.92,
-    "units": "nmol-n l-1 d-1",
+    "units": "nmol N L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -16274,7 +16274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16294,7 +16294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16314,7 +16314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.59,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16334,7 +16334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.009,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16354,7 +16354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.47,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16374,7 +16374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16394,7 +16394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.24,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16414,7 +16414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.56,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16434,7 +16434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.27,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16454,7 +16454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 11.19,
-    "units": "nmol-c2h4 ml-1 h-1",
+    "units": "nmol C2H4 mL⁻¹ h⁻¹",
     "page_number": [
       2
     ],
@@ -16474,7 +16474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.26,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16494,7 +16494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 8.93,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16514,7 +16514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.73,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16534,7 +16534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 14.02,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16554,7 +16554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.91,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16574,7 +16574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.35,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16594,7 +16594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.94,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16614,7 +16614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.63,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16634,7 +16634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.47,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16654,7 +16654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.21,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16674,7 +16674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.39,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16694,7 +16694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.76,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16714,7 +16714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.85,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16734,7 +16734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.61,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16754,7 +16754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.04,
-    "units": "nmol-c2h4 cm-2 h-1",
+    "units": "nmol C2H4 cm⁻² h⁻¹",
     "page_number": [
       3
     ],
@@ -16774,7 +16774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.02,
-    "units": "ug-n cm-2 h-1",
+    "units": "µg N cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16794,7 +16794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.002,
-    "units": "ug-n cm-2 h-1",
+    "units": "µg N cm⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16814,7 +16814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -7.6,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -16834,7 +16834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -19.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -16854,7 +16854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -28.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -16874,7 +16874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -4.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -16894,7 +16894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -19.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       4
     ],
@@ -16914,7 +16914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -26.6,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16934,7 +16934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -246.4,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16954,7 +16954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -30.3,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16974,7 +16974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -136.6,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -16994,7 +16994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -652.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17014,7 +17014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -4.8,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17034,7 +17034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -174.9,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17054,7 +17054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -213.5,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17074,7 +17074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -28.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17094,7 +17094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -16.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17114,7 +17114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -6.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17134,7 +17134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -18.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17154,7 +17154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -24.0,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       5
     ],
@@ -17174,7 +17174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": -23.61,
-    "units": "umol-n m-2 h-1",
+    "units": "µmol N m⁻² h⁻¹",
     "page_number": [
       9
     ],
@@ -17194,7 +17194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.2,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17214,7 +17214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 25.6,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17234,7 +17234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 38.4,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17254,7 +17254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.8,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17274,7 +17274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 76.8,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17294,7 +17294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 44.8,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17314,7 +17314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.2,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17334,7 +17334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 12.8,
-    "units": "umol-n2 l-1 d-1",
+    "units": "µmol N2 L⁻¹ d⁻¹",
     "page_number": [
       9
     ],
@@ -17354,7 +17354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.16,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17374,7 +17374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.61,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17394,7 +17394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.89,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17414,7 +17414,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.23,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17434,7 +17434,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.65,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17454,7 +17454,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.5,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17474,7 +17474,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 5.81,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17494,7 +17494,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.4,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17514,7 +17514,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.23,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17534,7 +17534,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 6.38,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17554,7 +17554,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 39.02,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17574,7 +17574,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.53,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17594,7 +17594,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.14,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17614,7 +17614,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 35.35,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17634,7 +17634,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.55,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17654,7 +17654,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 55.15,
-    "units": "nmol-n g-1 h-1",
+    "units": "nmol N g⁻¹ h⁻¹",
     "page_number": [
       5
     ],
@@ -17674,7 +17674,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.7,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -17694,7 +17694,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-n cm-3 h-1",
+    "units": "nmol N cm⁻³ h⁻¹",
     "page_number": [
       5
     ],
@@ -17714,7 +17714,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.93,
-    "units": "umol-c2h4 l-1 d-1",
+    "units": "µmol C2H4 L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -17734,7 +17734,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.42,
-    "units": "umol-c2h4 l-1 d-1",
+    "units": "µmol C2H4 L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -17754,7 +17754,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.9,
-    "units": "umol-c2h4 l-1 d-1",
+    "units": "µmol C2H4 L⁻¹ d⁻¹",
     "page_number": [
       4
     ],
@@ -17774,7 +17774,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.33,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -17794,7 +17794,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.64,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -17814,7 +17814,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 10.23,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -17834,7 +17834,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 50.68,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -17854,7 +17854,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.18,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17874,7 +17874,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 9.13,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17894,7 +17894,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 31.38,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17914,7 +17914,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.0,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17934,7 +17934,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 32.61,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17954,7 +17954,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 19.09,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17974,7 +17974,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 18.03,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -17994,7 +17994,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 33.9,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -18014,7 +18014,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 23.7,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -18034,7 +18034,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.57,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -18054,7 +18054,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 63.94,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -18074,7 +18074,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 17.14,
-    "units": "nmol-c2h4 m-2 h-1",
+    "units": "nmol C2H4 m⁻² h⁻¹",
     "page_number": [
       6
     ],
@@ -18094,7 +18094,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.02,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18114,7 +18114,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.7,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18134,7 +18134,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.2,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18154,7 +18154,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.4,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18174,7 +18174,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.0,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18194,7 +18194,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.3,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18214,7 +18214,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.8,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18234,7 +18234,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.4,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18254,7 +18254,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.1,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18274,7 +18274,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 0.2,
-    "units": "mg-n m-2 d-1",
+    "units": "mg N m⁻² d⁻¹",
     "page_number": [
       4
     ],
@@ -18294,7 +18294,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 1.14,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -18314,7 +18314,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 7.36,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -18334,7 +18334,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 3.43,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -18354,7 +18354,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.5,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -18374,7 +18374,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 2.22,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],
@@ -18394,7 +18394,7 @@
     "additional_details": null,
     "attribute": "nfix_rate",
     "value": 4.12,
-    "units": "umol-n m-2 d-1",
+    "units": "µmol N m⁻² d⁻¹",
     "page_number": [
       5
     ],

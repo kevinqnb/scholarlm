@@ -58,6 +58,58 @@ logger = logging.getLogger(__name__)
 
 BASE = Path(__file__).parent  # data/nfix/
 
+# ---------------------------------------------------------------------------
+# Unit normalization
+# ---------------------------------------------------------------------------
+
+_SUPERSCRIPT_MAP = {'1': '⁻¹', '2': '⁻²', '3': '⁻³'}
+_CHEMICAL_MAP = {'n': 'N', 'n2': 'N2', 'c2h4': 'C2H4'}
+_DENOM_MAP = {'l': 'L', 'ml': 'mL', 'y': 'yr'}
+
+
+def _normalize_units(s: str) -> str | None:
+    """Normalize a raw CSV unit string to LLM-friendly Unicode format.
+
+    Converts e.g. 'nmol-n g-1 h-1' → 'nmol N g⁻¹ h⁻¹'.
+
+    Rules per space-separated token:
+    - First token (amount–element pair, e.g. 'nmol-n', 'ug-c2h4'):
+      split on hyphen, normalize 'u' prefix to 'µ', capitalize the chemical
+      element using _CHEMICAL_MAP.
+    - Subsequent tokens (denominator–exponent, e.g. 'g-1', 'm-2', 'y-1'):
+      split on hyphen, apply _DENOM_MAP to the denominator ('l'→'L',
+      'ml'→'mL', 'y'→'yr'), replace the numeric exponent with the
+      Unicode superscript from _SUPERSCRIPT_MAP.
+    """
+    if not s or not isinstance(s, str):
+        return s
+
+    tokens = s.strip().split()
+    result = []
+    for token in tokens:
+        if '-' not in token:
+            result.append(token)
+            continue
+
+        hyphen_idx = token.index('-')
+        before = token[:hyphen_idx]
+        after = token[hyphen_idx + 1:]
+
+        if after and after[0].isdigit():
+            # Denominator–exponent token: e.g. 'g-1', 'm-2', 'y-1', 'ml-1'
+            denom = _DENOM_MAP.get(before.lower(), before)
+            sup = _SUPERSCRIPT_MAP.get(after, '-' + after)
+            result.append(denom + sup)
+        else:
+            # Amount–element token: e.g. 'nmol-n', 'ug-n2', 'umol-c2h4'
+            prefix = before
+            if prefix.lower().startswith('u') and len(prefix) > 1:
+                prefix = 'µ' + prefix[1:]
+            element = _CHEMICAL_MAP.get(after.lower(), after.upper())
+            result.append(prefix + ' ' + element)
+
+    return ' '.join(result)
+
 _TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
     "R51", "R59", "R114", "R43", "R103",
@@ -202,7 +254,7 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "additional_details": None,
         "attribute":          "nfix_rate",
         "value":              df["nfix_rate_original"],
-        "units":              df["nfix_unit_original"],
+        "units":              df["nfix_unit_original"].map(_normalize_units),
     }).dropna(subset=["value"]).reset_index(drop=True)
 
     gt = _add_page_attribution(gt, paper_info, BASE / "ocr_output_raw")
