@@ -196,10 +196,8 @@ def prepare_chat_entries(
             print(f"Warning: document_id '{document_id}' not found in documents, skipping")
             continue
         attribute = entry.get("attribute")
-        _judge_attr_map = dataset_config.judge_attribute_map or {}
-        judge_attribute = _judge_attr_map.get(attribute, attribute)
         try:
-            attribute_description = _attr_dict[judge_attribute]["description"]
+            attribute_description = _attr_dict[attribute]["description"]
         except KeyError:
             print(f"Attribute '{attribute}' not found in dataset_config.attribute_info_dict")
             continue
