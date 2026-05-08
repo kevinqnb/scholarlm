@@ -1,0 +1,209 @@
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path.cwd()
+sys.path.insert(0, str(REPO_ROOT / 'src'))
+sys.path.insert(0, str(REPO_ROOT / 'experiments'))
+sys.path.insert(0, str(REPO_ROOT))
+
+import re
+import pandas as pd
+import numpy as np
+from analysis.loaders import load_extraction, load_ablation, load_ground_truth
+from analysis.metrics import recovery_rate, hallucination_rate
+from experiments.run_extraction import load_dataset_config
+from scholarlm.utils.unit_conversion import apply_unit_conversion
+import paths
+
+
+# ── Unit normalization ──
+_SUPER_MAP  = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺", "0123456789-+")
+_SUB_MAP    = str.maketrans("₀₁₂₃₄₅₆₇₈₉₋₊", "0123456789-+")
+_SCRIPT_MAP = {**_SUPER_MAP, **_SUB_MAP}
+_LATEX_RE = re.compile(r"[\^_]\{([^}]*)\}|[\^_]([+-]?\d+)")
+_COMPOUND_RE = re.compile(r"(\w+)[\s\-]([A-Z][a-zA-Z0-9]*)")
+
+
+def nfix_clean_unit(s: str) -> str:
+    """Normalise an nfix unit string to the ground-truth format."""
+    if not isinstance(s, str):
+        return s
+    s = s.translate(_SCRIPT_MAP)
+    s = _LATEX_RE.sub(lambda m: m.group(1) if m.group(1) is not None else m.group(2), s)
+    s = s.replace('µ', 'u').replace('μ', 'u')
+    s = _COMPOUND_RE.sub(r"\1-\2", s)
+    s = re.sub(r'\byr\b', 'y', s)
+    s = s.lower()
+    s = re.sub(r'\bday\b', 'd', s)
+    s = re.sub(r'\bhr\b',  'h', s)
+    return s
+
+
+def get_matching_rules(dataset):
+    """Get strict and fuzzy matching rules based on dataset type."""
+    if 'pond' in dataset:
+        return (
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
+            {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
+        )
+    elif 'nfix' in dataset:
+        return (
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value'},
+            {"name": "name", "site_type": "site_type"}
+        )
+    else:
+        raise ValueError(f"Dataset not recognized: {dataset}")
+
+
+def process_extraction_df(extraction_df, dataset, config):
+    """Apply unit conversion and normalization to extraction dataframe."""
+    extraction_df = apply_unit_conversion(extraction_df, config.unit_conversion_table)
+    
+    if 'nfix' in dataset:
+        extraction_df['attribute'] = extraction_df['attribute'].map({
+            'nfix_rate_areal': 'nfix_rate',
+            'nfix_rate_volumetric': 'nfix_rate',
+            'nfix_rate_mass': 'nfix_rate',
+            'nfix_rate': 'nfix_rate'
+        })
+        extraction_df["units"] = extraction_df["units"].apply(nfix_clean_unit)
+    
+    return extraction_df
+
+
+def compute_ablation_metrics(dataset, ablations_config):
+    """Compute recovery and hallucination metrics for all ablations in a dataset."""
+    
+    config = load_dataset_config(dataset)
+    ground_truth_df = load_ground_truth(config)
+    strict_matching, fuzzy_matching = get_matching_rules(dataset)
+    
+    results = []
+    
+    for model, ablation_dates in ablations_config.items():
+        print(f"\n  Processing model: {model}")
+        row = {'dataset': dataset, 'model': model}
+        
+        # Process baseline
+        try:
+            baseline_date = ablation_dates['baseline']
+            baseline_path = paths.find_extraction_final(dataset, model, baseline_date)
+            baseline_date = Path(baseline_path).parent.name
+            
+            baseline_records = load_extraction(dataset, model, baseline_date)
+            baseline_df = pd.DataFrame(baseline_records)
+            baseline_df = process_extraction_df(baseline_df, dataset, config)
+            
+            baseline_cache_path = paths.extraction(dataset, model, baseline_date) / 'match_cache.pkl'
+            
+            baseline_recov = recovery_rate(
+                ground_truth_df, baseline_df,
+                strict_matching=strict_matching,
+                fuzzy_matching=fuzzy_matching,
+                cache_path=baseline_cache_path
+            )
+            baseline_hall = hallucination_rate(
+                ground_truth_df, baseline_df,
+                strict_matching=strict_matching,
+                fuzzy_matching=fuzzy_matching,
+                cache_path=baseline_cache_path
+            )
+            
+            row['baseline_recovery'] = baseline_recov
+            row['baseline_hallucination'] = baseline_hall
+            print(f"    Baseline: recovery={baseline_recov:.3f}, hallucination={baseline_hall:.3f}")
+            
+        except Exception as e:
+            print(f"    Baseline ERROR: {e}")
+            row['baseline_recovery'] = np.nan
+            row['baseline_hallucination'] = np.nan
+        
+        # Process ablations
+        for ablation_n, ablation_date in ablation_dates.items():
+            if ablation_n == 'baseline':
+                continue
+            
+            if ablation_date is None:
+                row[f'ablation_{ablation_n}_recovery'] = np.nan
+                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                continue
+            
+            try:
+                ablation_path = paths.find_extraction_final(dataset, model, ablation_date, ablation_n)
+                ablation_date = Path(ablation_path).parent.name
+                
+                records = load_ablation(dataset, ablation_n, model, ablation_date)
+                if len(records) == 0:
+                    row[f'ablation_{ablation_n}_recovery'] = np.nan
+                    row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                    continue
+                
+                ablation_df = pd.DataFrame(records)
+                ablation_df = process_extraction_df(ablation_df, dataset, config)
+                
+                ablation_cache_path = paths.ablation(dataset, ablation_n, model, ablation_date) / 'match_cache.pkl'
+                
+                ablation_recov = recovery_rate(
+                    ground_truth_df, ablation_df,
+                    strict_matching=strict_matching,
+                    fuzzy_matching=fuzzy_matching,
+                    cache_path=ablation_cache_path
+                )
+                ablation_hall = hallucination_rate(
+                    ground_truth_df, ablation_df,
+                    strict_matching=strict_matching,
+                    fuzzy_matching=fuzzy_matching,
+                    cache_path=ablation_cache_path
+                )
+                
+                row[f'ablation_{ablation_n}_recovery'] = ablation_recov
+                row[f'ablation_{ablation_n}_hallucination'] = ablation_hall
+                print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f}, hallucination={ablation_hall:.3f}")
+                
+            except FileNotFoundError:
+                print(f"    Ablation {ablation_n}: not found, skipping.")
+                row[f'ablation_{ablation_n}_recovery'] = np.nan
+                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+            except Exception as e:
+                print(f"    Ablation {ablation_n} ERROR: {e}")
+                row[f'ablation_{ablation_n}_recovery'] = np.nan
+                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+        
+        results.append(row)
+    
+    return pd.DataFrame(results)
+
+
+def main():
+    # Define ablation configurations per dataset
+    ablation_configs = {
+        'pond': {
+            'llama-3.1-8b': {'baseline': '2026_05_05', '1': '2026_05_04', '2': None, '3': None, '4': '2026_05_04', '5': '2026_05_05', '6': '2026_05_05'},
+            'gemma-3-27b': {'baseline': '2026_05_04', '1': '2026_05_04', '2': '2026_05_05', '3': '2026_05_06', '4': None, '5': '2026_05_06', '6': '2026_05_06'},
+            'gpt-oss-120b': {'baseline': '2026_05_02', '1': '2026_05_03', '2': '2026_05_03', '3': '2026_05_03', '4': '2026_05_03', '5': '2026_05_03', '6': '2026_05_03'},
+        },
+        'nfix': {
+            'llama-3.1-8b': {'baseline': '2026_05_05', '1': '2026_05_07', '2': None, '3': None, '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_07'},
+            'gemma-3-27b': {'baseline': '2026_05_06', '1': '2026_05_07', '2': '2026_05_07', '3': '2026_05_07', '4': '2026_05_07', '5': '2026_05_07', '6': '2026_05_07'},
+            'gpt-oss-120b': {'baseline': '2026_05_03', '1': '2026_05_06', '2': '2026_05_06', '3': '2026_05_06', '4': '2026_05_06', '5': '2026_05_07', '6': None},
+        },
+    }
+    
+    output_dir = Path('results')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    for dataset, ablations in ablation_configs.items():
+        print(f"Processing dataset: {dataset}")
+        results_df = compute_ablation_metrics(dataset, ablations)
+        
+        output_path = output_dir / f'ablation_{dataset}.csv'
+        results_df.to_csv(output_path, index=False)
+        
+        print(f"\n{'='*60}")
+        print(f"Results saved to {output_path}")
+        print(f"{'='*60}")
+        print(results_df.round(3))
+
+
+if __name__ == '__main__':
+    main()

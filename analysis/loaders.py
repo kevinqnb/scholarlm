@@ -185,7 +185,7 @@ def load_synthetic_layer_outputs(
     return np.load(path)
 
 
-def load_trained_probe(dataset: str, judge_model: str) -> dict:
+def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head") -> dict:
     """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
 
     Returns a dict with keys:
@@ -204,7 +204,10 @@ def load_trained_probe(dataset: str, judge_model: str) -> dict:
     """
     import joblib
 
-    path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
+    if ptype == "layer":
+        path = _paths.trained_probe_dir(dataset, judge_model) / "layer_probe.pkl"
+    else:
+        path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
     if not path.exists():
         raise FileNotFoundError(
             f"Trained probe not found: {path}. "

@@ -1,0 +1,36 @@
+/var/spool/sge/scc-k06/job_scripts/4832973: line 9: module: command not found
+/var/spool/sge/scc-yc3/job_scripts/4873042: line 9: module: command not found
+/var/spool/sge/scc-k06/job_scripts/4870044: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/clustering.py", line 94, in <module>
+    top_k       = pd_data['top_k_heads']
+                  ~~~~~~~^^^^^^^^^^^^^^^
+KeyError: 'top_k_heads'
+/var/spool/sge/scc-k06/job_scripts/4931658: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/clustering.py", line 94, in <module>
+    top_k       = pd_data['top_k_heads']
+                  ~~~~~~~^^^^^^^^^^^^^^^
+KeyError: 'top_k_heads'
+/var/spool/sge/scc-k06/job_scripts/4936357: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/clustering.py", line 155, in <module>
+    for mid in mids_ext
+               ^^^^^^^^
+NameError: name 'mids_ext' is not defined
+/var/spool/sge/scc-k06/job_scripts/4937208: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/clustering.py", line 178, in <module>
+    for l, h in top_k
+                ^^^^^
+NameError: name 'top_k' is not defined
+/var/spool/sge/scc-k06/job_scripts/4937754: line 9: module: command not found
+/var/spool/sge/scc-k06/job_scripts/4939644: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/clustering.py", line 283, in <module>
+    kmeans_gt  = KMeans(n_clusters=N_CLUSTERS, random_state=42, n_init='auto', n_jobs=1)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: KMeans.__init__() got an unexpected keyword argument 'n_jobs'
+/var/spool/sge/scc-k06/job_scripts/4940514: line 9: module: command not found
+'created' timestamp seems very low; regarding as unix timestamp
+'modified' timestamp seems very low; regarding as unix timestamp
