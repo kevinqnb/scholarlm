@@ -234,7 +234,7 @@ def prepare_chat_entries(
         # Extract only the relevant page(s) from the raw OCR document.
         page_text = _extract_page_text(document, page_numbers)
 
-        system = JUDGE_INSTRUCTIONS
+        system = dataset_config.judge_instructions or JUDGE_INSTRUCTIONS
 
         query = build_judge_query(
             attribute_description=attribute_description,

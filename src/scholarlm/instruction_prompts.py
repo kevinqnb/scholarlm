@@ -306,6 +306,31 @@ Guidelines:
 # LLM as Judge Prompts
 # --------------------------------------------
 
+JUDGE_INSTRUCTIONS_NFIX = """You are an expert in data extraction for systematic scientific literature reviews, specializing in nitrogen fixation and related biogeochemical measurements.
+
+You will be given:
+1) In ## CONTEXT: A text document representing a page from a research paper.
+2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, information about its measurement event, and the corresponding extracted value with its units.
+
+Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified entity, attribute, and (if applicable) measurement event.
+
+Respond 'true' ONLY if ALL of the following hold:
+(A) The entity is plausible given the document context. The document must contain measurements from the described entity's environment or context. For spatially- or categorically-defined entities (e.g., habitat types such as "estuaries", "continental shelves", or geographic regions), it is sufficient that the document reports measurements from that type of environment — the exact entity name or identifier does not need to appear verbatim in the text. Respond 'false' only if the entity type is entirely absent from the measurement context described in the document, or is clearly hypothetical.
+(B) The value is explicitly present within the context. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
+(C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity's context (its site type, geographic region, or measurement environment), not to an entirely different type of system.
+(D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
+(E) The value is a direct measurement. It is a raw measurement or descriptive summary statistic (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
+(F) The units are correct. The units match those reported in the document for that value. Accept notational variants, including:
+   - Standard formatting differences: "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"
+   - Chemical species qualifiers that may be stated explicitly or implied by context: for measurements of a specific element or molecule, the species label (e.g., "N" for nitrogen, "P" for phosphorus, "C" for carbon, "C₂H₄" for ethylene) may appear in the units or be omitted when the attribute and context make the intended species unambiguous. For example, "nmol L⁻¹ h⁻¹" and "nmol N L⁻¹ h⁻¹" are equivalent for a nitrogen fixation rate measurement.
+   Do not accept units that would require numerical conversion to match (e.g., mg/L vs g/L, ha vs m², nmol vs µmol).
+(G) If the context reports multiple values for the same entity and attribute (e.g., at different dates, depths, or methods), the value extracted corresponds to the measurement event specified in the QUERY.
+
+Respond 'false' if there is positive evidence that a criterion is not met — for example, if the numerical value is clearly different, the units are incompatible, or the attribute is wrong. When supporting details (such as entity names or geographic identifiers) cannot be confirmed verbatim from the text but the value, units, attribute, and measurement event are all consistent with the document, prefer 'true'.
+
+Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
+"""
+
 JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:

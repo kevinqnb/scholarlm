@@ -101,6 +101,7 @@ class DatasetConfig:
     ground_truth_file: str | None = None
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
     judge_filter_fields: list[str] | None = None
+    judge_instructions: str | None = None
 
 
 @dataclass
