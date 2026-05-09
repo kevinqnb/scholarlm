@@ -11,7 +11,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig
-from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS_NFIX
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 
 # ---------------------------------------------------------------------------
@@ -391,7 +391,7 @@ CONFIG = DatasetConfig(
     paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=["location"],
-    judge_instructions=JUDGE_INSTRUCTIONS_NFIX,
+    judge_filter_fields=["location", "nfix_method", "substrate_type"],
+    judge_instructions=JUDGE_INSTRUCTIONS,
     ground_truth_file="data/nfix/ground_truth_review.json",
 )
