@@ -9,25 +9,25 @@ sys.path.insert(0, str(REPO_ROOT))
 import re
 import pandas as pd
 import numpy as np
-from analysis.loaders import load_extraction, load_ablation, load_ground_truth
+from analysis.loaders import load_extraction, load_ablation, load_combined_judgements, load_ground_truth
 from analysis.metrics import recovery_rate, hallucination_rate
 from experiments.run_extraction import load_dataset_config
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 import paths
 
-# NOTE: WHERE IS THE THRESHOLD???
-
 def get_matching_rules(dataset):
-    """Get strict and fuzzy matching rules based on dataset type."""
+    """Get strict matching, fuzzy matching, and fuzzy threshold based on dataset type."""
     if 'pond' in dataset:
         return (
             {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
-            {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
+            {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'},
+            1/3,
         )
     elif 'nfix' in dataset:
         return (
             {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
-            {"name": "name", "site_type": "site_type"}
+            {"name": "name", "site_type": "site_type"},
+            1/6,
         )
     else:
         raise ValueError(f"Dataset not recognized: {dataset}")
@@ -53,7 +53,7 @@ def compute_ablation_metrics(dataset, ablations_config):
     
     config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(config)
-    strict_matching, fuzzy_matching = get_matching_rules(dataset)
+    strict_matching, fuzzy_matching, fuzzy_threshold = get_matching_rules(dataset)
     
     results = []
     
@@ -66,32 +66,38 @@ def compute_ablation_metrics(dataset, ablations_config):
             baseline_date = ablation_dates['baseline']
             baseline_path = paths.find_extraction_final(dataset, model, baseline_date)
             baseline_date = Path(baseline_path).parent.name
-            
+
             baseline_records = load_extraction(dataset, model, baseline_date)
             baseline_df = pd.DataFrame(baseline_records)
             baseline_df = process_extraction_df(baseline_df, dataset, config)
-            
+
             baseline_cache_path = paths.extraction(dataset, model, baseline_date) / 'match_cache.pkl'
-            
+
+            try:
+                baseline_judged = pd.DataFrame(load_combined_judgements(dataset, model, baseline_date))
+            except FileNotFoundError:
+                baseline_judged = None
+
             baseline_recov = recovery_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
-                fuzzy_threshold=0.0, # NOTE: running without threshold for now, but could be added back if needed
+                fuzzy_threshold=fuzzy_threshold,
                 cache_path=baseline_cache_path
             )
             baseline_hall = hallucination_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
-                fuzzy_threshold=0.0, # NOTE: running without threshold for now, but could be added back if needed
+                fuzzy_threshold=fuzzy_threshold,
+                judged_df=baseline_judged,
                 cache_path=baseline_cache_path
             )
-            
+
             row['baseline_recovery'] = baseline_recov
             row['baseline_hallucination'] = baseline_hall
             print(f"    Baseline: recovery={baseline_recov:.3f}, hallucination={baseline_hall:.3f}")
-            
+
         except Exception as e:
             print(f"    Baseline ERROR: {e}")
             row['baseline_recovery'] = np.nan
@@ -110,33 +116,39 @@ def compute_ablation_metrics(dataset, ablations_config):
             try:
                 ablation_path = paths.find_extraction_final(dataset, model, ablation_date, ablation_n)
                 ablation_date = Path(ablation_path).parent.name
-                
+
                 records = load_ablation(dataset, ablation_n, model, ablation_date)
                 if len(records) == 0:
                     row[f'ablation_{ablation_n}_recovery'] = np.nan
                     row[f'ablation_{ablation_n}_hallucination'] = np.nan
                     continue
-                
+
                 ablation_df = pd.DataFrame(records)
                 ablation_df = process_extraction_df(ablation_df, dataset, config)
-                
+
                 ablation_cache_path = paths.ablation(dataset, ablation_n, model, ablation_date) / 'match_cache.pkl'
-                
+
+                try:
+                    ablation_judged = pd.DataFrame(load_combined_judgements(dataset, model, ablation_date, ablation=ablation_n))
+                except FileNotFoundError:
+                    ablation_judged = None
+
                 ablation_recov = recovery_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
-                    fuzzy_threshold=0.0,
+                    fuzzy_threshold=fuzzy_threshold,
                     cache_path=ablation_cache_path
                 )
                 ablation_hall = hallucination_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
-                    fuzzy_threshold=0.0,
+                    fuzzy_threshold=fuzzy_threshold,
+                    judged_df=ablation_judged,
                     cache_path=ablation_cache_path
                 )
-                
+
                 row[f'ablation_{ablation_n}_recovery'] = ablation_recov
                 row[f'ablation_{ablation_n}_hallucination'] = ablation_hall
                 print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f}, hallucination={ablation_hall:.3f}")

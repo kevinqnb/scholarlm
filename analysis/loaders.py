@@ -106,10 +106,10 @@ def load_ablation(
 
 
 def load_combined_judgements(
-    dataset: str, extraction_model: str, extraction_date: str
+    dataset: str, extraction_model: str, extraction_date: str, ablation: str | None = None
 ) -> list[dict]:
     """Load combined.json for a judged extraction run."""
-    combined = _paths.find_combined(dataset, extraction_model, extraction_date)
+    combined = _paths.find_combined(dataset, extraction_model, extraction_date, ablation)
     with open(combined) as f:
         return json.load(f)
 

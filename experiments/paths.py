@@ -343,13 +343,14 @@ def find_combined(
     dataset: str,
     extraction_model: str,
     extraction_date: str,
+    ablation: str | None = None,
 ) -> Path:
     """Return path to combined.json for the given extraction date.
 
     Raises:
         FileNotFoundError: If combined.json does not exist.
     """
-    path = judge_combined(dataset, extraction_model, extraction_date) / "combined.json"
+    path = judge_combined(dataset, extraction_model, extraction_date, ablation) / "combined.json"
     if not path.exists():
         raise FileNotFoundError(
             f"Combined judge file not found: {path}. Run run_judge_combine.py first."

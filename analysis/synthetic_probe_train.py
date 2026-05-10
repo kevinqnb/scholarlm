@@ -153,9 +153,9 @@ for DATASET in DATASETS:
         # ─────────────────────────────────────────────────────────────────
 
         # F1 heatmap:
-        score_mat = 1 - head_scores_f1
+        score_mat = head_scores_f1
         fig, ax = plt.subplots(1, 1, figsize=(3.5, 3))
-        im = ax.imshow(np.sort(score_mat, axis=1), cmap='magma', aspect='auto')
+        im = ax.imshow(np.sort(score_mat, axis=1), cmap='magma', aspect='auto', origin='lower')
         ax.set_xlabel('Head (sorted)')
         ax.set_ylabel('Layer')
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -166,7 +166,7 @@ for DATASET in DATASETS:
         # ECE heatmap:
         score_mat = 1 - head_scores_ece
         fig, ax = plt.subplots(1, 1, figsize=(3.5, 3))
-        im = ax.imshow(np.sort(score_mat, axis=1), cmap='magma', aspect='auto')
+        im = ax.imshow(np.sort(score_mat, axis=1), cmap='magma', aspect='auto', origin='lower')
         ax.set_xlabel('Head (sorted)')
         ax.set_ylabel('Layer')
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
