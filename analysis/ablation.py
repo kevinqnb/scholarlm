@@ -15,29 +15,7 @@ from experiments.run_extraction import load_dataset_config
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 import paths
 
-
-# ── Unit normalization ──
-_SUPER_MAP  = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺", "0123456789-+")
-_SUB_MAP    = str.maketrans("₀₁₂₃₄₅₆₇₈₉₋₊", "0123456789-+")
-_SCRIPT_MAP = {**_SUPER_MAP, **_SUB_MAP}
-_LATEX_RE = re.compile(r"[\^_]\{([^}]*)\}|[\^_]([+-]?\d+)")
-_COMPOUND_RE = re.compile(r"(\w+)[\s\-]([A-Z][a-zA-Z0-9]*)")
-
-
-def nfix_clean_unit(s: str) -> str:
-    """Normalise an nfix unit string to the ground-truth format."""
-    if not isinstance(s, str):
-        return s
-    s = s.translate(_SCRIPT_MAP)
-    s = _LATEX_RE.sub(lambda m: m.group(1) if m.group(1) is not None else m.group(2), s)
-    s = s.replace('µ', 'u').replace('μ', 'u')
-    s = _COMPOUND_RE.sub(r"\1-\2", s)
-    s = re.sub(r'\byr\b', 'y', s)
-    s = s.lower()
-    s = re.sub(r'\bday\b', 'd', s)
-    s = re.sub(r'\bhr\b',  'h', s)
-    return s
-
+# NOTE: WHERE IS THE THRESHOLD???
 
 def get_matching_rules(dataset):
     """Get strict and fuzzy matching rules based on dataset type."""
@@ -48,7 +26,7 @@ def get_matching_rules(dataset):
         )
     elif 'nfix' in dataset:
         return (
-            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value'},
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
             {"name": "name", "site_type": "site_type"}
         )
     else:
@@ -57,7 +35,7 @@ def get_matching_rules(dataset):
 
 def process_extraction_df(extraction_df, dataset, config):
     """Apply unit conversion and normalization to extraction dataframe."""
-    extraction_df = apply_unit_conversion(extraction_df, config.unit_conversion_table)
+    extraction_df = apply_unit_conversion(extraction_df, {}) # NOTE: no longer using dataset-specific unit conversion rules, but could be added back if needed
     
     if 'nfix' in dataset:
         extraction_df['attribute'] = extraction_df['attribute'].map({
@@ -66,7 +44,6 @@ def process_extraction_df(extraction_df, dataset, config):
             'nfix_rate_mass': 'nfix_rate',
             'nfix_rate': 'nfix_rate'
         })
-        extraction_df["units"] = extraction_df["units"].apply(nfix_clean_unit)
     
     return extraction_df
 
@@ -100,12 +77,14 @@ def compute_ablation_metrics(dataset, ablations_config):
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
+                fuzzy_threshold=0.0, # NOTE: running without threshold for now, but could be added back if needed
                 cache_path=baseline_cache_path
             )
             baseline_hall = hallucination_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
+                fuzzy_threshold=0.0, # NOTE: running without threshold for now, but could be added back if needed
                 cache_path=baseline_cache_path
             )
             
@@ -147,12 +126,14 @@ def compute_ablation_metrics(dataset, ablations_config):
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
+                    fuzzy_threshold=0.0,
                     cache_path=ablation_cache_path
                 )
                 ablation_hall = hallucination_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
+                    fuzzy_threshold=0.0,
                     cache_path=ablation_cache_path
                 )
                 
@@ -178,12 +159,12 @@ def main():
     # Define ablation configurations per dataset
     ablation_configs = {
         'pond': {
-            'llama-3.1-8b': {'baseline': '2026_05_04', '1': '2026_05_04', '2': None, '3': None, '4': '2026_05_04', '5': '2026_05_05', '6': '2026_05_05'},
-            'gemma-3-27b': {'baseline': '2026_05_05', '1': '2026_05_04', '2': '2026_05_05', '3': '2026_05_06', '4': None, '5': '2026_05_06', '6': '2026_05_06'},
+            'llama-3.1-8b': {'baseline': '2026_05_04', '1': '2026_05_04', '2': '2026_05_07', '3': None, '4': '2026_05_04', '5': '2026_05_05', '6': '2026_05_05'},
+            'gemma-3-27b': {'baseline': '2026_05_05', '1': '2026_05_04', '2': '2026_05_05', '3': '2026_05_06', '4': '2026_05_07', '5': '2026_05_06', '6': '2026_05_06'},
             'gpt-oss-120b': {'baseline': '2026_05_02', '1': '2026_05_03', '2': '2026_05_03', '3': '2026_05_03', '4': '2026_05_03', '5': '2026_05_03', '6': '2026_05_03'},
         },
         'nfix': {
-            'llama-3.1-8b': {'baseline': '2026_05_05', '1': '2026_05_07', '2': None, '3': None, '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_07'},
+            'llama-3.1-8b': {'baseline': '2026_05_05', '1': '2026_05_07', '2': '2026_05_08', '3': '2026_05_07', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_07'},
             'gemma-3-27b': {'baseline': '2026_05_06', '1': '2026_05_07', '2': '2026_05_07', '3': '2026_05_07', '4': '2026_05_07', '5': '2026_05_07', '6': '2026_05_07'},
             'gpt-oss-120b': {'baseline': '2026_05_03', '1': '2026_05_06', '2': '2026_05_06', '3': '2026_05_06', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_08'},
         },

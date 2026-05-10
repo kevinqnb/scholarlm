@@ -24,10 +24,10 @@ def compute_metrics(dataset, model, extraction_date):
     
     # Define matching rules based on dataset
     if 'pond' in dataset:
-        STRICT_MATCHING = {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value'}
+        STRICT_MATCHING = {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'}
         FUZZY_MATCHING = {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
     elif 'nfix' in dataset:
-        STRICT_MATCHING = {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value'}
+        STRICT_MATCHING = {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'}
         FUZZY_MATCHING = {"name": "name", "site_type": "site_type"}
     else:
         raise ValueError(f"Dataset not recognized: {dataset}")
