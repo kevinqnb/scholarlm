@@ -185,6 +185,30 @@ def load_synthetic_layer_outputs(
     return np.load(path)
 
 
+def load_trained_ntp_calibrator(dataset: str, judge_model: str) -> dict:
+    """Load the NTP Platt calibrator saved by synthetic_probe_train.py.
+
+    Returns a dict with keys:
+        ``calibrator``       — fitted CalibratedClassifierCV (LogisticRegression on NTP probs)
+        ``train_prevalence`` — fraction of positive labels in the synthetic training set
+        ``syn_document_ids`` — list of paper IDs in the synthetic training set
+        ``judge_model``      — judge model name
+        ``dataset``          — training dataset name
+
+    Raises:
+        FileNotFoundError: If no calibrator has been saved for this (dataset, judge_model).
+    """
+    import joblib
+
+    path = _paths.trained_probe_dir(dataset, judge_model) / "ntp_calibrator.pkl"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"NTP calibrator not found: {path}. "
+            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' first."
+        )
+    return joblib.load(path)
+
+
 def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head") -> dict:
     """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
 

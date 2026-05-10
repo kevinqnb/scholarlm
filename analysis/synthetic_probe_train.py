@@ -231,6 +231,34 @@ for DATASET in DATASETS:
         print(f'  Top-{TOP_K} heads        : {top_k_heads}')
         # ─────────────────────────────────────────────────────────────────
 
+        # Fit NTP calibrator — Platt scaling via 1-D logistic regression on
+        # judgement_p_true, using the same CV splits as the probe so that
+        # calibration is not overfit on the training labels.
+        ntp_probs_train = syn_df['judgement_p_true'].to_numpy()[syn_train_idx].reshape(-1, 1)
+
+        ntp_base = Pipeline([
+            ('clf', LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000, random_state=42))
+        ])
+        ntp_calibrated = CalibratedClassifierCV(
+            estimator=ntp_base,
+            method='sigmoid',
+            cv=kfold_cv,
+        ).fit(ntp_probs_train, y_train)
+
+        ntp_cal_probs_tr = ntp_calibrated.predict_proba(ntp_probs_train)[:, 1]
+        print(f"  NTP calibrator train ECE: {compute_ece(ntp_cal_probs_tr, y_train):.4f}")
+
+        ntp_cal_path = probe_dir / 'ntp_calibrator.pkl'
+        joblib.dump({
+            'calibrator':       ntp_calibrated,
+            'train_prevalence': float(y_train.mean()),
+            'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
+            'judge_model':      JUDGE_MODEL,
+            'dataset':          DATASET,
+        }, ntp_cal_path)
+        print(f'NTP calibrator saved → {ntp_cal_path}')
+        # ─────────────────────────────────────────────────────────────────
+
         _arr0_lo = np.array(syn_layer_outputs[str(syn_measurement_ids[0])], dtype=np.float32)
         n_layers_lo, hidden_size = _arr0_lo.shape
         _all_syn_lo = {str(mid): np.array(syn_layer_outputs[str(mid)], dtype=np.float32)

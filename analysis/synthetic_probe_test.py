@@ -13,13 +13,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
 import seaborn as sns
 from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_loss
 
 from analysis.loaders import (
     load_activations, load_layer_outputs, load_combined_judgements,
-    load_extraction, load_ground_truth, load_trained_probe,
-    cached_match, load_synthetic_activations, load_synthetic_layer_outputs, 
+    load_extraction, load_ground_truth, load_trained_probe, load_trained_ntp_calibrator,
+    cached_match, load_synthetic_activations, load_synthetic_layer_outputs,
     load_synthetic_responses,
 )
 from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em
@@ -53,6 +54,21 @@ palette = sns.color_palette("husl", 10)
 FIGURES_DIR = "figures/synthetic_probe/"
 Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 
+# ── Standalone calibration legend ─────────────────────────────────────────────
+_legend_handles = [
+    mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Synthetic PLW'),
+    mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
+    mlines.Line2D([], [], color=palette[0], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
+    mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Extracted NF'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
+]
+_fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
+_ax_leg.axis('off')
+_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=9,
+               frameon=False, handlelength=2.0)
+_fig_leg.savefig(FIGURES_DIR + 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
+plt.show()
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
@@ -100,6 +116,13 @@ JUDGE_DATES_REAL = {
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLD  = 1 / 3  # minimum fuzzy weight to count as a match
 
+
+# NTP calibrators are probe-type-independent — load once outside the probe loop.
+ntp_cal_cache = {}
+for ds in DATASETS:
+    ntp_cal_cache[ds] = {}
+    for jm in JUDGE_MODELS:
+        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm)
 
 for PROBE_TYPE in ['head', 'layer']:
     print(f'\n{"#"*80}\nPROBE TYPE: {PROBE_TYPE.upper()}\n{"#"*80}')
@@ -226,9 +249,9 @@ for PROBE_TYPE in ['head', 'layer']:
     # ─────────────────────────────────────────────────────────────────
     _DS_COLORS = {
         ('pond', 'syn'):  palette[7],
-        ('pond', 'real'): palette[7],
+        ('pond', 'real'): palette[0],
         ('nfix', 'syn'):  palette[1],
-        ('nfix', 'real'): palette[1],
+        ('nfix', 'real'): palette[4],
     }
     _DTYPE_LS = {'real': '-', 'syn': '-'}
 
@@ -236,7 +259,8 @@ for PROBE_TYPE in ['head', 'layer']:
     def analyze_probe(judge_model, train_dataset):
         """Calibration curves, threshold sweep, and metrics table for one
         (judge_model, train_dataset) pair evaluated across four test settings."""
-        pd_data  = probe_cache[train_dataset][judge_model]
+        pd_data     = probe_cache[train_dataset][judge_model]
+        ntp_cal_data = ntp_cal_cache[train_dataset][judge_model]
         if PROBE_TYPE == "layer":
             top = pd_data['top_layer']
         else:
@@ -264,10 +288,13 @@ for PROBE_TYPE in ['head', 'layer']:
                     syn_df_s = pd.DataFrame(syn_resp)
                     mids     = syn_df_s['measurement_id'].tolist()
                     labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
-                    ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
+                    raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
 
                     if PROBE_TYPE == "layer":
-                        syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test')    
+                        syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test')
                         X = np.stack([
                             np.array(syn_lo[str(mid)], dtype=np.float32)[top]
                             for mid in mids
@@ -303,13 +330,13 @@ for PROBE_TYPE in ['head', 'layer']:
                     labels   = td['real_labels'][idx]
                     jdate    = JUDGE_DATES_REAL[test_ds][judge_model]
 
-                    ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
-
-                    # NOTE: changed to evaluate on the whole set (rather than just held out test)
-                    #ntp_probs = real_df[f'judgement_p_true_{judge_model}'].to_numpy()
+                    raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
 
                     if PROBE_TYPE == "layer":
-                        real_lo  = load_layer_outputs(test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate)    
+                        real_lo  = load_layer_outputs(test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate)
                         X = np.stack([
                             np.array(real_lo[str(mid)], dtype=np.float32)[top]
                             for mid in mids
@@ -328,20 +355,6 @@ for PROBE_TYPE in ['head', 'layer']:
                         ], axis=1)
                         raw_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-                    # Assuming label shift from synthetic train setting -> real test setting, 
-                    # rescale the probabilities using an EM algorithm. 
-                    cal_probs, pi_te = rescale_probabilities_em(
-                        raw_probs, pi_tr=pd_data['train_prevalence']
-                    )
-                    '''
-                    pi_te_act = np.mean(labels)
-                    pi_te = pi_te_act
-                    pi_tr = pd_data['train_prevalence']
-                    num = raw_probs * (pi_te / pi_tr)
-                    den = num + (1 - raw_probs) * ((1 - pi_te) / (1 - pi_tr))
-                    cal_probs = num / den
-                    '''
-
                     n_gt = len(td['ground_truth_df'])
                     ex_to_test_pos = {int(idx[i]): i for i in range(len(idx))}
                     test_edges = [
@@ -352,7 +365,7 @@ for PROBE_TYPE in ['head', 'layer']:
                     n_excl = int((~mask).sum())
                     n_pap  = real_df.loc[~mask, 'document_id'].nunique()
                     print(f'  {s_label}: n={len(idx)}, pos={labels.sum()} '
-                        f'({labels.mean():.1%}), pi_tr={pd_data['train_prevalence']:.3f}, pi_te_em={pi_te:.3f}, pi_te_act={np.mean(labels):.3f}  '
+                        f'({labels.mean():.1%}), pi_te_act={np.mean(labels):.3f}  '
                         f'[excl {n_excl} rows / {n_pap} syn papers]')
                     setting_results.append({
                         'label': s_label, 'color': color, 'ls': ls,
@@ -364,7 +377,7 @@ for PROBE_TYPE in ['head', 'layer']:
         # ── Figure 1: Calibration curves ──────────────────────────────────────
         for dtype in ['syn', 'real']:
             fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-            ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, label='Perfect Calibration', zorder=1)
+            ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
             
             for r in setting_results:
                 rdtype = 'syn' if r['is_syn'] else 'real'
@@ -381,7 +394,6 @@ for PROBE_TYPE in ['head', 'layer']:
                 ax_cal.plot(
                     d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
                     r['ls'], color=color, lw=2.0, marker='o', ms=3.5,
-                    label=f"{test_ds.title()} Probe",
                     zorder=3,
                 )
 
@@ -390,8 +402,7 @@ for PROBE_TYPE in ['head', 'layer']:
                 v_ntp = d_ntp['bin_counts'] > 0
                 ax_cal.plot(
                     d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                    '--', color=color, lw=1.5, alpha=1.0, zorder=1, marker='o', ms=3.5, #markerfacecolor='none',
-                    label=f"{test_ds.title()} NTP",
+                    '--', color=color, lw=1.5, alpha=1.0, zorder=1, marker='o', ms=3.5,
                 )
                 
                 # Add error bands: SEM of accuracy within each bin (very subtle)
@@ -410,15 +421,9 @@ for PROBE_TYPE in ['head', 'layer']:
             ax_cal.set_ylim(-0.02, 1.02)
             ax_cal.set_xlabel('Predicted Probability')
             ax_cal.set_ylabel('Observed Frequency')
-            leg = ax_cal.legend(fontsize=8, loc='best', handlelength=2.0, framealpha=0.95)
             ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_cal.set_axisbelow(True)
             fig_cal.tight_layout()
-
-            for handle in leg.legend_handles:
-                # This specifically removes the marker styling from the legend line
-                handle.set_marker('')
-        
             fig_cal.savefig(
                 subfigure_dir + f'{PROBE_TYPE}/cal_{dtype}_{train_dataset}.pdf', bbox_inches='tight', dpi = 200
             )
