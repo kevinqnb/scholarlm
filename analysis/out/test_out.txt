@@ -466,3 +466,263 @@ Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
    Real nfix   NTP     0.803      0.444   0.480 0.462  0.788 0.169
    Real nfix Probe     0.595      0.266   0.745 0.392  0.722 0.288
 
+
+################################################################################
+PROBE TYPE: HEAD
+################################################################################
+Loading test data for pond...
+  pond: 10951 extractions, 3333 GT rows, pos=5544 (50.6%)
+
+Loading test data for nfix...
+  nfix: 5832 extractions, 920 GT rows, pos=1511 (25.9%)
+
+
+========================================================================
+  llama-3.1-8b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — llama-3.1-8b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.755      0.651   0.570 0.608  0.810 0.049
+   Syn. pond Probe     0.824      0.765   0.684 0.722  0.897 0.048
+   Syn. nfix   NTP     0.682      0.581   0.167 0.260  0.656 0.136
+   Syn. nfix Probe     0.667      0.500   0.294 0.370  0.650 0.079
+   Real pond   NTP     0.690      0.858   0.528 0.654  0.824 0.146
+   Real pond Probe     0.705      0.700   0.817 0.754  0.783 0.060
+   Real nfix   NTP     0.793      0.684   0.373 0.483  0.846 0.064
+   Real nfix Probe     0.465      0.307   0.848 0.451  0.636 0.362
+
+
+========================================================================
+  llama-3.1-8b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — llama-3.1-8b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.737      0.591   0.682 0.633  0.810 0.118
+   Syn. pond Probe     0.737      0.621   0.540 0.578  0.780 0.055
+   Syn. nfix   NTP     0.684      0.556   0.267 0.361  0.656 0.078
+   Syn. nfix Probe     0.693      0.622   0.198 0.301  0.682 0.086
+   Real pond   NTP     0.688      0.739   0.594 0.659  0.782 0.082
+   Real pond Probe     0.604      0.622   0.555 0.587  0.667 0.066
+   Real nfix   NTP     0.801      0.606   0.533 0.567  0.865 0.106
+   Real nfix Probe     0.757      0.510   0.144 0.225  0.623 0.048
+
+
+========================================================================
+  mistral-7b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — mistral-7b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.667        NaN   0.000   NaN  0.712 0.014
+   Syn. pond Probe     0.819      0.790   0.621 0.695  0.890 0.062
+   Syn. nfix   NTP     0.667        NaN   0.000   NaN  0.614 0.053
+   Syn. nfix Probe     0.670      0.507   0.399 0.446  0.708 0.060
+   Real pond   NTP     0.446        NaN   0.000   NaN  0.764 0.223
+   Real pond Probe     0.633      0.684   0.629 0.655  0.688 0.080
+   Real nfix   NTP     0.741        NaN   0.000   NaN  0.709 0.055
+   Real nfix Probe     0.733      0.486   0.535 0.509  0.755 0.106
+
+
+========================================================================
+  mistral-7b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — mistral-7b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.667        NaN   0.000   NaN  0.712 0.058
+   Syn. pond Probe     0.735      0.578   0.754 0.654  0.813 0.115
+   Syn. nfix   NTP     0.667        NaN   0.000   NaN  0.614 0.024
+   Syn. nfix Probe     0.697      0.595   0.285 0.386  0.698 0.072
+   Real pond   NTP     0.494        NaN   0.000   NaN  0.739 0.185
+   Real pond Probe     0.665      0.646   0.750 0.694  0.726 0.069
+   Real nfix   NTP     0.755        NaN   0.000   NaN  0.683 0.091
+   Real nfix Probe     0.758      0.509   0.273 0.355  0.769 0.065
+
+
+========================================================================
+  qwen-2.5-7b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — qwen-2.5-7b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.798      0.771   0.562 0.650  0.874 0.047
+   Syn. pond Probe     0.873      0.847   0.754 0.798  0.912 0.063
+   Syn. nfix   NTP     0.674      0.625   0.056 0.102  0.645 0.113
+   Syn. nfix Probe     0.705      0.619   0.301 0.405  0.703 0.078
+   Real pond   NTP     0.756      0.875   0.652 0.748  0.876 0.082
+   Real pond Probe     0.732      0.718   0.850 0.778  0.806 0.078
+   Real nfix   NTP     0.824      0.695   0.571 0.627  0.883 0.092
+   Real nfix Probe     0.784      0.587   0.553 0.570  0.818 0.044
+
+
+========================================================================
+  qwen-2.5-7b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — qwen-2.5-7b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.809      0.750   0.642 0.692  0.874 0.140
+   Syn. pond Probe     0.824      0.746   0.717 0.731  0.896 0.051
+   Syn. nfix   NTP     0.676      0.565   0.116 0.192  0.645 0.028
+   Syn. nfix Probe     0.699      0.575   0.365 0.447  0.717 0.077
+   Real pond   NTP     0.750      0.854   0.611 0.712  0.859 0.068
+   Real pond Probe     0.725      0.681   0.858 0.759  0.798 0.077
+   Real nfix   NTP     0.836      0.659   0.681 0.670  0.891 0.187
+   Real nfix Probe     0.780      0.537   0.720 0.615  0.843 0.120
+
+
+################################################################################
+PROBE TYPE: LAYER
+################################################################################
+Loading test data for pond...
+  pond: 10951 extractions, 3333 GT rows, pos=5544 (50.6%)
+
+Loading test data for nfix...
+  nfix: 5832 extractions, 920 GT rows, pos=1511 (25.9%)
+
+
+========================================================================
+  llama-3.1-8b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — llama-3.1-8b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.755      0.651   0.570 0.608  0.810 0.049
+   Syn. pond Probe     0.778      0.665   0.675 0.670  0.856 0.044
+   Syn. nfix   NTP     0.682      0.581   0.167 0.260  0.656 0.136
+   Syn. nfix Probe     0.659      0.478   0.247 0.326  0.668 0.116
+   Real pond   NTP     0.690      0.858   0.528 0.654  0.824 0.146
+   Real pond Probe     0.711      0.725   0.770 0.747  0.792 0.076
+   Real nfix   NTP     0.793      0.684   0.373 0.483  0.846 0.064
+   Real nfix Probe     0.679      0.430   0.744 0.545  0.768 0.209
+
+
+========================================================================
+  llama-3.1-8b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — llama-3.1-8b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.737      0.591   0.682 0.633  0.810 0.118
+   Syn. pond Probe     0.670      0.504   0.662 0.573  0.717 0.132
+   Syn. nfix   NTP     0.684      0.556   0.267 0.361  0.656 0.078
+   Syn. nfix Probe     0.648      0.462   0.339 0.391  0.651 0.071
+   Real pond   NTP     0.688      0.739   0.594 0.659  0.782 0.082
+   Real pond Probe     0.687      0.684   0.709 0.696  0.751 0.040
+   Real nfix   NTP     0.801      0.606   0.533 0.567  0.865 0.106
+   Real nfix Probe     0.675      0.306   0.256 0.279  0.557 0.132
+
+
+========================================================================
+  mistral-7b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — mistral-7b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.667        NaN   0.000   NaN  0.712 0.014
+   Syn. pond Probe     0.824      0.737   0.736 0.736  0.899 0.048
+   Syn. nfix   NTP     0.667        NaN   0.000   NaN  0.614 0.053
+   Syn. nfix Probe     0.660      0.480   0.238 0.318  0.634 0.128
+   Real pond   NTP     0.446        NaN   0.000   NaN  0.764 0.223
+   Real pond Probe     0.604      0.729   0.454 0.560  0.718 0.180
+   Real nfix   NTP     0.741        NaN   0.000   NaN  0.709 0.055
+   Real nfix Probe     0.705      0.441   0.527 0.481  0.707 0.127
+
+
+========================================================================
+  mistral-7b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — mistral-7b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.667        NaN   0.000   NaN  0.712 0.058
+   Syn. pond Probe     0.599      0.442   0.782 0.565  0.691 0.218
+   Syn. nfix   NTP     0.667        NaN   0.000   NaN  0.614 0.024
+   Syn. nfix Probe     0.680      0.524   0.445 0.481  0.692 0.096
+   Real pond   NTP     0.494        NaN   0.000   NaN  0.739 0.185
+   Real pond Probe     0.628      0.671   0.522 0.587  0.706 0.107
+   Real nfix   NTP     0.755        NaN   0.000   NaN  0.683 0.091
+   Real nfix Probe     0.756      0.503   0.293 0.370  0.688 0.059
+
+
+========================================================================
+  qwen-2.5-7b  |  trained on pond
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=4157, pos=2301 (55.4%), pi_te_act=0.554  [excl 6794 rows / 46 syn papers]
+  Real nfix: n=5832, pos=1511 (25.9%), pi_te_act=0.259  [excl 0 rows / 0 syn papers]
+
+Summary — qwen-2.5-7b  |  trained on pond  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.798      0.771   0.562 0.650  0.874 0.047
+   Syn. pond Probe     0.872      0.803   0.816 0.810  0.941 0.044
+   Syn. nfix   NTP     0.674      0.625   0.056 0.102  0.645 0.113
+   Syn. nfix Probe     0.683      0.562   0.220 0.317  0.699 0.133
+   Real pond   NTP     0.756      0.875   0.652 0.748  0.876 0.082
+   Real pond Probe     0.784      0.776   0.857 0.814  0.841 0.029
+   Real nfix   NTP     0.824      0.695   0.571 0.627  0.883 0.092
+   Real nfix Probe     0.739      0.497   0.723 0.589  0.801 0.144
+
+
+========================================================================
+  qwen-2.5-7b  |  trained on nfix
+========================================================================
+  Syn. pond: n=4620, pos=1540 (33.3%)
+  Syn. nfix: n=1347, pos=449 (33.3%)
+  Real pond: n=10951, pos=5544 (50.6%), pi_te_act=0.506  [excl 0 rows / 0 syn papers]
+  Real nfix: n=3792, pos=928 (24.5%), pi_te_act=0.245  [excl 2040 rows / 41 syn papers]
+
+Summary — qwen-2.5-7b  |  trained on nfix  (threshold = 0.5):
+Test setting  Type  Accuracy  Precision  Recall    F1  AUROC   ECE
+   Syn. pond   NTP     0.809      0.750   0.642 0.692  0.874 0.140
+   Syn. pond Probe     0.784      0.621   0.901 0.735  0.886 0.137
+   Syn. nfix   NTP     0.676      0.565   0.116 0.192  0.645 0.028
+   Syn. nfix Probe     0.690      0.543   0.452 0.493  0.721 0.058
+   Real pond   NTP     0.750      0.854   0.611 0.712  0.859 0.068
+   Real pond Probe     0.727      0.671   0.902 0.770  0.813 0.111
+   Real nfix   NTP     0.836      0.659   0.681 0.670  0.891 0.187
+   Real nfix Probe     0.649      0.392   0.787 0.523  0.761 0.219
+

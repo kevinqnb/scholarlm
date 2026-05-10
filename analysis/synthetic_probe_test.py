@@ -159,28 +159,6 @@ for PROBE_TYPE in ['head', 'layer']:
 
 
     # ─────────────────────────────────────────────────────────────────
-    _SUPER_MAP  = str.maketrans('⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺', '0123456789-+')
-    _SUB_MAP    = str.maketrans('₀₁₂₃₄₅₆₇₈₉₋₊', '0123456789-+')
-    _SCRIPT_MAP = {**_SUPER_MAP, **_SUB_MAP}
-
-    _LATEX_RE    = re.compile(r'[\^_]\{([^}]*)\}|[\^_]([+-]?\d+)')
-    _COMPOUND_RE = re.compile(r'(\w+)[\s\-]([A-Z][a-zA-Z0-9]*)')
-
-
-    def nfix_clean_unit(s: str) -> str:
-        if not isinstance(s, str):
-            return s
-        s = s.translate(_SCRIPT_MAP)
-        s = _LATEX_RE.sub(lambda m: m.group(1) if m.group(1) is not None else m.group(2), s)
-        s = s.replace('µ', 'u').replace('μ', 'u')
-        s = _COMPOUND_RE.sub(r'\1-\2', s)
-        s = re.sub(r'\byr\b', 'y', s)
-        s = s.lower()
-        s = re.sub(r'\bday\b', 'd', s)
-        s = re.sub(r'\bhr\b',  'h', s)
-        return s
-
-
     def get_matching_config(dataset):
         if dataset == 'pond':
             strict = {'document_id': 'document_id', 'attribute': 'attribute',
@@ -209,7 +187,6 @@ for PROBE_TYPE in ['head', 'layer']:
                 'nfix_rate_areal': 'nfix_rate', 'nfix_rate_volumetric': 'nfix_rate',
                 'nfix_rate_mass':  'nfix_rate', 'nfix_rate': 'nfix_rate',
             })
-            ext_df['units'] = ext_df['units'].apply(nfix_clean_unit)
 
         real_df = pd.DataFrame(load_combined_judgements(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds]))
         gt_df   = load_ground_truth(config)
