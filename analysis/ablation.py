@@ -9,7 +9,7 @@ sys.path.insert(0, str(REPO_ROOT))
 import re
 import pandas as pd
 import numpy as np
-from analysis.loaders import load_extraction, load_ablation, load_combined_judgements, load_ground_truth
+from analysis.loaders import load_extraction, load_ablation, load_combined_judgements, load_ground_truth, cached_match
 from analysis.metrics import recovery_rate, hallucination_rate
 from experiments.run_extraction import load_dataset_config
 from scholarlm.utils.unit_conversion import apply_unit_conversion
@@ -78,6 +78,14 @@ def compute_ablation_metrics(dataset, ablations_config):
             except FileNotFoundError:
                 baseline_judged = None
 
+            cached_match(
+                ground_truth_df, baseline_df,
+                strict_matching=strict_matching,
+                fuzzy_matching=fuzzy_matching,
+                fuzzy_threshold=0.0,
+                cache_path=baseline_cache_path,
+            )
+
             baseline_recov = recovery_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
@@ -132,6 +140,14 @@ def compute_ablation_metrics(dataset, ablations_config):
                     ablation_judged = pd.DataFrame(load_combined_judgements(dataset, model, ablation_date, ablation=ablation_n))
                 except FileNotFoundError:
                     ablation_judged = None
+
+                cached_match(
+                    ground_truth_df, ablation_df,
+                    strict_matching=strict_matching,
+                    fuzzy_matching=fuzzy_matching,
+                    fuzzy_threshold=0.0,
+                    cache_path=ablation_cache_path,
+                )
 
                 ablation_recov = recovery_rate(
                     ground_truth_df, ablation_df,
