@@ -57,9 +57,9 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 # ── Standalone calibration legend ─────────────────────────────────────────────
 _legend_handles = [
     mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Synthetic PLW'),
-    mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
-    mlines.Line2D([], [], color=palette[0], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
-    mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted NF'),
+    mlines.Line2D([], [], color=palette[0], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
+    mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
+    mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Extracted NF'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
 ]
@@ -227,9 +227,9 @@ for PROBE_TYPE in ['head', 'layer']:
     # ─────────────────────────────────────────────────────────────────
     _DS_COLORS = {
         ('pond', 'syn'):  palette[7],
-        ('pond', 'real'): palette[0],
-        ('nfix', 'syn'):  palette[4],
-        ('nfix', 'real'): palette[1],
+        ('pond', 'real'): palette[1],
+        ('nfix', 'syn'):  palette[0],
+        ('nfix', 'real'): palette[4],
     }
     _DTYPE_LS = {'real': '-', 'syn': '-'}
 
@@ -372,18 +372,10 @@ for PROBE_TYPE in ['head', 'layer']:
                 v_prb = d_prb['bin_counts'] > 0
                 ax_cal.plot(
                     d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                    r['ls'], color=color, lw=2.0, marker='o', ms=3.5,
+                    r['ls'], color=color, lw=2.5, marker='o', ms=3.5,
                     zorder=3,
                 )
 
-                # NTP baseline — very faint, dashed
-                d_ntp = reliability_diagram_data(r['ntp_probs'], r['labels'])
-                v_ntp = d_ntp['bin_counts'] > 0
-                ax_cal.plot(
-                    d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                    '--', color=color, lw=1.5, alpha=1.0, zorder=1, marker='o', ms=3.5,
-                )
-                
                 # Add error bands: SEM of accuracy within each bin (very subtle)
                 bin_sems = d_prb['bin_accuracy_sem'][v_prb]
                 conf_valid = d_prb['bin_confidence'][v_prb]
@@ -393,13 +385,38 @@ for PROBE_TYPE in ['head', 'layer']:
                     conf_valid, 
                     acc_valid - bin_sems, 
                     acc_valid + bin_sems,
-                    color=color, alpha=0.08, linewidth=0, zorder=2
+                    color=color, alpha=0.20, linewidth=0, zorder=2
+                )
+
+                # NTP baseline — very faint, dashed
+                d_ntp = reliability_diagram_data(r['ntp_probs'], r['labels'])
+                v_ntp = d_ntp['bin_counts'] > 0
+                ax_cal.plot(
+                    d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                    '--', color=color, lw=2.0, alpha=1.0, zorder=1, marker='o', ms=3.5,
+                )
+                
+                # Add error bands: SEM of accuracy within each bin (very subtle)
+                bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
+                conf_valid = d_ntp['bin_confidence'][v_ntp]
+                acc_valid = d_ntp['bin_accuracy'][v_ntp]
+
+                ax_cal.fill_between(
+                    conf_valid, 
+                    acc_valid - bin_sems, 
+                    acc_valid + bin_sems,
+                    color=color, alpha=0.20, linewidth=0, zorder=2
                 )
             
             ax_cal.set_xlim(-0.02, 1.02)
             ax_cal.set_ylim(-0.02, 1.02)
             ax_cal.set_xlabel('Predicted Probability')
-            ax_cal.set_ylabel('Observed Frequency')
+
+            if dtype == 'syn' and test_ds == 'pond':
+                ax_cal.set_ylabel('Observed Frequency')
+            else:
+                ax_cal.set_ylabel('')
+                
             ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_cal.set_axisbelow(True)
             fig_cal.tight_layout()

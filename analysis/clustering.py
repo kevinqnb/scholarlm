@@ -17,6 +17,9 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
 import seaborn as sns
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -59,6 +62,22 @@ palette = sns.color_palette("husl", 10)
 
 FIGURES_DIR = Path("figures/clustering/")
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ── Standalone legend ─────────────────────────────────────────────
+_legend_handles = [
+    mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Syn. PLW'),
+    mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random Baseline'),
+]
+_fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
+_ax_leg.axis('off')
+_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=9,
+               frameon=False, handlelength=2.0)
+_fig_leg.savefig(FIGURES_DIR / 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
+plt.show()
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
@@ -322,13 +341,13 @@ for PROBE_TYPE in ['layer', 'head']:
         baseline = random_baseline_distance(X_gt, N_CLUSTERS, gt_centers, metric='euclidean', n_trials=100000, rng=42)
 
         _STYLE = {
-            'ext_ntp':   dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
+            'ext_ntp':   dict(color=palette[1], ls='--', lw=2.0, alpha=0.85,
                             label='Ext. NTP'),
-            'ext_probe': dict(color=palette[7], ls='-',  lw=2.0,
+            'ext_probe': dict(color=palette[1], ls='-',  lw=2.0,
                             label='Ext. Probe'),
-            'syn_ntp':   dict(color=palette[1], ls='--', lw=2.0, alpha=0.85,
+            'syn_ntp':   dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
                             label='Syn. NTP'),
-            'syn_probe': dict(color=palette[1], ls='-',  lw=2.0,
+            'syn_probe': dict(color=palette[7], ls='-',  lw=2.0,
                             label='Syn. Probe'),
         }
 
@@ -349,8 +368,8 @@ for PROBE_TYPE in ['layer', 'head']:
 
         ax.axhline(
             y=baseline[0],
-            color='grey',
-            linestyle='--',
+            color='#444444',
+            linestyle=':',
             linewidth=2.0,
             alpha=0.7,
             label='Random Baseline'
@@ -359,7 +378,7 @@ for PROBE_TYPE in ['layer', 'head']:
         ax.set_xlabel('$\\gamma$', fontsize = 12)
         ax.set_ylabel('Mean Centroid Distance')
         ax.set_xlim(gamma_vals[0], gamma_vals[-1])
-        ax.legend(fontsize=6.5, loc='upper right', bbox_to_anchor=(1.0, 0.95))
+        #ax.legend(fontsize=6.5, loc='upper right', bbox_to_anchor=(1.0, 0.95))
         ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
         fig.tight_layout()
 
