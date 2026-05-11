@@ -501,3 +501,137 @@ Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/
 Top layer: 26
 Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_pond.pdf
 Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_nfix.pdf
+
+============================================================
+Dataset: pond   Judge: llama-3.1-8b
+============================================================
+  Accuracy  : 0.9274
+  Precision : 0.9812
+  Recall    : 0.7973
+  F1-Score  : 0.8798
+  AUROC     : 0.9919
+  ECE       : 0.2453
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/llama-3.1-8b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(30, 19), (31, 12), (31, 14), (18, 26), (26, 22), (15, 0), (19, 7), (16, 17), (31, 15), (31, 31)]
+  NTP calibrator train ECE: 0.0395
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/llama-3.1-8b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.9530
+  Precision : 0.9277
+  Recall    : 0.9316
+  F1-Score  : 0.9296
+  AUROC     : 0.9928
+  ECE       : 0.2315
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/llama-3.1-8b/trained_probe/layer_probe.pkl
+Top layer: 27
+
+============================================================
+Dataset: pond   Judge: mistral-7b
+============================================================
+  Accuracy  : 0.8683
+  Precision : 0.9970
+  Recall    : 0.6068
+  F1-Score  : 0.7545
+  AUROC     : 0.9896
+  ECE       : 0.2761
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/mistral-7b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(18, 26), (26, 16), (30, 18), (31, 17), (20, 30), (18, 11), (17, 24), (16, 18), (14, 26), (25, 14)]
+  NTP calibrator train ECE: 0.0160
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/mistral-7b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.9282
+  Precision : 0.9573
+  Recall    : 0.8211
+  F1-Score  : 0.8840
+  AUROC     : 0.9866
+  ECE       : 0.2565
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/mistral-7b/trained_probe/layer_probe.pkl
+Top layer: 30
+
+============================================================
+Dataset: pond   Judge: qwen-2.5-7b
+============================================================
+  Accuracy  : 0.9426
+  Precision : 0.8697
+  Recall    : 0.9737
+  F1-Score  : 0.9188
+  AUROC     : 0.9890
+  ECE       : 0.2219
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/qwen-2.5-7b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(25, 19), (27, 9), (27, 24), (27, 22), (27, 8), (27, 6), (27, 19), (27, 7), (27, 13), (25, 24)]
+  NTP calibrator train ECE: 0.0139
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/qwen-2.5-7b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.9499
+  Precision : 0.8964
+  Recall    : 0.9609
+  F1-Score  : 0.9275
+  AUROC     : 0.9914
+  ECE       : 0.1948
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/pond/synthetic_probe/qwen-2.5-7b/trained_probe/layer_probe.pkl
+Top layer: 27
+
+============================================================
+Dataset: nfix   Judge: llama-3.1-8b
+============================================================
+  Accuracy  : 0.7289
+  Precision : 1.0000
+  Recall    : 0.1868
+  F1-Score  : 0.3149
+  AUROC     : 0.9774
+  ECE       : 0.3486
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/llama-3.1-8b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(17, 19), (15, 10), (15, 20), (20, 13), (22, 15), (22, 29), (15, 11), (19, 3), (31, 28), (15, 22)]
+  NTP calibrator train ECE: 0.0295
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/llama-3.1-8b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.8000
+  Precision : 1.0000
+  Recall    : 0.4000
+  F1-Score  : 0.5714
+  AUROC     : 0.9870
+  ECE       : 0.3459
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/llama-3.1-8b/trained_probe/layer_probe.pkl
+Top layer: 14
+
+============================================================
+Dataset: nfix   Judge: mistral-7b
+============================================================
+  Accuracy  : 0.7518
+  Precision : 1.0000
+  Recall    : 0.2553
+  F1-Score  : 0.4067
+  AUROC     : 0.9832
+  ECE       : 0.3363
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/mistral-7b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(30, 19), (20, 9), (16, 14), (14, 0), (25, 24), (17, 24), (15, 14), (27, 8), (27, 28), (25, 13)]
+  NTP calibrator train ECE: 0.0174
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/mistral-7b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.8000
+  Precision : 1.0000
+  Recall    : 0.4000
+  F1-Score  : 0.5714
+  AUROC     : 0.9777
+  ECE       : 0.3319
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/mistral-7b/trained_probe/layer_probe.pkl
+Top layer: 14
+
+============================================================
+Dataset: nfix   Judge: qwen-2.5-7b
+============================================================
+  Accuracy  : 0.8623
+  Precision : 1.0000
+  Recall    : 0.5868
+  F1-Score  : 0.7396
+  AUROC     : 0.9896
+  ECE       : 0.2990
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/qwen-2.5-7b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(27, 8), (27, 7), (22, 12), (25, 19), (27, 13), (27, 10), (27, 12), (22, 26), (27, 11), (23, 22)]
+  NTP calibrator train ECE: 0.0441
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/qwen-2.5-7b/trained_probe/ntp_calibrator.pkl
+  Accuracy  : 0.9132
+  Precision : 0.9930
+  Recall    : 0.7447
+  F1-Score  : 0.8511
+  AUROC     : 0.9905
+  ECE       : 0.3052
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/synthetic_probe/qwen-2.5-7b/trained_probe/layer_probe.pkl
+Top layer: 26
+Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_pond.pdf
+Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_nfix.pdf

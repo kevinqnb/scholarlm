@@ -58,3 +58,6 @@ FileNotFoundError: [Errno 2] No such file or directory: 'figures/synthetic_probe
 /var/spool/sge/scc-fe3/job_scripts/5235711: line 9: module: command not found
 /projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py:379: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
   fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+/var/spool/sge/scc-k06/job_scripts/5354202: line 9: module: command not found
+/projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py:358: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))

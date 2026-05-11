@@ -209,6 +209,8 @@ def match_datasets(
         return isinstance(x, (int, float, np.integer, np.floating)) and not _is_null(x)
 
     def _strict_equal(v_left, v_right) -> bool:
+        if _is_null(v_left) and _is_null(v_right):
+            return True
         if _is_null(v_left) or _is_null(v_right):
             return False
         if _is_numeric_scalar(v_left) and _is_numeric_scalar(v_right):

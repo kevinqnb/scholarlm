@@ -114,7 +114,7 @@ JUDGE_DATES_REAL = {
 }
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
-EDGE_THRESHOLD  = 1 / 3  # minimum fuzzy weight to count as a match
+EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6}  # minimum fuzzy weight to count as a match
 
 
 # NTP calibrators are probe-type-independent — load once outside the probe loop.
@@ -176,6 +176,7 @@ for PROBE_TYPE in ['head', 'layer']:
     test_data = {}  # test_data[dataset] = dict with pre-loaded data
 
     for ds in DATASETS:
+        EDGE_THRESHOLD = EDGE_THRESHOLDS[ds]
         print(f'Loading test data for {ds}...')
         config  = load_dataset_config(ds)
         records = load_extraction(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds])
@@ -254,6 +255,7 @@ for PROBE_TYPE in ['head', 'layer']:
 
         for dtype in ('syn', 'real'):
             for test_ds in DATASETS:
+                EDGE_THRESHOLD = EDGE_THRESHOLDS[test_ds]
                 dtype_str = 'Syn.' if dtype == 'syn' else 'Real'
                 s_label  = f'{dtype_str} {test_ds}'
                 color    = _DS_COLORS[(test_ds,dtype)]

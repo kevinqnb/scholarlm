@@ -36,6 +36,9 @@ def get_matching_rules(dataset):
 def process_extraction_df(extraction_df, dataset, config):
     """Apply unit conversion and normalization to extraction dataframe."""
     extraction_df = apply_unit_conversion(extraction_df, {}) # NOTE: no longer using dataset-specific unit conversion rules, but could be added back if needed
+
+    # Unitless attributes should have units set to None to avoid matching issues
+    extraction_df.loc[extraction_df.attribute == 'ph', 'units'] = None
     
     if 'nfix' in dataset:
         extraction_df['attribute'] = extraction_df['attribute'].map({
