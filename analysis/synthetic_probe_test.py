@@ -57,9 +57,9 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 # ── Standalone calibration legend ─────────────────────────────────────────────
 _legend_handles = [
     mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Synthetic PLW'),
-    mlines.Line2D([], [], color=palette[0], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
+    mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
     mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
-    mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Extracted NF'),
+    mlines.Line2D([], [], color=palette[9], lw=2, marker='o', ms=3.5, label='Extracted NF'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
 ]
@@ -228,8 +228,8 @@ for PROBE_TYPE in ['head', 'layer']:
     _DS_COLORS = {
         ('pond', 'syn'):  palette[7],
         ('pond', 'real'): palette[1],
-        ('nfix', 'syn'):  palette[0],
-        ('nfix', 'real'): palette[4],
+        ('nfix', 'syn'):  palette[4],
+        ('nfix', 'real'): palette[9],
     }
     _DTYPE_LS = {'real': '-', 'syn': '-'}
 
@@ -412,7 +412,7 @@ for PROBE_TYPE in ['head', 'layer']:
             ax_cal.set_ylim(-0.02, 1.02)
             ax_cal.set_xlabel('Predicted Probability')
 
-            if dtype == 'syn' and test_ds == 'pond':
+            if dtype == 'syn' and train_dataset == 'pond':
                 ax_cal.set_ylabel('Observed Frequency')
             else:
                 ax_cal.set_ylabel('')

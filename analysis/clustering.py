@@ -76,7 +76,7 @@ _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
 _ax_leg.axis('off')
 _ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=9,
                frameon=False, handlelength=2.0)
-_fig_leg.savefig(FIGURES_DIR / 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
+_fig_leg.savefig(FIGURES_DIR / 'legend.pdf', bbox_inches='tight', dpi=200)
 plt.show()
 
 
