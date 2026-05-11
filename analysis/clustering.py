@@ -42,9 +42,9 @@ mpl.rcParams.update({
     "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "cm",
     "text.usetex": False,
-    "font.size": 9, "axes.labelsize": 9, "axes.titlesize": 9,
-    "xtick.labelsize": 8, "ytick.labelsize": 8,
-    "legend.fontsize": 8, "legend.title_fontsize": 9,
+    "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 11,
+    "xtick.labelsize": 10, "ytick.labelsize": 10,
+    "legend.fontsize": 10, "legend.title_fontsize": 11,
     "axes.linewidth": 0.6,
     "xtick.direction": "in", "ytick.direction": "in",
     "xtick.major.size": 3, "ytick.major.size": 3,
@@ -70,11 +70,11 @@ _legend_handles = [
     mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
-    mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random Baseline'),
+    mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random'),
 ]
 _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
 _ax_leg.axis('off')
-_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=9,
+_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=11,
                frameon=False, handlelength=2.0)
 _fig_leg.savefig(FIGURES_DIR / 'legend.pdf', bbox_inches='tight', dpi=200)
 plt.show()
@@ -287,23 +287,6 @@ for PROBE_TYPE in ['layer', 'head']:
             row_ind, col_ind = linear_sum_assignment(D, maximize=False)
             return D[row_ind, col_ind].mean()
 
-        def random_centroids(X, k, rng=None):
-            """Draw k centroids uniformly from the bounding box of X."""
-            rng = np.random.default_rng(rng)
-            mins = X.min(axis=0)
-            maxs = X.max(axis=0)
-            return rng.uniform(mins, maxs, size=(k, X.shape[1]))
-
-        def random_baseline_distance(X, k, true_centers, metric='euclidean', n_trials=100, rng=None):
-            """Expected centroid_matching_distance from random centroids to true centers."""
-            rng = np.random.default_rng(rng)
-            distances = np.empty(n_trials)
-            for i in range(n_trials):
-                A = random_centroids(X, k, rng=rng)
-                distances[i] = centroid_matching_distance(A, true_centers, metric=metric)
-            return distances.mean(), distances.std()
-
-
         # ─────────────────────────────────────────────────────────────────
         kmeans_gt  = KMeans(n_clusters=N_CLUSTERS, random_state=42, n_init='auto')
         gt_labels  = kmeans_gt.fit_predict(X_gt)
@@ -324,31 +307,54 @@ for PROBE_TYPE in ['layer', 'head']:
 
         for run_idx in range(N_RUNS):
             current_seed = 42 + run_idx # Ensure a different seed per run
-            
+
             for i, gamma in enumerate(gamma_vals):
                 for key, (X, probs) in _sweep_configs.items():
                     km = KMeans(n_clusters=N_CLUSTERS, random_state=current_seed, n_init='auto')
                     km.fit(X, sample_weight=probs ** gamma)
-                    
+
                     dist = centroid_matching_distance(gt_centers, km.cluster_centers_)
                     all_runs_dist[key][run_idx, i] = dist
+
+        # Random baselines: N_RANDOM_SAMPLES draws of uniform random probs; each draw uses
+        # its own KMeans seed, collapsing both sources of variance into one loop.
+        N_RANDOM_SAMPLES = 1000
+        random_runs_dist = {
+            'ext_random': np.zeros((N_RANDOM_SAMPLES, len(gamma_vals))),
+            'syn_random': np.zeros((N_RANDOM_SAMPLES, len(gamma_vals))),
+        }
+        for sample_idx in range(N_RANDOM_SAMPLES):
+            rng = np.random.default_rng(sample_idx)
+            ext_random_probs = rng.uniform(0, 1, size=len(X_ext))
+            syn_random_probs = rng.uniform(0, 1, size=len(X_syn))
+            for i, gamma in enumerate(gamma_vals):
+                for key, X, rprobs in [('ext_random', X_ext, ext_random_probs),
+                                       ('syn_random', X_syn, syn_random_probs)]:
+                    km = KMeans(n_clusters=N_CLUSTERS, random_state=sample_idx, n_init='auto')
+                    km.fit(X, sample_weight=rprobs ** gamma)
+                    dist = centroid_matching_distance(gt_centers, km.cluster_centers_)
+                    random_runs_dist[key][sample_idx, i] = dist
 
         # Calculate mean and standard deviation
         avg_distances = {k: np.mean(v, axis=0) for k, v in all_runs_dist.items()}
         std_distances = {k: np.std(v, axis=0) / np.sqrt(N_RUNS) for k, v in all_runs_dist.items()}
-
-        # Compute baseline, distance of randomly chosen centers to the ground truth
-        baseline = random_baseline_distance(X_gt, N_CLUSTERS, gt_centers, metric='euclidean', n_trials=100000, rng=42)
+        for key, v in random_runs_dist.items():
+            avg_distances[key] = v.mean(axis=0)
+            std_distances[key] = v.std(axis=0) / np.sqrt(N_RANDOM_SAMPLES)
 
         _STYLE = {
-            'ext_ntp':   dict(color=palette[1], ls='--', lw=2.0, alpha=0.85,
-                            label='Ext. NTP'),
-            'ext_probe': dict(color=palette[1], ls='-',  lw=2.0,
-                            label='Ext. Probe'),
-            'syn_ntp':   dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
-                            label='Syn. NTP'),
-            'syn_probe': dict(color=palette[7], ls='-',  lw=2.0,
-                            label='Syn. Probe'),
+            'ext_ntp':     dict(color=palette[1], ls='--', lw=2.0, alpha=0.85,
+                               label='Ext. NTP'),
+            'ext_probe':   dict(color=palette[1], ls='-',  lw=2.0,
+                               label='Ext. Probe'),
+            'ext_random':  dict(color=palette[1], ls=':',  lw=2.0, alpha=0.85,
+                               label='Ext. Random'),
+            'syn_ntp':     dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
+                               label='Syn. NTP'),
+            'syn_probe':   dict(color=palette[7], ls='-',  lw=2.0,
+                               label='Syn. Probe'),
+            'syn_random':  dict(color=palette[7], ls=':',  lw=2.0, alpha=0.85,
+                               label='Syn. Random'),
         }
 
         fig, ax = plt.subplots(figsize=(3.5, 2.8))
@@ -366,16 +372,8 @@ for PROBE_TYPE in ['layer', 'head']:
                 alpha=0.2
             )
 
-        ax.axhline(
-            y=baseline[0],
-            color='#444444',
-            linestyle=':',
-            linewidth=2.0,
-            alpha=0.7,
-            label='Random Baseline'
-        )
         ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-        ax.set_xlabel('$\\gamma$', fontsize = 12)
+        ax.set_xlabel('$\\gamma$', fontsize = 13)
         ax.set_ylabel('Mean Centroid Distance')
         ax.set_xlim(gamma_vals[0], gamma_vals[-1])
         #ax.legend(fontsize=6.5, loc='upper right', bbox_to_anchor=(1.0, 0.95))

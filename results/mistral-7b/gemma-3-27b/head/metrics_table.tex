@@ -1,0 +1,24 @@
+\begin{table*}[ht]
+\centering
+\begin{tabular}{ll ccc ccc}
+\toprule
+& & \multicolumn{3}{c}{\pond-Trained} & \multicolumn{3}{c}{\nfix-Trained} \\
+\cmidrule(lr){3-5} \cmidrule(lr){6-8}
+& & F1 & AUC & ECE & F1 & AUC & ECE \\
+\midrule
+\multirow{4}{*}{Probe}
+& Syn. \pond & 0.70 & 0.89 & 0.06 & 0.65 & 0.81 & 0.12 \\
+& Ext. \pond & 0.66 & 0.70 & 0.09 & 0.69 & 0.71 & 0.07 \\
+& Syn. \nfix & 0.45 & 0.71 & 0.06 & 0.39 & 0.70 & 0.07 \\
+& Ext. \nfix & 0.46 & 0.64 & 0.08 & 0.32 & 0.68 & 0.17 \\
+\midrule
+\multirow{4}{*}{NTP}
+& Syn. \pond & nan & 0.71 & 0.01 & nan & 0.71 & 0.06 \\
+& Ext. \pond & nan & 0.76 & 0.24 & nan & 0.73 & 0.20 \\
+& Syn. \nfix & nan & 0.61 & 0.05 & nan & 0.61 & 0.02 \\
+& Ext. \nfix & nan & 0.72 & 0.08 & nan & 0.75 & 0.11 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Performance Metrics (\texttt{mistral-7b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left-three columns) and synthetic \nfix (right-three columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
+\label{tab:mistral-7b-gemma-3-27b-head}
+\end{table*}

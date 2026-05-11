@@ -36,9 +36,9 @@ mpl.rcParams.update({
     "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "cm",
     "text.usetex": False,
-    "font.size": 9, "axes.labelsize": 9, "axes.titlesize": 9,
-    "xtick.labelsize": 8, "ytick.labelsize": 8,
-    "legend.fontsize": 8, "legend.title_fontsize": 9,
+    "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 11,
+    "xtick.labelsize": 10, "ytick.labelsize": 10,
+    "legend.fontsize": 10, "legend.title_fontsize": 11,
     "axes.linewidth": 0.6,
     "xtick.direction": "in", "ytick.direction": "in",
     "xtick.major.size": 3, "ytick.major.size": 3,
@@ -304,7 +304,7 @@ for DATASET in DATASETS:
         ax.axvline(best_layer_lo, color="grey", lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (F1={best_layer_f1_scores:.3f})')
         ax.set_xlabel('Layer')
         ax.set_ylabel('F1')
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=9)
         ax.set_xlim(-0.5, n_layers_lo - 0.5)
         fig.tight_layout()
         fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_F1_{DATASET}.pdf', bbox_inches='tight')
@@ -318,7 +318,7 @@ for DATASET in DATASETS:
         ax.axvline(best_layer_lo, color='grey', lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (ECE={best_layer_ece_scores:.3f})')
         ax.set_xlabel('Layer')
         ax.set_ylabel('ECE')
-        ax.legend(fontsize=7)
+        ax.legend(fontsize=9)
         ax.set_xlim(-0.5, n_layers_lo - 0.5)
         fig.tight_layout()
         fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_ECE_{DATASET}.pdf', bbox_inches='tight')
@@ -397,7 +397,7 @@ for DATASET in DATASETS:
     
     ax.set_xlabel('Layer')
     ax.set_ylabel('F1')
-    ax.legend(fontsize=8, loc='best')
+    ax.legend(fontsize=10, loc='best')
     ax.set_xlim(-0.5, n_layers_plot - 0.5)
     fig.tight_layout()
     fig.savefig(FIGURES_DIR + f'synprobe_layer_F1_all_models_{DATASET}.pdf', bbox_inches='tight')

@@ -1,7 +1,0 @@
-dataset,model,extraction_date,recovery,hallucination
-pond,llama-3.1-8b,,0.2901290129012901,
-nfix,llama-3.1-8b,,0.0,
-pond,gemma-3-27b,,0.5610561056105611,
-nfix,gemma-3-27b,,0.0,
-pond,gpt-oss-120b,,0.039003900390039,
-nfix,gpt-oss-120b,,0.0,

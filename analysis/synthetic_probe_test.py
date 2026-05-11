@@ -33,9 +33,9 @@ mpl.rcParams.update({
     "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "cm",
     "text.usetex": False,
-    "font.size": 9, "axes.labelsize": 9, "axes.titlesize": 9,
-    "xtick.labelsize": 8, "ytick.labelsize": 8,
-    "legend.fontsize": 8, "legend.title_fontsize": 9,
+    "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 11,
+    "xtick.labelsize": 10, "ytick.labelsize": 10,
+    "legend.fontsize": 10, "legend.title_fontsize": 11,
     "axes.linewidth": 0.6,
     "xtick.direction": "in", "ytick.direction": "in",
     "xtick.major.size": 3, "ytick.major.size": 3,
@@ -51,8 +51,11 @@ mpl.rcParams.update({
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)
 
-FIGURES_DIR = "figures/synthetic_probe/"
+FIGURES_DIR = "figures/calibration/"
 Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
+
+RESULTS_DIR = Path('results')
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Standalone calibration legend ─────────────────────────────────────────────
 _legend_handles = [
@@ -65,7 +68,7 @@ _legend_handles = [
 ]
 _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
 _ax_leg.axis('off')
-_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=9,
+_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=11,
                frameon=False, handlelength=2.0)
 _fig_leg.savefig(FIGURES_DIR + 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
 plt.show()
@@ -249,6 +252,9 @@ for PROBE_TYPE in ['head', 'layer']:
         print(f'\n{SEP}\n  {header}\n{SEP}')
         subfigure_dir = FIGURES_DIR + f"{judge_model}/{EXTRACTION_MODEL}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
+
+        subresults_dir = RESULTS_DIR + f"{judge_model}/{EXTRACTION_MODEL}/"
+        Path(subresults_dir).mkdir(parents=True, exist_ok=True)
 
         # ── Collect data for each test setting ────────────────────────────────
         setting_results = []
@@ -489,7 +495,7 @@ for PROBE_TYPE in ['head', 'layer']:
             ax_pr.set_ylim(-0.02, 1.02)
             ax_pr.set_xlabel('Recall')
             ax_pr.set_ylabel('Precision')
-            ax_pr.legend(fontsize=7, loc='lower left')
+            ax_pr.legend(fontsize=9, loc='lower left')
             ax_pr.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_pr.set_axisbelow(True)
 
@@ -522,7 +528,7 @@ for PROBE_TYPE in ['head', 'layer']:
         print(f'\nSummary — {header}  (threshold = 0.5):')
         print(df.to_string(index=False, float_format='{:.3f}'.format))
         print()
-        df.to_csv(subfigure_dir + f'{PROBE_TYPE}/metrics_{train_dataset}.csv')
+        df.to_csv(subresults_dir + f'{PROBE_TYPE}/metrics_{train_dataset}.csv')
         return df
 
     # ───────────────────────────────────────────────────────
