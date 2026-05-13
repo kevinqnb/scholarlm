@@ -54,15 +54,15 @@ palette = sns.color_palette("husl", 10)
 FIGURES_DIR = "figures/calibration/"
 Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 
-RESULTS_DIR = Path('results')
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR = "results/"
+Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
 # ── Standalone calibration legend ─────────────────────────────────────────────
 _legend_handles = [
     mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Synthetic PLW'),
     mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='Synthetic NF'),
     mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
-    mlines.Line2D([], [], color=palette[9], lw=2, marker='o', ms=3.5, label='Extracted NF'),
+    mlines.Line2D([], [], color=palette[0], lw=2, marker='o', ms=3.5, label='Extracted NF'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
     mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
 ]
@@ -232,7 +232,7 @@ for PROBE_TYPE in ['head', 'layer']:
         ('pond', 'syn'):  palette[7],
         ('pond', 'real'): palette[1],
         ('nfix', 'syn'):  palette[4],
-        ('nfix', 'real'): palette[9],
+        ('nfix', 'real'): palette[0],
     }
     _DTYPE_LS = {'real': '-', 'syn': '-'}
 

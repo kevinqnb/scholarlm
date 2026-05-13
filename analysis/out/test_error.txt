@@ -67,3 +67,18 @@ FileNotFoundError: [Errno 2] No such file or directory: 'figures/synthetic_probe
 /var/spool/sge/scc-k06/job_scripts/5455587: line 9: module: command not found
 /projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py:358: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
   fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+/var/spool/sge/scc-k06/job_scripts/5529050: line 9: module: command not found
+Traceback (most recent call last):
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py", line 538, in <module>
+    all_results[(jm, train_ds)] = analyze_probe(jm, train_ds)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py", line 256, in analyze_probe
+    subresults_dir = RESULTS_DIR + f"{judge_model}/{EXTRACTION_MODEL}/"
+                     ~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for +: 'PosixPath' and 'str'
+/var/spool/sge/scc-k06/job_scripts/5570518: line 9: module: command not found
+/projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py:364: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+/var/spool/sge/scc-k06/job_scripts/5574985: line 9: module: command not found
+/projectnb/mcnet/kevin/coastal/scholarlm/analysis/synthetic_probe_test.py:364: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`). Consider using `matplotlib.pyplot.close()`.
+  fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))

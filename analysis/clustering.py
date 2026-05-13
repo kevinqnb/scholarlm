@@ -3,9 +3,9 @@ import os
 from pathlib import Path
 
 # Limit processor usage
-os.environ['OMP_NUM_THREADS'] = '4'
-os.environ['MKL_NUM_THREADS'] = '4'
-os.environ['NUMEXPR_NUM_THREADS'] = '4'
+os.environ['OMP_NUM_THREADS'] = '12'
+os.environ['MKL_NUM_THREADS'] = '12'
+os.environ['NUMEXPR_NUM_THREADS'] = '12'
 
 REPO_ROOT = Path.cwd()
 sys.path.insert(0, str(REPO_ROOT / 'src'))
@@ -292,7 +292,7 @@ for PROBE_TYPE in ['layer', 'head']:
         gt_labels  = kmeans_gt.fit_predict(X_gt)
         gt_centers = kmeans_gt.cluster_centers_
 
-        N_RUNS = 1000  # Number of different initializations
+        N_RUNS = 10000  # Number of different initializations
         gamma_vals = np.linspace(0.0, 5.0, 101)
 
         _sweep_configs = {
