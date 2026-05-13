@@ -1,24 +1,24 @@
 \begin{table*}[ht]
 \centering
-\begin{tabular}{ll ccc ccc}
+\begin{tabular}{ll cccc cccc}
 \toprule
-& & \multicolumn{3}{c}{\pond-Trained} & \multicolumn{3}{c}{\nfix-Trained} \\
-\cmidrule(lr){3-5} \cmidrule(lr){6-8}
-& & F1 & AUC & ECE & F1 & AUC & ECE \\
+& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\
+\cmidrule(lr){3-6} \cmidrule(lr){7-10}
+& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\
 \midrule
 \multirow{4}{*}{Probe}
-& Syn. \pond & 0.74 & 0.90 & 0.05 & 0.57 & 0.69 & 0.22 \\
-& Ext. \pond & 0.57 & 0.73 & 0.19 & 0.58 & 0.70 & 0.13 \\
-& Syn. \nfix & 0.32 & 0.63 & 0.13 & 0.48 & 0.69 & 0.10 \\
-& Ext. \nfix & 0.54 & 0.71 & 0.09 & 0.32 & 0.60 & 0.17 \\
+& Syn. \pond & 0.74 & 0.74 & 0.90 & 0.05 & 0.44 & 0.78 & 0.69 & 0.22 \\
+& Ext. \pond & 0.75 & 0.46 & 0.73 & 0.19 & 0.68 & 0.51 & 0.70 & 0.13 \\
+& Syn. \nfix & 0.48 & 0.24 & 0.63 & 0.13 & 0.52 & 0.45 & 0.69 & 0.10 \\
+& Ext. \nfix & 0.60 & 0.48 & 0.71 & 0.09 & 0.61 & 0.22 & 0.60 & 0.17 \\
 \midrule
 \multirow{4}{*}{NTP}
-& Syn. \pond & nan & 0.71 & 0.01 & nan & 0.71 & 0.06 \\
-& Ext. \pond & nan & 0.76 & 0.24 & nan & 0.73 & 0.20 \\
-& Syn. \nfix & nan & 0.61 & 0.05 & nan & 0.61 & 0.02 \\
-& Ext. \nfix & nan & 0.72 & 0.08 & nan & 0.75 & 0.11 \\
+& Syn. \pond & nan & 0.00 & 0.71 & 0.01 & nan & 0.00 & 0.71 & 0.06 \\
+& Ext. \pond & nan & 0.00 & 0.76 & 0.24 & nan & 0.00 & 0.73 & 0.20 \\
+& Syn. \nfix & nan & 0.00 & 0.61 & 0.05 & nan & 0.00 & 0.61 & 0.02 \\
+& Ext. \nfix & nan & 0.00 & 0.72 & 0.08 & nan & 0.00 & 0.75 & 0.11 \\
 \bottomrule
 \end{tabular}
-\caption{\textbf{Performance Metrics (\texttt{mistral-7b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left-three columns) and synthetic \nfix (right-three columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
+\caption{\textbf{Performance Metrics (\texttt{mistral-7b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left four columns) and synthetic \nfix (right four columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
 \label{tab:mistral-7b-gemma-3-27b-layer}
 \end{table*}

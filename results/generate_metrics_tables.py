@@ -42,7 +42,8 @@ def load_metrics(pond_csv: str, nfix_csv: str) -> dict:
             if key not in metrics:
                 metrics[key] = {}
             metrics[key][train_key] = {
-                "F1": row["F1"],
+                "Precision": row["Precision"],
+                "Recall": row["Recall"],
                 "AUROC": row["AUROC"],
                 "ECE": row["ECE"],
             }
@@ -80,13 +81,13 @@ def generate_latex(
     lines = []
     lines.append(r"\begin{table*}[ht]")
     lines.append(r"\centering")
-    lines.append(r"\begin{tabular}{ll ccc ccc}")
+    lines.append(r"\begin{tabular}{ll cccc cccc}")
     lines.append(r"\toprule")
     lines.append(
-        r"& & \multicolumn{3}{c}{\pond-Trained} & \multicolumn{3}{c}{\nfix-Trained} \\"
+        r"& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\"
     )
-    lines.append(r"\cmidrule(lr){3-5} \cmidrule(lr){6-8}")
-    lines.append(r"& & F1 & AUC & ECE & F1 & AUC & ECE \\")
+    lines.append(r"\cmidrule(lr){3-6} \cmidrule(lr){7-10}")
+    lines.append(r"& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\")
     lines.append(r"\midrule")
 
     for i, type_name in enumerate(type_groups):
@@ -101,8 +102,8 @@ def generate_latex(
 
             row = (
                 f"& {display_names[setting]} "
-                f"& {fmt(pond['F1'])} & {fmt(pond['AUROC'])} & {fmt(pond['ECE'])} "
-                f"& {fmt(nfix['F1'])} & {fmt(nfix['AUROC'])} & {fmt(nfix['ECE'])} \\\\"
+                f"& {fmt(pond['Precision'])} & {fmt(pond['Recall'])} & {fmt(pond['AUROC'])} & {fmt(pond['ECE'])} "
+                f"& {fmt(nfix['Precision'])} & {fmt(nfix['Recall'])} & {fmt(nfix['AUROC'])} & {fmt(nfix['ECE'])} \\\\"
             )
             lines.append(row)
 
@@ -117,8 +118,8 @@ def generate_latex(
         caption = (
             r"\textbf{Performance Metrics (\texttt{llama-3.1-8b}).} "
             r"for probe and NTP predicted validation probabilities, "
-            r"trained on the synthetic \pond (left-three columns) and synthetic \nfix "
-            r"(right-three columns) datasets. Evaluated for test synthetic and "
+            r"trained on the synthetic \pond (left four columns) and synthetic \nfix "
+            r"(right four columns) datasets. Evaluated for test synthetic and "
             r"extracted \pond and \nfix  datasets. Data extracted with \texttt{gemma-3-27b}."
         )
 
@@ -133,8 +134,8 @@ def make_caption(judge_model: str, extraction_model: str) -> str:
     return (
         rf"\textbf{{Performance Metrics (\texttt{{{judge_model}}}).}} "
         r"for probe and NTP predicted validation probabilities, "
-        r"trained on the synthetic \pond (left-three columns) and synthetic \nfix "
-        r"(right-three columns) datasets. Evaluated for test synthetic and "
+        r"trained on the synthetic \pond (left four columns) and synthetic \nfix "
+        r"(right four columns) datasets. Evaluated for test synthetic and "
         rf"extracted \pond and \nfix datasets. Data extracted with \texttt{{{extraction_model}}}."
     )
 

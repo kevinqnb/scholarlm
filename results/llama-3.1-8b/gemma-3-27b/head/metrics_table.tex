@@ -1,24 +1,24 @@
 \begin{table*}[ht]
 \centering
-\begin{tabular}{ll ccc ccc}
+\begin{tabular}{ll cccc cccc}
 \toprule
-& & \multicolumn{3}{c}{\pond-Trained} & \multicolumn{3}{c}{\nfix-Trained} \\
-\cmidrule(lr){3-5} \cmidrule(lr){6-8}
-& & F1 & AUC & ECE & F1 & AUC & ECE \\
+& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\
+\cmidrule(lr){3-6} \cmidrule(lr){7-10}
+& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\
 \midrule
 \multirow{4}{*}{Probe}
-& Syn. \pond & 0.72 & 0.90 & 0.05 & 0.58 & 0.78 & 0.06 \\
-& Ext. \pond & 0.76 & 0.78 & 0.05 & 0.58 & 0.65 & 0.08 \\
-& Syn. \nfix & 0.37 & 0.65 & 0.08 & 0.30 & 0.68 & 0.09 \\
-& Ext. \nfix & 0.59 & 0.68 & 0.24 & 0.22 & 0.67 & 0.11 \\
+& Syn. \pond & 0.76 & 0.68 & 0.90 & 0.05 & 0.62 & 0.54 & 0.78 & 0.06 \\
+& Ext. \pond & 0.71 & 0.81 & 0.78 & 0.05 & 0.63 & 0.54 & 0.65 & 0.08 \\
+& Syn. \nfix & 0.50 & 0.29 & 0.65 & 0.08 & 0.62 & 0.20 & 0.68 & 0.09 \\
+& Ext. \nfix & 0.46 & 0.84 & 0.68 & 0.24 & 0.74 & 0.13 & 0.67 & 0.11 \\
 \midrule
 \multirow{4}{*}{NTP}
-& Syn. \pond & 0.61 & 0.81 & 0.05 & 0.63 & 0.81 & 0.12 \\
-& Ext. \pond & 0.65 & 0.83 & 0.16 & 0.65 & 0.77 & 0.09 \\
-& Syn. \nfix & 0.26 & 0.66 & 0.14 & 0.36 & 0.66 & 0.08 \\
-& Ext. \nfix & 0.39 & 0.75 & 0.14 & 0.46 & 0.72 & 0.08 \\
+& Syn. \pond & 0.65 & 0.57 & 0.81 & 0.05 & 0.59 & 0.68 & 0.81 & 0.12 \\
+& Ext. \pond & 0.87 & 0.52 & 0.83 & 0.16 & 0.75 & 0.58 & 0.77 & 0.09 \\
+& Syn. \nfix & 0.58 & 0.17 & 0.66 & 0.14 & 0.56 & 0.27 & 0.66 & 0.08 \\
+& Ext. \nfix & 0.73 & 0.27 & 0.75 & 0.14 & 0.65 & 0.36 & 0.72 & 0.08 \\
 \bottomrule
 \end{tabular}
-\caption{\textbf{Performance Metrics (\texttt{llama-3.1-8b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left-three columns) and synthetic \nfix (right-three columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
+\caption{\textbf{Performance Metrics (\texttt{llama-3.1-8b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left four columns) and synthetic \nfix (right four columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
 \label{tab:llama-3.1-8b-gemma-3-27b-head}
 \end{table*}
