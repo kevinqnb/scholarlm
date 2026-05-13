@@ -242,10 +242,10 @@ for PROBE_TYPE in ['head', 'layer']:
         header   = f'{judge_model}  |  trained on {train_dataset}'
         SEP      = '=' * 72
         print(f'\n{SEP}\n  {header}\n{SEP}')
-        subfigure_dir = FIGURES_DIR + f"{judge_model}/{EXTRACTION_MODEL}/"
+        subfigure_dir = FIGURES_DIR + f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
-        subresults_dir = RESULTS_DIR + f"{judge_model}/{EXTRACTION_MODEL}/"
+        subresults_dir = RESULTS_DIR + f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
         Path(subresults_dir).mkdir(parents=True, exist_ok=True)
 
         # ── Collect data for each test setting ────────────────────────────────
@@ -432,7 +432,7 @@ for PROBE_TYPE in ['head', 'layer']:
             ax_cal.set_axisbelow(True)
             fig_cal.tight_layout()
             fig_cal.savefig(
-                subfigure_dir + f'{PROBE_TYPE}/cal_{dtype}_{train_dataset}.pdf', bbox_inches='tight', dpi = 200
+                subfigure_dir + f'cal_{dtype}_{train_dataset}.pdf', bbox_inches='tight', dpi = 200
             )
             plt.show()
 
@@ -508,7 +508,7 @@ for PROBE_TYPE in ['head', 'layer']:
                             fraction=0.046, pad=0.04)
             fig_pr.tight_layout()
             fig_pr.savefig(
-                subfigure_dir + f'{PROBE_TYPE}/pr_{'syn' if r['is_syn'] else 'real'}.pdf',
+                subfigure_dir + f'pr_{'syn' if r['is_syn'] else 'real'}.pdf',
                 bbox_inches='tight', dpi = 200
             )
             plt.show()
@@ -533,7 +533,7 @@ for PROBE_TYPE in ['head', 'layer']:
         print(f'\nSummary — {header}  (threshold = 0.5):')
         print(df.to_string(index=False, float_format='{:.3f}'.format))
         print()
-        df.to_csv(subresults_dir + f'{PROBE_TYPE}/metrics_{train_dataset}.csv')
+        df.to_csv(subresults_dir + f'metrics_{train_dataset}.csv')
         return df
 
     # ───────────────────────────────────────────────────────
