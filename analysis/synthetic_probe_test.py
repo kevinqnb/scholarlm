@@ -373,43 +373,56 @@ for PROBE_TYPE in ['head', 'layer']:
                 test_ds = 'pond' if 'pond' in r['label'].lower() else 'nfix'
                 color = _DS_COLORS[(test_ds, rdtype)]
             
-                # Probe — solid line with markers
+                # Probe — solid line with markers scaled by per-bin count
                 d_prb = reliability_diagram_data(r['probe_probs'], r['labels'])
                 v_prb = d_prb['bin_counts'] > 0
+                _c_prb = d_prb['bin_counts'][v_prb].astype(float)
+                _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
+                _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
                 ax_cal.plot(
                     d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                    r['ls'], color=color, lw=2.5, marker='o', ms=3.5,
-                    zorder=3,
+                    r['ls'], color=color, lw=2.5, zorder=3,
+                )
+                ax_cal.scatter(
+                    d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
+                    s=_s_prb, color=color, zorder=4,
                 )
 
                 # Add error bands: SEM of accuracy within each bin (very subtle)
                 bin_sems = d_prb['bin_accuracy_sem'][v_prb]
                 conf_valid = d_prb['bin_confidence'][v_prb]
                 acc_valid = d_prb['bin_accuracy'][v_prb]
-                
+
                 ax_cal.fill_between(
-                    conf_valid, 
-                    acc_valid - bin_sems, 
+                    conf_valid,
+                    acc_valid - bin_sems,
                     acc_valid + bin_sems,
                     color=color, alpha=0.20, linewidth=0, zorder=2
                 )
 
-                # NTP baseline — very faint, dashed
+                # NTP baseline — dashed, markers scaled by per-bin count
                 d_ntp = reliability_diagram_data(r['ntp_probs'], r['labels'])
                 v_ntp = d_ntp['bin_counts'] > 0
+                _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
+                _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
+                _s_ntp = 12 + 68 * _f_ntp
                 ax_cal.plot(
                     d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                    '--', color=color, lw=2.0, alpha=1.0, zorder=1, marker='o', ms=3.5,
+                    '--', color=color, lw=2.0, alpha=1.0, zorder=1,
                 )
-                
+                ax_cal.scatter(
+                    d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                    s=_s_ntp, color=color, alpha=1.0, zorder=2,
+                )
+
                 # Add error bands: SEM of accuracy within each bin (very subtle)
                 bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
                 conf_valid = d_ntp['bin_confidence'][v_ntp]
                 acc_valid = d_ntp['bin_accuracy'][v_ntp]
 
                 ax_cal.fill_between(
-                    conf_valid, 
-                    acc_valid - bin_sems, 
+                    conf_valid,
+                    acc_valid - bin_sems,
                     acc_valid + bin_sems,
                     color=color, alpha=0.20, linewidth=0, zorder=2
                 )
