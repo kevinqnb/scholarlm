@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 """
-Generate the LaTeX metrics table from metrics_pond.csv and metrics_nfix.csv.
+Generate LaTeX metrics tables from a single metrics CSV.
 
-Each CSV has columns: Test setting, Type, Accuracy, Precision, Recall, F1, AUROC, ECE
-- "Type" is either "Probe" or "NTP"
-- "Test setting" is one of: "Syn. pond", "Syn. nfix", "Real pond", "Real nfix"
-  (where "Real" maps to "Ext." in the table)
+The CSV is produced by analysis/synthetic_probe_test.py (compute_metrics),
+with columns: Dataset type, Judge model, Train dataset, Test dataset, Type,
+Accuracy, Precision, Recall, F1, AUROC, ECE
 
-The table has two column groups:
-  - pond-Trained (from metrics_pond.csv): F1, AUC, ECE
-  - nfix-Trained (from metrics_nfix.csv): F1, AUC, ECE
+Generates two tables per judge model (one for dtype=syn, one for dtype=real).
+Each table has hierarchical rows: In-domain / Cross-domain (outer),
+PLW NTP, PLW Probe, NF NTP, NF Probe (inner), and columns Prec., Rec., F1, AUC, ECE.
 
-Rows are grouped by Type (Probe, NTP), with 4 test settings each.
-
-When run with no arguments, walks results/{judge_model}/{extraction_model}/{probe_type}/
-and writes metrics_table.tex in each subdirectory that contains both CSVs.
-Pass explicit CSV paths as arguments to print LaTeX to stdout instead.
+Usage:
+  python results/generate_metrics_tables.py                           # walks results/ for metrics_*.csv
+  python results/generate_metrics_tables.py results/metrics_X_Y.csv  # prints all tables to stdout
 """
 
 import sys
@@ -25,146 +22,123 @@ import pandas as pd
 
 RESULTS_DIR = Path("results")
 
+# (domain_group, train_ds, test_ds, type, display_label)
+# PLW = pond, NF = nfix; label refers to the test dataset
+_ROW_DEFS = [
+    ("In-domain",    "pond", "pond", "NTP",   r"PLW NTP"),
+    ("In-domain",    "pond", "pond", "Probe",  r"PLW Probe"),
+    ("In-domain",    "nfix", "nfix", "NTP",    r"NF NTP"),
+    ("In-domain",    "nfix", "nfix", "Probe",  r"NF Probe"),
+    ("Cross-domain", "nfix", "pond", "NTP",    r"PLW NTP"),
+    ("Cross-domain", "nfix", "pond", "Probe",  r"PLW Probe"),
+    ("Cross-domain", "pond", "nfix", "NTP",    r"NF NTP"),
+    ("Cross-domain", "pond", "nfix", "Probe",  r"NF Probe"),
+]
 
-def load_metrics(pond_csv: str, nfix_csv: str) -> dict:
-    """Load both CSVs and return a nested lookup dict.
-
-    Returns:
-        dict keyed by (type, test_setting) -> {"pond": {F1, AUROC, ECE}, "nfix": {F1, AUROC, ECE}}
-    """
-    df_pond = pd.read_csv(pond_csv, index_col=0)
-    df_nfix = pd.read_csv(nfix_csv, index_col=0)
-
-    metrics = {}
-    for df, train_key in [(df_pond, "pond"), (df_nfix, "nfix")]:
-        for _, row in df.iterrows():
-            key = (row["Type"], row["Test setting"])
-            if key not in metrics:
-                metrics[key] = {}
-            metrics[key][train_key] = {
-                "Precision": row["Precision"],
-                "Recall": row["Recall"],
-                "AUROC": row["AUROC"],
-                "ECE": row["ECE"],
-            }
-    return metrics
+_GROUPS = ["In-domain", "Cross-domain"]
+_GROUP_SIZE = 4
 
 
 def fmt(val: float) -> str:
-    """Format a metric value to 2 decimal places."""
     return f"{val:.2f}"
 
 
 def generate_latex(
-    pond_csv: str,
-    nfix_csv: str,
+    df: pd.DataFrame,
+    judge_model: str,
+    dtype: str,
     caption: str | None = None,
-    label: str = "tab:llama-metrics",
+    tex_label: str | None = None,
 ) -> str:
-    metrics = load_metrics(pond_csv, nfix_csv)
+    sub = df[(df["Judge model"] == judge_model) & (df["Dataset type"] == dtype)]
 
-    # Row order: the test settings within each Type group
-    test_settings = ["Syn. pond", "Real pond", "Syn. nfix", "Real nfix"]
-
-    # Display names for test settings (Real -> Ext.)
-    display_names = {
-        "Syn. pond": r"Syn. \pond",
-        "Real pond": r"Ext. \pond",
-        "Syn. nfix": r"Syn. \nfix",
-        "Real nfix": r"Ext. \nfix",
+    lookup = {
+        (row["Train dataset"], row["Test dataset"], row["Type"]): row
+        for _, row in sub.iterrows()
     }
 
-    # Type groups in display order
-    type_groups = ["Probe", "NTP"]
-
-    # Build lines
     lines = []
-    lines.append(r"\begin{table*}[ht]")
+    lines.append(r"\begin{table}[ht]")
     lines.append(r"\centering")
-    lines.append(r"\begin{tabular}{ll cccc cccc}")
+    lines.append(r"\begin{tabular}{ll ccccc}")
     lines.append(r"\toprule")
-    lines.append(
-        r"& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\"
-    )
-    lines.append(r"\cmidrule(lr){3-6} \cmidrule(lr){7-10}")
-    lines.append(r"& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\")
+    lines.append(r"& & Prec. & Rec. & F1 & AUC & ECE \\")
     lines.append(r"\midrule")
 
-    for i, type_name in enumerate(type_groups):
-        n_rows = len(test_settings)
-        lines.append(rf"\multirow{{{n_rows}}}{{*}}{{{type_name}}}")
-
-        for setting in test_settings:
-            key = (type_name, setting)
-            m = metrics[key]
-            pond = m["pond"]
-            nfix = m["nfix"]
-
-            row = (
-                f"& {display_names[setting]} "
-                f"& {fmt(pond['Precision'])} & {fmt(pond['Recall'])} & {fmt(pond['AUROC'])} & {fmt(pond['ECE'])} "
-                f"& {fmt(nfix['Precision'])} & {fmt(nfix['Recall'])} & {fmt(nfix['AUROC'])} & {fmt(nfix['ECE'])} \\\\"
-            )
-            lines.append(row)
-
-        # Add midrule between groups (not after the last one)
-        if i < len(type_groups) - 1:
+    for gi, group in enumerate(_GROUPS):
+        group_rows = [
+            (train_ds, test_ds, kind, display)
+            for grp, train_ds, test_ds, kind, display in _ROW_DEFS
+            if grp == group
+        ]
+        lines.append(rf"\multirow{{{_GROUP_SIZE}}}{{*}}{{\textit{{{group}}}}}")
+        for train_ds, test_ds, kind, display in group_rows:
+            row = lookup.get((train_ds, test_ds, kind))
+            if row is None:
+                vals = ["--"] * 5
+            else:
+                vals = [
+                    fmt(row["Precision"]), fmt(row["Recall"]), fmt(row["F1"]),
+                    fmt(row["AUROC"]), fmt(row["ECE"]),
+                ]
+            lines.append(f"& {display} & " + " & ".join(vals) + r" \\")
+        if gi < len(_GROUPS) - 1:
             lines.append(r"\midrule")
 
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
 
-    if caption is None:
-        caption = (
-            r"\textbf{Performance Metrics (\texttt{llama-3.1-8b}).} "
-            r"for probe and NTP predicted validation probabilities, "
-            r"trained on the synthetic \pond (left four columns) and synthetic \nfix "
-            r"(right four columns) datasets. Evaluated for test synthetic and "
-            r"extracted \pond and \nfix  datasets. Data extracted with \texttt{gemma-3-27b}."
-        )
-
-    lines.append(rf"\caption{{{caption}}}")
-    lines.append(rf"\label{{{label}}}")
-    lines.append(r"\end{table*}")
+    if caption is not None:
+        lines.append(rf"\caption{{{caption}}}")
+    if tex_label is not None:
+        lines.append(rf"\label{{{tex_label}}}")
+    lines.append(r"\end{table}")
 
     return "\n".join(lines)
 
 
-def make_caption(judge_model: str, extraction_model: str) -> str:
+def make_caption(judge_model: str, extraction_model: str, dtype: str) -> str:
+    dtype_str = "Synthetic" if dtype == "syn" else "Extracted"
     return (
-        rf"\textbf{{Performance Metrics (\texttt{{{judge_model}}}).}} "
-        r"for probe and NTP predicted validation probabilities, "
-        r"trained on the synthetic \pond (left four columns) and synthetic \nfix "
-        r"(right four columns) datasets. Evaluated for test synthetic and "
-        rf"extracted \pond and \nfix datasets. Data extracted with \texttt{{{extraction_model}}}."
+        rf"\textbf{{Performance Metrics (\texttt{{{judge_model}}}, {dtype_str}).}} "
+        r"Probe and NTP validation probabilities evaluated in-domain and cross-domain. "
+        rf"Measurements extracted with \texttt{{{extraction_model}}}."
     )
 
 
+def process_csv(csv_path: Path, print_to_stdout: bool = False) -> None:
+    stem = csv_path.stem  # e.g. "metrics_gemma-3-27b_head"
+    rest = stem[len("metrics_"):]  # strip leading "metrics_"
+    extraction_model, probe_type = rest.rsplit("_", 1)
+
+    df = pd.read_csv(csv_path)
+    judge_models = sorted(df["Judge model"].unique())
+
+    for judge_model in judge_models:
+        for dtype in ["syn", "real"]:
+            caption = make_caption(judge_model, extraction_model, dtype)
+            label = f"tab:{judge_model}-{extraction_model}-{probe_type}-{dtype}"
+            latex = generate_latex(df, judge_model, dtype, caption=caption, tex_label=label)
+
+            if print_to_stdout:
+                print(f"% ── {judge_model} / {dtype} ──────────────────────────")
+                print(latex)
+                print()
+            else:
+                out_dir = RESULTS_DIR / judge_model / extraction_model / probe_type
+                out_dir.mkdir(parents=True, exist_ok=True)
+                out_path = out_dir / f"metrics_table_{dtype}.tex"
+                out_path.write_text(latex + "\n")
+                print(f"Wrote {out_path}")
+
+
 def main() -> None:
-    for pond_csv in sorted(RESULTS_DIR.glob("*/*/*/metrics_pond.csv")):
-        nfix_csv = pond_csv.parent / "metrics_nfix.csv"
-        if not nfix_csv.exists():
-            print(f"Skipping {pond_csv.parent} — missing metrics_nfix.csv", file=sys.stderr)
-            continue
-
-        subdir = pond_csv.parent
-        probe_type = subdir.name
-        extraction_model = subdir.parent.name
-        judge_model = subdir.parent.parent.name
-
-        caption = make_caption(judge_model, extraction_model)
-        label = f"tab:{judge_model}-{extraction_model}-{probe_type}"
-        latex = generate_latex(str(pond_csv), str(nfix_csv), caption=caption, label=label)
-
-        out_path = subdir / "metrics_table.tex"
-        out_path.write_text(latex + "\n")
-        print(f"Wrote {out_path}")
+    for csv_path in sorted(RESULTS_DIR.glob("metrics_*.csv")):
+        process_csv(csv_path)
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        pond_csv = sys.argv[1]
-        nfix_csv = sys.argv[2] if len(sys.argv) > 2 else "metrics_nfix.csv"
-        print(generate_latex(pond_csv, nfix_csv))
+        process_csv(Path(sys.argv[1]), print_to_stdout=True)
     else:
         main()
