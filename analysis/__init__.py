@@ -25,7 +25,7 @@ from .loaders import (
     load_activations,
     cached_match,
 )
-from .metrics import recovery_rate, hallucination_rate, per_paper_metrics
+from .metrics import recovery_rate, validity_rate, per_paper_metrics
 from .plots import (
     recovery_bar,
     calibration_curve,

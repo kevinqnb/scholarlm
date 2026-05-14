@@ -68,6 +68,37 @@ def recovery_rate(
     return rate, float(lower), float(upper)
 
 
+def recovery_rate_from_labels(
+    n_ground_truth: int,
+    edges: List[Tuple[int, int]],
+    predicted_labels: np.ndarray,
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
+    """Compute recovery rate from boolean arrays of matching and predicted labels.
+
+    NOTE: This is purposely using MATCHED labels, since we estimate recovery rate by the 
+    observing the proportion of the ground truth with a matched extraction. 
+
+    Args:
+        matching_labels: Boolean array where True = matched by ``match_datasets``.
+        predicted_labels: Boolean array where True = predicted valid.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+    """
+    ground_truth_matched = np.zeros(n_ground_truth, dtype = bool)
+    for gt_idx, ex_idx in edges:
+        if predicted_labels[ex_idx]:
+            ground_truth_matched[gt_idx] = True
+            
+    rate = float(np.mean(ground_truth_matched))
+    if not return_ci:
+        return rate
+    n = len(ground_truth_matched)
+    k = int(np.sum(ground_truth_matched))
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
+
+
+
 def validity_rate(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
@@ -127,6 +158,33 @@ def validity_rate(
         return rate
     n = len(labels)
     k = int(np.sum(labels))  # valid = matched or judged valid
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
+
+
+def validity_rate_from_labels(
+    labels: np.ndarray,
+    predicted_labels: np.ndarray,
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
+    """Compute validity rate from boolean arrays of ground truth and predicted labels.
+
+    Args:
+        _labels: Boolean array where True = ground truth valid.
+        predicted_labels: Boolean array where True = predicted valid.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+    """
+    if len(labels) != len(predicted_labels):
+        raise ValueError(
+            f"ground_truth_labels length ({len(labels)}) must match predicted_labels length ({len(predicted_labels)})"
+        )
+
+    combined_labels = labels & predicted_labels
+    rate = float(np.mean(combined_labels))
+    if not return_ci:
+        return rate
+    n = len(combined_labels)
+    k = int(np.sum(combined_labels))  # valid = matched and predicted valid
     lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
     return rate, float(lower), float(upper)
 

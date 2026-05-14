@@ -191,16 +191,12 @@ for ds in DATASETS:
         if w > EDGE_THRESHOLD:
             ex_edge_exists[int(ex_idx)] = True
     jlabels     = real_df['judgement_combined'].to_numpy(dtype=bool)
-    real_labels = jlabels | ex_edge_exists
+    combined_labels = jlabels | ex_edge_exists
 
     test_data[ds] = {
-        'extraction_df':   ext_df,
-        'real_df':         real_df,
-        'ground_truth_df': gt_df,
-        'real_labels':     real_labels,
-        'ex_edge_exists':  ex_edge_exists,
-        'edges':           edges,
-        'edge_weights':    edge_weights,
+        'labels': combined_labels,
+        'matching_labels': ex_edge_exists,
+        'judge_labels': jlabels,
     }
 
 
@@ -271,7 +267,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                         mask     = ~real_df['document_id'].isin(syn_docs)
                         idx      = np.where(mask.to_numpy())[0]
                         mids     = real_df['measurement_id'].iloc[idx].tolist()
-                        labels   = td['real_labels'][idx]
+                        labels   = td['labels'][idx]
                         jdate    = JUDGE_DATES_REAL[test_ds][judge_model]
 
                         raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
