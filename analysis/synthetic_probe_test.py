@@ -422,10 +422,10 @@ def plot_calibration_curves(
 
             if ctype == 'in-domain':
                 ax_cal.set_ylabel('Observed Frequency')
-                ax_cal.set_title(f'Within', fontsize=11)
+                ax_cal.set_title(f'Within', fontsize=13, style='italic')
             else:
                 ax_cal.set_ylabel('')
-                ax_cal.set_title(f'Cross', fontsize=11)
+                ax_cal.set_title(f'Cross', fontsize=13, style='italic')
                 
             ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_cal.set_axisbelow(True)
@@ -625,7 +625,7 @@ def plot_validity_recovery(setting_results, dtype):
                     #ax.set_xlim(-0.02, 1.02)
                     #ax.set_ylim(-0.02, 1.02)
                     ax.set_xlabel('Recovery')
-                    ax.set_ylabel('Validity' if ctype == 'in-domain' else '')
+                    ax.set_ylabel('Validity') # if ctype == 'in-domain' else '')
                     ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
                     ax.set_axisbelow(True)
                     fig.tight_layout()

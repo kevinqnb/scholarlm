@@ -66,16 +66,16 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Standalone legend ─────────────────────────────────────────────
 _legend_handles = [
-    mlines.Line2D([], [], color=palette[2], lw=4, linestyle = "-", ms=3.5, label='NTP'),
     mlines.Line2D([], [], color=palette[7], lw=4, linestyle = "-", ms=3.5, label='Probe'),
-    mlines.Line2D([], [], color=palette[9], lw=4, linestyle = "-", ms=3.5, label='Random'),
+    mlines.Line2D([], [], color=palette[2], lw=4, linestyle = "--", ms=3.5, label='NTP'),
+    mlines.Line2D([], [], color=palette[9], lw=4, linestyle = ":", ms=3.5, label='Random'),
     #mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
     #mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
     #mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random'),
 ]
 _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
 _ax_leg.axis('off')
-_ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=11,
+_ax_leg.legend(handles=_legend_handles, loc='center', ncol=3, fontsize=11,
                frameon=False, handlelength=2.0)
 _fig_leg.savefig(FIGURES_DIR / 'legend.pdf', bbox_inches='tight', dpi=200)
 plt.show()
@@ -115,7 +115,7 @@ for PROBE_TYPE in ['layer', 'head']:
         syn_df['entity_id'] = syn_df.groupby(_SYN_ENTITY_COLS, dropna=False).ngroup()
         # ─────────────────────────────────────────────────────────────────
 
-        pd_data     = load_trained_probe(DATASET, JUDGE_MODEL, PROBE_TYPE)
+        pd_data     = load_trained_probe('nfix', JUDGE_MODEL, PROBE_TYPE) # CROSS DOMAIN!
         syn_doc_ids = set(pd_data['syn_document_ids'])
         if PROBE_TYPE == 'layer':
             top = pd_data['top_layer']
@@ -347,11 +347,11 @@ for PROBE_TYPE in ['layer', 'head']:
 
         _STYLE = {
             'ext_ntp':     dict(color=palette[2], ls='-', lw=3.0, alpha=0.85,
-                               label='Ext. NTP'),
-            'ext_probe':   dict(color=palette[7], ls='-',  lw=3.0,
-                               label='Ext. Probe'),
-            'ext_random':  dict(color=palette[9], ls='-',  lw=3.0, alpha=0.85,
-                               label='Ext. Random'),
+                               label='NTP'),
+            'ext_probe':   dict(color=palette[7], ls='--',  lw=3.0,
+                               label='Probe'),
+            'ext_random':  dict(color=palette[9], ls=':',  lw=3.0, alpha=0.85,
+                               label='Random'),
             #'syn_ntp':     dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
             #                   label='Syn. NTP'),
             #'syn_probe':   dict(color=palette[7], ls='-',  lw=2.0,
@@ -376,8 +376,8 @@ for PROBE_TYPE in ['layer', 'head']:
             )
 
         ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-        ax.set_xlabel('$\\gamma$', fontsize = 13)
-        ax.set_ylabel('Mean Centroid Distance')
+        ax.set_xlabel('$\\gamma$', fontsize = 11)
+        ax.set_ylabel('Mean Centroid Distance', fontsize = 11)
         ax.set_xlim(gamma_vals[0], gamma_vals[-1])
         #ax.legend(fontsize=6.5, loc='upper right', bbox_to_anchor=(1.0, 0.95))
         ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
