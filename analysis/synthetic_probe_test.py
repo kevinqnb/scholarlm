@@ -422,8 +422,10 @@ def plot_calibration_curves(
 
             if ctype == 'in-domain':
                 ax_cal.set_ylabel('Observed Frequency')
+                ax_cal.set_title(f'Within', fontsize=11)
             else:
                 ax_cal.set_ylabel('')
+                ax_cal.set_title(f'Cross', fontsize=11)
                 
             ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_cal.set_axisbelow(True)
@@ -589,11 +591,11 @@ def plot_validity_recovery(setting_results, dtype):
                         v, r, ts = compute_vr_curve(probs)
                         if len(ts) == 0:
                             return
-                        ax.plot(r, v, linestyle, color='grey', lw=2.0, zorder=zorder_base)
+                        ax.plot(r, v, linestyle, color='grey', lw=3.0, zorder=zorder_base)
                         n = len(ts)
                         stride = max(1, n // 10)
                         idx = sorted({0, n - 1} | set(range(0, n, stride)))
-                        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=35, zorder=zorder_base + 1)
+                        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=45, zorder=zorder_base + 1)
                         idx0 = int(np.argmin(np.abs(ts - 0.5)))
                         ax.scatter([r[idx0]], [v[idx0]], s=60, c='none',
                                    edgecolors='k', linewidths=1.1, zorder=zorder_base + 2, marker='o')
