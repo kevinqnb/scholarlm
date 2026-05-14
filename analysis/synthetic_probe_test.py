@@ -620,8 +620,8 @@ def plot_validity_recovery(setting_results, dtype):
                     if valid_rand.any():
                         ax.plot(avg_r[valid_rand], avg_v[valid_rand], ':', color='grey', lw=2.0, zorder=2)
 
-                    ax.set_xlim(-0.02, 1.02)
-                    ax.set_ylim(-0.02, 1.02)
+                    #ax.set_xlim(-0.02, 1.02)
+                    #ax.set_ylim(-0.02, 1.02)
                     ax.set_xlabel('Recovery')
                     ax.set_ylabel('Validity' if ctype == 'in-domain' else '')
                     ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
@@ -653,7 +653,7 @@ def plot_validity_recovery(setting_results, dtype):
 
 if __name__ == "__main__":
     # Set to True to load precomputed results if available, False to recompute from scratch
-    load_from_precomputed = False
+    load_from_precomputed = True
     
     setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
     plot_calibration_curves(setting_results, dtype='syn')
