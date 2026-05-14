@@ -112,10 +112,6 @@ THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve p
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6}  # minimum fuzzy weight to count as a match
 
 
-# Set to True to load precomputed results if available, False to recompute from scratch
-load_from_precomputed = True
-
-
 def get_matching_config(dataset):
     if dataset == 'pond':
         strict = {'document_id': 'document_id', 'attribute': 'attribute',
@@ -555,6 +551,7 @@ def plot_pr_curves(setting_results, dtype):
 
 
 def plot_validity_recovery(setting_results, dtype):
+    N_RANDOM = 50
     cmap = plt.cm.coolwarm
     norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
     sm   = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -572,27 +569,56 @@ def plot_validity_recovery(setting_results, dtype):
 
                     fig, ax = plt.subplots(figsize=(4.0, 3.8))
                     rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-                    probe_probs = np.asarray(rdict['probe_probs'])
+                    labels = rdict['labels']
+                    n_gt   = rdict['n_ground_truth']
+                    edges  = rdict['edges']
 
-                    validity_vals  = np.array([
-                        validity_rate_from_labels(rdict['labels'], probe_probs > t)
-                        for t in THRESHOLD_SWEEP
-                    ])
-                    recovery_vals = np.array([
-                        recovery_rate_from_labels(rdict['n_ground_truth'], rdict['edges'], probe_probs > t)
-                        for t in THRESHOLD_SWEEP
-                    ])
+                    def compute_vr_curve(probs):
+                        """Return (validity, recovery, thresholds) skipping thresholds with no predicted positives."""
+                        v, r, ts = [], [], []
+                        for t in THRESHOLD_SWEEP:
+                            preds = probs > t
+                            if preds.sum() == 0:
+                                continue
+                            v.append(validity_rate_from_labels(labels, preds))
+                            r.append(recovery_rate_from_labels(n_gt, edges, preds))
+                            ts.append(t)
+                        return np.array(v), np.array(r), np.array(ts)
 
-                    ax.plot(recovery_vals, validity_vals, '-', color='grey', lw=2.0, zorder=3, label='Probe')
-                    stride = max(1, len(THRESHOLD_SWEEP) // 10)
-                    ax.scatter(
-                        recovery_vals[::stride], validity_vals[::stride],
-                        c=THRESHOLD_SWEEP[::stride], cmap=cmap, norm=norm, s=35, zorder=4,
-                    )
+                    def plot_vr_curve(probs, linestyle, zorder_base):
+                        v, r, ts = compute_vr_curve(probs)
+                        if len(ts) == 0:
+                            return
+                        ax.plot(r, v, linestyle, color='grey', lw=2.0, zorder=zorder_base)
+                        n = len(ts)
+                        stride = max(1, n // 10)
+                        idx = sorted({0, n - 1} | set(range(0, n, stride)))
+                        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=35, zorder=zorder_base + 1)
+                        idx0 = int(np.argmin(np.abs(ts - 0.5)))
+                        ax.scatter([r[idx0]], [v[idx0]], s=60, c='none',
+                                   edgecolors='k', linewidths=1.1, zorder=zorder_base + 2, marker='o')
 
-                    idx0 = np.argmin(np.abs(THRESHOLD_SWEEP - 0.5))
-                    ax.scatter([recovery_vals[idx0]], [validity_vals[idx0]], s=60, c='none',
-                               edgecolors='k', linewidths=1.1, zorder=5, marker='o')
+                    # NTP — dashed (drawn first so probe sits on top)
+                    plot_vr_curve(np.asarray(rdict['ntp_probs']), '--', zorder_base=3)
+                    # Probe — solid
+                    plot_vr_curve(np.asarray(rdict['probe_probs']), '-', zorder_base=6)
+
+                    # Random baseline — average validity/recovery over repeated uniform draws
+                    n_items = len(labels)
+                    rand_v = np.full((N_RANDOM, len(THRESHOLD_SWEEP)), np.nan)
+                    rand_r = np.full((N_RANDOM, len(THRESHOLD_SWEEP)), np.nan)
+                    for i in range(N_RANDOM):
+                        rand_probs_i = np.random.uniform(0, 1, n_items)
+                        for j, t in enumerate(THRESHOLD_SWEEP):
+                            preds = rand_probs_i > t
+                            if preds.sum() > 0:
+                                rand_v[i, j] = validity_rate_from_labels(labels, preds)
+                                rand_r[i, j] = recovery_rate_from_labels(n_gt, edges, preds)
+                    avg_v = np.nanmean(rand_v, axis=0)
+                    avg_r = np.nanmean(rand_r, axis=0)
+                    valid_rand = ~(np.isnan(avg_v) | np.isnan(avg_r))
+                    if valid_rand.any():
+                        ax.plot(avg_r[valid_rand], avg_v[valid_rand], ':', color='grey', lw=2.0, zorder=2)
 
                     ax.set_xlim(-0.02, 1.02)
                     ax.set_ylim(-0.02, 1.02)
@@ -610,6 +636,18 @@ def plot_validity_recovery(setting_results, dtype):
     fig_cb, ax_cb = plt.subplots(figsize=(0.35, 3.2))
     plt.colorbar(sm, cax=ax_cb, label='Threshold')
     fig_cb.savefig(FIGURES_DIR / f'vr_colorbar_{dtype}.pdf', bbox_inches='tight', dpi=200)
+    plt.show()
+
+    _vr_legend_handles = [
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='-',  label='Probe'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='--', label='NTP'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle=':',  label='Random'),
+    ]
+    fig_vr_leg, ax_vr_leg = plt.subplots(figsize=(4.0, 0.35))
+    ax_vr_leg.axis('off')
+    ax_vr_leg.legend(handles=_vr_legend_handles, loc='center', ncol=3, fontsize=11,
+                     frameon=False, handlelength=2.0)
+    fig_vr_leg.savefig(FIGURES_DIR / f'vr_legend_{dtype}.pdf', bbox_inches='tight', dpi=200)
     plt.show()
 
 
