@@ -89,25 +89,31 @@ def compute_ablation_metrics(dataset, ablations_config):
                 cache_path=baseline_cache_path,
             )
 
-            baseline_recov = recovery_rate(
+            baseline_recov, baseline_recov_lo, baseline_recov_hi = recovery_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
                 fuzzy_threshold=fuzzy_threshold,
-                cache_path=baseline_cache_path
+                cache_path=baseline_cache_path,
+                return_ci=True,
             )
-            baseline_hall = hallucination_rate(
+            baseline_hall, baseline_hall_lo, baseline_hall_hi = hallucination_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
                 fuzzy_threshold=fuzzy_threshold,
                 judged_df=baseline_judged,
-                cache_path=baseline_cache_path
+                cache_path=baseline_cache_path,
+                return_ci=True,
             )
 
             row['baseline_recovery'] = baseline_recov
+            row['baseline_recovery_ci_lo'] = baseline_recov_lo
+            row['baseline_recovery_ci_hi'] = baseline_recov_hi
             row['baseline_hallucination'] = baseline_hall
-            print(f"    Baseline: recovery={baseline_recov:.3f}, hallucination={baseline_hall:.3f}")
+            row['baseline_hallucination_ci_lo'] = baseline_hall_lo
+            row['baseline_hallucination_ci_hi'] = baseline_hall_hi
+            print(f"    Baseline: recovery={baseline_recov:.3f} [{baseline_recov_lo:.3f}, {baseline_recov_hi:.3f}], hallucination={baseline_hall:.3f} [{baseline_hall_lo:.3f}, {baseline_hall_hi:.3f}]")
 
         except Exception as e:
             print(f"    Baseline ERROR: {e}")
@@ -152,25 +158,31 @@ def compute_ablation_metrics(dataset, ablations_config):
                     cache_path=ablation_cache_path,
                 )
 
-                ablation_recov = recovery_rate(
+                ablation_recov, ablation_recov_lo, ablation_recov_hi = recovery_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
                     fuzzy_threshold=fuzzy_threshold,
-                    cache_path=ablation_cache_path
+                    cache_path=ablation_cache_path,
+                    return_ci=True,
                 )
-                ablation_hall = hallucination_rate(
+                ablation_hall, ablation_hall_lo, ablation_hall_hi = hallucination_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
                     fuzzy_threshold=fuzzy_threshold,
                     judged_df=ablation_judged,
-                    cache_path=ablation_cache_path
+                    cache_path=ablation_cache_path,
+                    return_ci=True,
                 )
 
                 row[f'ablation_{ablation_n}_recovery'] = ablation_recov
+                row[f'ablation_{ablation_n}_recovery_ci_lo'] = ablation_recov_lo
+                row[f'ablation_{ablation_n}_recovery_ci_hi'] = ablation_recov_hi
                 row[f'ablation_{ablation_n}_hallucination'] = ablation_hall
-                print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f}, hallucination={ablation_hall:.3f}")
+                row[f'ablation_{ablation_n}_hallucination_ci_lo'] = ablation_hall_lo
+                row[f'ablation_{ablation_n}_hallucination_ci_hi'] = ablation_hall_hi
+                print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f} [{ablation_recov_lo:.3f}, {ablation_recov_hi:.3f}], hallucination={ablation_hall:.3f} [{ablation_hall_lo:.3f}, {ablation_hall_hi:.3f}]")
                 
             except FileNotFoundError:
                 print(f"    Ablation {ablation_n}: not found, skipping.")

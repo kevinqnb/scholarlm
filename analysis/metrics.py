@@ -26,7 +26,8 @@ def recovery_rate(
     fuzzy_matching: dict | None = None,
     fuzzy_threshold: float = 0.0,
     cache_path: Path | None = None,
-) -> float:
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
     """Run ``match_datasets`` and return recall/precision statistics.
 
     Args:
@@ -36,10 +37,12 @@ def recovery_rate(
         fuzzy_matching: Fuzzy-match column mapping passed to ``match_datasets``.
         fuzzy_threshold: Minimum fuzzy score for a match.
         cache_path: Optional path for a disk-cached result (see ``cached_match``).
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
 
     Returns:
-        Recovery rate (float) representing the fraction of ground truth items matched.
+        Recovery rate (float), or (rate, lower, upper) if return_ci=True.
     """
+    from statsmodels.stats.proportion import proportion_confint
     from .loaders import cached_match
 
     matching, edges, edge_weights = cached_match(
@@ -56,7 +59,13 @@ def recovery_rate(
         if edge_weights[i] > fuzzy_threshold:
             gt_edge_exists[gt_idx] = True
 
-    return np.mean(gt_edge_exists)
+    rate = float(np.mean(gt_edge_exists))
+    if not return_ci:
+        return rate
+    n = len(gt_edge_exists)
+    k = int(np.sum(gt_edge_exists))
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
 
 
 def hallucination_rate(
@@ -69,7 +78,8 @@ def hallucination_rate(
     judged_df: pd.DataFrame | None = None,
     cache_path: Path | None = None,
     label_col: str = "judgement_combined",
-) -> float:
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
     """Compute hallucination rate from judged extraction results.
 
     Args:
@@ -81,9 +91,10 @@ def hallucination_rate(
         fuzzy_threshold: Minimum fuzzy score for a match.
         cache_path: Optional path for a disk-cached result (see ``cached_match``).
         label_col: Column name for the combined judgement label.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
 
     Returns:
-        Hallucination rate (float) representing the fraction of extracted items that are hallucinated.
+        Hallucination rate (float), or (rate, lower, upper) if return_ci=True.
     """
     if judged_df is not None and len(judged_df) != len(extraction_df):
         raise ValueError(
@@ -114,7 +125,14 @@ def hallucination_rate(
 
     labels = jlabels | ex_edge_exists
 
-    return 1 - np.mean(labels)
+    rate = float(1 - np.mean(labels))
+    if not return_ci:
+        return rate
+    from statsmodels.stats.proportion import proportion_confint
+    n = len(labels)
+    k = int(np.sum(~labels))  # hallucinated = not matched/judged valid
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
 
 
 def per_paper_metrics(
