@@ -70,18 +70,19 @@ def recovery_rate(
 
 def recovery_rate_from_labels(
     n_ground_truth: int,
-    edges: List[Tuple[int, int]],
+    edges: list[tuple[int, int]],
     predicted_labels: np.ndarray,
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Compute recovery rate from boolean arrays of matching and predicted labels.
+    """Compute recovery rate given pre-filtered edges and predicted labels.
 
-    NOTE: This is purposely using MATCHED labels, since we estimate recovery rate by the 
-    observing the proportion of the ground truth with a matched extraction. 
+    ``edges`` should already be filtered by the desired fuzzy threshold — this
+    function applies no additional weight filtering.
 
     Args:
-        matching_labels: Boolean array where True = matched by ``match_datasets``.
-        predicted_labels: Boolean array where True = predicted valid.
+        n_ground_truth: Total number of ground-truth rows.
+        edges: Pre-filtered (gt_idx, ex_idx) pairs from ``match_datasets``.
+        predicted_labels: Boolean array (length = n_extractions) where True = predicted valid.
         return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
     """
     ground_truth_matched = np.zeros(n_ground_truth, dtype = bool)
@@ -167,10 +168,13 @@ def validity_rate_from_labels(
     predicted_labels: np.ndarray,
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Compute validity rate from boolean arrays of ground truth and predicted labels.
+    """Compute validity rate (precision) from ground-truth and predicted label arrays.
+
+    Validity = fraction of predicted-positive extractions that are truly positive,
+    i.e. TP / (TP + FP).  Returns 0.0 when no extractions are predicted positive.
 
     Args:
-        _labels: Boolean array where True = ground truth valid.
+        labels: Boolean array where True = ground-truth valid.
         predicted_labels: Boolean array where True = predicted valid.
         return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
     """
@@ -179,14 +183,15 @@ def validity_rate_from_labels(
             f"ground_truth_labels length ({len(labels)}) must match predicted_labels length ({len(predicted_labels)})"
         )
 
-    combined_labels = labels & predicted_labels
-    rate = float(np.mean(combined_labels))
+    n = int(np.sum(predicted_labels))
+    if n == 0:
+        return (0.0, 0.0, 0.0) if return_ci else 0.0
+    k = int(np.sum(labels & predicted_labels))
+    rate = k / n
     if not return_ci:
-        return rate
-    n = len(combined_labels)
-    k = int(np.sum(combined_labels))  # valid = matched and predicted valid
+        return float(rate)
     lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
-    return rate, float(lower), float(upper)
+    return float(rate), float(lower), float(upper)
 
 
 def per_paper_metrics(

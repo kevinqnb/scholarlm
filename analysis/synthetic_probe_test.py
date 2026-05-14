@@ -23,6 +23,7 @@ from analysis.loaders import (
     cached_match, load_synthetic_activations, load_synthetic_layer_outputs,
     load_synthetic_responses,
 )
+from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
 from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
@@ -187,16 +188,21 @@ for ds in DATASETS:
     )
 
     ex_edge_exists = np.zeros(len(ext_df), dtype=bool)
+    filtered_edges = []
     for (gt_idx, ex_idx), w in zip(edges, edge_weights):
         if w > EDGE_THRESHOLD:
             ex_edge_exists[int(ex_idx)] = True
+            filtered_edges.append((int(gt_idx), int(ex_idx)))
     jlabels     = real_df['judgement_combined'].to_numpy(dtype=bool)
     combined_labels = jlabels | ex_edge_exists
 
     test_data[ds] = {
+        'real_df': real_df,
+        'gt_df': gt_df,
         'labels': combined_labels,
         'matching_labels': ex_edge_exists,
         'judge_labels': jlabels,
+        'filtered_edges': filtered_edges,
     }
 
 
@@ -260,12 +266,39 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
+                        # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
+                        # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
+                        # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
+                        pos_idx = np.where(labels)[0]
+                        test_edges = list(enumerate(pos_idx.tolist()))
+                        n_ground_truth = len(pos_idx)
+
                     else:  # real
                         td       = test_data[test_ds]
                         real_df  = td['real_df']
+                        gt_df    = td['gt_df']
                         syn_docs = set(pd_data['syn_document_ids'])
+
+                        # Filter extractions to test documents (those not used in probe training).
+                        # idx: positional indices into real_df/ext_df for the test split.
                         mask     = ~real_df['document_id'].isin(syn_docs)
                         idx      = np.where(mask.to_numpy())[0]
+                        idx_set  = set(idx.tolist())
+
+                        # Filter GT to test documents and build reindex maps so that
+                        # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
+                        gt_mask    = ~gt_df['document_id'].isin(syn_docs)
+                        gt_idx_arr = np.where(gt_mask.to_numpy())[0]
+                        gt_idx_set = set(gt_idx_arr.tolist())
+                        old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
+                        old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
+                        test_edges = [
+                            (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
+                            for gt_i, ex_i in td['filtered_edges']
+                            if ex_i in idx_set and gt_i in gt_idx_set
+                        ]
+                        n_ground_truth = len(gt_idx_arr)
+
                         mids     = real_df['measurement_id'].iloc[idx].tolist()
                         labels   = td['labels'][idx]
                         jdate    = JUDGE_DATES_REAL[test_ds][judge_model]
@@ -296,7 +329,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
-                        'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels
+                        'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
+                        'edges': test_edges, 'n_ground_truth': n_ground_truth,
                     }
 
     # Save to cache for future use
@@ -404,7 +438,7 @@ def plot_calibration_curves(
             plt.show()
 
 
-def _probe_metrics(probs, y_true, threshold=0.5):
+def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=None):
     """Compute metrics at a fixed threshold. Returns dict."""
     probs   = np.asarray(probs)
     y_true  = np.asarray(y_true, dtype=bool)
@@ -423,8 +457,10 @@ def _probe_metrics(probs, y_true, threshold=0.5):
     bs    = float(brier_score_loss(y_true, probs))
     p_pos = float(y_true.mean())
     bss   = 1.0 - bs / (p_pos * (1 - p_pos)) if p_pos not in (0.0, 1.0) else float('nan')
+    recovery = recovery_rate_from_labels(n_ground_truth, edges, preds) if edges is not None else float('nan')
+    validity = validity_rate_from_labels(y_true, preds)
     return dict(acc=acc, prec=prec, rec=rec, f1=f1, auroc=auroc,
-                ece=ece, bs=bs, bss=bss, n=n)
+                ece=ece, bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
 
 
 def compute_metrics(setting_results):
@@ -435,7 +471,10 @@ def compute_metrics(setting_results):
                 for test_ds in setting_results[dtype][judge_model][train_ds]:
                     rdict = setting_results[dtype][judge_model][train_ds][test_ds]
                     for probs, kind in [(rdict['ntp_probs'], 'NTP'), (rdict['probe_probs'], 'Probe')]:
-                        m = _probe_metrics(probs, rdict['labels'])
+                        m = _probe_metrics(
+                            probs, rdict['labels'],
+                            edges=rdict['edges'], n_ground_truth=rdict['n_ground_truth'],
+                        )
                         rows.append({
                             'Dataset type':   dtype,
                             'Judge model':   judge_model,
@@ -448,6 +487,8 @@ def compute_metrics(setting_results):
                             'F1':            m['f1'],
                             'AUROC':         m['auroc'],
                             'ECE':           m['ece'],
+                            'Recovery':      m['recovery'],
+                            'Validity':      m['validity'],
                         })
     df = pd.DataFrame(rows)
     return df
@@ -513,6 +554,65 @@ def plot_pr_curves(setting_results, dtype):
     plt.show()
 
 
+def plot_validity_recovery(setting_results, dtype):
+    cmap = plt.cm.coolwarm
+    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
+    sm   = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+
+    for judge_model in JUDGE_MODELS:
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
+        Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
+
+        for train_ds in DATASETS:
+            for ctype in ['in-domain', 'cross-domain']:
+                for test_ds in DATASETS:
+                    if (train_ds == test_ds) != (ctype == 'in-domain'):
+                        continue
+
+                    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
+                    probe_probs = np.asarray(rdict['probe_probs'])
+
+                    validity_vals  = np.array([
+                        validity_rate_from_labels(rdict['labels'], probe_probs > t)
+                        for t in THRESHOLD_SWEEP
+                    ])
+                    recovery_vals = np.array([
+                        recovery_rate_from_labels(rdict['n_ground_truth'], rdict['edges'], probe_probs > t)
+                        for t in THRESHOLD_SWEEP
+                    ])
+
+                    ax.plot(recovery_vals, validity_vals, '-', color='grey', lw=2.0, zorder=3, label='Probe')
+                    stride = max(1, len(THRESHOLD_SWEEP) // 10)
+                    ax.scatter(
+                        recovery_vals[::stride], validity_vals[::stride],
+                        c=THRESHOLD_SWEEP[::stride], cmap=cmap, norm=norm, s=35, zorder=4,
+                    )
+
+                    idx0 = np.argmin(np.abs(THRESHOLD_SWEEP - 0.5))
+                    ax.scatter([recovery_vals[idx0]], [validity_vals[idx0]], s=60, c='none',
+                               edgecolors='k', linewidths=1.1, zorder=5, marker='o')
+
+                    ax.set_xlim(-0.02, 1.02)
+                    ax.set_ylim(-0.02, 1.02)
+                    ax.set_xlabel('Recovery')
+                    ax.set_ylabel('Validity' if ctype == 'in-domain' else '')
+                    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+                    ax.set_axisbelow(True)
+                    fig.tight_layout()
+                    fig.savefig(
+                        subfigure_dir / f'vr_{dtype}_{train_ds}_{test_ds}.pdf',
+                        bbox_inches='tight', dpi=200,
+                    )
+                    plt.show()
+
+    fig_cb, ax_cb = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax_cb, label='Threshold')
+    fig_cb.savefig(FIGURES_DIR / f'vr_colorbar_{dtype}.pdf', bbox_inches='tight', dpi=200)
+    plt.show()
+
+
 if __name__ == "__main__":
     # Set to True to load precomputed results if available, False to recompute from scratch
     load_from_precomputed = False
@@ -524,8 +624,11 @@ if __name__ == "__main__":
     print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))
     metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}.csv', index=False)
 
-    plot_pr_curves(setting_results, dtype='syn')
-    plot_pr_curves(setting_results, dtype='real')
+    #plot_pr_curves(setting_results, dtype='syn')
+    #plot_pr_curves(setting_results, dtype='real')
+
+    plot_validity_recovery(setting_results, dtype='syn')
+    plot_validity_recovery(setting_results, dtype='real')
 
     # ── Standalone calibration legend ─────────────────────────────────────────────
     _legend_handles = [
