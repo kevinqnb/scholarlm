@@ -66,11 +66,12 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Standalone legend ─────────────────────────────────────────────
 _legend_handles = [
-    mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='Syn. PLW'),
-    mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='Extracted PLW'),
-    mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
-    mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
-    mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random'),
+    mlines.Line2D([], [], color=palette[2], lw=4, linestyle = "-", ms=3.5, label='NTP'),
+    mlines.Line2D([], [], color=palette[7], lw=4, linestyle = "-", ms=3.5, label='Probe'),
+    mlines.Line2D([], [], color=palette[9], lw=4, linestyle = "-", ms=3.5, label='Random'),
+    #mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
+    #mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
+    #mlines.Line2D([], [], color='#444444', lw=2, linestyle=':', label='Random'),
 ]
 _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
 _ax_leg.axis('off')
@@ -133,7 +134,9 @@ for PROBE_TYPE in ['layer', 'head']:
         # 1. Setup
         THRESHOLD = 0.20
         # Pivot data (ensure no dropna yet)
-        gt_wide = gt_df.pivot_table(index='entity_id', columns='attribute', values='converted_value', aggfunc='first')
+        gt_wide = gt_df.pivot_table(
+            index='entity_id', columns='attribute', values='converted_value', aggfunc='first'
+        )
 
         results = []
 
@@ -292,7 +295,7 @@ for PROBE_TYPE in ['layer', 'head']:
         gt_labels  = kmeans_gt.fit_predict(X_gt)
         gt_centers = kmeans_gt.cluster_centers_
 
-        N_RUNS = 10000  # Number of different initializations
+        N_RUNS = 1000  # Number of different initializations
         gamma_vals = np.linspace(0.0, 5.0, 101)
 
         _sweep_configs = {
@@ -343,18 +346,18 @@ for PROBE_TYPE in ['layer', 'head']:
             std_distances[key] = v.std(axis=0) / np.sqrt(N_RANDOM_SAMPLES)
 
         _STYLE = {
-            'ext_ntp':     dict(color=palette[1], ls='--', lw=2.0, alpha=0.85,
+            'ext_ntp':     dict(color=palette[2], ls='-', lw=3.0, alpha=0.85,
                                label='Ext. NTP'),
-            'ext_probe':   dict(color=palette[1], ls='-',  lw=2.0,
+            'ext_probe':   dict(color=palette[7], ls='-',  lw=3.0,
                                label='Ext. Probe'),
-            'ext_random':  dict(color=palette[1], ls=':',  lw=2.0, alpha=0.85,
+            'ext_random':  dict(color=palette[9], ls='-',  lw=3.0, alpha=0.85,
                                label='Ext. Random'),
-            'syn_ntp':     dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
-                               label='Syn. NTP'),
-            'syn_probe':   dict(color=palette[7], ls='-',  lw=2.0,
-                               label='Syn. Probe'),
-            'syn_random':  dict(color=palette[7], ls=':',  lw=2.0, alpha=0.85,
-                               label='Syn. Random'),
+            #'syn_ntp':     dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
+            #                   label='Syn. NTP'),
+            #'syn_probe':   dict(color=palette[7], ls='-',  lw=2.0,
+            #                   label='Syn. Probe'),
+            #'syn_random':  dict(color=palette[7], ls=':',  lw=2.0, alpha=0.85,
+            #                   label='Syn. Random'),
         }
 
         fig, ax = plt.subplots(figsize=(3.5, 2.8))

@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll ccccc}
+\toprule
+& & Prec. & Rec. & F1 & AUC & ECE \\
+\midrule
+\multirow{4}{*}{\textit{In-domain}}
+& PLW NTP & 0.87 & 0.52 & 0.65 & 0.83 & 0.16 \\
+& PLW Probe & 0.71 & 0.81 & 0.76 & 0.78 & 0.05 \\
+& NF NTP & 0.65 & 0.36 & 0.46 & 0.72 & 0.08 \\
+& NF Probe & 0.74 & 0.13 & 0.22 & 0.67 & 0.11 \\
+\midrule
+\multirow{4}{*}{\textit{Cross-domain}}
+& PLW NTP & 0.75 & 0.58 & 0.65 & 0.77 & 0.09 \\
+& PLW Probe & 0.63 & 0.54 & 0.58 & 0.65 & 0.08 \\
+& NF NTP & 0.73 & 0.27 & 0.39 & 0.75 & 0.14 \\
+& NF Probe & 0.46 & 0.84 & 0.59 & 0.68 & 0.24 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Performance Metrics (\texttt{llama-3.1-8b}, Extracted).} Probe and NTP validation probabilities evaluated in-domain and cross-domain. Measurements extracted with \texttt{gemma-3-27b}.}
+\label{tab:llama-3.1-8b-gemma-3-27b-head-real}
+\end{table}

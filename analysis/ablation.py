@@ -213,7 +213,7 @@ def main():
         },
     }
     
-    output_dir = Path('results')
+    output_dir = Path('results/ablation/')
     output_dir.mkdir(parents=True, exist_ok=True)
     
     for dataset, ablations in ablation_configs.items():

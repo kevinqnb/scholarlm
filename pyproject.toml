@@ -41,6 +41,7 @@ dependencies = [
     "ipykernel>=7.2.0",
     "matplotlib>=3.10.8",
     "seaborn>=0.13.2",
+    "statsmodels>=0.14.6",
 ]
 
 [project.optional-dependencies]

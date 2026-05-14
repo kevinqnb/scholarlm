@@ -16,6 +16,9 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
+from statsmodels.stats.proportion import proportion_confint
+
+from .loaders import cached_match
 
 
 def recovery_rate(
@@ -42,9 +45,6 @@ def recovery_rate(
     Returns:
         Recovery rate (float), or (rate, lower, upper) if return_ci=True.
     """
-    from statsmodels.stats.proportion import proportion_confint
-    from .loaders import cached_match
-
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
         extraction_df,
@@ -101,8 +101,6 @@ def hallucination_rate(
             f"judged_df length ({len(judged_df)}) must match extraction_df length ({len(extraction_df)})"
         )
 
-    from .loaders import cached_match
-
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
         extraction_df,
@@ -128,7 +126,6 @@ def hallucination_rate(
     rate = float(1 - np.mean(labels))
     if not return_ci:
         return rate
-    from statsmodels.stats.proportion import proportion_confint
     n = len(labels)
     k = int(np.sum(~labels))  # hallucinated = not matched/judged valid
     lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')

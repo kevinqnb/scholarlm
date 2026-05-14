@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll ccccc}
+\toprule
+& & Prec. & Rec. & F1 & AUC & ECE \\
+\midrule
+\multirow{4}{*}{\textit{In-domain}}
+& PLW NTP & nan & 0.00 & nan & 0.76 & 0.24 \\
+& PLW Probe & 0.70 & 0.63 & 0.66 & 0.70 & 0.09 \\
+& NF NTP & nan & 0.00 & nan & 0.75 & 0.11 \\
+& NF Probe & 0.63 & 0.21 & 0.32 & 0.68 & 0.17 \\
+\midrule
+\multirow{4}{*}{\textit{Cross-domain}}
+& PLW NTP & nan & 0.00 & nan & 0.73 & 0.20 \\
+& PLW Probe & 0.66 & 0.73 & 0.69 & 0.71 & 0.07 \\
+& NF NTP & nan & 0.00 & nan & 0.72 & 0.08 \\
+& NF Probe & 0.55 & 0.40 & 0.46 & 0.64 & 0.08 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Performance Metrics (\texttt{mistral-7b}, Extracted).} Probe and NTP validation probabilities evaluated in-domain and cross-domain. Measurements extracted with \texttt{gemma-3-27b}.}
+\label{tab:mistral-7b-gemma-3-27b-head-real}
+\end{table}
