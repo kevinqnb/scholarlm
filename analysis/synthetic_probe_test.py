@@ -499,17 +499,22 @@ def plot_pr_curves(setting_results, dtype):
 
                     ax_pr.set_xlim(-0.02, 1.02)
                     ax_pr.set_ylim(-0.02, 1.02)
-                    ax_pr.set_xlabel('Recall')
-                    ax_pr.set_ylabel('Precision' if ctype == 'in-domain' else '')
+                    ax_pr.set_xlabel('Recovery')
+                    ax_pr.set_ylabel('Validity' if ctype == 'in-domain' else '')
                     ax_pr.grid(alpha=0.25, linestyle='-', linewidth=0.4)
                     ax_pr.set_axisbelow(True)
-                    fig_pr.colorbar(sm, ax=ax_pr, label='Threshold', fraction=0.046, pad=0.04)
                     fig_pr.tight_layout()
                     fig_pr.savefig(
                         subfigure_dir / f'pr_{dtype}_{train_ds}_{test_ds}.pdf',
                         bbox_inches='tight', dpi=200,
                     )
                     plt.show()
+
+    # Save colorbar once, shared across all PR plots
+    fig_cb, ax_cb = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax_cb, label='Threshold')
+    fig_cb.savefig(FIGURES_DIR / f'pr_colorbar_{dtype}.pdf', bbox_inches='tight', dpi=200)
+    plt.show()
 
 
 if __name__ == "__main__":

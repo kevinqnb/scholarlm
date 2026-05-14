@@ -2,8 +2,8 @@
 """
 Generate ablation LaTeX tables from ablation_pond.csv and ablation_nfix.csv.
 
-Produces two tables: one for recovery rate and one for hallucination rate.
-Each cell shows "value (lo, hi)" with 95% Wilson CIs, rounded to 2 decimal places.
+Produces two tables: one for recovery rate and one for validity rate.
+Each cell shows "value ± margin" with 95% Wilson CIs, rounded to 2 decimal places.
 Missing data (NaN) is rendered as "--".
 
 When run with no arguments, reads from results/ablation/ and writes
@@ -61,7 +61,7 @@ def _collect_values(pond_by_model, nfix_by_model, metric: str):
 
 
 def _generate_table(pond_by_model, nfix_by_model, metric: str, caption: str, label: str) -> str:
-    higher_is_better = (metric == "recovery")
+    higher_is_better = metric in ("recovery", "validity")
     vals, lo_vals, hi_vals = _collect_values(pond_by_model, nfix_by_model, metric)
     n_cols = len(MODELS) * 2
 
@@ -82,7 +82,8 @@ def _generate_table(pond_by_model, nfix_by_model, metric: str, caption: str, lab
         v_str = f"{v:.2f}"
         if best[col_idx] is not None and v == best[col_idx]:
             v_str = r"\textbf{" + v_str + "}"
-        return f"{v_str} ({lo:.2f}, {hi:.2f})"
+        margin = (hi - lo) / 2
+        return rf"{v_str} $\pm$ {margin:.2f}"
 
     model_headers = " & ".join(MODEL_DISPLAY[m] for m in MODELS)
     lines = []
@@ -130,13 +131,13 @@ def generate_tables(pond_csv: str, nfix_csv: str) -> tuple[str, str]:
 
     hallucination_table = _generate_table(
         pond_by_model, nfix_by_model,
-        metric="hallucination",
+        metric="validity",
         caption=(
-            r"\caption{\textbf{Ablation Hallucination Rate.} Hallucination rate with 95\% Wilson CIs "
+            r"\caption{\textbf{Ablation Validity Rate.} Validity rate with 95\% Wilson CIs "
             r"for the base pipeline and ablations $A_1$--$A_6$ across the \pond and \nfix "
-            r"datasets and each extraction LLM. Bold marks the best (lowest) value per column.}"
+            r"datasets and each extraction LLM. Bold marks the best value per column.}"
         ),
-        label="tab:ablation_hallucination",
+        label="tab:ablation_validity",
     )
 
     return recovery_table, hallucination_table

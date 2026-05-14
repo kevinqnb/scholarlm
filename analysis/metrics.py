@@ -68,7 +68,7 @@ def recovery_rate(
     return rate, float(lower), float(upper)
 
 
-def hallucination_rate(
+def validity_rate(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
     *,
@@ -80,7 +80,7 @@ def hallucination_rate(
     label_col: str = "judgement_combined",
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Compute hallucination rate from judged extraction results.
+    """Compute validity rate (1 - hallucination rate) from judged extraction results.
 
     Args:
         extraction_df: Extracted measurements (rows = measurements).
@@ -94,7 +94,7 @@ def hallucination_rate(
         return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
 
     Returns:
-        Hallucination rate (float), or (rate, lower, upper) if return_ci=True.
+        Validity rate (float), or (rate, lower, upper) if return_ci=True.
     """
     if judged_df is not None and len(judged_df) != len(extraction_df):
         raise ValueError(
@@ -118,16 +118,15 @@ def hallucination_rate(
     if judged_df is not None:
         jlabels = judged_df[label_col].to_numpy(dtype = bool)
     else:
-        # Default to edge existence by setting all judgements as false. 
         jlabels = np.zeros(len(extraction_df), dtype = bool)
 
     labels = jlabels | ex_edge_exists
 
-    rate = float(1 - np.mean(labels))
+    rate = float(np.mean(labels))
     if not return_ci:
         return rate
     n = len(labels)
-    k = int(np.sum(~labels))  # hallucinated = not matched/judged valid
+    k = int(np.sum(labels))  # valid = matched or judged valid
     lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
     return rate, float(lower), float(upper)
 

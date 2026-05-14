@@ -10,7 +10,7 @@ import re
 import pandas as pd
 import numpy as np
 from analysis.loaders import load_extraction, load_ablation, load_combined_judgements, load_ground_truth, cached_match
-from analysis.metrics import recovery_rate, hallucination_rate
+from analysis.metrics import recovery_rate, validity_rate
 from experiments.run_extraction import load_dataset_config
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 import paths
@@ -97,7 +97,7 @@ def compute_ablation_metrics(dataset, ablations_config):
                 cache_path=baseline_cache_path,
                 return_ci=True,
             )
-            baseline_hall, baseline_hall_lo, baseline_hall_hi = hallucination_rate(
+            baseline_valid, baseline_valid_lo, baseline_valid_hi = validity_rate(
                 ground_truth_df, baseline_df,
                 strict_matching=strict_matching,
                 fuzzy_matching=fuzzy_matching,
@@ -110,15 +110,15 @@ def compute_ablation_metrics(dataset, ablations_config):
             row['baseline_recovery'] = baseline_recov
             row['baseline_recovery_ci_lo'] = baseline_recov_lo
             row['baseline_recovery_ci_hi'] = baseline_recov_hi
-            row['baseline_hallucination'] = baseline_hall
-            row['baseline_hallucination_ci_lo'] = baseline_hall_lo
-            row['baseline_hallucination_ci_hi'] = baseline_hall_hi
-            print(f"    Baseline: recovery={baseline_recov:.3f} [{baseline_recov_lo:.3f}, {baseline_recov_hi:.3f}], hallucination={baseline_hall:.3f} [{baseline_hall_lo:.3f}, {baseline_hall_hi:.3f}]")
+            row['baseline_validity'] = baseline_valid
+            row['baseline_validity_ci_lo'] = baseline_valid_lo
+            row['baseline_validity_ci_hi'] = baseline_valid_hi
+            print(f"    Baseline: recovery={baseline_recov:.3f} [{baseline_recov_lo:.3f}, {baseline_recov_hi:.3f}], validity={baseline_valid:.3f} [{baseline_valid_lo:.3f}, {baseline_valid_hi:.3f}]")
 
         except Exception as e:
             print(f"    Baseline ERROR: {e}")
             row['baseline_recovery'] = np.nan
-            row['baseline_hallucination'] = np.nan
+            row['baseline_validity'] = np.nan
         
         # Process ablations
         for ablation_n, ablation_date in ablation_dates.items():
@@ -127,7 +127,7 @@ def compute_ablation_metrics(dataset, ablations_config):
             
             if ablation_date is None:
                 row[f'ablation_{ablation_n}_recovery'] = np.nan
-                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                row[f'ablation_{ablation_n}_validity'] = np.nan
                 continue
             
             try:
@@ -137,7 +137,7 @@ def compute_ablation_metrics(dataset, ablations_config):
                 records = load_ablation(dataset, ablation_n, model, ablation_date)
                 if len(records) == 0:
                     row[f'ablation_{ablation_n}_recovery'] = np.nan
-                    row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                    row[f'ablation_{ablation_n}_validity'] = np.nan
                     continue
 
                 ablation_df = pd.DataFrame(records)
@@ -166,7 +166,7 @@ def compute_ablation_metrics(dataset, ablations_config):
                     cache_path=ablation_cache_path,
                     return_ci=True,
                 )
-                ablation_hall, ablation_hall_lo, ablation_hall_hi = hallucination_rate(
+                ablation_valid, ablation_valid_lo, ablation_valid_hi = validity_rate(
                     ground_truth_df, ablation_df,
                     strict_matching=strict_matching,
                     fuzzy_matching=fuzzy_matching,
@@ -179,19 +179,19 @@ def compute_ablation_metrics(dataset, ablations_config):
                 row[f'ablation_{ablation_n}_recovery'] = ablation_recov
                 row[f'ablation_{ablation_n}_recovery_ci_lo'] = ablation_recov_lo
                 row[f'ablation_{ablation_n}_recovery_ci_hi'] = ablation_recov_hi
-                row[f'ablation_{ablation_n}_hallucination'] = ablation_hall
-                row[f'ablation_{ablation_n}_hallucination_ci_lo'] = ablation_hall_lo
-                row[f'ablation_{ablation_n}_hallucination_ci_hi'] = ablation_hall_hi
-                print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f} [{ablation_recov_lo:.3f}, {ablation_recov_hi:.3f}], hallucination={ablation_hall:.3f} [{ablation_hall_lo:.3f}, {ablation_hall_hi:.3f}]")
+                row[f'ablation_{ablation_n}_validity'] = ablation_valid
+                row[f'ablation_{ablation_n}_validity_ci_lo'] = ablation_valid_lo
+                row[f'ablation_{ablation_n}_validity_ci_hi'] = ablation_valid_hi
+                print(f"    Ablation {ablation_n}: recovery={ablation_recov:.3f} [{ablation_recov_lo:.3f}, {ablation_recov_hi:.3f}], validity={ablation_valid:.3f} [{ablation_valid_lo:.3f}, {ablation_valid_hi:.3f}]")
                 
             except FileNotFoundError:
                 print(f"    Ablation {ablation_n}: not found, skipping.")
                 row[f'ablation_{ablation_n}_recovery'] = np.nan
-                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                row[f'ablation_{ablation_n}_validity'] = np.nan
             except Exception as e:
                 print(f"    Ablation {ablation_n} ERROR: {e}")
                 row[f'ablation_{ablation_n}_recovery'] = np.nan
-                row[f'ablation_{ablation_n}_hallucination'] = np.nan
+                row[f'ablation_{ablation_n}_validity'] = np.nan
         
         results.append(row)
     
