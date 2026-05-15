@@ -317,8 +317,16 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
+                    cal_probe_probs, pi_te = rescale_probabilities_em(
+                        probe_probs, pi_tr=pd_data['train_prevalence']
+                    )
+
+                    cal_ntp_probs, pi_te = rescale_probabilities_em(
+                        ntp_probs, pi_tr=ntp_cal_data['train_prevalence']
+                    )
+
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
-                        'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
+                        'probe_probs': cal_probe_probs, 'ntp_probs': cal_ntp_probs, 'labels': labels,
                         'edges': test_edges, 'n_ground_truth': n_ground_truth,
                     }
 
