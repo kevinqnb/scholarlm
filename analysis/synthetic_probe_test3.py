@@ -617,6 +617,8 @@ def plot_validity_recovery(setting_results, dtype):
 
                     #ax.set_xlim(-0.02, 1.02)
                     #ax.set_ylim(-0.02, 1.02)
+                    ax.set_xlim(left=-0.02)
+                    ax.set_ylim(top=1.02)
                     ax.set_xlabel('Recovery')
                     ax.set_ylabel('Validity') # if ctype == 'in-domain' else '')
                     ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
