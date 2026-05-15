@@ -346,9 +346,9 @@ for PROBE_TYPE in ['layer', 'head']:
             std_distances[key] = v.std(axis=0) / np.sqrt(N_RANDOM_SAMPLES)
 
         _STYLE = {
-            'ext_ntp':     dict(color=palette[2], ls='-', lw=3.0, alpha=0.85,
+            'ext_ntp':     dict(color=palette[2], ls='--', lw=3.0, alpha=0.85,
                                label='NTP'),
-            'ext_probe':   dict(color=palette[7], ls='--',  lw=3.0,
+            'ext_probe':   dict(color=palette[7], ls='-',  lw=3.0,
                                label='Probe'),
             'ext_random':  dict(color=palette[9], ls=':',  lw=3.0, alpha=0.85,
                                label='Random'),
