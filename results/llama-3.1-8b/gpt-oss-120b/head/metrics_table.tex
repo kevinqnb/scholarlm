@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll cc}
+\toprule
+& & Synthetic & Extracted \\
+\midrule
+\multirow{4}{*}{\textit{Within}}
+& PLW NTP & 0.05 & 0.31 \\
+& PLW Probe & 0.05 & 0.12 \\
+& NF NTP & 0.08 & 0.32 \\
+& NF Probe & 0.09 & 0.67 \\
+\midrule
+\multirow{4}{*}{\textit{Cross}}
+& PLW NTP & 0.14 & 0.40 \\
+& PLW Probe & 0.08 & 0.04 \\
+& NF NTP & 0.12 & 0.25 \\
+& NF Probe & 0.06 & 0.53 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Expected Calibration Error Performance (\texttt{llama-3.1-8b}).} Probe and NTP validation probabilities evaluated within and cross-domain for synthetic and real, extraction test settings. Extracted measurements collected from \texttt{gpt-oss-120b}.}
+\label{tab:llama-3.1-8b-gpt-oss-120b}
+\end{table}

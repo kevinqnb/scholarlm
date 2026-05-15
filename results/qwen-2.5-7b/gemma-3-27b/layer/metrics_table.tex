@@ -1,24 +1,22 @@
-\begin{table*}[ht]
+\begin{table}[ht]
 \centering
-\begin{tabular}{ll cccc cccc}
+\begin{tabular}{ll cc}
 \toprule
-& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\
-\cmidrule(lr){3-6} \cmidrule(lr){7-10}
-& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\
+& & Synthetic & Extracted \\
 \midrule
-\multirow{4}{*}{Probe}
-& Syn. \pond & 0.80 & 0.82 & 0.94 & 0.04 & 0.62 & 0.90 & 0.89 & 0.14 \\
-& Ext. \pond & 0.79 & 0.85 & 0.84 & 0.03 & 0.69 & 0.89 & 0.81 & 0.09 \\
-& Syn. \nfix & 0.56 & 0.22 & 0.70 & 0.13 & 0.54 & 0.45 & 0.72 & 0.06 \\
-& Ext. \nfix & 0.60 & 0.59 & 0.72 & 0.08 & 0.62 & 0.77 & 0.80 & 0.08 \\
+\multirow{4}{*}{\textit{Within}}
+& PLW NTP & 0.05 & 0.09 \\
+& PLW Probe & 0.04 & 0.03 \\
+& NF NTP & 0.03 & 0.06 \\
+& NF Probe & 0.06 & 0.08 \\
 \midrule
-\multirow{4}{*}{NTP}
-& Syn. \pond & 0.77 & 0.56 & 0.87 & 0.05 & 0.75 & 0.64 & 0.87 & 0.14 \\
-& Ext. \pond & 0.88 & 0.64 & 0.87 & 0.09 & 0.86 & 0.59 & 0.84 & 0.06 \\
-& Syn. \nfix & 0.62 & 0.06 & 0.65 & 0.11 & 0.57 & 0.12 & 0.65 & 0.03 \\
-& Ext. \nfix & 0.74 & 0.41 & 0.79 & 0.07 & 0.73 & 0.47 & 0.80 & 0.06 \\
+\multirow{4}{*}{\textit{Cross}}
+& PLW NTP & 0.11 & 0.07 \\
+& PLW Probe & 0.13 & 0.08 \\
+& NF NTP & 0.14 & 0.06 \\
+& NF Probe & 0.14 & 0.09 \\
 \bottomrule
 \end{tabular}
-\caption{\textbf{Performance Metrics (\texttt{qwen-2.5-7b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left four columns) and synthetic \nfix (right four columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
-\label{tab:qwen-2.5-7b-gemma-3-27b-layer}
-\end{table*}
+\caption{\textbf{Expected Calibration Error Performance (\texttt{qwen-2.5-7b}).} Probe and NTP validation probabilities evaluated within and cross-domain for synthetic and real, extraction test settings. Extracted measurements collected from \texttt{gemma-3-27b}.}
+\label{tab:qwen-2.5-7b-gemma-3-27b}
+\end{table}

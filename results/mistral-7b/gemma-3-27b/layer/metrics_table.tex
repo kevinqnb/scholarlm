@@ -1,24 +1,22 @@
-\begin{table*}[ht]
+\begin{table}[ht]
 \centering
-\begin{tabular}{ll cccc cccc}
+\begin{tabular}{ll cc}
 \toprule
-& & \multicolumn{4}{c}{\pond-Trained} & \multicolumn{4}{c}{\nfix-Trained} \\
-\cmidrule(lr){3-6} \cmidrule(lr){7-10}
-& & Prec. & Rec. & AUC & ECE & Prec. & Rec. & AUC & ECE \\
+& & Synthetic & Extracted \\
 \midrule
-\multirow{4}{*}{Probe}
-& Syn. \pond & 0.74 & 0.74 & 0.90 & 0.05 & 0.44 & 0.78 & 0.69 & 0.22 \\
-& Ext. \pond & 0.75 & 0.46 & 0.73 & 0.19 & 0.68 & 0.51 & 0.70 & 0.13 \\
-& Syn. \nfix & 0.48 & 0.24 & 0.63 & 0.13 & 0.52 & 0.45 & 0.69 & 0.10 \\
-& Ext. \nfix & 0.60 & 0.48 & 0.71 & 0.09 & 0.61 & 0.22 & 0.60 & 0.17 \\
+\multirow{4}{*}{\textit{Within}}
+& PLW NTP & 0.01 & 0.24 \\
+& PLW Probe & 0.05 & 0.19 \\
+& NF NTP & 0.02 & 0.11 \\
+& NF Probe & 0.10 & 0.17 \\
 \midrule
-\multirow{4}{*}{NTP}
-& Syn. \pond & nan & 0.00 & 0.71 & 0.01 & nan & 0.00 & 0.71 & 0.06 \\
-& Ext. \pond & nan & 0.00 & 0.76 & 0.24 & nan & 0.00 & 0.73 & 0.20 \\
-& Syn. \nfix & nan & 0.00 & 0.61 & 0.05 & nan & 0.00 & 0.61 & 0.02 \\
-& Ext. \nfix & nan & 0.00 & 0.72 & 0.08 & nan & 0.00 & 0.75 & 0.11 \\
+\multirow{4}{*}{\textit{Cross}}
+& PLW NTP & 0.05 & 0.08 \\
+& PLW Probe & 0.13 & 0.09 \\
+& NF NTP & 0.06 & 0.20 \\
+& NF Probe & 0.22 & 0.13 \\
 \bottomrule
 \end{tabular}
-\caption{\textbf{Performance Metrics (\texttt{mistral-7b}).} for probe and NTP predicted validation probabilities, trained on the synthetic \pond (left four columns) and synthetic \nfix (right four columns) datasets. Evaluated for test synthetic and extracted \pond and \nfix datasets. Data extracted with \texttt{gemma-3-27b}.}
-\label{tab:mistral-7b-gemma-3-27b-layer}
-\end{table*}
+\caption{\textbf{Expected Calibration Error Performance (\texttt{mistral-7b}).} Probe and NTP validation probabilities evaluated within and cross-domain for synthetic and real, extraction test settings. Extracted measurements collected from \texttt{gemma-3-27b}.}
+\label{tab:mistral-7b-gemma-3-27b}
+\end{table}
