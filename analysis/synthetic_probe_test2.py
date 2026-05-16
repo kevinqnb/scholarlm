@@ -69,9 +69,9 @@ _DS_COLORS = {
 # ── Parameters ───────────────────────────────────────────────────────────────
 DATASETS = ['pond', 'nfix']
 EXTRACTION_MODEL = 'llama-3.1-8b'
-JUDGE_MODELS = ['llama-3.1-8b']
+JUDGE_MODELS = ['llama-3.1-8b', 'qwen-2.5-7b']
 PROBE_TYPE = "head"
-PI_TE_ESTIMATE = 0.25  # estimate for test prevalence when rescaling probabilities due to label shift
+PI_TE_ESTIMATE = None  # estimate for test prevalence when rescaling probabilities due to label shift
 
 
 # Extraction date per test dataset
@@ -85,9 +85,11 @@ EXTRACTION_DATES = {
 JUDGE_DATES_SYN = {
     'pond': {
         'llama-3.1-8b': '2026_05_04',
+        'qwen-2.5-7b': '2026_05_04',
     },
     'nfix': {
         'llama-3.1-8b': '2026_05_04',
+        'qwen-2.5-7b': '2026_05_04',
     },
 }
 
@@ -96,9 +98,11 @@ JUDGE_DATES_SYN = {
 JUDGE_DATES_REAL = {
     'pond': {
         'llama-3.1-8b': '2026_05_13',
+        'qwen-2.5-7b': '2026_05_05',
     },
     'nfix': {
         'llama-3.1-8b': '2026_05_13',
+        'qwen-2.5-7b': '2026_05_05',
     },
 }
 
@@ -318,36 +322,13 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-                    if dataset_type == 'real':
+                    if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
                         pi_tr_probe = pd_data['train_prevalence']
                         probe_probs = intercept_adjustment(probe_probs, pi_tr=pi_tr_probe, pi_te=PI_TE_ESTIMATE)
 
                         pi_tr_ntp = ntp_cal_data['train_prevalence']
                         ntp_probs = intercept_adjustment(ntp_probs, pi_tr=pi_tr_ntp, pi_te=PI_TE_ESTIMATE)
 
-                        '''
-                        pi_te_act = np.mean(labels)
-                        pi_te = pi_te_act
-                        pi_tr = pd_data['train_prevalence']
-                        num = probe_probs * (pi_te / pi_tr)
-                        den = num + (1 - probe_probs) * ((1 - pi_te) / (1 - pi_tr))
-                        probe_probs = num / den
-
-                        num = ntp_probs * (pi_te / pi_tr)
-                        den = num + (1 - probe_probs) * ((1 - pi_te) / (1 - pi_tr))
-                        ntp_probs = num / den
-                        '''
-
-                    '''
-                    if dataset_type == 'real':
-                        probe_probs, pi_te = rescale_probabilities_em(
-                            probe_probs, pi_tr=pd_data['train_prevalence'], init_pi_te=0.25
-                        )
-
-                        ntp_probs, pi_te = rescale_probabilities_em(
-                            ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], init_pi_te=0.25
-                        )
-                    '''
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                         'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
                         'edges': test_edges, 'n_ground_truth': n_ground_truth,
