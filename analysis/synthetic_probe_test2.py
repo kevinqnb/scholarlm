@@ -317,7 +317,19 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
+                    if dataset_type == 'real':
+                        pi_te_act = np.mean(labels)
+                        pi_te = pi_te_act
+                        pi_tr = pd_data['train_prevalence']
+                        num = probe_probs * (pi_te / pi_tr)
+                        den = num + (1 - probe_probs) * ((1 - pi_te) / (1 - pi_tr))
+                        probe_probs = num / den
 
+                        num = ntp_probs * (pi_te / pi_tr)
+                        den = num + (1 - probe_probs) * ((1 - pi_te) / (1 - pi_tr))
+                        ntp_probs = num / den
+
+                    '''
                     if dataset_type == 'real':
                         probe_probs, pi_te = rescale_probabilities_em(
                             probe_probs, pi_tr=pd_data['train_prevalence'], init_pi_te=0.25
@@ -326,7 +338,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                         ntp_probs, pi_te = rescale_probabilities_em(
                             ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], init_pi_te=0.25
                         )
-
+                    '''
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                         'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
                         'edges': test_edges, 'n_ground_truth': n_ground_truth,
