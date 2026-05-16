@@ -23,6 +23,44 @@ from __future__ import annotations
 
 import numpy as np
 
+from scipy.special import logit, expit
+
+
+def intercept_adjustment(
+    probs: np.ndarray,
+    pi_tr: float,
+    pi_te: float,
+    eps: float = 1e-12,
+):
+    """Adjust predicted probabilities for label shift via intercept adjustment.
+
+    Args:
+        probs: Predicted probabilities P_train(Y=1 | x) on the test set. Shape ``(n_test,)``.
+        pi_tr: Training prevalence as a scalar in ``(0, 1)``.
+        pi_te: Test prevalence as a scalar in ``(0, 1)``.
+        eps: Numerical stability constant.
+    Returns:
+        Rescaled probabilities under test prevalence pi_te, shape ``(n_test,)``.
+    """
+    if not (eps < pi_tr < 1 - eps):
+        raise ValueError(
+            f"Training prevalence pi_tr={pi_tr:.4g} is degenerate; cannot rescale."
+        )
+    if not (eps < pi_te < 1 - eps):
+        raise ValueError(
+            f"Test prevalence pi_te={pi_te:.4g} is degenerate; cannot rescale."
+        )
+
+    probs = np.asarray(probs, dtype=float)
+    probs_clipped = np.clip(probs, eps, 1 - eps)
+
+    log_odds = logit(probs_clipped)
+    log_prior_odds_tr = logit(pi_tr)
+    log_prior_odds_te = logit(pi_te)
+    log_odds_adjusted = log_odds + (log_prior_odds_te - log_prior_odds_tr)
+    return expit(log_odds_adjusted)
+    
+
 
 def rescale_probabilities_em(
     probs: np.ndarray,

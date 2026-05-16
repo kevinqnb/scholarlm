@@ -24,7 +24,7 @@ from analysis.loaders import (
     load_synthetic_responses,
 )
 from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
-from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em
+from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em, intercept_adjustment
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
 import paths
@@ -71,6 +71,7 @@ DATASETS = ['pond', 'nfix']
 EXTRACTION_MODEL = 'gpt-oss-120b'
 JUDGE_MODELS = ['llama-3.1-8b']
 PROBE_TYPE = "head"
+PI_TE_ESTIMATE = 0.85  # estimate for test prevalence when rescaling probabilities due to label shift
 
 
 # Extraction date per test dataset
@@ -318,6 +319,13 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
                     if dataset_type == 'real':
+                        pi_tr_probe = pd_data['train_prevalence']
+                        probe_probs = intercept_adjustment(probe_probs, pi_tr=pi_tr_probe, pi_te=PI_TE_ESTIMATE)
+
+                        pi_tr_ntp = ntp_cal_data['train_prevalence']
+                        ntp_probs = intercept_adjustment(ntp_probs, pi_tr=pi_tr_ntp, pi_te=PI_TE_ESTIMATE)
+
+                        '''
                         pi_te_act = np.mean(labels)
                         pi_te = pi_te_act
                         pi_tr = pd_data['train_prevalence']
@@ -328,6 +336,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                         num = ntp_probs * (pi_te / pi_tr)
                         den = num + (1 - probe_probs) * ((1 - pi_te) / (1 - pi_tr))
                         ntp_probs = num / den
+                        '''
+
                     '''
                     if dataset_type == 'real':
                         probe_probs, pi_te = rescale_probabilities_em(
