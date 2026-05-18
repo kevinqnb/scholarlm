@@ -34,9 +34,9 @@ mpl.rcParams.update({
     "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "cm",
     "text.usetex": False,
-    "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 11,
-    "xtick.labelsize": 10, "ytick.labelsize": 10,
-    "legend.fontsize": 10, "legend.title_fontsize": 11,
+    "font.size": 13, "axes.labelsize": 13, "axes.titlesize": 13,
+    "xtick.labelsize": 11, "ytick.labelsize": 11,
+    "legend.fontsize": 12, "legend.title_fontsize": 13,
     "axes.linewidth": 0.6,
     "xtick.direction": "in", "ytick.direction": "in",
     "xtick.major.size": 3, "ytick.major.size": 3,
@@ -654,7 +654,7 @@ def plot_validity_recovery(setting_results, dtype):
     ]
     fig_vr_leg, ax_vr_leg = plt.subplots(figsize=(4.0, 0.35))
     ax_vr_leg.axis('off')
-    ax_vr_leg.legend(handles=_vr_legend_handles, loc='center', ncol=3, fontsize=11,
+    ax_vr_leg.legend(handles=_vr_legend_handles, loc='center', ncol=3, fontsize=13,
                      frameon=False, handlelength=2.0)
     fig_vr_leg.savefig(FIGURES_DIR / f'vr_legend_{dtype}.pdf', bbox_inches='tight', dpi=200)
     plt.show()
@@ -662,7 +662,7 @@ def plot_validity_recovery(setting_results, dtype):
 
 if __name__ == "__main__":
     # Set to True to load precomputed results if available, False to recompute from scratch
-    load_from_precomputed = False
+    load_from_precomputed = True
     
     setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
     plot_calibration_curves(setting_results, dtype='syn')
@@ -686,7 +686,7 @@ if __name__ == "__main__":
     ]
     _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
     _ax_leg.axis('off')
-    _ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=11,
+    _ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=13,
                 frameon=False, handlelength=2.0)
     _fig_leg.savefig(FIGURES_DIR / 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
     plt.show()
