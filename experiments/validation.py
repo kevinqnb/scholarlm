@@ -53,7 +53,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from batch import common as batch_common
+import judge_common
 from run_extraction import load_dataset_config
 import paths
 
@@ -132,7 +132,7 @@ def _load_sample(
     if not data_dir.is_absolute():
         data_dir = _REPO_ROOT / data_dir
     effective_ocr = ocr_dir or str(data_dir / "ocr_output_raw")
-    docs = batch_common.load_documents_for_dataset(cfg, effective_ocr)
+    docs = judge_common.load_documents_for_dataset(cfg, effective_ocr)
 
     rng = random.Random(seed)
     sample = rng.sample(all_records, k=min(n, len(all_records)))
@@ -317,7 +317,7 @@ def _show_item(
     first = pages[0] if pages else None
     doc_id = record.get("document_id", "")
     document = docs.get(doc_id, "") if isinstance(docs, dict) else ""
-    page_text = batch_common._extract_page_text(document, pages)
+    page_text = judge_common.extract_page_text(document, pages)
 
     st.markdown(f"### Item {idx + 1} of {n_total}")
     st.divider()

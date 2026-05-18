@@ -166,11 +166,11 @@ def run_local_vllm_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    from batch import common as batch_common
-    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    import judge_common
+    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
     print(f"Documents: {len(documents)} loaded from {effective_ocr_dir}")
 
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # chat_entries are sorted by document_id for cache locality; we need to
     # track the original indices to merge results back in order.

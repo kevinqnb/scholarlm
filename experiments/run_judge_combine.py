@@ -2,30 +2,33 @@
 Combine judge results across multiple models into a single ground-truth file.
 
 Reads individual judge ``responses.json`` files for a given
-(dataset, extraction_model) pair, merges them by ``measurement_id``, computes
-a majority-vote ground truth label from the **frontier judges only**, and writes
-a combined output file.
+(dataset, extraction_model, extraction_date) triple, merges them by
+``measurement_id``, computes a majority-vote ground truth label from the
+voting judges, and writes a combined output file.
 
 Output path:
-    data/experiments/{dataset}/judge/{extraction_model}/combined/combined.json
+    data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/combined/combined.json
 
 Usage
 -----
-    # Auto-discover all judge results under the extraction model's directory:
+    # Auto-discover all judge results under the extraction date directory:
     python experiments/run_judge_combine.py \\
         --dataset pond \\
-        --extraction-model gemma-3-27b
+        --extraction-model gemma-3-27b \\
+        --extraction-date 2026_04_01
 
     # Specify judge model names explicitly (useful when multiple date dirs exist):
     python experiments/run_judge_combine.py \\
         --dataset pond \\
         --extraction-model gemma-3-27b \\
-        --judges openai anthropic gemini llama-3.1-8b
+        --extraction-date 2026_04_01 \\
+        --judges llama-3.1-8b llama-3.3-70b qwen-2.5-72b
 
-    # Override the voting threshold (default: majority of frontier judges):
+    # Override the voting threshold (default: majority of voting judges):
     python experiments/run_judge_combine.py \\
         --dataset pond \\
         --extraction-model gemma-3-27b \\
+        --extraction-date 2026_04_01 \\
         --voting-threshold 2
 
 The combined JSON has one record per measurement with all individual judge
@@ -51,7 +54,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 # can participate in majority voting (use --voting-threshold 1 for standalone use).
 # ---------------------------------------------------------------------------
 
-FRONTIER_JUDGE_KEYS = {"openai", "anthropic", "gemini", "gpt-oss-120b", "llama-3.3-70b", "qwen-2.5-72b"}
+VOTING_JUDGE_KEYS = {"gpt-oss-120b", "llama-3.3-70b", "qwen-2.5-72b"}
 
 import paths
 
@@ -129,8 +132,7 @@ def combine_judge_results(
 
     Args:
         judge_files: Mapping ``{judge_key: path_to_responses_json}``.
-        voting_judges: Subset of judge keys whose votes count toward ground truth
-            (typically frontier providers only).
+        voting_judges: Subset of judge keys whose votes count toward ground truth.
         voting_threshold: Minimum number of affirmative votes for
             ``judgement_combined`` to be ``True``.
 
@@ -168,7 +170,7 @@ def combine_judge_results(
                 combined[eid] = base
             combined[eid].update(judge_specific)
 
-    # Majority vote over frontier (voting) judges
+    # Majority vote over voting judges
     result: list[dict] = []
     for record in combined.values():
         affirmative = sum(
@@ -202,8 +204,8 @@ def run_combine(
         extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
         judge_keys: Explicit list of judge keys to combine. If ``None``,
             auto-discovers all judges with results under the extraction date dir.
-        voting_threshold: Minimum frontier-judge votes for a positive label.
-            Defaults to majority of available frontier judges (ceil(n/2)).
+        voting_threshold: Minimum votes for a positive label.
+            Defaults to majority of available voting judges (ceil(n/2)).
 
     Returns:
         Path to the written ``combined.json`` file.
@@ -222,17 +224,17 @@ def run_combine(
         judge_files[key] = _find_judge_result(dataset_name, extraction_model, extraction_date, key, ablation)
         print(f"  {key}: {judge_files[key]}")
 
-    voting_judges = FRONTIER_JUDGE_KEYS & set(judge_keys)
+    voting_judges = VOTING_JUDGE_KEYS & set(judge_keys)
     if not voting_judges:
         raise ValueError(
-            f"None of the provided judge keys are frontier providers "
-            f"({FRONTIER_JUDGE_KEYS}). Cannot compute ground truth."
+            f"None of the provided judge keys are voting judges "
+            f"({VOTING_JUDGE_KEYS}). Cannot compute ground truth."
         )
 
     if voting_threshold is None:
         import math
         voting_threshold = math.ceil(len(voting_judges) / 2)
-    print(f"\nFrontier judges for voting: {voting_judges}")
+    print(f"\nVoting judges: {voting_judges}")
     print(f"Voting threshold: {voting_threshold} / {len(voting_judges)}")
 
     combined = combine_judge_results(judge_files, voting_judges, voting_threshold)
@@ -274,7 +276,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--voting-threshold", type=int, default=None,
-        help="Min frontier votes for a positive label. Default: majority of frontier judges.",
+        help="Min votes for a positive label. Default: majority of voting judges.",
     )
     return p
 

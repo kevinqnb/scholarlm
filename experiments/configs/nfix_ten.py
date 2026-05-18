@@ -17,8 +17,7 @@ from scholarlm.config import DatasetConfig
 # Entity schema
 # ---------------------------------------------------------------------------
 
-
-class ObservationSchema(BaseModel):
+class EntitySchema(BaseModel):
     """Site-level entity fields for an aquatic dinitrogen fixation study."""
 
     name: str | None
@@ -27,54 +26,7 @@ class ObservationSchema(BaseModel):
     location: str | None
 
 
-class MeasurementEventSchema(BaseModel):
-    """Event-level fields that distinguish individual dinitrogen fixation measurements."""
-
-    date: str | None
-    nfix_method: str | None
-    substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
-
-
-class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
-
-    # Entity fields
-    name: str | None
-    identifiers: str | None
-    site_type: str | None
-    location: str | None
-    # Event fields
-    date: str | None
-    nfix_method: str | None
-    substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
-    # Measurement fields
-    attribute: str
-    value: str | None
-    units: str | None
-
-
-class Ablation2ObservationSchema(BaseModel):
-    """Entity schema for Ablation 2: one item per (site, attribute) pair."""
-
-    # Entity fields (same as ObservationSchema)
-    name: str | None
-    identifiers: str | None
-    site_type: str | None
-    location: str | None
-    # Reserved fields required by Ablation 2
-    attribute: str
-    attribute_terms: list[str]
-
-
-# ---------------------------------------------------------------------------
-# Entity identification prompt
-# ---------------------------------------------------------------------------
-
-_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
+ENTITY_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
 
 A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
 
@@ -126,143 +78,9 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
-# Measurement event prompt
+# Attribute Schema
 # ---------------------------------------------------------------------------
 
-_MEASUREMENT_EVENT_PROMPT = """Event fields:
-- date: The date the measurement was taken. Use one of the following formats depending on available precision:
-  - Full date: "dd-mm-yyyy"
-  - Month and year only: "mm-yyyy"
-  - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
-  - Year only: "yyyy"
-  Set to None if no date is stated on this page.
-- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
-- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
-- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
-- additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
-"""
-
-
-# ---------------------------------------------------------------------------
-# Ablation 1: direct extraction prompt
-# ---------------------------------------------------------------------------
-
-_DIRECT_EXTRACTION_PROMPT = """Entity identification:
-Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
-
-Entity fields:
-- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- location: the general geographic location of the site.
-
-Entity identification rules:
-- Treat sites as separate only if their geographic location clearly differs.
-- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
-- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
-
-
-Measurement event fields:
-For each site and each detected attribute measurement, also identify the measurement event context:
-- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
-- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
-- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
-- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
-- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
-
-
-Attributes to extract:
-For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
-
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
-
-
-Output format requirements:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- The top-level object must have this form:
-{
-  "items": [
-    {
-      "name": "...",
-      "identifiers": "...",
-      "site_type": "...",
-      "location": "...",
-      "date": "...",
-      "nfix_method": "...",
-      "substrate_type": "...",
-      "sample_depth": "...",
-      "additional_details": "...",
-      "attribute": "...",
-      "value": "...",
-      "units": "..."
-    }
-  ]
-}
-- If no measurements are found, output exactly:
-{ "items": [] }
-"""
-
-
-# ---------------------------------------------------------------------------
-# Ablation 2: combined entity-attribute extraction prompt
-# ---------------------------------------------------------------------------
-
-_ABLATION2_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
-
-A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Emit one item per (site, attribute) pair. If a site has multiple attributes measured, emit one item per attribute.
-
-IMPORTANT: Only emit a pair when a direct numerical measurement exists in the document for that site and attribute. Do NOT emit pairs where the only data is qualitative, model parameters, or goodness-of-fit statistics.
-
-
-Response schema:
-For each (site, attribute) pair, output one item with the following fields:
-- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- location: the general geographic location of the site.
-- attribute: the exact attribute name from the list below.
-- attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
-
-
-Attributes to detect (use these exact names in the attribute field):
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol-N g-1 h-1, ug-N g-1 d-1, nmol-C2H4 g-1 h-1).
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1).
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1).
-
-
-Identification guidelines:
-- Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths.
-- Multiple measurements of the same site for the same attribute should produce only one (site, attribute) pair — not one per measurement event.
-- Do NOT infer, guess, or derive any identifying information. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set its value to None.
-
-
-Output format requirements:
-- Output must be valid, strictly parseable JSON.
-- Do NOT include markdown, comments, or explanatory text.
-- The top-level object must have this form:
-{
-  "items": [
-    {
-      "name": "...",
-      "identifiers": "...",
-      "site_type": "...",
-      "location": "...",
-      "attribute": "...",
-      "attribute_terms": [...]
-    }
-  ]
-}
-- If no (site, attribute) pairs with direct numerical measurements are found, output exactly:
-{ "items": [] }
-"""
-
-
-# ---------------------------------------------------------------------------
-# Attribute catalogue
-# ---------------------------------------------------------------------------
 
 _MASS_UNITS = [
     "nmol-N g-1 h-1", "nmol-C2H4 g-1 h-1", "nmol-N2 g-1 h-1", "ug-N g-1 d-1",
@@ -341,6 +159,186 @@ other_attributes = {
 
 
 # ---------------------------------------------------------------------------
+# Measurement Schema
+# ---------------------------------------------------------------------------
+
+class MeasurementEventSchema(BaseModel):
+    """Event-level fields that distinguish individual dinitrogen fixation measurements."""
+
+    date: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+    additional_details: str | None
+
+
+_MEASUREMENT_EVENT_PROMPT = """Event fields:
+- date: The date the measurement was taken. Use one of the following formats depending on available precision:
+  - Full date: "dd-mm-yyyy"
+  - Month and year only: "mm-yyyy"
+  - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
+  - Year only: "yyyy"
+  Set to None if no date is stated on this page.
+- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
+- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
+- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
+- additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
+"""
+
+
+# ---------------------------------------------------------------------------
+# Ablation 1: direct extraction prompt
+# ---------------------------------------------------------------------------
+
+
+class DirectExtractionItemSchema(BaseModel):
+    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+
+    # Entity fields
+    name: str | None
+    identifiers: str | None
+    site_type: str | None
+    location: str | None
+    # Event fields
+    date: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+    additional_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
+
+
+
+_DIRECT_EXTRACTION_PROMPT = """Entity identification:
+Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
+
+Entity fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
+- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- location: the general geographic location of the site.
+
+Entity identification rules:
+- Treat sites as separate only if their geographic location clearly differs.
+- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each site and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
+- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
+- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
+- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "identifiers": "...",
+      "site_type": "...",
+      "location": "...",
+      "date": "...",
+      "nfix_method": "...",
+      "substrate_type": "...",
+      "sample_depth": "...",
+      "additional_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# ---------------------------------------------------------------------------
+# Ablation 2: combined entity-attribute extraction prompt
+# ---------------------------------------------------------------------------
+
+class Ablation2ObservationSchema(BaseModel):
+    """Entity schema for Ablation 2: one item per (site, attribute) pair."""
+
+    # Entity fields (same as ObservationSchema)
+    name: str | None
+    identifiers: str | None
+    site_type: str | None
+    location: str | None
+    # Reserved fields required by Ablation 2
+    attribute: str
+    attribute_terms: list[str]
+
+
+_ABLATION2_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
+
+A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Emit one item per (site, attribute) pair. If a site has multiple attributes measured, emit one item per attribute.
+
+IMPORTANT: Only emit a pair when a direct numerical measurement exists in the document for that site and attribute. Do NOT emit pairs where the only data is qualitative, model parameters, or goodness-of-fit statistics.
+
+
+Response schema:
+For each (site, attribute) pair, output one item with the following fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
+- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- location: the general geographic location of the site.
+- attribute: the exact attribute name from the list below.
+- attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
+
+
+Attributes to detect (use these exact names in the attribute field):
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol-N g-1 h-1, ug-N g-1 d-1, nmol-C2H4 g-1 h-1).
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1).
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1).
+
+
+Identification guidelines:
+- Treat sites as separate only if their geographic location clearly differs (different coordinates or explicitly described as distinct locations). Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths.
+- Multiple measurements of the same site for the same attribute should produce only one (site, attribute) pair — not one per measurement event.
+- Do NOT infer, guess, or derive any identifying information. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set its value to None.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "identifiers": "...",
+      "site_type": "...",
+      "location": "...",
+      "attribute": "...",
+      "attribute_terms": [...]
+    }
+  ]
+}
+- If no (site, attribute) pairs with direct numerical measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# ---------------------------------------------------------------------------
 # Paper filter
 # ---------------------------------------------------------------------------
 
@@ -366,8 +364,8 @@ CONFIG = DatasetConfig(
     name="nfix_ten",
     data_dir="data/nfix",
     metadata_file="data/nfix/directory.json",
-    entity_schema=ObservationSchema,
-    entity_identification_prompt=_IDENTIFICATION_PROMPT,
+    entity_schema=EntitySchema,
+    entity_identification_prompt=ENTITY_IDENTIFICATION_PROMPT,
     entity_type_description=(
         "A distinct dinitrogen fixation measurement site — a specific ecosystem or location "
         "identified by name, type, and coordinates."
@@ -383,6 +381,6 @@ CONFIG = DatasetConfig(
     paper_filter=_nfix_paper_filter,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=["location"],
+    judge_filter_fields=["location", "nfix_method", "substrate_type"], # leaving location, method, and substrate out of the judgement fields, since these seem to throw off the judgement when included -- possibly due to how the ground truth data formats / defines them. 
     ground_truth_file="data/nfix/ground_truth_ten_review.json",
 )

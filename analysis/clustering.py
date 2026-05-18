@@ -352,12 +352,6 @@ for PROBE_TYPE in ['layer', 'head']:
                                label='Probe'),
             'ext_random':  dict(color=palette[9], ls='-',  lw=3.0, alpha=0.85,
                                label='Random'),
-            #'syn_ntp':     dict(color=palette[7], ls='--', lw=2.0, alpha=0.85,
-            #                   label='Syn. NTP'),
-            #'syn_probe':   dict(color=palette[7], ls='-',  lw=2.0,
-            #                   label='Syn. Probe'),
-            #'syn_random':  dict(color=palette[7], ls=':',  lw=2.0, alpha=0.85,
-            #                   label='Syn. Random'),
         }
 
         fig, ax = plt.subplots(figsize=(3.5, 2.8))

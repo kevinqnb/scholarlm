@@ -1,23 +1,26 @@
-"""Shared data, prompt builders, and utilities for batch judging.
+"""Shared prompt builders and document-loading utilities for judge runners.
 
-All provider modules import from here so the prompt stays identical across
-OpenAI, Anthropic, and Gemini — making results directly comparable.
+All judge runner scripts (run_judge_interp.py, run_judge_local.py,
+validation.py) import from here so prompts are identical across backends.
 
-The key public functions are:
+Public API:
 
-    ``build_judge_query``   — builds the ## QUERY content (entity + attribute +
-                              value sections) without the document prefix.
-    ``build_user_prompt``   — wraps build_judge_query with the ## CONTEXT header
-                              to produce the full user message for chat-API runners.
-    ``prepare_chat_entries`` — converts raw extraction records to provider-agnostic
-                              chat entries sorted by document_id for cache locality.
-                              Each entry includes ``user_query`` and ``document_id``
-                              for use by the interpretability judge runner.
+    ``build_judge_query``         — builds the ## QUERY content (entity +
+                                    attribute + value sections) without the
+                                    document prefix.
+    ``prepare_chat_entries``      — converts raw extraction records to
+                                    provider-agnostic chat entries sorted by
+                                    document_id for cache locality.  Each entry
+                                    includes ``user_query`` and ``document_id``
+                                    for use by the interpretability judge runner.
+    ``load_documents_for_dataset`` — loads OCR text files applying the same
+                                    paper_filter and paper_subset as extraction.
+    ``extract_page_text``         — extracts specific page blocks from an OCR
+                                    document string.
 """
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -39,16 +42,15 @@ _DEBUG_PAPERS_LIMIT: int | None = 3
 _PAGE_BLOCK_RE = re.compile(r'<page number="(\d+)">.*?</page>', re.DOTALL)
 
 
-def _extract_page_text(document: str, page_numbers: list[int]) -> str:
+def extract_page_text(document: str, page_numbers: list[int]) -> str:
     """Extract specific pages from an OCR document.
 
-    OCR documents use ``<page number="N">...</page>`` blocks.  This returns the
-    blocks for the requested page numbers concatenated with a blank line between
-    them, preserving the original ``<page number="N">`` tags so the judge can
-    still orient itself within the document.
+    OCR documents use ``<page number="N">...</page>`` blocks.  Returns the
+    blocks for the requested page numbers concatenated with a blank line,
+    preserving the original tags so the judge can orient itself.
 
-    Falls back to the full document string if no ``<page number>`` tags are found
-    or if none of the requested pages exist.
+    Falls back to the full document if no ``<page number>`` tags are found or
+    none of the requested pages exist.
 
     Args:
         document: Full raw OCR document text.
@@ -86,9 +88,8 @@ def build_judge_query(
     """Build the ## QUERY content for the judge prompt.
 
     Returns the joined sections string that appears after ``## QUERY:`` in the
-    full prompt.  Both ``build_user_prompt`` and the interpretability judge
-    runner call this function so the query content is identical across all
-    judge runners.
+    full prompt.  All judge runners call this function so the query content is
+    identical across backends.
 
     Args:
         attribute_description: Full attribute description string.
@@ -129,7 +130,7 @@ def build_judge_query(
         event_display = {k: v for k, v in event_description.items() if v is not None}
         if event_display:
             sections.append(f"Measurement event information: {event_display}")
-    
+
     sections += [value_section, closing]
     return "\n\n".join(sections)
 
@@ -150,7 +151,7 @@ def prepare_chat_entries(
         system        – system prompt string (JUDGE_INSTRUCTIONS)
         user          – full user prompt string (## CONTEXT page text + ## QUERY)
         user_query    – the ## QUERY content only (for JudgementLM interp runner)
-        user_document – ## CONTEXT prefix only (used for Anthropic prompt caching)
+        user_document – ## CONTEXT prefix only (for prompt caching)
         page_text     – extracted page(s) text (for JudgementLM interp runner)
 
     Provenance fields (``source``, ``page_number``, ``table_number``) are stored
@@ -167,8 +168,7 @@ def prepare_chat_entries(
             measurement event schema.
 
     Returns:
-        List of chat entry dicts ready for any provider batch module or the
-        interpretability judge runner.
+        List of chat entry dicts ready for any judge runner.
     """
     _filter: set[str] = set(dataset_config.judge_filter_fields or [])
     _entity_fields: list[str] = [
@@ -213,26 +213,14 @@ def prepare_chat_entries(
 
         # Provenance fields are stored as lists in final.json — one element per
         # source occurrence (a value may appear in both prose and a table).
-        source_raw = entry.get("source", "text")
-        source_list: list[str] = source_raw if isinstance(source_raw, list) else [source_raw]
-
-        # page_number / table_number: keep all unique non-None values for
-        # page extraction and table identification.
         pn_raw = entry.get("page_number")
         page_numbers: list[int] = (
             [pn for pn in pn_raw if pn is not None]
             if isinstance(pn_raw, list)
             else ([pn_raw] if pn_raw is not None else [])
         )
-        tn_raw = entry.get("table_number")
-        table_numbers: list[int | None] = (
-            [tn for tn in tn_raw if tn is not None]
-            if isinstance(tn_raw, list)
-            else ([tn_raw] if tn_raw is not None else [])
-        )
 
-        # Extract only the relevant page(s) from the raw OCR document.
-        page_text = _extract_page_text(document, page_numbers)
+        page_text = extract_page_text(document, page_numbers)
 
         system = dataset_config.judge_instructions or JUDGE_INSTRUCTIONS
 
@@ -247,8 +235,6 @@ def prepare_chat_entries(
         )
 
         user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-        # Cached prefix for Anthropic — the page text shared across requests
-        # for the same source page.  OpenAI and Gemini ignore this field.
         user_document = f"## CONTEXT:\n{page_text}\n\n"
 
         if _DEBUG_PAPERS_LIMIT is None or papers_printed < _DEBUG_PAPERS_LIMIT:
@@ -269,24 +255,7 @@ def prepare_chat_entries(
     return entries
 
 
-# ─── I/O helpers ──────────────────────────────────────────────────────────────
-
-
-def load_data(input_file: str) -> list[dict]:
-    with open(input_file, "r") as f:
-        return json.load(f)
-
-
-def load_documents(ocr_directory: str) -> list[str]:
-    text_files = get_filenames_in_directory(
-        ocr_directory, ignore=[".DS_Store", ".gitkeep"]
-    )
-    text_files.sort()
-    documents: list[str] = []
-    for fname in text_files:
-        with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as f:
-            documents.append(f.read())
-    return documents
+# ─── Document loading ─────────────────────────────────────────────────────────
 
 
 def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str) -> dict[str, str]:
@@ -320,72 +289,6 @@ def load_documents_for_dataset(dataset_config: DatasetConfig, ocr_directory: str
     documents: dict[str, str] = {}
     for fname in text_files:
         paper_code = fname.replace(".txt", "")
-        with open(os.path.join(ocr_directory, fname), "r", encoding="utf-8") as fh:
+        with open(f"{ocr_directory}/{fname}", "r", encoding="utf-8") as fh:
             documents[paper_code] = fh.read()
     return documents
-
-
-def merge_results(data: list[dict], results: dict[str, dict]) -> list[dict]:
-    """Merge batch results back into data in the original input order."""
-    output = []
-    for i, entry in enumerate(data):
-        result = results.get(str(i), {})
-        output.append(
-            entry
-            | {
-                "judgement": result.get("judgement"),
-                "judgement_prob": result.get("prob"),
-                "judgement_model": result.get("model"),
-                "judgement_raw_text": result.get("raw_text"),
-            }
-        )
-    return output
-
-
-def normalize_bool_text(text: str | None) -> bool | None:
-    """Parse a model response into a boolean, or None if not parseable."""
-    if text is None:
-        return None
-    t = text.strip().lower()
-    if "true" in t:
-        return True
-    if "false" in t:
-        return False
-    return None
-
-
-def chunk_by_size(requests: list[dict], max_bytes: int) -> list[list[dict]]:
-    """Split requests into chunks so each chunk's JSONL serialization fits within max_bytes.
-
-    Size per record is estimated as len(json.dumps(r)) + 1 (the newline).
-    This is exact for JSONL-based providers (OpenAI, Gemini) and a close
-    approximation for JSON-array-based providers (Anthropic).
-    """
-    if max_bytes <= 0:
-        raise ValueError("max_bytes must be > 0")
-
-    chunks: list[list[dict]] = []
-    current: list[dict] = []
-    current_bytes = 0
-
-    for req in requests:
-        req_bytes = len(json.dumps(req, ensure_ascii=False).encode("utf-8")) + 1
-        if current and current_bytes + req_bytes > max_bytes:
-            chunks.append(current)
-            current = []
-            current_bytes = 0
-        current.append(req)
-        current_bytes += req_bytes
-
-    if current:
-        chunks.append(current)
-
-    return chunks
-
-
-def write_jsonl(records: list[dict], path: str | Path) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        for rec in records:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")

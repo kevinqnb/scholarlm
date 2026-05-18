@@ -11,6 +11,9 @@ data/experiments/
     ablations/ablation{N}/{model}/{YYYY_mm_dd}/
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/
+    synthetic_probe/{judge_model}/{judge_date}/
+    synthetic_probe/{judge_model}/trained_probe/
+    synthetic_probe_test/{judge_model}/{judge_date}/
     analysis/
     analysis/figures/
   cross_dataset/

@@ -6,8 +6,7 @@ Runs olmOCR on all PDF files for a dataset by calling a running vLLM server
 
     data/{dataset}/ocr_output_raw/
 
-Start the OCR model server first:
-    qsub experiments/serve_olmocr.sh
+Start the OCR model server first (default endpoint: ``http://localhost:8081/v1``).
 
 Use ``--resume`` to skip PDFs that already have a corresponding ``.txt`` file
 in the output directory.

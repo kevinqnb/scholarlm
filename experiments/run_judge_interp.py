@@ -51,7 +51,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "configs"
 _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
-sys.path.insert(0, str(_EXPERIMENTS_DIR))  # makes 'batch' importable
+sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -86,10 +86,10 @@ def run_interp_judge(
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
-    Prompts are built via ``batch.common.prepare_chat_entries`` — the same
-    function used by the local vLLM and frontier judge runners — so the query
-    content (entity description, attribute description, value/indices, closing
-    question) is identical across all judge backends.  JudgementLM receives
+    Prompts are built via ``judge_common.prepare_chat_entries`` — the same
+    function used by all judge runners — so the query content (entity
+    description, attribute description, value/units, closing question) is
+    identical across all judge backends.  JudgementLM receives
     the three parts separately as (instructions, context, query), which it
     wraps into a single user message internally.
 
@@ -118,13 +118,12 @@ def run_interp_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    from batch import common as batch_common
-    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    import judge_common
+    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
-    # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = batch_common.prepare_chat_entries(
+    chat_entries = judge_common.prepare_chat_entries(
         data, documents, dataset_config,
     )
 

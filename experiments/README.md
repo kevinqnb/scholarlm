@@ -1,58 +1,58 @@
-# Experiments Guide
+# Experiments
 
-All scripts are run from the **repository root**. Dataset and model registries are in
-`experiments/model_registry.py`; per-dataset configs in `experiments/configs/`.
+All scripts are run from the **repository root**. Per-dataset configs live in
+`experiments/configs/`; model keys are defined in `experiments/model_registry.py`.
 
-## End-to-end workflow
+## Scripts
+
+| Script | Purpose |
+|---|---|
+| `run_extraction.py` | Run the 7-step extraction pipeline |
+| `run_ablation.py` | Run an ablation variant (1–6) |
+| `run_table_cleaning.py` | Pre-clean OCR tables with a vLLM model |
+| `run_judge_interp.py` | Interpretability judge (NNsight, collects activations) |
+| `run_judge_local.py` | Local judge via vLLM server |
+| `run_judge_combine.py` | Majority-vote combination of judge outputs → `combined.json` |
+| `run_ocr.py` | Run OLMo-OCR on PDFs |
+| `process_pdfs.py` | Pre-process PDFs (requires separate environment) |
+| `validation.py` | Streamlit app for human validation of extraction results |
+
+## Serving a model
+
+`run_extraction.py`, `run_table_cleaning.py`, and `run_judge_local.py` require a
+running vLLM server. All three default to the endpoint `http://localhost:8081/v1`; pass
+`--api-base` to use a different endpoint. `gen_serve_script.py` can generate
+model-specific serve scripts for your environment.
+
+## Basic workflow
 
 ```bash
-# 1. Extract
+# Extract
 python experiments/run_extraction.py --dataset pond --model gemma-3-27b
+# If the server is not at the default endpoint:
+python experiments/run_extraction.py --dataset pond --model gemma-3-27b \
+    --api-base http://<host>:8081/v1
 
-# 2. Judge (frontier, async — submit all three providers)
-python experiments/run_judge_frontier_v2.py \
-    --dataset pond --extraction-model gemma-3-27b \
-    --judge openai --frontier-model gpt-4o-mini --extraction-date 2026_04_01
-python experiments/run_judge_frontier_v2.py \
-    --dataset pond --extraction-model gemma-3-27b \
-    --judge anthropic --frontier-model claude-haiku-4-5-20251001 --extraction-date 2026_04_01
-python experiments/run_judge_frontier_v2.py \
-    --dataset pond --extraction-model gemma-3-27b \
-    --judge gemini --frontier-model gemini-2.5-flash-lite --extraction-date 2026_04_01
-
-# 3. Combine frontier judges into ground-truth labels
-python experiments/run_judge_combine.py \
-    --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01
-
-# 4. Interpretability judge (required for probe analysis)
+# Judge (run one or more; use --extraction-date to pin a run)
 python experiments/run_judge_interp.py \
     --dataset pond --extraction-model gemma-3-27b \
     --judge llama-3.1-8b --extraction-date 2026_04_01
+python experiments/run_judge_local.py \
+    --dataset pond --extraction-model gemma-3-27b \
+    --judge llama-3.3-70b --extraction-date 2026_04_01
 
-# 5. Analysis
-python experiments/run_analysis.py probe-heatmap \
-    --dataset pond \
-    --extraction-models gemma-3-27b \
-    --extraction-dates 2026_04_01 \
-    --judge-models llama-3.1-8b
+# Combine judge outputs
+python experiments/run_judge_combine.py \
+    --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01
 ```
 
 ## Ablations
 
 ```bash
-# Run ablation N (1–6)
 python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2
 
-# Judge ablation outputs (same flags as standard judging, add --ablation N)
-python experiments/run_judge_frontier_v2.py \
+# Judge an ablation run (add --ablation N to any judge command)
+python experiments/run_judge_interp.py \
     --dataset pond --extraction-model gemma-3-27b \
-    --judge openai --frontier-model gpt-4o-mini \
-    --extraction-date 2026_04_01 --ablation 2
+    --judge llama-3.1-8b --extraction-date 2026_04_01 --ablation 2
 ```
-
-## Notes
-
-- `run_judge_regex.py` uses heuristic regex matching rather than an LLM. Its output is
-  excluded from majority-vote combination — use it for diagnostic analysis only.
-- `run_judge_frontier.py` (batch API) is cost-effective for large runs but currently
-  needs debugging; prefer `run_judge_frontier_v2.py` for standard use.

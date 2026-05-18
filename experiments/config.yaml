@@ -186,29 +186,6 @@ models:
       walltime: "24:00:00"
       omp: 8
 
-  # Frontier models (no serve config — these hit external APIs directly)
-  gpt-5-mini:
-    model_id: gpt-5-mini
-    hf_revision: null
-    sampling_params:
-      max_completion_tokens: 8192
-
-  gemini-3-flash-lite:
-    model_id: gemini-3.1-flash-lite-preview
-    hf_revision: null
-    sampling_params:
-      temperature: 0.6
-      top_p: 0.95
-      max_tokens: 8192
-
-  gemini-3-flash:
-    model_id: gemini-3-flash-preview
-    hf_revision: null
-    sampling_params:
-      temperature: 0.6
-      top_p: 0.95
-      max_tokens: 8192
-
 # Mechanistic interpretability models:
 interp_judges:
   llama-3.1-8b:
