@@ -34,7 +34,7 @@ mpl.rcParams.update({
     "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "cm",
     "text.usetex": False,
-    "font.size": 13, "axes.labelsize": 13, "axes.titlesize": 13,
+    "font.size": 15, "axes.labelsize": 15, "axes.titlesize": 15,
     "xtick.labelsize": 11, "ytick.labelsize": 11,
     "legend.fontsize": 13, "legend.title_fontsize": 13,
     "axes.linewidth": 0.6,
