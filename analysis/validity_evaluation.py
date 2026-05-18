@@ -3,7 +3,7 @@ Evaluate validity assessment methods for ScholarlM extractions.
 
 Arm 1 (--synthetic): judge models vs known labels in probe_dataset_test.json.
 Arm 2 (--human):     match / voted-judge / combined vs human labels from validation.py.
-Threshold sweep (--plot): accuracy/precision/recall/F1 vs fuzzy threshold for match_or_judge.
+Threshold sweep (--plot): accuracy/precision/recall/F1 vs fuzzy threshold for match only.
 
 Both evaluation arms run by default; pass --synthetic or --human to run only one.
 
@@ -231,7 +231,7 @@ def plot_threshold_sweep(
     extraction_model: str = "gemma-3-27b",
     thresholds: np.ndarray | None = None,
 ) -> "matplotlib.figure.Figure":
-    """Plot match_or_judge metrics vs fuzzy threshold, evaluated against human labels.
+    """Plot match-only metrics vs fuzzy threshold, evaluated against human labels.
 
     Runs matching once (threshold=0) to collect all edge weights, then re-thresholds
     cheaply across the sweep. Vertical dashed line marks the current threshold from
@@ -274,20 +274,7 @@ def plot_threshold_sweep(
             print(f"  [WARN] Matching failed for {dataset}: {e}")
             continue
 
-        # Load combined judge labels
-        try:
-            with open(paths.find_combined(dataset, extraction_model, ext_date)) as f:
-                combined_by_id = {r["measurement_id"]: r for r in json.load(f)}
-            raw = [combined_by_id.get(r["measurement_id"], {}).get("judgement_combined") for r in human_records]
-            valid_mask = np.array([j is not None for j in raw])
-            judge_labels = np.array([bool(j) if j is not None else False for j in raw])
-        except FileNotFoundError:
-            print(f"  [WARN] No combined.json for {dataset}, plotting match-only sweep")
-            valid_mask = np.ones(len(human_records), dtype=bool)
-            judge_labels = np.zeros(len(human_records), dtype=bool)
-
-        # Pre-compute per-extraction edge mask for each threshold
-        # ex_best_weight[ex_idx] = max edge weight for that extraction (0 if no edges)
+        # Pre-compute max edge weight per extraction (0 if no edges)
         ex_best_weight = np.zeros(len(ext_df))
         for i, (_, ex_idx) in enumerate(edges):
             ex_best_weight[ex_idx] = max(ex_best_weight[ex_idx], edge_weights[i])
@@ -296,8 +283,7 @@ def plot_threshold_sweep(
         metrics = {m: [] for m in ["accuracy", "precision", "recall", "f1"]}
         for t in thresholds:
             match_labels = ex_best_weight > t
-            combined = (match_labels | judge_labels)[valid_mask]
-            m = _binary_metrics(y_human[valid_mask], combined)
+            m = _binary_metrics(y_human, match_labels)
             for key in metrics:
                 metrics[key].append(m[key])
 
@@ -351,7 +337,7 @@ def main(argv=None):
     p.add_argument("--synthetic", action="store_true", default=False)
     p.add_argument("--human", action="store_true", default=False)
     p.add_argument("--plot", action="store_true", default=False,
-                   help="Plot match_or_judge metrics vs fuzzy threshold and save figure.")
+                   help="Plot match-only metrics vs fuzzy threshold and save figure.")
     p.add_argument("--plot-output", default="analysis/out/threshold_sweep.pdf", metavar="PATH",
                    help="Output path for the threshold sweep figure (default: analysis/out/threshold_sweep.pdf).")
     p.add_argument("--output", default=None, metavar="CSV")
