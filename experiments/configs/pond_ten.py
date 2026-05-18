@@ -378,8 +378,8 @@ _TOP_PAPERS = [
 
 CONFIG = DatasetConfig(
     name="pond_ten",
-    data_dir="data/pond",
-    metadata_file="data/pond/directory.json",
+    data_dir="data/pond_ten",
+    metadata_file="data/pond_ten/directory.json",
     entity_schema=EntitySchema,
     entity_identification_prompt=ENTITY_IDENTIFICATION_PROMPT,
     entity_type_description=(
@@ -397,7 +397,7 @@ CONFIG = DatasetConfig(
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     judge_filter_fields=["location"], # leaving location out of the judgement fields, since it's often not explicitly stated in the text and can be ambiguous.
-    ground_truth_file="data/pond/ground_truth_ten_review.json",
+    ground_truth_file="data/pond_ten/ground_truth_ten_review.json",
     # Note: these unit conversions are not currently in use, since the ground truth file has 
     # been converted back to original units.
     unit_conversion_table={
