@@ -342,6 +342,60 @@ def find_synthetic_responses(
     )
 
 
+def find_human_responses(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str | None = None,
+    judge_date: str | None = None,
+) -> tuple[Path, str]:
+    """Return (path to human responses.json, resolved extraction_date).
+
+    Searches for the most-recent (or date-pinned) human validation run.
+
+    Raises:
+        FileNotFoundError: If no matching responses.json exists.
+    """
+    base = EXPERIMENTS_ROOT / dataset / "judge" / extraction_model
+
+    if not base.exists():
+        raise FileNotFoundError(
+            f"No judge directory for dataset='{dataset}' model='{extraction_model}': {base}"
+        )
+
+    if extraction_date is None:
+        for ext_dir in sorted(base.iterdir(), reverse=True):
+            human_dir = ext_dir / "human"
+            if not human_dir.exists():
+                continue
+            for date_dir in sorted(human_dir.iterdir(), reverse=True):
+                candidate = date_dir / "responses.json"
+                if candidate.exists():
+                    return candidate, ext_dir.name
+        raise FileNotFoundError(
+            f"No human responses.json for dataset='{dataset}' model='{extraction_model}' under {base}"
+        )
+
+    human_dir = base / extraction_date / "human"
+    if not human_dir.exists():
+        raise FileNotFoundError(f"No human judge directory: {human_dir}")
+
+    if judge_date is not None:
+        candidate = human_dir / judge_date / "responses.json"
+        if candidate.exists():
+            return candidate, extraction_date
+        raise FileNotFoundError(f"Human responses not found: {candidate}")
+
+    for date_dir in sorted(human_dir.iterdir(), reverse=True):
+        candidate = date_dir / "responses.json"
+        if candidate.exists():
+            return candidate, extraction_date
+
+    raise FileNotFoundError(
+        f"No human responses.json for dataset='{dataset}' "
+        f"model='{extraction_model}' extraction_date='{extraction_date}' under {human_dir}"
+    )
+
+
 def find_combined(
     dataset: str,
     extraction_model: str,

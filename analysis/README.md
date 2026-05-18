@@ -11,8 +11,9 @@ analysis/
   __init__.py
   loaders.py          — load experiment outputs by (dataset, model, date)
   metrics.py          — recovery rate, hallucination rate, per-paper summaries
-  ablation.py         - computes recovery and validity rates for extracted data (over ablations)
-  synthetic_probe_train.py - trains and pre-calibrates the synthetic probe models
+  ablation.py              — computes recovery and validity rates for extracted data (over ablations)
+  validity_evaluation.py   — evaluate validity assessment methods (synthetic + human arms)
+  synthetic_probe_train.py — trains and pre-calibrates the synthetic probe models
   calibration.py      - evaluates the trained probe / NTP models on test data
   clustering.py       - trains and evaluates a downstream clustering model
 ```
