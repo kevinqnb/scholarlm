@@ -73,7 +73,7 @@ models:
       gpu_memory_utilization: 0.90
       quantization: awq_marlin
       dtype: bfloat16
-      sif_image: vllm-openai_v0.19.0.sif
+      sif_image: vllm-openai_v0.10.1.sif
       gpu_memory: 48G
       gpu_capability: 8.9
       walltime: "48:00:00"
