@@ -54,10 +54,6 @@ python experiments/run_judge_interp.py \
     --judge llama-3.1-8b --extraction-date 2026_04_01
 ```
 
-### Analysis Notebooks
-- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
-- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
-
 
 ## License
 
