@@ -3,14 +3,16 @@ Evaluate validity assessment methods for ScholarlM extractions.
 
 Arm 1 (--synthetic): judge models vs known labels in probe_dataset_test.json.
 Arm 2 (--human):     match / voted-judge / combined vs human labels from validation.py.
+Threshold sweep (--plot): accuracy/precision/recall/F1 vs fuzzy threshold for match_or_judge.
 
-Both arms run by default; pass --synthetic or --human to run only one.
+Both evaluation arms run by default; pass --synthetic or --human to run only one.
 
 Usage
 -----
     python analysis/validity_evaluation.py
     python analysis/validity_evaluation.py --synthetic
     python analysis/validity_evaluation.py --human --extraction-model gemma-3-27b
+    python analysis/validity_evaluation.py --plot --plot-output analysis/out/threshold_sweep.pdf
     python analysis/validity_evaluation.py --output results.csv
 """
 from __future__ import annotations
@@ -203,6 +205,136 @@ def evaluate_human(datasets: list[str], extraction_model: str = "gemma-3-27b") -
 
 
 # ---------------------------------------------------------------------------
+# Threshold sweep plot
+# ---------------------------------------------------------------------------
+
+_PLOT_STYLE = {
+    "font.family": "serif",
+    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "cm",
+    "text.usetex": False,
+    "font.size": 13, "axes.labelsize": 13, "axes.titlesize": 13,
+    "xtick.labelsize": 10, "ytick.labelsize": 10,
+    "legend.fontsize": 10,
+    "axes.linewidth": 0.6,
+    "xtick.direction": "in", "ytick.direction": "in",
+    "xtick.major.size": 3, "ytick.major.size": 3,
+    "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+    "lines.linewidth": 1.4,
+    "legend.frameon": False,
+    "figure.dpi": 150,
+}
+
+
+def plot_threshold_sweep(
+    datasets: list[str],
+    extraction_model: str = "gemma-3-27b",
+    thresholds: np.ndarray | None = None,
+) -> "matplotlib.figure.Figure":
+    """Plot match_or_judge metrics vs fuzzy threshold, evaluated against human labels.
+
+    Runs matching once (threshold=0) to collect all edge weights, then re-thresholds
+    cheaply across the sweep. Vertical dashed line marks the current threshold from
+    get_matching_rules.
+
+    Returns a matplotlib Figure with one subplot per dataset.
+    """
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    if thresholds is None:
+        thresholds = np.linspace(0, 1, 101)
+
+    # Collect sweep data per dataset
+    dataset_results: dict[str, dict] = {}  # dataset -> {thresholds, metrics_dict, current_threshold}
+
+    for dataset in datasets:
+        try:
+            responses_path, ext_date = paths.find_human_responses(dataset, extraction_model)
+        except FileNotFoundError as e:
+            print(f"  [SKIP] {e}")
+            continue
+
+        with open(responses_path) as f:
+            human_records = [r for r in json.load(f) if r.get("judgement") is not None]
+        if not human_records:
+            continue
+
+        human_df = pd.DataFrame(human_records)
+        y_human = human_df["judgement"].to_numpy(bool)
+
+        # Run matching once at threshold=0 to capture all edges
+        try:
+            config = load_dataset_config(dataset)
+            gt_df = load_ground_truth(config)
+            strict, fuzzy, current_threshold = get_matching_rules(dataset)
+            ext_df = process_extraction_df(human_df.copy(), dataset, config)
+            _, edges, edge_weights = cached_match(gt_df, ext_df, strict_matching=strict, fuzzy_matching=fuzzy)
+        except Exception as e:
+            print(f"  [WARN] Matching failed for {dataset}: {e}")
+            continue
+
+        # Load combined judge labels
+        try:
+            with open(paths.find_combined(dataset, extraction_model, ext_date)) as f:
+                combined_by_id = {r["measurement_id"]: r for r in json.load(f)}
+            raw = [combined_by_id.get(r["measurement_id"], {}).get("judgement_combined") for r in human_records]
+            valid_mask = np.array([j is not None for j in raw])
+            judge_labels = np.array([bool(j) if j is not None else False for j in raw])
+        except FileNotFoundError:
+            print(f"  [WARN] No combined.json for {dataset}, plotting match-only sweep")
+            valid_mask = np.ones(len(human_records), dtype=bool)
+            judge_labels = np.zeros(len(human_records), dtype=bool)
+
+        # Pre-compute per-extraction edge mask for each threshold
+        # ex_best_weight[ex_idx] = max edge weight for that extraction (0 if no edges)
+        ex_best_weight = np.zeros(len(ext_df))
+        for i, (_, ex_idx) in enumerate(edges):
+            ex_best_weight[ex_idx] = max(ex_best_weight[ex_idx], edge_weights[i])
+
+        # Sweep
+        metrics = {m: [] for m in ["accuracy", "precision", "recall", "f1"]}
+        for t in thresholds:
+            match_labels = ex_best_weight > t
+            combined = (match_labels | judge_labels)[valid_mask]
+            m = _binary_metrics(y_human[valid_mask], combined)
+            for key in metrics:
+                metrics[key].append(m[key])
+
+        dataset_results[dataset] = {
+            "thresholds": thresholds,
+            "metrics": metrics,
+            "current_threshold": current_threshold,
+        }
+
+    if not dataset_results:
+        raise RuntimeError("No data available for threshold sweep — run human validation first.")
+
+    with plt.rc_context(_PLOT_STYLE):
+        n = len(dataset_results)
+        fig, axes = plt.subplots(1, n, figsize=(4.2 * n, 3.6), squeeze=False)
+
+        line_styles = {"accuracy": "-", "precision": "--", "recall": ":", "f1": "-."}
+        colors = {"accuracy": "C0", "precision": "C1", "recall": "C2", "f1": "C3"}
+
+        for ax, (dataset, res) in zip(axes[0], dataset_results.items()):
+            t = res["thresholds"]
+            for metric, vals in res["metrics"].items():
+                ax.plot(t, vals, linestyle=line_styles[metric], color=colors[metric], label=metric)
+            ax.axvline(res["current_threshold"], color="black", linewidth=0.8, linestyle="--",
+                       label=f"current ({res['current_threshold']:.3f})")
+            ax.set_xlabel("Fuzzy threshold")
+            ax.set_ylabel("Score")
+            ax.set_title(dataset)
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.legend()
+
+        fig.tight_layout()
+    return fig
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -218,11 +350,15 @@ def main(argv=None):
     p.add_argument("--extraction-model", default="gemma-3-27b")
     p.add_argument("--synthetic", action="store_true", default=False)
     p.add_argument("--human", action="store_true", default=False)
+    p.add_argument("--plot", action="store_true", default=False,
+                   help="Plot match_or_judge metrics vs fuzzy threshold and save figure.")
+    p.add_argument("--plot-output", default="analysis/out/threshold_sweep.pdf", metavar="PATH",
+                   help="Output path for the threshold sweep figure (default: analysis/out/threshold_sweep.pdf).")
     p.add_argument("--output", default=None, metavar="CSV")
     args = p.parse_args(argv)
 
-    run_synthetic = args.synthetic or not args.human
-    run_human = args.human or not args.synthetic
+    run_synthetic = args.synthetic or (not args.human and not args.plot)
+    run_human = args.human or (not args.synthetic and not args.plot)
 
     all_frames = []
 
@@ -239,6 +375,16 @@ def main(argv=None):
         print(_fmt(df))
         if not df.empty:
             all_frames.append(df.assign(arm="human"))
+
+    if args.plot:
+        import matplotlib.pyplot as plt
+        print("\n=== Threshold sweep ===")
+        fig = plot_threshold_sweep(args.datasets, extraction_model=args.extraction_model)
+        out = Path(args.plot_output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, bbox_inches="tight", dpi=300)
+        print(f"Saved to {out}")
+        plt.show()
 
     if args.output and all_frames:
         out = Path(args.output)
