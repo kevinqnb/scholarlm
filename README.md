@@ -1,12 +1,12 @@
 # ScholarlM :microscope: :books:
 
-Extract structured (entity, attribute, value) triplets from scientific PDFs using large language models.
-Supports API-backed models (Anthropic, OpenAI, Gemini) and local open-source models via vLLM.
+Extract structured measurements from scientific PDFs using large language models.
+Supports local open-source models via vLLM.
 
 Core capabilities:
 - **Document OCR** — convert PDF pages to markdown text with HTML table extraction
 - **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
-- **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
+- **Judgement** - Judge and assign confidence scores to extracted data
 
 <div align="center">
   <img src="figures/extraction_flowchart.svg" alt="Extraction Flowchart" width="500">

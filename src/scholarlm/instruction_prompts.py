@@ -331,9 +331,6 @@ Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous.
 Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
 """
 
-# (A) The entity is real and distinct. It corresponds to an actual instance of the specified entity type in the document context — not something hypothetical, aggregated, or ambiguously described. An entity may be identified by an abbreviation or code; match it against the name or identifiers fields in the extracted entity description.
-# (F) The units are correct. The units match those reported in the document for that value. Accept notational variants (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"). Do not accept units that would require conversion to match (e.g., mg/L vs g/L, ha vs m²).
-# Prefer 'false' when uncertain — the goal is high precision.
 
 # --------------------------------------------
 # Table Cleaning
