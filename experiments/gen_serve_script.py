@@ -66,33 +66,6 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
     sge_project_line = f"#$ -P {sge_project}\n" if sge_project else ""
 
     # -----------------------------------------------------------------------
-    # GPU check block:
-    #   AWQ marlin models → abort on A100 (silent degradation, not an error)
-    #   All other models   → just capture GPU name for logging
-    # -----------------------------------------------------------------------
-    if quantization == "awq_marlin":
-        gpu_check_block = (
-            "# ---------------------------------------------------------------------------\n"
-            "# A100 compatibility check\n"
-            "#\n"
-            f"# {model_id} uses AWQ marlin quantization, which produces silently\n"
-            "# degraded output on A100 GPUs due to a kernel incompatibility.\n"
-            "# Abort early rather than producing unreliable results.\n"
-            "# ---------------------------------------------------------------------------\n"
-            'GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)\n'
-            'if echo "$GPU_NAME" | grep -qi "A100"; then\n'
-            '    echo "ERROR: ${MODEL} is incompatible with A100 GPUs (AWQ marlin kernel issue)."\n'
-            '    echo "GPU detected: ${GPU_NAME}"\n'
-            '    echo "Resubmit on a node with H100 or newer, or switch to an FP16/FP8 variant."\n'
-            '    exit 1\n'
-            'fi\n'
-        )
-    else:
-        gpu_check_block = (
-            "GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)\n"
-        )
-
-    # -----------------------------------------------------------------------
     # vLLM server flags
     # -----------------------------------------------------------------------
     vllm_flags: list[str] = [
@@ -174,7 +147,6 @@ HOSTNAME_FULL="$(hostname)"
 echo "${{HOSTNAME_FULL}}:${{PORT}}" > "$ENDPOINT_FILE"
 echo "Wrote endpoint: ${{HOSTNAME_FULL}}:${{PORT}} → ${{ENDPOINT_FILE}}"
 
-{gpu_check_block}
 echo "============================================"
 echo "  Job ID:      ${{JOB_ID}}"
 echo "  Node:        $(hostname)"

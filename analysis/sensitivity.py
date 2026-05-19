@@ -45,18 +45,18 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 # ── Parameters ────────────────────────────────────────────────────────────────
 DATASETS         = ['pond', 'nfix']
 EXTRACTION_MODEL = 'gemma-3-27b'
-JUDGE_MODELS     = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
+JUDGE_MODELS     = ['qwen-2.5-7b']#['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
 PROBE_TYPE       = "head"
 
 JUDGE_DATES_SYN = {
     'pond': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b':   '2026_05_04',
+        #'llama-3.1-8b': '2026_05_04',
+        #'mistral-7b':   '2026_05_04',
         'qwen-2.5-7b':  '2026_05_04',
     },
     'nfix': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b':   '2026_05_04',
+        #'llama-3.1-8b': '2026_05_04',
+        #'mistral-7b':   '2026_05_04',
         'qwen-2.5-7b':  '2026_05_04',
     },
 }
@@ -201,7 +201,7 @@ def plot_sensitivity(all_results: dict):
 
         ax.set_xlabel(r'Noise level $p$')
         ax.set_ylabel('ECE')
-        ax.set_xlim(-0.02, 1.02)
+        ax.set_xlim(-0.02, 0.52)
         ax.set_ylim(bottom=0.0)
         ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
         ax.set_axisbelow(True)

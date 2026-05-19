@@ -117,6 +117,13 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             "enable_thinking": False,
         },
     ),
+    # --- Frontier models (api_base set; runners skip --api-base and vLLM extra_body) ---
+    "gpt-5-mini": ModelConfig(
+        name="gpt-5-mini",
+        model_id="gpt-5-mini",
+        api_base="https://api.openai.com/v1",
+        sampling_params={"max_completion_tokens": 8192},
+    ),
 }
 
 

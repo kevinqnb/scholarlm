@@ -169,6 +169,7 @@ experiments/*/*/*/out/*
 *.sh
 
 analysis/*.npy
+analysis/ablation2.py
 
 data/experiments/*/*
 
