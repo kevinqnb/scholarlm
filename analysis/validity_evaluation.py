@@ -338,8 +338,8 @@ def main(argv=None):
     p.add_argument("--human", action="store_true", default=False)
     p.add_argument("--plot", action="store_true", default=False,
                    help="Plot match-only metrics vs fuzzy threshold and save figure.")
-    p.add_argument("--plot-output", default="analysis/out/threshold_sweep.pdf", metavar="PATH",
-                   help="Output path for the threshold sweep figure (default: analysis/out/threshold_sweep.pdf).")
+    p.add_argument("--plot-output", default="figures/threshold_sweep.pdf", metavar="PATH",
+                   help="Output path for the threshold sweep figure (default: figures/threshold_sweep.pdf).")
     p.add_argument("--output", default=None, metavar="CSV")
     args = p.parse_args(argv)
 
