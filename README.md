@@ -41,7 +41,7 @@ sources which these datasets originated from:
 
 
 In addition, we share pre-processed reviewed datasets for [PLW](data/pond/ground_truth_review.json) and [NF](data/pond/ground_truth_review.json), which 
-are used for comparison against our extracted data. In addition, we share a sample extracted dataset from `gemma-3-27b`. 
+are used for comparison against our extracted data. In addition, we share a sample [extracted dataset](data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json) from `gemma-3-27b`. 
 
 ## Prompts, Schemas, and Configs
 The core set of [prompts](src/scholarlm/instruction_prompts.py) for all experiments is shared, as well as complete schemas for both [PLW](experiments/configs/pond.py) and [NF](experiments/configs/nfix.py)
