@@ -11,7 +11,7 @@ Usage
 -----
     python analysis/validity_evaluation.py
     python analysis/validity_evaluation.py --synthetic
-    python analysis/validity_evaluation.py --human --extraction-model gemma-3-27b
+    python analysis/validity_evaluation.py --human --extraction-model gemma-3-27b --extraction-dates 2026_04_01 2026_05_01
     python analysis/validity_evaluation.py --plot --plot-output analysis/out/threshold_sweep.pdf
     python analysis/validity_evaluation.py --output results.csv
 """
@@ -124,11 +124,18 @@ def evaluate_synthetic(datasets: list[str]) -> pd.DataFrame:
 # Arm 2: Human
 # ---------------------------------------------------------------------------
 
-def evaluate_human(datasets: list[str], extraction_model: str = "gemma-3-27b") -> pd.DataFrame:
+def evaluate_human(
+    datasets: list[str],
+    extraction_model: str = "gemma-3-27b",
+    extraction_dates: dict[str, str | None] | None = None,
+) -> pd.DataFrame:
     rows = []
     for dataset in datasets:
+        ext_date_hint = (extraction_dates or {}).get(dataset)
         try:
-            responses_path, ext_date = paths.find_human_responses(dataset, extraction_model)
+            responses_path, ext_date = paths.find_human_responses(
+                dataset, extraction_model, extraction_date=ext_date_hint
+            )
         except FileNotFoundError as e:
             print(f"  [SKIP] {e}")
             continue
@@ -229,6 +236,7 @@ _PLOT_STYLE = {
 def plot_threshold_sweep(
     datasets: list[str],
     extraction_model: str = "gemma-3-27b",
+    extraction_dates: dict[str, str | None] | None = None,
     thresholds: np.ndarray | None = None,
 ) -> "matplotlib.figure.Figure":
     """Plot match-only metrics vs fuzzy threshold, evaluated against human labels.
@@ -249,8 +257,11 @@ def plot_threshold_sweep(
     dataset_results: dict[str, dict] = {}  # dataset -> {thresholds, metrics_dict, current_threshold}
 
     for dataset in datasets:
+        ext_date_hint = (extraction_dates or {}).get(dataset)
         try:
-            responses_path, ext_date = paths.find_human_responses(dataset, extraction_model)
+            responses_path, ext_date = paths.find_human_responses(
+                dataset, extraction_model, extraction_date=ext_date_hint
+            )
         except FileNotFoundError as e:
             print(f"  [SKIP] {e}")
             continue
@@ -333,6 +344,8 @@ def _fmt(df: pd.DataFrame) -> str:
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--datasets", nargs="+", default=["pond", "nfix"])
+    p.add_argument("--extraction-dates", nargs="+", default=None, metavar="DATE",
+                   help="Extraction dates, one per dataset in the same order as --datasets.")
     p.add_argument("--extraction-model", default="gemma-3-27b")
     p.add_argument("--synthetic", action="store_true", default=False)
     p.add_argument("--human", action="store_true", default=False)
@@ -342,6 +355,10 @@ def main(argv=None):
                    help="Output path for the threshold sweep figure (default: figures/threshold_sweep.pdf).")
     p.add_argument("--output", default=None, metavar="CSV")
     args = p.parse_args(argv)
+
+    if args.extraction_dates and len(args.extraction_dates) != len(args.datasets):
+        p.error(f"--extraction-dates length ({len(args.extraction_dates)}) must match --datasets length ({len(args.datasets)})")
+    ext_dates = dict(zip(args.datasets, args.extraction_dates)) if args.extraction_dates else None
 
     run_synthetic = args.synthetic or (not args.human and not args.plot)
     run_human = args.human or (not args.synthetic and not args.plot)
@@ -357,7 +374,7 @@ def main(argv=None):
 
     if run_human:
         print("\n=== Human validation evaluation ===")
-        df = evaluate_human(args.datasets, extraction_model=args.extraction_model)
+        df = evaluate_human(args.datasets, extraction_model=args.extraction_model, extraction_dates=ext_dates)
         print(_fmt(df))
         if not df.empty:
             all_frames.append(df.assign(arm="human"))
@@ -365,7 +382,7 @@ def main(argv=None):
     if args.plot:
         import matplotlib.pyplot as plt
         print("\n=== Threshold sweep ===")
-        fig = plot_threshold_sweep(args.datasets, extraction_model=args.extraction_model)
+        fig = plot_threshold_sweep(args.datasets, extraction_model=args.extraction_model, extraction_dates=ext_dates)
         out = Path(args.plot_output)
         out.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, bbox_inches="tight", dpi=300)
