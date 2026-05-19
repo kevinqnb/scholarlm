@@ -142,13 +142,14 @@ def sensitivity_ece(
 
 
 def compute_sensitivity(judge_model: str) -> dict:
-    """Compute within- and cross-domain sensitivity curves, averaged over dataset pairs."""
-    within_probe_means, within_probe_stds = [], []
-    within_ntp_means,   within_ntp_stds   = [], []
-    cross_probe_means,  cross_probe_stds  = [], []
-    cross_ntp_means,    cross_ntp_stds    = [], []
-
+    """Compute within- and cross-domain sensitivity curves per training dataset."""
+    results = {}
     for train_ds in DATASETS:
+        within_probe_means, within_probe_stds = [], []
+        within_ntp_means,   within_ntp_stds   = [], []
+        cross_probe_means,  cross_probe_stds  = [], []
+        cross_ntp_means,    cross_ntp_stds    = [], []
+
         for test_ds in DATASETS:
             print(f'  {train_ds} → {test_ds}', flush=True)
             probe_probs, ntp_probs, labels = load_syn_predictions(judge_model, train_ds, test_ds)
@@ -162,16 +163,17 @@ def compute_sensitivity(judge_model: str) -> dict:
                 cross_probe_means.append(p_mean);  cross_probe_stds.append(p_std)
                 cross_ntp_means.append(n_mean);    cross_ntp_stds.append(n_std)
 
-    return {
-        'within_probe_mean': np.mean(within_probe_means, axis=0),
-        'within_probe_std':  np.mean(within_probe_stds,  axis=0),
-        'within_ntp_mean':   np.mean(within_ntp_means,   axis=0),
-        'within_ntp_std':    np.mean(within_ntp_stds,    axis=0),
-        'cross_probe_mean':  np.mean(cross_probe_means,  axis=0),
-        'cross_probe_std':   np.mean(cross_probe_stds,   axis=0),
-        'cross_ntp_mean':    np.mean(cross_ntp_means,    axis=0),
-        'cross_ntp_std':     np.mean(cross_ntp_stds,     axis=0),
-    }
+        results[train_ds] = {
+            'within_probe_mean': np.mean(within_probe_means, axis=0),
+            'within_probe_std':  np.mean(within_probe_stds,  axis=0),
+            'within_ntp_mean':   np.mean(within_ntp_means,   axis=0),
+            'within_ntp_std':    np.mean(within_ntp_stds,    axis=0),
+            'cross_probe_mean':  np.mean(cross_probe_means,  axis=0),
+            'cross_probe_std':   np.mean(cross_probe_stds,   axis=0),
+            'cross_ntp_mean':    np.mean(cross_ntp_means,    axis=0),
+            'cross_ntp_std':     np.mean(cross_ntp_stds,     axis=0),
+        }
+    return results
 
 
 # ── Plotting ──────────────────────────────────────────────────────────────────
@@ -182,32 +184,33 @@ def _plot_curve(ax, x, mean, std, color, linestyle, lw, zorder):
 
 def plot_sensitivity(all_results: dict):
     for judge_model in JUDGE_MODELS:
-        print(f'Plotting {judge_model}...')
-        res = all_results[judge_model]
+        for train_ds in DATASETS:
+            print(f'Plotting {judge_model} / train={train_ds}...')
+            res = all_results[judge_model][train_ds]
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        subfigure_dir.mkdir(parents=True, exist_ok=True)
+            subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{train_ds}/"
+            subfigure_dir.mkdir(parents=True, exist_ok=True)
 
-        fig, ax = plt.subplots(figsize=(4.5, 3.8))
+            fig, ax = plt.subplots(figsize=(4.5, 3.8))
 
-        _plot_curve(ax, P_VALUES, res['within_probe_mean'], res['within_probe_std'],
-                    COLOR_WITHIN, '-',  lw=2.5, zorder=5)
-        _plot_curve(ax, P_VALUES, res['cross_probe_mean'],  res['cross_probe_std'],
-                    COLOR_CROSS,  '-',  lw=2.5, zorder=5)
-        _plot_curve(ax, P_VALUES, res['within_ntp_mean'],   res['within_ntp_std'],
-                    COLOR_WITHIN, '--', lw=2.0, zorder=3)
-        _plot_curve(ax, P_VALUES, res['cross_ntp_mean'],    res['cross_ntp_std'],
-                    COLOR_CROSS,  '--', lw=2.0, zorder=3)
+            _plot_curve(ax, P_VALUES, res['within_probe_mean'], res['within_probe_std'],
+                        COLOR_WITHIN, '-',  lw=2.5, zorder=5)
+            _plot_curve(ax, P_VALUES, res['cross_probe_mean'],  res['cross_probe_std'],
+                        COLOR_CROSS,  '-',  lw=2.5, zorder=5)
+            _plot_curve(ax, P_VALUES, res['within_ntp_mean'],   res['within_ntp_std'],
+                        COLOR_WITHIN, '--', lw=2.0, zorder=3)
+            _plot_curve(ax, P_VALUES, res['cross_ntp_mean'],    res['cross_ntp_std'],
+                        COLOR_CROSS,  '--', lw=2.0, zorder=3)
 
-        ax.set_xlabel(r'Noise level $p$')
-        ax.set_ylabel('ECE')
-        ax.set_xlim(-0.02, 0.52)
-        ax.set_ylim(bottom=0.0)
-        ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-        ax.set_axisbelow(True)
-        fig.tight_layout()
-        fig.savefig(subfigure_dir / 'sensitivity.pdf', bbox_inches='tight', dpi=200)
-        plt.show()
+            ax.set_xlabel(r'Noise level $p$')
+            ax.set_ylabel('ECE')
+            ax.set_xlim(-0.02, 0.52)
+            ax.set_ylim(bottom=0.0)
+            ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+            fig.savefig(subfigure_dir / 'sensitivity.pdf', bbox_inches='tight', dpi=200)
+            plt.show()
 
     # Shared legend (saved once at the top-level figures dir)
     handles = [
