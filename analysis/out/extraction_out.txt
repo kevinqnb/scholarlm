@@ -1,0 +1,21 @@
+Computing metrics for pond / llama-3.1-8b / None...
+  Recovery: 0.290, Hallucination: nan
+Computing metrics for nfix / llama-3.1-8b / None...
+  Recovery: 0.000, Hallucination: nan
+Computing metrics for pond / gemma-3-27b / None...
+  Recovery: 0.561, Hallucination: nan
+Computing metrics for nfix / gemma-3-27b / None...
+  Recovery: 0.000, Hallucination: nan
+Computing metrics for pond / gpt-oss-120b / None...
+  Recovery: 0.039, Hallucination: nan
+Computing metrics for nfix / gpt-oss-120b / None...
+  Recovery: 0.000, Hallucination: nan
+
+Results saved to results/extraction.csv
+  dataset         model extraction_date  recovery  hallucination
+0    pond  llama-3.1-8b            None  0.290129            NaN
+1    nfix  llama-3.1-8b            None  0.000000            NaN
+2    pond   gemma-3-27b            None  0.561056            NaN
+3    nfix   gemma-3-27b            None  0.000000            NaN
+4    pond  gpt-oss-120b            None  0.039004            NaN
+5    nfix  gpt-oss-120b            None  0.000000            NaN

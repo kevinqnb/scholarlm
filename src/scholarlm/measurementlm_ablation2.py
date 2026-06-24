@@ -71,6 +71,9 @@ class MeasurementLMAblation2(MeasurementLM):
     as the entity_identification_schema and entity_identification_prompt arguments.
     """
 
+    def __init__(self, *args, max_concurrent: int = 16, **kwargs):
+        super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
+
     # -----------------------------------------------------------------------
     # Step 1 + 2 combined: Extract (entity, attribute) pairs
     # -----------------------------------------------------------------------
@@ -84,7 +87,7 @@ class MeasurementLMAblation2(MeasurementLM):
         'attribute_terms' fields, and a prompt that instructs the model to emit
         one item per (entity, attribute) pair rather than one item per entity.
         """
-        return self._extract_entities()
+        return self._extract_entities(max_tokens=16384)
 
     # -----------------------------------------------------------------------
     # Step 3 combined: (Entity, attribute) pair provenance
@@ -166,7 +169,9 @@ class MeasurementLMAblation2(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -260,8 +265,7 @@ class MeasurementLMAblation2(MeasurementLM):
                     f"Entity description: {entity_description}\n"
                     f"Attribute: {attr_name}\n"
                     f"Attribute description: {attr_description}\n\n"
-                    f"Enumerate all distinct measurement events for the above entity "
-                    f"and attribute found on this page.\n\n"
+                    f"Enumerate all distinct measurement events for the given entity and attribute.\n\n"
                 )
                 prompt = (
                     f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
@@ -284,8 +288,10 @@ class MeasurementLMAblation2(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=16384,
+            max_retries=2,
+            max_tokens=8192,
+            max_concurrent=8,
+            timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )
 

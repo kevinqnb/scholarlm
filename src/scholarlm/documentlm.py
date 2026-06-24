@@ -4,6 +4,7 @@ import asyncio
 import warnings
 import yaml
 from itertools import count
+from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 load_dotenv()
@@ -53,7 +54,7 @@ class DocumentLM:
             self.ocr_prompt = ocr_prompt
 
         self.client = OpenAI(api_key=api_key, base_url=api_base)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0, max_retries=3)
+        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=600.0, max_retries=3)
 
 
     # -----------------------------------------------------------------------
@@ -110,20 +111,24 @@ class DocumentLM:
     # PDF OCR pipeline
     # -----------------------------------------------------------------------
 
-    def fit(self, filepaths: list[str]):
+    def fit(self, filepaths: list[str], processed_pdfs_dir: str | None = None):
         """
         OCR all pages of the provided PDF files and return the combined markdown text.
 
-        Renders each PDF page as an image, sends it through the VLM with the OCR
-        prompt, and reassembles page outputs into a single document per file. Pages
-        that exceed max_tokens or fail to produce expected table tags are retried
-        with progressively higher temperature.
+        Renders each PDF page as an image (or loads pre-rendered images from
+        ``processed_pdfs_dir``), sends it through the VLM with the OCR prompt, and
+        reassembles page outputs into a single document per file. Pages that exceed
+        max_tokens or fail to produce expected table tags are retried with
+        progressively higher temperature.
 
         Output text wraps each page in ``<page number="N">`` tags and numbers
         tables sequentially with ``<table number="N">`` tags.
 
         Args:
             filepaths (list[str]): Paths to the PDF files to process.
+            processed_pdfs_dir (str | None): If provided, load pre-rendered base64
+                page images from ``{processed_pdfs_dir}/{paper_code}/{page_index}.b64``
+                instead of rendering PDFs at runtime.
 
         Returns:
             list[str]: Processed markdown text, one string per document.
@@ -138,7 +143,21 @@ class DocumentLM:
         message_paper_ids = []
         for i, filepath in enumerate(filepaths):
             try:
-                b64_images = process_pdf(filepath, target_longest_dim=2048)
+                if processed_pdfs_dir is not None:
+                    paper_code = Path(filepath).stem
+                    paper_dir = Path(processed_pdfs_dir) / paper_code
+                    if not paper_dir.exists():
+                        warnings.warn(
+                            f"No pre-processed pages for '{paper_code}' in {processed_pdfs_dir}. Skipping."
+                        )
+                        continue
+                    b64_files = sorted(paper_dir.glob("*.b64"), key=lambda p: int(p.stem))
+                    if not b64_files:
+                        warnings.warn(f"Pre-processed directory {paper_dir} is empty. Skipping.")
+                        continue
+                    b64_images = [f.read_text() for f in b64_files]
+                else:
+                    b64_images = process_pdf(filepath, target_longest_dim=2048)
             except Exception as e:
                 warnings.warn(f"Failed to process {filepath} with error: {e}. Skipping this file.")
                 continue

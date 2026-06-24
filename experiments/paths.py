@@ -11,6 +11,9 @@ data/experiments/
     ablations/ablation{N}/{model}/{YYYY_mm_dd}/
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/
+    synthetic_probe/{judge_model}/{judge_date}/
+    synthetic_probe/{judge_model}/trained_probe/
+    synthetic_probe_test/{judge_model}/{judge_date}/
     analysis/
     analysis/figures/
   cross_dataset/
@@ -238,6 +241,15 @@ def synthetic_probe(
     return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / (judge_date or today())
 
 
+def synthetic_probe_test(
+    dataset: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/synthetic_probe_test/{judge_model}/{judge_date}/"""
+    return EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model / (judge_date or today())
+
+
 def trained_probe_dir(dataset: str, judge_model: str) -> Path:
     """data/experiments/{dataset}/synthetic_probe/{judge_model}/trained_probe/"""
     return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / "trained_probe"
@@ -247,9 +259,15 @@ def find_synthetic_activations(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent attention_outputs.npz in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
@@ -270,9 +288,15 @@ def find_synthetic_layer_outputs(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent layer_outputs.npz in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
@@ -293,9 +317,15 @@ def find_synthetic_responses(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    split: str = "train",
 ) -> Path:
     """Return path to the most-recent responses.json in synthetic_probe."""
-    judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    if split == "test":
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
+    else:
+        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
@@ -312,17 +342,72 @@ def find_synthetic_responses(
     )
 
 
+def find_human_responses(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str | None = None,
+    judge_date: str | None = None,
+) -> tuple[Path, str]:
+    """Return (path to human responses.json, resolved extraction_date).
+
+    Searches for the most-recent (or date-pinned) human validation run.
+
+    Raises:
+        FileNotFoundError: If no matching responses.json exists.
+    """
+    base = EXPERIMENTS_ROOT / dataset / "judge" / extraction_model
+
+    if not base.exists():
+        raise FileNotFoundError(
+            f"No judge directory for dataset='{dataset}' model='{extraction_model}': {base}"
+        )
+
+    if extraction_date is None:
+        for ext_dir in sorted(base.iterdir(), reverse=True):
+            human_dir = ext_dir / "human"
+            if not human_dir.exists():
+                continue
+            for date_dir in sorted(human_dir.iterdir(), reverse=True):
+                candidate = date_dir / "responses.json"
+                if candidate.exists():
+                    return candidate, ext_dir.name
+        raise FileNotFoundError(
+            f"No human responses.json for dataset='{dataset}' model='{extraction_model}' under {base}"
+        )
+
+    human_dir = base / extraction_date / "human"
+    if not human_dir.exists():
+        raise FileNotFoundError(f"No human judge directory: {human_dir}")
+
+    if judge_date is not None:
+        candidate = human_dir / judge_date / "responses.json"
+        if candidate.exists():
+            return candidate, extraction_date
+        raise FileNotFoundError(f"Human responses not found: {candidate}")
+
+    for date_dir in sorted(human_dir.iterdir(), reverse=True):
+        candidate = date_dir / "responses.json"
+        if candidate.exists():
+            return candidate, extraction_date
+
+    raise FileNotFoundError(
+        f"No human responses.json for dataset='{dataset}' "
+        f"model='{extraction_model}' extraction_date='{extraction_date}' under {human_dir}"
+    )
+
+
 def find_combined(
     dataset: str,
     extraction_model: str,
     extraction_date: str,
+    ablation: str | None = None,
 ) -> Path:
     """Return path to combined.json for the given extraction date.
 
     Raises:
         FileNotFoundError: If combined.json does not exist.
     """
-    path = judge_combined(dataset, extraction_model, extraction_date) / "combined.json"
+    path = judge_combined(dataset, extraction_model, extraction_date, ablation) / "combined.json"
     if not path.exists():
         raise FileNotFoundError(
             f"Combined judge file not found: {path}. Run run_judge_combine.py first."

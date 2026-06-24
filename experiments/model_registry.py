@@ -10,7 +10,7 @@ Defines three registries imported by the various runner scripts:
     INTERP_JUDGE_REGISTRY  — NNsight/JudgementLM judge models; used by
                              run_judge_interp.py.
 
-    VLLM_JUDGE_REGISTRY    — vLLM logprob judge models; used by
+    VLLM_JUDGE_REGISTRY    — vLLM judge models; used by
                              run_judge_local.py.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "llama-3.1-8b": ModelConfig(
         name="llama-3.1-8b",
         model_id="meta-llama/Llama-3.1-8B-Instruct",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -56,7 +56,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gemma-3-27b": ModelConfig(
         name="gemma-3-27b",
         model_id="gaunernst/gemma-3-27b-it-int4-awq",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -68,7 +68,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "llama-3.3-70b": ModelConfig(
         name="llama-3.3-70b",
         model_id="ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -81,7 +81,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "qwen-2.5-72b": ModelConfig(
         name="qwen-2.5-72b",
         model_id="Qwen/Qwen2.5-72B-Instruct-AWQ",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -94,7 +94,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "qwen-3.5-27b": ModelConfig(
         name="qwen-3.5-27b",
         model_id="Qwen/Qwen3.5-27B-FP8",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -107,7 +107,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
     "gpt-oss-120b": ModelConfig(
         name="gpt-oss-120b",
         model_id="openai/gpt-oss-120b",
-        hf_revision=None,  # TODO: pin to commit SHA after download
+        hf_revision=None,
         sampling_params={
             "temperature": 0.6,
             "top_p": 0.95,
@@ -123,18 +123,6 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         model_id="gpt-5-mini",
         api_base="https://api.openai.com/v1",
         sampling_params={"max_completion_tokens": 8192},
-    ),
-    "gemini-3-flash-lite": ModelConfig(
-        name="gemini-3-flash-lite",
-        model_id="gemini-3.1-flash-lite-preview",
-        api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
-    ),
-    "gemini-3-flash": ModelConfig(
-        name="gemini-3-flash",
-        model_id="gemini-3-flash-preview",
-        api_base="https://generativelanguage.googleapis.com/v1beta/openai/",
-        sampling_params={"temperature": 0.6, "top_p": 0.95, "max_tokens": 8192},
     ),
 }
 
@@ -166,19 +154,12 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
 
 
 # ---------------------------------------------------------------------------
-# vLLM logprob judge registry
+# vLLM judge registry
 #
-# Used by run_judge_local.py (as JUDGE_REGISTRY).  Models are served via
-# a vLLM OpenAI-compatible API; probability extraction uses logprobs.
+# Used by run_judge_local.py (as JUDGE_REGISTRY). 
 # ---------------------------------------------------------------------------
 
 VLLM_JUDGE_REGISTRY: dict[str, dict] = {
-    "gemma-3-27b": {
-        "model_id": "gaunernst/gemma-3-27b-it-int4-awq",
-    },
-    "qwen-3.5-27b": {
-        "model_id": "Qwen/Qwen3.5-27B-FP8",
-    },
     "llama-3.3-70b": {
         "model_id": "ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4",
     },

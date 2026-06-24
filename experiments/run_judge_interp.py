@@ -51,7 +51,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "configs"
 _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
-sys.path.insert(0, str(_EXPERIMENTS_DIR))  # makes 'batch' importable
+sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -86,10 +86,10 @@ def run_interp_judge(
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
-    Prompts are built via ``batch.common.prepare_chat_entries`` — the same
-    function used by the local vLLM and frontier judge runners — so the query
-    content (entity description, attribute description, value/indices, closing
-    question) is identical across all judge backends.  JudgementLM receives
+    Prompts are built via ``judge_common.prepare_chat_entries`` — the same
+    function used by all judge runners — so the query content (entity
+    description, attribute description, value/units, closing question) is
+    identical across all judge backends.  JudgementLM receives
     the three parts separately as (instructions, context, query), which it
     wraps into a single user message internally.
 
@@ -118,13 +118,12 @@ def run_interp_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    from batch import common as batch_common
-    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    import judge_common
+    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
-    # Build prompts using the shared batch prompt builder.
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = batch_common.prepare_chat_entries(
+    chat_entries = judge_common.prepare_chat_entries(
         data, documents, dataset_config,
     )
 
@@ -238,9 +237,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--synthetic", action="store_true", default=False,
         help=(
-            "Run on the synthetic probe dataset from data/{dataset}/probe_dataset.json "
-            "instead of an extraction run. Output goes to synthetic_probe/{judge}/{date}/. "
+            "Run on the synthetic probe dataset instead of an extraction run. "
             "--extraction-model and --ablation are ignored."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-split", choices=["train", "test"], default=None,
+        help=(
+            "Which synthetic split to run (only relevant with --synthetic). "
+            "'train' → probe_dataset.json → synthetic_probe/; "
+            "'test'  → probe_dataset_test.json → synthetic_probe_test/. "
+            "If omitted, both splits are run in sequence."
         ),
     )
     return p
@@ -257,26 +264,33 @@ def main(argv: list[str] | None = None) -> None:
     dataset_config = load_dataset_config(args.dataset)
 
     if args.synthetic:
-        probe_file = _REPO_ROOT / "data" / args.dataset / "probe_dataset.json"
-        if not probe_file.exists():
-            raise FileNotFoundError(
-                f"Probe dataset not found: {probe_file}. "
-                f"Run data/{args.dataset}/create_probe_dataset.py first."
+        splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
+        for split in splits:
+            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+            if not probe_file.exists():
+                raise FileNotFoundError(
+                    f"Probe dataset not found: {probe_file}. "
+                    f"Run data/{args.dataset}/create_probe_dataset.py first."
+                )
+            output_dir = (
+                paths.synthetic_probe_test(args.dataset, args.judge, args.judge_date)
+                if split == "test"
+                else paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
             )
-        output_dir = paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
-        print(f"\nDataset          : {args.dataset}")
-        print(f"Mode             : synthetic probe")
-        print(f"Input            : {probe_file}")
-        print(f"Judge            : {args.judge}")
-        print(f"Output           : {output_dir}\n")
-        run_interp_judge(
-            dataset_config=dataset_config,
-            extraction_model=None,
-            judge_key=args.judge,
-            output_dir=output_dir,
-            ocr_dir=args.ocr_dir,
-            input_file=probe_file,
-        )
+            print(f"\nDataset          : {args.dataset}")
+            print(f"Mode             : synthetic probe ({split})")
+            print(f"Input            : {probe_file}")
+            print(f"Judge            : {args.judge}")
+            print(f"Output           : {output_dir}\n")
+            run_interp_judge(
+                dataset_config=dataset_config,
+                extraction_model=None,
+                judge_key=args.judge,
+                output_dir=output_dir,
+                ocr_dir=args.ocr_dir,
+                input_file=probe_file,
+            )
     else:
         if args.extraction_model is None:
             _build_parser().error("--extraction-model is required unless --synthetic is used.")

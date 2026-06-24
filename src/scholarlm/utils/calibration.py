@@ -23,6 +23,44 @@ from __future__ import annotations
 
 import numpy as np
 
+from scipy.special import logit, expit
+
+
+def intercept_adjustment(
+    probs: np.ndarray,
+    pi_tr: float,
+    pi_te: float,
+    eps: float = 1e-12,
+):
+    """Adjust predicted probabilities for label shift via intercept adjustment.
+
+    Args:
+        probs: Predicted probabilities P_train(Y=1 | x) on the test set. Shape ``(n_test,)``.
+        pi_tr: Training prevalence as a scalar in ``(0, 1)``.
+        pi_te: Test prevalence as a scalar in ``(0, 1)``.
+        eps: Numerical stability constant.
+    Returns:
+        Rescaled probabilities under test prevalence pi_te, shape ``(n_test,)``.
+    """
+    if not (eps < pi_tr < 1 - eps):
+        raise ValueError(
+            f"Training prevalence pi_tr={pi_tr:.4g} is degenerate; cannot rescale."
+        )
+    if not (eps < pi_te < 1 - eps):
+        raise ValueError(
+            f"Test prevalence pi_te={pi_te:.4g} is degenerate; cannot rescale."
+        )
+
+    probs = np.asarray(probs, dtype=float)
+    probs_clipped = np.clip(probs, eps, 1 - eps)
+
+    log_odds = logit(probs_clipped)
+    log_prior_odds_tr = logit(pi_tr)
+    log_prior_odds_te = logit(pi_te)
+    log_odds_adjusted = log_odds + (log_prior_odds_te - log_prior_odds_tr)
+    return expit(log_odds_adjusted)
+    
+
 
 def rescale_probabilities_em(
     probs: np.ndarray,
@@ -176,6 +214,7 @@ def reliability_diagram_data(
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
 
     bin_accuracy = np.full(n_bins, np.nan)
+    bin_accuracy_sem = np.full(n_bins, np.nan)
     bin_confidence = np.full(n_bins, np.nan)
     bin_counts = np.zeros(n_bins, dtype=np.int64)
 
@@ -187,12 +226,15 @@ def reliability_diagram_data(
         count = mask.sum()
         bin_counts[i] = count
         if count > 0:
-            bin_accuracy[i] = labels[mask].mean()
+            p = labels[mask].mean()
+            bin_accuracy[i] = p
             bin_confidence[i] = probs[mask].mean()
+            bin_accuracy_sem[i] = np.sqrt(p * (1 - p) / count)
 
     return {
         "bin_centers": bin_centers,
         "bin_accuracy": bin_accuracy,
+        "bin_accuracy_sem": bin_accuracy_sem,
         "bin_confidence": bin_confidence,
         "bin_counts": bin_counts,
         "ece": compute_ece(probs, labels, n_bins=n_bins),

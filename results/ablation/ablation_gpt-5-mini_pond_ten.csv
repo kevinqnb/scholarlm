@@ -1,0 +1,2 @@
+dataset,model,baseline_recovery,baseline_validity,ablation_1_recovery,ablation_1_recovery_ci_lo,ablation_1_recovery_ci_hi,ablation_1_validity,ablation_1_validity_ci_lo,ablation_1_validity_ci_hi
+pond_ten,gpt-5-mini,,,0.6272098385857033,0.6005960404727329,0.6530746240838297,0.6073260073260073,0.5811529340243561,0.6328966902852625

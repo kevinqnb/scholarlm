@@ -169,6 +169,7 @@ experiments/*/*/*/out/*
 *.sh
 
 analysis/*.npy
+analysis/ablation2.py
 
 data/experiments/*/*
 
@@ -185,6 +186,8 @@ data/nfix/ocr_output
 data/nfix/ocr_output*/
 data/nfix/processed_pdfs/*
 
+data/pond_ten/*
+
 .batch_state.json
 .batch_state_openai.json
 .batch_state_gemini.json
@@ -196,3 +199,4 @@ memory
 .virtual_documents/
 
 CLAUDE.MD
+analysis/out/*.txt

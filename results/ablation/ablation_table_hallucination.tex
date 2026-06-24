@@ -1,0 +1,22 @@
+\begin{table*}[ht]
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \centering
+  \begin{tabular}{l ccc ccc}
+    \toprule
+    & \multicolumn{3}{c}{\pond} & \multicolumn{3}{c}{\nfix} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-7}
+    & \texttt{llama-3.1-8b} & \texttt{gemma-3-27b} & \texttt{gpt-oss-120b} & \texttt{llama-3.1-8b} & \texttt{gemma-3-27b} & \texttt{gpt-oss-120b} \\
+    \midrule
+    Base & \textbf{0.36} $\pm$ 0.01 & 0.53 $\pm$ 0.01 & 0.90 $\pm$ 0.01 & 0.16 $\pm$ 0.01 & 0.39 $\pm$ 0.01 & 0.78 $\pm$ 0.02 \\
+    $A_1$ & 0.35 $\pm$ 0.01 & 0.42 $\pm$ 0.02 & \textbf{0.95} $\pm$ 0.01 & \textbf{0.22} $\pm$ 0.02 & 0.30 $\pm$ 0.02 & \textbf{0.89} $\pm$ 0.02 \\
+    $A_2$ & 0.24 $\pm$ 0.00 & 0.41 $\pm$ 0.01 & 0.89 $\pm$ 0.01 & 0.12 $\pm$ 0.00 & 0.35 $\pm$ 0.01 & 0.85 $\pm$ 0.02 \\
+    $A_3$ & 0.25 $\pm$ 0.00 & 0.53 $\pm$ 0.01 & 0.91 $\pm$ 0.00 & 0.12 $\pm$ 0.01 & 0.33 $\pm$ 0.02 & 0.86 $\pm$ 0.02 \\
+    $A_4$ & 0.34 $\pm$ 0.01 & \textbf{0.62} $\pm$ 0.01 & 0.88 $\pm$ 0.01 & 0.10 $\pm$ 0.01 & 0.32 $\pm$ 0.02 & 0.67 $\pm$ 0.03 \\
+    $A_5$ & 0.32 $\pm$ 0.01 & 0.59 $\pm$ 0.01 & 0.93 $\pm$ 0.01 & 0.19 $\pm$ 0.01 & \textbf{0.44} $\pm$ 0.01 & 0.85 $\pm$ 0.02 \\
+    $A_6$ & 0.36 $\pm$ 0.01 & 0.56 $\pm$ 0.01 & 0.91 $\pm$ 0.01 & 0.17 $\pm$ 0.01 & 0.42 $\pm$ 0.02 & 0.89 $\pm$ 0.02 \\
+    \bottomrule
+  \end{tabular}
+  \caption{\textbf{Ablation Validity Rate.} Validity rate with 95\% Wilson CIs for the base pipeline and ablations $A_1$--$A_6$ across the \pond and \nfix datasets and each extraction LLM. Bold marks the best value per column.}
+  \label{tab:ablation_validity}
+\end{table*}

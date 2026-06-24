@@ -142,12 +142,12 @@ class MeasurementLMAblation5(MeasurementLM):
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\n{units_guidance}"
-                            f"Does this table contain a measured value for the given attribute and entity? "
+                            f"{units_guidance}\n"
+                            f"Does this table contain a measured value for the given entity, attribute, and event? "
                             f"If yes, extract the value and its units directly from the table.\n\n"
                         )
                         prompt = (
@@ -170,7 +170,10 @@ class MeasurementLMAblation5(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -181,7 +184,7 @@ class MeasurementLMAblation5(MeasurementLM):
                 result = response_validator(TextValueExtractionResponse, resp)
             except Exception as e:
                 print(f"Validation error in direct table value extraction response: {e}")
-                print(f"Response text: {resp[:500]}")
+                print(f"Response text: {resp}")
                 continue
 
             if result.get("has_value") and result.get("value") is not None:

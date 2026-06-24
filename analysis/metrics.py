@@ -16,6 +16,9 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
+from statsmodels.stats.proportion import proportion_confint
+
+from .loaders import cached_match
 
 
 def recovery_rate(
@@ -26,7 +29,8 @@ def recovery_rate(
     fuzzy_matching: dict | None = None,
     fuzzy_threshold: float = 0.0,
     cache_path: Path | None = None,
-) -> float:
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
     """Run ``match_datasets`` and return recall/precision statistics.
 
     Args:
@@ -36,12 +40,11 @@ def recovery_rate(
         fuzzy_matching: Fuzzy-match column mapping passed to ``match_datasets``.
         fuzzy_threshold: Minimum fuzzy score for a match.
         cache_path: Optional path for a disk-cached result (see ``cached_match``).
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
 
     Returns:
-        Recovery rate (float) representing the fraction of ground truth items matched.
+        Recovery rate (float), or (rate, lower, upper) if return_ci=True.
     """
-    from .loaders import cached_match
-
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
         extraction_df,
@@ -56,10 +59,48 @@ def recovery_rate(
         if edge_weights[i] > fuzzy_threshold:
             gt_edge_exists[gt_idx] = True
 
-    return np.mean(gt_edge_exists)
+    rate = float(np.mean(gt_edge_exists))
+    if not return_ci:
+        return rate
+    n = len(gt_edge_exists)
+    k = int(np.sum(gt_edge_exists))
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
 
 
-def hallucination_rate(
+def recovery_rate_from_labels(
+    n_ground_truth: int,
+    edges: list[tuple[int, int]],
+    predicted_labels: np.ndarray,
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
+    """Compute recovery rate given pre-filtered edges and predicted labels.
+
+    ``edges`` should already be filtered by the desired fuzzy threshold — this
+    function applies no additional weight filtering.
+
+    Args:
+        n_ground_truth: Total number of ground-truth rows.
+        edges: Pre-filtered (gt_idx, ex_idx) pairs from ``match_datasets``.
+        predicted_labels: Boolean array (length = n_extractions) where True = predicted valid.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+    """
+    ground_truth_matched = np.zeros(n_ground_truth, dtype = bool)
+    for gt_idx, ex_idx in edges:
+        if predicted_labels[ex_idx]:
+            ground_truth_matched[gt_idx] = True
+            
+    rate = float(np.mean(ground_truth_matched))
+    if not return_ci:
+        return rate
+    n = len(ground_truth_matched)
+    k = int(np.sum(ground_truth_matched))
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
+
+
+
+def validity_rate(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
     *,
@@ -69,8 +110,9 @@ def hallucination_rate(
     judged_df: pd.DataFrame | None = None,
     cache_path: Path | None = None,
     label_col: str = "judgement_combined",
-) -> float:
-    """Compute hallucination rate from judged extraction results.
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
+    """Compute validity rate (1 - hallucination rate) from judged extraction results.
 
     Args:
         extraction_df: Extracted measurements (rows = measurements).
@@ -81,16 +123,15 @@ def hallucination_rate(
         fuzzy_threshold: Minimum fuzzy score for a match.
         cache_path: Optional path for a disk-cached result (see ``cached_match``).
         label_col: Column name for the combined judgement label.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
 
     Returns:
-        Hallucination rate (float) representing the fraction of extracted items that are hallucinated.
+        Validity rate (float), or (rate, lower, upper) if return_ci=True.
     """
     if judged_df is not None and len(judged_df) != len(extraction_df):
         raise ValueError(
             f"judged_df length ({len(judged_df)}) must match extraction_df length ({len(extraction_df)})"
         )
-
-    from .loaders import cached_match
 
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
@@ -109,12 +150,48 @@ def hallucination_rate(
     if judged_df is not None:
         jlabels = judged_df[label_col].to_numpy(dtype = bool)
     else:
-        # Default to edge existence by setting all judgements as false. 
         jlabels = np.zeros(len(extraction_df), dtype = bool)
 
     labels = jlabels | ex_edge_exists
 
-    return 1 - np.mean(labels)
+    rate = float(np.mean(labels))
+    if not return_ci:
+        return rate
+    n = len(labels)
+    k = int(np.sum(labels))  # valid = matched or judged valid
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return rate, float(lower), float(upper)
+
+
+def validity_rate_from_labels(
+    labels: np.ndarray,
+    predicted_labels: np.ndarray,
+    return_ci: bool = False,
+) -> float | tuple[float, float, float]:
+    """Compute validity rate (precision) from ground-truth and predicted label arrays.
+
+    Validity = fraction of predicted-positive extractions that are truly positive,
+    i.e. TP / (TP + FP).  Returns 0.0 when no extractions are predicted positive.
+
+    Args:
+        labels: Boolean array where True = ground-truth valid.
+        predicted_labels: Boolean array where True = predicted valid.
+        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+    """
+    if len(labels) != len(predicted_labels):
+        raise ValueError(
+            f"ground_truth_labels length ({len(labels)}) must match predicted_labels length ({len(predicted_labels)})"
+        )
+
+    n = int(np.sum(predicted_labels))
+    if n == 0:
+        return (0.0, 0.0, 0.0) if return_ci else 0.0
+    k = int(np.sum(labels & predicted_labels))
+    rate = k / n
+    if not return_ci:
+        return float(rate)
+    lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
+    return float(rate), float(lower), float(upper)
 
 
 def per_paper_metrics(

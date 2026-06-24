@@ -1,0 +1,22 @@
+\begin{table*}[ht]
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \centering
+  \begin{tabular}{l ccc ccc}
+    \toprule
+    & \multicolumn{3}{c}{\pond} & \multicolumn{3}{c}{\nfix} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-7}
+    & \texttt{llama-3.1-8b} & \texttt{gemma-3-27b} & \texttt{gpt-oss-120b} & \texttt{llama-3.1-8b} & \texttt{gemma-3-27b} & \texttt{gpt-oss-120b} \\
+    \midrule
+    Base & 0.36 $\pm$ 0.02 & \textbf{0.71} $\pm$ 0.02 & 0.76 $\pm$ 0.01 & 0.19 $\pm$ 0.03 & 0.43 $\pm$ 0.03 & \textbf{0.60} $\pm$ 0.03 \\
+    $A_1$ & 0.34 $\pm$ 0.02 & 0.18 $\pm$ 0.01 & 0.75 $\pm$ 0.01 & 0.04 $\pm$ 0.01 & 0.17 $\pm$ 0.02 & 0.21 $\pm$ 0.03 \\
+    $A_2$ & 0.34 $\pm$ 0.02 & 0.38 $\pm$ 0.02 & 0.78 $\pm$ 0.01 & \textbf{0.32} $\pm$ 0.03 & 0.43 $\pm$ 0.03 & 0.49 $\pm$ 0.03 \\
+    $A_3$ & \textbf{0.38} $\pm$ 0.02 & 0.59 $\pm$ 0.02 & \textbf{0.79} $\pm$ 0.01 & 0.19 $\pm$ 0.03 & 0.28 $\pm$ 0.03 & 0.48 $\pm$ 0.03 \\
+    $A_4$ & 0.18 $\pm$ 0.01 & 0.41 $\pm$ 0.02 & 0.69 $\pm$ 0.02 & 0.14 $\pm$ 0.02 & 0.27 $\pm$ 0.03 & 0.39 $\pm$ 0.03 \\
+    $A_5$ & 0.36 $\pm$ 0.02 & 0.68 $\pm$ 0.02 & 0.74 $\pm$ 0.01 & 0.19 $\pm$ 0.03 & \textbf{0.48} $\pm$ 0.03 & 0.45 $\pm$ 0.03 \\
+    $A_6$ & 0.38 $\pm$ 0.02 & 0.68 $\pm$ 0.02 & 0.77 $\pm$ 0.01 & 0.14 $\pm$ 0.02 & 0.36 $\pm$ 0.03 & 0.37 $\pm$ 0.03 \\
+    \bottomrule
+  \end{tabular}
+  \caption{\textbf{Ablation Recovery Rate.} Recovery rate with 95\% Wilson CIs for the base pipeline and ablations $A_1$--$A_6$ across the \pond and \nfix datasets and each extraction LLM. Bold marks the best value per column.}
+  \label{tab:ablation_recovery}
+\end{table*}

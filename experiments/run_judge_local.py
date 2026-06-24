@@ -126,7 +126,7 @@ async def _judge_one(
 
 def run_local_vllm_judge(
     dataset_config: DatasetConfig,
-    extraction_model: str,
+    extraction_model: str | None,
     judge_key: str,
     output_dir: Path,
     extraction_date: str | None = None,
@@ -135,6 +135,7 @@ def run_local_vllm_judge(
     api_key: str = "EMPTY",
     max_concurrent: int = 64,
     ablation: str | None = None,
+    input_file: Path | None = None,
 ) -> None:
     """Run a local vLLM judge and save responses.
 
@@ -148,6 +149,7 @@ def run_local_vllm_judge(
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server.
         max_concurrent: Maximum concurrent requests to the server.
+        input_file: If provided, load data from this path instead of looking up the extraction run.
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -156,18 +158,19 @@ def run_local_vllm_judge(
     judge_cfg = JUDGE_REGISTRY[judge_key]
     model_id = judge_cfg["model_id"]
 
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
+    if input_file is None:
+        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    from batch import common as batch_common
-    documents = batch_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    import judge_common
+    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
     print(f"Documents: {len(documents)} loaded from {effective_ocr_dir}")
 
-    chat_entries = batch_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # chat_entries are sorted by document_id for cache locality; we need to
     # track the original indices to merge results back in order.
@@ -232,8 +235,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
     p.add_argument(
-        "--extraction-model", required=True,
-        help="Short name of the extraction model whose results to judge.",
+        "--extraction-model", default=None,
+        help="Short name of the extraction model whose results to judge. Required unless --synthetic is used.",
     )
     p.add_argument(
         "--judge", required=True,
@@ -245,6 +248,22 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--ablation", default=None, metavar="N",
         help="Ablation number (e.g. 2). If set, reads from ablations/ablation{N}/ and writes judge output there.",
+    )
+    p.add_argument(
+        "--synthetic", action="store_true", default=False,
+        help=(
+            "Run on the synthetic probe dataset instead of an extraction run. "
+            "--extraction-model and --ablation are ignored."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-split", choices=["train", "test"], default=None,
+        help=(
+            "Which synthetic split to run (only relevant with --synthetic). "
+            "'train' → probe_dataset.json → synthetic_probe/; "
+            "'test'  → probe_dataset_test.json → synthetic_probe_test/. "
+            "If omitted, both splits are run in sequence."
+        ),
     )
     p.add_argument(
         "--ocr-dir", default=None, metavar="DIR",
@@ -274,20 +293,61 @@ def main(argv: list[str] | None = None) -> None:
     set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
-    input_file = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
-    extraction_date_resolved = input_file.parent.name
-    output_dir = paths.judge(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
-        ablation=args.ablation,
-    )
-    print(f"\nDataset          : {args.dataset}")
-    print(f"Extraction model : {args.extraction_model}")
-    print(f"Extraction date  : {extraction_date_resolved}")
-    if args.ablation:
-        print(f"Ablation         : {args.ablation}")
-    print(f"Judge            : {args.judge}")
-    print(f"API base         : {args.api_base}")
-    print(f"Output           : {output_dir}\n")
+
+    if args.synthetic:
+        splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
+        for split in splits:
+            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+            if not probe_file.exists():
+                raise FileNotFoundError(
+                    f"Probe dataset not found: {probe_file}. "
+                    f"Run data/{args.dataset}/create_probe_dataset.py first."
+                )
+            input_file = probe_file
+            output_dir = (
+                paths.synthetic_probe_test(args.dataset, args.judge, args.judge_date)
+                if split == "test"
+                else paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
+            )
+            print(f"\nDataset          : {args.dataset}")
+            print(f"Mode             : synthetic probe ({split})")
+            print(f"Input            : {input_file}")
+            print(f"Judge            : {args.judge}")
+            print(f"API base         : {args.api_base}")
+            print(f"Output           : {output_dir}\n")
+            run_local_vllm_judge(
+                dataset_config=dataset_config,
+                extraction_model=None,
+                judge_key=args.judge,
+                output_dir=output_dir,
+                extraction_date=None,
+                ocr_dir=args.ocr_dir,
+                api_base=args.api_base,
+                api_key=args.api_key,
+                max_concurrent=args.max_concurrent,
+                ablation=None,
+                input_file=input_file,
+            )
+        return
+    else:
+        if args.extraction_model is None:
+            _build_parser().error("--extraction-model is required unless --synthetic is used.")
+        resolved = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
+        input_file = resolved
+        extraction_date_resolved = resolved.parent.name
+        output_dir = paths.judge(
+            args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
+            ablation=args.ablation,
+        )
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Extraction model : {args.extraction_model}")
+        print(f"Extraction date  : {extraction_date_resolved}")
+        if args.ablation:
+            print(f"Ablation         : {args.ablation}")
+        print(f"Judge            : {args.judge}")
+        print(f"API base         : {args.api_base}")
+        print(f"Output           : {output_dir}\n")
 
     run_local_vllm_judge(
         dataset_config=dataset_config,
@@ -299,7 +359,8 @@ def main(argv: list[str] | None = None) -> None:
         api_base=args.api_base,
         api_key=args.api_key,
         max_concurrent=args.max_concurrent,
-        ablation=args.ablation,
+        ablation=args.ablation if not args.synthetic else None,
+        input_file=input_file,
     )
 
 

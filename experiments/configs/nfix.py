@@ -11,6 +11,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig
+from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +19,7 @@ from scholarlm.config import DatasetConfig
 # ---------------------------------------------------------------------------
 
 
-class ObservationSchema(BaseModel):
+class EntitySchema(BaseModel):
     """Site-level entity fields for an aquatic dinitrogen fixation study."""
 
     name: str | None
@@ -27,54 +28,10 @@ class ObservationSchema(BaseModel):
     location: str | None
 
 
-class MeasurementEventSchema(BaseModel):
-    """Event-level fields that distinguish individual dinitrogen fixation measurements."""
-
-    date: str | None
-    nfix_method: str | None
-    substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
-
-
-class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
-
-    # Entity fields
-    name: str | None
-    identifiers: str | None
-    site_type: str | None
-    location: str | None
-    # Event fields
-    date: str | None
-    nfix_method: str | None
-    substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
-    # Measurement fields
-    attribute: str
-    value: str | None
-    units: str | None
-
-
-class Ablation2ObservationSchema(BaseModel):
-    """Entity schema for Ablation 2: one item per (site, attribute) pair."""
-
-    # Entity fields (same as ObservationSchema)
-    name: str | None
-    identifiers: str | None
-    site_type: str | None
-    location: str | None
-    # Reserved fields required by Ablation 2
-    attribute: str
-    attribute_terms: list[str]
-
-
-# ---------------------------------------------------------------------------
-# Entity identification prompt
-# ---------------------------------------------------------------------------
-
-_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
+# This is a general prompt template for which we input 
+# entity instructions, type, and extraction fields.
+# It's used as the first step of the pipeline for entity identification. 
+ENTITY_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
 
 A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Multiple measurements at the same site (on different dates, using different methods, at different depths) should be represented as a single site record.
 
@@ -126,8 +83,102 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
-# Measurement event prompt
+# Attribute Schema
 # ---------------------------------------------------------------------------
+
+
+_MASS_UNITS = [
+    "nmol N g⁻¹ h⁻¹", "nmol C2H4 g⁻¹ h⁻¹", "nmol N2 g⁻¹ h⁻¹", "µg N g⁻¹ d⁻¹",
+    "nmol N2 g⁻¹ d⁻¹", "µmol N g⁻¹ d⁻¹", "nmol C2H4 g⁻¹ d⁻¹", "nmol N g⁻¹ d⁻¹",
+    "µg N g⁻¹ h⁻¹", "µg N kg⁻¹ d⁻¹", "µmol N g⁻¹ h⁻¹", "fmol N g⁻¹ h⁻¹",
+    "ng N g⁻¹ d⁻¹", "ng N g⁻¹ h⁻¹", "nmol N kg⁻¹ h⁻¹", "µmol C2H4 g⁻¹ d⁻¹",
+    "µmol N kg⁻¹ h⁻¹", "µmol N2 g⁻¹ d⁻¹",
+]
+
+_AREAL_UNITS = [
+    "µmol N m⁻² h⁻¹", "mg N m⁻² d⁻¹", "µmol N m⁻² d⁻¹", "µmol C2H4 m⁻² h⁻¹",
+    "nmol C2H4 cm⁻² h⁻¹", "mmol N m⁻² d⁻¹", "µg N m⁻² h⁻¹", "mg N m⁻² h⁻¹",
+    "nmol C2H4 cm⁻² d⁻¹", "nmol C2H4 m⁻² h⁻¹", "µmol N2 m⁻² h⁻¹", "g N m⁻² yr⁻¹",
+    "mmol N m⁻² h⁻¹", "mmol N2 m⁻² d⁻¹", "nmol N cm⁻² h⁻¹", "µmol N2 m⁻² d⁻¹",
+    "kg N2 ha⁻¹ yr⁻¹", "mg N m⁻² yr⁻¹", "mg N2 m⁻² h⁻¹", "ng N m⁻² h⁻¹",
+    "nmol C2H4 m⁻² d⁻¹", "µg N cm⁻² h⁻¹", "µg N2 m⁻² h⁻¹",
+]
+
+_VOLUMETRIC_UNITS = [
+    "nmol N L⁻¹ d⁻¹", "nmol N L⁻¹ h⁻¹", "nmol C2H4 L⁻¹ h⁻¹", "µg N L⁻¹ h⁻¹",
+    "ng N L⁻¹ h⁻¹", "mg N m⁻³ d⁻¹", "nmol C2H4 cm⁻³ h⁻¹", "nmol C2H4 mL⁻¹ h⁻¹",
+    "nmol N cm⁻³ d⁻¹", "nmol N cm⁻³ h⁻¹", "µg N m⁻³ h⁻¹", "µmol N2 L⁻¹ d⁻¹",
+    "µmol N2 L⁻¹ h⁻¹", "mmol C2H4 m⁻³ d⁻¹", "nmol C2H4 cm⁻³ d⁻¹", "nmol N m⁻³ h⁻¹",
+    "nmol N2 cm⁻³ d⁻¹", "nmol N2 L⁻¹ d⁻¹", "nmol N2 L⁻¹ h⁻¹", "µg N L⁻¹ d⁻¹",
+    "µg N2 L⁻¹ h⁻¹", "µg N2 m⁻³ d⁻¹", "µmol C2H4 L⁻¹ d⁻¹", "µmol C2H4 mL⁻¹ h⁻¹",
+    "µmol N L⁻¹ d⁻¹", "µmol N L⁻¹ h⁻¹",
+]
+
+_ATTRIBUTE_INFO_DICT: dict[str, dict] = {
+    "nfix_rate_mass": {
+        "description": (
+            "Rate of dinitrogen fixation per unit mass: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by substrate mass."
+        ),
+        "units": _MASS_UNITS,
+    },
+    "nfix_rate_areal": {
+        "description": (
+            "Rate of dinitrogen fixation per unit area: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by area."
+        ),
+        "units": _AREAL_UNITS,
+    },
+    "nfix_rate_volumetric": {
+        "description": (
+            "Rate of dinitrogen fixation per unit volume: the amount of nitrogen "
+            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
+            "normalized by water volume."
+        ),
+        "units": _VOLUMETRIC_UNITS,
+    },
+}
+
+
+other_attributes = {
+    "nfix_incubation_time": {
+        "description": (
+            "Duration of the experimental incubation for measuring dinitrogen fixation, "
+            "from introduction of the tracer or substrate analog to termination and sampling."
+        ),
+        "units": ["minutes", "hours", "days"],
+    },
+    "nfix_incubation_temperature": {
+        "description": (
+            "Temperature at which the sample was held during the dinitrogen fixation incubation. "
+            "Extract only if a specific numeric temperature is reported for the incubation itself. "
+            "Do not extract in situ water temperatures unless the text explicitly states they equal "
+            "the incubation temperature. If the text says only 'ambient temperature' or 'in situ "
+            "temperature' without a numeric value, set to None."
+        ),
+        "units": ["°C", "K"],
+    },
+}
+
+
+
+# ---------------------------------------------------------------------------
+# Measurement Schema
+# ---------------------------------------------------------------------------
+
+
+class MeasurementEventSchema(BaseModel):
+    """Event-level fields that distinguish individual dinitrogen fixation measurements."""
+
+    date: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+    additional_details: str | None
+
+
 
 _MEASUREMENT_EVENT_PROMPT = """Event fields:
 - date: The date the measurement was taken. Use one of the following formats depending on available precision:
@@ -146,6 +197,28 @@ _MEASUREMENT_EVENT_PROMPT = """Event fields:
 # ---------------------------------------------------------------------------
 # Ablation 1: direct extraction prompt
 # ---------------------------------------------------------------------------
+
+
+class DirectExtractionItemSchema(BaseModel):
+    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+
+    # Entity fields
+    name: str | None
+    identifiers: str | None
+    site_type: str | None
+    location: str | None
+    # Event fields
+    date: str | None
+    nfix_method: str | None
+    substrate_type: str | None
+    sample_depth: str | None
+    additional_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
+
+
 
 _DIRECT_EXTRACTION_PROMPT = """Entity identification:
 Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
@@ -174,9 +247,9 @@ For each site and each detected attribute measurement, also identify the measure
 Attributes to extract:
 For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
 
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol-N g-1 h-1, nmol-C2H4 g-1 h-1, nmol-N2 g-1 h-1, ug-N g-1 d-1, or similar mass-normalized rate units.
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1, or similar area-normalized rate units.
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1, or similar volume-normalized rate units.
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol N g⁻¹ h⁻¹, nmol C2H4 g⁻¹ h⁻¹, nmol N2 g⁻¹ h⁻¹, µg N g⁻¹ d⁻¹, nmol N2 g⁻¹ d⁻¹, µmol N g⁻¹ d⁻¹, nmol C2H4 g⁻¹ d⁻¹, nmol N g⁻¹ d⁻¹, µg N g⁻¹ h⁻¹, µg N kg⁻¹ d⁻¹, µmol N g⁻¹ h⁻¹, fmol N g⁻¹ h⁻¹, ng N g⁻¹ d⁻¹, ng N g⁻¹ h⁻¹, nmol N kg⁻¹ h⁻¹, µmol C2H4 g⁻¹ d⁻¹, µmol N kg⁻¹ h⁻¹, µmol N2 g⁻¹ d⁻¹, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: µmol N m⁻² h⁻¹, mg N m⁻² d⁻¹, µmol N m⁻² d⁻¹, µmol C2H4 m⁻² h⁻¹, nmol C2H4 cm⁻² h⁻¹, mmol N m⁻² d⁻¹, µg N m⁻² h⁻¹, mg N m⁻² h⁻¹, nmol C2H4 cm⁻² d⁻¹, nmol C2H4 m⁻² h⁻¹, µmol N2 m⁻² h⁻¹, g N m⁻² yr⁻¹, mmol N m⁻² h⁻¹, mmol N2 m⁻² d⁻¹, nmol N cm⁻² h⁻¹, µmol N2 m⁻² d⁻¹, kg N2 ha⁻¹ yr⁻¹, mg N m⁻² yr⁻¹, mg N2 m⁻² h⁻¹, ng N m⁻² h⁻¹, nmol C2H4 m⁻² d⁻¹, µg N cm⁻² h⁻¹, µg N2 m⁻² h⁻¹, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol N L⁻¹ d⁻¹, nmol N L⁻¹ h⁻¹, nmol C2H4 L⁻¹ h⁻¹, µg N L⁻¹ h⁻¹, ng N L⁻¹ h⁻¹, mg N m⁻³ d⁻¹, nmol C2H4 cm⁻³ h⁻¹, nmol C2H4 mL⁻¹ h⁻¹, nmol N cm⁻³ d⁻¹, nmol N cm⁻³ h⁻¹, µg N m⁻³ h⁻¹, µmol N2 L⁻¹ d⁻¹, µmol N2 L⁻¹ h⁻¹, mmol C2H4 m⁻³ d⁻¹, nmol C2H4 cm⁻³ d⁻¹, nmol N m⁻³ h⁻¹, nmol N2 cm⁻³ d⁻¹, nmol N2 L⁻¹ d⁻¹, nmol N2 L⁻¹ h⁻¹, µg N L⁻¹ d⁻¹, µg N2 L⁻¹ h⁻¹, µg N2 m⁻³ d⁻¹, µmol C2H4 L⁻¹ d⁻¹, µmol C2H4 mL⁻¹ 3h⁻¹, µmol N L⁻¹ d⁻¹, µmol N L⁻¹ h⁻¹, or similar volume-normalized rate units.
 
 
 Output format requirements:
@@ -210,6 +283,20 @@ Output format requirements:
 # Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
+
+class Ablation2ObservationSchema(BaseModel):
+    """Entity schema for Ablation 2: one item per (site, attribute) pair."""
+
+    # Entity fields (same as ObservationSchema)
+    name: str | None
+    identifiers: str | None
+    site_type: str | None
+    location: str | None
+    # Reserved fields required by Ablation 2
+    attribute: str
+    attribute_terms: list[str]
+
+
 _ABLATION2_IDENTIFICATION_PROMPT = """You are an expert in identifying dinitrogen fixation measurement sites referenced in scientific literature, and in detecting which measurement attributes are reported for each site. Given the provided text (including any tables), extract all distinct (measurement site, measured attribute) pairs for which a direct numerical measurement is reported.
 
 A dinitrogen fixation measurement site is a distinct physical location or ecosystem where dinitrogen fixation rates were measured. Emit one item per (site, attribute) pair. If a site has multiple attributes measured, emit one item per attribute.
@@ -228,9 +315,9 @@ For each (site, attribute) pair, output one item with the following fields:
 
 
 Attributes to detect (use these exact names in the attribute field):
-1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol-N g-1 h-1, ug-N g-1 d-1, nmol-C2H4 g-1 h-1).
-2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., umol-N m-2 h-1, mg-N m-2 d-1, nmol-C2H4 cm-2 h-1).
-3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol-N L-1 d-1, nmol-C2H4 L-1 h-1, ug-N L-1 h-1).
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units normalized by substrate mass (e.g., nmol N g⁻¹ h⁻¹, µg N g⁻¹ d⁻¹, nmol C2H4 g⁻¹ h⁻¹, nmol N2 g⁻¹ h⁻¹, µmol N g⁻¹ h⁻¹, ng N g⁻¹ d⁻¹, fmol N g⁻¹ h⁻¹, nmol N kg⁻¹ h⁻¹, µmol C2H4 g⁻¹ d⁻¹, µmol N kg⁻¹ h⁻¹, µmol N2 g⁻¹ d⁻¹).
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units normalized by area (e.g., µmol N m⁻² h⁻¹, mg N m⁻² d⁻¹, nmol C2H4 cm⁻² h⁻¹, µmol C2H4 m⁻² h⁻¹, mmol N m⁻² d⁻¹, µg N m⁻² h⁻¹, nmol C2H4 m⁻² h⁻¹, µmol N2 m⁻² h⁻¹, g N m⁻² yr⁻¹, kg N2 ha⁻¹ yr⁻¹, ng N m⁻² h⁻¹).
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units normalized by water volume (e.g., nmol N L⁻¹ d⁻¹, nmol C2H4 L⁻¹ h⁻¹, µg N L⁻¹ h⁻¹, ng N L⁻¹ h⁻¹, mg N m⁻³ d⁻¹, nmol N cm⁻³ h⁻¹, µmol N2 L⁻¹ d⁻¹, mmol C2H4 m⁻³ d⁻¹, nmol N2 L⁻¹ d⁻¹, µmol C2H4 L⁻¹ d⁻¹, µmol N L⁻¹ h⁻¹).
 
 
 Identification guidelines:
@@ -261,86 +348,6 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
-# Attribute catalogue
-# ---------------------------------------------------------------------------
-
-_MASS_UNITS = [
-    "nmol-N g-1 h-1", "nmol-C2H4 g-1 h-1", "nmol-N2 g-1 h-1", "ug-N g-1 d-1",
-    "nmol-N2 g-1 d-1", "umol-N g-1 d-1", "nmol-C2H4 g-1 d-1", "nmol-N g-1 d-1",
-    "ug-N g-1 h-1", "ug-N kg-1 d-1", "umol-N g-1 h-1", "fmol-N g-1 h-1",
-    "ng-N g-1 d-1", "ng-N g-1 h-1", "nmol-N kg-1 h-1", "umol-C2H4 g-1 d-1",
-    "umol-N kg-1 h-1", "umol-N2 g-1 d-1",
-]
-
-_AREAL_UNITS = [
-    "umol-N m-2 h-1", "mg-N m-2 d-1", "umol-N m-2 d-1", "umol-C2H4 m-2 h-1",
-    "nmol-C2H4 cm-2 h-1", "mmol-N m-2 d-1", "ug-N m-2 h-1", "mg-N m-2 h-1",
-    "nmol-C2H4 cm-2 d-1", "nmol-C2H4 m-2 h-1", "umol-N2 m-2 h-1", "g-N m-2 yr-1",
-    "mmol-N m-2 h-1", "mmol-N2 m-2 d-1", "nmol-N cm-2 h-1", "umol-N2 m-2 d-1",
-    "kg-N2 ha-1 yr-1", "mg-N m-2 yr-1", "mg-N2 m-2 h-1", "ng-N m-2 h-1",
-    "nmol-C2H4 m-2 d-1", "ug-N cm-2 h-1", "ug-N2 m-2 h-1",
-]
-
-_VOLUMETRIC_UNITS = [
-    "nmol-N L-1 d-1", "nmol-N L-1 h-1", "nmol-C2H4 L-1 h-1", "ug-N L-1 h-1",
-    "ng-N L-1 h-1", "mg-N m-3 d-1", "nmol-C2H4 cm-3 h-1", "nmol-C2H4 mL-1 h-1",
-    "nmol-N cm-3 d-1", "nmol-N cm-3 h-1", "ug-N m-3 h-1", "umol-N2 L-1 d-1",
-    "umol-N2 L-1 h-1", "mmol-C2H4 m-3 d-1", "nmol-C2H4 cm-3 d-1", "nmol-N m-3 h-1",
-    "nmol-N2 cm-3 d-1", "nmol-N2 L-1 d-1", "nmol-N2 L-1 h-1", "ug-N L-1 d-1",
-    "ug-N2 L-1 h-1", "ug-N2 m-3 d-1", "umol-C2H4 L-1 d-1", "umol-C2H4 mL-1 3h-1",
-    "umol-N L-1 d-1", "umol-N L-1 h-1",
-]
-
-_ATTRIBUTE_INFO_DICT: dict[str, dict] = {
-    "nfix_rate_mass": {
-        "description": (
-            "Rate of dinitrogen fixation per unit mass: the amount of nitrogen "
-            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by substrate mass. Not equivalent to rates reported per unit area or volume."
-        ),
-        "units": _MASS_UNITS,
-    },
-    "nfix_rate_areal": {
-        "description": (
-            "Rate of dinitrogen fixation per unit area: the amount of nitrogen "
-            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by area. Not equivalent to rates reported per unit mass or volume."
-        ),
-        "units": _AREAL_UNITS,
-    },
-    "nfix_rate_volumetric": {
-        "description": (
-            "Rate of dinitrogen fixation per unit volume: the amount of nitrogen "
-            "(or ethylene in acetylene reduction assays) per fixed unit of time, "
-            "normalized by water volume. Not equivalent to rates reported per unit mass or area."
-        ),
-        "units": _VOLUMETRIC_UNITS,
-    },
-}
-
-
-other_attributes = {
-    "nfix_incubation_time": {
-        "description": (
-            "Duration of the experimental incubation for measuring dinitrogen fixation, "
-            "from introduction of the tracer or substrate analog to termination and sampling."
-        ),
-        "units": ["minutes", "hours", "days"],
-    },
-    "nfix_incubation_temperature": {
-        "description": (
-            "Temperature at which the sample was held during the dinitrogen fixation incubation. "
-            "Extract only if a specific numeric temperature is reported for the incubation itself. "
-            "Do not extract in situ water temperatures unless the text explicitly states they equal "
-            "the incubation temperature. If the text says only 'ambient temperature' or 'in situ "
-            "temperature' without a numeric value, set to None."
-        ),
-        "units": ["°C", "K"],
-    },
-}
-
-
-# ---------------------------------------------------------------------------
 # Paper filter
 # ---------------------------------------------------------------------------
 
@@ -356,6 +363,12 @@ def _nfix_paper_filter(metadata: dict) -> bool:
 # Config instance
 # ---------------------------------------------------------------------------
 
+_EXCLUDED_PAPERS = [
+    "R95",  # Couldn't access 
+    "R3", # Data in figures only
+    "R51", # Data not found in paper
+]
+
 # Subset of 10 papers with the most data points:
 _TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
@@ -366,8 +379,8 @@ CONFIG = DatasetConfig(
     name="nfix",
     data_dir="data/nfix",
     metadata_file="data/nfix/directory.json",
-    entity_schema=ObservationSchema,
-    entity_identification_prompt=_IDENTIFICATION_PROMPT,
+    entity_schema=EntitySchema,
+    entity_identification_prompt=ENTITY_IDENTIFICATION_PROMPT,
     entity_type_description=(
         "A distinct dinitrogen fixation measurement site — a specific ecosystem or location "
         "identified by name, type, and coordinates."
@@ -381,8 +394,10 @@ CONFIG = DatasetConfig(
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,
     paper_filter=_nfix_paper_filter,
+    paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=["location"],
-    ground_truth_file="data/nfix/ground_truth.csv",
+    judge_filter_fields=["location", "nfix_method", "substrate_type"], # leaving location, method, and substrate out of the judgement fields, since these seem to throw off the judgement when included -- possibly due to how the ground truth data formats / defines them. 
+    judge_instructions=JUDGE_INSTRUCTIONS,
+    ground_truth_file="data/nfix/ground_truth_review.json",
 )

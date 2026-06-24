@@ -58,9 +58,6 @@ models:
   gemma-3-27b:
     model_id: gaunernst/gemma-3-27b-it-int4-awq
     hf_revision: null
-    # NOTE: This model produces degraded output on A100 GPUs due to an AWQ
-    # marlin kernel incompatibility.  The serve script will abort if an A100
-    # is detected.  Exclude any A100 runs from analysis.
     sampling_params:
       temperature: 0.6
       top_p: 0.95
@@ -73,9 +70,9 @@ models:
       gpu_memory_utilization: 0.90
       quantization: awq_marlin
       dtype: bfloat16
-      sif_image: vllm-openai_v0.19.0.sif
+      sif_image: vllm-openai_v0.10.1.sif
       gpu_memory: 48G
-      gpu_capability: 8.0
+      gpu_capability: 8.9
       walltime: "48:00:00"
       omp: 8
 
@@ -140,7 +137,7 @@ models:
       quantization: null
       dtype: auto
       sif_image: vllm-openai_v0.19.0.sif
-      gpu_memory: 48G
+      gpu_memory: 80G
       gpu_capability: 8.0
       walltime: "48:00:00"
       omp: 8
@@ -168,46 +165,23 @@ models:
       omp: 8
 
   olmocr:
-    model_id: allenai/olmOCR-7B-0225-preview
+    model_id: allenai/olmOCR-2-7B-1025
     hf_revision: null
     sampling_params:
       temperature: 0.1
-      max_tokens: 8192
+      max_tokens: 16384
       seed: 342
     serve:
       port: 8081
       max_model_len: 32768
       gpu_memory_utilization: 0.90
       quantization: null
-      dtype: bfloat16
-      sif_image: vllm-openai_v0.19.0.sif
+      dtype: auto
+      sif_image: vllm-openai_v0.10.1.sif
       gpu_memory: 24G
       gpu_capability: 8.0
       walltime: "24:00:00"
       omp: 8
-
-  # Frontier models (no serve config — these hit external APIs directly)
-  gpt-5-mini:
-    model_id: gpt-5-mini
-    hf_revision: null
-    sampling_params:
-      max_completion_tokens: 8192
-
-  gemini-3-flash-lite:
-    model_id: gemini-3.1-flash-lite-preview
-    hf_revision: null
-    sampling_params:
-      temperature: 0.6
-      top_p: 0.95
-      max_tokens: 8192
-
-  gemini-3-flash:
-    model_id: gemini-3-flash-preview
-    hf_revision: null
-    sampling_params:
-      temperature: 0.6
-      top_p: 0.95
-      max_tokens: 8192
 
 # Mechanistic interpretability models:
 interp_judges:

@@ -106,10 +106,10 @@ def load_ablation(
 
 
 def load_combined_judgements(
-    dataset: str, extraction_model: str, extraction_date: str
+    dataset: str, extraction_model: str, extraction_date: str, ablation: str | None = None
 ) -> list[dict]:
     """Load combined.json for a judged extraction run."""
-    combined = _paths.find_combined(dataset, extraction_model, extraction_date)
+    combined = _paths.find_combined(dataset, extraction_model, extraction_date, ablation)
     with open(combined) as f:
         return json.load(f)
 
@@ -141,7 +141,7 @@ def load_ground_truth(config) -> "pd.DataFrame":
     if path.suffix == ".csv":
         return pd.read_csv(path)
     if path.suffix == ".json":
-        return pd.read_json(path)
+        return pd.read_json(path, orient="records")
     raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
 
 
@@ -161,31 +161,55 @@ def load_layer_outputs(
 
 
 def load_synthetic_responses(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> list[dict]:
     """Load responses.json from a synthetic probe run."""
-    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split)
     with open(path) as f:
         return json.load(f)
 
 
 def load_synthetic_activations(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> "np.lib.npyio.NpzFile":
     """Load attention_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split)
     return np.load(path)
 
 
 def load_synthetic_layer_outputs(
-    dataset: str, judge_model: str, judge_date: str | None = None
+    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
 ) -> "np.lib.npyio.NpzFile":
     """Load layer_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date)
+    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split)
     return np.load(path)
 
 
-def load_trained_probe(dataset: str, judge_model: str) -> dict:
+def load_trained_ntp_calibrator(dataset: str, judge_model: str) -> dict:
+    """Load the NTP Platt calibrator saved by synthetic_probe_train.py.
+
+    Returns a dict with keys:
+        ``calibrator``       — fitted CalibratedClassifierCV (LogisticRegression on NTP probs)
+        ``train_prevalence`` — fraction of positive labels in the synthetic training set
+        ``syn_document_ids`` — list of paper IDs in the synthetic training set
+        ``judge_model``      — judge model name
+        ``dataset``          — training dataset name
+
+    Raises:
+        FileNotFoundError: If no calibrator has been saved for this (dataset, judge_model).
+    """
+    import joblib
+
+    path = _paths.trained_probe_dir(dataset, judge_model) / "ntp_calibrator.pkl"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"NTP calibrator not found: {path}. "
+            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' first."
+        )
+    return joblib.load(path)
+
+
+def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head") -> dict:
     """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
 
     Returns a dict with keys:
@@ -204,7 +228,10 @@ def load_trained_probe(dataset: str, judge_model: str) -> dict:
     """
     import joblib
 
-    path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
+    if ptype == "layer":
+        path = _paths.trained_probe_dir(dataset, judge_model) / "layer_probe.pkl"
+    else:
+        path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
     if not path.exists():
         raise FileNotFoundError(
             f"Trained probe not found: {path}. "

@@ -1,12 +1,12 @@
 # ScholarlM :microscope: :books:
 
-Extract structured (entity, attribute, value) triplets from scientific PDFs using large language models.
-Supports API-backed models (Anthropic, OpenAI, Gemini) and local open-source models via vLLM.
+Extract structured measurements from scientific PDFs using large language models.
+Supports local open-weight models via vLLM.
 
 Core capabilities:
 - **Document OCR** — convert PDF pages to markdown text with HTML table extraction
 - **Measurement extraction** — extract (entity, attribute, value) triplets from text and tables
-- **Hallucination detection** *(experimental)* — mechanistic intervention on model activations
+- **Judgement** - Judge and assign confidence scores to extracted data
 
 <div align="center">
   <img src="figures/extraction_flowchart.svg" alt="Extraction Flowchart" width="500">
@@ -31,12 +31,24 @@ pip install -e .          # CPU-only
 pip install -e ".[gpu]"   # Full
 ```
 
-## Usage
+## Data
 
-### Examples
-Please see the [demo](demo.ipynb) notebook for a look at how the extraction system operates. 
+While we do not directly share the PDF documents used for our experiments, they are documented by title, author, and identifying information 
+for both the [pond (PLW)](data/pond/directory.json) and the [nitrogen fixation (NF)](data/nfix/directory.json) datasets. Please note the 
+sources which these datasets originated from:
+1. Richardson, David C., et al. "A functional definition to distinguish ponds from lakes and wetlands." Scientific reports 12.1 (2022): 10472.
+2. Fulweiler, Robinson W., et al. "A global dataset of nitrogen fixation rates across inland and coastal waters." Limnology and oceanography letters 10.3 (2025): 412-429.
 
-### Experiments
+
+In addition, we share pre-processed reviewed datasets for [PLW](data/pond/ground_truth_review.json) and [NF](data/pond/ground_truth_review.json), which 
+are used for comparison against our extracted data. In addition, we share a sample [extracted dataset](data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json) from `gemma-3-27b`. 
+
+## Prompts, Schemas, and Configs
+The core set of [prompts](src/scholarlm/instruction_prompts.py) for all experiments is shared, as well as complete schemas for both [PLW](experiments/configs/pond.py) and [NF](experiments/configs/nfix.py)
+
+In addition all LLM model information (including parameters and source repository names) are shared [here](experiments/model_registry.py). 
+
+## Experiments
 Please see the [experiments](experiments/README.md) directory for the full workflow guide. The following are some quick examples.
 
 ```bash
@@ -54,10 +66,8 @@ python experiments/run_judge_interp.py \
     --judge llama-3.1-8b --extraction-date 2026_04_01
 ```
 
-### Analysis Notebooks
-- `analysis/extraction_analysis.ipynb` — recovery rate and hallucination for one extraction run
-- `analysis/probe_analysis.ipynb` — probe accuracy, calibration, greedy head selection
-
+## Examples
+Please see the [demo](demo.ipynb) notebook for a look at how the extraction system operates. 
 
 ## License
 

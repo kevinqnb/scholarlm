@@ -6,8 +6,7 @@ Runs olmOCR on all PDF files for a dataset by calling a running vLLM server
 
     data/{dataset}/ocr_output_raw/
 
-Start the OCR model server first:
-    qsub experiments/serve_olmocr.sh
+Start the OCR model server first (default endpoint: ``http://localhost:8081/v1``).
 
 Use ``--resume`` to skip PDFs that already have a corresponding ``.txt`` file
 in the output directory.
@@ -62,6 +61,7 @@ def run_ocr(
     api_key: str = "EMPTY",
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
+    processed_pdfs_dir: str | None = None,
 ) -> None:
     """Run olmOCR on all PDFs for a dataset via a vLLM server.
 
@@ -74,6 +74,10 @@ def run_ocr(
         paper_subset_override: If provided, process only these paper codes
             (filename stems without .pdf).
         resume: If True, skip PDFs whose output .txt file already exists.
+        processed_pdfs_dir: If provided, load pre-rendered page images from this
+            directory instead of rendering PDFs at runtime.  The expected layout
+            is ``{processed_pdfs_dir}/{paper_code}/{page_index}.b64``, which
+            matches the output of ``experiments/process_pdfs.py``.
     """
     data_dir = Path(dataset_config.data_dir)
     pdf_dir = data_dir / "pdfs"
@@ -103,7 +107,7 @@ def run_ocr(
     print(f"\nDataset : {dataset_config.name}")
     print(f"Model   : {model_id}")
     print(f"Server  : {api_base}")
-    print(f"Input   : {pdf_dir}")
+    print(f"Input   : {processed_pdfs_dir if processed_pdfs_dir else pdf_dir}")
     print(f"Output  : {output_dir}")
     print(f"Papers  : {len(pdf_files)}\n")
 
@@ -119,7 +123,7 @@ def run_ocr(
     )
 
     start_time = time.time()
-    doclm.fit(filepaths)
+    doclm.fit(filepaths, processed_pdfs_dir=processed_pdfs_dir)
     doclm.save(out_filepaths)
     print(f"\nDone. OCR output written to {output_dir}")
 
@@ -162,6 +166,23 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Skip PDFs whose output .txt already exists in the output directory.",
     )
     p.add_argument(
+        "--use-processed-pdfs",
+        action="store_true",
+        help=(
+            "Load pre-rendered page images from data/{dataset}/processed_pdfs/ "
+            "(produced by process_pdfs.py) instead of rendering PDFs at runtime."
+        ),
+    )
+    p.add_argument(
+        "--processed-pdfs-dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Explicit path to a pre-processed PDFs directory.  "
+            "Overrides --use-processed-pdfs when set."
+        ),
+    )
+    p.add_argument(
         "--api-base",
         default="http://localhost:8081/v1",
         metavar="URL",
@@ -188,6 +209,13 @@ def main(argv: list[str] | None = None) -> None:
     sampling_params = ocr_cfg.get("sampling_params", {"temperature": 0.1, "max_tokens": 8192, "seed": 342})
 
     dataset_config = load_dataset_config(args.dataset)
+
+    processed_pdfs_dir = None
+    if args.processed_pdfs_dir:
+        processed_pdfs_dir = args.processed_pdfs_dir
+    elif args.use_processed_pdfs:
+        processed_pdfs_dir = str(Path(dataset_config.data_dir) / "processed_pdfs")
+
     run_ocr(
         dataset_config=dataset_config,
         model_id=model_id,
@@ -196,6 +224,7 @@ def main(argv: list[str] | None = None) -> None:
         api_key=args.api_key,
         paper_subset_override=args.paper_subset,
         resume=args.resume,
+        processed_pdfs_dir=processed_pdfs_dir,
     )
 
 

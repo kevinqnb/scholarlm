@@ -124,7 +124,7 @@ class MeasurementLM:
         sampling_params: dict[str, any] = {},
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
-        max_concurrent: int = 64,
+        max_concurrent: int = 32,
         clean_tables: bool = True,
         cleaned_ocr_output_dir: str | None = None,
         measurement_event_schema: BaseModel | None = None,
@@ -168,6 +168,7 @@ class MeasurementLM:
         response_format: dict | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        timeout: float = 600.0,
     ) -> str:
         """Single async API call to the vLLM OpenAI-compatible endpoint."""
         # Frontier models may require 'max_completion_tokens' (OpenAI o-series / gpt-5+)
@@ -203,7 +204,9 @@ class MeasurementLM:
             if extra:
                 kwargs["extra_body"] = extra
         try:
-            response = await self.async_client.chat.completions.create(**kwargs)
+            response = await self.async_client.chat.completions.create(
+                **kwargs, timeout=timeout
+            )
             if response.usage is not None and response.usage.prompt_tokens:
                 if response.usage.prompt_tokens > self.max_prompt_tokens:
                     self.max_prompt_tokens = response.usage.prompt_tokens
@@ -218,21 +221,25 @@ class MeasurementLM:
         response_format: dict | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        max_retries: int = 0,
+        max_retries: int = 2,
         validator: Callable[[str], Any] | None = None,
+        timeout: float = 600.0,
+        max_concurrent: int | None = None,
     ) -> list[str]:
         """Dispatch all message sets concurrently; return response texts in order.
 
         If max_retries > 0, any response that is empty or causes validator to raise
         is retried up to max_retries times with exponential backoff between rounds.
         validator is called only to detect failure — its return value is ignored.
+        max_concurrent overrides self.max_concurrent for this call only, allowing
+        per-step concurrency tuning without changing the instance default.
         """
         async def _run():
-            sem = asyncio.Semaphore(self.max_concurrent)
+            sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
                 async with sem:
-                    return await self._acall(msgs, response_format, temperature, max_tokens)
+                    return await self._acall(msgs, response_format, temperature, max_tokens, timeout)
 
             results = list(await asyncio.gather(*[_limited(msgs) for msgs in message_sets]))
 
@@ -372,9 +379,11 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=None,
-            temperature=self.sampling_params['temperature'],
+            temperature=self.sampling_params.get('temperature'),
             max_tokens=16384,
-            max_retries=1,
+            max_retries=4,
+            max_concurrent=2,
+            timeout=1200,
         )
 
         cleaned_documents = deepcopy(documents)
@@ -416,7 +425,7 @@ class MeasurementLM:
     # Step 1: Document Level entity extraction
     # -----------------------------------------------------------------------
 
-    def _extract_entities(self):
+    def _extract_entities(self, max_tokens: int = 8192):
         """
         Extracts entities from documents in two passes:
         1. Full-context extraction using the entity identification prompt and schema.
@@ -433,7 +442,6 @@ class MeasurementLM:
             items=(list[self.entity_identification_schema], ...),
         )
         identification_list_json = IdentificationList.model_json_schema()
-        entity_fields = list(self.entity_identification_schema.model_fields.keys())
 
         # --- Pass 1: Full-context entity identification ---
         messages = []
@@ -460,8 +468,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=32768,
+            max_retries=4,
+            max_tokens=max_tokens,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(IdentificationList, r),
         )
 
@@ -550,7 +560,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -647,7 +660,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=4,
+            max_tokens=4096,
+            max_concurrent=2,
+            timeout=300,
             validator=lambda r: response_validator(BatchAttributeDetectionResponse, r),
         )
 
@@ -753,7 +769,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
@@ -853,7 +872,7 @@ class MeasurementLM:
                         f"Entity description: {entity_description}\n"
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n"
-                        f"Identify all distinct measurement events for the given entity and attribute.\n\n"
+                        f"Enumerate all distinct measurement events for the given entity and attribute.\n\n"
                     )
                     prompt = (
                         f"## INSTRUCTIONS:\n{MEASUREMENT_EVENT_INSTRUCTIONS}\n\n"
@@ -876,8 +895,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
-            max_tokens=16384,
+            max_retries=2,
+            max_tokens=8192,
+            max_concurrent=8,
+            timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )
 
@@ -942,11 +963,20 @@ class MeasurementLM:
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
+                unit_options = self.attribute_info_dict[attr_name].get('units', [])
 
                 pair_record = record | {
                     'attribute': attr_name,
                     'attribute_terms': terms,
                 }
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+                    )
 
                 for p in intersecting_pages:
                     page_text = self._get_page_text(context, p)
@@ -968,11 +998,12 @@ class MeasurementLM:
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"Does this page contain a measured value for the given attribute and entity? "
+                            f"{units_guidance}\n"
+                            f"Does this page contain a measured value for the given entity, attribute, and event? "
                             f"If yes, extract the value and its units.\n\n"
                         )
                         prompt = (
@@ -995,7 +1026,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
         )
 
@@ -1108,11 +1142,20 @@ class MeasurementLM:
 
                 attr_description = self.attribute_info_dict[attr_name]['description']
                 entity_description = {k: v for k, v in record.items() if k in entity_fields}
+                unit_options = self.attribute_info_dict[attr_name].get('units', [])
 
                 pair_record = record | {
                     'attribute': attr_name,
                     'attribute_terms': terms,
                 }
+
+                units_guidance = ""
+                if unit_options:
+                    units_guidance = (
+                        f"Preferred unit options: {unit_options}. "
+                        f"Strongly prioritize choosing the best option from this list. "
+                        f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+                    )
 
                 for t in intersecting_tables:
                     parsed = _get_table(context, t, doc_id)
@@ -1138,14 +1181,15 @@ class MeasurementLM:
                             event_context = f"Measurement event context: {event}\n"
 
                         query = (
+                            f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
                             f"Terminology used for the attribute: {terms}\n"
-                            f"Entity description: {entity_description}\n"
                             f"{event_context}"
-                            f"\nRow names in the table: {row_names}\n"
+                            f"{units_guidance}"
+                            f"Row names in the table: {row_names}\n"
                             f"Column names in the table: {column_names}\n\n"
-                            f"Does this table contain a measured value for the given attribute and entity? "
-                            f"If yes, provide the row_index and column_index names, and the units.\n\n"
+                            f"Does this table contain a measured value for the given entity, attribute, and event? "
+                            f"If yes, provide the corresponding row_index and column_index names, and the units.\n\n"
                         )
                         prompt = (
                             f"## INSTRUCTIONS:\n{EXTRACT_TABLE_VALUE_INSTRUCTIONS}\n\n"
@@ -1167,7 +1211,10 @@ class MeasurementLM:
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=1,
+            max_retries=2,
+            max_tokens=512,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
         )
 
@@ -1216,7 +1263,7 @@ class MeasurementLM:
                 print(f"Error extracting value from table {table_number} in doc {doc_id}.")
                 val = None
 
-            if val is not None:
+            if val is not None and not (isinstance(val, float) and math.isnan(val)):
                 table_values.append(
                     pair_record | {
                         'context': table_text,
@@ -1284,7 +1331,9 @@ class MeasurementLM:
             messages,
             response_format=response_format,
             max_tokens=1024,
-            max_retries=1,
+            max_retries=2,
+            max_concurrent=32,
+            timeout=120,
             validator=lambda r: response_validator(StandardizeResponse, r),
         )
 

@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll cc}
+\toprule
+& & Synthetic & Extracted \\
+\midrule
+\multirow{4}{*}{\textit{Within}}
+& PLW NTP & 0.01 & 0.24 \\
+& PLW Probe & 0.06 & 0.09 \\
+& NF NTP & 0.02 & 0.11 \\
+& NF Probe & 0.07 & 0.17 \\
+\midrule
+\multirow{4}{*}{\textit{Cross}}
+& PLW NTP & 0.05 & 0.08 \\
+& PLW Probe & 0.06 & 0.08 \\
+& NF NTP & 0.06 & 0.20 \\
+& NF Probe & 0.12 & 0.07 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Expected Calibration Error Performance (\texttt{mistral-7b}).} Probe and NTP validation probabilities evaluated within and cross-domain for synthetic and real, extraction test settings. Extracted measurements collected from \texttt{gemma-3-27b}.}
+\label{tab:mistral-7b-gemma-3-27b}
+\end{table}

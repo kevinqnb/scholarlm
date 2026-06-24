@@ -6,8 +6,8 @@ open-source model served by vLLM.  For each page that contains ``<table>``
 tags the model is shown the pre-rendered page image and asked to correct
 the table markup.  Pages without tables are returned unchanged.
 
-The vLLM server must be started separately before running this script.
-See the vLLM startup examples below.
+The vLLM server must be started separately before running this script
+(default endpoint: ``http://localhost:8081/v1``).
 
 Results are written to:
 
@@ -15,42 +15,37 @@ Results are written to:
 
 where ``model_name`` is the short key from the model registry (e.g.
 ``gemma-3-27b``).  This directory can then be passed to ``run_extraction.py``
-via ``--ocr-dir`` to skip the integrated cleaning step.
+via ``--ocr-dir``.
 
 Prerequisites
 -------------
 1. Run ``process_pdfs.py`` first (preprocessing environment) to produce
    pre-rendered page images at ``data/{dataset}/processed_pdfs/``.
 
-2. Start a vLLM server serving the chosen model, e.g.:
-
-       vllm serve gaunernst/gemma-3-27b-it-qat-autoawq \\
-           --tensor-parallel-size 1 --port 8000
-
-   Wait for "Application startup complete" before running this script.
+2. Start a vLLM server serving the chosen model and wait for startup to complete.
 
 Usage
 -----
-    python experiments/run_vllm_table_cleaning.py \\
+    python experiments/run_table_cleaning.py \\
         --dataset pond --model gemma-3-27b
 
     # Resume a partial run (skip papers whose output file already exists):
-    python experiments/run_vllm_table_cleaning.py \\
+    python experiments/run_table_cleaning.py \\
         --dataset pond --model gemma-3-27b --resume
 
     # Custom server URL:
-    python experiments/run_vllm_table_cleaning.py \\
+    python experiments/run_table_cleaning.py \\
         --dataset pond --model gemma-3-27b \\
-        --api-base http://gpu-node-01:8000/v1
+        --api-base http://<host>:8081/v1
 
     # Custom input/output directories:
-    python experiments/run_vllm_table_cleaning.py \\
+    python experiments/run_table_cleaning.py \\
         --dataset pond --model gemma-3-27b \\
         --ocr-dir data/pond/ocr_output_raw \\
         --output-dir data/pond/ocr_output_cleaned_gemma-3-27b
 
     # Process a subset of papers:
-    python experiments/run_vllm_table_cleaning.py \\
+    python experiments/run_table_cleaning.py \\
         --dataset pond --model gemma-3-27b \\
         --paper-subset paper_a paper_b
 
