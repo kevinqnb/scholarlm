@@ -188,6 +188,9 @@ data/nfix/processed_pdfs/*
 
 data/pond_ten/*
 
+!data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
+!data/experiments/nfix/extraction/gemma-3-27b/2026_05_06/final.json
+
 .batch_state.json
 .batch_state_openai.json
 .batch_state_gemini.json
