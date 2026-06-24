@@ -119,14 +119,16 @@ def encode_pil_image(pil_image: Image.Image) -> str:
 def process_pdf(
     pdf_path: str,
     target_longest_dim: int = 2048,
+    correct_orientation: bool = True,
 ) -> list[str]:
     """
-    Process all pages of a PDF with orientation correction.
-    Returns a list of base64-encoded images, one per page.
+    Process all pages of a PDF and return base64-encoded images, one per page.
 
     Args:
         pdf_path: Path to PDF file
         target_longest_dim: Target size for longest dimension
+        correct_orientation: Run Tesseract OSD to detect and correct page rotation.
+            Disable for faster processing when pages are reliably upright.
 
     Returns:
         List of base64-encoded strings for each page
@@ -137,7 +139,8 @@ def process_pdf(
     results = []
     for page_num in range(1, num_pages + 1):
         pil_image = load_pdf_page(pdf_path, page_num, target_longest_dim)
-        pil_image = correct_image_orientation(pil_image)
+        if correct_orientation:
+            pil_image = correct_image_orientation(pil_image)
         results.append(encode_pil_image(pil_image))
 
     return results

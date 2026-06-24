@@ -3,12 +3,28 @@ import re
 import asyncio
 import warnings
 import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from itertools import count
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 load_dotenv()
 from scholarlm.utils import process_pdf, add_row_names
+
+_QUALITY_PRESETS = {
+    "accurate": {
+        "target_longest_dim": 2048,
+        "correct_orientation": True,
+        "max_tokens": 16384,
+        "max_retry_rounds": 5,
+    },
+    "fast": {
+        "target_longest_dim": 1024,
+        "correct_orientation": False,
+        "max_tokens": 8192,
+        "max_retry_rounds": 1,
+    },
+}
 
 
 class DocumentLM:
@@ -18,30 +34,56 @@ class DocumentLM:
     Args:
         model_name (str): Name or path of the VLM to use for OCR, served via a
             vLLM OpenAI-compatible endpoint.
+        quality (str): Preset controlling the speed/accuracy trade-off. One of:
+            - ``"accurate"`` (default): 2048px images, orientation correction,
+              16384 max tokens, up to 5 retry rounds.
+            - ``"fast"``: 1024px images, no orientation correction, 8192 max
+              tokens, 1 retry round.
+            Individual parameters below override the preset when provided.
         ocr_prompt (str): System prompt for the OCR task. Defaults to a standard
             instruction to convert PDF pages to markdown with HTML tables.
         sampling_params (dict[str, any]): Sampling parameters for text generation.
-            Defaults to temperature=0.1 and max_tokens=16384.
+            ``max_tokens`` here overrides the quality preset.
         api_base (str): Base URL of the vLLM OpenAI-compatible endpoint.
         api_key (str): API key for the endpoint (use "EMPTY" for local vLLM).
-        max_concurrent (int): Maximum number of concurrent async API calls.
+        max_concurrent (int): Maximum number of concurrent async API calls and
+            parallel PDF rendering threads.
+        target_longest_dim (int | None): Render resolution override (pixels along
+            the longest edge). Overrides the quality preset when set.
+        correct_orientation (bool | None): Run Tesseract OSD to correct page
+            rotation. Overrides the quality preset when set.
+        max_retry_rounds (int | None): Maximum retry rounds for pages that exceed
+            max_tokens or fail table extraction. Overrides the quality preset when
+            set. Set to 0 to disable retries entirely.
     """
     def __init__(
         self,
         model_name: str,
+        quality: str = "accurate",
         ocr_prompt: str = None,
         sampling_params: dict[str, any] = None,
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
+        target_longest_dim: int | None = None,
+        correct_orientation: bool | None = None,
+        max_retry_rounds: int | None = None,
     ):
+        if quality not in _QUALITY_PRESETS:
+            raise ValueError(f"quality must be one of {list(_QUALITY_PRESETS)}, got {quality!r}")
+        preset = _QUALITY_PRESETS[quality]
+
         self.model_name = model_name
+        self.max_concurrent = max_concurrent
+        self.target_longest_dim = target_longest_dim if target_longest_dim is not None else preset["target_longest_dim"]
+        self.correct_orientation = correct_orientation if correct_orientation is not None else preset["correct_orientation"]
+        self.max_retry_rounds = max_retry_rounds if max_retry_rounds is not None else preset["max_retry_rounds"]
+
         self.sampling_params = {
             "temperature": 0.1,
-            "max_tokens": 16384,
+            "max_tokens": preset["max_tokens"],
         } | (sampling_params or {})
-        self.max_tokens = self.sampling_params.get("max_tokens", 16384)
-        self.max_concurrent = max_concurrent
+        self.max_tokens = self.sampling_params.get("max_tokens", preset["max_tokens"])
 
         if ocr_prompt is None:
             self.ocr_prompt = (
@@ -72,7 +114,7 @@ class DocumentLM:
             "model": self.model_name,
             "messages": messages,
             "temperature": temperature if temperature is not None else self.sampling_params.get("temperature", 0.1),
-            "max_tokens": max_tokens if max_tokens is not None else self.sampling_params.get("max_tokens", 16384),
+            "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
         }
         extra = {}
         if "top_k" in self.sampling_params:
@@ -111,15 +153,37 @@ class DocumentLM:
     # PDF OCR pipeline
     # -----------------------------------------------------------------------
 
+    def _load_paper_images(
+        self, i: int, filepath: str, processed_pdfs_dir: str | None
+    ) -> tuple[int, list[str] | None]:
+        """Render or load pre-rendered base64 images for one paper. Returns (i, images)."""
+        if processed_pdfs_dir is not None:
+            paper_code = Path(filepath).stem
+            paper_dir = Path(processed_pdfs_dir) / paper_code
+            if not paper_dir.exists():
+                warnings.warn(
+                    f"No pre-processed pages for '{paper_code}' in {processed_pdfs_dir}. Skipping."
+                )
+                return i, None
+            b64_files = sorted(paper_dir.glob("*.b64"), key=lambda p: int(p.stem))
+            if not b64_files:
+                warnings.warn(f"Pre-processed directory {paper_dir} is empty. Skipping.")
+                return i, None
+            return i, [f.read_text() for f in b64_files]
+        return i, process_pdf(
+            filepath,
+            target_longest_dim=self.target_longest_dim,
+            correct_orientation=self.correct_orientation,
+        )
+
     def fit(self, filepaths: list[str], processed_pdfs_dir: str | None = None):
         """
         OCR all pages of the provided PDF files and return the combined markdown text.
 
-        Renders each PDF page as an image (or loads pre-rendered images from
-        ``processed_pdfs_dir``), sends it through the VLM with the OCR prompt, and
-        reassembles page outputs into a single document per file. Pages that exceed
-        max_tokens or fail to produce expected table tags are retried with
-        progressively higher temperature.
+        Renders PDF pages in parallel (up to ``max_concurrent`` threads), then
+        dispatches all pages to the VLM concurrently. Pages that exceed max_tokens
+        or fail to produce expected table tags are retried with progressively higher
+        temperature for up to ``max_retry_rounds`` rounds.
 
         Output text wraps each page in ``<page number="N">`` tags and numbers
         tables sequentially with ``<table number="N">`` tags.
@@ -139,32 +203,32 @@ class DocumentLM:
         if text_directory and not os.path.exists(text_directory):
             os.makedirs(text_directory, exist_ok=True)
 
+        # Render all PDFs in parallel before any VLM work begins.
+        paper_images: dict[int, list[str]] = {}
+        with ThreadPoolExecutor(max_workers=self.max_concurrent) as executor:
+            futures = {
+                executor.submit(self._load_paper_images, i, fp, processed_pdfs_dir): i
+                for i, fp in enumerate(filepaths)
+            }
+            for future in as_completed(futures):
+                try:
+                    i, b64_images = future.result()
+                    if b64_images is not None:
+                        paper_images[i] = b64_images
+                except Exception as e:
+                    i = futures[future]
+                    warnings.warn(
+                        f"Failed to process {filepaths[i]} with error: {e}. Skipping this file."
+                    )
+
         messages = []
         message_paper_ids = []
-        for i, filepath in enumerate(filepaths):
-            try:
-                if processed_pdfs_dir is not None:
-                    paper_code = Path(filepath).stem
-                    paper_dir = Path(processed_pdfs_dir) / paper_code
-                    if not paper_dir.exists():
-                        warnings.warn(
-                            f"No pre-processed pages for '{paper_code}' in {processed_pdfs_dir}. Skipping."
-                        )
-                        continue
-                    b64_files = sorted(paper_dir.glob("*.b64"), key=lambda p: int(p.stem))
-                    if not b64_files:
-                        warnings.warn(f"Pre-processed directory {paper_dir} is empty. Skipping.")
-                        continue
-                    b64_images = [f.read_text() for f in b64_files]
-                else:
-                    b64_images = process_pdf(filepath, target_longest_dim=2048)
-            except Exception as e:
-                warnings.warn(f"Failed to process {filepath} with error: {e}. Skipping this file.")
+        for i in range(len(filepaths)):
+            if i not in paper_images:
                 continue
-
-            for j, img in enumerate(b64_images):
+            for img in paper_images[i]:
                 image_data_uri = f'data:image/png;base64,{img}'
-                message = [
+                messages.append([
                     {"role": "system", "content": self.ocr_prompt},
                     {
                         "role": "user",
@@ -173,15 +237,15 @@ class DocumentLM:
                             "image_url": {"url": image_data_uri},
                         }],
                     },
-                ]
-                messages.append(message)
+                ])
                 message_paper_ids.append(i)
 
         results = self._call_batch_with_usage(messages)
 
-        # Retry with higher temperature if max tokens exceeded or if tables failed to be extracted.
+        # Retry with higher temperature if max tokens exceeded or tables failed to be extracted.
+        retry_round = 0
         temp = self.sampling_params.get("temperature", 0.1)
-        while temp <= 1.0:
+        while retry_round < self.max_retry_rounds and temp <= 1.0:
             retry_messages = []
             retry_message_ids = []
             for i, (text, completion_tokens) in enumerate(results):
@@ -214,6 +278,7 @@ class DocumentLM:
                 break
             print(f"Retrying {len(retry_messages)} pages with temperature {temp + 0.2:.1f}...")
             temp += 0.2
+            retry_round += 1
             retry_results = self._call_batch_with_usage(retry_messages, temperature=temp)
             for i, result in enumerate(retry_results):
                 results[retry_message_ids[i]] = result
