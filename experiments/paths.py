@@ -9,6 +9,7 @@ data/experiments/
   {dataset}/
     extraction/{model}/{YYYY_mm_dd}/
     ablations/ablation{N}/{model}/{YYYY_mm_dd}/
+    metadata/{model}/{YYYY_mm_dd}/
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/
     synthetic_probe/{judge_model}/{judge_date}/
@@ -48,6 +49,11 @@ def ablation(
     return (
         EXPERIMENTS_ROOT / dataset / "ablations" / f"ablation{ablation_n}" / model / (date or today())
     )
+
+
+def metadata_extraction(dataset: str, model: str, date: str | None = None) -> Path:
+    """data/experiments/{dataset}/metadata/{model}/{date}/"""
+    return EXPERIMENTS_ROOT / dataset / "metadata" / model / (date or today())
 
 
 def judge(

@@ -141,6 +141,17 @@ Guidelines:
 
 
 
+# Metadata extraction (single-item, non-measurement tasks)
+METADATA_EXTRACTION_INSTRUCTIONS = """You are an expert at extracting metadata from documents. Your task is to identify and extract a set of bibliographic or administrative metadata fields from a document in a single pass.
+
+Guidelines:
+- You will be provided with dataset-specific instructions describing the exact fields to extract and how to populate each one.
+- Use ONLY information explicitly stated in the document. Do NOT infer, guess, or fabricate field values.
+- Set any field to null if its value cannot be determined from the document text.
+- Return a single JSON object containing exactly the fields described in the dataset-specific instructions.
+"""
+
+
 # Ablation 2: Combined (entity, attribute) pair provenance
 ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described (entity, attribute) pair.
 

@@ -4,7 +4,8 @@ Dataset configuration for the govscape dataset.
 Government document metadata extraction. Each document is a government-generated
 PDF; the extraction task is to recover basic bibliographic metadata from the OCR text.
 
-Only Ablation 1 (direct extraction) is used for this dataset.
+Uses the MetadataLM pipeline (run_metadata_extraction.py), which makes a single
+LLM call per document and returns one metadata record per document.
 """
 from __future__ import annotations
 
@@ -14,11 +15,11 @@ from scholarlm.config import DatasetConfig
 
 
 # ---------------------------------------------------------------------------
-# Direct extraction schema and prompt
+# Metadata schema and prompt
 # ---------------------------------------------------------------------------
 
 
-class DirectExtractionItemSchema(BaseModel):
+class GovscapeMetadataSchema(BaseModel):
     """Metadata extracted from a single government document."""
 
     title: str | None
@@ -28,7 +29,7 @@ class DirectExtractionItemSchema(BaseModel):
     document_type: str | None
 
 
-_DIRECT_EXTRACTION_PROMPT = """Extract the following metadata from this government document and return a single JSON item.
+_METADATA_EXTRACTION_PROMPT = """Extract the following metadata from this government document.
 
 Fields:
 
@@ -54,19 +55,6 @@ Fields:
 Extraction rules:
 - Use ONLY information explicitly stated in the document text. Do NOT infer or fabricate values.
 - Set a field to null if its value cannot be determined from the text.
-
-Output format (exactly one item in the array):
-{
-  "items": [
-    {
-      "title": "...",
-      "authors": "...",
-      "publication_date": "...",
-      "organization": "...",
-      "document_type": "..."
-    }
-  ]
-}
 """
 
 
@@ -79,6 +67,6 @@ CONFIG = DatasetConfig(
     name="govscape",
     data_dir="data/govscape",
     metadata_file="data/govscape/directory.json",
-    direct_extraction_schema=DirectExtractionItemSchema,
-    direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    metadata_extraction_schema=GovscapeMetadataSchema,
+    metadata_extraction_prompt=_METADATA_EXTRACTION_PROMPT,
 )

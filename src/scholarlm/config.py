@@ -102,6 +102,8 @@ class DatasetConfig:
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
     judge_filter_fields: list[str] | None = None
     judge_instructions: str | None = None
+    metadata_extraction_schema: type[BaseModel] | None = None
+    metadata_extraction_prompt: str | None = None
 
 
 @dataclass
