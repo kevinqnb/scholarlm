@@ -22,7 +22,9 @@ Changes from the baseline MeasurementLM:
 Unchanged from baseline: _standardize(), _deduplicate(), save().
 """
 
+import time
 from functools import partial
+import numpy as np
 from pydantic import create_model
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
@@ -93,14 +95,29 @@ class MeasurementLMAblation1(MeasurementLM):
                 "schema": direct_extraction_list_json,
             },
         }
-        response_texts = self._call_batch(
-            messages,
+        call_kwargs = dict(
             response_format=response_format,
             max_tokens=32768,
             max_retries=4,
             max_concurrent=1,
             validator=partial(response_validator, DirectExtractionList),
             timeout=600.0,
+        )
+        response_texts = []
+        doc_times = []
+        for i, msg in enumerate(messages):
+            t0 = time.perf_counter()
+            response_texts.extend(self._call_batch([msg], **call_kwargs))
+            doc_times.append(time.perf_counter() - t0)
+            print(f"  doc {i + 1}/{len(messages)}  {doc_times[-1]:.1f}s")
+
+        doc_times = np.array(doc_times)
+        print(
+            f"\nPer-document timing — "
+            f"avg: {doc_times.mean():.1f}s  "
+            f"std: {doc_times.std():.1f}s  "
+            f"min: {doc_times.min():.1f}s  "
+            f"max: {doc_times.max():.1f}s\n"
         )
 
         triple_data = []
