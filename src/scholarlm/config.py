@@ -85,10 +85,10 @@ class DatasetConfig:
     name: str
     data_dir: str
     metadata_file: str
-    entity_schema: type[BaseModel]
-    entity_identification_prompt: str
-    entity_type_description: str
-    attribute_info_dict: dict[str, dict]
+    entity_schema: type[BaseModel] | None = None
+    entity_identification_prompt: str | None = None
+    entity_type_description: str | None = None
+    attribute_info_dict: dict[str, dict] | None = None
     paper_subset: list[str] | None = None
     paper_filter: Callable[[dict], bool] | None = None
     paper_exclude: list[str] | None = None

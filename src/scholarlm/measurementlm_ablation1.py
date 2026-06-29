@@ -129,8 +129,9 @@ class MeasurementLMAblation1(MeasurementLM):
                 print(f"Response text: {r}")
                 resp_validated = {'items': []}
 
+            has_value_field = 'value' in self.direct_extraction_schema.model_fields
             for j, item in enumerate(resp_validated['items']):
-                if item.get('value') is None:
+                if has_value_field and item.get('value') is None:
                     continue
                 entity_id = f"doc_{i}_entity_{j}"
                 triple_data.append(
