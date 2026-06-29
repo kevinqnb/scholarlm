@@ -22,9 +22,7 @@ Changes from the baseline MeasurementLM:
 Unchanged from baseline: _standardize(), _deduplicate(), save().
 """
 
-import time
 from functools import partial
-import numpy as np
 from pydantic import create_model
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
@@ -42,8 +40,7 @@ class MeasurementLMAblation1(MeasurementLM):
     def __init__(
         self,
         *args,
-        max_concurrent: int = 4,
-        extract_max_tokens: int = 32768,
+        max_concurrent: int = 1,
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
         **kwargs,
@@ -51,7 +48,6 @@ class MeasurementLMAblation1(MeasurementLM):
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
-        self.extract_max_tokens = extract_max_tokens
 
     # -----------------------------------------------------------------------
     # Single extraction step: extract all records directly
@@ -97,19 +93,15 @@ class MeasurementLMAblation1(MeasurementLM):
                 "schema": direct_extraction_list_json,
             },
         }
-        call_kwargs = dict(
+        response_texts = self._call_batch(
+            messages,
             response_format=response_format,
-            max_tokens=self.extract_max_tokens,
+            max_tokens=32768,
             max_retries=4,
-            max_concurrent=self.max_concurrent,
+            max_concurrent=1,
             validator=partial(response_validator, DirectExtractionList),
             timeout=600.0,
         )
-        print(f"Extracting triples from {len(messages)} documents (max_concurrent={self.max_concurrent}, max_tokens={self.extract_max_tokens})...")
-        t0 = time.perf_counter()
-        response_texts = self._call_batch(messages, **call_kwargs)
-        elapsed = time.perf_counter() - t0
-        print(f"  Total: {elapsed:.1f}s  avg: {elapsed / max(len(messages), 1):.1f}s/doc\n")
 
         triple_data = []
         for i, r in enumerate(response_texts):
@@ -120,9 +112,8 @@ class MeasurementLMAblation1(MeasurementLM):
                 print(f"Response text: {r}")
                 resp_validated = {'items': []}
 
-            has_value_field = 'value' in self.direct_extraction_schema.model_fields
             for j, item in enumerate(resp_validated['items']):
-                if has_value_field and item.get('value') is None:
+                if item.get('value') is None:
                     continue
                 entity_id = f"doc_{i}_entity_{j}"
                 triple_data.append(
