@@ -186,6 +186,9 @@ data/nfix/ocr_output
 data/nfix/ocr_output*/
 data/nfix/processed_pdfs/*
 
+data/govscape/ocr_output*/
+data/govscape/pdfs/*
+
 data/pond_ten/*
 
 !data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
