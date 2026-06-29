@@ -117,6 +117,8 @@ def run_ablation(
     paper_subset_override: list[str] | None = None,
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
+    max_tokens: int | None = None,
+    max_concurrent: int | None = None,
 ) -> None:
     """Run a single ablation experiment for a dataset / model pair.
 
@@ -228,6 +230,10 @@ def run_ablation(
     if ablation == "1":
         mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema
         mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt
+        if max_tokens is not None:
+            mlm_kwargs["extract_max_tokens"] = max_tokens
+        if max_concurrent is not None:
+            mlm_kwargs["max_concurrent"] = max_concurrent
     mlm = ablation_class(**mlm_kwargs)
 
     # Pre-clean tables if needed (same pattern as run_extraction.py)
@@ -343,6 +349,20 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="KEY",
         help="API key for the vLLM server (any non-empty string; default: EMPTY).",
     )
+    p.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        metavar="N",
+        help="(Ablation 1 only) Maximum output tokens per document call (default: 32768).",
+    )
+    p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=None,
+        metavar="N",
+        help="(Ablation 1 only) Maximum concurrent document calls (default: 4).",
+    )
     return p
 
 
@@ -367,6 +387,8 @@ def main(argv: list[str] | None = None) -> None:
         paper_subset_override=args.paper_subset,
         api_base=args.api_base,
         api_key=args.api_key,
+        max_tokens=args.max_tokens,
+        max_concurrent=args.max_concurrent,
     )
 
 
