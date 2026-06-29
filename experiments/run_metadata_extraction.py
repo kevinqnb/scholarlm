@@ -69,7 +69,7 @@ def run_metadata_extraction(
     api_key: str = "EMPTY",
     max_tokens: int | None = None,
     max_concurrent: int | None = None,
-    max_input_chars: int | None = None,
+    max_input_tokens: int | None = None,
 ) -> None:
     """Run metadata extraction for a dataset / model pair.
 
@@ -159,8 +159,8 @@ def run_metadata_extraction(
         mlm_kwargs["max_concurrent"] = max_concurrent
     if max_tokens is not None:
         mlm_kwargs["extract_max_tokens"] = max_tokens
-    if max_input_chars is not None:
-        mlm_kwargs["max_input_chars"] = max_input_chars
+    if max_input_tokens is not None:
+        mlm_kwargs["max_input_tokens"] = max_input_tokens
 
     mlm = MetadataLM(**mlm_kwargs)
 
@@ -281,12 +281,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Maximum concurrent document calls (default: 4).",
     )
     p.add_argument(
-        "--max-input-chars",
+        "--max-input-tokens",
         type=int,
         default=None,
         metavar="N",
         help=(
-            "Maximum characters of document text to send per call (default: 150,000 ≈ 37,500 tokens). "
+            "Maximum tokens of document text to send per call (default: 40,000). "
             "Documents exceeding this are truncated from the tail — metadata fields are almost always "
             "at the document head, so this loses nothing relevant."
         ),
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None) -> None:
         api_key=args.api_key,
         max_tokens=args.max_tokens,
         max_concurrent=args.max_concurrent,
-        max_input_chars=args.max_input_chars,
+        max_input_tokens=args.max_input_tokens,
     )
 
 

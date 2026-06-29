@@ -14,6 +14,8 @@ from __future__ import annotations
 import time
 from functools import partial
 
+import tiktoken
+
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import METADATA_EXTRACTION_INSTRUCTIONS
 
@@ -31,7 +33,7 @@ class MetadataLM(MeasurementLM):
         *args,
         max_concurrent: int = 4,
         extract_max_tokens: int = 4096,
-        max_input_chars: int = 150_000,
+        max_input_tokens: int = 40_000,
         metadata_extraction_schema=None,
         metadata_extraction_prompt=None,
         **kwargs,
@@ -40,7 +42,11 @@ class MetadataLM(MeasurementLM):
         self.metadata_extraction_schema = metadata_extraction_schema
         self.metadata_extraction_prompt = metadata_extraction_prompt
         self.extract_max_tokens = extract_max_tokens
-        self.max_input_chars = max_input_chars
+        self.max_input_tokens = max_input_tokens
+        try:
+            self._tokenizer = tiktoken.encoding_for_model(self.model_name)
+        except KeyError:
+            self._tokenizer = tiktoken.get_encoding("cl100k_base")
 
     # -----------------------------------------------------------------------
     # Core extraction step
@@ -65,8 +71,9 @@ class MetadataLM(MeasurementLM):
         n_truncated = 0
         for datapoint in self.data:
             context = datapoint["context"]
-            if len(context) > self.max_input_chars:
-                context = context[: self.max_input_chars]
+            tokens = self._tokenizer.encode(context)
+            if len(tokens) > self.max_input_tokens:
+                context = self._tokenizer.decode(tokens[: self.max_input_tokens])
                 n_truncated += 1
             prompt = (
                 f"## INSTRUCTIONS:\n{METADATA_EXTRACTION_INSTRUCTIONS}\n\n"
@@ -78,7 +85,7 @@ class MetadataLM(MeasurementLM):
         if n_truncated:
             print(
                 f"  Note: {n_truncated}/{len(self.data)} documents truncated to "
-                f"{self.max_input_chars:,} chars (~{self.max_input_chars // 4:,} tokens)."
+                f"{self.max_input_tokens:,} tokens."
             )
 
         print(
