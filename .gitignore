@@ -186,6 +186,15 @@ data/nfix/ocr_output
 data/nfix/ocr_output*/
 data/nfix/processed_pdfs/*
 
+data/supermat/pdfs/*.pdf
+data/supermat/raw_data.csv
+data/supermat/ocr_output
+data/supermat/ocr_output*/
+data/supermat/processed_pdfs/*
+
+data/govscape/ocr_output*/
+data/govscape/pdfs/*
+
 data/pond_ten/*
 
 .batch_state.json
