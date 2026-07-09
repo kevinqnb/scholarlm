@@ -80,6 +80,17 @@ class DatasetConfig:
             whether it belongs to the entity or event schema.  Use this to suppress
             noisy or irrelevant fields (e.g. ``location``) without altering the
             underlying schemas.  ``None`` applies no filtering.
+        nuextract_examples: Optional list of small, hand-written few-shot examples
+            for the NuExtract-2.0-8B baseline (``MeasurementLMNuExtract``), each a
+            dict ``{"input": str, "output": str}`` where ``output`` is a JSON string
+            matching ``direct_extraction_schema`` wrapped as ``{"items": [...]}``.
+            NuExtract's calling convention has no field for freeform instructions
+            (only a JSON template + optional examples), so these are the only way
+            to give it dataset-specific attribute semantics; every value in
+            ``output`` should be an exact substring of ``input`` (NuExtract's
+            ``verbatim-string`` fields are trained to copy spans, not paraphrase).
+            Synthetic text, not real paper excerpts — must never overlap with
+            ``ground_truth_file`` papers.  Ignored by every other pipeline path.
     """
 
     name: str
@@ -102,6 +113,7 @@ class DatasetConfig:
     unit_conversion_table: dict[str, dict[str, float]] = field(default_factory=dict)
     judge_filter_fields: list[str] | None = None
     judge_instructions: str | None = None
+    nuextract_examples: list[dict] | None = None
 
 
 @dataclass

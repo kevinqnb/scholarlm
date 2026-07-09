@@ -4,16 +4,25 @@ Unlike MeasurementLM (which reads OCR'd `<page>/<table>` tagged text) and unlike
 Ablation 1 (which is also single-shot but text-only), this baseline sends the
 rendered page images of a document directly to a vision-language model in one
 call. It reuses `MeasurementLM`'s OpenAI-compatible async client, retry, and
-concurrency machinery unchanged — only prompt/message construction differs.
+concurrency machinery unchanged — only message/request construction differs.
 
-Requires `direct_extraction_schema` and `direct_extraction_prompt` (the same
-flat Pydantic model and dataset-specific instructions Ablation 1 uses,
-describing entities, measurement events, and attributes in one block) and
-pre-rendered page images produced by `experiments/process_pdfs.py`
-(`{processed_pdf_dir}/{page_index}.b64`). The dataset's existing, iterated-on
-`direct_extraction_prompt` is reused verbatim rather than writing a new,
-untested prompt per dataset — only a NuExtract-specific typed JSON template is
-appended, to describe the target schema in NuExtract's own convention.
+NuExtract has its own fixed calling convention (see its `chat_template.jinja`
+on HuggingFace): the JSON extraction schema must be passed as a separate
+`extra_body.chat_template_kwargs.template` field, not embedded as prose in the
+message content. Its template also special-cases message content: if a `text`
+content block is present whose text isn't the literal string `"<image>"`, the
+template treats the whole request as text-only and emits *no* image
+placeholder tokens at all, even when images are attached — silently breaking
+every request. There is also no field in this protocol for freeform
+instructions alongside the template (only `template` and optional few-shot
+`examples`), so — unlike Ablation 1 — this baseline cannot reuse a dataset's
+`direct_extraction_prompt`; it is inherently template-only, matching how
+NuMind's own examples call the model.
+
+To offset the lack of attribute descriptions, callers may pass `examples`
+(from `DatasetConfig.nuextract_examples`) — small, synthetic input/output
+pairs that teach the model the dataset's attribute vocabulary and field
+conventions the way NuExtract expects: by demonstration, not description.
 """
 
 import json
@@ -48,20 +57,20 @@ class MeasurementLMNuExtract(MeasurementLM):
         self,
         *args,
         direct_extraction_schema=None,
-        direct_extraction_prompt: str | None = None,
+        examples: list[dict] | None = None,
         max_concurrent: int = 2,
-        max_images_per_document: int = 32,
+        max_images_per_document: int = 45,
+        use_extra_body: bool = True,
         **kwargs,
     ):
-        super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
-        if direct_extraction_schema is None or direct_extraction_prompt is None:
+        super().__init__(*args, max_concurrent=max_concurrent, use_extra_body=use_extra_body, **kwargs)
+        if direct_extraction_schema is None:
             raise ValueError(
-                "direct_extraction_schema and direct_extraction_prompt must both be set "
-                "for MeasurementLMNuExtract. Use the same values defined in the dataset "
-                "config for Ablation 1 — do not write a new prompt here."
+                "direct_extraction_schema must be set for MeasurementLMNuExtract. "
+                "Use the same schema defined in the dataset config for Ablation 1."
             )
         self.direct_extraction_schema = direct_extraction_schema
-        self.direct_extraction_prompt = direct_extraction_prompt
+        self.examples = examples
         self.max_images_per_document = max_images_per_document
 
     # -----------------------------------------------------------------------
@@ -82,15 +91,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         from pydantic import create_model
 
         template = _build_template(self.direct_extraction_schema, self.attribute_info_dict)
-        # Reuse the dataset's existing, iterated-on direct-extraction prompt verbatim
-        # (the same one Ablation 1 uses) rather than writing new, untested instructions
-        # per dataset. Only the NuExtract-specific typed template is appended.
-        text_block = (
-            f"{self.direct_extraction_prompt}\n\n"
-            f"TEMPLATE:\n{json.dumps(template, indent=2)}\n\n"
-            "Return ONLY a JSON object matching the template above, with one item per "
-            "distinct measurement found."
-        )
+        template_json = json.dumps(template, indent=2)
 
         messages: list[list[dict]] = []
         for doc_dir in processed_pdf_dirs:
@@ -110,6 +111,10 @@ class MeasurementLMNuExtract(MeasurementLM):
                 page_files = page_files[: self.max_images_per_document]
             images_b64 = [p.read_text().strip() for p in page_files]
 
+            # NuExtract's chat template only accepts image content blocks here
+            # (plus an optional literal "<image>" text sentinel) — any other
+            # text block makes it silently drop all image placeholders. The
+            # schema itself is sent out-of-band via extra_body below.
             content: list[dict] = [
                 {
                     "type": "image_url",
@@ -117,7 +122,6 @@ class MeasurementLMNuExtract(MeasurementLM):
                 }
                 for img in images_b64
             ]
-            content.append({"type": "text", "text": text_block})
             messages.append([{"role": "user", "content": content}])
 
         DirectExtractionList = create_model(
@@ -131,6 +135,10 @@ class MeasurementLMNuExtract(MeasurementLM):
                 "schema": DirectExtractionList.model_json_schema(),
             },
         }
+        chat_template_kwargs = {"template": template_json}
+        if self.examples:
+            chat_template_kwargs["examples"] = self.examples
+        extra_body = {"chat_template_kwargs": chat_template_kwargs}
 
         response_texts = self._call_batch(
             messages,
@@ -139,6 +147,7 @@ class MeasurementLMNuExtract(MeasurementLM):
             max_retries=4,
             validator=partial(response_validator, DirectExtractionList),
             timeout=600.0,
+            extra_body=extra_body,
         )
 
         records: list[dict] = []

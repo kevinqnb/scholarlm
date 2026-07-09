@@ -13,6 +13,12 @@ text — NuExtract-2.0-8B is a vision-language model that reads rendered page
 images directly. It requires that `experiments/process_pdfs.py` has already
 been run for the target dataset (producing `{data_dir}/processed_pdfs/`).
 
+NuExtract has a fixed calling convention (see `measurementlm_nuextract.py`):
+the JSON extraction schema is sent out-of-band via `extra_body`, and message
+content must contain only image blocks — there is no field for freeform
+instructions, so this baseline (unlike Ablation 1) does not use a dataset's
+`direct_extraction_prompt`.
+
 Usage
 -----
     # From the repo root:
@@ -24,7 +30,7 @@ Usage
     # nuextract-2.0-8b entry and experiments/serve_nuextract_2_0_8b.sh, generated via
     # `python experiments/gen_serve_script.py nuextract-2.0-8b`):
     #   vllm serve numind/NuExtract-2.0-8B --trust-remote-code \\
-    #       --chat-template-content-format openai --limit-mm-per-prompt image=20
+    #       --chat-template-content-format openai --limit-mm-per-prompt '{"image": 50}'
     python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8081/v1
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
@@ -87,11 +93,10 @@ def run_baseline_nuextract(
     model_config = BASELINE_MODEL_REGISTRY["nuextract-2.0-8b"]
     data_dir = Path(dataset_config.data_dir)
 
-    if dataset_config.direct_extraction_schema is None or dataset_config.direct_extraction_prompt is None:
+    if dataset_config.direct_extraction_schema is None:
         raise ValueError(
-            f"Dataset '{dataset_config.name}' does not define direct_extraction_schema and "
-            f"direct_extraction_prompt, both of which are required for the NuExtract baseline "
-            f"(the same schema and prompt Ablation 1 uses)."
+            f"Dataset '{dataset_config.name}' does not define direct_extraction_schema, "
+            f"which is required for the NuExtract baseline (the same schema Ablation 1 uses)."
         )
 
     print(f"\nDataset   : {dataset_config.name}")
@@ -120,14 +125,13 @@ def run_baseline_nuextract(
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         direct_extraction_schema=dataset_config.direct_extraction_schema,
-        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
+        examples=dataset_config.nuextract_examples,
         sampling_params=model_config.sampling_params,
         api_base=api_base,
         api_key=api_key,
         max_concurrent=max_concurrent,
         clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
-        use_extra_body=False,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)

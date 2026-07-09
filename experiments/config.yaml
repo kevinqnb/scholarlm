@@ -190,11 +190,15 @@ models:
   # unconditionally by gen_serve_script.py) plus two NuExtract-specific flags
   # below. --chat-template-content-format openai is required — vLLM does not
   # auto-detect the correct chat template for this model. --limit-mm-per-prompt
-  # bounds how many page images can be sent in a single request; raise it if
-  # papers in a dataset routinely exceed this many pages.
+  # bounds how many page images can be sent in a single request; the longest
+  # document seen so far (nfix) is 45 pages, so this is set to 50 with
+  # headroom — raise it if a future dataset has longer papers, and keep
+  # measurementlm_nuextract.py's max_images_per_document (default 45, see
+  # MeasurementLMNuExtract.__init__) at or below this value.
   # gpu_memory/gpu_capability/max_model_len are first-pass estimates (bf16
-  # weights are ~15GB; multi-image prompts add significant KV-cache overhead)
-  # — verify and tune against actual serve behavior.
+  # weights are ~15GB; multi-image prompts add significant KV-cache overhead,
+  # more so now with up to 50 images/request) — verify and tune against
+  # actual serve behavior.
   nuextract-2.0-8b:
     model_id: numind/NuExtract-2.0-8B
     hf_revision: null
@@ -204,7 +208,7 @@ models:
       seed: 342
     serve:
       port: 8081
-      max_model_len: 32768
+      max_model_len: 65536
       gpu_memory_utilization: 0.90
       quantization: null
       dtype: bfloat16
@@ -214,8 +218,8 @@ models:
         # vLLM expects a JSON object here (not the older image=20 shorthand);
         # gen_serve_script.py handles escaping the embedded quotes for the
         # generated script's bash-in-bash nesting — write this literally.
-        - "--limit-mm-per-prompt '{\"image\": 20}'"
-      gpu_memory: 48G
+        - "--limit-mm-per-prompt '{\"image\": 50}'"
+      gpu_memory: 64G
       gpu_capability: 8.0
       walltime: "48:00:00"
       omp: 8

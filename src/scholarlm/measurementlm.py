@@ -169,6 +169,7 @@ class MeasurementLM:
         temperature: float | None = None,
         max_tokens: int | None = None,
         timeout: float = 600.0,
+        extra_body: dict | None = None,
     ) -> str:
         """Single async API call to the vLLM OpenAI-compatible endpoint."""
         # Frontier models may require 'max_completion_tokens' (OpenAI o-series / gpt-5+)
@@ -201,6 +202,12 @@ class MeasurementLM:
             if "enable_thinking" in self.sampling_params:
                 # Disable thinking by default for extraction tasks
                 extra["chat_template_kwargs"] = {"enable_thinking": self.sampling_params['enable_thinking']}
+            if extra_body:
+                for key, value in extra_body.items():
+                    if key == "chat_template_kwargs" and isinstance(value, dict) and isinstance(extra.get(key), dict):
+                        extra[key] = {**extra[key], **value}
+                    else:
+                        extra[key] = value
             if extra:
                 kwargs["extra_body"] = extra
         try:
@@ -225,6 +232,7 @@ class MeasurementLM:
         validator: Callable[[str], Any] | None = None,
         timeout: float = 600.0,
         max_concurrent: int | None = None,
+        extra_body: dict | None = None,
     ) -> list[str]:
         """Dispatch all message sets concurrently; return response texts in order.
 
@@ -233,13 +241,15 @@ class MeasurementLM:
         validator is called only to detect failure — its return value is ignored.
         max_concurrent overrides self.max_concurrent for this call only, allowing
         per-step concurrency tuning without changing the instance default.
+        extra_body is forwarded unchanged to every request in this batch (merged
+        under self.use_extra_body, same as the sampling-params-derived fields).
         """
         async def _run():
             sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
                 async with sem:
-                    return await self._acall(msgs, response_format, temperature, max_tokens, timeout)
+                    return await self._acall(msgs, response_format, temperature, max_tokens, timeout, extra_body)
 
             results = list(await asyncio.gather(*[_limited(msgs) for msgs in message_sets]))
 
