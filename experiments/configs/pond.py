@@ -488,6 +488,25 @@ _TOP_PAPERS = [
     'environmental_conditions',
 ]
 
+# ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrases
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". These short, human-readable phrases are the <PROPERTY> string
+# used for each attribute (one full ChatExtract conversation is run per phrase).
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "surface_area": "surface area of the water body",
+    "max_depth": "maximum water depth",
+    "vegetation_cover": "aquatic vegetation cover",
+    "ph": "water pH",
+    "tn": "total nitrogen concentration",
+    "tp": "total phosphorus concentration",
+    "chla": "chlorophyll-a concentration",
+}
+
+
 CONFIG = DatasetConfig(
     name="pond",
     data_dir="data/pond",
@@ -503,6 +522,7 @@ CONFIG = DatasetConfig(
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,

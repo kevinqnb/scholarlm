@@ -71,7 +71,9 @@ def compute_baseline_metrics(dataset, baseline_configs):
 
     Args:
         dataset: Dataset name.
-        baseline_configs: dict mapping mlm_model -> {'mlm_date': str, 'nuextract_date': str}.
+        baseline_configs: dict mapping mlm_model -> {'mlm_date': str,
+            'nuextract_date': str | None, 'chatextract_date': str | None}. A None
+            (or missing) baseline date skips that arm for the model.
     """
     config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(config)
@@ -105,37 +107,43 @@ def compute_baseline_metrics(dataset, baseline_configs):
             row['mlm_recovery'] = np.nan
             row['mlm_validity'] = np.nan
 
-        if dates.get('nuextract_date') is None:
-            row['nuextract_recovery'] = np.nan
-            row['nuextract_validity'] = np.nan
-            results.append(row)
-            continue
-
-        try:
-            resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
-                dataset, config, 'nuextract-2.0-8b', dates['nuextract_date'],
-                ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
-                cache_tag='nuextract',
-            )
-            row['nuextract_recovery'] = recov
-            row['nuextract_recovery_ci_lo'] = recov_lo
-            row['nuextract_recovery_ci_hi'] = recov_hi
-            row['nuextract_validity'] = valid
-            row['nuextract_validity_ci_lo'] = valid_lo
-            row['nuextract_validity_ci_hi'] = valid_hi
-            row['nuextract_has_judge'] = has_judge
-            print(f"    NuExtract-2.0-8B ({resolved_date}): "
-                  f"recovery={recov:.3f} [{recov_lo:.3f}, {recov_hi:.3f}], "
-                  f"validity={valid:.3f} [{valid_lo:.3f}, {valid_hi:.3f}]"
-                  f"{'' if has_judge else ' (no judge — validity is a lower bound)'}")
-        except FileNotFoundError:
-            print(f"    NuExtract-2.0-8B: not found, skipping.")
-            row['nuextract_recovery'] = np.nan
-            row['nuextract_validity'] = np.nan
-        except Exception as e:
-            print(f"    NuExtract-2.0-8B ERROR: {e}")
-            row['nuextract_recovery'] = np.nan
-            row['nuextract_validity'] = np.nan
+        # External baselines. Each is registered as a pseudo extraction model, so
+        # the same _load_and_score() path works. ChatExtract runs on the same
+        # backbone as the MeasurementLM arm, so its model name is per-mlm_model.
+        external_baselines = {
+            'nuextract': ('nuextract-2.0-8b', dates.get('nuextract_date')),
+            'chatextract': (f'chatextract-{mlm_model}', dates.get('chatextract_date')),
+        }
+        for tag, (model_name, date) in external_baselines.items():
+            if date is None:
+                row[f'{tag}_recovery'] = np.nan
+                row[f'{tag}_validity'] = np.nan
+                continue
+            try:
+                resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
+                    dataset, config, model_name, date,
+                    ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
+                    cache_tag=tag,
+                )
+                row[f'{tag}_recovery'] = recov
+                row[f'{tag}_recovery_ci_lo'] = recov_lo
+                row[f'{tag}_recovery_ci_hi'] = recov_hi
+                row[f'{tag}_validity'] = valid
+                row[f'{tag}_validity_ci_lo'] = valid_lo
+                row[f'{tag}_validity_ci_hi'] = valid_hi
+                row[f'{tag}_has_judge'] = has_judge
+                print(f"    {model_name} ({resolved_date}): "
+                      f"recovery={recov:.3f} [{recov_lo:.3f}, {recov_hi:.3f}], "
+                      f"validity={valid:.3f} [{valid_lo:.3f}, {valid_hi:.3f}]"
+                      f"{'' if has_judge else ' (no judge — validity is a lower bound)'}")
+            except FileNotFoundError:
+                print(f"    {model_name}: not found, skipping.")
+                row[f'{tag}_recovery'] = np.nan
+                row[f'{tag}_validity'] = np.nan
+            except Exception as e:
+                print(f"    {model_name} ERROR: {e}")
+                row[f'{tag}_recovery'] = np.nan
+                row[f'{tag}_validity'] = np.nan
 
         results.append(row)
 
@@ -146,10 +154,10 @@ def main():
     # Fill in with the extraction dates you want to compare, per dataset.
     baseline_configs = {
         'pond': {
-            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': None, 'chatextract_date': None},
         },
         'nfix': {
-            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': None, 'chatextract_date': None},
         },
     }
 

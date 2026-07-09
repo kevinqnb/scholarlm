@@ -91,6 +91,13 @@ class DatasetConfig:
             ``verbatim-string`` fields are trained to copy spans, not paraphrase).
             Synthetic text, not real paper excerpts — must never overlap with
             ``ground_truth_file`` papers.  Ignored by every other pipeline path.
+        chatextract_property_names: Optional mapping from each ``attribute_info_dict``
+            key to a short, human-readable *property phrase* for the ChatExtract
+            baseline (``MeasurementLMChatExtract``).  ChatExtract is a single-property
+            method whose prompts read "...a value of ``<PROPERTY>``..."; this supplies
+            the ``<PROPERTY>`` string per attribute (e.g. ``"tn" -> "total nitrogen"``).
+            Any attribute absent from this dict falls back to the key with underscores
+            replaced by spaces.  Ignored by every other pipeline path.
     """
 
     name: str
@@ -114,6 +121,7 @@ class DatasetConfig:
     judge_filter_fields: list[str] | None = None
     judge_instructions: str | None = None
     nuextract_examples: list[dict] | None = None
+    chatextract_property_names: dict[str, str] | None = None
 
 
 @dataclass

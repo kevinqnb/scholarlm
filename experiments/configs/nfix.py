@@ -450,6 +450,22 @@ _TOP_PAPERS = [
     "R51", "R59", "R114", "R43", "R103",
 ]
 
+# ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrases
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". The three nfix rate attributes differ only by normalization
+# basis (mass / area / volume), which the phrase makes explicit so the model
+# is steered toward the right unit family.
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "nfix_rate_mass": "dinitrogen fixation rate per unit mass",
+    "nfix_rate_areal": "dinitrogen fixation rate per unit area",
+    "nfix_rate_volumetric": "dinitrogen fixation rate per unit volume",
+}
+
+
 CONFIG = DatasetConfig(
     name="nfix",
     data_dir="data/nfix",
@@ -466,6 +482,7 @@ CONFIG = DatasetConfig(
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,
