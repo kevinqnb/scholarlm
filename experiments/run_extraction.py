@@ -139,6 +139,7 @@ def load_papers(
         paper_info: dict[str, dict] = json.load(f)
 
     text_files = get_filenames_in_directory(ocr_dir, ignore=[".DS_Store", ".gitkeep"])
+    text_files = [f for f in text_files if f.endswith(".txt")]
     text_files.sort()
 
     # Apply metadata filter
