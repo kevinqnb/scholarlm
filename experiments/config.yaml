@@ -183,6 +183,40 @@ models:
       walltime: "24:00:00"
       omp: 8
 
+  # Baseline comparison model (not part of MODEL_REGISTRY / the standard
+  # extraction or ablation pipeline) — see experiments/model_registry.py's
+  # BASELINE_MODEL_REGISTRY and experiments/run_baseline_nuextract.py.
+  # Vision-language model: needs --trust-remote-code (already added
+  # unconditionally by gen_serve_script.py) plus two NuExtract-specific flags
+  # below. --chat-template-content-format openai is required — vLLM does not
+  # auto-detect the correct chat template for this model. --limit-mm-per-prompt
+  # bounds how many page images can be sent in a single request; raise it if
+  # papers in a dataset routinely exceed this many pages.
+  # gpu_memory/gpu_capability/max_model_len are first-pass estimates (bf16
+  # weights are ~15GB; multi-image prompts add significant KV-cache overhead)
+  # — verify and tune against actual serve behavior.
+  nuextract-2.0-8b:
+    model_id: numind/NuExtract-2.0-8B
+    hf_revision: null
+    sampling_params:
+      temperature: 0.0
+      max_tokens: 4096
+      seed: 342
+    serve:
+      port: 8081
+      max_model_len: 32768
+      gpu_memory_utilization: 0.90
+      quantization: null
+      dtype: bfloat16
+      sif_image: vllm-openai_v0.19.0.sif
+      extra_vllm_args:
+        - "--chat-template-content-format openai"
+        - "--limit-mm-per-prompt image=20"
+      gpu_memory: 48G
+      gpu_capability: 8.0
+      walltime: "48:00:00"
+      omp: 8
+
 # Mechanistic interpretability models:
 interp_judges:
   llama-3.1-8b:

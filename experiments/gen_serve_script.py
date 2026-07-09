@@ -59,6 +59,7 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
     dtype: str | None = serve.get("dtype")
     sif_image: str = serve.get("sif_image", "vllm-openai_latest.sif")
     seed: int = defaults.get("seed", 342)
+    extra_vllm_args: list[str] = serve.get("extra_vllm_args", [])
 
     # -----------------------------------------------------------------------
     # SGE project directive (omit the line entirely if not configured)
@@ -83,6 +84,7 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
         f"        --seed {seed}",
         "        --trust-remote-code",
     ]
+    vllm_flags += [f"        {arg}" for arg in extra_vllm_args]
     vllm_cmd = " \\\n".join(vllm_flags)
 
     # -----------------------------------------------------------------------

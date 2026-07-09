@@ -20,10 +20,12 @@ Usage
     python experiments/run_baseline_nuextract.py --dataset nfix \\
         --paper-subset physical_and_chemical_limnological
 
-    # Point at a vLLM server hosting NuExtract-2.0-8B:
-    #   vllm serve numind/NuExtract-2.0-8B --trust_remote_code \\
+    # Point at a vLLM server hosting NuExtract-2.0-8B (see experiments/config.yaml's
+    # nuextract-2.0-8b entry and experiments/serve_nuextract_2_0_8b.sh, generated via
+    # `python experiments/gen_serve_script.py nuextract-2.0-8b`):
+    #   vllm serve numind/NuExtract-2.0-8B --trust-remote-code \\
     #       --chat-template-content-format openai --limit-mm-per-prompt image=20
-    python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8082/v1
+    python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8081/v1
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
 """
@@ -189,11 +191,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--api-base",
-        default="http://localhost:8082/v1",
+        default="http://localhost:8081/v1",
         metavar="URL",
         help=(
             "Base URL of the vLLM OpenAI-compatible server hosting NuExtract-2.0-8B "
-            "(default: http://localhost:8082/v1)."
+            "(default: http://localhost:8081/v1)."
         ),
     )
     p.add_argument(
