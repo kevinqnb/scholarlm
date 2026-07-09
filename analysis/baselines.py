@@ -72,8 +72,9 @@ def compute_baseline_metrics(dataset, baseline_configs):
     Args:
         dataset: Dataset name.
         baseline_configs: dict mapping mlm_model -> {'mlm_date': str,
-            'nuextract_date': str | None, 'chatextract_date': str | None}. A None
-            (or missing) baseline date skips that arm for the model.
+            'nuextract_date': str | None, 'chatextract_date': str | None,
+            'gliner_date': str | None}. A None (or missing) baseline date skips
+            that arm for the model.
     """
     config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(config)
@@ -113,6 +114,7 @@ def compute_baseline_metrics(dataset, baseline_configs):
         external_baselines = {
             'nuextract': ('nuextract-2.0-8b', dates.get('nuextract_date')),
             'chatextract': (f'chatextract-{mlm_model}', dates.get('chatextract_date')),
+            'gliner': ('gliner-large-v1', dates.get('gliner_date')),
         }
         for tag, (model_name, date) in external_baselines.items():
             if date is None:
@@ -154,10 +156,10 @@ def main():
     # Fill in with the extraction dates you want to compare, per dataset.
     baseline_configs = {
         'pond': {
-            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': None, 'chatextract_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': None, 'chatextract_date': None, 'gliner_date': None},
         },
         'nfix': {
-            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': None, 'chatextract_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': None, 'chatextract_date': None, 'gliner_date': None},
         },
     }
 

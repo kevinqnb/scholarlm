@@ -98,6 +98,15 @@ class DatasetConfig:
             the ``<PROPERTY>`` string per attribute (e.g. ``"tn" -> "total nitrogen"``).
             Any attribute absent from this dict falls back to the key with underscores
             replaced by spaces.  Ignored by every other pipeline path.
+        gliner_property_names: Optional mapping from each ``attribute_info_dict`` key
+            to a short, human-readable *property phrase* for the GLiNER2 baseline
+            (``MeasurementLMGliner``).  GLiNER runs one structured-extraction schema
+            per attribute; this phrase names the measurement in that schema's fields
+            (the richer per-attribute semantics come from
+            ``attribute_info_dict[key]["description"]``, which GLiNER also consumes).
+            ``None`` (or an absent key) falls back to ``chatextract_property_names``
+            and then to the attribute key with underscores replaced by spaces, so
+            populating this is optional.  Ignored by every other pipeline path.
     """
 
     name: str
@@ -122,6 +131,7 @@ class DatasetConfig:
     judge_instructions: str | None = None
     nuextract_examples: list[dict] | None = None
     chatextract_property_names: dict[str, str] | None = None
+    gliner_property_names: dict[str, str] | None = None
 
 
 @dataclass
