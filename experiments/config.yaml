@@ -211,7 +211,10 @@ models:
       sif_image: vllm-openai_v0.19.0.sif
       extra_vllm_args:
         - "--chat-template-content-format openai"
-        - "--limit-mm-per-prompt image=20"
+        # vLLM expects a JSON object here (not the older image=20 shorthand);
+        # gen_serve_script.py handles escaping the embedded quotes for the
+        # generated script's bash-in-bash nesting — write this literally.
+        - "--limit-mm-per-prompt '{\"image\": 20}'"
       gpu_memory: 48G
       gpu_capability: 8.0
       walltime: "48:00:00"
