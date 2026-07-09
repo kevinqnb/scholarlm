@@ -1,10 +1,10 @@
 """NuExtract-2.0-8B baseline: single-shot, image-based structured extraction.
 
 Unlike MeasurementLM (which reads OCR'd `<page>/<table>` tagged text) and unlike
-Ablation 1 (which is also single-shot but text-only), this baseline sends the
-rendered page images of a document directly to a vision-language model in one
-call. It reuses `MeasurementLM`'s OpenAI-compatible async client, retry, and
-concurrency machinery unchanged — only message/request construction differs.
+Ablation 1 (which is also single-shot but text-only), this baseline sends
+rendered page images directly to a vision-language model. It reuses
+`MeasurementLM`'s OpenAI-compatible async client, retry, and concurrency
+machinery unchanged — only message/request construction differs.
 
 NuExtract has its own fixed calling convention (see its `chat_template.jinja`
 on HuggingFace): the JSON extraction schema must be passed as a separate
@@ -18,6 +18,13 @@ instructions alongside the template (only `template` and optional few-shot
 `examples`), so — unlike Ablation 1 — this baseline cannot reuse a dataset's
 `direct_extraction_prompt`; it is inherently template-only, matching how
 NuMind's own examples call the model.
+
+The template's image branch also only ever emits *one* image placeholder per
+message — `{%- if ... not ns2.found_image -%}` short-circuits after the first
+`image_url` block, regardless of how many are attached — so a whole multi-page
+document cannot be sent in a single call. Each page is therefore its own
+request; `fit()`'s `_deduplicate()` step merges the resulting per-page records
+back into one set of measurements per document.
 
 To offset the lack of attribute descriptions, callers may pass `examples`
 (from `DatasetConfig.nuextract_examples`) — small, synthetic input/output
@@ -58,7 +65,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         *args,
         direct_extraction_schema=None,
         examples: list[dict] | None = None,
-        max_concurrent: int = 2,
+        max_concurrent: int = 16,
         max_images_per_document: int = 45,
         use_extra_body: bool = True,
         **kwargs,
@@ -80,6 +87,12 @@ class MeasurementLMNuExtract(MeasurementLM):
     def _extract_records(self, processed_pdf_dirs: list[str]) -> list[dict]:
         """Extract all measurement records from each document's page images.
 
+        Dispatches one request per page (NuExtract's chat template only
+        supports a single image per message — see the module docstring) and
+        tags each resulting record with its source document so `fit()`'s
+        `_deduplicate()` step can merge per-page records back into one set
+        of measurements per document.
+
         Args:
             processed_pdf_dirs: Paths to pre-processed image directories, one
                 per document (in the same order as `self.data`), each
@@ -93,8 +106,14 @@ class MeasurementLMNuExtract(MeasurementLM):
         template = _build_template(self.direct_extraction_schema, self.attribute_info_dict)
         template_json = json.dumps(template, indent=2)
 
+        # NuExtract's chat template only accepts a single image content block
+        # per message (plus an optional literal "<image>" text sentinel) —
+        # any other text block, or any additional image, makes it silently
+        # drop the image placeholder(s). The schema itself is sent out-of-band
+        # via extra_body below, so each message here is exactly one image.
         messages: list[list[dict]] = []
-        for doc_dir in processed_pdf_dirs:
+        message_doc_indices: list[int] = []
+        for doc_idx, doc_dir in enumerate(processed_pdf_dirs):
             doc_path = Path(doc_dir)
             if not doc_path.exists():
                 raise FileNotFoundError(
@@ -109,20 +128,15 @@ class MeasurementLMNuExtract(MeasurementLM):
                     f"Only the first {self.max_images_per_document} pages will be sent."
                 )
                 page_files = page_files[: self.max_images_per_document]
-            images_b64 = [p.read_text().strip() for p in page_files]
 
-            # NuExtract's chat template only accepts image content blocks here
-            # (plus an optional literal "<image>" text sentinel) — any other
-            # text block makes it silently drop all image placeholders. The
-            # schema itself is sent out-of-band via extra_body below.
-            content: list[dict] = [
-                {
+            for page_file in page_files:
+                image_b64 = page_file.read_text().strip()
+                content = [{
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{img}"},
-                }
-                for img in images_b64
-            ]
-            messages.append([{"role": "user", "content": content}])
+                    "image_url": {"url": f"data:image/png;base64,{image_b64}"},
+                }]
+                messages.append([{"role": "user", "content": content}])
+                message_doc_indices.append(doc_idx)
 
         DirectExtractionList = create_model(
             "DirectExtractionList",
@@ -143,28 +157,29 @@ class MeasurementLMNuExtract(MeasurementLM):
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_tokens=8192,
+            max_tokens=4096,
             max_retries=4,
             validator=partial(response_validator, DirectExtractionList),
-            timeout=600.0,
+            timeout=300.0,
             extra_body=extra_body,
         )
 
         records: list[dict] = []
-        for i, r in enumerate(response_texts):
+        for msg_idx, r in enumerate(response_texts):
+            doc_idx = message_doc_indices[msg_idx]
             try:
                 resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
-                print(f"Validation error in NuExtract response: {e}")
+                print(f"Validation error in NuExtract response (doc {doc_idx}, msg {msg_idx}): {e}")
                 print(f"Response text: {r}")
                 resp_validated = {"items": []}
 
-            for j, item in enumerate(resp_validated["items"]):
+            for item_idx, item in enumerate(resp_validated["items"]):
                 if item.get("value") is None:
                     continue
-                entity_id = f"doc_{i}_entity_{j}"
+                entity_id = f"doc_{doc_idx}_msg_{msg_idx}_entity_{item_idx}"
                 records.append(
-                    self.data[i] | item | {
+                    self.data[doc_idx] | item | {
                         "entity_id": entity_id,
                         "attribute_terms": [],
                     }

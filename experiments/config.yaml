@@ -189,16 +189,17 @@ models:
   # Vision-language model: needs --trust-remote-code (already added
   # unconditionally by gen_serve_script.py) plus two NuExtract-specific flags
   # below. --chat-template-content-format openai is required — vLLM does not
-  # auto-detect the correct chat template for this model. --limit-mm-per-prompt
-  # bounds how many page images can be sent in a single request; the longest
-  # document seen so far (nfix) is 45 pages, so this is set to 50 with
-  # headroom — raise it if a future dataset has longer papers, and keep
-  # measurementlm_nuextract.py's max_images_per_document (default 45, see
-  # MeasurementLMNuExtract.__init__) at or below this value.
+  # auto-detect the correct chat template for this model.
+  # NuExtract's own chat template only ever emits one image placeholder per
+  # message regardless of how many image_url blocks are attached (confirmed
+  # against the actual chat_template.json — the image branch short-circuits
+  # after the first image), so measurementlm_nuextract.py sends exactly one
+  # page per request. --limit-mm-per-prompt is set to 2 (1 plus headroom)
+  # rather than the page count of the longest document.
   # gpu_memory/gpu_capability/max_model_len are first-pass estimates (bf16
-  # weights are ~15GB; multi-image prompts add significant KV-cache overhead,
-  # more so now with up to 50 images/request) — verify and tune against
-  # actual serve behavior.
+  # weights are ~15GB; a single page image + short template/examples prompt
+  # needs far less context than a whole-document request would) — verify and
+  # tune against actual serve behavior.
   nuextract-2.0-8b:
     model_id: numind/NuExtract-2.0-8B
     hf_revision: null
@@ -208,7 +209,7 @@ models:
       seed: 342
     serve:
       port: 8081
-      max_model_len: 65536
+      max_model_len: 16384
       gpu_memory_utilization: 0.90
       quantization: null
       dtype: bfloat16
@@ -218,8 +219,8 @@ models:
         # vLLM expects a JSON object here (not the older image=20 shorthand);
         # gen_serve_script.py handles escaping the embedded quotes for the
         # generated script's bash-in-bash nesting — write this literally.
-        - "--limit-mm-per-prompt '{\"image\": 50}'"
-      gpu_memory: 64G
+        - "--limit-mm-per-prompt '{\"image\": 2}'"
+      gpu_memory: 48G
       gpu_capability: 8.0
       walltime: "48:00:00"
       omp: 8

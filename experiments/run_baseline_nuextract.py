@@ -17,7 +17,9 @@ NuExtract has a fixed calling convention (see `measurementlm_nuextract.py`):
 the JSON extraction schema is sent out-of-band via `extra_body`, and message
 content must contain only image blocks — there is no field for freeform
 instructions, so this baseline (unlike Ablation 1) does not use a dataset's
-`direct_extraction_prompt`.
+`direct_extraction_prompt`. Its chat template also only ever emits one image
+placeholder per message, so every page is sent as its own request rather than
+one call per document — expect one API call per page, not per paper.
 
 Usage
 -----
@@ -30,7 +32,7 @@ Usage
     # nuextract-2.0-8b entry and experiments/serve_nuextract_2_0_8b.sh, generated via
     # `python experiments/gen_serve_script.py nuextract-2.0-8b`):
     #   vllm serve numind/NuExtract-2.0-8B --trust-remote-code \\
-    #       --chat-template-content-format openai --limit-mm-per-prompt '{"image": 50}'
+    #       --chat-template-content-format openai --limit-mm-per-prompt '{"image": 1}'
     python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8081/v1
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
@@ -69,9 +71,9 @@ def run_baseline_nuextract(
     dataset_config,
     output_dir: Path,
     paper_subset_override: list[str] | None = None,
-    api_base: str = "http://localhost:8082/v1",
+    api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
-    max_concurrent: int = 2,
+    max_concurrent: int = 16,
 ) -> None:
     """Run the NuExtract-2.0-8B baseline for a dataset.
 
@@ -211,8 +213,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--max-concurrent",
         type=int,
-        default=2,
-        help="Maximum concurrent in-flight requests (default: 2).",
+        default=16,
+        help=(
+            "Maximum concurrent in-flight requests (default: 16). Each request is now "
+            "a single page image, not a whole document, so this can run higher than "
+            "a typical whole-document baseline."
+        ),
     )
     return p
 
