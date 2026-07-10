@@ -63,19 +63,32 @@ _DS_COLORS = {
     ('pond', 'real'): palette[7],
     ('nfix', 'syn'):  palette[1],
     ('nfix', 'real'): palette[1],
+    ('supermat', 'syn'):  palette[4],
+    ('supermat', 'real'): palette[4],
 }
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-DATASETS = ['pond', 'nfix']
+DATASETS = ['pond', 'nfix', 'supermat']
 EXTRACTION_MODEL = 'gemma-3-27b'
 JUDGE_MODELS = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
 PROBE_TYPE = "head"
+
+# Datasets each judge has interpretable results (activations) for. A cross-domain
+# (train_ds → test_ds) pair is only valid for a judge when BOTH datasets appear
+# here, since the probe lives in that judge's activation space. qwen covers all
+# three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
+JUDGE_DATASETS = {
+    'llama-3.1-8b': ['pond', 'nfix'],
+    'mistral-7b':   ['pond', 'nfix'],
+    'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
+}
 
 # Extraction date per test dataset
 EXTRACTION_DATES = {
     'pond': '2026_05_05',
     'nfix': '2026_05_06',
+    'supermat': '2026_07_09',
 }
 
 # Judge date for synthetic test activations: {dataset: {judge_model: date_str | None}}
@@ -90,6 +103,9 @@ JUDGE_DATES_SYN = {
         'llama-3.1-8b': '2026_05_04',
         'mistral-7b': '2026_05_04',
         'qwen-2.5-7b': '2026_05_04',
+    },
+    'supermat': {
+        'qwen-2.5-7b': '2026-07-10',   # TODO: pin the supermat synthetic-probe date if not the latest
     },
 }
 
@@ -106,10 +122,13 @@ JUDGE_DATES_REAL = {
         'mistral-7b': '2026_05_05',
         'qwen-2.5-7b': '2026_05_05',
     },
+    'supermat': {
+        'qwen-2.5-7b': '2026-07-10',   # TODO: pin the supermat real (extracted) judge date if not the latest
+    },
 }
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
-EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6}  # minimum fuzzy weight to count as a match
+EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
 
 
 def get_matching_config(dataset):
@@ -121,16 +140,26 @@ def get_matching_config(dataset):
         strict = {'document_id': 'document_id', 'attribute': 'attribute',
                 'value': 'converted_value', 'units': 'units'}
         fuzzy  = {'name': 'name', 'site_type': 'site_type'}
+    elif dataset == 'supermat':
+        # tc is the only attribute; entity is the material name/formula.
+        # Many ground-truth `name` values are null → those rows fall back to
+        # strict-only matching on document_id + attribute + value + units.
+        strict = {'document_id': 'document_id', 'attribute': 'attribute',
+                'value': 'converted_value', 'units': 'units'}
+        fuzzy  = {'name': 'name'}
     else:
         raise ValueError(f'Unknown dataset: {dataset}')
     return strict, fuzzy
 
 
-# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop
+# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop.
+# Only load (dataset, judge) pairs that actually have a trained probe.
 ntp_cal_cache = {}
 for ds in DATASETS:
     ntp_cal_cache[ds] = {}
     for jm in JUDGE_MODELS:
+        if ds not in JUDGE_DATASETS[jm]:
+            continue
         ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm)
 
 
@@ -138,6 +167,8 @@ probe_cache = {}
 for ds in DATASETS:
     probe_cache[ds] = {}
     for jm in JUDGE_MODELS:
+        if ds not in JUDGE_DATASETS[jm]:
+            continue
         probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE)
 
 
@@ -150,6 +181,13 @@ def get_matching_config(dataset):
         strict = {'document_id': 'document_id', 'attribute': 'attribute',
                 'value': 'converted_value', 'units': 'units'}
         fuzzy  = {'name': 'name', 'site_type': 'site_type'}
+    elif dataset == 'supermat':
+        # tc is the only attribute; entity is the material name/formula.
+        # Many ground-truth `name` values are null → those rows fall back to
+        # strict-only matching on document_id + attribute + value + units.
+        strict = {'document_id': 'document_id', 'attribute': 'attribute',
+                'value': 'converted_value', 'units': 'units'}
+        fuzzy  = {'name': 'name'}
     else:
         raise ValueError(f'Unknown dataset: {dataset}')
     return strict, fuzzy
@@ -223,6 +261,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
         for judge_model in judge_models:
             setting_results[dataset_type][judge_model] = {}
             for train_ds in datasets:
+                if train_ds not in JUDGE_DATASETS[judge_model]:
+                    continue
                 setting_results[dataset_type][judge_model][train_ds] = {}
                 pd_data = probe_cache[train_ds][judge_model]
                 ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
@@ -232,6 +272,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                     top = pd_data['top_k_heads']
 
                 for test_ds in datasets:
+                    if test_ds not in JUDGE_DATASETS[judge_model]:
+                        continue
                     if dataset_type == 'syn':
                         jdate    = JUDGE_DATES_SYN[test_ds][judge_model]
                         syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test')
@@ -357,6 +399,8 @@ def plot_calibration_curves(
             for train_ds in DATASETS:
                 for test_ds in DATASETS:
                     if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
+                        continue
+                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
                         continue
 
                     color = _DS_COLORS[(train_ds, dtype)]
@@ -508,6 +552,8 @@ def plot_pr_curves(setting_results, dtype):
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
                         continue
+                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
+                        continue
 
                     fig_pr, ax_pr = plt.subplots(figsize=(4.0, 3.8))
 
@@ -567,6 +613,8 @@ def plot_validity_recovery(setting_results, dtype):
             for ctype in ['in-domain', 'cross-domain']:
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
+                        continue
+                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
                         continue
 
                     fig, ax = plt.subplots(figsize=(4.0, 3.8))
@@ -656,8 +704,10 @@ def plot_validity_recovery(setting_results, dtype):
 
 
 if __name__ == "__main__":
-    # Set to True to load precomputed results if available, False to recompute from scratch
-    load_from_precomputed = True
+    # Set to True to load precomputed results if available, False to recompute from scratch.
+    # NOTE: the cache is keyed only by (extraction_model, probe_type), so a cache built
+    # before supermat was added is stale — run once with False to regenerate, then flip back.
+    load_from_precomputed = False
     
     setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
     plot_calibration_curves(setting_results, dtype='syn')
@@ -676,6 +726,7 @@ if __name__ == "__main__":
     _legend_handles = [
         mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='PLW'),
         mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='NF'),
+        mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='SM'),
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
     ]
