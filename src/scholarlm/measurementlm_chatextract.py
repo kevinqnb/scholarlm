@@ -2,19 +2,16 @@
 
 Faithful reimplementation of ChatExtract (Polak & Morgan, *Nature Communications*
 2024, arXiv:2303.05352) as a `MeasurementLM` subclass. ChatExtract extracts
-``Material, Value, Unit`` triplets for a *single target property* from scientific
+``Material, Value, Unit`` triplets for a *single target property (attribute)* from scientific
 text using a multi-turn conversation with redundant yes/no verification questions
-to suppress hallucination. The reference implementation is a single script,
-`ChatExtract/ChatExtract/ChatExtract.py`; the prompt strings below are copied from
-it verbatim (only the ``<PROPERTY>`` placeholder is parameterized).
+to suppress hallucination. The prompt strings below are copied verbatim 
+from the author's original implementation.
 
 How it maps onto this library:
 
-* **Single-property → multi-attribute.** ChatExtract targets one property. Our
-  datasets have several attributes, so the *entire* conversation is run once per
-  attribute per text unit (each ``<PROPERTY>`` phrase comes from
-  ``DatasetConfig.chatextract_property_names``). This is the faithful choice and
-  multiplies call volume by the attribute count.
+* **Single-property → multi-attribute.** ChatExtract targets one property or attribute 
+  at a time. Our datasets have several attributes, so the *entire* conversation is run once per
+  attribute per text unit.
 
 * **Material → entity.** ChatExtract's "material" is our entity; the extracted
   material string becomes the record's ``name``. ChatExtract does not extract the
@@ -30,11 +27,6 @@ How it maps onto this library:
   deliberately short context). Real document tables are handled by a separate
   classify-then-extract workflow (no redundant verification, per the paper);
   figures are ignored.
-
-The pipeline reuses `MeasurementLM`'s async client (`_acall`) and programmatic
-`_deduplicate`. Because each sentence is a *stateful* growing conversation,
-orchestration is a per-work-item coroutine gathered under a semaphore rather than
-the stateless `_call_batch`.
 """
 
 from __future__ import annotations
@@ -50,6 +42,7 @@ from .utils.sentences import split_sentences
 # ---------------------------------------------------------------------------
 _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 _TABLE_RE = re.compile(r'<table number="(\d+)">.*?</table>', re.DOTALL)
+_CAPTION_RE = re.compile(r'<caption>(.*?)</caption>', re.DOTALL)
 _STRIP_TAGS_RE = re.compile(r'<[^>]+>|\\\([^)]*\)|\\\[[^\]]*\]')
 
 _ORDINALS = [
@@ -74,10 +67,11 @@ SINGLE_Q = [
     'Give the name of the material only, do not use a full sentence. If the name of the material is not present in the text, type "None". What is the material for which the {prop} is given in the following text?\n\n',
 ]
 # Redundant follow-up verification (two-part; the extracted answer is inserted
-# between the parts). The reference *script* defines these but only runs the
-# multi-valued verifications; the paper's Fig. 2 verifies the single-valued
-# branch too. We run them (gated by ``include_single_verification``) to match
-# the paper.
+# between the parts). The reference script defines these but only ever runs the
+# multi-valued verifications (ChatExtract.py:184-203); the single-valued branch
+# is gated solely by a literal "none" check with no verification call. We match
+# that by default; ``include_single_verification`` optionally enables single-
+# branch verification as an explicit, non-faithful ablation.
 SINGLE_FOLLOWUP_Q = [
     ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the value of the {prop} for the compound in the following text?\n\n'],
     ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the unit of the value of {prop} in the following text?\n\n'],
@@ -113,7 +107,7 @@ class MeasurementLMChatExtract(MeasurementLM):
         self,
         *args,
         attribute_property_names: dict[str, str] | None = None,
-        include_single_verification: bool = True,
+        include_single_verification: bool = False,
         extract_tables: bool = True,
         max_tables_per_document: int = 30,
         max_concurrent: int = 32,
@@ -163,11 +157,17 @@ class MeasurementLMChatExtract(MeasurementLM):
         page_bodies = [m.group(2) for m in page_matches] if page_matches else [context]
 
         for body in page_bodies:
-            # Pull out each table together with its nearest preceding caption line.
             for tm in _TABLE_RE.finditer(body):
-                caption = self._table_caption(body, tm.start())
                 table_block = tm.group(0)
-                tables.append((caption + "\n" + table_block).strip() if caption else table_block)
+                if _CAPTION_RE.search(table_block):
+                    # Cleaned OCR: the caption is a <caption> element inside the
+                    # table block, so it is already fed to the model as-is.
+                    tables.append(table_block)
+                else:
+                    # Raw OCR: no caption element; attach the nearest preceding
+                    # text line as the caption.
+                    caption = self._table_caption(body, tm.start())
+                    tables.append((caption + "\n" + table_block).strip() if caption else table_block)
             # Prose = page body with table blocks removed, then sentence-split.
             prose = _TABLE_RE.sub(" ", body)
             prose_sentences.extend(split_sentences(prose))
@@ -197,7 +197,8 @@ class MeasurementLMChatExtract(MeasurementLM):
 
     @staticmethod
     def _table_caption(body: str, table_start: int) -> str:
-        """Last non-empty text line immediately preceding a table tag (its caption)."""
+        """Caption fallback for *raw* OCR tables with no <caption> element:
+        the last non-empty text line immediately preceding the table tag."""
         before = _STRIP_TAGS_RE.sub("", body[:table_start])
         lines = [ln.strip() for ln in before.splitlines() if ln.strip()]
         return lines[-1] if lines else ""

@@ -282,12 +282,9 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
-# NuExtract-2.0-8B baseline: few-shot examples
-#
-# NuExtract's calling convention has no field for freeform instructions (see
-# measurementlm_nuextract.py) — only a JSON template and optional few-shot
-# examples. These are synthetic (fabricated), never real paper excerpts, so
-# there is no leakage risk against ground truth. Every output value below is
+# NuExtract-2.0-8B baseline: few-shot synthetic examples, since
+# NuExtract's calling convention has no field for freeform instructions.
+# Every output value below is
 # an exact substring of its input text, since NuExtract's verbatim-string
 # fields are trained to copy spans rather than paraphrase. Together the two
 # examples touch all 3 nfix rate attributes at least once.

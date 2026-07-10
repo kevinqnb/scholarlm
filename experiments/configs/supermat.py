@@ -13,6 +13,8 @@ event = pressure + measurement method (the conditions under which a given Tc was
 """
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig
@@ -193,6 +195,94 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
+# NuExtract-2.0-8B baseline: few-shot synthetic examples
+#
+# NuExtract's calling convention has no field for freeform instructions,
+# only a JSON template and optional few-shot examples.
+# Every output value below (except identifiers, a synthesized semicolon-joined
+# field, and attribute, a fixed enum) is an exact substring of its input text,
+# since NuExtract's verbatim-string fields are trained to copy spans rather
+# than paraphrase. Together the two examples cover multiple entities per
+# passage, multiple measurement events for the same entity (ambient vs. high
+# pressure), and three of the four me_method categories (resistivity,
+# magnetic susceptibility, theoretical calculation).
+# ---------------------------------------------------------------------------
+
+_NUEXTRACT_EXAMPLE_1_INPUT = (
+    "Magnesium diboride (MgB2) is a simple binary compound that exhibits "
+    "superconductivity. In resistivity measurements taken at ambient pressure, "
+    "an onset transition was observed at 39 K. In the same study, "
+    "YBa2Cu3O7-δ (also known as YBCO), a well-known cuprate superconductor, "
+    "was examined using magnetic susceptibility measurements, which placed "
+    "the midpoint of the diamagnetic transition at 92 K, also at ambient "
+    "pressure."
+)
+
+_NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Magnesium diboride", "identifiers": "MgB2",
+                "sample_details": None,
+                "pressure": "ambient", "me_method": "resistivity",
+                "additional_details": "onset",
+                "attribute": "tc", "value": "39", "units": "K",
+            },
+            {
+                "name": "YBa2Cu3O7-δ", "identifiers": "YBCO",
+                "sample_details": None,
+                "pressure": "ambient", "me_method": "magnetic susceptibility",
+                "additional_details": "midpoint of the diamagnetic transition",
+                "attribute": "tc", "value": "92", "units": "K",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLE_2_INPUT = (
+    "Hydrogen sulfide (H3S, sample S-2) is a polycrystalline sample that "
+    "becomes superconducting under extreme compression. At a pressure of "
+    "155 GPa, resistivity measurements showed zero resistance at 203 K. "
+    "When the pressure was increased to 200 GPa, the zero-resistance "
+    "criterion shifted to 178 K in the same sample. Separately, a "
+    "theoretical calculation using Eliashberg theory predicts a Tc of "
+    "235 K for LaH10 at a pressure of 170 GPa."
+)
+
+_NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Hydrogen sulfide", "identifiers": "H3S; S-2",
+                "sample_details": "polycrystalline",
+                "pressure": "155 GPa", "me_method": "resistivity",
+                "additional_details": "zero resistance",
+                "attribute": "tc", "value": "203", "units": "K",
+            },
+            {
+                "name": "Hydrogen sulfide", "identifiers": "H3S; S-2",
+                "sample_details": "polycrystalline",
+                "pressure": "200 GPa", "me_method": "resistivity",
+                "additional_details": "zero-resistance criterion",
+                "attribute": "tc", "value": "178", "units": "K",
+            },
+            {
+                "name": "LaH10", "identifiers": None, "sample_details": None,
+                "pressure": "170 GPa", "me_method": "theoretical calculation",
+                "additional_details": None,
+                "attribute": "tc", "value": "235", "units": "K",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLES = [
+    {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+]
+
+
+# ---------------------------------------------------------------------------
 # Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
@@ -280,6 +370,7 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    nuextract_examples=_NUEXTRACT_EXAMPLES,
     paper_subset=None,
     paper_filter=None,
     paper_exclude=None,

@@ -289,13 +289,11 @@ other_things = """
 
 
 # ---------------------------------------------------------------------------
-# NuExtract-2.0-8B baseline: few-shot examples
+# NuExtract-2.0-8B baseline: few-shot synthetic examples
 #
-# NuExtract's calling convention has no field for freeform instructions (see
-# measurementlm_nuextract.py) — only a JSON template and optional few-shot
-# examples. These are synthetic (fabricated), never real paper excerpts, so
-# there is no leakage risk against ground_truth_review.json. Every output
-# value below is an exact substring of its input text, since NuExtract's
+# NuExtract's calling convention has no field for freeform instructions,
+# only a JSON template and optional few-shot examples. 
+# Every output value below is an exact substring of its input text, since NuExtract's
 # verbatim-string fields are trained to copy spans rather than paraphrase.
 # Together the two examples touch all 7 pond attributes at least once.
 # ---------------------------------------------------------------------------

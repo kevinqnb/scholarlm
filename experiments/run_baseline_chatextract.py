@@ -26,9 +26,9 @@ Usage
     python experiments/run_baseline_chatextract.py --dataset pond --model gemma-3-27b \\
         --paper-subset agricultural_freshwater --api-base http://localhost:8000/v1
 
-    # Toggle off the real-table workflow or single-branch verification if desired:
+    # Feed pre-cleaned OCR (captioned tables), and toggle the workflows if desired:
     python experiments/run_baseline_chatextract.py --dataset nfix --model gemma-3-27b \\
-        --no-tables --no-single-verification
+        --ocr-dir data/nfix/ocr_output_cleaned_qwen-3.5-27b --no-tables --single-verification
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
 Available models: any entry in MODEL_REGISTRY (experiments/model_registry.py).
@@ -68,11 +68,12 @@ def run_baseline_chatextract(
     model_config,
     output_dir: Path,
     paper_subset_override: list[str] | None = None,
+    ocr_dir: str | None = None,
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
     max_concurrent: int = 32,
     extract_tables: bool = True,
-    include_single_verification: bool = True,
+    include_single_verification: bool = False,
 ) -> None:
     """Run the ChatExtract baseline for a dataset on a given backbone model.
 
@@ -98,13 +99,19 @@ def run_baseline_chatextract(
     else:
         effective_api_base = api_base
 
+    # ChatExtract reads OCR text directly. Mirroring run_extraction, an explicit
+    # --ocr-dir (e.g. a pre-cleaned ocr_output_cleaned_{model} directory, whose
+    # tables carry <caption> elements) takes precedence; otherwise fall back to
+    # raw OCR. Unlike MeasurementLM, ChatExtract never runs its own table-cleaning
+    # pass, so pass --ocr-dir to feed it the same cleaned tables MeasurementLM sees.
+    effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
+
     print(f"\nDataset   : {dataset_config.name}")
     print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"OCR dir   : {effective_ocr_dir}")
     print(f"Output    : {output_dir}\n")
 
-    # ChatExtract reads OCR text directly.
-    ocr_dir = str(data_dir / "ocr_output_raw")
-    text, text_info = load_papers(dataset_config, ocr_dir, paper_subset_override)
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text_info)} papers.\n")
 
     # Paper titles (from directory.json metadata) form the head of each passage.
@@ -193,6 +200,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Override dataset paper_subset with an explicit list of paper codes.",
     )
     p.add_argument(
+        "--ocr-dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Directory of OCR .txt files to use as input (e.g. a pre-cleaned "
+            "ocr_output_cleaned_{model} directory). If omitted, raw OCR is loaded "
+            "from {data_dir}/ocr_output_raw/. ChatExtract does no table cleaning of "
+            "its own, so pass this to feed it the same cleaned tables MeasurementLM uses."
+        ),
+    )
+    p.add_argument(
         "--api-base",
         default="http://localhost:8000/v1",
         metavar="URL",
@@ -223,9 +241,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Disable the real-document-table extraction workflow (sentences only).",
     )
     p.add_argument(
-        "--no-single-verification",
+        "--single-verification",
         action="store_true",
-        help="Skip the single-valued-branch yes/no verification (matches the reference script, not the paper).",
+        help=(
+            "Enable strict yes/no verification of the single-valued branch. OFF by "
+            "default to match the reference script, which verifies only the "
+            "multi-valued branch; this is a non-faithful ablation."
+        ),
     )
     return p
 
@@ -247,11 +269,12 @@ def main(argv: list[str] | None = None) -> None:
         model_config=model_config,
         output_dir=output_dir,
         paper_subset_override=args.paper_subset,
+        ocr_dir=args.ocr_dir,
         api_base=args.api_base,
         api_key=args.api_key,
         max_concurrent=args.max_concurrent,
         extract_tables=not args.no_tables,
-        include_single_verification=not args.no_single_verification,
+        include_single_verification=args.single_verification,
     )
 
 
