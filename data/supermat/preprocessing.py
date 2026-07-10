@@ -9,10 +9,7 @@ Pipeline
            forward-fill for bare doping values and pure sample-detail rows)
         ↓  normalize me_method, pressure
         ↓  parse tcValue -> value / units; drop rows reported as a range,
-           approximation (~), or bound (< / > / "up to") -- ground truth must be
-           a single unambiguous value, matching pond/nfix's convention and the
-           judge's own rule against accepting inferred range endpoints
-        ↓  page attribution via OCR scoring (if ocr_output_raw/ exists)
+           approximation (~), or bound (< / > / "up to")
     ground_truth.json                  (all registered papers)
     ground_truth_ten.json              (top-10 paper development subset)
 
@@ -22,7 +19,8 @@ Of the 147 filename codes referenced in raw_data.csv, 5 have no local PDF under
 their own name. Cross-referencing each code's bibliographic record (DOI) against
 every other code revealed that 3 of those are duplicate registrations of a paper
 we already have under a different code (see _DOCUMENT_ID_REMAP below); only 2
-are genuinely missing PDFs (see _NO_PDF_CODES).
+are genuinely missing PDFs, which we were unable to find or access.
+Those 2 codes are dropped from the ground truth.
 
 Usage
 -----

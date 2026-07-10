@@ -2,22 +2,11 @@
 
 Unlike MeasurementLM (which reads OCR'd `<page>/<table>` tagged text) and unlike
 Ablation 1 (which is also single-shot but text-only), this baseline sends
-rendered page images directly to a vision-language model. It reuses
-`MeasurementLM`'s OpenAI-compatible async client, retry, and concurrency
-machinery unchanged — only message/request construction differs.
+rendered page images directly to a vision-language model.
 
-NuExtract has its own fixed calling convention (see its `chat_template.jinja`
-on HuggingFace): the JSON extraction schema must be passed as a separate
-`extra_body.chat_template_kwargs.template` field, not embedded as prose in the
-message content. Its template also special-cases message content: if a `text`
-content block is present whose text isn't the literal string `"<image>"`, the
-template treats the whole request as text-only and emits *no* image
-placeholder tokens at all, even when images are attached — silently breaking
-every request. There is also no field in this protocol for freeform
-instructions alongside the template (only `template` and optional few-shot
-`examples`), so — unlike Ablation 1 — this baseline cannot reuse a dataset's
-`direct_extraction_prompt`; it is inherently template-only, matching how
-NuMind's own examples call the model.
+NuExtract accepts a JSON extraction schema but has no fields for freeform
+instructions alongside the structural outline (only `template` and optional few-shot
+`examples`).
 
 The template's image branch also only ever emits *one* image placeholder per
 message — `{%- if ... not ns2.found_image -%}` short-circuits after the first
@@ -29,7 +18,7 @@ back into one set of measurements per document.
 To offset the lack of attribute descriptions, callers may pass `examples`
 (from `DatasetConfig.nuextract_examples`) — small, synthetic input/output
 pairs that teach the model the dataset's attribute vocabulary and field
-conventions the way NuExtract expects: by demonstration, not description.
+conventions the way NuExtract expects.
 """
 
 import json

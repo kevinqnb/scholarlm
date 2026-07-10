@@ -7,16 +7,9 @@ runners (run_extraction, run_judge, run_analysis) load this via importlib.
 
 Mapping onto the pipeline's entity/attribute/event model
 ----------------------------------------------------------
-SuperMat's own <material>/<class>/<tc>/<tcValue>/<pressure>/<me_method> tags don't
-map 1:1 onto entity/attribute/event, but the reason a Tc value differs between two
-rows for the same material is always "different pressure or measurement method" --
-exactly what the event-resolution step is for:
-
-    entity    = the superconducting material/sample
-    attribute = "tc" (superconducting critical temperature) -- the only attribute
-                in this dataset
-    event     = pressure + measurement method (the conditions under which a given
-                Tc was measured)
+entity  = the superconducting material/sample
+attribute = "tc" (superconducting critical temperature)
+event = pressure + measurement method (the conditions under which a given Tc was measured)
 """
 from __future__ import annotations
 
