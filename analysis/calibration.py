@@ -24,7 +24,7 @@ from analysis.loaders import (
     load_synthetic_responses,
 )
 from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
-from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em
+from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em, bootstrap_ece
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
 import paths
@@ -480,8 +480,25 @@ def plot_calibration_curves(
             plt.show()
 
 
+# Bootstrap settings for ECE confidence intervals.
+ECE_N_BOOT = 2000
+ECE_CI     = 0.95
+ECE_SEED   = 0
+
+
 def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=None):
-    """Compute metrics at a fixed threshold. Returns dict."""
+    """Compute metrics at a fixed threshold. Returns dict.
+
+    Calibration error is reported in three variants, each with a bootstrap
+    confidence interval (percentile, ``ECE_N_BOOT`` resamples):
+      - ``ece``      — L1 ECE, equal-width bins, plug-in (matches the
+                       reliability-diagram ECE used in the calibration plots).
+      - ``ece_em``   — L1 ECE, adaptive equal-mass (quantile) bins, plug-in.
+      - ``rmsce_db`` — debiased L2 RMS calibration error on equal-mass bins
+                       (Kumar, Liang & Ma, NeurIPS 2019).  Distinct metric /
+                       scale from the L1 columns; the only provably-unbiased one.
+    Each variant ``X`` carries ``X_lo`` / ``X_hi`` interval bounds.
+    """
     probs   = np.asarray(probs)
     y_true  = np.asarray(y_true, dtype=bool)
     preds   = probs > threshold
@@ -495,14 +512,25 @@ def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=N
     rec   = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
     f1    = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else float('nan')
     auroc = roc_auc_score(y_true, probs) if y_true.sum() > 0 and (~y_true).sum() > 0 else float('nan')
-    ece   = reliability_diagram_data(probs, y_true)['ece']
+
+    # ── Calibration-error variants with bootstrap CIs ────────────────────
+    ece_ew = bootstrap_ece(probs, y_true, binning='equal_width', p=1,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+    ece_em = bootstrap_ece(probs, y_true, binning='equal_mass', p=1,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+    rmsce  = bootstrap_ece(probs, y_true, binning='equal_mass', p=2, debiased=True,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+
     bs    = float(brier_score_loss(y_true, probs))
     p_pos = float(y_true.mean())
     bss   = 1.0 - bs / (p_pos * (1 - p_pos)) if p_pos not in (0.0, 1.0) else float('nan')
     recovery = recovery_rate_from_labels(n_ground_truth, edges, preds) if edges is not None else float('nan')
     validity = validity_rate_from_labels(y_true, preds)
     return dict(acc=acc, prec=prec, rec=rec, f1=f1, auroc=auroc,
-                ece=ece, bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
+                ece=ece_ew['ece'],         ece_lo=ece_ew['ci_low'],    ece_hi=ece_ew['ci_high'],
+                ece_em=ece_em['ece'],      ece_em_lo=ece_em['ci_low'], ece_em_hi=ece_em['ci_high'],
+                rmsce_db=rmsce['ece'],     rmsce_db_lo=rmsce['ci_low'], rmsce_db_hi=rmsce['ci_high'],
+                bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
 
 
 def compute_metrics(setting_results):
@@ -528,7 +556,18 @@ def compute_metrics(setting_results):
                             'Recall':        m['rec'],
                             'F1':            m['f1'],
                             'AUROC':         m['auroc'],
+                            # L1 ECE, equal-width plug-in + bootstrap CI
                             'ECE':           m['ece'],
+                            'ECE_lo':        m['ece_lo'],
+                            'ECE_hi':        m['ece_hi'],
+                            # L1 ECE, adaptive equal-mass plug-in + bootstrap CI
+                            'ECE_em':        m['ece_em'],
+                            'ECE_em_lo':     m['ece_em_lo'],
+                            'ECE_em_hi':     m['ece_em_hi'],
+                            # Debiased L2 RMS calibration error (Kumar 2019), equal-mass + CI
+                            'RMSCE_db':      m['rmsce_db'],
+                            'RMSCE_db_lo':   m['rmsce_db_lo'],
+                            'RMSCE_db_hi':   m['rmsce_db_hi'],
                             'Recovery':      m['recovery'],
                             'Validity':      m['validity'],
                         })

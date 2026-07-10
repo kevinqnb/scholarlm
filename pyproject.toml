@@ -63,6 +63,9 @@ dev = [
     "pytest>=8.4.2",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [build-system]
 requires = ["uv_build>=0.9.4,<0.10.0"]
 build-backend = "uv_build"

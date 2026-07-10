@@ -143,46 +143,189 @@ def rescale_probabilities_em(
     return rescaled, pi_te
 
 
+def _ece_bin_edges(probs: np.ndarray, n_bins: int, binning: str) -> np.ndarray:
+    """Return the ``n_bins + 1`` bin edges for the requested binning scheme.
+
+    ``equal_width`` yields fixed edges ``linspace(0, 1, n_bins + 1)``.
+    ``equal_mass`` (a.k.a. adaptive / quantile binning) places edges at the
+    empirical quantiles of ``probs`` so that each bin holds roughly the same
+    number of samples.  Ties can collapse adjacent quantiles, so the returned
+    array may contain fewer than ``n_bins + 1`` unique edges.
+    """
+    if binning == "equal_width":
+        return np.linspace(0.0, 1.0, n_bins + 1)
+    if binning == "equal_mass":
+        qs = np.linspace(0.0, 1.0, n_bins + 1)
+        edges = np.quantile(probs, qs)
+        # Pin the outer edges to [0, 1] and drop duplicates created by ties so
+        # each interval is non-degenerate.
+        edges[0], edges[-1] = 0.0, 1.0
+        return np.unique(edges)
+    raise ValueError(f"Unknown binning {binning!r}; use 'equal_width' or 'equal_mass'.")
+
+
+def _ece_binned_stats(probs: np.ndarray, labels: np.ndarray, edges: np.ndarray):
+    """Per-bin confidence, accuracy, and count for non-empty bins.
+
+    Returns ``(conf, acc, count)`` arrays over the occupied bins only.  Bin
+    assignment is left-closed/right-open with the upper boundary folded into the
+    final bin, matching the original :func:`compute_ece` semantics.
+    """
+    # digitize against interior edges maps each point to a bin in [0, n_bins-1];
+    # values equal to the top edge (e.g. 1.0) land in the last bin.
+    idx = np.digitize(probs, edges[1:-1], right=False)
+    n_bins = len(edges) - 1
+    confs, accs, counts = [], [], []
+    for b in range(n_bins):
+        mask = idx == b
+        c = int(mask.sum())
+        if c == 0:
+            continue
+        confs.append(probs[mask].mean())
+        accs.append(labels[mask].mean())
+        counts.append(c)
+    return np.array(confs), np.array(accs), np.array(counts, dtype=np.int64)
+
+
 def compute_ece(
     probs: np.ndarray,
     labels: np.ndarray,
     n_bins: int = 10,
+    *,
+    binning: str = "equal_width",
+    p: int = 1,
+    debiased: bool = False,
 ) -> float:
-    """Compute the Expected Calibration Error (ECE).
+    """Compute a binned calibration error.
 
-    Partitions predictions into ``n_bins`` equal-width confidence bins and
-    computes the weighted average of |confidence - accuracy| per bin.
+    Partitions predictions into ``n_bins`` confidence bins and aggregates the
+    count-weighted per-bin gap between mean confidence and observed accuracy.
+
+    With ``p=1`` (default) this is the standard Expected Calibration Error
+    (ECE; Guo et al. 2017): the count-weighted mean of ``|acc - conf|``.  With
+    ``p=2`` it is the root-mean-squared calibration error, the count-weighted
+    mean of ``(acc - conf)**2`` under a final square root.
 
     Args:
         probs: Predicted probabilities for the positive class, shape ``(n,)``.
             Values should be in ``[0, 1]``.
         labels: Binary ground truth labels, shape ``(n,)``.  ``1`` / ``True``
             is positive.
-        n_bins: Number of equal-width bins in ``[0, 1]``.
+        n_bins: Number of bins in ``[0, 1]``.
+        binning: ``"equal_width"`` (fixed-width bins) or ``"equal_mass"``
+            (adaptive quantile bins holding roughly equal counts).
+        p: Norm of the calibration error.  ``1`` → ECE, ``2`` → RMS calibration
+            error.  Debiasing is only defined for ``p=2``.
+        debiased: If ``True`` (requires ``p=2``), apply the Kumar, Liang & Ma
+            (NeurIPS 2019) bias correction.  The plug-in squared gap
+            ``(acc - conf)**2`` overestimates ``(a - conf)**2`` by the sampling
+            variance of ``acc``; subtracting the unbiased per-bin variance
+            estimate ``acc * (1 - acc) / (n_b - 1)`` removes that bias.  The
+            aggregate is clamped at 0 before the square root.
 
     Returns:
-        Scalar ECE value in ``[0, 1]``.  Lower is better.
+        Scalar calibration error.  Lower is better.  Plug-in ``p=1`` lies in
+        ``[0, 1]``; the debiased ``p=2`` estimate is clamped at 0.
+
+    Reference:
+        Kumar, Liang, and Ma (2019), "Verified Uncertainty Calibration,"
+        NeurIPS 2019 (debiased squared calibration error).
+    """
+    if p not in (1, 2):
+        raise ValueError(f"p must be 1 or 2, got {p!r}.")
+    if debiased and p != 2:
+        raise ValueError(
+            "Debiasing is only defined for the squared calibration error (p=2); "
+            "there is no unbiased estimator for the L1 ECE."
+        )
+
+    probs = np.asarray(probs, dtype=np.float64)
+    labels = np.asarray(labels, dtype=np.float64)
+    n = len(probs)
+    if n == 0:
+        return 0.0
+
+    edges = _ece_bin_edges(probs, n_bins, binning)
+    conf, acc, count = _ece_binned_stats(probs, labels, edges)
+    if len(count) == 0:
+        return 0.0
+
+    w = count / n
+    if p == 1:
+        return float(np.sum(w * np.abs(acc - conf)))
+
+    # p == 2: squared calibration error (optionally debiased).
+    sq = (acc - conf) ** 2
+    if debiased:
+        # Unbiased per-bin variance of acc: acc(1-acc)/(n_b - 1); 0 for singleton
+        # bins, where acc(1-acc) is already 0.
+        var = np.where(count > 1, acc * (1.0 - acc) / np.maximum(count - 1, 1), 0.0)
+        sq = sq - var
+    return float(np.sqrt(max(0.0, np.sum(w * sq))))
+
+
+def bootstrap_ece(
+    probs: np.ndarray,
+    labels: np.ndarray,
+    n_bins: int = 10,
+    *,
+    binning: str = "equal_width",
+    p: int = 1,
+    debiased: bool = False,
+    n_boot: int = 2000,
+    ci: float = 0.95,
+    seed: int = 0,
+) -> dict[str, float]:
+    """Point estimate and bootstrap confidence interval for a calibration error.
+
+    Resamples ``(probs, labels)`` pairs with replacement ``n_boot`` times,
+    recomputing the calibration error (with the requested ``binning`` / ``p`` /
+    ``debiased`` options — quantile edges are re-derived on each resample) to
+    obtain a percentile interval and standard error for the estimator.
+
+    Args:
+        probs: Predicted probabilities, shape ``(n,)``.
+        labels: Binary ground truth labels, shape ``(n,)``.
+        n_bins: Number of bins.
+        binning: ``"equal_width"`` or ``"equal_mass"`` (see :func:`compute_ece`).
+        p: Norm of the calibration error, ``1`` or ``2`` (see :func:`compute_ece`).
+        debiased: Whether to bootstrap the debiased estimator (requires ``p=2``;
+            see :func:`compute_ece`).
+        n_boot: Number of bootstrap resamples.
+        ci: Central coverage of the returned interval (e.g. ``0.95``).
+        seed: Seed for the resampling RNG (reproducible).
+
+    Returns:
+        Dict with keys ``ece`` (point estimate on the full sample), ``ci_low`` /
+        ``ci_high`` (percentile interval), ``se`` (bootstrap standard error),
+        ``boot_mean`` (mean over resamples), and ``n_boot``.  When ``n < 2`` the
+        interval fields are ``nan``.
     """
     probs = np.asarray(probs, dtype=np.float64)
     labels = np.asarray(labels, dtype=np.float64)
-
-    bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
-    ece = 0.0
     n = len(probs)
+    point = compute_ece(probs, labels, n_bins, binning=binning, p=p, debiased=debiased)
+    if n < 2:
+        return dict(ece=point, ci_low=float("nan"), ci_high=float("nan"),
+                    se=float("nan"), boot_mean=float("nan"), n_boot=0)
 
-    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
-        # Include upper boundary in the last bin
-        if hi == 1.0:
-            mask = (probs >= lo) & (probs <= hi)
-        else:
-            mask = (probs >= lo) & (probs < hi)
-        if not mask.any():
-            continue
-        bin_conf = probs[mask].mean()
-        bin_acc = labels[mask].mean()
-        ece += mask.sum() * abs(bin_conf - bin_acc)
+    rng = np.random.default_rng(seed)
+    boots = np.empty(n_boot, dtype=np.float64)
+    for i in range(n_boot):
+        idx = rng.integers(0, n, n)
+        boots[i] = compute_ece(
+            probs[idx], labels[idx], n_bins, binning=binning, p=p, debiased=debiased
+        )
 
-    return float(ece / n)
+    alpha = (1.0 - ci) / 2.0
+    return dict(
+        ece=point,
+        ci_low=float(np.quantile(boots, alpha)),
+        ci_high=float(np.quantile(boots, 1.0 - alpha)),
+        se=float(boots.std(ddof=1)),
+        boot_mean=float(boots.mean()),
+        n_boot=n_boot,
+    )
 
 
 def reliability_diagram_data(
