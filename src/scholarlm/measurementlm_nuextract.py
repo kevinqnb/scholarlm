@@ -102,6 +102,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         # via extra_body below, so each message here is exactly one image.
         messages: list[list[dict]] = []
         message_doc_indices: list[int] = []
+        message_page_indices: list[int] = []
         for doc_idx, doc_dir in enumerate(processed_pdf_dirs):
             doc_path = Path(doc_dir)
             if not doc_path.exists():
@@ -126,6 +127,9 @@ class MeasurementLMNuExtract(MeasurementLM):
                 }]
                 messages.append([{"role": "user", "content": content}])
                 message_doc_indices.append(doc_idx)
+                # page_file.stem is the 0-indexed page number, matching the OCR
+                # <page number="N"> tags the judge uses to limit its context.
+                message_page_indices.append(int(page_file.stem))
 
         DirectExtractionList = create_model(
             "DirectExtractionList",
@@ -156,6 +160,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         records: list[dict] = []
         for msg_idx, r in enumerate(response_texts):
             doc_idx = message_doc_indices[msg_idx]
+            page_number = message_page_indices[msg_idx]
             try:
                 resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
@@ -171,6 +176,7 @@ class MeasurementLMNuExtract(MeasurementLM):
                     self.data[doc_idx] | item | {
                         "entity_id": entity_id,
                         "attribute_terms": [],
+                        "page_number": page_number,
                     }
                 )
 

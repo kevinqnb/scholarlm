@@ -58,6 +58,9 @@ _CELL_END_RE = re.compile(r"</t[dh]>", re.IGNORECASE)
 _ANY_TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"[ \t]+")
 _BLANKS_RE = re.compile(r"\n\s*\n+")
+# Splits a document into its 0-indexed <page number="N"> blocks so each chunk
+# can be attributed to a single source page (canonical copy in utils/page_attribution.py).
+_PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 
 
 class MeasurementLMGliner(MeasurementLM):
@@ -237,13 +240,16 @@ class MeasurementLMGliner(MeasurementLM):
 
     def _make_record(
         self, doc_idx: int, attribute: str, name: str | None, date: str | None,
-        value: str, units: str | None,
+        value: str, units: str | None, page_num: int | None,
     ) -> dict:
         """Build one extraction record in the standard flat schema.
 
         Entity/event fields are derived from the dataset's schemas and set to
         ``None`` except the entity name (and ``date`` when tracked), so the same
         record shape works across datasets without hardcoding their union.
+        ``page_num`` is the 0-indexed OCR ``<page number="N">`` the source chunk
+        came from; ``_deduplicate`` aggregates it into an aligned ``page_number``
+        list so the judge can limit its context to the source page(s).
         """
         name_field = self._entity_name_field()
         record: dict = {f: None for f in self.entity_identification_schema.model_fields}
@@ -256,29 +262,50 @@ class MeasurementLMGliner(MeasurementLM):
 
         record |= {"attribute": attribute, "value": value, "units": units}
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(name)}"
-        return {"document_id": doc_idx} | record | {"entity_id": entity_id, "attribute_terms": []}
+        return {"document_id": doc_idx} | record | {
+            "entity_id": entity_id, "attribute_terms": [], "page_number": page_num,
+        }
 
     # -----------------------------------------------------------------------
     # Extraction driver
     # -----------------------------------------------------------------------
 
+    def _page_chunks(self, doc: str) -> list[tuple[int | None, str]]:
+        """Split a document into per-page ``(page_num, chunk)`` work units.
+
+        The OCR ``<page number="N">`` block is a hard chunk boundary — a chunk
+        never straddles two pages, so every chunk (and thus every record) maps to
+        exactly one 0-indexed page.  Pages larger than ``chunk_size`` words are
+        still sub-split by ``_chunk_text`` (most pages exceed GLiNER2's window, so
+        one-chunk-per-page would truncate); all sub-chunks share the page number.
+        Untagged documents fall back to a single ``None`` page.
+        """
+        page_bodies: list[tuple[int | None, str]] = [
+            (int(m.group(1)), m.group(2)) for m in _PAGE_RE.finditer(doc)
+        ] or [(None, doc)]
+        chunks: list[tuple[int | None, str]] = []
+        for page_num, body in page_bodies:
+            for chunk in self._chunk_text(self._clean_ocr_text(body)):
+                chunks.append((page_num, chunk))
+        return chunks
+
     def _extract_records(self, documents: list[str]) -> list[dict]:
-        """Run one structured GLiNER pass per (document, attribute, chunk)."""
-        doc_chunks = [self._chunk_text(self._clean_ocr_text(doc)) for doc in documents]
+        """Run one structured GLiNER pass per (document, attribute, page-chunk)."""
+        doc_chunks = [self._page_chunks(doc) for doc in documents]
         attr_keys = list(self.attribute_info_dict)
 
         texts: list[str] = []
         schemas: list = []
         struct_names: list[str] = []
-        work: list[tuple[int, str]] = []  # (doc_idx, attr_key)
+        work: list[tuple[int, str, int | None]] = []  # (doc_idx, attr_key, page_num)
         for doc_idx, chunks in enumerate(doc_chunks):
             for attr_key in attr_keys:
-                for chunk in chunks:
+                for page_num, chunk in chunks:
                     struct_name, schema = self._build_structure(attr_key)
                     texts.append(chunk)
                     schemas.append(schema)
                     struct_names.append(struct_name)
-                    work.append((doc_idx, attr_key))
+                    work.append((doc_idx, attr_key, page_num))
 
         total_chunks = sum(len(c) for c in doc_chunks)
         print(
@@ -298,7 +325,7 @@ class MeasurementLMGliner(MeasurementLM):
 
         records: list[dict] = []
         has_date = self._has_date_event()
-        for (doc_idx, attr_key), struct_name, result in zip(work, struct_names, results):
+        for (doc_idx, attr_key, page_num), struct_name, result in zip(work, struct_names, results):
             for item in result.get(struct_name, []):
                 value = self._clean_field(item.get("value"))
                 if value is None or not re.search(r"\d", value):
@@ -306,7 +333,7 @@ class MeasurementLMGliner(MeasurementLM):
                 name = self._clean_field(item.get(self._entity_name_field()))
                 units = self._clean_field(item.get("units"))
                 date = self._clean_field(item.get("date")) if has_date else None
-                records.append(self._make_record(doc_idx, attr_key, name, date, value, units))
+                records.append(self._make_record(doc_idx, attr_key, name, date, value, units, page_num))
 
         return records
 

@@ -189,6 +189,7 @@ def prepare_chat_entries(
 
     entries: list[dict[str, Any]] = []
     papers_printed: int = 0
+    fulldoc_fallbacks: int = 0
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         document_id = str(entry["document_id"])
         document = documents.get(document_id)
@@ -221,6 +222,11 @@ def prepare_chat_entries(
         )
 
         page_text = extract_page_text(document, page_numbers)
+        # extract_page_text returns the `document` object itself on every
+        # fallback path (no page_number, all-None, or no matching page block),
+        # so an identity check reliably flags a full-document context.
+        if not page_numbers or page_text is document:
+            fulldoc_fallbacks += 1
 
         system = dataset_config.judge_instructions or JUDGE_INSTRUCTIONS
 
@@ -251,6 +257,12 @@ def prepare_chat_entries(
             "user_document": user_document,
             "page_text": page_text,
         })
+
+    if entries and fulldoc_fallbacks:
+        print(
+            f"WARN: {fulldoc_fallbacks}/{len(entries)} measurements had no matched "
+            f"page -> full-document context (judge context not page-limited for these)."
+        )
 
     return entries
 

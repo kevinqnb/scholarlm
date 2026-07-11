@@ -141,44 +141,54 @@ class MeasurementLMChatExtract(MeasurementLM):
     def _prepare_document(self, context: str, title: str) -> dict:
         """Split one document's OCR text into sentence and table work units.
 
-        Returns ``{"sentences": [(sentence, passage), ...], "tables": [str, ...]}``.
-        Prose is gathered per page (in page order), tables are pulled out and
-        handled separately, and each candidate sentence's ``passage`` is built as
-        ``title + preceding sentence + target sentence``. Sentences with no digit
-        are dropped up front (values are always numeric).
+        Returns ``{"sentences": [(sentence, passage, page_num), ...],
+        "tables": [(table_text, page_num), ...]}``.  Prose is gathered per page
+        (in page order), tables are pulled out and handled separately, and each
+        candidate sentence's ``passage`` is built as ``title + preceding
+        sentence + target sentence``.  Sentences with no digit are dropped up
+        front (values are always numeric).  ``page_num`` is the 0-indexed OCR
+        ``<page number="N">`` the unit came from (``None`` if the text is
+        untagged), and is carried through to each record's ``page_number`` so the
+        judge can limit its context to the source page.
         """
         title = (title or "").strip()
 
-        prose_sentences: list[str] = []
-        tables: list[str] = []
+        # (page_num, sentence) pairs so a sentence's page survives the
+        # preceding-sentence lookup below (prev may live on an earlier page).
+        prose_sentences: list[tuple[int | None, str]] = []
+        tables: list[tuple[str, int | None]] = []
 
         page_matches = list(_PAGE_RE.finditer(context))
-        # Fall back to treating the whole context as one page if untagged.
-        page_bodies = [m.group(2) for m in page_matches] if page_matches else [context]
+        # Fall back to treating the whole context as one untagged page.
+        page_bodies: list[tuple[int | None, str]] = (
+            [(int(m.group(1)), m.group(2)) for m in page_matches]
+            if page_matches else [(None, context)]
+        )
 
-        for body in page_bodies:
+        for page_num, body in page_bodies:
             for tm in _TABLE_RE.finditer(body):
                 table_block = tm.group(0)
                 if _CAPTION_RE.search(table_block):
                     # Cleaned OCR: the caption is a <caption> element inside the
                     # table block, so it is already fed to the model as-is.
-                    tables.append(table_block)
+                    tables.append((table_block, page_num))
                 else:
                     # Raw OCR: no caption element; attach the nearest preceding
                     # text line as the caption.
                     caption = self._table_caption(body, tm.start())
-                    tables.append((caption + "\n" + table_block).strip() if caption else table_block)
+                    text = (caption + "\n" + table_block).strip() if caption else table_block
+                    tables.append((text, page_num))
             # Prose = page body with table blocks removed, then sentence-split.
             prose = _TABLE_RE.sub(" ", body)
-            prose_sentences.extend(split_sentences(prose))
+            prose_sentences.extend((page_num, s) for s in split_sentences(prose))
 
-        sentences: list[tuple[str, str]] = []
-        for i, sentence in enumerate(prose_sentences):
+        sentences: list[tuple[str, str, int | None]] = []
+        for i, (page_num, sentence) in enumerate(prose_sentences):
             if not re.search(r"\d", sentence):  # digit pre-filter
                 continue
-            prev = prose_sentences[i - 1] if i > 0 else ""
+            prev = prose_sentences[i - 1][1] if i > 0 else ""
             passage = self._build_passage(title, prev, sentence)
-            sentences.append((sentence, passage))
+            sentences.append((sentence, passage, page_num))
 
         if len(tables) > self.max_tables_per_document:
             tables = tables[: self.max_tables_per_document]
@@ -230,7 +240,7 @@ class MeasurementLMChatExtract(MeasurementLM):
     # Per-sentence conversation (single/multi branching)
     # -----------------------------------------------------------------------
 
-    async def _process_sentence(self, doc_idx, sentence, passage, attr_key, prop) -> list[dict]:
+    async def _process_sentence(self, doc_idx, sentence, passage, attr_key, prop, page_num) -> list[dict]:
         messages: list[dict] = [{"role": "system", "content": ""}]
 
         # Stage A: classify the bare sentence.
@@ -242,12 +252,12 @@ class MeasurementLMChatExtract(MeasurementLM):
         ans = await self._ask(messages, IFMULTI_Q.format(prop=prop) + passage, yes_no=True)
         low = ans.lower()
         if "no" in low:
-            return await self._extract_single(messages, doc_idx, passage, attr_key, prop)
+            return await self._extract_single(messages, doc_idx, passage, attr_key, prop, page_num)
         if "yes" in low:
-            return await self._extract_multi(messages, doc_idx, passage, attr_key, prop)
+            return await self._extract_multi(messages, doc_idx, passage, attr_key, prop, page_num)
         return []  # ambiguous gate → extract nothing (matches reference behavior)
 
-    async def _extract_single(self, messages, doc_idx, passage, attr_key, prop) -> list[dict]:
+    async def _extract_single(self, messages, doc_idx, passage, attr_key, prop, page_num) -> list[dict]:
         """Ask value → unit → material, each with an optional strict verification."""
         fields = ["value", "unit", "material"]
         extracted: dict[str, str] = {}
@@ -269,9 +279,9 @@ class MeasurementLMChatExtract(MeasurementLM):
             return []
         material = extracted["material"] if valid["material"] else None
         units = extracted["unit"] if valid["unit"] else None
-        return [self._make_record(doc_idx, attr_key, material, extracted["value"], units)]
+        return [self._make_record(doc_idx, attr_key, material, extracted["value"], units, page_num)]
 
-    async def _extract_multi(self, messages, doc_idx, passage, attr_key, prop) -> list[dict]:
+    async def _extract_multi(self, messages, doc_idx, passage, attr_key, prop, page_num) -> list[dict]:
         """Ask for a Material/Value/Unit table, then verify each cell strictly."""
         table_text = await self._ask(messages, TAB_Q.format(prop=prop) + passage, yes_no=False)
         rows = self._parse_table_rows(table_text)
@@ -303,7 +313,7 @@ class MeasurementLMChatExtract(MeasurementLM):
             if valid.get("material") and valid.get("value"):
                 units = cells["unit"].strip() if valid.get("unit") else None
                 records.append(
-                    self._make_record(doc_idx, attr_key, cells["material"].strip(), cells["value"].strip(), units)
+                    self._make_record(doc_idx, attr_key, cells["material"].strip(), cells["value"].strip(), units, page_num)
                 )
         return records
 
@@ -311,7 +321,7 @@ class MeasurementLMChatExtract(MeasurementLM):
     # Per-table conversation (real document tables; no verification)
     # -----------------------------------------------------------------------
 
-    async def _process_table(self, doc_idx, table_text, attr_key, prop) -> list[dict]:
+    async def _process_table(self, doc_idx, table_text, attr_key, prop, page_num) -> list[dict]:
         messages: list[dict] = [{"role": "system", "content": ""}]
 
         ans = await self._ask(messages, TABLE_CLASSIFY_Q.format(prop=prop) + table_text, yes_no=True)
@@ -328,7 +338,7 @@ class MeasurementLMChatExtract(MeasurementLM):
                 continue
             material = None if (not material.strip() or "none" in material.lower()) else material.strip()
             units = None if (not unit.strip() or "none" in unit.lower()) else unit.strip()
-            records.append(self._make_record(doc_idx, attr_key, material, value, units))
+            records.append(self._make_record(doc_idx, attr_key, material, value, units, page_num))
         return records
 
     # -----------------------------------------------------------------------
@@ -370,11 +380,12 @@ class MeasurementLMChatExtract(MeasurementLM):
         slug = re.sub(r"[^a-z0-9]+", "_", material.lower()).strip("_")
         return slug or "none"
 
-    def _make_record(self, doc_idx: int, attribute: str, material: str | None, value: str, units: str | None) -> dict:
+    def _make_record(self, doc_idx: int, attribute: str, material: str | None, value: str, units: str | None, page_num: int | None) -> dict:
         """Build one extraction record in the standard flat schema.
 
         ``entity_id`` keys on the document + normalized material so `_deduplicate`
-        merges the same material+attribute+value mentioned across sentences.
+        merges the same material+attribute+value mentioned across sentences (and
+        aggregates their ``page_number`` values into an aligned list).
         """
         item = {
             "name": material,
@@ -389,7 +400,9 @@ class MeasurementLMChatExtract(MeasurementLM):
             "units": units,
         }
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(material)}"
-        return {"document_id": doc_idx} | item | {"entity_id": entity_id, "attribute_terms": []}
+        return {"document_id": doc_idx} | item | {
+            "entity_id": entity_id, "attribute_terms": [], "page_number": page_num,
+        }
 
     # -----------------------------------------------------------------------
     # Extraction driver
@@ -427,11 +440,11 @@ class MeasurementLMChatExtract(MeasurementLM):
             tasks = []
             for doc_idx, units in enumerate(doc_units):
                 for attr_key, prop in property_items:
-                    for sentence, passage in units["sentences"]:
-                        tasks.append(_guarded(self._process_sentence(doc_idx, sentence, passage, attr_key, prop)))
+                    for sentence, passage, page_num in units["sentences"]:
+                        tasks.append(_guarded(self._process_sentence(doc_idx, sentence, passage, attr_key, prop, page_num)))
                     if self.extract_tables:
-                        for table_text in units["tables"]:
-                            tasks.append(_guarded(self._process_table(doc_idx, table_text, attr_key, prop)))
+                        for table_text, page_num in units["tables"]:
+                            tasks.append(_guarded(self._process_table(doc_idx, table_text, attr_key, prop, page_num)))
 
             return await asyncio.gather(*tasks)
 
