@@ -105,7 +105,7 @@ JUDGE_DATES_SYN = {
         'qwen-2.5-7b': '2026_05_04',
     },
     'supermat': {
-        'qwen-2.5-7b': '2026-07-10',   # TODO: pin the supermat synthetic-probe date if not the latest
+        'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
     },
 }
 
@@ -123,7 +123,7 @@ JUDGE_DATES_REAL = {
         'qwen-2.5-7b': '2026_05_05',
     },
     'supermat': {
-        'qwen-2.5-7b': '2026-07-10',   # TODO: pin the supermat real (extracted) judge date if not the latest
+        'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
     },
 }
 
