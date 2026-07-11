@@ -52,15 +52,25 @@ from .measurementlm import MeasurementLM
 # chunk budget. We flatten to plain text while preserving row structure: table
 # rows become `|`-delimited lines so a row's entity and its cells stay adjacent
 # (GLiNER groups a structure's fields by proximity within a chunk).
+#
+# The OCR HTML is *pretty-printed* (a newline after every cell), so we must
+# collapse ALL source whitespace — newlines included — up front; otherwise those
+# intra-row newlines survive and shatter each table row into one cell per line.
+# After that, only the row/page tags reintroduce line breaks, so a `<tr>`'s cells
+# all land on a single `|`-delimited line.
 # ---------------------------------------------------------------------------
 _ROW_END_RE = re.compile(r"</tr>|</page>|</p>|<br\s*/?>", re.IGNORECASE)
 _CELL_END_RE = re.compile(r"</t[dh]>", re.IGNORECASE)
 _ANY_TAG_RE = re.compile(r"<[^>]+>")
+_ALL_WS_RE = re.compile(r"\s+")
 _WS_RE = re.compile(r"[ \t]+")
-_BLANKS_RE = re.compile(r"\n\s*\n+")
+_PIPE_RUN_RE = re.compile(r"(?:\|[ \t]*){2,}")  # collapse empty-cell `| | |` runs
 # Splits a document into its 0-indexed <page number="N"> blocks so each chunk
 # can be attributed to a single source page (canonical copy in utils/page_attribution.py).
 _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
+# Isolates each `<table>...</table>` span (before flattening) so the chunker can
+# treat a table as an atomic block rather than splitting it mid-rows.
+_TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 
 
 class MeasurementLMGliner(MeasurementLM):
@@ -139,7 +149,7 @@ class MeasurementLMGliner(MeasurementLM):
         entity_desc = (
             self.entity_type_description
             or "the entity that this measurement belongs to"
-        )
+        ).rstrip(". ")
 
         struct_name = attr_key  # unique per work item; used to read results back
         schema = self.extractor.create_schema()
@@ -178,44 +188,132 @@ class MeasurementLMGliner(MeasurementLM):
 
     @staticmethod
     def _clean_ocr_text(text: str) -> str:
-        """Flatten `<page>`/`<table>` OCR markup to plain, row-structured text."""
-        text = _CELL_END_RE.sub(" | ", text)
-        text = _ROW_END_RE.sub("\n", text)
-        text = _ANY_TAG_RE.sub(" ", text)
-        text = _WS_RE.sub(" ", text)
-        text = _BLANKS_RE.sub("\n", text)
-        return text.strip()
+        """Flatten `<page>`/`<table>` OCR markup to plain, row-structured text.
 
-    def _chunk_text(self, text: str) -> list[str]:
-        """Split cleaned text into overlapping, line-aligned word windows.
-
-        Packs whole lines (table rows / sentences kept intact) up to
-        ``chunk_size`` words per chunk, carrying the trailing ``chunk_overlap``
-        words into the next chunk so a measurement whose fields straddle a
-        boundary is still seen whole in at least one chunk.
+        Collapses all source whitespace (newlines included) *first* so the
+        pretty-printed HTML's per-cell newlines can't split a row; only the
+        row/page tags below reintroduce line breaks, keeping each `<tr>`'s cells
+        together on one `|`-delimited line (entity adjacent to its values). Empty
+        cells (`<td></td>`) collapse away rather than leaving `| |` gaps.
         """
-        lines = [ln for ln in text.split("\n") if ln.strip()]
+        text = _ALL_WS_RE.sub(" ", text)      # kill pretty-print newlines first
+        text = _CELL_END_RE.sub(" | ", text)  # cell boundary -> " | "
+        text = _ROW_END_RE.sub("\n", text)    # row/page/paragraph -> newline
+        text = _ANY_TAG_RE.sub(" ", text)     # drop remaining (opening) tags
+        lines: list[str] = []
+        for line in text.split("\n"):
+            line = _WS_RE.sub(" ", line)
+            line = _PIPE_RUN_RE.sub("| ", line)   # squeeze empty-cell runs
+            line = line.strip().strip("|").strip()
+            if line:
+                lines.append(line)
+        return "\n".join(lines)
+
+    def _split_blocks(self, body: str) -> list[tuple[str, str]]:
+        """Segment a raw page body into ordered ``(kind, cleaned_text)`` blocks.
+
+        ``kind`` is ``"table"`` or ``"prose"``. Table spans are isolated from the
+        raw HTML *before* flattening so the chunker can keep each one atomic;
+        everything between/around tables is prose. Each segment is run through
+        `_clean_ocr_text`, so a table block's lines are its ``|``-delimited rows
+        (with the first line being the header row).
+        """
+        blocks: list[tuple[str, str]] = []
+        pos = 0
+        for m in _TABLE_RE.finditer(body):
+            if m.start() > pos:
+                prose = self._clean_ocr_text(body[pos:m.start()])
+                if prose:
+                    blocks.append(("prose", prose))
+            table = self._clean_ocr_text(m.group(0))
+            if table:
+                blocks.append(("table", table))
+            pos = m.end()
+        if pos < len(body):
+            prose = self._clean_ocr_text(body[pos:])
+            if prose:
+                blocks.append(("prose", prose))
+        return blocks
+
+    def _split_table_lines(self, lines: list[str]) -> list[str]:
+        """Row-split an oversized table into ``<= chunk_size`` word sub-chunks.
+
+        The header row (``lines[0]``) is repeated at the top of every sub-chunk so
+        each fragment keeps its column semantics (which column a value sits under).
+        A single row wider than ``chunk_size`` cannot be split further, so it is
+        emitted whole (with its header) and left for GLiNER's ``max_len`` to bound.
+        """
+        header = lines[0]
+        header_words = len(header.split())
+        body_rows = lines[1:]
+        if not body_rows:
+            return ["\n".join(lines)]
+        subs: list[str] = []
+        cur = [header]
+        cur_words = header_words
+        for row in body_rows:
+            rw = len(row.split())
+            if len(cur) > 1 and cur_words + rw > self.chunk_size:
+                subs.append("\n".join(cur))
+                cur = [header]
+                cur_words = header_words
+            cur.append(row)
+            cur_words += rw
+        if len(cur) > 1:
+            subs.append("\n".join(cur))
+        return subs
+
+    def _chunk_page(self, body: str) -> list[str]:
+        """Table-aware chunking of one raw page body into GLiNER-sized windows.
+
+        Prose is packed into overlapping ``chunk_size``-word windows, carrying the
+        trailing ``chunk_overlap`` words across boundaries (as before). A table is
+        kept intact when it fits within ``chunk_size`` — flushed into a fresh chunk
+        rather than split across a boundary — and only row-split (with its header
+        repeated, `_split_table_lines`) when it exceeds ``chunk_size`` on its own.
+        """
         chunks: list[str] = []
         cur: list[str] = []
         cur_words = 0
-        for line in lines:
-            w = len(line.split())
-            if cur and cur_words + w > self.chunk_size:
+
+        def flush() -> None:
+            nonlocal cur, cur_words
+            if cur:
                 chunks.append("\n".join(cur))
-                overlap: list[str] = []
-                ov_words = 0
-                for prev in reversed(cur):
-                    pw = len(prev.split())
-                    if ov_words + pw > self.chunk_overlap:
-                        break
-                    overlap.insert(0, prev)
-                    ov_words += pw
-                cur, cur_words = list(overlap), ov_words
-            cur.append(line)
-            cur_words += w
-        if cur:
-            chunks.append("\n".join(cur))
-        return chunks or [text]
+            cur, cur_words = [], 0
+
+        for kind, text in self._split_blocks(body):
+            lines = [ln for ln in text.split("\n") if ln.strip()]
+            if kind == "table":
+                table_words = sum(len(ln.split()) for ln in lines)
+                if table_words <= self.chunk_size:
+                    # Keep atomic: start a fresh chunk if it won't fit whole.
+                    if cur and cur_words + table_words > self.chunk_size:
+                        flush()
+                    cur.extend(lines)
+                    cur_words += table_words
+                else:
+                    # Oversized: flush prose, emit header-repeated row splits.
+                    flush()
+                    chunks.extend(self._split_table_lines(lines))
+                continue
+            for line in lines:  # prose
+                w = len(line.split())
+                if cur and cur_words + w > self.chunk_size:
+                    chunks.append("\n".join(cur))
+                    overlap: list[str] = []
+                    ov_words = 0
+                    for prev in reversed(cur):
+                        pw = len(prev.split())
+                        if ov_words + pw > self.chunk_overlap:
+                            break
+                        overlap.insert(0, prev)
+                        ov_words += pw
+                    cur, cur_words = list(overlap), ov_words
+                cur.append(line)
+                cur_words += w
+        flush()
+        return chunks or [self._clean_ocr_text(body)]
 
     # -----------------------------------------------------------------------
     # Record construction
@@ -276,7 +374,7 @@ class MeasurementLMGliner(MeasurementLM):
         The OCR ``<page number="N">`` block is a hard chunk boundary — a chunk
         never straddles two pages, so every chunk (and thus every record) maps to
         exactly one 0-indexed page.  Pages larger than ``chunk_size`` words are
-        still sub-split by ``_chunk_text`` (most pages exceed GLiNER2's window, so
+        still sub-split by ``_chunk_page`` (most pages exceed GLiNER2's window, so
         one-chunk-per-page would truncate); all sub-chunks share the page number.
         Untagged documents fall back to a single ``None`` page.
         """
@@ -285,7 +383,7 @@ class MeasurementLMGliner(MeasurementLM):
         ] or [(None, doc)]
         chunks: list[tuple[int | None, str]] = []
         for page_num, body in page_bodies:
-            for chunk in self._chunk_text(self._clean_ocr_text(body)):
+            for chunk in self._chunk_page(body):
                 chunks.append((page_num, chunk))
         return chunks
 
