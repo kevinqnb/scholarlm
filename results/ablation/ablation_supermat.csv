@@ -1,0 +1,2 @@
+dataset,model,baseline_recovery,baseline_recovery_ci_lo,baseline_recovery_ci_hi,baseline_validity,baseline_validity_ci_lo,baseline_validity_ci_hi,ablation_1_recovery,ablation_1_validity,ablation_2_recovery,ablation_2_validity,ablation_3_recovery,ablation_3_validity,ablation_4_recovery,ablation_4_validity,ablation_5_recovery,ablation_5_validity,ablation_6_recovery,ablation_6_validity
+supermat,gemma-3-27b,0.5703259005145798,0.5417268772552581,0.5984630593925051,0.6143740340030912,0.5989565431355603,0.6295653894781026,,,,,,,,,,,,

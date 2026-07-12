@@ -156,10 +156,10 @@ def main():
     # Fill in with the extraction dates you want to compare, per dataset.
     baseline_configs = {
         'pond': {
-            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': None, 'chatextract_date': None, 'gliner_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': '2026_07_11', 'chatextract_date': '2026_07_11', 'gliner_date': '2026_07_11'},
         },
         'nfix': {
-            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': None, 'chatextract_date': None, 'gliner_date': None},
+            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': '2026_07_11', 'chatextract_date': '2026_07_11', 'gliner_date': '2026_07_11'},
         },
     }
 

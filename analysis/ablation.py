@@ -29,6 +29,12 @@ def get_matching_rules(dataset):
             {"name": "name", "site_type": "site_type"},
             1/6,
         )
+    elif 'supermat' in dataset:
+        return (
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
+            {"name": "name"},
+            1/3,
+        )
     else:
         raise ValueError(f"Dataset not recognized: {dataset}")
 
@@ -79,6 +85,7 @@ def compute_ablation_metrics(dataset, ablations_config):
             try:
                 baseline_judged = pd.DataFrame(load_combined_judgements(dataset, model, baseline_date))
             except FileNotFoundError:
+                print(f"    Baseline judgements not found for {dataset}, {model}, {baseline_date}. Skipping validity computation.")
                 baseline_judged = None
 
             cached_match(
@@ -211,6 +218,9 @@ def main():
             'gemma-3-27b': {'baseline': '2026_05_06', '1': '2026_05_07', '2': '2026_05_07', '3': '2026_05_07', '4': '2026_05_07', '5': '2026_05_07', '6': '2026_05_07'},
             'gpt-oss-120b': {'baseline': '2026_05_03', '1': '2026_05_06', '2': '2026_05_06', '3': '2026_05_06', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_08'},
         },
+        'supermat': {
+            'gemma-3-27b': {'baseline': '2026_07_09', '1': None, '2': None, '3': None, '4': None, '5': None, '6': None},
+        }
     }
     
     output_dir = Path('results/ablation/')
