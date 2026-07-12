@@ -6,8 +6,10 @@ sys.path.insert(0, str(REPO_ROOT / 'src'))
 sys.path.insert(0, str(REPO_ROOT / 'experiments'))
 sys.path.insert(0, str(REPO_ROOT))
 
+import os
 import re
 import pickle
+import argparse
 import itertools
 import numpy as np
 import pandas as pd
@@ -25,7 +27,9 @@ from analysis.loaders import (
     load_synthetic_responses,
 )
 from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
-from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em, bootstrap_ece
+from scholarlm.utils.calibration import (
+    reliability_diagram_data, rescale_probabilities_em, bootstrap_ece, intercept_adjustment,
+)
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
 import paths
@@ -71,67 +75,188 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-DATASETS = ['pond', 'nfix', 'supermat']
+# Everything that varies with the extraction model lives in EXTRACTION_SETTINGS,
+# one entry per model. Select one with `--extraction-model`, the
+# CALIBRATION_EXTRACTION_MODEL env var, or by editing DEFAULT_EXTRACTION_MODEL;
+# the module-level globals below are then derived from the selected entry, so the
+# rest of this file (and the notebooks that import it) is unchanged.
+#
+# Per-entry keys:
+#   datasets        — datasets this extraction model was run on
+#   judge_models    — judges with interpretable results for this extraction run
+#   judge_datasets  — datasets each judge has activations for. A cross-domain
+#                     (train_ds → test_ds) pair is only valid for a judge when
+#                     BOTH datasets appear here, since the probe lives in that
+#                     judge's activation space.
+#   extraction_dates / judge_dates_syn / judge_dates_real — pinned run dates
+#                     (a None judge date means "auto-detect latest")
+#   pi_te_estimate  — assumed test prevalence for the label-shift intercept
+#                     adjustment on real data; None disables the adjustment.
+EXTRACTION_SETTINGS = {
+    'gemma-3-27b': {
+        'datasets': ['pond', 'nfix', 'supermat'],
+        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b'],
+        # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'mistral-7b':   ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_05',
+            'nfix': '2026_05_06',
+            'supermat': '2026_07_09',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'mistral-7b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'mistral-7b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'supermat': {
+                'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_06',
+                'mistral-7b': '2026_05_06',
+                'qwen-2.5-7b': '2026_05_06',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_05',
+                'mistral-7b': '2026_05_05',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'supermat': {
+                'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
+            },
+        },
+        'pi_te_estimate': None,
+    },
+
+    # Previously analysis/calibration_llama.py
+    'llama-3.1-8b': {
+        'datasets': ['pond', 'nfix'],
+        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_04',
+            'nfix': '2026_05_05',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+        },
+        'pi_te_estimate': None,
+    },
+
+    # Previously analysis/calibration_gpt.py
+    'gpt-oss-120b': {
+        'datasets': ['pond', 'nfix'],
+        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_02',
+            'nfix': '2026_05_03',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+        },
+        'pi_te_estimate': 0.85,
+    },
+}
+
+DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
+DEFAULT_PROBE_TYPE = 'head'
+
+
+def _select_settings():
+    """Resolve the active extraction model from CLI flag → env var → default.
+
+    parse_known_args keeps this safe under import from a notebook or another
+    script, where sys.argv holds flags meant for something else.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
+    parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
+    args, _ = parser.parse_known_args()
+
+    model = (args.extraction_model
+             or os.environ.get('CALIBRATION_EXTRACTION_MODEL')
+             or DEFAULT_EXTRACTION_MODEL)
+    if model not in EXTRACTION_SETTINGS:
+        raise ValueError(
+            f'Unknown extraction model {model!r}; '
+            f'known: {sorted(EXTRACTION_SETTINGS)}'
+        )
+    probe_type = (args.probe_type
+                  or os.environ.get('CALIBRATION_PROBE_TYPE')
+                  or DEFAULT_PROBE_TYPE)
+    return model, probe_type, EXTRACTION_SETTINGS[model]
+
+
+EXTRACTION_MODEL, PROBE_TYPE, _SETTINGS = _select_settings()
+
+DATASETS         = _SETTINGS['datasets']
+JUDGE_MODELS     = _SETTINGS['judge_models']
+JUDGE_DATASETS   = _SETTINGS['judge_datasets']
+EXTRACTION_DATES = _SETTINGS['extraction_dates']
+JUDGE_DATES_SYN  = _SETTINGS['judge_dates_syn']
+JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
+PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
+
 # All unordered dataset pairs, in a fixed canonical order — each pair gets its
 # own output subfolder so within/cross-domain plots stay readable as the
 # number of datasets grows.
 DATASET_PAIRS = list(itertools.combinations(DATASETS, 2))
-EXTRACTION_MODEL = 'gemma-3-27b'
-JUDGE_MODELS = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
-PROBE_TYPE = "head"
 
-# Datasets each judge has interpretable results (activations) for. A cross-domain
-# (train_ds → test_ds) pair is only valid for a judge when BOTH datasets appear
-# here, since the probe lives in that judge's activation space. qwen covers all
-# three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
-JUDGE_DATASETS = {
-    'llama-3.1-8b': ['pond', 'nfix'],
-    'mistral-7b':   ['pond', 'nfix'],
-    'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-}
-
-# Extraction date per test dataset
-EXTRACTION_DATES = {
-    'pond': '2026_05_05',
-    'nfix': '2026_05_06',
-    'supermat': '2026_07_09',
-}
-
-# Judge date for synthetic test activations: {dataset: {judge_model: date_str | None}}
-# None → auto-detect latest
-JUDGE_DATES_SYN = {
-    'pond': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b': '2026_05_04',
-        'qwen-2.5-7b': '2026_05_04',
-    },
-    'nfix': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b': '2026_05_04',
-        'qwen-2.5-7b': '2026_05_04',
-    },
-    'supermat': {
-        'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
-    },
-}
-
-# Judge date for real activations: {test_dataset: {judge_model: date_str | None}}
-# None → auto-detect latest
-JUDGE_DATES_REAL = {
-    'pond': {
-        'llama-3.1-8b': '2026_05_06',
-        'mistral-7b': '2026_05_06',
-        'qwen-2.5-7b': '2026_05_06',
-    },
-    'nfix': {
-        'llama-3.1-8b': '2026_05_05',
-        'mistral-7b': '2026_05_05',
-        'qwen-2.5-7b': '2026_05_05',
-    },
-    'supermat': {
-        'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
-    },
-}
+print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
+      f'| datasets: {DATASETS} | judges: {JUDGE_MODELS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
@@ -371,6 +496,16 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                                 for l, h in top
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+
+                    # Real extractions have a different positive rate than the synthetic
+                    # training set; rescale to the assumed test prevalence when one is set.
+                    if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
+                        probe_probs = intercept_adjustment(
+                            probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                        )
+                        ntp_probs = intercept_adjustment(
+                            ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                        )
 
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                         'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
