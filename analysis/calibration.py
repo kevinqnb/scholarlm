@@ -8,6 +8,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import re
 import pickle
+import itertools
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -58,18 +59,23 @@ Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)
 
+# One consistent color per dataset, reused across every plot (synthetic/real,
+# within/cross) so a dataset is always the same color regardless of role.
 _DS_COLORS = {
-    ('pond', 'syn'):  palette[7],
-    ('pond', 'real'): palette[7],
-    ('nfix', 'syn'):  palette[1],
-    ('nfix', 'real'): palette[1],
-    ('supermat', 'syn'):  palette[4],
-    ('supermat', 'real'): palette[4],
+    'pond':     palette[7],
+    'nfix':     palette[1],
+    'supermat': palette[4],
 }
+
+_DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
 DATASETS = ['pond', 'nfix', 'supermat']
+# All unordered dataset pairs, in a fixed canonical order — each pair gets its
+# own output subfolder so within/cross-domain plots stay readable as the
+# number of datasets grows.
+DATASET_PAIRS = list(itertools.combinations(DATASETS, 2))
 EXTRACTION_MODEL = 'gemma-3-27b'
 JUDGE_MODELS = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
 PROBE_TYPE = "head"
@@ -383,101 +389,109 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
 def plot_calibration_curves(
     setting_results, dtype
 ):
+    # One (within, cross) pair of plots per judge x dataset-pair, each written to
+    # its own subfolder, so a cross-domain plot never has to overlay more than
+    # the two datasets in that pair (avoids the 6-line cross-domain clutter that
+    # shows up once a third dataset is added).
     for judge_model in JUDGE_MODELS:
+        for pair in DATASET_PAIRS:
+            ds_a, ds_b = pair
+            if ds_a not in JUDGE_DATASETS[judge_model] or ds_b not in JUDGE_DATASETS[judge_model]:
+                continue
+            pair_datasets = [ds_a, ds_b]
+            pair_name = f"{ds_a}_{ds_b}"
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
+            subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
+            Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
-        subresults_dir = RESULTS_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subresults_dir).mkdir(parents=True, exist_ok=True)
+            subresults_dir = RESULTS_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
+            Path(subresults_dir).mkdir(parents=True, exist_ok=True)
 
-        for ctype in ['in-domain', 'cross-domain']:
-            # Base figure
-            fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-            ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
+            for ctype in ['in-domain', 'cross-domain']:
+                # Base figure
+                fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+                ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
 
-            for train_ds in DATASETS:
-                for test_ds in DATASETS:
-                    if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
-                        continue
-                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
-                        continue
+                for train_ds in pair_datasets:
+                    for test_ds in pair_datasets:
+                        if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
+                            continue
 
-                    color = _DS_COLORS[(train_ds, dtype)]
-                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-        
-                    # Probe — solid line with markers scaled by per-bin count
-                    d_prb = reliability_diagram_data(rdict['probe_probs'], rdict['labels'])
-                    v_prb = d_prb['bin_counts'] > 0
-                    _c_prb = d_prb['bin_counts'][v_prb].astype(float)
-                    _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
-                    _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
-                    ax_cal.plot(
-                        d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                        '-', color=color, lw=2.5, zorder=3,
-                    )
-                    ax_cal.scatter(
-                        d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                        s=_s_prb, color=color, zorder=4,
-                    )
+                        color = _DS_COLORS[train_ds]
+                        rdict = setting_results[dtype][judge_model][train_ds][test_ds]
 
-                    # Add error bands: SEM of accuracy within each bin (very subtle)
-                    bin_sems = d_prb['bin_accuracy_sem'][v_prb]
-                    conf_valid = d_prb['bin_confidence'][v_prb]
-                    acc_valid = d_prb['bin_accuracy'][v_prb]
+                        # Probe — solid line with markers scaled by per-bin count
+                        d_prb = reliability_diagram_data(rdict['probe_probs'], rdict['labels'])
+                        v_prb = d_prb['bin_counts'] > 0
+                        _c_prb = d_prb['bin_counts'][v_prb].astype(float)
+                        _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
+                        _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
+                        ax_cal.plot(
+                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
+                            '-', color=color, lw=2.5, zorder=3,
+                        )
+                        ax_cal.scatter(
+                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
+                            s=_s_prb, color=color, zorder=4,
+                        )
 
-                    ax_cal.fill_between(
-                        conf_valid,
-                        acc_valid - bin_sems,
-                        acc_valid + bin_sems,
-                        color=color, alpha=0.20, linewidth=0, zorder=2
-                    )
+                        # Add error bands: SEM of accuracy within each bin (very subtle)
+                        bin_sems = d_prb['bin_accuracy_sem'][v_prb]
+                        conf_valid = d_prb['bin_confidence'][v_prb]
+                        acc_valid = d_prb['bin_accuracy'][v_prb]
 
-                    # NTP baseline — dashed, markers scaled by per-bin count
-                    d_ntp = reliability_diagram_data(rdict['ntp_probs'], rdict['labels'])
-                    v_ntp = d_ntp['bin_counts'] > 0
-                    _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
-                    _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
-                    _s_ntp = 12 + 68 * _f_ntp
-                    ax_cal.plot(
-                        d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                        '--', color=color, lw=2.0, alpha=1.0, zorder=1,
-                    )
-                    ax_cal.scatter(
-                        d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                        s=_s_ntp, color=color, alpha=1.0, zorder=2,
-                    )
+                        ax_cal.fill_between(
+                            conf_valid,
+                            acc_valid - bin_sems,
+                            acc_valid + bin_sems,
+                            color=color, alpha=0.20, linewidth=0, zorder=2
+                        )
 
-                    # Add error bands: SEM of accuracy within each bin (very subtle)
-                    bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
-                    conf_valid = d_ntp['bin_confidence'][v_ntp]
-                    acc_valid = d_ntp['bin_accuracy'][v_ntp]
+                        # NTP baseline — dashed, markers scaled by per-bin count
+                        d_ntp = reliability_diagram_data(rdict['ntp_probs'], rdict['labels'])
+                        v_ntp = d_ntp['bin_counts'] > 0
+                        _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
+                        _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
+                        _s_ntp = 12 + 68 * _f_ntp
+                        ax_cal.plot(
+                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                            '--', color=color, lw=2.0, alpha=1.0, zorder=1,
+                        )
+                        ax_cal.scatter(
+                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                            s=_s_ntp, color=color, alpha=1.0, zorder=2,
+                        )
 
-                    ax_cal.fill_between(
-                        conf_valid,
-                        acc_valid - bin_sems,
-                        acc_valid + bin_sems,
-                        color=color, alpha=0.20, linewidth=0, zorder=2
-                    )
+                        # Add error bands: SEM of accuracy within each bin (very subtle)
+                        bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
+                        conf_valid = d_ntp['bin_confidence'][v_ntp]
+                        acc_valid = d_ntp['bin_accuracy'][v_ntp]
 
-            ax_cal.set_xlim(-0.02, 1.02)
-            ax_cal.set_ylim(-0.02, 1.02)
-            ax_cal.set_xlabel('Predicted Probability')
+                        ax_cal.fill_between(
+                            conf_valid,
+                            acc_valid - bin_sems,
+                            acc_valid + bin_sems,
+                            color=color, alpha=0.20, linewidth=0, zorder=2
+                        )
 
-            if ctype == 'in-domain':
-                ax_cal.set_ylabel('Observed Frequency')
-                ax_cal.set_title(f'Within', fontsize=15, style='italic')
-            else:
-                ax_cal.set_ylabel('')
-                ax_cal.set_title(f'Cross', fontsize=15, style='italic')
-                
-            ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-            ax_cal.set_axisbelow(True)
-            fig_cal.tight_layout()
-            fig_cal.savefig(
-                subfigure_dir / f'cal_{dtype}_{ctype}.pdf', bbox_inches='tight', dpi = 200
-            )
-            plt.show()
+                ax_cal.set_xlim(-0.02, 1.02)
+                ax_cal.set_ylim(-0.02, 1.02)
+                ax_cal.set_xlabel('Predicted Probability')
+
+                if ctype == 'in-domain':
+                    ax_cal.set_ylabel('Observed Frequency')
+                    ax_cal.set_title(f'Within', fontsize=15, style='italic')
+                else:
+                    ax_cal.set_ylabel('')
+                    ax_cal.set_title(f'Cross', fontsize=15, style='italic')
+
+                ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+                ax_cal.set_axisbelow(True)
+                fig_cal.tight_layout()
+                fig_cal.savefig(
+                    subfigure_dir / f'cal_{dtype}_{ctype}.pdf', bbox_inches='tight', dpi = 200
+                )
+                plt.show()
 
 
 # Bootstrap settings for ECE confidence intervals.
@@ -763,9 +777,9 @@ if __name__ == "__main__":
 
     # ── Standalone calibration legend ─────────────────────────────────────────────
     _legend_handles = [
-        mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='PLW'),
-        mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='NF'),
-        mlines.Line2D([], [], color=palette[4], lw=2, marker='o', ms=3.5, label='SM'),
+        mlines.Line2D([], [], color=_DS_COLORS[ds], lw=2, marker='o', ms=3.5, label=_DS_LABELS[ds])
+        for ds in DATASETS
+    ] + [
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
     ]
