@@ -1,9 +1,15 @@
 """Compare MeasurementLM against external baselines (e.g. NuExtract-2.0-8B).
 
-Mirrors analysis/ablation.py's structure and matching logic exactly, but both
-arms are loaded via load_extraction() (baselines are registered as pseudo
-"extraction models" under extraction/{model}/{date}/, so no new loader or
-path-resolution code is needed).
+Mirrors analysis/ablation.py's structure and matching logic exactly, but all
+arms (MeasurementLM extraction models and external baselines alike) are loaded
+via load_extraction() (baselines are registered as pseudo "extraction models"
+under extraction/{model}/{date}/, so no new loader or path-resolution code is
+needed).
+
+Unlike the ablation comparison (fixed set of arms per model), a dataset here
+can compare an arbitrary set of models at once -- e.g. several MeasurementLM
+backbones plus NuExtract, ChatExtract, and GLiNER -- so results are stored in
+long/tidy form: one row per (dataset, model).
 """
 import sys
 from pathlib import Path
@@ -20,6 +26,13 @@ from analysis.metrics import recovery_rate, validity_rate
 from analysis.ablation import get_matching_rules, process_extraction_df
 from experiments.run_extraction import load_dataset_config
 import paths
+
+
+def f1_score(recovery, validity):
+    """Harmonic mean of recovery and validity. 0.0 if both are 0."""
+    if pd.isna(recovery) or pd.isna(validity) or recovery + validity == 0:
+        return float('nan') if pd.isna(recovery) or pd.isna(validity) else 0.0
+    return 2 * recovery * validity / (recovery + validity)
 
 
 def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag):
@@ -66,15 +79,20 @@ def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matchi
     return resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), (judged is not None)
 
 
-def compute_baseline_metrics(dataset, baseline_configs):
-    """Compute recovery and validity metrics comparing MeasurementLM models against baselines.
+def compute_baseline_metrics(dataset, models_config):
+    """Compute recovery, validity, and F1 metrics for a set of models on one dataset.
 
     Args:
         dataset: Dataset name.
-        baseline_configs: dict mapping mlm_model -> {'mlm_date': str,
-            'nuextract_date': str | None, 'chatextract_date': str | None,
-            'gliner_date': str | None}. A None (or missing) baseline date skips
-            that arm for the model.
+        models_config: dict mapping model -> date (str). ``model`` is anything
+            registered as a pseudo extraction model under extraction/{model}/,
+            i.e. a MeasurementLM backbone (e.g. 'gemma-3-27b') or an external
+            baseline (e.g. 'nuextract-2.0-8b', 'chatextract-gemma-3-27b',
+            'gliner-large-v1'). A None date skips that model (row of NaNs).
+
+    Returns:
+        Long/tidy DataFrame with one row per model: dataset, model, recovery
+        (+ CI), validity (+ CI), f1, has_judge.
     """
     config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(config)
@@ -82,70 +100,48 @@ def compute_baseline_metrics(dataset, baseline_configs):
 
     results = []
 
-    for mlm_model, dates in baseline_configs.items():
-        print(f"\n  Processing model: {mlm_model}")
-        row = {'dataset': dataset, 'mlm_model': mlm_model}
+    for model, date in models_config.items():
+        print(f"\n  Processing model: {model}")
+        row = {'dataset': dataset, 'model': model}
+
+        if date is None:
+            print(f"    {model}: no date configured, skipping.")
+            row['recovery'] = np.nan
+            row['validity'] = np.nan
+            row['f1'] = np.nan
+            results.append(row)
+            continue
 
         try:
             resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
-                dataset, config, mlm_model, dates['mlm_date'],
+                dataset, config, model, date,
                 ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
-                cache_tag='mlm',
+                cache_tag=model,
             )
-            row['mlm_recovery'] = recov
-            row['mlm_recovery_ci_lo'] = recov_lo
-            row['mlm_recovery_ci_hi'] = recov_hi
-            row['mlm_validity'] = valid
-            row['mlm_validity_ci_lo'] = valid_lo
-            row['mlm_validity_ci_hi'] = valid_hi
-            row['mlm_has_judge'] = has_judge
-            print(f"    MeasurementLM ({mlm_model}, {resolved_date}): "
+            row['resolved_date'] = resolved_date
+            row['recovery'] = recov
+            row['recovery_ci_lo'] = recov_lo
+            row['recovery_ci_hi'] = recov_hi
+            row['validity'] = valid
+            row['validity_ci_lo'] = valid_lo
+            row['validity_ci_hi'] = valid_hi
+            row['f1'] = f1_score(recov, valid)
+            row['has_judge'] = has_judge
+            print(f"    {model} ({resolved_date}): "
                   f"recovery={recov:.3f} [{recov_lo:.3f}, {recov_hi:.3f}], "
-                  f"validity={valid:.3f} [{valid_lo:.3f}, {valid_hi:.3f}]"
+                  f"validity={valid:.3f} [{valid_lo:.3f}, {valid_hi:.3f}], "
+                  f"f1={row['f1']:.3f}"
                   f"{'' if has_judge else ' (no judge — validity is a lower bound)'}")
+        except FileNotFoundError:
+            print(f"    {model}: not found, skipping.")
+            row['recovery'] = np.nan
+            row['validity'] = np.nan
+            row['f1'] = np.nan
         except Exception as e:
-            print(f"    MeasurementLM ERROR: {e}")
-            row['mlm_recovery'] = np.nan
-            row['mlm_validity'] = np.nan
-
-        # External baselines. Each is registered as a pseudo extraction model, so
-        # the same _load_and_score() path works. ChatExtract runs on the same
-        # backbone as the MeasurementLM arm, so its model name is per-mlm_model.
-        external_baselines = {
-            'nuextract': ('nuextract-2.0-8b', dates.get('nuextract_date')),
-            'chatextract': (f'chatextract-{mlm_model}', dates.get('chatextract_date')),
-            'gliner': ('gliner-large-v1', dates.get('gliner_date')),
-        }
-        for tag, (model_name, date) in external_baselines.items():
-            if date is None:
-                row[f'{tag}_recovery'] = np.nan
-                row[f'{tag}_validity'] = np.nan
-                continue
-            try:
-                resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
-                    dataset, config, model_name, date,
-                    ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
-                    cache_tag=tag,
-                )
-                row[f'{tag}_recovery'] = recov
-                row[f'{tag}_recovery_ci_lo'] = recov_lo
-                row[f'{tag}_recovery_ci_hi'] = recov_hi
-                row[f'{tag}_validity'] = valid
-                row[f'{tag}_validity_ci_lo'] = valid_lo
-                row[f'{tag}_validity_ci_hi'] = valid_hi
-                row[f'{tag}_has_judge'] = has_judge
-                print(f"    {model_name} ({resolved_date}): "
-                      f"recovery={recov:.3f} [{recov_lo:.3f}, {recov_hi:.3f}], "
-                      f"validity={valid:.3f} [{valid_lo:.3f}, {valid_hi:.3f}]"
-                      f"{'' if has_judge else ' (no judge — validity is a lower bound)'}")
-            except FileNotFoundError:
-                print(f"    {model_name}: not found, skipping.")
-                row[f'{tag}_recovery'] = np.nan
-                row[f'{tag}_validity'] = np.nan
-            except Exception as e:
-                print(f"    {model_name} ERROR: {e}")
-                row[f'{tag}_recovery'] = np.nan
-                row[f'{tag}_validity'] = np.nan
+            print(f"    {model} ERROR: {e}")
+            row['recovery'] = np.nan
+            row['validity'] = np.nan
+            row['f1'] = np.nan
 
         results.append(row)
 
@@ -154,21 +150,39 @@ def compute_baseline_metrics(dataset, baseline_configs):
 
 def main():
     # Fill in with the extraction dates you want to compare, per dataset.
+    # Each dataset maps model -> extraction date; models can be MeasurementLM
+    # backbones or external baselines (registered as pseudo extraction models).
     baseline_configs = {
         'pond': {
-            'gemma-3-27b': {'mlm_date': '2026_05_05', 'nuextract_date': '2026_07_11', 'chatextract_date': '2026_07_11', 'gliner_date': '2026_07_11'},
+            'llama-3.1-8b': '2026_05_04',
+            'gemma-3-27b': '2026_05_05',
+            'gpt-oss-120b': '2026_05_02',
+            'nuextract-2.0-8b': '2026_07_11',
+            'chatextract-gemma-3-27b': '2026_07_11',
+            'gliner-large-v1': '2026_07_11',
         },
         'nfix': {
-            'gemma-3-27b': {'mlm_date': '2026_05_06', 'nuextract_date': '2026_07_11', 'chatextract_date': '2026_07_11', 'gliner_date': '2026_07_11'},
+            'llama-3.1-8b': '2026_05_05',
+            'gemma-3-27b': '2026_05_06',
+            'gpt-oss-120b': '2026_05_03',
+            'nuextract-2.0-8b': '2026_07_11',
+            'chatextract-gemma-3-27b': '2026_07_11',
+            'gliner-large-v1': '2026_07_11',
+        },
+        'supermat': {
+            'gemma-3-27b': '2026_07_09',
+            'nuextract-2.0-8b': None,
+            'chatextract-gemma-3-27b': None,
+            'gliner-large-v1': None,
         },
     }
 
     output_dir = Path('results/baselines/')
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    for dataset, configs in baseline_configs.items():
+    for dataset, models_config in baseline_configs.items():
         print(f"Processing dataset: {dataset}")
-        results_df = compute_baseline_metrics(dataset, configs)
+        results_df = compute_baseline_metrics(dataset, models_config)
 
         output_path = output_dir / f'baselines_{dataset}.csv'
         results_df.to_csv(output_path, index=False)
