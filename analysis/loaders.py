@@ -114,6 +114,42 @@ def load_combined_judgements(
         return json.load(f)
 
 
+def load_human_judgements(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str | None = None,
+    judge_date: str | None = None,
+    drop_skipped: bool = True,
+) -> tuple[list[dict], str]:
+    """Load responses.json from a human validation run (``experiments/validation.py``).
+
+    Args:
+        dataset: Dataset identifier.
+        extraction_model: Extraction model short name.
+        extraction_date: Date tag of the extraction run. ``None`` resolves to the
+            most recent run that has human responses.
+        judge_date: Date tag of the validation session. ``None`` resolves to the latest.
+        drop_skipped: Drop records the annotator skipped (``judgement is None``).
+
+    Returns:
+        ``(records, extraction_date)``.  ``measurement_id`` is a positional index into
+        that extraction run's final.json, so it is only a valid join key against
+        artefacts from the same run — callers should check the returned date against
+        the one their activations came from.
+
+    Raises:
+        FileNotFoundError: If no human responses.json exists.
+    """
+    path, resolved_date = _paths.find_human_responses(
+        dataset, extraction_model, extraction_date, judge_date
+    )
+    with open(path) as f:
+        records = json.load(f)
+    if drop_skipped:
+        records = [r for r in records if r.get("judgement") is not None]
+    return records, resolved_date
+
+
 def load_ground_truth(config) -> "pd.DataFrame":
     """Load the manual ground-truth dataset using ``config.ground_truth_file``.
 

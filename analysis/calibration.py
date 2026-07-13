@@ -215,15 +215,29 @@ DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
 DEFAULT_PROBE_TYPE = 'head'
 
 
+def _env_list(name):
+    """Parse a comma- or space-separated env var into a list; None when unset/empty."""
+    raw = os.environ.get(name, '').replace(',', ' ').split()
+    return raw or None
+
+
 def _select_settings():
     """Resolve the active extraction model from CLI flag → env var → default.
 
     parse_known_args keeps this safe under import from a notebook or another
     script, where sys.argv holds flags meant for something else.
+
+    ``--datasets`` / ``--judge-models`` (or CALIBRATION_DATASETS /
+    CALIBRATION_JUDGE_MODELS) narrow the selected entry to a subset.  Both the
+    probe cache and test_data are built eagerly at import over every dataset in
+    the entry, so narrowing is what lets this module import when only part of the
+    run data is present locally.  Omitting them leaves the entry unchanged.
     """
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
     parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
+    parser.add_argument('--datasets', nargs='+', default=None)
+    parser.add_argument('--judge-models', nargs='+', default=None)
     args, _ = parser.parse_known_args()
 
     model = (args.extraction_model
@@ -237,7 +251,34 @@ def _select_settings():
     probe_type = (args.probe_type
                   or os.environ.get('CALIBRATION_PROBE_TYPE')
                   or DEFAULT_PROBE_TYPE)
-    return model, probe_type, EXTRACTION_SETTINGS[model]
+
+    def _subset(selected, available, what):
+        unknown = [x for x in selected if x not in available]
+        if unknown:
+            raise ValueError(
+                f'Unknown {what} {unknown} for extraction model {model!r}; '
+                f'available: {available}'
+            )
+        return [x for x in available if x in selected]
+
+    settings = dict(EXTRACTION_SETTINGS[model])  # copy: never mutate the registry
+
+    datasets = args.datasets or _env_list('CALIBRATION_DATASETS')
+    if datasets:
+        settings['datasets'] = _subset(datasets, settings['datasets'], 'dataset')
+
+    judges = args.judge_models or _env_list('CALIBRATION_JUDGE_MODELS')
+    if judges:
+        settings['judge_models'] = _subset(judges, settings['judge_models'], 'judge model')
+
+    # judge_datasets drives the probe cache, so it has to be narrowed to match or the
+    # eager loading below still reaches for probes we just excluded.
+    settings['judge_datasets'] = {
+        jm: [ds for ds in dss if ds in settings['datasets']]
+        for jm, dss in settings['judge_datasets'].items()
+        if jm in settings['judge_models']
+    }
+    return model, probe_type, settings
 
 
 EXTRACTION_MODEL, PROBE_TYPE, _SETTINGS = _select_settings()
