@@ -24,8 +24,53 @@ import numpy as np
 from analysis.loaders import load_extraction, load_combined_judgements, load_ground_truth, cached_match
 from analysis.metrics import recovery_rate, validity_rate
 from analysis.ablation import get_matching_rules, process_extraction_df
+from scholarlm.utils.normalization import canonical_units, parse_value
 from experiments.run_extraction import load_dataset_config
 import paths
+
+
+# External baselines, which are never shown the ground truth's unit vocabulary and so
+# must be transcribed into it before matching. MeasurementLM arms are excluded
+# deliberately: they are prompted with that vocabulary already, and normalising them
+# too would only raise their scores, so leaving them raw keeps the reported gap a
+# conservative one rather than one this step helped produce.
+EXTERNAL_BASELINES = {
+    'nuextract-2.0-8b',
+    'chatextract-gemma-3-27b',
+    'gliner-large-v1',
+}
+
+
+def build_unit_vocabulary(ground_truth_df):
+    """Map each canonical unit form to the ground truth's own spelling of it."""
+    vocabulary = {}
+    for unit in ground_truth_df['units'].dropna().unique():
+        canonical = canonical_units(unit)
+        if canonical and canonical not in vocabulary:
+            vocabulary[canonical] = unit
+    return vocabulary
+
+
+def normalize_baseline_extraction(df, unit_vocabulary):
+    """Rewrite a baseline's ``value``/``units`` into the ground truth's notation.
+
+    Matching compares these two columns by exact string equality, so a baseline that
+    reported the right measurement in its own notation -- ``nmol N L−1 h−1`` for the
+    ground truth's ``nmol N L⁻¹ h⁻¹``, or ``19.9 ± 2.3`` for ``19.9`` -- is scored as
+    a miss over a spelling difference. This transcribes those two fields; the matching
+    rules themselves stay exactly as they are, for every arm.
+
+    A unit is only rewritten when its canonical form (see
+    scholarlm.utils.normalization, which restates encoding but never repairs a missing
+    exponent or analyte) coincides with that of a ground-truth unit. Anything with no
+    counterpart keeps its original string and remains a genuine mismatch.
+    """
+    df = df.copy()
+    df['value'] = df['value'].map(parse_value)
+    df['units'] = df['units'].map(
+        lambda u: unit_vocabulary.get(canonical_units(u), u)
+    )
+    return df
 
 
 def f1_score(recovery, validity):
@@ -35,16 +80,18 @@ def f1_score(recovery, validity):
     return 2 * recovery * validity / (recovery + validity)
 
 
-def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag):
+def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag, unit_vocabulary):
     """Load an extraction run, match against ground truth, and return (recovery, validity) triples."""
     path = paths.find_extraction_final(dataset, model, date)
     resolved_date = Path(path).parent.name
 
     records = load_extraction(dataset, model, resolved_date)
     df = pd.DataFrame(records)
+    if model in EXTERNAL_BASELINES:
+        df = normalize_baseline_extraction(df, unit_vocabulary)
     df = process_extraction_df(df, dataset, config)
 
-    cache_path = paths.extraction(dataset, model, resolved_date) / f'match_cache_{cache_tag}.pkl'
+    cache_path = paths.extraction(dataset, model, resolved_date) / f'match_cache_{cache_tag}_norm.pkl'
 
     try:
         judged = pd.DataFrame(load_combined_judgements(dataset, model, resolved_date))
@@ -97,6 +144,7 @@ def compute_baseline_metrics(dataset, models_config):
     config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(config)
     strict_matching, fuzzy_matching, fuzzy_threshold = get_matching_rules(dataset)
+    unit_vocabulary = build_unit_vocabulary(ground_truth_df)
 
     results = []
 
@@ -116,7 +164,7 @@ def compute_baseline_metrics(dataset, models_config):
             resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
                 dataset, config, model, date,
                 ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
-                cache_tag=model,
+                cache_tag=model, unit_vocabulary=unit_vocabulary,
             )
             row['resolved_date'] = resolved_date
             row['recovery'] = recov
