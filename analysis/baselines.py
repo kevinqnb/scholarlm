@@ -219,9 +219,9 @@ def main():
         },
         'supermat': {
             'gemma-3-27b': '2026_07_09',
-            'nuextract-2.0-8b': None,
-            'chatextract-gemma-3-27b': None,
-            'gliner-large-v1': None,
+            'nuextract-2.0-8b': '2026_07_13',
+            'chatextract-gemma-3-27b': '2026_07_13',
+            'gliner-large-v1': '2026_07_13',
         },
     }
 
