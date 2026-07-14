@@ -41,7 +41,26 @@ import numpy as np
 
 # Tokens naming the measured species. Held out of the exponent parser because a
 # trailing digit here is part of the name (``n2``) rather than an exponent (``m2``).
-_ANALYTES = {"n", "n2", "c", "c2h4", "ch4", "p", "o2", "co2"}
+_ANALYTES = {"n", "n2", "c", "c2h4", "c2h2", "ch4", "p", "o2", "co2"}
+
+# Splits an analyte off the unit it is written flush against: ``nmolN`` -> ``nmol N``.
+# Deliberately narrow. A blanket lower-to-upper split also fires inside ``mL``, ``mM``
+# and ``mK``, tearing the SI prefix off as a token of its own, so only a name that is
+# actually an analyte is split out. Element symbols are guarded by a negative lookahead
+# so that the ``C`` of ``Celsius`` is not mistaken for carbon.
+_ANALYTE_SPLIT = re.compile(
+    r"(?<=[a-z])(?="
+    r"(?:C2H4|C2H2|CO2|CH4|N2|O2|[NCP])(?![a-z])"
+    r"|(?:Nitrogen|Dinitrogen|Carbon|Ethylene|Acetylene)\b"
+    r")"
+)
+
+# Molar concentration, whose symbol is an upper-case ``M`` and so cannot survive the
+# lowercasing below: without this, ``μM`` (micromolar) and ``μm`` (micrometre) would
+# both fold to ``um`` and compare equal. Rewriting the prefix as a word keeps them
+# apart and, as a side effect, unifies the ASCII and Greek spellings of the prefix.
+# The lookahead rejects ``MPa``, ``Mg`` and other units that merely begin with M.
+_MOLAR = re.compile(r"(?<![A-Za-z0-9µμ])([mµμun]?)M(?![A-Za-z])")
 
 # Dimensionless qualifiers describing the substrate rather than the unit.
 _DESCRIPTORS = {
@@ -156,8 +175,8 @@ def canonical_units(u) -> str | None:
         return None
 
     s = _strip_markup(str(u))
-    s = re.sub(r"\bM\b", "molar", s)            # protect molar from the lowercasing below
-    s = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", s)  # nmolN -> nmol N
+    s = _MOLAR.sub(lambda m: (m.group(1) or "") + "molar", s)  # μM -> μmolar, mM -> mmolar
+    s = _ANALYTE_SPLIT.sub(" ", s)                             # nmolN -> nmol N
     s = _unify_glyphs(s).lower()
     s = re.sub(r"[()\[\]{}]", " ", s)
     s = re.sub(r"[·*,]", " ", s)           # nmol·h⁻¹ , mmol.liter⁻¹
