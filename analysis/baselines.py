@@ -75,6 +75,12 @@ def _is_empty_units(u):
     return str(u).strip().lower() in _EMPTY_UNITS
 
 
+# NOTE (2026-07-14): drop_incomplete_measurements is currently unused. It withholds
+# valueless/unitless rows from matching and forces them invalid in the validity
+# denominator, which is the *right* behavior -- but it's what made validity_rate here
+# diverge from analysis/ablation.py's numbers for llama-3.1-8b, which has a lot of such
+# rows. Reverted the call site below to match ablation.py's unfiltered approach (where
+# the judge's label alone decides those rows) until the two are reconciled on purpose.
 def drop_incomplete_measurements(df, judged, unitless):
     """Withhold rows that do not state a measurement from matching.
 
@@ -150,7 +156,7 @@ def f1_score(recovery, validity):
     return 2 * recovery * validity / (recovery + validity)
 
 
-def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag, unit_vocabulary, unitless):
+def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag, unit_vocabulary):
     """Load an extraction run, match against ground truth, and return (recovery, validity) triples."""
     path = paths.find_extraction_final(dataset, model, date)
     resolved_date = Path(path).parent.name
@@ -165,8 +171,6 @@ def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matchi
         judged = pd.DataFrame(load_combined_judgements(dataset, model, resolved_date))
     except FileNotFoundError:
         judged = None
-
-    df, judged, n_total = drop_incomplete_measurements(df, judged, unitless)
 
     cache_path = paths.extraction(dataset, model, resolved_date) / f'match_cache_{cache_tag}_v2.pkl'
 
@@ -194,7 +198,6 @@ def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matchi
         judged_df=judged,
         cache_path=cache_path,
         return_ci=True,
-        denominator_n=n_total,
     )
     return resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), (judged is not None)
 
@@ -218,8 +221,6 @@ def compute_baseline_metrics(dataset, models_config):
     ground_truth_df = load_ground_truth(config)
     strict_matching, fuzzy_matching, fuzzy_threshold = get_matching_rules(dataset)
     unit_vocabulary = build_unit_vocabulary(ground_truth_df)
-    unitless = unitless_attributes(ground_truth_df)
-    print(f"  unitless attributes: {sorted(unitless) or 'none'}")
 
     results = []
 
@@ -239,7 +240,7 @@ def compute_baseline_metrics(dataset, models_config):
             resolved_date, (recov, recov_lo, recov_hi), (valid, valid_lo, valid_hi), has_judge = _load_and_score(
                 dataset, config, model, date,
                 ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold,
-                cache_tag=model, unit_vocabulary=unit_vocabulary, unitless=unitless,
+                cache_tag=model, unit_vocabulary=unit_vocabulary,
             )
             row['resolved_date'] = resolved_date
             row['recovery'] = recov
