@@ -294,7 +294,9 @@ def main():
             'gliner-large-v1': '2026_07_11',
         },
         'supermat': {
+	    'llama-3.1-8b': '2026_07_13',
             'gemma-3-27b': '2026_07_09',
+	    'gpt-oss-120b': '2026_07_13',
             'nuextract-2.0-8b': '2026_07_13',
             'chatextract-gemma-3-27b': '2026_07_13',
             'gliner-large-v1': '2026_07_13',
