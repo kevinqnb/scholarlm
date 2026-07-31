@@ -110,6 +110,24 @@ UNIT_CONVERSION = {
     'ph': {},  # dimensionless: any unit string accepted, factor 1.0 (handled specially below)
 }
 
+# Physical/domain plausibility bounds, in the standard unit for each attribute.
+# Chosen independent of this dataset from real-world extremes, so they are citable
+# and not tuned to make any particular result look better. The geometric attributes
+# have hard, well-known "world record" ceilings; the concentration attributes (tn/tp/
+# chla) have no comparable single citable record, so these are generous literature-
+# informed ceilings (documented raw-wastewater / bloom-scum ranges, rounded well
+# upward) rather than an authoritative maximum -- flagged as the softer of the two.
+# Values outside these bounds are dropped (-> NaN), same as an unrecognized unit.
+PHYSICAL_BOUNDS = {
+    'max_depth':        (0, 1642),        # Lake Baikal, the deepest lake on Earth (m)
+    'surface_area':     (0, 3.71e11),     # Caspian Sea, the largest lake on Earth (371,000 km^2 -> m^2)
+    'ph':                (0, 14),         # standard aqueous pH scale
+    'vegetation_cover':  (0, 100),        # definition of a percentage
+    'tn':                (0, 100_000),    # generous ceiling above raw sewage TN (~20-85 mg/L)
+    'tp':                (0, 50_000),     # generous ceiling above raw sewage TP (~4-30 mg/L)
+    'chla':              (0, 10_000),     # generous ceiling above extreme bloom-scum chla
+}
+
 # Log-scale attributes span several orders of magnitude; the rest read fine on a linear axis.
 # max_depth is log-scale too: extraction noise includes implausible outliers (e.g. a
 # 108,000 m "depth" for a wetland treatment cell) that otherwise flatten the whole panel.
@@ -178,6 +196,12 @@ def convert_units(
     "value": -0.54, sometimes labeled "units": "log") that the extraction model
     mislabeled with a real physical unit on some duplicate mentions of the same entity,
     producing a nonsensical negative area/depth/concentration after conversion.
+
+    Values are also dropped (-> NaN) if they fall outside PHYSICAL_BOUNDS for their
+    attribute -- e.g. a "53,010,000 km^2" lake surface area, which is larger than
+    Earth. These bounds are real-world extremes chosen independent of this dataset
+    (see PHYSICAL_BOUNDS), applied uniformly to ground truth and extraction alike, so
+    this is a plausibility check, not a fit to what we expect the answer to be.
     """
     df = df.copy()
     numeric_values = pd.to_numeric(df[value_col], errors='coerce')
@@ -192,7 +216,14 @@ def convert_units(
             factors.loc[attr_mask & (df[unit_col] == unit)] = factor
 
     converted = numeric_values * factors
-    df[out_col] = converted.where(converted >= 0)
+    converted = converted.where(converted >= 0)
+
+    for attribute, (lo, hi) in PHYSICAL_BOUNDS.items():
+        attr_mask = df[attribute_col] == attribute
+        out_of_bounds = attr_mask & ((converted < lo) | (converted > hi))
+        converted = converted.where(~out_of_bounds)
+
+    df[out_col] = converted
     return df
 
 
