@@ -208,4 +208,5 @@ memory
 .virtual_documents/
 
 CLAUDE.MD
+CLAUDE.md
 analysis/out/*.txt
