@@ -1,7 +1,7 @@
 """Meta-analysis experiment: does an LLM-extracted dataset reproduce the same
 per-ecosystem attribute distributions as the human-curated ground truth?
 
-Five parallel settings are compared for the pond dataset, broken down by
+Seven parallel settings are compared for the pond dataset, broken down by
 ecosystem class (pond / lake / wetland) and attribute:
 
     (a) ground truth
@@ -9,8 +9,17 @@ ecosystem class (pond / lake / wetland) and attribute:
     (c) extracted dataset filtered by judgement_combined
     (d) full extracted dataset, weighted by NTP (next-token-probability) confidence
     (e) full extracted dataset, weighted by trained-probe confidence
+    (f) extracted dataset hard-thresholded at NTP confidence >= THRESHOLD, unweighted
+    (g) extracted dataset hard-thresholded at probe confidence >= THRESHOLD, unweighted
 
-All five settings are restricted to the documents shared between ground truth
+(f)/(g) are a hard-gate variant of (d)/(e): rather than continuously weighting by
+confidence, rows below THRESHOLD are dropped entirely and every surviving row gets
+weight 1 -- i.e. plain statistics on the filtered subset. They still go through
+weighted_stats() (with an all-ones weight vector) rather than a separate plain-stats
+code path, so the quantile/whisker convention (Hazen plotting positions) is identical
+across all seven settings and the comparison stays apples-to-apples.
+
+All seven settings are restricted to the documents shared between ground truth
 and extraction, minus the documents used to train the probe/NTP calibrator
 (``syn_document_ids``), so that (d)/(e) are honest out-of-sample estimates.
 See docs/plans or the commit history for the design rationale.
@@ -78,7 +87,12 @@ PROBE_TYPE = 'head'
 
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
-SETTINGS = ['ground_truth', 'extracted', 'judge_filtered', 'ntp_weighted', 'probe_weighted']
+SETTINGS = ['ground_truth', 'extracted', 'judge_filtered', 'ntp_weighted', 'probe_weighted',
+            'ntp_threshold', 'probe_threshold']
+
+# Hard-gate cutoff for the ntp_threshold / probe_threshold settings: rows with
+# confidence below THRESHOLD are dropped, surviving rows get weight 1 (plain stats).
+THRESHOLD = 0.75
 
 SETTING_LABELS = {
     'ground_truth':    'Ground truth',
@@ -86,6 +100,8 @@ SETTING_LABELS = {
     'judge_filtered':  'Extracted (judge-filtered)',
     'ntp_weighted':    'Extracted (NTP-weighted)',
     'probe_weighted':  'Extracted (probe-weighted)',
+    'ntp_threshold':   f'Extracted (NTP >= {THRESHOLD:g})',
+    'probe_threshold': f'Extracted (probe >= {THRESHOLD:g})',
 }
 
 STANDARD_UNITS = {
@@ -393,6 +409,16 @@ def _setting_data(setting: str, gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosy
         return base['converted_value'].to_numpy(), base['ntp_prob'].to_numpy()
     if setting == 'probe_weighted':
         return base['converted_value'].to_numpy(), base['probe_prob'].to_numpy()
+    if setting == 'ntp_threshold':
+        sub = base[base['ntp_prob'] >= THRESHOLD]
+        if len(sub) == 0:
+            return None
+        return sub['converted_value'].to_numpy(), np.ones(len(sub))
+    if setting == 'probe_threshold':
+        sub = base[base['probe_prob'] >= THRESHOLD]
+        if len(sub) == 0:
+            return None
+        return sub['converted_value'].to_numpy(), np.ones(len(sub))
     raise ValueError(f"Unknown setting: {setting}")
 
 

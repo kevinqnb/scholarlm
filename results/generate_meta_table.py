@@ -27,14 +27,17 @@ MIN_N = 5  # cells with fewer contributing rows than this are rendered as "--"
 
 ECOSYSTEMS = ["pond", "lake", "wetland"]
 ATTRIBUTES = ["surface_area", "max_depth", "vegetation_cover", "ph", "tn", "tp", "chla"]
-SETTINGS = ["ground_truth", "extracted", "judge_filtered", "ntp_weighted", "probe_weighted"]
+SETTINGS = ["ground_truth", "extracted", "judge_filtered", "ntp_weighted", "probe_weighted",
+            "ntp_threshold", "probe_threshold"]
 
 SETTING_HEADERS = {
-    "ground_truth":   "GT",
-    "extracted":      "Extracted",
-    "judge_filtered": "Judge-filt.",
-    "ntp_weighted":   "NTP-wt.",
-    "probe_weighted": "Probe-wt.",
+    "ground_truth":    "GT",
+    "extracted":       "Extracted",
+    "judge_filtered":  "Judge-filt.",
+    "ntp_weighted":    "NTP-wt.",
+    "probe_weighted":  "Probe-wt.",
+    "ntp_threshold":   "NTP $\\geq$.75",
+    "probe_threshold": "Probe $\\geq$.75",
 }
 
 ATTRIBUTE_LABELS = {
@@ -106,9 +109,12 @@ def make_caption(dataset: str, extraction_model: str, extraction_date: str, subs
     return (
         rf"\textbf{{Per-ecosystem attribute statistics{scope} ({dataset}, \texttt{{{extraction_model}}}).}} "
         rf"Mean $\pm$ standard deviation for each attribute, broken down by ecosystem class and "
-        rf"extraction setting. Ground truth (GT) and judge-filtered cells use unweighted statistics; "
-        rf"NTP- and probe-weighted cells use reliability-weighted statistics over the full extracted "
-        rf"dataset. Cells with fewer than {MIN_N} contributing rows are omitted (--)."
+        rf"extraction setting. Ground truth (GT), judge-filtered, and NTP/probe threshold "
+        rf"($\geq$0.75, hard-gated, unweighted) cells use unweighted statistics; NTP- and "
+        rf"probe-weighted cells use reliability-weighted statistics over the full extracted "
+        rf"dataset. All settings share the same weighted-quantile estimator (Hazen plotting "
+        rf"positions), so quartiles/whiskers are directly comparable across columns. Cells with "
+        rf"fewer than {MIN_N} contributing rows are omitted (--)."
     )
 
 
