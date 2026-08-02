@@ -97,6 +97,7 @@ def run_baseline_gliner(
             or dataset_config.chatextract_property_names
         ),
         entity_type_description=dataset_config.entity_type_description,
+        gliner_entity_description=dataset_config.gliner_entity_description,
         measurement_event_schema=dataset_config.measurement_event_schema,
         sampling_params=model_config.sampling_params,
         threshold=threshold,

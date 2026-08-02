@@ -60,11 +60,14 @@ _ORDINALS = [
 CLASSIF_Q = 'Answer "Yes" or "No" only. Does the following text contain a value of {prop}?\n\n'
 IFMULTI_Q = 'Answer "Yes" or "No" only. Does the following text contain more than one value of {prop}?\n\n'
 
-# value, unit, material — asked in this order.
+# value, unit, material — asked in this order. ``{noun}``/``{Noun}`` are the
+# dataset-supplied replacement for the reference script's materials-science
+# "material"/"compound" wording (see DatasetConfig.chatextract_entity_noun);
+# ``{Noun}`` is the title-cased form used in table-column headers.
 SINGLE_Q = [
     'Give the number only without units, do not use a full sentence. If the value is not present in the text, type "None". What is the value of the {prop} in the following text?\n\n',
     'Give the unit only, do not use a full sentence. If the unit is not present in the text, type "None". What is the unit of the {prop} in the following text?\n\n',
-    'Give the name of the material only, do not use a full sentence. If the name of the material is not present in the text, type "None". What is the material for which the {prop} is given in the following text?\n\n',
+    'Give the name of the {noun} only, do not use a full sentence. If the name of the {noun} is not present in the text, type "None". What is the {noun} for which the {prop} is given in the following text?\n\n',
 ]
 # Redundant follow-up verification (two-part; the extracted answer is inserted
 # between the parts). The reference script defines these but only ever runs the
@@ -73,25 +76,25 @@ SINGLE_Q = [
 # that by default; ``include_single_verification`` optionally enables single-
 # branch verification as an explicit, non-faithful ablation.
 SINGLE_FOLLOWUP_Q = [
-    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the value of the {prop} for the compound in the following text?\n\n'],
+    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the value of the {prop} for the {noun} in the following text?\n\n'],
     ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the unit of the value of {prop} in the following text?\n\n'],
-    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is "', '" the compound for which the value of {prop} is given in the following text? Make sure it is a real compound.\n\n'],
+    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is "', '" the {noun} for which the value of {prop} is given in the following text? Make sure it is a real {noun}.\n\n'],
 ]
 
-TAB_Q = 'Use only data present in the text. If data is not present in the text, type "None". Summarize the values of {prop} in the following text in a form of a table consisting of: Material, Value, Unit\n\n'
+TAB_Q = 'Use only data present in the text. If data is not present in the text, type "None". Summarize the values of {prop} in the following text in a form of a table consisting of: {Noun}, Value, Unit\n\n'
 # Three-part templates: cell value, ordinal, and passage are spliced in.
 TAB_FOLLOWUP_Q = [
-    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is "', '" the ', ' compound for which the value of {prop} is given in the following text? Make sure it is a real compound.\n\n'],
-    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the value of the {prop} for the ', ' compound in the following text?\n\n'],
+    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is "', '" the ', ' {noun} for which the value of {prop} is given in the following text? Make sure it is a real {noun}.\n\n'],
+    ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the value of the {prop} for the ', ' {noun} in the following text?\n\n'],
     ['There is a possibility that the data you extracted is incorrect. Answer "Yes" or "No" only. Be very strict. Is ', ' the unit of the ', ' value of {prop} in the following text?\n\n'],
 ]
 
 # Real-document-table workflow (paper Sec. II.C; not in the reference script).
 TABLE_CLASSIFY_Q = 'Answer "Yes" or "No" only. Does the following table contain values of {prop}?\n\n'
 TABLE_EXTRACT_Q = (
-    'Use only data given in the table and its caption. Extract the material names and '
+    'Use only data given in the table and its caption. Extract the {noun} names and '
     'values of {prop} from the following table. Present these values in a new table with '
-    'columns only for: Material, Value, Unit\n\n'
+    'columns only for: {Noun}, Value, Unit\n\n'
 )
 
 # Token budgets by call type (ChatExtract.py: 6 for yes/no, 500 otherwise). We
@@ -107,6 +110,7 @@ class MeasurementLMChatExtract(MeasurementLM):
         self,
         *args,
         attribute_property_names: dict[str, str] | None = None,
+        entity_noun: str | None = None,
         include_single_verification: bool = False,
         extract_tables: bool = True,
         max_tables_per_document: int = 30,
@@ -118,6 +122,12 @@ class MeasurementLMChatExtract(MeasurementLM):
         kwargs.setdefault("clean_tables", False)
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.attribute_property_names = attribute_property_names or {}
+        # Replaces the reference script's materials-science "material"/"compound"
+        # wording throughout the prompt templates -- see
+        # DatasetConfig.chatextract_entity_noun. "material" is the fallback
+        # (collapsing the original material/compound split onto one word) so an
+        # unset dataset still gets a grammatical, if paper-flavored, default.
+        self.entity_noun = entity_noun or "material"
         self.include_single_verification = include_single_verification
         self.extract_tables = extract_tables
         self.max_tables_per_document = max_tables_per_document
@@ -264,12 +274,12 @@ class MeasurementLMChatExtract(MeasurementLM):
         valid: dict[str, bool] = {}
 
         for idx, field in enumerate(fields):
-            ans = (await self._ask(messages, SINGLE_Q[idx].format(prop=prop) + passage, yes_no=False)).strip()
+            ans = (await self._ask(messages, SINGLE_Q[idx].format(prop=prop, noun=self.entity_noun) + passage, yes_no=False)).strip()
             extracted[field] = ans
             ok = bool(ans) and "none" not in ans.lower()
             if ok and self.include_single_verification:
                 pre, post = SINGLE_FOLLOWUP_Q[idx]
-                followup = pre + ans + post.format(prop=prop) + passage
+                followup = pre + ans + post.format(prop=prop, noun=self.entity_noun) + passage
                 verdict = await self._ask(messages, followup, yes_no=True)
                 if "no" in verdict.lower():
                     ok = False
@@ -283,7 +293,7 @@ class MeasurementLMChatExtract(MeasurementLM):
 
     async def _extract_multi(self, messages, doc_idx, passage, attr_key, prop, page_num) -> list[dict]:
         """Ask for a Material/Value/Unit table, then verify each cell strictly."""
-        table_text = await self._ask(messages, TAB_Q.format(prop=prop) + passage, yes_no=False)
+        table_text = await self._ask(messages, TAB_Q.format(prop=prop, Noun=self.entity_noun.title()) + passage, yes_no=False)
         rows = self._parse_table_rows(table_text)
 
         records: list[dict] = []
@@ -302,7 +312,7 @@ class MeasurementLMChatExtract(MeasurementLM):
                     row_ok = False
                     continue
                 p0, p1, p2 = TAB_FOLLOWUP_Q[col_idx]
-                followup = p0 + cell + p1 + ordinal + p2.format(prop=prop) + passage
+                followup = p0 + cell + p1 + ordinal + p2.format(prop=prop, noun=self.entity_noun) + passage
                 verdict = await self._ask(messages, followup, yes_no=True)
                 if "no" in verdict.lower():
                     valid[col] = False
@@ -328,7 +338,11 @@ class MeasurementLMChatExtract(MeasurementLM):
         if "yes" not in ans.lower():
             return []
 
-        extracted = await self._ask(messages, TABLE_EXTRACT_Q.format(prop=prop) + table_text, yes_no=False)
+        extracted = await self._ask(
+            messages,
+            TABLE_EXTRACT_Q.format(prop=prop, noun=self.entity_noun, Noun=self.entity_noun.title()) + table_text,
+            yes_no=False,
+        )
         rows = self._parse_table_rows(extracted)
 
         records: list[dict] = []
@@ -393,6 +407,11 @@ class MeasurementLMChatExtract(MeasurementLM):
             "location": None,
             "ecosystem": None,   # pond fuzzy-match field (unpopulated by ChatExtract)
             "site_type": None,   # nfix fuzzy-match field (unpopulated by ChatExtract)
+            "property": None,    # measeval fuzzy-match field (unpopulated by ChatExtract)
+            # measeval entity field under its quantity-first design (column
+            # parity only -- ChatExtract never enumerates quantities; see the
+            # ChatExtract note in experiments/configs/measeval.py).
+            "quantity": None,
             "date": None,
             "additional_details": None,
             "attribute": attribute,

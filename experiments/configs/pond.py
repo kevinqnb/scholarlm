@@ -504,6 +504,11 @@ _CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
     "chla": "chlorophyll-a concentration",
 }
 
+# ChatExtract's reference prompts ask about a "material"/"compound" -- pond
+# entities are water bodies, not chemical compounds, so this replaces that
+# wording throughout (see DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "water body"
+
 
 CONFIG = DatasetConfig(
     name="pond",
@@ -521,6 +526,7 @@ CONFIG = DatasetConfig(
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,

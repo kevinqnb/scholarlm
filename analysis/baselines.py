@@ -301,6 +301,20 @@ def main():
             'chatextract-gemma-3-27b': '2026_07_13',
             'gliner-large-v1': '2026_07_13',
         },
+        # nuextract-2.0-8b is deliberately omitted (not just None): it reads
+        # rendered PDF page images via processed_pdfs/, and measeval is a
+        # text-only dataset with no PDFs to render (see data/measeval/README.md)
+        # -- there is no input run_baseline_nuextract.py could ever consume
+        # here. All arms below are 2026_08_01 runs made under the
+        # quantity-first design (see experiments/configs/measeval.py's module
+        # docstring), so the comparison is apples-to-apples.
+        'measeval': {
+            'gemma-3-27b': '2026_08_01',
+            'llama-3.1-8b': '2026_08_01',
+            'gpt-oss-120b': '2026_08_01',
+            'chatextract-gemma-3-27b': '2026_08_01',
+            'gliner-large-v1': '2026_08_01',
+        },
     }
 
     output_dir = Path('results/baselines/')

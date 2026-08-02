@@ -123,6 +123,7 @@ def run_baseline_chatextract(
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
         attribute_property_names=dataset_config.chatextract_property_names,
+        entity_noun=dataset_config.chatextract_entity_noun,
         include_single_verification=include_single_verification,
         extract_tables=extract_tables,
         measurement_event_schema=dataset_config.measurement_event_schema,

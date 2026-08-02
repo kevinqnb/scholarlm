@@ -81,6 +81,7 @@ class MeasurementLMGliner(MeasurementLM):
         *args,
         gliner_property_names: dict[str, str] | None = None,
         entity_type_description: str | None = None,
+        gliner_entity_description: str | None = None,
         threshold: float = 0.5,
         batch_size: int = 8,
         chunk_size: int = 384,
@@ -102,6 +103,7 @@ class MeasurementLMGliner(MeasurementLM):
 
         self.gliner_property_names = gliner_property_names or {}
         self.entity_type_description = entity_type_description
+        self.gliner_entity_description = gliner_entity_description
         self.threshold = threshold
         self.batch_size = batch_size
         self.chunk_size = chunk_size
@@ -128,9 +130,27 @@ class MeasurementLMGliner(MeasurementLM):
         )
 
     def _entity_name_field(self) -> str:
-        """Primary entity string field (``name`` for pond/nfix; else the first)."""
+        """Field that holds the measurement subject's name.
+
+        ``name`` on the entity schema for pond/nfix/supermat. Datasets that do
+        not enumerate subjects as entities can carry it on the measurement
+        event instead -- measeval enumerates *quantities* as entities and
+        resolves the subject per-quantity as an event field (see
+        ``experiments/configs/measeval.py``), so the event schema is checked
+        before falling back to the first entity field. Without this, GLiNER
+        would write the subject it found into that dataset's first entity field
+        (``quantity``) and leave the ``name`` column null on every record,
+        which silently drops every candidate edge in ``match_datasets``.
+        """
         fields = list(self.entity_identification_schema.model_fields)
-        return "name" if "name" in fields else fields[0]
+        if "name" in fields:
+            return "name"
+        if (
+            self.measurement_event_schema is not None
+            and "name" in self.measurement_event_schema.model_fields
+        ):
+            return "name"
+        return fields[0]
 
     def _build_structure(self, attr_key: str):
         """Build a one-structure GLiNER2 `Schema` for a single attribute.
@@ -147,7 +167,8 @@ class MeasurementLMGliner(MeasurementLM):
         unit_hint = f" (e.g. {', '.join(units[:4])})" if units else ""
 
         entity_desc = (
-            self.entity_type_description
+            self.gliner_entity_description
+            or self.entity_type_description
             or "the entity that this measurement belongs to"
         ).rstrip(". ")
 
@@ -351,12 +372,15 @@ class MeasurementLMGliner(MeasurementLM):
         """
         name_field = self._entity_name_field()
         record: dict = {f: None for f in self.entity_identification_schema.model_fields}
-        record[name_field] = name
         if self.measurement_event_schema is not None:
             for f in self.measurement_event_schema.model_fields:
                 record[f] = None
             if self._has_date_event():
                 record["date"] = date
+        # After the event nulling, not before: ``name_field`` may itself be an
+        # event field (see _entity_name_field), which the loop above would
+        # otherwise overwrite with None.
+        record[name_field] = name
 
         record |= {"attribute": attribute, "value": value, "units": units}
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(name)}"

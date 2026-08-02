@@ -114,6 +114,18 @@ class MeasurementLM:
             attributes to be measured. Each key is an attribute name, and each value is a dict
             with at least a 'description' key and optionally a 'units' key.
         sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
+        collect_attribute_terms (bool): Whether to request and forward per-attribute
+            terminology ("terms") during attribute detection. Meaningful only for
+            datasets with a real closed attribute vocabulary (pond/nfix/supermat),
+            where "terms" means synonyms/abbreviations for a named attribute. For
+            datasets whose attribute space collapses to a single abstract bucket
+            (e.g. measeval's "measurement"), there is no textual referent for
+            "terminology used to refer to this attribute", and models asked for it
+            tend to dump unrelated numeric values instead. Set to False to discard
+            whatever the model returns for `terms` and omit the "Terminology used
+            for the attribute: ..." line from downstream prompts, without changing
+            the detection prompt/schema itself (so this has no effect on other
+            datasets). Defaults to True for backward compatibility.
     """
     def __init__(
         self,
@@ -130,6 +142,7 @@ class MeasurementLM:
         measurement_event_schema: BaseModel | None = None,
         measurement_event_prompt: str | None = None,
         use_extra_body: bool = True,
+        collect_attribute_terms: bool = True,
     ):
         self.model_name = model_name
         if sampling_params is None:
@@ -153,6 +166,7 @@ class MeasurementLM:
         self.measurement_event_schema = measurement_event_schema
         self.measurement_event_prompt = measurement_event_prompt
         self.use_extra_body = use_extra_body
+        self.collect_attribute_terms = collect_attribute_terms
         self.max_prompt_tokens: int = 0
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
@@ -301,6 +315,39 @@ class MeasurementLM:
     def _get_table_numbers_on_page(self, page_text: str) -> list[int]:
         """Return sorted list of table numbers found in *page_text*."""
         return sorted(int(t) for t in re.findall(r'<table number="(\d+)">', page_text))
+
+    def _auto_provenance_for_single_page(
+        self, context: str, pages: list[int]
+    ) -> list[dict] | None:
+        """Provenance entries for a single-page document, without a per-page query.
+
+        The per-page provenance loop exists to identify *which* page (of several)
+        carries an entity's/attribute's data. On a single-page document there is no
+        "which page" to resolve -- the one page is the only candidate, and the
+        surrounding pipeline (entity identification requiring a measurement to be
+        present, or measeval's document-level "measurement" gate) already
+        established that data exists somewhere in the document. A "does this page
+        have data" round-trip only adds a chance for the model to answer "no" and
+        silently drop an entity that's known to be there. So every representation
+        the page could take -- prose, and each table on it -- is recorded directly.
+
+        Returns:
+            A list of provenance entries (possibly empty, if the page has no text)
+            for a single-page document, or ``None`` for a multi-page/empty one,
+            signalling the caller should fall back to the per-page query loop.
+        """
+        if len(pages) != 1:
+            return None
+        page_number = pages[0]
+        page_text = self._get_page_text(context, page_number)
+        if not page_text:
+            return []
+        entries = [{'page': page_number, 'table': None}]
+        entries += [
+            {'page': page_number, 'table': t}
+            for t in self._get_table_numbers_on_page(page_text)
+        ]
+        return entries
 
     # -----------------------------------------------------------------------
     # Step 0: Table cleaning (optional, runs before extraction)
@@ -533,11 +580,18 @@ class MeasurementLM:
 
         messages = []
         message_ids = []  # (doc_id, entity_id, page_number)
+        provenance = {}
 
         for (doc_id, entity_id), record in unique_entities.items():
             context = record['context']
             entity_description = {k: v for k, v in record.items() if k in entity_fields}
             pages = self._get_page_numbers(context)
+
+            auto = self._auto_provenance_for_single_page(context, pages)
+            if auto is not None:
+                if auto:
+                    provenance[(doc_id, entity_id)] = auto
+                continue
 
             for p in pages:
                 page_text = self._get_page_text(context, p)
@@ -558,7 +612,7 @@ class MeasurementLM:
                 message_ids.append((doc_id, entity_id, p))
 
         if not messages:
-            return {}
+            return provenance
 
         response_format = {
             "type": "json_schema",
@@ -577,7 +631,6 @@ class MeasurementLM:
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
-        provenance = {}
         for msg_idx, resp in enumerate(response_texts):
             doc_id, entity_id, page_number = message_ids[msg_idx]
             try:
@@ -701,7 +754,9 @@ class MeasurementLM:
                 item = responded_attrs.get(attr_name)
                 if item and item.get('detected', False):
                     detection_results[doc_idx][attr_name] = True
-                    attribute_terms[doc_idx][attr_name] = item.get('terms', [])
+                    attribute_terms[doc_idx][attr_name] = (
+                        item.get('terms', []) if self.collect_attribute_terms else []
+                    )
                 else:
                     detection_results[doc_idx][attr_name] = False
 
@@ -736,14 +791,21 @@ class MeasurementLM:
         """
         messages = []
         message_ids = []  # (doc_id, attr_name, page_number)
+        provenance = {}
 
         for doc_idx, attrs in doc_attributes.items():
             # doc_idx may be int or str depending on caller
             doc_idx_int = int(doc_idx)
             context = self.data[doc_idx_int]['context']
             pages = self._get_page_numbers(context)
+            auto = self._auto_provenance_for_single_page(context, pages)
 
             for attr_name, terms in attrs.items():
+                if auto is not None:
+                    if auto:
+                        provenance[(doc_idx_int, attr_name)] = auto
+                    continue
+
                 attr_description = self.attribute_info_dict[attr_name].get('description', '')
 
                 for p in pages:
@@ -751,10 +813,14 @@ class MeasurementLM:
                     if not page_text:
                         continue
 
+                    terms_line = (
+                        f"Terminology used for the attribute: {terms}\n\n"
+                        if self.collect_attribute_terms else ""
+                    )
                     query = (
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n\n"
+                        f"{terms_line}"
                         f"Does this page contain directly reported numerical measurements "
                         f"for the described attribute? If yes, indicate whether the data "
                         f"appears in a table or in prose text.\n\n"
@@ -767,7 +833,7 @@ class MeasurementLM:
                     message_ids.append((doc_idx_int, attr_name, p))
 
         if not messages:
-            return {}
+            return provenance
 
         response_format = {
             "type": "json_schema",
@@ -786,7 +852,6 @@ class MeasurementLM:
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
-        provenance = {}
         for msg_idx, resp in enumerate(response_texts):
             doc_id, attr_name, page_number = message_ids[msg_idx]
             try:
@@ -1006,11 +1071,15 @@ class MeasurementLM:
                         event_context = ""
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
+                        terms_line = (
+                            f"Terminology used for the attribute: {terms}\n"
+                            if self.collect_attribute_terms else ""
+                        )
 
                         query = (
                             f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
-                            f"Terminology used for the attribute: {terms}\n"
+                            f"{terms_line}"
                             f"{event_context}"
                             f"{units_guidance}\n"
                             f"Does this page contain a measured value for the given entity, attribute, and event? "
@@ -1189,11 +1258,15 @@ class MeasurementLM:
                         event_context = ""
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
+                        terms_line = (
+                            f"Terminology used for the attribute: {terms}\n"
+                            if self.collect_attribute_terms else ""
+                        )
 
                         query = (
                             f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
-                            f"Terminology used for the attribute: {terms}\n"
+                            f"{terms_line}"
                             f"{event_context}"
                             f"{units_guidance}"
                             f"Row names in the table: {row_names}\n"
@@ -1314,10 +1387,14 @@ class MeasurementLM:
             measurement_val = datapoint['value']
             measurement_units = datapoint.get('units')
 
+            terms_line = (
+                f"Terminology used for the attribute: {attr_terms}\n"
+                if self.collect_attribute_terms else ""
+            )
             query = (
                 f"Entity description: {entity_description}\n"
                 f"Attribute description: {attr_description}\n"
-                f"Terminology used for the attribute: {attr_terms}\n"
+                f"{terms_line}"
                 f"Available units for the attribute: {unit_options}\n\n"
                 f"Extracted measurement: {measurement_val}\n"
                 f"Extracted units: {measurement_units}\n"

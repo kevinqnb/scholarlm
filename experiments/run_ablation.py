@@ -224,6 +224,7 @@ def run_ablation(
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
+        collect_attribute_terms=dataset_config.collect_attribute_terms,
     )
     if ablation == "1":
         mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema

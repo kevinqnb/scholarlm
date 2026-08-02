@@ -120,6 +120,7 @@ class MeasurementLMAblation2(MeasurementLM):
 
         messages = []
         message_ids = []  # (doc_id, entity_id, page_number)
+        provenance = {}
 
         for (doc_id, entity_id), record in unique_pairs.items():
             context = record["context"]
@@ -134,6 +135,12 @@ class MeasurementLMAblation2(MeasurementLM):
 
             attr_terms = record.get("attribute_terms", [])
             pages = self._get_page_numbers(context)
+
+            auto = self._auto_provenance_for_single_page(context, pages)
+            if auto is not None:
+                if auto:
+                    provenance[(doc_id, entity_id)] = auto
+                continue
 
             for p in pages:
                 page_text = self._get_page_text(context, p)
@@ -157,7 +164,7 @@ class MeasurementLMAblation2(MeasurementLM):
                 message_ids.append((doc_id, entity_id, p))
 
         if not messages:
-            return {}
+            return provenance
 
         response_format = {
             "type": "json_schema",
@@ -175,7 +182,6 @@ class MeasurementLMAblation2(MeasurementLM):
             validator=lambda r: response_validator(ProvenanceResponse, r),
         )
 
-        provenance = {}
         for msg_idx, resp in enumerate(response_texts):
             doc_id, entity_id, page_number = message_ids[msg_idx]
             try:

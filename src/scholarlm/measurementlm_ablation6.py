@@ -152,7 +152,9 @@ class MeasurementLMAblation6(MeasurementLM):
                 item = responded_attrs.get(attr_name)
                 if item and item.get('detected', False):
                     detection_results[doc_idx][attr_name] = True
-                    attribute_terms[doc_idx][attr_name] = item.get('terms', [])
+                    attribute_terms[doc_idx][attr_name] = (
+                        item.get('terms', []) if self.collect_attribute_terms else []
+                    )
                 else:
                     detection_results[doc_idx][attr_name] = False
 
@@ -182,11 +184,18 @@ class MeasurementLMAblation6(MeasurementLM):
 
         messages = []
         message_ids = []  # (doc_id, entity_id, page_number)
+        provenance = {}
 
         for (doc_id, entity_id), record in unique_entities.items():
             context = record['context']
             entity_description = {k: v for k, v in record.items() if k in entity_fields}
             pages = self._get_page_numbers(context)
+
+            auto = self._auto_provenance_for_single_page(context, pages)
+            if auto is not None:
+                if auto:
+                    provenance[(doc_id, entity_id)] = auto
+                continue
 
             for p in pages:
                 page_text = self._get_page_text(context, p)
@@ -207,7 +216,7 @@ class MeasurementLMAblation6(MeasurementLM):
                 message_ids.append((doc_id, entity_id, p))
 
         if not messages:
-            return {}
+            return provenance
 
         response_format = {
             "type": "json_schema",
@@ -226,7 +235,6 @@ class MeasurementLMAblation6(MeasurementLM):
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
-        provenance = {}
         for msg_idx, resp in enumerate(response_texts):
             doc_id, entity_id, page_number = message_ids[msg_idx]
             try:
@@ -265,13 +273,20 @@ class MeasurementLMAblation6(MeasurementLM):
         """
         messages = []
         message_ids = []  # (doc_id, attr_name, page_number)
+        provenance = {}
 
         for doc_idx, attrs in doc_attributes.items():
             doc_idx_int = int(doc_idx)
             context = self.data[doc_idx_int]['context']
             pages = self._get_page_numbers(context)
+            auto = self._auto_provenance_for_single_page(context, pages)
 
             for attr_name, terms in attrs.items():
+                if auto is not None:
+                    if auto:
+                        provenance[(doc_idx_int, attr_name)] = auto
+                    continue
+
                 attr_description = self.attribute_info_dict[attr_name].get('description', '')
 
                 for p in pages:
@@ -279,10 +294,14 @@ class MeasurementLMAblation6(MeasurementLM):
                     if not page_text:
                         continue
 
+                    terms_line = (
+                        f"Terminology used for the attribute: {terms}\n\n"
+                        if self.collect_attribute_terms else ""
+                    )
                     query = (
                         f"Attribute: {attr_name}\n"
                         f"Attribute description: {attr_description}\n"
-                        f"Terminology used for the attribute: {terms}\n\n"
+                        f"{terms_line}"
                         f"Does this page contain directly reported numerical measurements "
                         f"for the described attribute? If yes, indicate whether the data "
                         f"appears in a table or in prose text.\n\n"
@@ -295,7 +314,7 @@ class MeasurementLMAblation6(MeasurementLM):
                     message_ids.append((doc_idx_int, attr_name, p))
 
         if not messages:
-            return {}
+            return provenance
 
         response_format = {
             "type": "json_schema",
@@ -314,7 +333,6 @@ class MeasurementLMAblation6(MeasurementLM):
             validator=lambda r: response_validator(ProvenanceResponseNoExp, r),
         )
 
-        provenance = {}
         for msg_idx, resp in enumerate(response_texts):
             doc_id, attr_name, page_number = message_ids[msg_idx]
             try:
@@ -408,11 +426,15 @@ class MeasurementLMAblation6(MeasurementLM):
                         event_context = ""
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
+                        terms_line = (
+                            f"Terminology used for the attribute: {terms}\n"
+                            if self.collect_attribute_terms else ""
+                        )
 
                         query = (
                             f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
-                            f"Terminology used for the attribute: {terms}\n"
+                            f"{terms_line}"
                             f"{event_context}"
                             f"{units_guidance}\n"
                             f"Does this page contain a measured value for the given entity, attribute, and event? "
@@ -571,11 +593,15 @@ class MeasurementLMAblation6(MeasurementLM):
                         event_context = ""
                         if event and any(v is not None for v in event.values()):
                             event_context = f"Measurement event context: {event}\n"
+                        terms_line = (
+                            f"Terminology used for the attribute: {terms}\n"
+                            if self.collect_attribute_terms else ""
+                        )
 
                         query = (
                             f"Entity description: {entity_description}\n"
                             f"Attribute description: {attr_description}\n"
-                            f"Terminology used for the attribute: {terms}\n"
+                            f"{terms_line}"
                             f"{event_context}"
                             f"{units_guidance}"
                             f"Row names in the table: {row_names}\n"

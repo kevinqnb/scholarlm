@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
 Generate a LaTeX table from the per-cell summary statistics produced by
-analysis/meta.py.
+analysis/meta_updated.py.
 
 CSV lives at: results/meta_{dataset}_{extraction_model}_{extraction_date}.csv
 Columns: dataset, ecosystem, attribute, setting, unit, n, n_eff, sum_w, mean,
          std, q1, median, q3, whisker_lo, whisker_hi, n_outliers, w_outliers,
          quantiles_clamped
 
-One table per dataset. Rows: ecosystem x attribute. Columns: one per setting,
-showing "mean $\\pm$ std". Cells with n < MIN_N are rendered as "--".
+One table per dataset x ecosystem. Rows: setting (ground truth / extracted /
+judge-filtered / NTP- and probe-confidence hard cuts). Columns: attribute,
+showing "median (Q1, Q3)" -- unweighted Hazen quantiles of the raw values;
+confidence settings are a hard >= threshold filter on which rows are included,
+never a continuous weight (see analysis/meta_updated.py). Cells with n < MIN_N
+are rendered as "--".
 
 Usage:
   python results/generate_meta_table.py                                # walks results/, writes .tex files
@@ -27,17 +31,22 @@ MIN_N = 5  # cells with fewer contributing rows than this are rendered as "--"
 
 ECOSYSTEMS = ["pond", "lake", "wetland"]
 ATTRIBUTES = ["surface_area", "max_depth", "vegetation_cover", "ph", "tn", "tp", "chla"]
-SETTINGS = ["ground_truth", "extracted", "judge_filtered", "ntp_weighted", "probe_weighted",
-            "ntp_threshold", "probe_threshold"]
+SETTINGS = [
+    "ground_truth", "judge_filtered", "extracted",
+    "ntp_0.25", "ntp_0.5", "ntp_0.75",
+    "probe_0.25", "probe_0.5", "probe_0.75",
+]
 
 SETTING_HEADERS = {
-    "ground_truth":    "GT",
-    "extracted":       "Extracted",
-    "judge_filtered":  "Judge-filt.",
-    "ntp_weighted":    "NTP-wt.",
-    "probe_weighted":  "Probe-wt.",
-    "ntp_threshold":   "NTP $\\geq$.75",
-    "probe_threshold": "Probe $\\geq$.75",
+    "ground_truth":   "Ground truth",
+    "judge_filtered": "Judge-filtered",
+    "extracted":      "Unfiltered",
+    "ntp_0.25":       r"NTP $\geq$0.25",
+    "ntp_0.5":        r"NTP $\geq$0.5",
+    "ntp_0.75":       r"NTP $\geq$0.75",
+    "probe_0.25":     r"Probe $\geq$0.25",
+    "probe_0.5":      r"Probe $\geq$0.5",
+    "probe_0.75":     r"Probe $\geq$0.75",
 }
 
 ATTRIBUTE_LABELS = {
@@ -47,50 +56,49 @@ ATTRIBUTE_LABELS = {
 }
 
 
-def fmt(mean, std, n) -> str:
-    if pd.isna(mean) or n < MIN_N:
+def fmt(median, q1, q3, n) -> str:
+    if pd.isna(median) or n < MIN_N:
         return "--"
-    if pd.isna(std):
-        return rf"{mean:.2g}"
-    return rf"{mean:.2g} $\pm$ {std:.2g}"
+    if pd.isna(q1) or pd.isna(q3):
+        return rf"{median:.2g}"
+    return rf"{median:.2g} ({q1:.2g}, {q3:.2g})"
 
 
 def build_lookup(df: pd.DataFrame) -> dict:
-    """(ecosystem, attribute, setting) -> (mean, std, n)."""
+    """(ecosystem, attribute, setting) -> (median, q1, q3, n)."""
     lookup = {}
     for _, row in df.iterrows():
         lookup[(row["ecosystem"], row["attribute"], row["setting"])] = (
-            row["mean"], row["std"], row["n"],
+            row["median"], row["q1"], row["q3"], row["n"],
         )
     return lookup
 
 
 def generate_latex(
-    lookup: dict, settings: list, attributes: list, caption: str | None, tex_label: str | None,
+    lookup: dict, ecosystem: str, settings: list, attributes: list,
+    caption: str | None, tex_label: str | None,
 ) -> str:
-    n_settings = len(settings)
-    col_spec = "ll" + "c" * n_settings
+    n_attrs = len(attributes)
+    col_spec = "l" + "c" * n_attrs
 
     lines = []
     lines.append(r"\begin{table}[ht]")
     lines.append(r"\centering")
     lines.append(rf"\begin{{tabular}}{{{col_spec}}}")
     lines.append(r"\toprule")
-    header = " & ".join([SETTING_HEADERS[s] for s in settings])
-    lines.append(rf"Ecosystem & Attribute & {header} \\")
+    header = " & ".join([ATTRIBUTE_LABELS[a] for a in attributes])
+    lines.append(rf"Setting & {header} \\")
     lines.append(r"\midrule")
 
-    for eco_idx, ecosystem in enumerate(ECOSYSTEMS):
-        lines.append(rf"\multirow{{{len(attributes)}}}{{*}}{{{ecosystem.capitalize()}}}")
+    for setting in settings:
+        cells = []
         for attribute in attributes:
-            cells = []
-            for setting in settings:
-                mean, std, n = lookup.get((ecosystem, attribute, setting), (float("nan"), float("nan"), 0))
-                cells.append(fmt(mean, std, n))
-            row_str = " & ".join(cells)
-            lines.append(rf"& {ATTRIBUTE_LABELS[attribute]} & {row_str} \\")
-        if eco_idx < len(ECOSYSTEMS) - 1:
-            lines.append(r"\midrule")
+            median, q1, q3, n = lookup.get(
+                (ecosystem, attribute, setting), (float("nan"), float("nan"), float("nan"), 0)
+            )
+            cells.append(fmt(median, q1, q3, n))
+        row_str = " & ".join(cells)
+        lines.append(rf"{SETTING_HEADERS[setting]} & {row_str} \\")
 
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
@@ -104,17 +112,18 @@ def generate_latex(
     return "\n".join(lines)
 
 
-def make_caption(dataset: str, extraction_model: str, extraction_date: str, subset: bool) -> str:
+def make_caption(
+    dataset: str, extraction_model: str, extraction_date: str, ecosystem: str, subset: bool,
+) -> str:
     scope = " (selected attributes)" if subset else ""
     return (
-        rf"\textbf{{Per-ecosystem attribute statistics{scope} ({dataset}, \texttt{{{extraction_model}}}).}} "
-        rf"Mean $\pm$ standard deviation for each attribute, broken down by ecosystem class and "
-        rf"extraction setting. Ground truth (GT), judge-filtered, and NTP/probe threshold "
-        rf"($\geq$0.75, hard-gated, unweighted) cells use unweighted statistics; NTP- and "
-        rf"probe-weighted cells use reliability-weighted statistics over the full extracted "
-        rf"dataset. All settings share the same weighted-quantile estimator (Hazen plotting "
-        rf"positions), so quartiles/whiskers are directly comparable across columns. Cells with "
-        rf"fewer than {MIN_N} contributing rows are omitted (--)."
+        rf"\textbf{{{ecosystem.capitalize()} attribute statistics{scope} ({dataset}, \texttt{{{extraction_model}}}).}} "
+        rf"Median (Q1, Q3) for each attribute, broken down by setting. All statistics are "
+        rf"unweighted (Hazen plotting-position quantiles of the raw values); the NTP- and "
+        rf"probe-confidence rows are first hard-filtered to confidence $\geq$ the stated "
+        rf"threshold, then computed over the surviving rows only -- confidence is never used "
+        rf"as a continuous weight. Cells with fewer than {MIN_N} contributing rows are "
+        rf"omitted (--)."
     )
 
 
@@ -143,20 +152,24 @@ def process_csv(csv_path: Path, attributes: list | None = None, print_to_stdout:
     dataset, extraction_model, extraction_date = parsed
 
     df = pd.read_csv(csv_path)
-    required_cols = {"ecosystem", "attribute", "setting", "mean", "std", "n"}
+    required_cols = {"ecosystem", "attribute", "setting", "median", "q1", "q3", "n"}
     missing = required_cols - set(df.columns)
     if missing:
         print(f"Skipping {csv_path}: missing columns {sorted(missing)} "
-              f"(stale CSV -- rerun analysis/meta.py to regenerate).")
+              f"(stale CSV -- rerun analysis/meta_updated.py to regenerate).")
         return
 
     subset = attributes is not None
     attrs = attributes if subset else ATTRIBUTES
     settings = [s for s in SETTINGS if s in df["setting"].unique()]
     lookup = build_lookup(df)
-    caption = make_caption(dataset, extraction_model, extraction_date, subset)
-    label = f"tab:meta-{dataset}-{extraction_model}" + ("-subset" if subset else "")
-    latex = generate_latex(lookup, settings, attrs, caption=caption, tex_label=label)
+
+    tables = []
+    for ecosystem in ECOSYSTEMS:
+        caption = make_caption(dataset, extraction_model, extraction_date, ecosystem, subset)
+        label = f"tab:meta-{dataset}-{extraction_model}-{ecosystem}" + ("-subset" if subset else "")
+        tables.append(generate_latex(lookup, ecosystem, settings, attrs, caption=caption, tex_label=label))
+    latex = "\n\n".join(tables)
 
     if print_to_stdout:
         print(f"% -- {dataset} / {extraction_model} / {extraction_date} --")

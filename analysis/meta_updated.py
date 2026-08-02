@@ -1,29 +1,38 @@
 """Meta-analysis experiment: does an LLM-extracted dataset reproduce the same
 per-ecosystem attribute distributions as the human-curated ground truth?
 
-Five parallel settings are compared for the pond dataset, broken down by
+Two families of Q-Q plots are produced for the pond dataset, broken down by
 ecosystem class (pond / lake / wetland) and attribute:
 
-    (a) ground truth
-    (b) full extracted dataset, unweighted
-    (c) extracted dataset filtered by judgement_combined
-    (d) extracted dataset hard-filtered to NTP confidence >= FILTER_THRESHOLD,
-        then weighted by NTP confidence within that subset
-    (e) extracted dataset hard-filtered to probe confidence >= FILTER_THRESHOLD,
-        then weighted by probe confidence within that subset
+    (a) ground truth vs. extracted data hard-filtered to NTP confidence >= t
+    (b) ground truth vs. extracted data hard-filtered to probe confidence >= t
 
-(d)/(e) combine a hard gate (drop rows below FILTER_THRESHOLD, which removes the
-low-confidence tail that a purely continuous weight can never fully suppress) with
-continuous reliability weighting on the surviving rows (so confidence still
-differentiates within the filtered subset, rather than treating every surviving row
-as equally trustworthy). All five settings go through the same weighted_stats() call,
-so the quantile/whisker convention (Hazen plotting positions) is identical across
-settings and the comparison stays apples-to-apples.
+for a sequential sweep of thresholds t in THRESHOLDS = (0.0, 0.25, 0.5, 0.75).
+Each Q-Q line plots ground-truth quantiles (x) against extracted quantiles (y)
+at matched probability levels; a line that hugs the y=x diagonal means the
+filtered extracted subset reproduces the ground-truth distribution at that
+quantile. Filtering by confidence is a hard gate only -- no reliability
+weighting is applied to the surviving rows, so every quantile in this file is
+a plain (unweighted) Hazen-plotting-position quantile of the raw values.
 
-All five settings are restricted to the documents shared between ground truth
-and extraction, minus the documents used to train the probe/NTP calibrator
-(``syn_document_ids``), so that (d)/(e) are honest out-of-sample estimates.
-See docs/plans or the commit history for the design rationale.
+A gray band around the diagonal shows the *ground truth's own* sampling
+uncertainty at each quantile level, estimated by bootstrap resampling of the
+ground-truth data alone. It is not a statement about the extracted lines'
+uncertainty -- a threshold-0.75 line built from a handful of surviving rows
+can be far noisier than the band suggests.
+
+This produces 3 ecosystems x 2 methods (ntp/probe) = 6 Q-Q figures, each with
+one subplot per attribute in a single row. The summary-statistics CSV/table
+(ground truth, full extracted, judge-filtered, and each ntp_t/probe_t hard-cut
+cell) is still written for the record; its median/Q1/Q3 columns are computed
+on raw, non-log values -- log scaling in LOG_SCALE_ATTRIBUTES is applied only
+when rendering the Q-Q axes, never before computing a statistic.
+
+All settings are restricted to the documents shared between ground truth and
+extraction, minus the documents used to train the probe/NTP calibrator
+(``syn_document_ids``), so that the confidence-filtered settings are honest
+out-of-sample estimates. See docs/plans or the commit history for the design
+rationale.
 """
 from __future__ import annotations
 
@@ -43,6 +52,7 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 
 from analysis.loaders import (
@@ -53,8 +63,11 @@ from experiments.run_extraction import load_dataset_config
 
 mpl.rcParams.update({
     "font.family": "serif",
-    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-    "mathtext.fontset": "cm",
+    # Nimbus Roman / Liberation Serif are the metric-compatible Times substitutes that
+    # LaTeX's `times` package resolves to on Linux -- i.e. the actual glyphs an ACL-style
+    # (\usepackage{times}) PDF renders with, not just a Times New Roman lookalike.
+    "font.serif": ["Nimbus Roman", "Liberation Serif", "Times New Roman", "Times", "DejaVu Serif"],
+    "mathtext.fontset": "stix",  # STIX matches Times metrics; "cm" (Computer Modern) clashes visually
     "text.usetex": False,
     "font.size": 15, "axes.labelsize": 15, "axes.titlesize": 15,
     "xtick.labelsize": 11, "ytick.labelsize": 11,
@@ -88,18 +101,28 @@ PROBE_TYPE = 'head'
 
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
-SETTINGS = ['ground_truth', 'extracted', 'judge_filtered', 'ntp_weighted', 'probe_weighted']
 
-# Hard-gate cutoff for the ntp_weighted / probe_weighted settings: rows with confidence
-# below FILTER_THRESHOLD are dropped before weighted_stats is applied to the rest.
-FILTER_THRESHOLD = 0.75
+# Confidence-threshold sweep for the Q-Q comparisons: at each t, the extracted
+# subset is hard-filtered to confidence >= t (no weighting), so as t increases
+# the surviving subset shrinks and (hopefully) grows more faithful to the GT
+# distribution. 0.0 keeps everything -- i.e. reduces to the full extracted set.
+THRESHOLDS = [0.0, 0.25, 0.5, 0.75]
+METHODS = ['ntp', 'probe']
+METHOD_PROB_COL = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
+METHOD_LABELS = {'ntp': 'NTP confidence', 'probe': 'Probe confidence'}
+
+# Settings recorded in the stats CSV/table: ground truth, the two unfiltered
+# reference settings, and every (method, threshold) hard-cut cell.
+SETTINGS = (
+    ['ground_truth', 'extracted', 'judge_filtered']
+    + [f'{m}_{t:g}' for m in METHODS for t in THRESHOLDS]
+)
 
 SETTING_LABELS = {
-    'ground_truth':    'Ground truth',
-    'extracted':       'Extracted (unweighted)',
-    'judge_filtered':  'Extracted (judge-filtered)',
-    'ntp_weighted':    f'Extracted (NTP-weighted, $\\geq${FILTER_THRESHOLD:g})',
-    'probe_weighted':  f'Extracted (probe-weighted, $\\geq${FILTER_THRESHOLD:g})',
+    'ground_truth':   'Ground truth',
+    'extracted':      'Extracted (unfiltered)',
+    'judge_filtered': 'Extracted (judge-filtered)',
+    **{f'{m}_{t:g}': f'Extracted ({METHOD_LABELS[m]} $\\geq${t:g})' for m in METHODS for t in THRESHOLDS},
 }
 
 STANDARD_UNITS = {
@@ -161,8 +184,24 @@ PHYSICAL_BOUNDS = {
 # 108,000 m "depth" for a wetland treatment cell) that otherwise flatten the whole panel.
 LOG_SCALE_ATTRIBUTES = {'surface_area', 'max_depth', 'tn', 'tp', 'chla'}
 
-MIN_RELIABLE_N = 5  # cells below this n or n_eff have their box dropped from the figure entirely;
-                     # see plot_boxplots() for the full per-cell reliability handling
+MIN_RELIABLE_N = 5  # cells below this n have their stats-table row treated as unreliable
+                     # (n recorded, but see plot_qq() for the Q-Q figures' own, per-curve
+                     # quantile-validity handling, which is stricter and per-line rather
+                     # than per-cell)
+
+# Quantile probability grid for the Q-Q lines, capped to [0.025, 0.975] so a single
+# extreme outlier in either tail can't stretch the panel.
+QLEVELS = np.linspace(0.025, 0.975, 39)
+
+# Bootstrap resamples for the ground-truth quantile uncertainty band.
+N_BOOT = 1000
+
+# Blue (threshold 0.0) -> red (threshold 0.75).
+THRESHOLD_CMAP = plt.cm.coolwarm
+THRESHOLD_NORM = mcolors.Normalize(vmin=min(THRESHOLDS), vmax=max(THRESHOLDS))
+
+# Default attribute subset shown in the Q-Q figures (one subplot column each).
+QQ_ATTRIBUTES = ['surface_area', 'ph', 'tn', 'tp']
 
 
 # ── Ecosystem bucketing ─────────────────────────────────────────────────────
@@ -326,29 +365,29 @@ def weighted_stats(x, w):
 
     - **Std**: "reliability weights" (a.k.a. importance/probability weights) variance
       estimator, sum(w*(x-mean)^2) / (sum(w) - sum(w^2)/sum(w)). This is the correct
-      denominator when w represents a continuous confidence/reliability (our NTP and
-      probe probabilities), as opposed to integer frequency weights (denominator
-      sum(w)-1) or the naive plug-in MLE (denominator sum(w), which understates
-      variance). By Cauchy-Schwarz, sum(w)-sum(w^2)/sum(w) >= 0, with equality iff all
-      weight sits on one point (n_eff == 1, see below) -- guarded explicitly rather
-      than left to raise or silently divide by zero.
+      denominator when w represents a continuous confidence/reliability, as opposed to
+      integer frequency weights (denominator sum(w)-1) or the naive plug-in MLE
+      (denominator sum(w), which understates variance). By Cauchy-Schwarz,
+      sum(w)-sum(w^2)/sum(w) >= 0, with equality iff all weight sits on one point
+      (n_eff == 1, see below) -- guarded explicitly rather than left to raise or
+      silently divide by zero.
 
     - **n_eff**: Kish's effective sample size, sum(w)^2 / sum(w^2). Reports how many
-      *unweighted* observations the weighted sample is statistically equivalent to --
-      more informative than raw n when a cell's weight mass is concentrated on a
-      handful of high-probability rows.
+      *unweighted* observations the weighted sample is statistically equivalent to.
+      All callers in this module pass w = ones (see module docstring: thresholds are a
+      hard gate on the subset, never a continuous weight), so n_eff == n everywhere in
+      practice; the machinery is kept general rather than special-cased.
 
     - **Quartiles**: weighted-ECDF via Hazen plotting positions, p_i = (cumsum(w)_i -
       0.5*w_i) / sum(w), then linear interpolation to p=0.25/0.5/0.75. This is the
       weighted generalization of the classic Hazen (1914) plotting position (i-0.5)/n
       used for unweighted quantile-quantile / ECDF estimates, and reduces to it exactly
-      when every weight is 1.
+      when every weight is 1 -- i.e. always, in this module.
 
     - **quantiles_clamped**: True when the requested 0.25/0.75 probability falls outside
       the observed [p_min, p_max] range, so np.interp clamped Q1 or Q3 to the extreme
-      x value instead of truly interpolating. Signals a cell whose weight mass is too
-      concentrated near one tail for the quartiles to be trustworthy (typically small n
-      or a few dominant weights) -- flag/suppress these in the figure.
+      x value instead of truly interpolating. Signals a cell whose n is too small for
+      the quartiles to be trustworthy -- flag/suppress these in the table.
 
     - **Whiskers/outliers**: standard Tukey 1.5*IQR fence built from the weighted
       quartiles above, applied only to the positive-weight observations that actually
@@ -398,7 +437,11 @@ def weighted_stats(x, w):
 # ── Per-cell aggregation ─────────────────────────────────────────────────────
 
 def _setting_data(setting: str, gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosystem: str, attribute: str):
-    """Return (x, w) arrays of converted_value / weight for one setting, or None if empty."""
+    """Return (x, w) arrays of converted_value / weight for one setting, or None if empty.
+
+    w is always an all-ones array -- every setting here is a hard filter on which rows
+    are included, never a continuous reliability weight (see module docstring).
+    """
     if setting == 'ground_truth':
         sub = gt_df[(gt_df['ecosystem_bucket'] == ecosystem) & (gt_df['attribute'] == attribute)]
         sub = sub.dropna(subset=['converted_value'])
@@ -418,16 +461,18 @@ def _setting_data(setting: str, gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosy
         if len(sub) == 0:
             return None
         return sub['converted_value'].to_numpy(), np.ones(len(sub))
-    if setting == 'ntp_weighted':
-        sub = base[base['ntp_prob'] >= FILTER_THRESHOLD]
-        if len(sub) == 0:
-            return None
-        return sub['converted_value'].to_numpy(), np.ones(len(sub)) #sub['ntp_prob'].to_numpy()
-    if setting == 'probe_weighted':
-        sub = base[base['probe_prob'] >= FILTER_THRESHOLD]
-        if len(sub) == 0:
-            return None
-        return sub['converted_value'].to_numpy(), np.ones(len(sub)) #sub['probe_prob'].to_numpy()
+
+    for method in METHODS:
+        prefix = f'{method}_'
+        if setting.startswith(prefix):
+            threshold = float(setting[len(prefix):])
+            prob_col = METHOD_PROB_COL[method]
+            sub = base.dropna(subset=[prob_col])
+            sub = sub[sub[prob_col] >= threshold]
+            if len(sub) == 0:
+                return None
+            return sub['converted_value'].to_numpy(), np.ones(len(sub))
+
     raise ValueError(f"Unknown setting: {setting}")
 
 
@@ -459,110 +504,150 @@ def build_stats_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame) -> pd.DataFrame
     return pd.DataFrame(rows)
 
 
+# ── Q-Q quantile helpers ────────────────────────────────────────────────────
+
+def _valid_range(n: int, lo_cap: float = QLEVELS.min(), hi_cap: float = QLEVELS.max()) -> tuple[float, float]:
+    """Probability range for which Hazen quantiles of an n-point sample are true
+    interpolations rather than clamped to the sample min/max.
+
+    Hazen plotting positions are (i-0.5)/n for i=1..n, so the smallest and largest
+    representable probabilities are 0.5/n and 1-0.5/n; requesting a level outside that
+    range makes np.interp silently clamp to the extreme observed value, which reads as
+    a flat, artifactual tail rather than genuine distributional agreement/disagreement.
+    """
+    lo = max(lo_cap, 0.5 / n)
+    hi = min(hi_cap, 1 - 0.5 / n)
+    return lo, hi
+
+
+def _hazen_quantiles(x: np.ndarray, levels: np.ndarray) -> np.ndarray:
+    return np.quantile(x, levels, method='hazen')
+
+
+def _bootstrap_gt_band(x: np.ndarray, levels: np.ndarray, n_boot: int, ci: float, seed: int):
+    """2.5/97.5th percentile band (or `ci`-equivalent) of the bootstrap distribution
+    of the ground-truth Hazen quantiles at `levels`. Represents sampling noise in the
+    ground-truth estimate alone -- see module docstring.
+    """
+    rng = np.random.default_rng(seed)
+    n = x.size
+    idx = rng.integers(0, n, size=(n_boot, n))
+    boot_samples = x[idx]
+    boot_q = np.quantile(boot_samples, levels, method='hazen', axis=1).T  # (n_boot, len(levels))
+    alpha = (1 - ci) / 2
+    lo = np.quantile(boot_q, alpha, axis=0)
+    hi = np.quantile(boot_q, 1 - alpha, axis=0)
+    return lo, hi
+
+
+def _attr_title(attribute: str) -> str:
+    unit = STANDARD_UNITS[attribute]
+    unit_str = f' ({unit})' if unit and unit != 'percent' else ''
+    return attribute.replace('_', ' ') + unit_str
+
+
+def _axis_limits(values: np.ndarray, log: bool) -> tuple[float, float]:
+    vmin, vmax = float(np.min(values)), float(np.max(values))
+    if log:
+        pad = (vmax / vmin) ** 0.05 if vmax > vmin else 1.1
+        return vmin / pad, vmax * pad
+    pad = (vmax - vmin) * 0.05 if vmax > vmin else max(abs(vmax), 1.0) * 0.05
+    return vmin - pad, vmax + pad
+
+
 # ── Visualization ─────────────────────────────────────────────────────────────
 
-def pastel(color, mix=0.45):
-    """Mix a color with white to get a pastel fill, mix in [0, 1] = fraction white."""
-    rgb = np.array(mcolors.to_rgb(color))
-    return tuple((1 - mix) * rgb + mix * np.array([1.0, 1.0, 1.0]))
-
-
-def _cell_stats(stats_df: pd.DataFrame, ecosystem: str, attribute: str, setting: str) -> dict | None:
-    row = stats_df[(stats_df.ecosystem == ecosystem) & (stats_df.attribute == attribute)
-                    & (stats_df.setting == setting)]
-    if len(row) == 0:
-        return None
-    r = row.iloc[0]
-    return r.to_dict()
-
-
-def plot_boxplots(
-    stats_df: pd.DataFrame,
+def plot_qq(
     gt_df: pd.DataFrame,
     ext_df: pd.DataFrame,
+    ecosystem: str,
+    method: str,
     attributes: list[str],
-    settings: list[str],
     out_path: Path,
+    n_boot: int = N_BOOT,
+    ci: float = 0.95,
     seed: int = 0,
 ):
-    """Draw per-attribute box-and-whisker panels, one box per (ecosystem, setting).
-
-    Per-cell reliability handling (a "cell" = one ecosystem x attribute x setting):
-
-    - ``n < MIN_RELIABLE_N`` or ``n_eff < MIN_RELIABLE_N``: the box is dropped from the
-      plot entirely -- too few real or effective observations for quartiles to mean
-      anything. The underlying points (if any survive the unit/physical-bounds filters)
-      still appear as faint scatter, since raw points need no quantile estimation to be
-      meaningful.
-
-    Boxes that clear that bar are drawn directly from the CSV's Q1/median/Q3/whiskers,
-    with no further adjustment. Gappy/bimodal cells can occasionally produce a Q1 or Q3
-    that interpolates into empty space between two clusters and lands outside the Tukey
-    fence built from itself (e.g. Q3 above whisker_hi) -- this is drawn as-is rather than
-    clamped or flagged, so the plot always shows exactly what the CSV's stats say.
+    """One Q-Q figure for a fixed (ecosystem, method): one subplot per attribute,
+    laid out in a single row. Each subplot overlays, for every threshold t in
+    THRESHOLDS, a line of (GT quantile, extracted-quantile-at-confidence>=t) pairs
+    at matched probability levels -- i.e. a standard Q-Q plot, with the reference
+    distribution's own sampling noise shown as a shaded band around the y=x diagonal.
     """
     n_attrs = len(attributes)
-    n_settings = len(settings)
-    tab10 = plt.cm.tab10.colors
-    setting_colors = {s: pastel(tab10[i % 10]) for i, s in enumerate(settings)}
-    rng = np.random.default_rng(seed)
-
-    offsets = np.linspace(-0.3, 0.3, n_settings) if n_settings > 1 else np.array([0.0])
-    box_width = min(0.6 / n_settings, 0.18)
-
-    fig, axes = plt.subplots(1, n_attrs, figsize=(3.4 * n_attrs, 4.0))
+    fig, axes = plt.subplots(1, n_attrs, figsize=(2.6 * n_attrs, 2.9))
     if n_attrs == 1:
         axes = [axes]
 
-    for ax, attribute in zip(axes, attributes):
-        for eco_idx, ecosystem in enumerate(ECOSYSTEMS):
-            for s_idx, setting in enumerate(settings):
-                cell = _cell_stats(stats_df, ecosystem, attribute, setting)
-                x_pos = eco_idx + offsets[s_idx]
-                color = setting_colors[setting]
-                if cell is None or cell['n'] == 0 or np.isnan(cell['median']):
-                    continue
+    prob_col = METHOD_PROB_COL[method]
 
-                # Too few real or effective observations for quartiles to be meaningful:
-                # drop the box entirely rather than draw and hatch a misleading one.
-                too_sparse = cell['n'] < MIN_RELIABLE_N or cell['n_eff'] < MIN_RELIABLE_N
+    for i, (ax, attribute) in enumerate(zip(axes, attributes)):
+        log_scale = attribute in LOG_SCALE_ATTRIBUTES
 
-                if not too_sparse:
-                    stats_dict = [{
-                        'med': cell['median'], 'q1': cell['q1'], 'q3': cell['q3'],
-                        'whislo': cell['whisker_lo'], 'whishi': cell['whisker_hi'],
-                        'fliers': [],
-                    }]
-                    ax.bxp(
-                        stats_dict, positions=[x_pos], widths=box_width,
-                        patch_artist=True, showfliers=False,
-                        boxprops=dict(facecolor=color, edgecolor='#444444', linewidth=0.9),
-                        medianprops=dict(color='#222222', linewidth=1.3),
-                        whiskerprops=dict(color='#444444', linewidth=0.9),
-                        capprops=dict(color='#444444', linewidth=0.9),
-                        zorder=3,
-                    )
+        gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
+        gt_x = gt_data[0] if gt_data is not None else np.array([])
+        if log_scale:
+            gt_x = gt_x[gt_x > 0]
+        if gt_x.size < 2:
+            ax.text(0.5, 0.5, f'insufficient GT data\n(n={gt_x.size})',
+                     ha='center', va='center', fontsize=9, color='#888888',
+                     transform=ax.transAxes)
+            ax.set_xticks([]); ax.set_yticks([])
+            ax.set_xlabel('GT')
+            if i == 0:
+                ax.set_ylabel('Extracted')
+            ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
+            continue
 
-                # Faint scatter of every underlying point, jittered around the box's x
-                # position; alpha scaled by each point's weight so unweighted settings
-                # show uniform faint dots and (d)/(e) visually fade out low-confidence rows.
-                data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
-                if data is not None:
-                    xv, wv = data
-                    jitter = rng.uniform(-box_width * 0.35, box_width * 0.35, size=len(xv))
-                    w_norm = wv / wv.max() if wv.max() > 0 else np.ones_like(wv)
-                    ax.scatter(x_pos + jitter, xv, s=6, color='#333333',
-                               alpha=np.clip(0.12 * w_norm, 0.02, 0.12), linewidths=0, zorder=2)
+        gt_lo, gt_hi = _valid_range(gt_x.size)
+        gt_levels = QLEVELS[(QLEVELS >= gt_lo) & (QLEVELS <= gt_hi)]
+        gt_q = _hazen_quantiles(gt_x, gt_levels)
+        boot_lo, boot_hi = _bootstrap_gt_band(gt_x, gt_levels, n_boot=n_boot, ci=ci, seed=seed)
 
-        if attribute in LOG_SCALE_ATTRIBUTES:
+        all_plotted = [gt_q, boot_lo, boot_hi]
+
+        for t in THRESHOLDS:
+            data = _setting_data(f'{method}_{t:g}', gt_df, ext_df, ecosystem, attribute)
+            if data is None:
+                continue
+            ext_x = data[0]
+            if log_scale:
+                ext_x = ext_x[ext_x > 0]
+            if ext_x.size == 0:
+                continue
+
+            ext_lo, ext_hi = _valid_range(ext_x.size)
+            lo, hi = max(gt_lo, ext_lo), min(gt_hi, ext_hi)
+            levels_t = QLEVELS[(QLEVELS >= lo) & (QLEVELS <= hi)]
+            if levels_t.size == 0:
+                continue
+
+            gt_q_t = _hazen_quantiles(gt_x, levels_t)
+            ext_q_t = _hazen_quantiles(ext_x, levels_t)
+            color = THRESHOLD_CMAP(THRESHOLD_NORM(t))
+            if levels_t.size == 1:
+                ax.scatter(gt_q_t, ext_q_t, color=color, s=14, zorder=4)
+            else:
+                ax.plot(gt_q_t, ext_q_t, color=color, linewidth=1.8, zorder=4, solid_capstyle='round')
+            all_plotted.extend([gt_q_t, ext_q_t])
+
+        lo_lim, hi_lim = _axis_limits(np.concatenate(all_plotted), log=log_scale)
+        ax.fill_between(gt_q, boot_lo, boot_hi, color='#888888', alpha=0.25, linewidth=0, zorder=1)
+        ax.plot([lo_lim, hi_lim], [lo_lim, hi_lim], color='#888888', linewidth=1.0,
+                 linestyle='--', zorder=2)
+
+        if log_scale:
+            ax.set_xscale('log')
             ax.set_yscale('log')
-        ax.set_xticks(range(len(ECOSYSTEMS)))
-        ax.set_xticklabels([e.capitalize() for e in ECOSYSTEMS])
-        unit = STANDARD_UNITS[attribute]
-        ylabel = attribute.replace('_', ' ') + (f' ({unit})' if unit and unit != 'percent' else '')
-        ax.set_ylabel(ylabel)
-        ax.set_title(attribute.replace('_', ' '), fontsize=13, style='italic')
-        ax.grid(alpha=0.25, linestyle='-', linewidth=0.4, axis='y')
+        ax.set_xlim(lo_lim, hi_lim)
+        ax.set_ylim(lo_lim, hi_lim)
+        ax.set_box_aspect(1)
+
+        ax.set_xlabel('GT')
+        if i == 0:
+            ax.set_ylabel('Extracted')
+        ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
+        ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
         ax.set_axisbelow(True)
 
     fig.tight_layout()
@@ -571,17 +656,23 @@ def plot_boxplots(
     print(f"[meta] wrote {out_path}")
 
 
-def plot_legend(settings: list[str], out_path: Path):
-    tab10 = plt.cm.tab10.colors
-    setting_colors = {s: pastel(tab10[i % 10]) for i, s in enumerate(settings)}
+def plot_qq_legend(out_path: Path):
+    """Shared legend for all six Q-Q figures: one line per threshold, plus swatches
+    for the y=x reference and the ground-truth bootstrap uncertainty band.
+    """
     handles = [
-        mpatches.Patch(facecolor=setting_colors[s], edgecolor='#444444', linewidth=0.9,
-                        label=SETTING_LABELS[s])
-        for s in settings
+        mlines.Line2D([], [], color=THRESHOLD_CMAP(THRESHOLD_NORM(t)), linewidth=1.8,
+                       label=f'confidence $\\geq${t:g}')
+        for t in THRESHOLDS
     ]
-    fig, ax = plt.subplots(figsize=(1.6 * len(settings), 0.5))
+    handles.append(mlines.Line2D([], [], color='#888888', linewidth=1.0, linestyle='--',
+                                   label='y = x (perfect match)'))
+    handles.append(mpatches.Patch(facecolor='#888888', alpha=0.25, edgecolor='none',
+                                    label='GT bootstrap 95% CI'))
+
+    fig, ax = plt.subplots(figsize=(1.9 * len(handles), 0.5))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=len(settings), fontsize=11, frameon=False)
+    ax.legend(handles=handles, loc='center', ncol=len(handles), fontsize=11, frameon=False)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta] wrote {out_path}")
@@ -590,11 +681,12 @@ def plot_legend(settings: list[str], out_path: Path):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--attributes', nargs='+', default=['surface_area', 'max_depth', 'tn', 'tp'],
-                         choices=ATTRIBUTES, help='Attribute subset for the box-plot figure.')
-    parser.add_argument('--settings', nargs='+', default=SETTINGS,
-                         choices=SETTINGS, help='Setting subset for the box-plot figure.')
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--attributes', nargs='+', default=QQ_ATTRIBUTES,
+                         choices=ATTRIBUTES, help='Attribute subset (one subplot column each) for the Q-Q figures.')
+    parser.add_argument('--n-boot', type=int, default=N_BOOT,
+                         help='Bootstrap resamples for the ground-truth quantile uncertainty band.')
+    parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
 
     gt_df, ext_df = load_data()
@@ -605,9 +697,13 @@ def main():
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
 
-    plot_boxplots(stats_df, gt_df, ext_df, args.attributes, args.settings,
-                  FIGURES_DIR / f"box_{'_'.join(args.attributes)}.pdf")
-    plot_legend(args.settings, FIGURES_DIR / 'legend.pdf')
+    for method in METHODS:
+        for ecosystem in ECOSYSTEMS:
+            out_path = FIGURES_DIR / f'qq_{method}_{ecosystem}.pdf'
+            plot_qq(gt_df, ext_df, ecosystem, method, args.attributes, out_path,
+                    n_boot=args.n_boot, seed=args.seed)
+
+    plot_qq_legend(FIGURES_DIR / 'qq_legend.pdf')
 
 
 if __name__ == "__main__":

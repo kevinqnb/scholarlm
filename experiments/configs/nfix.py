@@ -462,6 +462,11 @@ _CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
     "nfix_rate_volumetric": "dinitrogen fixation rate per unit volume",
 }
 
+# ChatExtract's reference prompts ask about a "material"/"compound" -- nfix
+# entities are measurement sites, not chemical compounds, so this replaces
+# that wording throughout (see DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "site"
+
 
 CONFIG = DatasetConfig(
     name="nfix",
@@ -480,6 +485,7 @@ CONFIG = DatasetConfig(
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

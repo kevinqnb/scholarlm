@@ -195,6 +195,9 @@ data/supermat/processed_pdfs/*
 data/govscape/ocr_output*/
 data/govscape/pdfs/*
 
+data/measeval/raw/*
+data/measeval/ocr_output_raw/*
+
 data/pond_ten/*
 
 .batch_state.json

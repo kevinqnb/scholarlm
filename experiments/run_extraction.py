@@ -608,6 +608,7 @@ def run_pipeline(
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
+        collect_attribute_terms=dataset_config.collect_attribute_terms,
     )
 
     if clean_tables:
@@ -722,6 +723,7 @@ def run_single_step(
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
+        collect_attribute_terms=dataset_config.collect_attribute_terms,
     )
 
     f_entities = output_dir / "entities.json"
