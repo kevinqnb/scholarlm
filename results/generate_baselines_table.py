@@ -24,6 +24,7 @@ DATASETS = [
     ("pond", r"\pond"),
     ("nfix", r"\nfix"),
     ("supermat", r"\supermat"),
+    ("measeval", r"\measeval"),
 ]
 
 ROWS = [
@@ -114,8 +115,10 @@ def generate_table(csv_paths: dict) -> str:
             r"\caption{\textbf{Baseline Comparison.} F1 (harmonic mean of recovery "
             r"and validity rate) with recovery and validity shown in parentheses, "
             r"for each MeasurementLM backbone and external baseline (NuExtract, "
-            r"ChatExtract, GLiNER) across the \pond, \nfix, and \supermat datasets. "
-            r"Bold marks the best F1 per column.}"
+            r"ChatExtract, GLiNER) across the \pond, \nfix, \supermat, and "
+            r"\measeval datasets. NuExtract is omitted for \measeval, which is "
+            r"text-only and has no PDF pages for it to read. Bold marks the best "
+            r"F1 per column.}"
         ),
         label="tab:baselines",
     )
