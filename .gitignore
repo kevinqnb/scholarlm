@@ -215,3 +215,6 @@ memory
 
 CLAUDE.MD
 analysis/out/*.txt
+
+notes
+CLAUDE.local.md
