@@ -8,6 +8,8 @@ scripts are unchanged.
 """
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig
@@ -280,6 +282,76 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
+# NuExtract-2.0-8B baseline: few-shot synthetic examples, since
+# NuExtract's calling convention has no field for freeform instructions.
+# Every output value below is
+# an exact substring of its input text, since NuExtract's verbatim-string
+# fields are trained to copy spans rather than paraphrase. Together the two
+# examples touch all 3 nfix rate attributes at least once.
+# ---------------------------------------------------------------------------
+
+_NUEXTRACT_EXAMPLE_1_INPUT = (
+    "Tampa Bay Seagrass Site (TB-3) is a shallow seagrass meadow located in "
+    "Tampa Bay, Florida. Sediment cores were incubated in August 2018 using "
+    "the acetylene reduction assay. Samples were collected from the benthos "
+    "at a depth of 0-5 cm during a light incubation. Dinitrogen fixation was "
+    "measured at 4.2 nmol C2H4 g⁻¹ h⁻¹ in the sediment, "
+    "while water column fixation reached 120 µmol N m⁻² d⁻¹ nearby."
+)
+
+_NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Tampa Bay Seagrass Site", "identifiers": "TB-3",
+                "site_type": "seagrass meadow", "location": "Tampa Bay, Florida",
+                "date": "August 2018", "nfix_method": "acetylene reduction assay",
+                "substrate_type": "benthos", "sample_depth": "0-5 cm",
+                "additional_details": "light incubation",
+                "attribute": "nfix_rate_mass", "value": "4.2", "units": "nmol C2H4 g⁻¹ h⁻¹",
+            },
+            {
+                "name": "Tampa Bay Seagrass Site", "identifiers": "TB-3",
+                "site_type": "seagrass meadow", "location": "Tampa Bay, Florida",
+                "date": "August 2018", "nfix_method": "acetylene reduction assay",
+                "substrate_type": "benthos", "sample_depth": "0-5 cm",
+                "additional_details": "light incubation",
+                "attribute": "nfix_rate_areal", "value": "120", "units": "µmol N m⁻² d⁻¹",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLE_2_INPUT = (
+    "The Chesapeake Bay Estuary Transect (CBET) is an estuary site in "
+    "Chesapeake Bay. Samples of the water column from the surface (0 m) "
+    "were incubated for 24 hours in March 2020 using 15N2 incorporation. "
+    "Volumetric fixation rates of 3.6 nmol N2 L⁻¹ h⁻¹ were recorded "
+    "under dark conditions."
+)
+
+_NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Chesapeake Bay Estuary Transect", "identifiers": "CBET",
+                "site_type": "estuary", "location": "Chesapeake Bay",
+                "date": "March 2020", "nfix_method": "15N2 incorporation",
+                "substrate_type": "water column", "sample_depth": "surface",
+                "additional_details": "dark conditions",
+                "attribute": "nfix_rate_volumetric", "value": "3.6", "units": "nmol N2 L⁻¹ h⁻¹",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLES = [
+    {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+]
+
+
+# ---------------------------------------------------------------------------
 # Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
@@ -375,6 +447,27 @@ _TOP_PAPERS = [
     "R51", "R59", "R114", "R43", "R103",
 ]
 
+# ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrases
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". The three nfix rate attributes differ only by normalization
+# basis (mass / area / volume), which the phrase makes explicit so the model
+# is steered toward the right unit family.
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "nfix_rate_mass": "dinitrogen fixation rate per unit mass",
+    "nfix_rate_areal": "dinitrogen fixation rate per unit area",
+    "nfix_rate_volumetric": "dinitrogen fixation rate per unit volume",
+}
+
+# ChatExtract's reference prompts ask about a "material"/"compound" -- nfix
+# entities are measurement sites, not chemical compounds, so this replaces
+# that wording throughout (see DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "site"
+
+
 CONFIG = DatasetConfig(
     name="nfix",
     data_dir="data/nfix",
@@ -390,6 +483,9 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

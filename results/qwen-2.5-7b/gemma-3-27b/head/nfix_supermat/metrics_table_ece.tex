@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll cc}
+\toprule
+& & Synthetic & Extracted \\
+\midrule
+\multirow{4}{*}{\textit{Within}}
+& NF NTP & 0.03 $\pm$ 0.02 & 0.06 $\pm$ 0.01 \\
+& NF Probe & 0.08 $\pm$ 0.02 & 0.07 $\pm$ 0.01 \\
+& SM NTP & 0.01 $\pm$ 0.01 & 0.19 $\pm$ 0.02 \\
+& SM Probe & 0.06 $\pm$ 0.02 & 0.25 $\pm$ 0.02 \\
+\midrule
+\multirow{4}{*}{\textit{Cross}}
+& NF NTP & 0.12 $\pm$ 0.02 & 0.08 $\pm$ 0.01 \\
+& NF Probe & 0.25 $\pm$ 0.02 & 0.04 $\pm$ 0.01 \\
+& SM NTP & 0.11 $\pm$ 0.02 & 0.06 $\pm$ 0.01 \\
+& SM Probe & 0.21 $\pm$ 0.02 & 0.17 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Expected Calibration Error (equal-width bins, plug-in) (\texttt{qwen-2.5-7b}).} Probe and NTP validation probabilities evaluated within and cross-domain between NF and SM for synthetic and real, extraction test settings. Intervals are 95\% bootstrap confidence intervals. Extracted measurements collected from \texttt{gemma-3-27b}.}
+\label{tab:qwen-2.5-7b-gemma-3-27b-nfix_supermat-ece}
+\end{table}

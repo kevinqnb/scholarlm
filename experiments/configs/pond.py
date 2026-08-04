@@ -9,6 +9,8 @@ own copies of the prompts from extract_prompts.py.
 """
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig
@@ -287,6 +289,94 @@ other_things = """
 
 
 # ---------------------------------------------------------------------------
+# NuExtract-2.0-8B baseline: few-shot synthetic examples
+#
+# NuExtract's calling convention has no field for freeform instructions,
+# only a JSON template and optional few-shot examples. 
+# Every output value below is an exact substring of its input text, since NuExtract's
+# verbatim-string fields are trained to copy spans rather than paraphrase.
+# Together the two examples touch all 7 pond attributes at least once.
+# ---------------------------------------------------------------------------
+
+_NUEXTRACT_EXAMPLE_1_INPUT = (
+    "Beaver Pond (site code BP-1) is a small kettle pond located in central "
+    "Wisconsin, USA. Surveyed in June 2019, the pond had a surface area of "
+    "2.3 ha and a maximum depth of 1.8 m. Water pH averaged 6.9 across three "
+    "sampling dates. Chlorophyll-a concentration was measured at 12.4 µg/L "
+    "during the summer stratification period."
+)
+
+_NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Beaver Pond", "identifiers": "BP-1",
+                "location": "central Wisconsin, USA", "ecosystem": "pond",
+                "date": "June 2019", "additional_details": None,
+                "attribute": "surface_area", "value": "2.3", "units": "ha",
+            },
+            {
+                "name": "Beaver Pond", "identifiers": "BP-1",
+                "location": "central Wisconsin, USA", "ecosystem": "pond",
+                "date": "June 2019", "additional_details": None,
+                "attribute": "max_depth", "value": "1.8", "units": "m",
+            },
+            {
+                "name": "Beaver Pond", "identifiers": "BP-1",
+                "location": "central Wisconsin, USA", "ecosystem": "pond",
+                "date": "June 2019", "additional_details": None,
+                "attribute": "ph", "value": "6.9", "units": None,
+            },
+            {
+                "name": "Beaver Pond", "identifiers": "BP-1",
+                "location": "central Wisconsin, USA", "ecosystem": "pond",
+                "date": "June 2019", "additional_details": None,
+                "attribute": "chla", "value": "12.4", "units": "µg/L",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLE_2_INPUT = (
+    "The study site, Marsh Creek Wetland (also referred to as MCW or Site 4), "
+    "is a freshwater wetland in coastal Louisiana. During Spring 2021, "
+    "submerged and emergent vegetation covered approximately 45 percent of "
+    "the wetland surface. Water samples collected at the inlet zone showed "
+    "total nitrogen of 850 µg/L and total phosphorus of 62 µg/L."
+)
+
+_NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
+                "location": "coastal Louisiana", "ecosystem": "wetland",
+                "date": "Spring 2021", "additional_details": "inlet zone",
+                "attribute": "vegetation_cover", "value": "45", "units": "percent",
+            },
+            {
+                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
+                "location": "coastal Louisiana", "ecosystem": "wetland",
+                "date": "Spring 2021", "additional_details": "inlet zone",
+                "attribute": "tn", "value": "850", "units": "µg/L",
+            },
+            {
+                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
+                "location": "coastal Louisiana", "ecosystem": "wetland",
+                "date": "Spring 2021", "additional_details": "inlet zone",
+                "attribute": "tp", "value": "62", "units": "µg/L",
+            },
+        ]
+    }
+)
+
+_NUEXTRACT_EXAMPLES = [
+    {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+]
+
+
+# ---------------------------------------------------------------------------
 # Ablation 2: combined entity-attribute extraction prompt
 # ---------------------------------------------------------------------------
 
@@ -396,6 +486,30 @@ _TOP_PAPERS = [
     'environmental_conditions',
 ]
 
+# ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrases
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". These short, human-readable phrases are the <PROPERTY> string
+# used for each attribute (one full ChatExtract conversation is run per phrase).
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "surface_area": "surface area of the water body",
+    "max_depth": "maximum water depth",
+    "vegetation_cover": "aquatic vegetation cover",
+    "ph": "water pH",
+    "tn": "total nitrogen concentration",
+    "tp": "total phosphorus concentration",
+    "chla": "chlorophyll-a concentration",
+}
+
+# ChatExtract's reference prompts ask about a "material"/"compound" -- pond
+# entities are water bodies, not chemical compounds, so this replaces that
+# wording throughout (see DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "water body"
+
+
 CONFIG = DatasetConfig(
     name="pond",
     data_dir="data/pond",
@@ -410,6 +524,9 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,

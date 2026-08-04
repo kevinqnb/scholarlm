@@ -36,7 +36,7 @@ get_candidate_pages_from_tables -- map table numbers to page numbers via OCR ind
 
 Default weight sets
 -------------------
-NFIX_WEIGHTS, POND_WEIGHTS -- recommended starting weights for each dataset.
+NFIX_WEIGHTS, POND_WEIGHTS, SUPERMAT_WEIGHTS -- recommended starting weights for each dataset.
 Adjust after empirical spot-checking.
 """
 from __future__ import annotations
@@ -71,6 +71,14 @@ POND_WEIGHTS: dict[str, float] = {
     "units":        1.5,
     "location":     1.0,
     "ecosystem":    1.0,
+}
+
+SUPERMAT_WEIGHTS: dict[str, float] = {
+    "value":       10.0,
+    "name":         4.0,
+    "units":        1.5,
+    "me_method":    1.5,
+    "pressure":     1.5,
 }
 
 # ---------------------------------------------------------------------------

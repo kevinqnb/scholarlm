@@ -111,6 +111,7 @@ def validity_rate(
     cache_path: Path | None = None,
     label_col: str = "judgement_combined",
     return_ci: bool = False,
+    denominator_n: int | None = None,
 ) -> float | tuple[float, float, float]:
     """Compute validity rate (1 - hallucination rate) from judged extraction results.
 
@@ -124,6 +125,11 @@ def validity_rate(
         cache_path: Optional path for a disk-cached result (see ``cached_match``).
         label_col: Column name for the combined judgement label.
         return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+        denominator_n: Total number of rows the system emitted, when ``extraction_df``
+            holds only a subset of them. Callers that pre-filter unusable rows (no
+            value, no units) pass the pre-filter count here, so those rows stay in the
+            denominator and are counted invalid rather than excused. Defaults to
+            ``len(extraction_df)``, i.e. no filtering took place.
 
     Returns:
         Validity rate (float), or (rate, lower, upper) if return_ci=True.
@@ -154,13 +160,19 @@ def validity_rate(
 
     labels = jlabels | ex_edge_exists
 
-    rate = float(np.mean(labels))
+    n = len(labels) if denominator_n is None else denominator_n
+    if n < len(labels):
+        raise ValueError(
+            f"denominator_n ({n}) is smaller than the number of rows scored "
+            f"({len(labels)})"
+        )
+    k = int(np.sum(labels))  # valid = matched or judged valid
+
+    rate = k / n if n else 0.0
     if not return_ci:
         return rate
-    n = len(labels)
-    k = int(np.sum(labels))  # valid = matched or judged valid
     lower, upper = proportion_confint(k, n, alpha=0.05, method='wilson')
-    return rate, float(lower), float(upper)
+    return float(rate), float(lower), float(upper)
 
 
 def validity_rate_from_labels(

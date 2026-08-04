@@ -1,17 +1,24 @@
 """
 Central model registry for all experiment runners.
 
-Defines three registries imported by the various runner scripts:
+Defines registries imported by the various runner scripts:
 
-    MODEL_REGISTRY         — extraction models (ModelConfig); used by
-                             run_extraction.py, run_ablation.py,
-                             run_table_cleaning.py.
+    MODEL_REGISTRY          — extraction models (ModelConfig); used by
+                              run_extraction.py, run_ablation.py,
+                              run_table_cleaning.py.
 
-    INTERP_JUDGE_REGISTRY  — NNsight/JudgementLM judge models; used by
-                             run_judge_interp.py.
+    INTERP_JUDGE_REGISTRY   — NNsight/JudgementLM judge models; used by
+                              run_judge_interp.py.
 
-    VLLM_JUDGE_REGISTRY    — vLLM judge models; used by
-                             run_judge_local.py.
+    VLLM_JUDGE_REGISTRY     — vLLM judge models; used by
+                              run_judge_local.py.
+
+    BASELINE_MODEL_REGISTRY — external comparison baselines (ModelConfig);
+                              used by run_baseline_nuextract.py. Kept separate
+                              from MODEL_REGISTRY because these models are not
+                              compatible with the standard 7-step pipeline or
+                              the ablation registry (different input modality,
+                              different prompting convention).
 """
 from __future__ import annotations
 
@@ -123,6 +130,43 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         model_id="gpt-5-mini",
         api_base="https://api.openai.com/v1",
         sampling_params={"max_completion_tokens": 8192},
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Baseline model registry
+#
+# External, non-MeasurementLM comparison methods. Used by
+# run_baseline_nuextract.py and run_baseline_gliner.py.
+#
+# GLiNER2 is a small local encoder model (Fastino AI) run directly via
+# `GLiNER2.from_pretrained(model_id)` — it does NOT go through a vLLM /
+# OpenAI-compatible server, so `sampling_params` is unused (its precision/recall
+# knob is the `--threshold` CLI flag, not a generation temperature).
+# ---------------------------------------------------------------------------
+
+BASELINE_MODEL_REGISTRY: dict[str, ModelConfig] = {
+    "nuextract-2.0-8b": ModelConfig(
+        name="nuextract-2.0-8b",
+        model_id="numind/NuExtract-2.0-8B",
+        hf_revision=None,
+        sampling_params={
+            "temperature": 0.0,
+            "max_tokens": 4096,
+        },
+    ),
+    "gliner-large-v1": ModelConfig(
+        name="gliner-large-v1",
+        model_id="fastino/gliner2-large-v1",
+        hf_revision=None,
+        sampling_params={},
+    ),
+    "gliner-base-v1": ModelConfig(
+        name="gliner-base-v1",
+        model_id="fastino/gliner2-base-v1",
+        hf_revision=None,
+        sampling_params={},
     ),
 }
 

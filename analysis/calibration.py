@@ -6,8 +6,11 @@ sys.path.insert(0, str(REPO_ROOT / 'src'))
 sys.path.insert(0, str(REPO_ROOT / 'experiments'))
 sys.path.insert(0, str(REPO_ROOT))
 
+import os
 import re
 import pickle
+import argparse
+import itertools
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -24,7 +27,9 @@ from analysis.loaders import (
     load_synthetic_responses,
 )
 from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
-from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em
+from scholarlm.utils.calibration import (
+    reliability_diagram_data, rescale_probabilities_em, bootstrap_ece, intercept_adjustment,
+)
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
 import paths
@@ -58,58 +63,244 @@ Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)
 
+# One consistent color per dataset, reused across every plot (synthetic/real,
+# within/cross) so a dataset is always the same color regardless of role.
 _DS_COLORS = {
-    ('pond', 'syn'):  palette[7],
-    ('pond', 'real'): palette[7],
-    ('nfix', 'syn'):  palette[1],
-    ('nfix', 'real'): palette[1],
+    'pond':     palette[7],
+    'nfix':     palette[1],
+    'supermat': palette[4],
 }
+
+_DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-DATASETS = ['pond', 'nfix']
-EXTRACTION_MODEL = 'gemma-3-27b'
-JUDGE_MODELS = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']
-PROBE_TYPE = "head"
+# Everything that varies with the extraction model lives in EXTRACTION_SETTINGS,
+# one entry per model. Select one with `--extraction-model`, the
+# CALIBRATION_EXTRACTION_MODEL env var, or by editing DEFAULT_EXTRACTION_MODEL;
+# the module-level globals below are then derived from the selected entry, so the
+# rest of this file (and the notebooks that import it) is unchanged.
+#
+# Per-entry keys:
+#   datasets        — datasets this extraction model was run on
+#   judge_models    — judges with interpretable results for this extraction run
+#   judge_datasets  — datasets each judge has activations for. A cross-domain
+#                     (train_ds → test_ds) pair is only valid for a judge when
+#                     BOTH datasets appear here, since the probe lives in that
+#                     judge's activation space.
+#   extraction_dates / judge_dates_syn / judge_dates_real — pinned run dates
+#                     (a None judge date means "auto-detect latest")
+#   pi_te_estimate  — assumed test prevalence for the label-shift intercept
+#                     adjustment on real data; None disables the adjustment.
+EXTRACTION_SETTINGS = {
+    'gemma-3-27b': {
+        'datasets': ['pond', 'nfix', 'supermat'],
+        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b'],
+        # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'mistral-7b':   ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_05',
+            'nfix': '2026_05_06',
+            'supermat': '2026_07_09',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'mistral-7b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'mistral-7b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'supermat': {
+                'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_06',
+                'mistral-7b': '2026_05_06',
+                'qwen-2.5-7b': '2026_05_06',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_05',
+                'mistral-7b': '2026_05_05',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'supermat': {
+                'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
+            },
+        },
+        'pi_te_estimate': None,
+    },
 
-# Extraction date per test dataset
-EXTRACTION_DATES = {
-    'pond': '2026_05_05',
-    'nfix': '2026_05_06',
+    # Previously analysis/calibration_llama.py
+    'llama-3.1-8b': {
+        'datasets': ['pond', 'nfix'],
+        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_04',
+            'nfix': '2026_05_05',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+        },
+        'pi_te_estimate': None,
+    },
+
+    # Previously analysis/calibration_gpt.py
+    'gpt-oss-120b': {
+        'datasets': ['pond', 'nfix'],
+        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
+        'judge_datasets': {
+            'llama-3.1-8b': ['pond', 'nfix'],
+            'qwen-2.5-7b':  ['pond', 'nfix'],
+        },
+        'extraction_dates': {
+            'pond': '2026_05_02',
+            'nfix': '2026_05_03',
+        },
+        'judge_dates_syn': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_04',
+                'qwen-2.5-7b': '2026_05_04',
+            },
+        },
+        'judge_dates_real': {
+            'pond': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+            'nfix': {
+                'llama-3.1-8b': '2026_05_13',
+                'qwen-2.5-7b': '2026_05_05',
+            },
+        },
+        'pi_te_estimate': 0.85,
+    },
 }
 
-# Judge date for synthetic test activations: {dataset: {judge_model: date_str | None}}
-# None → auto-detect latest
-JUDGE_DATES_SYN = {
-    'pond': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b': '2026_05_04',
-        'qwen-2.5-7b': '2026_05_04',
-    },
-    'nfix': {
-        'llama-3.1-8b': '2026_05_04',
-        'mistral-7b': '2026_05_04',
-        'qwen-2.5-7b': '2026_05_04',
-    },
-}
+DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
+DEFAULT_PROBE_TYPE = 'head'
 
-# Judge date for real activations: {test_dataset: {judge_model: date_str | None}}
-# None → auto-detect latest
-JUDGE_DATES_REAL = {
-    'pond': {
-        'llama-3.1-8b': '2026_05_06',
-        'mistral-7b': '2026_05_06',
-        'qwen-2.5-7b': '2026_05_06',
-    },
-    'nfix': {
-        'llama-3.1-8b': '2026_05_05',
-        'mistral-7b': '2026_05_05',
-        'qwen-2.5-7b': '2026_05_05',
-    },
-}
+
+def _env_list(name):
+    """Parse a comma- or space-separated env var into a list; None when unset/empty."""
+    raw = os.environ.get(name, '').replace(',', ' ').split()
+    return raw or None
+
+
+def _select_settings():
+    """Resolve the active extraction model from CLI flag → env var → default.
+
+    parse_known_args keeps this safe under import from a notebook or another
+    script, where sys.argv holds flags meant for something else.
+
+    ``--datasets`` / ``--judge-models`` (or CALIBRATION_DATASETS /
+    CALIBRATION_JUDGE_MODELS) narrow the selected entry to a subset.  Both the
+    probe cache and test_data are built eagerly at import over every dataset in
+    the entry, so narrowing is what lets this module import when only part of the
+    run data is present locally.  Omitting them leaves the entry unchanged.
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
+    parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
+    parser.add_argument('--datasets', nargs='+', default=None)
+    parser.add_argument('--judge-models', nargs='+', default=None)
+    args, _ = parser.parse_known_args()
+
+    model = (args.extraction_model
+             or os.environ.get('CALIBRATION_EXTRACTION_MODEL')
+             or DEFAULT_EXTRACTION_MODEL)
+    if model not in EXTRACTION_SETTINGS:
+        raise ValueError(
+            f'Unknown extraction model {model!r}; '
+            f'known: {sorted(EXTRACTION_SETTINGS)}'
+        )
+    probe_type = (args.probe_type
+                  or os.environ.get('CALIBRATION_PROBE_TYPE')
+                  or DEFAULT_PROBE_TYPE)
+
+    def _subset(selected, available, what):
+        unknown = [x for x in selected if x not in available]
+        if unknown:
+            raise ValueError(
+                f'Unknown {what} {unknown} for extraction model {model!r}; '
+                f'available: {available}'
+            )
+        return [x for x in available if x in selected]
+
+    settings = dict(EXTRACTION_SETTINGS[model])  # copy: never mutate the registry
+
+    datasets = args.datasets or _env_list('CALIBRATION_DATASETS')
+    if datasets:
+        settings['datasets'] = _subset(datasets, settings['datasets'], 'dataset')
+
+    judges = args.judge_models or _env_list('CALIBRATION_JUDGE_MODELS')
+    if judges:
+        settings['judge_models'] = _subset(judges, settings['judge_models'], 'judge model')
+
+    # judge_datasets drives the probe cache, so it has to be narrowed to match or the
+    # eager loading below still reaches for probes we just excluded.
+    settings['judge_datasets'] = {
+        jm: [ds for ds in dss if ds in settings['datasets']]
+        for jm, dss in settings['judge_datasets'].items()
+        if jm in settings['judge_models']
+    }
+    return model, probe_type, settings
+
+
+EXTRACTION_MODEL, PROBE_TYPE, _SETTINGS = _select_settings()
+
+DATASETS         = _SETTINGS['datasets']
+JUDGE_MODELS     = _SETTINGS['judge_models']
+JUDGE_DATASETS   = _SETTINGS['judge_datasets']
+EXTRACTION_DATES = _SETTINGS['extraction_dates']
+JUDGE_DATES_SYN  = _SETTINGS['judge_dates_syn']
+JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
+PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
+
+# All unordered dataset pairs, in a fixed canonical order — each pair gets its
+# own output subfolder so within/cross-domain plots stay readable as the
+# number of datasets grows.
+DATASET_PAIRS = list(itertools.combinations(DATASETS, 2))
+
+print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
+      f'| datasets: {DATASETS} | judges: {JUDGE_MODELS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
-EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6}  # minimum fuzzy weight to count as a match
+EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
 
 
 def get_matching_config(dataset):
@@ -121,16 +312,26 @@ def get_matching_config(dataset):
         strict = {'document_id': 'document_id', 'attribute': 'attribute',
                 'value': 'converted_value', 'units': 'units'}
         fuzzy  = {'name': 'name', 'site_type': 'site_type'}
+    elif dataset == 'supermat':
+        # tc is the only attribute; entity is the material name/formula.
+        # Many ground-truth `name` values are null → those rows fall back to
+        # strict-only matching on document_id + attribute + value + units.
+        strict = {'document_id': 'document_id', 'attribute': 'attribute',
+                'value': 'converted_value', 'units': 'units'}
+        fuzzy  = {'name': 'name'}
     else:
         raise ValueError(f'Unknown dataset: {dataset}')
     return strict, fuzzy
 
 
-# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop
+# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop.
+# Only load (dataset, judge) pairs that actually have a trained probe.
 ntp_cal_cache = {}
 for ds in DATASETS:
     ntp_cal_cache[ds] = {}
     for jm in JUDGE_MODELS:
+        if ds not in JUDGE_DATASETS[jm]:
+            continue
         ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm)
 
 
@@ -138,6 +339,8 @@ probe_cache = {}
 for ds in DATASETS:
     probe_cache[ds] = {}
     for jm in JUDGE_MODELS:
+        if ds not in JUDGE_DATASETS[jm]:
+            continue
         probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE)
 
 
@@ -150,6 +353,13 @@ def get_matching_config(dataset):
         strict = {'document_id': 'document_id', 'attribute': 'attribute',
                 'value': 'converted_value', 'units': 'units'}
         fuzzy  = {'name': 'name', 'site_type': 'site_type'}
+    elif dataset == 'supermat':
+        # tc is the only attribute; entity is the material name/formula.
+        # Many ground-truth `name` values are null → those rows fall back to
+        # strict-only matching on document_id + attribute + value + units.
+        strict = {'document_id': 'document_id', 'attribute': 'attribute',
+                'value': 'converted_value', 'units': 'units'}
+        fuzzy  = {'name': 'name'}
     else:
         raise ValueError(f'Unknown dataset: {dataset}')
     return strict, fuzzy
@@ -223,6 +433,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
         for judge_model in judge_models:
             setting_results[dataset_type][judge_model] = {}
             for train_ds in datasets:
+                if train_ds not in JUDGE_DATASETS[judge_model]:
+                    continue
                 setting_results[dataset_type][judge_model][train_ds] = {}
                 pd_data = probe_cache[train_ds][judge_model]
                 ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
@@ -232,6 +444,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                     top = pd_data['top_k_heads']
 
                 for test_ds in datasets:
+                    if test_ds not in JUDGE_DATASETS[judge_model]:
+                        continue
                     if dataset_type == 'syn':
                         jdate    = JUDGE_DATES_SYN[test_ds][judge_model]
                         syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test')
@@ -324,6 +538,16 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             ], axis=1)
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
+                    # Real extractions have a different positive rate than the synthetic
+                    # training set; rescale to the assumed test prevalence when one is set.
+                    if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
+                        probe_probs = intercept_adjustment(
+                            probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                        )
+                        ntp_probs = intercept_adjustment(
+                            ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                        )
+
                     setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                         'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
                         'edges': test_edges, 'n_ground_truth': n_ground_truth,
@@ -341,103 +565,130 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
 def plot_calibration_curves(
     setting_results, dtype
 ):
+    # One (within, cross) pair of plots per judge x dataset-pair, each written to
+    # its own subfolder, so a cross-domain plot never has to overlay more than
+    # the two datasets in that pair (avoids the 6-line cross-domain clutter that
+    # shows up once a third dataset is added).
     for judge_model in JUDGE_MODELS:
+        for pair in DATASET_PAIRS:
+            ds_a, ds_b = pair
+            if ds_a not in JUDGE_DATASETS[judge_model] or ds_b not in JUDGE_DATASETS[judge_model]:
+                continue
+            pair_datasets = [ds_a, ds_b]
+            pair_name = f"{ds_a}_{ds_b}"
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
+            subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
+            Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
-        subresults_dir = RESULTS_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subresults_dir).mkdir(parents=True, exist_ok=True)
+            subresults_dir = RESULTS_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
+            Path(subresults_dir).mkdir(parents=True, exist_ok=True)
 
-        for ctype in ['in-domain', 'cross-domain']:
-            # Base figure
-            fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-            ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
+            for ctype in ['in-domain', 'cross-domain']:
+                # Base figure
+                fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+                ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
 
-            for train_ds in DATASETS:
-                for test_ds in DATASETS:
-                    if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
-                        continue
+                for train_ds in pair_datasets:
+                    for test_ds in pair_datasets:
+                        if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
+                            continue
 
-                    color = _DS_COLORS[(train_ds, dtype)]
-                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-        
-                    # Probe — solid line with markers scaled by per-bin count
-                    d_prb = reliability_diagram_data(rdict['probe_probs'], rdict['labels'])
-                    v_prb = d_prb['bin_counts'] > 0
-                    _c_prb = d_prb['bin_counts'][v_prb].astype(float)
-                    _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
-                    _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
-                    ax_cal.plot(
-                        d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                        '-', color=color, lw=2.5, zorder=3,
-                    )
-                    ax_cal.scatter(
-                        d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                        s=_s_prb, color=color, zorder=4,
-                    )
+                        color = _DS_COLORS[train_ds]
+                        rdict = setting_results[dtype][judge_model][train_ds][test_ds]
 
-                    # Add error bands: SEM of accuracy within each bin (very subtle)
-                    bin_sems = d_prb['bin_accuracy_sem'][v_prb]
-                    conf_valid = d_prb['bin_confidence'][v_prb]
-                    acc_valid = d_prb['bin_accuracy'][v_prb]
+                        # Probe — solid line with markers scaled by per-bin count
+                        d_prb = reliability_diagram_data(rdict['probe_probs'], rdict['labels'])
+                        v_prb = d_prb['bin_counts'] > 0
+                        _c_prb = d_prb['bin_counts'][v_prb].astype(float)
+                        _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
+                        _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
+                        ax_cal.plot(
+                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
+                            '-', color=color, lw=2.5, zorder=3,
+                        )
+                        ax_cal.scatter(
+                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
+                            s=_s_prb, color=color, zorder=4,
+                        )
 
-                    ax_cal.fill_between(
-                        conf_valid,
-                        acc_valid - bin_sems,
-                        acc_valid + bin_sems,
-                        color=color, alpha=0.20, linewidth=0, zorder=2
-                    )
+                        # Add error bands: SEM of accuracy within each bin (very subtle)
+                        bin_sems = d_prb['bin_accuracy_sem'][v_prb]
+                        conf_valid = d_prb['bin_confidence'][v_prb]
+                        acc_valid = d_prb['bin_accuracy'][v_prb]
 
-                    # NTP baseline — dashed, markers scaled by per-bin count
-                    d_ntp = reliability_diagram_data(rdict['ntp_probs'], rdict['labels'])
-                    v_ntp = d_ntp['bin_counts'] > 0
-                    _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
-                    _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
-                    _s_ntp = 12 + 68 * _f_ntp
-                    ax_cal.plot(
-                        d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                        '--', color=color, lw=2.0, alpha=1.0, zorder=1,
-                    )
-                    ax_cal.scatter(
-                        d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                        s=_s_ntp, color=color, alpha=1.0, zorder=2,
-                    )
+                        ax_cal.fill_between(
+                            conf_valid,
+                            acc_valid - bin_sems,
+                            acc_valid + bin_sems,
+                            color=color, alpha=0.20, linewidth=0, zorder=2
+                        )
 
-                    # Add error bands: SEM of accuracy within each bin (very subtle)
-                    bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
-                    conf_valid = d_ntp['bin_confidence'][v_ntp]
-                    acc_valid = d_ntp['bin_accuracy'][v_ntp]
+                        # NTP baseline — dashed, markers scaled by per-bin count
+                        d_ntp = reliability_diagram_data(rdict['ntp_probs'], rdict['labels'])
+                        v_ntp = d_ntp['bin_counts'] > 0
+                        _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
+                        _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
+                        _s_ntp = 12 + 68 * _f_ntp
+                        ax_cal.plot(
+                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                            '--', color=color, lw=2.0, alpha=1.0, zorder=1,
+                        )
+                        ax_cal.scatter(
+                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
+                            s=_s_ntp, color=color, alpha=1.0, zorder=2,
+                        )
 
-                    ax_cal.fill_between(
-                        conf_valid,
-                        acc_valid - bin_sems,
-                        acc_valid + bin_sems,
-                        color=color, alpha=0.20, linewidth=0, zorder=2
-                    )
+                        # Add error bands: SEM of accuracy within each bin (very subtle)
+                        bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
+                        conf_valid = d_ntp['bin_confidence'][v_ntp]
+                        acc_valid = d_ntp['bin_accuracy'][v_ntp]
 
-            ax_cal.set_xlim(-0.02, 1.02)
-            ax_cal.set_ylim(-0.02, 1.02)
-            ax_cal.set_xlabel('Predicted Probability')
+                        ax_cal.fill_between(
+                            conf_valid,
+                            acc_valid - bin_sems,
+                            acc_valid + bin_sems,
+                            color=color, alpha=0.20, linewidth=0, zorder=2
+                        )
 
-            if ctype == 'in-domain':
-                ax_cal.set_ylabel('Observed Frequency')
-                ax_cal.set_title(f'Within', fontsize=15, style='italic')
-            else:
-                ax_cal.set_ylabel('')
-                ax_cal.set_title(f'Cross', fontsize=15, style='italic')
-                
-            ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-            ax_cal.set_axisbelow(True)
-            fig_cal.tight_layout()
-            fig_cal.savefig(
-                subfigure_dir / f'cal_{dtype}_{ctype}.pdf', bbox_inches='tight', dpi = 200
-            )
-            plt.show()
+                ax_cal.set_xlim(-0.02, 1.02)
+                ax_cal.set_ylim(-0.02, 1.02)
+                ax_cal.set_xlabel('Predicted Probability')
+
+                if ctype == 'in-domain':
+                    ax_cal.set_ylabel('Observed Frequency')
+                    ax_cal.set_title(f'Within', fontsize=15, style='italic')
+                else:
+                    ax_cal.set_ylabel('')
+                    ax_cal.set_title(f'Cross', fontsize=15, style='italic')
+
+                ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+                ax_cal.set_axisbelow(True)
+                fig_cal.tight_layout()
+                fig_cal.savefig(
+                    subfigure_dir / f'cal_{dtype}_{ctype}.pdf', bbox_inches='tight', dpi = 200
+                )
+                plt.show()
+
+
+# Bootstrap settings for ECE confidence intervals.
+ECE_N_BOOT = 2000
+ECE_CI     = 0.95
+ECE_SEED   = 0
 
 
 def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=None):
-    """Compute metrics at a fixed threshold. Returns dict."""
+    """Compute metrics at a fixed threshold. Returns dict.
+
+    Calibration error is reported in three variants, each with a bootstrap
+    confidence interval (percentile, ``ECE_N_BOOT`` resamples):
+      - ``ece``      — L1 ECE, equal-width bins, plug-in (matches the
+                       reliability-diagram ECE used in the calibration plots).
+      - ``ece_em``   — L1 ECE, adaptive equal-mass (quantile) bins, plug-in.
+      - ``rmsce_db`` — debiased L2 RMS calibration error on equal-mass bins
+                       (Kumar, Liang & Ma, NeurIPS 2019).  Distinct metric /
+                       scale from the L1 columns; the only provably-unbiased one.
+    Each variant ``X`` carries ``X_lo`` / ``X_hi`` interval bounds.
+    """
     probs   = np.asarray(probs)
     y_true  = np.asarray(y_true, dtype=bool)
     preds   = probs > threshold
@@ -451,14 +702,25 @@ def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=N
     rec   = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
     f1    = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else float('nan')
     auroc = roc_auc_score(y_true, probs) if y_true.sum() > 0 and (~y_true).sum() > 0 else float('nan')
-    ece   = reliability_diagram_data(probs, y_true)['ece']
+
+    # ── Calibration-error variants with bootstrap CIs ────────────────────
+    ece_ew = bootstrap_ece(probs, y_true, binning='equal_width', p=1,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+    ece_em = bootstrap_ece(probs, y_true, binning='equal_mass', p=1,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+    rmsce  = bootstrap_ece(probs, y_true, binning='equal_mass', p=2, debiased=True,
+                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
+
     bs    = float(brier_score_loss(y_true, probs))
     p_pos = float(y_true.mean())
     bss   = 1.0 - bs / (p_pos * (1 - p_pos)) if p_pos not in (0.0, 1.0) else float('nan')
     recovery = recovery_rate_from_labels(n_ground_truth, edges, preds) if edges is not None else float('nan')
     validity = validity_rate_from_labels(y_true, preds)
     return dict(acc=acc, prec=prec, rec=rec, f1=f1, auroc=auroc,
-                ece=ece, bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
+                ece=ece_ew['ece'],         ece_lo=ece_ew['ci_low'],    ece_hi=ece_ew['ci_high'],
+                ece_em=ece_em['ece'],      ece_em_lo=ece_em['ci_low'], ece_em_hi=ece_em['ci_high'],
+                rmsce_db=rmsce['ece'],     rmsce_db_lo=rmsce['ci_low'], rmsce_db_hi=rmsce['ci_high'],
+                bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
 
 
 def compute_metrics(setting_results):
@@ -484,7 +746,18 @@ def compute_metrics(setting_results):
                             'Recall':        m['rec'],
                             'F1':            m['f1'],
                             'AUROC':         m['auroc'],
+                            # L1 ECE, equal-width plug-in + bootstrap CI
                             'ECE':           m['ece'],
+                            'ECE_lo':        m['ece_lo'],
+                            'ECE_hi':        m['ece_hi'],
+                            # L1 ECE, adaptive equal-mass plug-in + bootstrap CI
+                            'ECE_em':        m['ece_em'],
+                            'ECE_em_lo':     m['ece_em_lo'],
+                            'ECE_em_hi':     m['ece_em_hi'],
+                            # Debiased L2 RMS calibration error (Kumar 2019), equal-mass + CI
+                            'RMSCE_db':      m['rmsce_db'],
+                            'RMSCE_db_lo':   m['rmsce_db_lo'],
+                            'RMSCE_db_hi':   m['rmsce_db_hi'],
                             'Recovery':      m['recovery'],
                             'Validity':      m['validity'],
                         })
@@ -507,6 +780,8 @@ def plot_pr_curves(setting_results, dtype):
             for ctype in ['in-domain', 'cross-domain']:
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
+                        continue
+                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
                         continue
 
                     fig_pr, ax_pr = plt.subplots(figsize=(4.0, 3.8))
@@ -567,6 +842,8 @@ def plot_validity_recovery(setting_results, dtype):
             for ctype in ['in-domain', 'cross-domain']:
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
+                        continue
+                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
                         continue
 
                     fig, ax = plt.subplots(figsize=(4.0, 3.8))
@@ -656,8 +933,10 @@ def plot_validity_recovery(setting_results, dtype):
 
 
 if __name__ == "__main__":
-    # Set to True to load precomputed results if available, False to recompute from scratch
-    load_from_precomputed = True
+    # Set to True to load precomputed results if available, False to recompute from scratch.
+    # NOTE: the cache is keyed only by (extraction_model, probe_type), so a cache built
+    # before supermat was added is stale — run once with False to regenerate, then flip back.
+    load_from_precomputed = False
     
     setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
     plot_calibration_curves(setting_results, dtype='syn')
@@ -674,8 +953,9 @@ if __name__ == "__main__":
 
     # ── Standalone calibration legend ─────────────────────────────────────────────
     _legend_handles = [
-        mlines.Line2D([], [], color=palette[7], lw=2, marker='o', ms=3.5, label='PLW'),
-        mlines.Line2D([], [], color=palette[1], lw=2, marker='o', ms=3.5, label='NF'),
+        mlines.Line2D([], [], color=_DS_COLORS[ds], lw=2, marker='o', ms=3.5, label=_DS_LABELS[ds])
+        for ds in DATASETS
+    ] + [
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
         mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
     ]

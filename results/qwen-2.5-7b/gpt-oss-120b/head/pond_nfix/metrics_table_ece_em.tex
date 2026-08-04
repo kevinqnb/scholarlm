@@ -1,0 +1,22 @@
+\begin{table}[ht]
+\centering
+\begin{tabular}{ll cc}
+\toprule
+& & Synthetic & Extracted \\
+\midrule
+\multirow{4}{*}{\textit{Within}}
+& PLW NTP & 0.12 $\pm$ 0.01 & 0.05 $\pm$ 0.01 \\
+& PLW Probe & 0.06 $\pm$ 0.01 & 0.03 $\pm$ 0.01 \\
+& NF NTP & 0.09 $\pm$ 0.02 & 0.08 $\pm$ 0.02 \\
+& NF Probe & 0.09 $\pm$ 0.02 & 0.06 $\pm$ 0.02 \\
+\midrule
+\multirow{4}{*}{\textit{Cross}}
+& PLW NTP & 0.13 $\pm$ 0.02 & 0.11 $\pm$ 0.02 \\
+& PLW Probe & 0.07 $\pm$ 0.02 & 0.07 $\pm$ 0.02 \\
+& NF NTP & 0.14 $\pm$ 0.01 & 0.04 $\pm$ 0.01 \\
+& NF Probe & 0.04 $\pm$ 0.01 & 0.05 $\pm$ 0.01 \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{Expected Calibration Error (adaptive equal-mass bins, plug-in) (\texttt{qwen-2.5-7b}).} Probe and NTP validation probabilities evaluated within and cross-domain between PLW and NF for synthetic and real, extraction test settings. Intervals are 95\% bootstrap confidence intervals. Extracted measurements collected from \texttt{gpt-oss-120b}.}
+\label{tab:qwen-2.5-7b-gpt-oss-120b-pond_nfix-ece_em}
+\end{table}

@@ -59,6 +59,7 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
     dtype: str | None = serve.get("dtype")
     sif_image: str = serve.get("sif_image", "vllm-openai_latest.sif")
     seed: int = defaults.get("seed", 342)
+    extra_vllm_args: list[str] = serve.get("extra_vllm_args", [])
 
     # -----------------------------------------------------------------------
     # SGE project directive (omit the line entirely if not configured)
@@ -83,6 +84,12 @@ def _generate(model_key: str, model_cfg: dict, defaults: dict, cluster: dict) ->
         f"        --seed {seed}",
         "        --trust-remote-code",
     ]
+    # extra_vllm_args is embedded inside an outer double-quoted `bash -c "..."`
+    # block below, so any literal `"` in an arg (e.g. a JSON-valued flag like
+    # --limit-mm-per-prompt '{"image": 20}') must be escaped here, once,
+    # centrally — config.yaml authors should write the natural, unescaped
+    # shell string and not have to reason about the bash-in-bash nesting.
+    vllm_flags += [f"        {arg.replace(chr(34), chr(92) + chr(34))}" for arg in extra_vllm_args]
     vllm_cmd = " \\\n".join(vllm_flags)
 
     # -----------------------------------------------------------------------

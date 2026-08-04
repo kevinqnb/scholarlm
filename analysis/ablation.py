@@ -29,6 +29,39 @@ def get_matching_rules(dataset):
             {"name": "name", "site_type": "site_type"},
             1/6,
         )
+    elif 'supermat' in dataset:
+        return (
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
+            {"name": "name"},
+            1/3,
+        )
+    elif 'measeval' in dataset:
+        # attribute strict-matches trivially: both sides carry the constant
+        # "measurement" (see experiments/configs/measeval.py). The real open-
+        # vocabulary property name lives in `property`, fuzzy-matched alongside
+        # `name`. Both are measurement-event fields under the quantity-first
+        # design (the entity is the quantity itself -- see the config's module
+        # docstring); they are plain columns of the final record either way, so
+        # these rules are deliberately UNCHANGED by that redesign and runs
+        # before/after it stay directly comparable. Units are open free text here
+        # (attribute_info_dict's "measurement" bucket has units=[]) rather than
+        # drawn from a fixed per-attribute vocabulary like pond/nfix/supermat,
+        # so strict unit matching is more likely to undercount than for those
+        # datasets -- kept anyway for consistency, but treat measeval validity/
+        # recovery numbers as a conservative lower bound until that's revisited.
+        #
+        # Threshold 1/6 (as with nfix's 2 fuzzy fields) is deliberately lenient:
+        # property is null on ~36% of ground-truth rows, so a real match often
+        # has to carry its score on name alone. Note ~1% of ground-truth rows
+        # have BOTH name and property null -- match_datasets drops an edge
+        # outright when every fuzzy field is null on either side, so those rows
+        # are structurally unrecoverable regardless of threshold (see
+        # data/measeval/README.md).
+        return (
+            {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
+            {'name': 'name', 'property': 'property'},
+            1/6,
+        )
     else:
         raise ValueError(f"Dataset not recognized: {dataset}")
 
@@ -39,7 +72,17 @@ def process_extraction_df(extraction_df, dataset, config):
 
     # Unitless attributes should have units set to None to avoid matching issues
     extraction_df.loc[extraction_df.attribute == 'ph', 'units'] = None
-    
+
+    # An empty (or whitespace-only) units string means "no unit", exactly like
+    # None -- but match_datasets' strict comparison disagrees: pd.isna("") is
+    # False, so "" != None and the candidate edge is dropped even when the
+    # document, value and everything else agree. Models emit both spellings
+    # interchangeably (10 of 124 rows in measeval's ten-doc quantity-first run),
+    # so normalize to None before matching. Ground truth carries None already.
+    extraction_df['units'] = extraction_df['units'].apply(
+        lambda u: None if isinstance(u, str) and not u.strip() else u
+    )
+
     if 'nfix' in dataset:
         extraction_df['attribute'] = extraction_df['attribute'].map({
             'nfix_rate_areal': 'nfix_rate',
@@ -47,7 +90,7 @@ def process_extraction_df(extraction_df, dataset, config):
             'nfix_rate_mass': 'nfix_rate',
             'nfix_rate': 'nfix_rate'
         })
-    
+
     return extraction_df
 
 
@@ -79,6 +122,7 @@ def compute_ablation_metrics(dataset, ablations_config):
             try:
                 baseline_judged = pd.DataFrame(load_combined_judgements(dataset, model, baseline_date))
             except FileNotFoundError:
+                print(f"    Baseline judgements not found for {dataset}, {model}, {baseline_date}. Skipping validity computation.")
                 baseline_judged = None
 
             cached_match(
@@ -210,6 +254,18 @@ def main():
             'llama-3.1-8b': {'baseline': '2026_05_05', '1': '2026_05_07', '2': '2026_05_08', '3': '2026_05_07', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_07'},
             'gemma-3-27b': {'baseline': '2026_05_06', '1': '2026_05_07', '2': '2026_05_07', '3': '2026_05_07', '4': '2026_05_07', '5': '2026_05_07', '6': '2026_05_07'},
             'gpt-oss-120b': {'baseline': '2026_05_03', '1': '2026_05_06', '2': '2026_05_06', '3': '2026_05_06', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_08'},
+        },
+        'supermat': {
+            'gemma-3-27b': {'baseline': '2026_07_09', '1': None, '2': None, '3': None, '4': None, '5': None, '6': None},
+        },
+        # No runs yet -- fill in dates as they're produced. Ablation 2 omitted
+        # entirely (not '2': None): it's structurally disabled for measeval
+        # (ablation2_entity_schema is None in experiments/configs/measeval.py),
+        # so run_ablation.py --ablation 2 will raise rather than produce a run
+        # to fill in here. Remember every measeval command needs
+        # --ocr-dir data/measeval/ocr_output_raw (see data/measeval/README.md).
+        'measeval': {
+            'gemma-3-27b': {'baseline': None, '1': None, '3': None, '4': None, '5': None, '6': None},
         },
     }
     

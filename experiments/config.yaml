@@ -183,6 +183,48 @@ models:
       walltime: "24:00:00"
       omp: 8
 
+  # Baseline comparison model (not part of MODEL_REGISTRY / the standard
+  # extraction or ablation pipeline) — see experiments/model_registry.py's
+  # BASELINE_MODEL_REGISTRY and experiments/run_baseline_nuextract.py.
+  # Vision-language model: needs --trust-remote-code (already added
+  # unconditionally by gen_serve_script.py) plus two NuExtract-specific flags
+  # below. --chat-template-content-format openai is required — vLLM does not
+  # auto-detect the correct chat template for this model.
+  # NuExtract's own chat template only ever emits one image placeholder per
+  # message regardless of how many image_url blocks are attached (confirmed
+  # against the actual chat_template.json — the image branch short-circuits
+  # after the first image), so measurementlm_nuextract.py sends exactly one
+  # page per request. --limit-mm-per-prompt is set to 2 (1 plus headroom)
+  # rather than the page count of the longest document.
+  # gpu_memory/gpu_capability/max_model_len are first-pass estimates (bf16
+  # weights are ~15GB; a single page image + short template/examples prompt
+  # needs far less context than a whole-document request would) — verify and
+  # tune against actual serve behavior.
+  nuextract-2.0-8b:
+    model_id: numind/NuExtract-2.0-8B
+    hf_revision: null
+    sampling_params:
+      temperature: 0.0
+      max_tokens: 4096
+      seed: 342
+    serve:
+      port: 8081
+      max_model_len: 16384
+      gpu_memory_utilization: 0.90
+      quantization: null
+      dtype: bfloat16
+      sif_image: vllm-openai_v0.19.0.sif
+      extra_vllm_args:
+        - "--chat-template-content-format openai"
+        # vLLM expects a JSON object here (not the older image=20 shorthand);
+        # gen_serve_script.py handles escaping the embedded quotes for the
+        # generated script's bash-in-bash nesting — write this literally.
+        - "--limit-mm-per-prompt '{\"image\": 2}'"
+      gpu_memory: 48G
+      gpu_capability: 8.0
+      walltime: "48:00:00"
+      omp: 8
+
 # Mechanistic interpretability models:
 interp_judges:
   llama-3.1-8b:

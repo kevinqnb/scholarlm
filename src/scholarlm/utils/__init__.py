@@ -16,5 +16,5 @@ from .data import (
 )
 
 from .probe import grouped_holdout_split, grouped_kfold_split
-from .calibration import compute_ece, reliability_diagram_data, intercept_adjustment
+from .calibration import compute_ece, bootstrap_ece, reliability_diagram_data, intercept_adjustment
 from .unit_conversion import apply_unit_conversion
