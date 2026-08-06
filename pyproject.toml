@@ -43,6 +43,7 @@ dependencies = [
     "matplotlib>=3.10.8",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.6",
+    "relplot>=1.0.3",
 ]
 
 [project.optional-dependencies]

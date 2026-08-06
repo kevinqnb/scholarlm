@@ -183,6 +183,35 @@ models:
       walltime: "24:00:00"
       omp: 8
 
+  # OCR model (not part of MODEL_REGISTRY — see experiments/run_ocr.py's
+  # OCR_MODEL_REGISTRY, which holds the prompt and output directory name that
+  # this block can't express). ~5.3B params (measured from model.safetensors;
+  # HF page says 5B, GitHub release notes say 4B), bf16, no quantization.
+  # architectures: Qwen3_5ForConditionalGeneration — confirmed present in
+  # ModelRegistry.get_supported_archs() for vllm-openai_v0.19.0/v0.22.0/v0.24.0.sif
+  # (v0.10.1/v0.12.0 do not support it). max_model_len/sampling params follow
+  # datalab's own vLLM launcher script (chandra/scripts/vllm.py: --max-model-len
+  # 18000, --dtype bfloat16), with headroom to spare given process_pdf's
+  # target_longest_dim=2048.
+  chandra-ocr-2:
+    model_id: datalab-to/chandra-ocr-2
+    hf_revision: null
+    sampling_params:
+      temperature: 0.1
+      max_tokens: 8192
+      seed: 342
+    serve:
+      port: 8081
+      max_model_len: 20480
+      gpu_memory_utilization: 0.90
+      quantization: null
+      dtype: bfloat16
+      sif_image: vllm-openai_v0.24.0.sif
+      gpu_memory: 24G
+      gpu_capability: 8.0
+      walltime: "24:00:00"
+      omp: 8
+
   # Baseline comparison model (not part of MODEL_REGISTRY / the standard
   # extraction or ablation pipeline) — see experiments/model_registry.py's
   # BASELINE_MODEL_REGISTRY and experiments/run_baseline_nuextract.py.

@@ -61,8 +61,8 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 #JUDGE_DATE_SYN = '2026_05_04'           # auto-detect latest synthetic probe run
 
 DATASETS        = ['supermat']
-JUDGE_MODELS    = ['qwen-2.5-7b']   # must match the judge used for the synthetic run
-JUDGE_DATE_SYN = '2026_07_10'           # auto-detect latest synthetic probe run
+JUDGE_MODELS    = ['qwen-2.5-7b-base']   # must match the judge used for the synthetic run
+JUDGE_DATE_SYN = '2026_08_05'           # auto-detect latest synthetic probe run
 
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
@@ -91,6 +91,8 @@ def cv_score(probe, X, y, kfold_cv):
 for DATASET in DATASETS:
     for JUDGE_MODEL in JUDGE_MODELS:
         print(f'\n{"="*60}\nDataset: {DATASET}   Judge: {JUDGE_MODEL}\n{"="*60}')
+
+        Path(FIGURES_DIR, JUDGE_MODEL).mkdir(parents=True, exist_ok=True)
 
         # ─────────────────────────────────────────────────────────────────
         syn_activations = load_synthetic_activations(DATASET, JUDGE_MODEL, JUDGE_DATE_SYN, split='train')

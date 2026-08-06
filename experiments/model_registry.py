@@ -193,6 +193,15 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         "nnsight_kwargs": {"torch_dtype": _bfloat16},
         "sampling_params": {"do_sample": False, "max_new_tokens": 1},
     },
+    "qwen-2.5-7b-base": {
+        "model_id": "Qwen/Qwen2.5-7B",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
+        # Non-instruction-tuned model; its tokenizer inherits a ChatML template
+        # from the Instruct sibling that it was never trained to follow, so
+        # apply_chat_template is skipped (see JudgementLM.use_chat_template).
+        "use_chat_template": False,
+    },
 
 }
 

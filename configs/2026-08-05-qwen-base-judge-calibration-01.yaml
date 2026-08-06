@@ -1,0 +1,34 @@
+id: 2026-08-05-qwen-base-judge-calibration-01
+project: scholarlm
+description: >-
+  Compare the non-instruction-tuned qwen-2.5-7b-base judge (Qwen/Qwen2.5-7B)
+  against the qwen-2.5-7b Instruct judge for ECE calibration, on the
+  gemma-3-27b extraction across pond/nfix/supermat.
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow -- it only
+  # supports entry_point extraction|ablation. This config documents the run
+  # for reproducibility; every step below is invoked directly via this repo's
+  # native entry points, per the note's Setup section.
+  entry_point: manual
+  extraction_model: gemma-3-27b
+  datasets: [pond, nfix, supermat]
+  extraction_dates:
+    pond: "2026_05_05"
+    nfix: "2026_05_06"
+    supermat: "2026_07_09"
+  baseline_judge: qwen-2.5-7b
+  new_judge: qwen-2.5-7b-base
+  new_judge_model_id: Qwen/Qwen2.5-7B
+  # Qwen/Qwen2.5-7B's tokenizer inherits a ChatML template from the Instruct
+  # sibling that the base model was never trained to follow; applying it would
+  # be a silent prompt-format confound rather than a fair "same prompt"
+  # comparison, so the new judge skips it (JudgementLM.use_chat_template).
+  use_chat_template: false
+  probe_type: head
+  steps:
+    - "run_judge_interp.py --dataset <ds> --synthetic --judge qwen-2.5-7b-base"
+    - "analysis/synthetic_probe_train.py (hand-edit DATASETS/JUDGE_MODELS/JUDGE_DATE_SYN per dataset)"
+    - "run_judge_interp.py --dataset <ds> --extraction-model gemma-3-27b --judge qwen-2.5-7b-base --extraction-date <extraction_dates[ds]>"
+    - "run_judge_combine.py --dataset <ds> --extraction-model gemma-3-27b --extraction-date <extraction_dates[ds]>"
+    - "analysis/calibration.py --extraction-model gemma-3-27b --judge-models qwen-2.5-7b qwen-2.5-7b-base"

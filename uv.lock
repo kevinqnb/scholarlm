@@ -577,6 +577,18 @@ wheels = [
 ]
 
 [[package]]
+name = "deprecation"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
+]
+
+[[package]]
 name = "dill"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3445,6 +3457,24 @@ wheels = [
 ]
 
 [[package]]
+name = "relplot"
+version = "1.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "deprecation" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "seaborn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/df/df/9becaad4f326a8888b7aaca66cc4383e82ca198be614b12ba0c3f2e41190/relplot-1.0.3.tar.gz", hash = "sha256:838f3681ffcc9ffcdc3521a162fed6908830075e5ba4b21d66a8c1db2bdd4999", size = 19011, upload-time = "2025-11-04T17:24:15.973Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/12/2bacb856a27293be5ab420db8ffb52e9fff44f1cc6869d1fd1f78267e132/relplot-1.0.3-py3-none-any.whl", hash = "sha256:a807187018207d7215311271d81ec10161f27338b3555f6cfbe1b33a32e2f35e", size = 17740, upload-time = "2025-11-04T17:24:14.567Z" },
+]
+
+[[package]]
 name = "requests"
 version = "2.32.5"
 source = { registry = "https://pypi.org/simple" }
@@ -3656,6 +3686,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "rapidfuzz" },
     { name = "rapidocr" },
+    { name = "relplot" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "seaborn" },
@@ -3718,6 +3749,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.0" },
     { name = "rapidfuzz", specifier = ">=3.14.1" },
     { name = "rapidocr", specifier = ">=3.4.2" },
+    { name = "relplot", specifier = ">=1.0.3" },
     { name = "scikit-learn", specifier = ">=1.5.0" },
     { name = "scipy", specifier = ">=1.16.2" },
     { name = "seaborn", specifier = ">=0.13.2" },

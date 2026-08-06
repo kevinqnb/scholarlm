@@ -1,10 +1,14 @@
 """
 OCR pipeline runner.
 
-Runs olmOCR on all PDF files for a dataset by calling a running vLLM server
-(OpenAI-compatible API), writing plain-text output to:
+Runs an OCR model (default: olmOCR) on all PDF files for a dataset by calling a
+running vLLM server (OpenAI-compatible API), writing plain-text output to:
 
-    data/{dataset}/ocr_output_raw/
+    data/{dataset}/{output_dir}/
+
+where ``output_dir`` is model-specific (see ``OCR_MODEL_REGISTRY`` below); olmOCR's
+is ``ocr_output_raw`` for backward compatibility with every other script that reads
+it by that name.
 
 Start the OCR model server first (default endpoint: ``http://localhost:8081/v1``).
 
@@ -19,11 +23,16 @@ Usage
     python experiments/run_ocr.py --dataset pond \\
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
+    # A non-default OCR model (must be servable per experiments/config.yaml):
+    python experiments/run_ocr.py --dataset pond --model chandra-ocr-2
+
     # Point at a non-default server:
     python experiments/run_ocr.py --dataset pond \\
         --api-base http://node042:8081/v1
 
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available models:   keys of OCR_MODEL_REGISTRY in this file (each must also have a
+                     matching block under ``models.<key>`` in experiments/config.yaml).
 """
 from __future__ import annotations
 
@@ -49,6 +58,38 @@ from utils import load_config, set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
+# OCR model registry
+#
+# Holds what experiments/config.yaml's models.<key> blocks can't express:
+# the OCR prompt and the output directory name. model_id / sampling_params /
+# serve settings live in config.yaml (mirroring how run_ocr.py already reads
+# olmOCR), not here — this is not an extraction model, so it doesn't belong
+# in model_registry.py's MODEL_REGISTRY either.
+#
+# olmOCR's output_dir is "ocr_output_raw" and must never change: it's read by
+# that literal name from run_extraction.py, run_ablation.py, run_table_cleaning.py,
+# run_judge_local.py, run_judge_interp.py, both baseline runners,
+# analysis/ablation.py, experiments/validation.py, and several datasets'
+# preprocessing.py / create_probe_dataset.py.
+# ---------------------------------------------------------------------------
+
+OCR_MODEL_REGISTRY: dict[str, dict] = {
+    "olmocr": {
+        "prompt": olmocr_prompt(),
+        "output_dir": "ocr_output_raw",
+    },
+    "chandra-ocr-2": {
+        # None -> DocumentLM's default markdown-with-html-tables prompt.
+        # chandra's own repo (chandra/prompts.py) recommends an HTML
+        # layout-block prompt instead; swap this in if the default prompt's
+        # output proves degenerate.
+        "prompt": None,
+        "output_dir": "ocr_output_chandra_ocr_2",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
 
@@ -57,18 +98,23 @@ def run_ocr(
     dataset_config,
     model_id: str,
     sampling_params: dict,
+    ocr_prompt: str | None = None,
+    output_dirname: str = "ocr_output_raw",
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     processed_pdfs_dir: str | None = None,
 ) -> None:
-    """Run olmOCR on all PDFs for a dataset via a vLLM server.
+    """Run an OCR model on all PDFs for a dataset via a vLLM server.
 
     Args:
         dataset_config: Dataset configuration loaded from experiments/configs/.
         model_id: HuggingFace model ID string (must match what the server is serving).
         sampling_params: Sampling parameters forwarded to DocumentLM.
+        ocr_prompt: System prompt for the OCR task. ``None`` uses DocumentLM's
+            default markdown prompt.
+        output_dirname: Name of the output directory under ``{data_dir}/``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the server (use "EMPTY" for local vLLM).
         paper_subset_override: If provided, process only these paper codes
@@ -81,7 +127,7 @@ def run_ocr(
     """
     data_dir = Path(dataset_config.data_dir)
     pdf_dir = data_dir / "pdfs"
-    output_dir = data_dir / "ocr_output_raw"
+    output_dir = data_dir / output_dirname
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pdf_files = get_filenames_in_directory(str(pdf_dir), ignore=[".DS_Store", ".gitkeep"])
@@ -116,7 +162,7 @@ def run_ocr(
 
     doclm = DocumentLM(
         model_name=model_id,
-        ocr_prompt=olmocr_prompt(),
+        ocr_prompt=ocr_prompt,
         sampling_params=sampling_params,
         api_base=api_base,
         api_key=api_key,
@@ -144,7 +190,7 @@ def run_ocr(
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Run olmOCR on all PDFs for a dataset via a vLLM server.",
+        description="Run an OCR model on all PDFs for a dataset via a vLLM server.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -152,6 +198,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--dataset",
         required=True,
         help="Dataset name (must match a file in experiments/configs/<name>.py).",
+    )
+    p.add_argument(
+        "--model",
+        default="olmocr",
+        choices=sorted(OCR_MODEL_REGISTRY.keys()),
+        help="OCR model key from OCR_MODEL_REGISTRY (default: olmocr).",
     )
     p.add_argument(
         "--paper-subset",
@@ -204,9 +256,18 @@ def main(argv: list[str] | None = None) -> None:
     seed = cfg.get("defaults", {}).get("seed", 342)
     set_seeds(seed)
 
-    ocr_cfg = cfg.get("models", {}).get("olmocr", {})
-    model_id = ocr_cfg.get("model_id", "allenai/olmOCR-7B-0225-preview")
+    if args.model not in cfg.get("models", {}):
+        raise KeyError(
+            f"No 'models.{args.model}' block in experiments/config.yaml. "
+            f"Available: {sorted(cfg.get('models', {}).keys())}"
+        )
+    ocr_cfg = cfg["models"][args.model]
+    model_id = ocr_cfg["model_id"]
     sampling_params = ocr_cfg.get("sampling_params", {"temperature": 0.1, "max_tokens": 8192, "seed": 342})
+
+    registry_entry = OCR_MODEL_REGISTRY[args.model]
+    ocr_prompt = registry_entry["prompt"]
+    output_dirname = registry_entry["output_dir"]
 
     dataset_config = load_dataset_config(args.dataset)
 
@@ -220,6 +281,8 @@ def main(argv: list[str] | None = None) -> None:
         dataset_config=dataset_config,
         model_id=model_id,
         sampling_params=sampling_params,
+        ocr_prompt=ocr_prompt,
+        output_dirname=output_dirname,
         api_base=args.api_base,
         api_key=args.api_key,
         paper_subset_override=args.paper_subset,
