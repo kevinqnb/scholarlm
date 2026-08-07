@@ -10,6 +10,13 @@ Defines registries imported by the various runner scripts:
     INTERP_JUDGE_REGISTRY   — NNsight/JudgementLM judge models; used by
                               run_judge_interp.py.
 
+    JACOBIAN_LENS_REGISTRY  — NNsight/JacobianLensLM models; used by
+                              run_jacobian_lens.py. Kept separate from
+                              INTERP_JUDGE_REGISTRY because JacobianLensLM never
+                              generates (no sampling_params) and is paired with a
+                              specific pretrained Jacobian-lens artifact fit for
+                              that exact model checkpoint.
+
     VLLM_JUDGE_REGISTRY     — vLLM judge models; used by
                               run_judge_local.py.
 
@@ -203,6 +210,29 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         "use_chat_template": False,
     },
 
+}
+
+
+# ---------------------------------------------------------------------------
+# Jacobian-lens registry
+#
+# Used by run_jacobian_lens.py (as MODEL_REGISTRY). Each entry pairs a base
+# model with the nnsight kwargs to load it; the pretrained Jacobian-lens
+# artifact itself is a separate, required CLI argument (--jacobian-lens-path),
+# not part of this registry, since one model can in principle have lenses
+# fit against different training corpora.
+# ---------------------------------------------------------------------------
+
+JACOBIAN_LENS_REGISTRY: dict[str, dict] = {
+    "llama-3.1-8b-base": {
+        "model_id": "meta-llama/Llama-3.1-8B",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        # Base model; its tokenizer inherits a chat template from the Instruct
+        # sibling that it was never trained to follow, so apply_chat_template is
+        # skipped (see JacobianLensLM.use_chat_template / JudgementLM's identical
+        # rationale for qwen-2.5-7b-base).
+        "use_chat_template": False,
+    },
 }
 
 
