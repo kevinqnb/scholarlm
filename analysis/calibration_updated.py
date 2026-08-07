@@ -603,11 +603,29 @@ def _pool_cross_domain(train_dict, train_ds):
     }
 
 
+# Bootstrap settings for ECE confidence intervals (also reused to seed
+# relplot's own internal bootstraps, which take no seed argument of their
+# own — see the seeding note in _plot_relplot_curve/_probe_metrics below).
+ECE_N_BOOT = 2000
+ECE_CI     = 0.95
+ECE_SEED   = 0
+
+
 # Floor on the density-normalized alpha used for the smoothed calibration
 # curves below, so low-density mesh regions fade toward-transparent (the
 # continuous analog of the old discrete plot dropping zero-count bins
 # entirely) without a segment fully disappearing.
 _CURVE_DENSITY_ALPHA_FLOOR = 0.15
+
+
+# Dash pattern for the NTP curve, expressed as (period, on) in mesh-point
+# units. matplotlib's own dashed linestyle can't be passed to `linestyle=`
+# below: a LineCollection built from many short independent 2-point segments
+# (needed for per-segment density alpha) restarts the dash offset at the
+# start of every segment, which visually collapses '--' into a solid line
+# (confirmed empirically) — so the dash pattern is instead emulated by
+# omitting the "off" segments outright.
+_NTP_DASH_PERIOD, _NTP_DASH_ON = 10, 7
 
 
 def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder, band_zorder):
@@ -620,6 +638,12 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
     linewidth, by density) — and the per-bin SEM band with relplot's bootstrap
     confidence band.
     """
+    # relplot's BaggingRegressor/scipy.stats.bootstrap calls take no seed of
+    # their own and draw from the global numpy RNG — reseed immediately
+    # before the call so the rendered curve/band is reproducible run-to-run
+    # (confirmed: identical `mu`/`lower`/`upper` across repeated seeded calls
+    # on the same inputs; without this, two full-pipeline runs disagreed).
+    np.random.seed(ECE_SEED)
     d = relplot.prepare_rel_diagram(np.asarray(probs), np.asarray(labels))
     mesh, mu, density = d['mesh'], d['mu'], d['density']
 
@@ -630,8 +654,15 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     seg_colors = np.tile(mcolors.to_rgba(color), (len(segments), 1))
     seg_colors[:, 3] = (alpha[:-1] + alpha[1:]) / 2
+
+    if linestyle == '--':
+        seg_idx = np.arange(len(segments))
+        dash_mask = (seg_idx % _NTP_DASH_PERIOD) < _NTP_DASH_ON
+        segments = segments[dash_mask]
+        seg_colors = seg_colors[dash_mask]
+
     lc = LineCollection(
-        segments, colors=seg_colors, linestyle=linestyle, lw=lw,
+        segments, colors=seg_colors, lw=lw,
         joinstyle='round', zorder=line_zorder,
     )
     ax.add_collection(lc)
@@ -713,12 +744,6 @@ def plot_calibration_curves(
             plt.show()
 
 
-# Bootstrap settings for ECE confidence intervals.
-ECE_N_BOOT = 2000
-ECE_CI     = 0.95
-ECE_SEED   = 0
-
-
 def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=None):
     """Compute metrics at a fixed threshold. Returns dict.
 
@@ -763,7 +788,11 @@ def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=N
     # cheapest correct call: report_CE/report_CE_std default True regardless
     # of plot_confidence_band/plot_bag_lines, so skipping those (both False)
     # avoids the 200-estimator bootstrap regression fit for the main curve,
-    # which isn't needed here.
+    # which isn't needed here. Reseed first — see the seeding note in
+    # _plot_relplot_curve; relplot's internal `scipy.stats.bootstrap` call
+    # (which produces ce_ci_width) draws from the global numpy RNG and is
+    # otherwise non-reproducible run-to-run.
+    np.random.seed(ECE_SEED)
     smece_d = relplot.prepare_rel_diagram(
         probs, y_true, plot_confidence_band=False, plot_bag_lines=False,
     )

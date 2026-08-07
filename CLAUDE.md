@@ -43,6 +43,7 @@ python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation
 python experiments/run_judge_local.py ...      # vLLM judge, local
 python experiments/run_judge_interp.py ...     # NNsight judge, collects activations
 python experiments/run_judge_combine.py --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01
+python experiments/run_jacobian_lens.py ...     # NNsight, Jacobian-lens j-scores (JacobianLensLM)
 python experiments/run_baseline_gliner.py ...
 python experiments/run_baseline_nuextract.py ...
 python experiments/run_baseline_chatextract.py ...
@@ -112,6 +113,11 @@ Every path in the output tree is constructed here. Never build paths by hand in 
 - `run_judge_local.py` — vLLM (local, fast)
 - `run_judge_combine.py` — majority-vote combination of judge runs → `combined.json`
 
+**Jacobian-lens j-scores** (`JacobianLensLM` in `src/scholarlm/jacobianlenslm.py`)
+Separate from the judge pipeline above — probes context-token residuals against a
+pretrained per-layer Jacobian lens rather than generating a true/false judgement.
+Driven by `run_jacobian_lens.py`; see `notes/scholarlm/threads/Jacobian Lens.md`.
+
 **Analysis utilities** (`src/scholarlm/utils/`)
 - `probe.py` — logistic-regression probe on attention activations
 - `calibration.py` — ECE and reliability diagram
@@ -131,6 +137,7 @@ data/experiments/
     ablations/ablation{N}/{model}/{date}/   → final.json (+ judge/ subdir)
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/ → combined.json
+    jacobian_lens/{ext_model}/{ext_date}/{lens_model}/{lens_date}/ → jacobian_scores.npz
     analysis/                              → CSV / NPZ outputs
     analysis/figures/                      → PDF / PNG plots
   cross_dataset/                           → cross-dataset probe CSV
