@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "ask": [
+      "Edit(analysis/metrics.py)",
+      "Edit(analysis/ablation.py)",
+      "Edit(analysis/ablation2.py)",
+      "Edit(analysis/validity_evaluation.py)",
+      "Edit(analysis/calibration*.py)",
+      "Edit(experiments/run_judge_local.py)",
+      "Edit(experiments/run_judge_interp.py)",
+      "Edit(experiments/run_judge_combine.py)",
+      "Edit(experiments/judge_common.py)",
+      "Edit(experiments/run_jacobian_lens.py)",
+      "Edit(src/scholarlm/utils/calibration.py)"
+    ]
+  }
+}

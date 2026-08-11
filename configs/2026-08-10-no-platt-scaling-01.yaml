@@ -1,0 +1,31 @@
+id: 2026-08-10-no-platt-scaling-01
+project: scholarlm
+description: >-
+  Compare the qwen-2.5-7b-base head probe and NTP calibrator trained without
+  Platt scaling (CalibratedClassifierCV) against the existing Platt-scaled
+  baseline, on smooth ECE (relplot SmECE), across pond/nfix/supermat.
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow -- it only
+  # supports entry_point extraction|ablation. This config documents the run
+  # for reproducibility; every step below is invoked directly via this repo's
+  # native entry points, per the note's Setup section. Needs no GPU/SGE: both
+  # scripts below only read already-computed activations/extractions and fit
+  # scikit-learn models.
+  entry_point: manual
+  extraction_model: gemma-3-27b
+  datasets: [pond, nfix, supermat]
+  judge_model: qwen-2.5-7b-base
+  judge_date_syn: "2026_08_05"
+  probe_type: head
+  # Configurable switch -- see analysis/synthetic_probe_train.py's
+  # USE_PLATT_SCALING / TRAIN_LAYER_PROBE globals and
+  # analysis/calibration_updated.py's --probe-variant flag. Flipping
+  # USE_PLATT_SCALING back to True (and re-running) reproduces the original
+  # Platt-scaled baseline exactly, under its original (unsuffixed) filenames.
+  use_platt_scaling: false
+  train_layer_probe: false
+  steps:
+    - "analysis/synthetic_probe_train.py (DATASETS=[pond,nfix,supermat], JUDGE_MODELS=[qwen-2.5-7b-base], JUDGE_DATE_SYN=2026_08_05, USE_PLATT_SCALING=False, TRAIN_LAYER_PROBE=False) -> head_probe_noplatt.pkl / ntp_calibrator_noplatt.pkl per dataset"
+    - "analysis/calibration_updated.py --extraction-model gemma-3-27b --judge-models qwen-2.5-7b-base --probe-type head --probe-variant noplatt -> results/metrics_gemma-3-27b_head_noplatt_pooled.csv"
+    - "analysis/calibration_updated.py --extraction-model gemma-3-27b --judge-models qwen-2.5-7b-base --probe-type head --probe-variant platt -> results/metrics_gemma-3-27b_head_pooled.csv (existing baseline, re-run only if a fresh comparison point is needed)"
