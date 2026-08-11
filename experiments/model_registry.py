@@ -209,6 +209,16 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         # apply_chat_template is skipped (see JudgementLM.use_chat_template).
         "use_chat_template": False,
     },
+    "qwen-2.5-7b-base-cued": {
+        "model_id": "Qwen/Qwen2.5-7B",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
+        # Same base model as qwen-2.5-7b-base (use_chat_template=False), but with
+        # an explicit plain-text answer cue substituted for the chat-template
+        # generation prompt that use_chat_template=False otherwise omits.
+        "use_chat_template": False,
+        "answer_cue": "\n\nAnswer (true or false): ",
+    },
 
 }
 

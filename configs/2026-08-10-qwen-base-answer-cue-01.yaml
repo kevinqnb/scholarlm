@@ -1,0 +1,34 @@
+id: 2026-08-10-qwen-base-answer-cue-01
+project: scholarlm
+description: >-
+  Add an explicit plain-text answer cue to the qwen-2.5-7b-base judge prompt
+  and compare smooth ECE (relplot SmECE) against both the no-cue
+  qwen-2.5-7b-base baseline and the qwen-2.5-7b instruct judge, across
+  pond/nfix/supermat.
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow (extraction/
+  # ablation only) -- same gap as 2026-08-05-qwen-base-judge-calibration-01
+  # and 2026-08-10-no-platt-scaling-01. This config documents the run for
+  # reproducibility; every step below is invoked directly via this repo's
+  # native entry points, per the note's Setup section.
+  entry_point: manual
+  extraction_model: gemma-3-27b
+  datasets: [pond, nfix, supermat]
+  judge_model: qwen-2.5-7b-base-cued
+  answer_cue: "\n\nAnswer (true or false): "
+  judge_date: "2026_08_10"
+  extraction_dates:
+    pond: "2026_05_05"
+    nfix: "2026_05_06"
+    supermat: "2026_07_09"
+  probe_type: head
+  use_platt_scaling: true
+  train_layer_probe: false
+  compare_against: [qwen-2.5-7b-base, qwen-2.5-7b]
+  steps:
+    - "experiments/{pond,nfix,supermat}/judge_interp/qwen_2_5_7b_base_cued/*_judge_interp_synthetic_qwen_2_5_7b_base_cued.sh -> run_judge_interp.py --dataset <ds> --synthetic --judge qwen-2.5-7b-base-cued --judge-date 2026_08_10 (train+test, both splits in one invocation)"
+    - "experiments/{pond,nfix,supermat}/judge_interp/qwen_2_5_7b_base_cued/*_judge_interp_gemma_3_27b_qwen_2_5_7b_base_cued.sh -> run_judge_interp.py --dataset <ds> --extraction-model gemma-3-27b --judge qwen-2.5-7b-base-cued --extraction-date <pinned> --judge-date 2026_08_10"
+    - "analysis/synthetic_probe_train.py (DATASETS=[pond,nfix,supermat], JUDGE_MODELS=[qwen-2.5-7b-base-cued], JUDGE_DATE_SYN=2026_08_10, USE_PLATT_SCALING=True, TRAIN_LAYER_PROBE=False) -> head_probe.pkl / ntp_calibrator.pkl per dataset"
+    - "experiments/run_judge_combine.py --dataset <ds> --extraction-model gemma-3-27b --extraction-date <pinned> (x3, auto-discover judges) -> combined.json with judgement_p_true_qwen-2.5-7b-base-cued column"
+    - "analysis/calibration_updated.py --extraction-model gemma-3-27b --judge-models qwen-2.5-7b qwen-2.5-7b-base qwen-2.5-7b-base-cued --probe-type head --probe-variant platt -> results/metrics_gemma-3-27b_head_pooled.csv (SmECE column, Probe+NTP rows, all cells)"

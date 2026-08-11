@@ -139,6 +139,7 @@ def run_interp_judge(
         sampling_params=judge_cfg["sampling_params"],
         nnsight_kwargs=judge_cfg["nnsight_kwargs"],
         use_chat_template=judge_cfg.get("use_chat_template", True),
+        answer_cue=judge_cfg.get("answer_cue", None),
     )
 
     start_time = time.time()

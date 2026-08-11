@@ -96,13 +96,14 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 EXTRACTION_SETTINGS = {
     'gemma-3-27b': {
         'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base'],
+        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base', 'qwen-2.5-7b-base-cued'],
         # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
         'judge_datasets': {
             'llama-3.1-8b': ['pond', 'nfix'],
             'mistral-7b':   ['pond', 'nfix'],
             'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
             'qwen-2.5-7b-base': ['pond', 'nfix', 'supermat'],
+            'qwen-2.5-7b-base-cued': ['pond', 'nfix', 'supermat'],
         },
         'extraction_dates': {
             'pond': '2026_05_05',
@@ -115,16 +116,19 @@ EXTRACTION_SETTINGS = {
                 'mistral-7b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_04',
                 'mistral-7b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
         },
         'judge_dates_real': {
@@ -133,16 +137,19 @@ EXTRACTION_SETTINGS = {
                 'mistral-7b': '2026_05_06',
                 'qwen-2.5-7b': '2026_05_06',
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_05',
                 'mistral-7b': '2026_05_05',
                 'qwen-2.5-7b': '2026_05_05',
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
                 'qwen-2.5-7b-base': '2026_08_05',
+                'qwen-2.5-7b-base-cued': '2026_08_10',
             },
         },
         'pi_te_estimate': None,
@@ -221,6 +228,7 @@ EXTRACTION_SETTINGS = {
 
 DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
 DEFAULT_PROBE_TYPE = 'head'
+DEFAULT_PROBE_VARIANT = 'platt'
 
 
 def _env_list(name):
@@ -244,6 +252,7 @@ def _select_settings():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
     parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
+    parser.add_argument('--probe-variant', default=None, choices=['platt', 'noplatt'])
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--judge-models', nargs='+', default=None)
     args, _ = parser.parse_known_args()
@@ -259,6 +268,14 @@ def _select_settings():
     probe_type = (args.probe_type
                   or os.environ.get('CALIBRATION_PROBE_TYPE')
                   or DEFAULT_PROBE_TYPE)
+    # 'platt' (default) reproduces the original Platt-scaled behavior exactly,
+    # including every output path below -- 'noplatt' is additive, never
+    # overwrites the baseline. See 2026-08-10-no-platt-scaling-01.
+    probe_variant = (args.probe_variant
+                      or os.environ.get('CALIBRATION_PROBE_VARIANT')
+                      or DEFAULT_PROBE_VARIANT)
+    if probe_variant not in ('platt', 'noplatt'):
+        raise ValueError(f"Unknown probe variant {probe_variant!r}; expected 'platt' or 'noplatt'")
 
     def _subset(selected, available, what):
         unknown = [x for x in selected if x not in available]
@@ -286,10 +303,17 @@ def _select_settings():
         for jm, dss in settings['judge_datasets'].items()
         if jm in settings['judge_models']
     }
-    return model, probe_type, settings
+    return model, probe_type, probe_variant, settings
 
 
-EXTRACTION_MODEL, PROBE_TYPE, _SETTINGS = _select_settings()
+EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT, _SETTINGS = _select_settings()
+
+# None reproduces load_trained_probe/load_trained_ntp_calibrator's original
+# default filenames exactly; only 'noplatt' picks the suffixed variant.
+_PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
+# '' for the default 'platt' variant keeps every output path below byte-for-byte
+# identical to the pre-variant behavior; only 'noplatt' gets a distinct suffix.
+_PROBE_VARIANT_SUFFIX = '' if PROBE_VARIANT == 'platt' else f'_{PROBE_VARIANT}'
 
 DATASETS         = _SETTINGS['datasets']
 JUDGE_MODELS     = _SETTINGS['judge_models']
@@ -300,7 +324,7 @@ JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
 PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
 
 print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
-      f'| datasets: {DATASETS} | judges: {JUDGE_MODELS}')
+      f'| probe variant: {PROBE_VARIANT} | datasets: {DATASETS} | judges: {JUDGE_MODELS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
@@ -335,7 +359,7 @@ for ds in DATASETS:
     for jm in JUDGE_MODELS:
         if ds not in JUDGE_DATASETS[jm]:
             continue
-        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm)
+        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm, variant=_PROBE_VARIANT_KW)
 
 
 probe_cache = {}
@@ -344,7 +368,7 @@ for ds in DATASETS:
     for jm in JUDGE_MODELS:
         if ds not in JUDGE_DATASETS[jm]:
             continue
-        probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE)
+        probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE, variant=_PROBE_VARIANT_KW)
 
 
 def get_matching_config(dataset):
@@ -421,7 +445,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
     # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs: x, ntp_probs: y, labels: z}}}}}
     
     # Define cache file path
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}.pkl'
+    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_PROBE_VARIANT_SUFFIX}.pkl'
     
     # Try to load from precomputed cache if requested
     if load_from_precomputed and cache_file.exists():
@@ -557,7 +581,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                     }
 
     # Save to cache for future use
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}.pkl'
+    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_PROBE_VARIANT_SUFFIX}.pkl'
     print(f'Saving predictions to {cache_file}...')
     with open(cache_file, 'wb') as f:
         pickle.dump(setting_results, f)
@@ -692,7 +716,7 @@ def plot_calibration_curves(
         if not train_datasets:
             continue
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for ctype in ['in-domain', 'cross-domain']:
@@ -875,7 +899,7 @@ def plot_pr_curves(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -937,7 +961,7 @@ def plot_validity_recovery(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -1045,7 +1069,7 @@ if __name__ == "__main__":
     plot_calibration_curves(setting_results, dtype='real')
     metrics_df = compute_metrics(setting_results)
     print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))
-    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}_pooled.csv', index=False)
+    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}_pooled.csv', index=False)
 
     #plot_pr_curves(setting_results, dtype='syn')
     #plot_pr_curves(setting_results, dtype='real')

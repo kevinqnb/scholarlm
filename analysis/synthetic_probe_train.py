@@ -60,12 +60,28 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 #JUDGE_MODELS    = ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b']   # must match the judge used for the synthetic run
 #JUDGE_DATE_SYN = '2026_05_04'           # auto-detect latest synthetic probe run
 
-DATASETS        = ['supermat']
-JUDGE_MODELS    = ['qwen-2.5-7b-base']   # must match the judge used for the synthetic run
-JUDGE_DATE_SYN = '2026_08_05'           # auto-detect latest synthetic probe run
+DATASETS        = ['pond', 'nfix', 'supermat']
+JUDGE_MODELS    = ['qwen-2.5-7b-base-cued']   # must match the judge used for the synthetic run
+JUDGE_DATE_SYN = '2026_08_10'           # auto-detect latest synthetic probe run
 
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
+
+# Platt scaling (CalibratedClassifierCV) wraps the head probe / NTP calibrator
+# by default. Set False to fit the base Pipeline's own .fit()/.predict_proba()
+# directly instead -- saved under a '_noplatt' filename suffix so the
+# Platt-scaled baseline artifacts are never overwritten. Flip back to True to
+# restore the original behavior exactly.
+# 2026-08-10-no-platt-scaling-01 found no-Platt substantially worse (see note)
+# -- reverted to True, the validated default.
+USE_PLATT_SCALING = True
+
+# Layer-output probe training + its combined cross-model plot (bottom of this
+# file). Set False to skip both and only train/save the head probe + NTP
+# calibrator. Flip back to True to restore the original behavior exactly.
+# 2026-08-10-qwen-base-answer-cue-01: head probe only, matching both
+# baselines it's compared against -- no layer-probe training needed.
+TRAIN_LAYER_PROBE = False
 # ─────────────────────────────────────────────────────────────────
 
 # Dictionary to collect layer F1 scores for all judge models
@@ -199,14 +215,17 @@ for DATASET in DATASETS:
             ))
         ])
 
-        calibrated_probe = CalibratedClassifierCV(
-            estimator=base_probe,
-            method='sigmoid',  # 'sigmoid' is Platt scaling
-            cv=kfold_cv
-        ).fit(X_train, y_train)
+        if USE_PLATT_SCALING:
+            head_probe = CalibratedClassifierCV(
+                estimator=base_probe,
+                method='sigmoid',  # 'sigmoid' is Platt scaling
+                cv=kfold_cv
+            ).fit(X_train, y_train)
+        else:
+            head_probe = base_probe.fit(X_train, y_train)
 
         # Evaluate training performance:
-        y_probs = calibrated_probe.predict_proba(X_train)[:, 1]
+        y_probs = head_probe.predict_proba(X_train)[:, 1]
         y_pred = (y_probs > 0.5).astype(int)
         print(f"  Accuracy  : {accuracy_score(y_train, y_pred):.4f}")
         print(f"  Precision : {precision_score(y_train, y_pred):.4f}")
@@ -218,10 +237,11 @@ for DATASET in DATASETS:
         # Save probe + metadata for use in synthetic_probe_test.ipynb
         probe_dir  = paths.trained_probe_dir(DATASET, JUDGE_MODEL)
         probe_dir.mkdir(parents=True, exist_ok=True)
-        probe_path = probe_dir / 'head_probe.pkl'
+        probe_filename = 'head_probe.pkl' if USE_PLATT_SCALING else 'head_probe_noplatt.pkl'
+        probe_path = probe_dir / probe_filename
 
         probe_data = {
-            'probe':            calibrated_probe,
+            'probe':            head_probe,
             'top_k_heads':      top_k_heads,
             'train_prevalence': float(y_train.mean()),
             'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
@@ -245,16 +265,20 @@ for DATASET in DATASETS:
         ntp_base = Pipeline([
             ('clf', LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000, random_state=42))
         ])
-        ntp_calibrated = CalibratedClassifierCV(
-            estimator=ntp_base,
-            method='sigmoid',
-            cv=kfold_cv,
-        ).fit(ntp_probs_train, y_train)
+        if USE_PLATT_SCALING:
+            ntp_calibrated = CalibratedClassifierCV(
+                estimator=ntp_base,
+                method='sigmoid',
+                cv=kfold_cv,
+            ).fit(ntp_probs_train, y_train)
+        else:
+            ntp_calibrated = ntp_base.fit(ntp_probs_train, y_train)
 
         ntp_cal_probs_tr = ntp_calibrated.predict_proba(ntp_probs_train)[:, 1]
         print(f"  NTP calibrator train ECE: {compute_ece(ntp_cal_probs_tr, y_train):.4f}")
 
-        ntp_cal_path = probe_dir / 'ntp_calibrator.pkl'
+        ntp_cal_filename = 'ntp_calibrator.pkl' if USE_PLATT_SCALING else 'ntp_calibrator_noplatt.pkl'
+        ntp_cal_path = probe_dir / ntp_cal_filename
         joblib.dump({
             'calibrator':       ntp_calibrated,
             'train_prevalence': float(y_train.mean()),
@@ -265,146 +289,148 @@ for DATASET in DATASETS:
         print(f'NTP calibrator saved → {ntp_cal_path}')
         # ─────────────────────────────────────────────────────────────────
 
-        _arr0_lo = np.array(syn_layer_outputs[str(syn_measurement_ids[0])], dtype=np.float32)
-        n_layers_lo, hidden_size = _arr0_lo.shape
-        _all_syn_lo = {str(mid): np.array(syn_layer_outputs[str(mid)], dtype=np.float32)
-                    for mid in syn_measurement_ids}
-        layer_datasets_syn: dict[int, np.ndarray] = {
-            l: np.stack([_all_syn_lo[str(mid)][l] for mid in syn_measurement_ids], axis=0)
-            for l in range(n_layers_lo)
-        }
-        del _all_syn_lo
+        if TRAIN_LAYER_PROBE:
+            _arr0_lo = np.array(syn_layer_outputs[str(syn_measurement_ids[0])], dtype=np.float32)
+            n_layers_lo, hidden_size = _arr0_lo.shape
+            _all_syn_lo = {str(mid): np.array(syn_layer_outputs[str(mid)], dtype=np.float32)
+                        for mid in syn_measurement_ids}
+            layer_datasets_syn: dict[int, np.ndarray] = {
+                l: np.stack([_all_syn_lo[str(mid)][l] for mid in syn_measurement_ids], axis=0)
+                for l in range(n_layers_lo)
+            }
+            del _all_syn_lo
 
-        # ─────────────────────────────────────────────────────────────────
-        probe_template_lo = Pipeline([
-            ('scaler', StandardScaler()),
-            ('clf', LogisticRegression(
-                C=0.2, class_weight='balanced', solver='lbfgs',
-                max_iter=1000, random_state=42,
-            ))
-        ])
+            # ─────────────────────────────────────────────────────────────────
+            probe_template_lo = Pipeline([
+                ('scaler', StandardScaler()),
+                ('clf', LogisticRegression(
+                    C=0.2, class_weight='balanced', solver='lbfgs',
+                    max_iter=1000, random_state=42,
+                ))
+            ])
 
-        layer_scores_f1    = np.zeros(n_layers_lo)
-        layer_scores_ece = np.zeros(n_layers_lo)
+            layer_scores_f1    = np.zeros(n_layers_lo)
+            layer_scores_ece = np.zeros(n_layers_lo)
 
-        for l in range(n_layers_lo):
-            X_cv = layer_datasets_syn[l][syn_cv_idx]
-            (
-                mean_f1, _,
-                mean_ece, _,
-                ) = cv_score(probe_template_lo, X_cv, syn_labels_cv, kfold_cv)
-            layer_scores_f1[l]    = mean_f1
-            layer_scores_ece[l] = mean_ece
-        
-        # Collect F1 scores for this judge model and dataset
-        if JUDGE_MODEL not in collected_layer_f1_scores:
-            collected_layer_f1_scores[JUDGE_MODEL] = {}
-        collected_layer_f1_scores[JUDGE_MODEL][DATASET] = layer_scores_f1.copy()
-        # ─────────────────────────────────────────────────────────────────
+            for l in range(n_layers_lo):
+                X_cv = layer_datasets_syn[l][syn_cv_idx]
+                (
+                    mean_f1, _,
+                    mean_ece, _,
+                    ) = cv_score(probe_template_lo, X_cv, syn_labels_cv, kfold_cv)
+                layer_scores_f1[l]    = mean_f1
+                layer_scores_ece[l] = mean_ece
 
-        # F1 by layer line plot — layer output probe
-        best_layer_lo = int(layer_scores_f1.argmax())
-        best_layer_f1_scores = layer_scores_f1[best_layer_lo]
-        fig, ax = plt.subplots(figsize=(3.5, 2.5))
-        ax.plot(range(n_layers_lo), layer_scores_f1, 'o-', color=palette[0], ms=4, lw = 2.0)
-        ax.axvline(best_layer_lo, color="grey", lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (F1={best_layer_f1_scores:.3f})')
-        ax.set_xlabel('Layer')
-        ax.set_ylabel('F1')
-        ax.legend(fontsize=9)
-        ax.set_xlim(-0.5, n_layers_lo - 0.5)
-        fig.tight_layout()
-        fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_F1_{DATASET}.pdf', bbox_inches='tight')
+            # Collect F1 scores for this judge model and dataset
+            if JUDGE_MODEL not in collected_layer_f1_scores:
+                collected_layer_f1_scores[JUDGE_MODEL] = {}
+            collected_layer_f1_scores[JUDGE_MODEL][DATASET] = layer_scores_f1.copy()
+            # ─────────────────────────────────────────────────────────────────
 
-
-        # ECE by layer line plot — layer output probe
-        best_layer_lo = int(layer_scores_ece.argmin())
-        best_layer_ece_scores = layer_scores_ece[best_layer_lo]
-        fig, ax = plt.subplots(figsize=(3.5, 2.5))
-        ax.plot(range(n_layers_lo), layer_scores_ece, 'o-', color=palette[0], ms=4, lw = 2.0)
-        ax.axvline(best_layer_lo, color='grey', lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (ECE={best_layer_ece_scores:.3f})')
-        ax.set_xlabel('Layer')
-        ax.set_ylabel('ECE')
-        ax.legend(fontsize=9)
-        ax.set_xlim(-0.5, n_layers_lo - 0.5)
-        fig.tight_layout()
-        fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_ECE_{DATASET}.pdf', bbox_inches='tight')
-
-        # ─────────────────────────────────────────────────────────────────
-        best_layer_lo = int(layer_scores_f1.argmax())
-        X_train_lo = layer_datasets_syn[best_layer_lo][syn_train_idx]
-        y_train_lo = syn_labels[syn_train_idx]
-
-        base_probe_lo = Pipeline([
-            ('scaler', StandardScaler()),
-            ('clf', LogisticRegression(C=0.2, class_weight=None, solver='lbfgs',
-                                    max_iter=1000, random_state=42))
-        ])
+            # F1 by layer line plot — layer output probe
+            best_layer_lo = int(layer_scores_f1.argmax())
+            best_layer_f1_scores = layer_scores_f1[best_layer_lo]
+            fig, ax = plt.subplots(figsize=(3.5, 2.5))
+            ax.plot(range(n_layers_lo), layer_scores_f1, 'o-', color=palette[0], ms=4, lw = 2.0)
+            ax.axvline(best_layer_lo, color="grey", lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (F1={best_layer_f1_scores:.3f})')
+            ax.set_xlabel('Layer')
+            ax.set_ylabel('F1')
+            ax.legend(fontsize=9)
+            ax.set_xlim(-0.5, n_layers_lo - 0.5)
+            fig.tight_layout()
+            fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_F1_{DATASET}.pdf', bbox_inches='tight')
 
 
-        calibrated_probe_lo = CalibratedClassifierCV(
-            estimator=base_probe_lo,
-            method='sigmoid',  # 'sigmoid' is Platt scaling
-            cv=kfold_cv
-        ).fit(X_train_lo, y_train_lo)
+            # ECE by layer line plot — layer output probe
+            best_layer_lo = int(layer_scores_ece.argmin())
+            best_layer_ece_scores = layer_scores_ece[best_layer_lo]
+            fig, ax = plt.subplots(figsize=(3.5, 2.5))
+            ax.plot(range(n_layers_lo), layer_scores_ece, 'o-', color=palette[0], ms=4, lw = 2.0)
+            ax.axvline(best_layer_lo, color='grey', lw=1.0, ls='--', label=f'Best: L{best_layer_lo} (ECE={best_layer_ece_scores:.3f})')
+            ax.set_xlabel('Layer')
+            ax.set_ylabel('ECE')
+            ax.legend(fontsize=9)
+            ax.set_xlim(-0.5, n_layers_lo - 0.5)
+            fig.tight_layout()
+            fig.savefig(FIGURES_DIR + f'{JUDGE_MODEL}/synprobe_layer_ECE_{DATASET}.pdf', bbox_inches='tight')
 
-        # Evaluate training performance:
-        y_probs_lo = calibrated_probe_lo.predict_proba(X_train_lo)[:, 1]
-        y_pred_lo = (y_probs_lo > 0.5).astype(int)
-        print(f"  Accuracy  : {accuracy_score(y_train_lo, y_pred_lo):.4f}")
-        print(f"  Precision : {precision_score(y_train_lo, y_pred_lo):.4f}")
-        print(f"  Recall    : {recall_score(y_train_lo, y_pred_lo):.4f}")
-        print(f"  F1-Score  : {f1_score(y_train_lo, y_pred_lo):.4f}")
-        print(f"  AUROC     : {roc_auc_score(y_train_lo, y_probs_lo):.4f}")
-        print(f"  ECE       : {compute_ece(y_train_lo, y_probs_lo):.4f}")
+            # ─────────────────────────────────────────────────────────────────
+            best_layer_lo = int(layer_scores_f1.argmax())
+            X_train_lo = layer_datasets_syn[best_layer_lo][syn_train_idx]
+            y_train_lo = syn_labels[syn_train_idx]
 
-        # Save probe + metadata for use in synthetic_probe_test.ipynb
-        probe_dir  = paths.trained_probe_dir(DATASET, JUDGE_MODEL)
-        probe_dir.mkdir(parents=True, exist_ok=True)
-        probe_path = probe_dir / 'layer_probe.pkl'
+            base_probe_lo = Pipeline([
+                ('scaler', StandardScaler()),
+                ('clf', LogisticRegression(C=0.2, class_weight=None, solver='lbfgs',
+                                        max_iter=1000, random_state=42))
+            ])
 
-        probe_data = {
-            'probe':            calibrated_probe_lo,
-            'top_layer':      best_layer_lo,
-            'train_prevalence': float(y_train_lo.mean()),
-            'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
-            'judge_model':      JUDGE_MODEL,
-            'dataset':          DATASET,
-            'n_layers':         n_layers_lo,
-        }
-        joblib.dump(probe_data, probe_path)
 
-        print(f'Probe saved  → {probe_path}')
-        print(f'Top layer: {best_layer_lo}')
-        # ─────────────────────────────────────────────────────────────────
+            calibrated_probe_lo = CalibratedClassifierCV(
+                estimator=base_probe_lo,
+                method='sigmoid',  # 'sigmoid' is Platt scaling
+                cv=kfold_cv
+            ).fit(X_train_lo, y_train_lo)
+
+            # Evaluate training performance:
+            y_probs_lo = calibrated_probe_lo.predict_proba(X_train_lo)[:, 1]
+            y_pred_lo = (y_probs_lo > 0.5).astype(int)
+            print(f"  Accuracy  : {accuracy_score(y_train_lo, y_pred_lo):.4f}")
+            print(f"  Precision : {precision_score(y_train_lo, y_pred_lo):.4f}")
+            print(f"  Recall    : {recall_score(y_train_lo, y_pred_lo):.4f}")
+            print(f"  F1-Score  : {f1_score(y_train_lo, y_pred_lo):.4f}")
+            print(f"  AUROC     : {roc_auc_score(y_train_lo, y_probs_lo):.4f}")
+            print(f"  ECE       : {compute_ece(y_train_lo, y_probs_lo):.4f}")
+
+            # Save probe + metadata for use in synthetic_probe_test.ipynb
+            probe_dir  = paths.trained_probe_dir(DATASET, JUDGE_MODEL)
+            probe_dir.mkdir(parents=True, exist_ok=True)
+            probe_path = probe_dir / 'layer_probe.pkl'
+
+            probe_data = {
+                'probe':            calibrated_probe_lo,
+                'top_layer':      best_layer_lo,
+                'train_prevalence': float(y_train_lo.mean()),
+                'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
+                'judge_model':      JUDGE_MODEL,
+                'dataset':          DATASET,
+                'n_layers':         n_layers_lo,
+            }
+            joblib.dump(probe_data, probe_path)
+
+            print(f'Probe saved  → {probe_path}')
+            print(f'Top layer: {best_layer_lo}')
+            # ─────────────────────────────────────────────────────────────────
 
 
 # ─────────────────────────────────────────────────────────────────
 # Create combined plot of F1 scores by layer for all judge models
 # ─────────────────────────────────────────────────────────────────
-palette_idx=[7, 1, 0, 4]
+if TRAIN_LAYER_PROBE:
+    palette_idx=[7, 1, 0, 4]
 
-for DATASET in DATASETS:
-    fig, ax = plt.subplots(figsize=(4.5, 3.5))
-    
-    # Plot each judge model's F1 scores
-    for model_idx, JUDGE_MODEL in enumerate(JUDGE_MODELS):
-        layer_f1_scores = collected_layer_f1_scores[JUDGE_MODEL][DATASET]
-        n_layers_plot = len(layer_f1_scores)
-        
-        # Plot line
-        ax.plot(range(n_layers_plot), layer_f1_scores, 'o-', 
-                color=palette[palette_idx[model_idx]], label=JUDGE_MODEL, ms=4, lw=2.0)
+    for DATASET in DATASETS:
+        fig, ax = plt.subplots(figsize=(4.5, 3.5))
 
-        # Mark best layer with a larger dark grey marker
-        best_layer_idx = int(np.argmax(layer_f1_scores))
-        best_f1 = layer_f1_scores[best_layer_idx]
-        ax.plot(best_layer_idx, best_f1, 'o', color='darkgrey', ms=6, 
-                markeredgecolor='darkgrey', markeredgewidth=1.5)
-    
-    ax.set_xlabel('Layer')
-    ax.set_ylabel('F1')
-    ax.legend(fontsize=10, loc='best')
-    ax.set_xlim(-0.5, n_layers_plot - 0.5)
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR + f'synprobe_layer_F1_all_models_{DATASET}.pdf', bbox_inches='tight')
-    print(f'Combined F1 plot saved → {FIGURES_DIR}synprobe_layer_F1_all_models_{DATASET}.pdf')
+        # Plot each judge model's F1 scores
+        for model_idx, JUDGE_MODEL in enumerate(JUDGE_MODELS):
+            layer_f1_scores = collected_layer_f1_scores[JUDGE_MODEL][DATASET]
+            n_layers_plot = len(layer_f1_scores)
+
+            # Plot line
+            ax.plot(range(n_layers_plot), layer_f1_scores, 'o-',
+                    color=palette[palette_idx[model_idx]], label=JUDGE_MODEL, ms=4, lw=2.0)
+
+            # Mark best layer with a larger dark grey marker
+            best_layer_idx = int(np.argmax(layer_f1_scores))
+            best_f1 = layer_f1_scores[best_layer_idx]
+            ax.plot(best_layer_idx, best_f1, 'o', color='darkgrey', ms=6,
+                    markeredgecolor='darkgrey', markeredgewidth=1.5)
+
+        ax.set_xlabel('Layer')
+        ax.set_ylabel('F1')
+        ax.legend(fontsize=10, loc='best')
+        ax.set_xlim(-0.5, n_layers_plot - 0.5)
+        fig.tight_layout()
+        fig.savefig(FIGURES_DIR + f'synprobe_layer_F1_all_models_{DATASET}.pdf', bbox_inches='tight')
+        print(f'Combined F1 plot saved → {FIGURES_DIR}synprobe_layer_F1_all_models_{DATASET}.pdf')
