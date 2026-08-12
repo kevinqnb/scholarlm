@@ -219,6 +219,17 @@ INTERP_JUDGE_REGISTRY: dict[str, dict] = {
         "use_chat_template": False,
         "answer_cue": "\n\nAnswer (true or false): ",
     },
+    "llama-3.1-8b-base-cued": {
+        "model_id": "meta-llama/Llama-3.1-8B",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+        "sampling_params": {"do_sample": False, "max_new_tokens": 1},
+        # Non-instruction-tuned base model (llama-3.1-8b above is the Instruct
+        # sibling), given the same explicit plain-text answer cue as
+        # qwen-2.5-7b-base-cued in place of the missing chat-template generation
+        # prompt. See 2026-08-11-llama-base-answer-cue-01.
+        "use_chat_template": False,
+        "answer_cue": "\n\nAnswer (true or false): ",
+    },
 
 }
 

@@ -69,7 +69,7 @@ palette = sns.color_palette("husl", 10)
 _DS_COLORS = {
     'pond':     palette[7],
     'nfix':     palette[1],
-    'supermat': palette[4],
+    'supermat': palette[0],
 }
 
 _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
@@ -96,14 +96,18 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 EXTRACTION_SETTINGS = {
     'gemma-3-27b': {
         'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base', 'qwen-2.5-7b-base-cued'],
+        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base', 'qwen-2.5-7b-base-cued', 'llama-3.1-8b-base-cued'],
         # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
+        # llama-3.1-8b-base-cued is trained/tested on all three, but its comparison
+        # baseline (llama-3.1-8b instruct) only covers pond+nfix -- see
+        # 2026-08-11-llama-base-answer-cue-01.
         'judge_datasets': {
             'llama-3.1-8b': ['pond', 'nfix'],
             'mistral-7b':   ['pond', 'nfix'],
             'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
             'qwen-2.5-7b-base': ['pond', 'nfix', 'supermat'],
             'qwen-2.5-7b-base-cued': ['pond', 'nfix', 'supermat'],
+            'llama-3.1-8b-base-cued': ['pond', 'nfix', 'supermat'],
         },
         'extraction_dates': {
             'pond': '2026_05_05',
@@ -117,6 +121,7 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_04',
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_04',
@@ -124,11 +129,13 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_04',
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
         },
         'judge_dates_real': {
@@ -138,6 +145,7 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_06',
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_05',
@@ -145,11 +153,13 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_05',
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
                 'qwen-2.5-7b-base': '2026_08_05',
                 'qwen-2.5-7b-base-cued': '2026_08_10',
+                'llama-3.1-8b-base-cued': '2026_08_11',
             },
         },
         'pi_te_estimate': None,
@@ -752,12 +762,9 @@ def plot_calibration_curves(
             ax_cal.set_ylim(-0.02, 1.02)
             ax_cal.set_xlabel('Predicted Probability')
 
+            ax_cal.set_ylabel('Observed Frequency')
             if ctype == 'in-domain':
-                ax_cal.set_ylabel('Observed Frequency')
                 ax_cal.set_title(f'Within', fontsize=15, style='italic')
-            else:
-                ax_cal.set_ylabel('')
-                ax_cal.set_title(f'Cross', fontsize=15, style='italic')
 
             ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
             ax_cal.set_axisbelow(True)

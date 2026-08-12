@@ -191,7 +191,7 @@ MIN_RELIABLE_N = 5  # cells below this n have their stats-table row treated as u
 
 # Quantile probability grid for the Q-Q lines, capped to [0.025, 0.975] so a single
 # extreme outlier in either tail can't stretch the panel.
-QLEVELS = np.linspace(0.025, 0.975, 39)
+QLEVELS = np.linspace(0.025, 0.975, 100)
 
 # Bootstrap resamples for the ground-truth quantile uncertainty band.
 N_BOOT = 1000
@@ -657,22 +657,29 @@ def plot_qq(
 
 
 def plot_qq_legend(out_path: Path):
-    """Shared legend for all six Q-Q figures: one line per threshold, plus swatches
-    for the y=x reference and the ground-truth bootstrap uncertainty band.
+    """Shared legend for all six Q-Q figures: threshold lines on the top row,
+    the y=x reference line and the ground-truth bootstrap uncertainty-band
+    swatch on a second row below.
     """
-    handles = [
+    threshold_handles = [
         mlines.Line2D([], [], color=THRESHOLD_CMAP(THRESHOLD_NORM(t)), linewidth=1.8,
-                       label=f'confidence $\\geq${t:g}')
+                       label=f'$\\geq${t:g}')
         for t in THRESHOLDS
     ]
-    handles.append(mlines.Line2D([], [], color='#888888', linewidth=1.0, linestyle='--',
-                                   label='y = x (perfect match)'))
-    handles.append(mpatches.Patch(facecolor='#888888', alpha=0.25, edgecolor='none',
-                                    label='GT bootstrap 95% CI'))
+    ref_handles = [
+        mlines.Line2D([], [], color='#888888', linewidth=1.0, linestyle='--',
+                       label='y = x (perfect match)'),
+        mpatches.Patch(facecolor='#888888', alpha=0.25, edgecolor='none',
+                        label='GT bootstrap 95% CI'),
+    ]
 
-    fig, ax = plt.subplots(figsize=(1.9 * len(handles), 0.5))
-    ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=len(handles), fontsize=11, frameon=False)
+    fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(1.9 * len(threshold_handles), 1.0))
+    for ax in (ax_top, ax_bot):
+        ax.axis('off')
+    ax_top.legend(handles=threshold_handles, loc='center', ncol=len(threshold_handles),
+                  fontsize=11, frameon=False)
+    ax_bot.legend(handles=ref_handles, loc='center', ncol=len(ref_handles),
+                  fontsize=11, frameon=False)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta] wrote {out_path}")
