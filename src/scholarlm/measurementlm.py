@@ -19,6 +19,7 @@ from .instruction_prompts import (
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
 )
 
 
@@ -126,6 +127,18 @@ class MeasurementLM:
             for the attribute: ..." line from downstream prompts, without changing
             the detection prompt/schema itself (so this has no effect on other
             datasets). Defaults to True for backward compatibility.
+        extraction_mode ("pipeline" | "direct"): "pipeline" (default) runs the full
+            seven-step pipeline unchanged. "direct" replaces entity/attribute
+            detection, provenance, and value extraction with a single per-document
+            LLM call (see `_extract_triples`), still followed by `_standardize` and
+            `_deduplicate`. Requires `direct_extraction_schema` and
+            `direct_extraction_prompt` when set to "direct".
+        direct_extraction_schema (BaseModel | None): Flat pydantic schema combining
+            entity, event, attribute, value, and units fields, used only when
+            `extraction_mode="direct"`.
+        direct_extraction_prompt (str | None): Dataset-specific prompt describing
+            entities, events, and attributes for the single direct-extraction call;
+            used only when `extraction_mode="direct"`.
     """
     def __init__(
         self,
@@ -143,6 +156,9 @@ class MeasurementLM:
         measurement_event_prompt: str | None = None,
         use_extra_body: bool = True,
         collect_attribute_terms: bool = True,
+        extraction_mode: str = "pipeline",
+        direct_extraction_schema: BaseModel | None = None,
+        direct_extraction_prompt: str | None = None,
     ):
         self.model_name = model_name
         if sampling_params is None:
@@ -167,6 +183,13 @@ class MeasurementLM:
         self.measurement_event_prompt = measurement_event_prompt
         self.use_extra_body = use_extra_body
         self.collect_attribute_terms = collect_attribute_terms
+        if extraction_mode not in ("pipeline", "direct"):
+            raise ValueError(
+                f"extraction_mode must be 'pipeline' or 'direct', got {extraction_mode!r}."
+            )
+        self.extraction_mode = extraction_mode
+        self.direct_extraction_schema = direct_extraction_schema
+        self.direct_extraction_prompt = direct_extraction_prompt
         self.max_prompt_tokens: int = 0
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
@@ -1364,6 +1387,116 @@ class MeasurementLM:
 
 
     # -----------------------------------------------------------------------
+    # Direct extraction (extraction_mode="direct"): single call per document
+    # -----------------------------------------------------------------------
+
+    def _extract_triples(self):
+        """
+        Extract all measurement records from each document in a single LLM call.
+
+        Uses self.direct_extraction_schema (a flat Pydantic model combining entity,
+        event, attribute, value, and units fields) and self.direct_extraction_prompt
+        (a dataset-specific block describing entities, events, and attributes). The
+        schema's ``attribute`` field is unconstrained free text (not a Literal/enum),
+        so a response can name an attribute outside ``self.attribute_info_dict`` —
+        this is retried (via the validator below, same as any other malformed
+        response) and, if still present after retries are exhausted, dropped with a
+        loud printed count rather than reaching `_standardize()` (which indexes
+        `attribute_info_dict` directly and would otherwise raise `KeyError`).
+
+        Returns a list of records suitable for _standardize() and _deduplicate().
+        """
+        if self.direct_extraction_schema is None or self.direct_extraction_prompt is None:
+            raise ValueError(
+                "direct_extraction_schema and direct_extraction_prompt must be set "
+                "when extraction_mode='direct'. Define them in the dataset config."
+            )
+
+        from pydantic import create_model
+
+        DirectExtractionList = create_model(
+            "DirectExtractionList",
+            items=(list[self.direct_extraction_schema], ...),
+        )
+        direct_extraction_list_json = DirectExtractionList.model_json_schema()
+        known_attributes = set(self.attribute_info_dict.keys())
+
+        def _validate_direct_extraction(r):
+            parsed = response_validator(DirectExtractionList, r)
+            for item in parsed['items']:
+                if item.get('value') is not None and item.get('attribute') not in known_attributes:
+                    raise ValueError(
+                        f"attribute {item.get('attribute')!r} not in attribute_info_dict"
+                    )
+            return parsed
+
+        messages = []
+        for datapoint in self.data:
+            context = datapoint['context']
+            query = "Extract all measurement records from this document as described in the instructions."
+            prompt = (
+                f"## INSTRUCTIONS:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
+                f"## DATASET SPECIFIC INSTRUCTIONS:\n{self.direct_extraction_prompt}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+            )
+            messages.append([{"role": "user", "content": prompt}])
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "direct_extraction_list",
+                "schema": direct_extraction_list_json,
+            },
+        }
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_tokens=32768,
+            max_retries=4,
+            max_concurrent=1,
+            validator=_validate_direct_extraction,
+            timeout=600.0,
+        )
+
+        triple_data = []
+        dropped_count = 0
+        for i, r in enumerate(response_texts):
+            try:
+                resp_validated = response_validator(DirectExtractionList, r)
+            except Exception as e:
+                print(f"Validation error in direct extraction response: {e}")
+                print(f"Response text: {r}")
+                resp_validated = {'items': []}
+
+            for j, item in enumerate(resp_validated['items']):
+                if item.get('value') is None:
+                    continue
+                if item.get('attribute') not in known_attributes:
+                    dropped_count += 1
+                    print(
+                        f"Dropping direct-extraction record with out-of-vocabulary "
+                        f"attribute {item.get('attribute')!r} (doc {i}, item {j}); "
+                        f"still not in attribute_info_dict after retries."
+                    )
+                    continue
+                entity_id = f"doc_{i}_entity_{j}"
+                triple_data.append(
+                    self.data[i] | item | {
+                        'entity_id': entity_id,
+                        'attribute_terms': [],
+                    }
+                )
+
+        if dropped_count:
+            print(
+                f"Direct extraction: dropped {dropped_count} record(s) with an "
+                f"out-of-vocabulary attribute after retries."
+            )
+
+        return triple_data
+
+
+    # -----------------------------------------------------------------------
     # Step 5: Standardize and deduplicate
     # -----------------------------------------------------------------------
 
@@ -1532,7 +1665,11 @@ class MeasurementLM:
         processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
-        Runs the full measurement extraction pipeline on the provided documents.
+        Runs measurement extraction on the provided documents.
+
+        If ``extraction_mode="direct"`` (set at construction), runs a single
+        ``_extract_triples()`` call per document followed by ``_standardize()``
+        and ``_deduplicate()``, instead of the full pipeline below.
 
         If ``clean_tables=True`` (set at construction), table cleaning is
         performed as an initial step using the loaded vLLM model before entity
@@ -1559,6 +1696,13 @@ class MeasurementLM:
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({'document_id': i, 'context': doc})
+
+        if self.extraction_mode == "direct":
+            self.data = self._extract_triples()
+            self.data = self._standardize()
+            self.data = self._deduplicate(self.data)
+            return self.data
+
         doc_data = list(self.data)
 
         # Step 1: Entity extraction
