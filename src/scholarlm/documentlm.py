@@ -8,7 +8,19 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 load_dotenv()
-from scholarlm.utils import process_pdf, add_row_names
+from scholarlm.utils import process_pdf, add_row_names, format_chandra_output
+
+
+# Exact-match allow-list: model_name must be one of these literal HF model IDs --
+# the same strings experiments/run_ocr.py passes as DocumentLM(model_name=...),
+# sourced from experiments/config.yaml's models.<key>.model_id. This doubles as
+# the dispatch key fit() uses to choose olmOCR-shaped vs. chandra-shaped
+# post-processing, so a re-pin of model_id in config.yaml requires a matching
+# update here rather than silently applying the wrong formatter.
+SUPPORTED_MODELS = {
+    "allenai/olmOCR-2-7B-1025": "olmocr",
+    "datalab-to/chandra-ocr-2": "chandra-ocr-2",
+}
 
 
 class DocumentLM:
@@ -17,7 +29,7 @@ class DocumentLM:
 
     Args:
         model_name (str): Name or path of the VLM to use for OCR, served via a
-            vLLM OpenAI-compatible endpoint.
+            vLLM OpenAI-compatible endpoint. Must be a key of SUPPORTED_MODELS.
         ocr_prompt (str): System prompt for the OCR task. Defaults to a standard
             instruction to convert PDF pages to markdown with HTML tables.
         sampling_params (dict[str, any]): Sampling parameters for text generation.
@@ -35,7 +47,13 @@ class DocumentLM:
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
     ):
+        if model_name not in SUPPORTED_MODELS:
+            raise ValueError(
+                f"Unsupported model_name {model_name!r}. DocumentLM supports "
+                f"exactly: {sorted(SUPPORTED_MODELS)}."
+            )
         self.model_name = model_name
+        self._output_format = SUPPORTED_MODELS[model_name]
         self.sampling_params = {
             "temperature": 0.1,
             "max_tokens": 16384,
@@ -236,10 +254,13 @@ class DocumentLM:
                 chunk = doc_chunks[page_id]
                 doc_text += f'<page number="{int(page_id)}">\n\n' + chunk + f"\n\n</page>\n\n"
 
-            counter = count()
-            doc_text = re.sub(
-                r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
-            )
+            if self._output_format == "chandra-ocr-2":
+                doc_text = format_chandra_output(doc_text)
+            else:
+                counter = count()
+                doc_text = re.sub(
+                    r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
+                )
 
             self.text.append(doc_text)
 
