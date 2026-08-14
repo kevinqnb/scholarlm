@@ -37,6 +37,10 @@ class DocumentLM:
         api_base (str): Base URL of the vLLM OpenAI-compatible endpoint.
         api_key (str): API key for the endpoint (use "EMPTY" for local vLLM).
         max_concurrent (int): Maximum number of concurrent async API calls.
+        fast (bool): If True, render pages at lower resolution
+            (target_longest_dim=1024 instead of 2048) and skip the
+            temperature-escalation retry loop in fit(), trading OCR quality
+            for speed.
     """
     def __init__(
         self,
@@ -46,6 +50,7 @@ class DocumentLM:
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
+        fast: bool = False,
     ):
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
@@ -60,6 +65,7 @@ class DocumentLM:
         } | (sampling_params or {})
         self.max_tokens = self.sampling_params.get("max_tokens", 16384)
         self.max_concurrent = max_concurrent
+        self.fast = fast
 
         if ocr_prompt is None:
             self.ocr_prompt = (
@@ -137,7 +143,8 @@ class DocumentLM:
         ``processed_pdfs_dir``), sends it through the VLM with the OCR prompt, and
         reassembles page outputs into a single document per file. Pages that exceed
         max_tokens or fail to produce expected table tags are retried with
-        progressively higher temperature.
+        progressively higher temperature — unless ``self.fast`` is True, in which
+        case pages are rendered at a lower resolution and no retry is attempted.
 
         Output text wraps each page in ``<page number="N">`` tags and numbers
         tables sequentially with ``<table number="N">`` tags.
@@ -175,7 +182,8 @@ class DocumentLM:
                         continue
                     b64_images = [f.read_text() for f in b64_files]
                 else:
-                    b64_images = process_pdf(filepath, target_longest_dim=2048)
+                    target_longest_dim = 1024 if self.fast else 2048
+                    b64_images = process_pdf(filepath, target_longest_dim=target_longest_dim)
             except Exception as e:
                 warnings.warn(f"Failed to process {filepath} with error: {e}. Skipping this file.")
                 continue
@@ -197,9 +205,11 @@ class DocumentLM:
 
         results = self._call_batch_with_usage(messages)
 
-        # Retry with higher temperature if max tokens exceeded or if tables failed to be extracted.
+        # Retry with higher temperature if max tokens exceeded or if tables failed to
+        # be extracted. Skipped entirely in fast mode: the single initial pass is
+        # used as-is, with no re-send on truncation or missing table tags.
         temp = self.sampling_params.get("temperature", 0.1)
-        while temp <= 1.0:
+        while not self.fast and temp <= 1.0:
             retry_messages = []
             retry_message_ids = []
             for i, (text, completion_tokens) in enumerate(results):

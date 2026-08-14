@@ -30,6 +30,9 @@ Usage
     python experiments/run_ocr.py --dataset pond \\
         --api-base http://node042:8081/v1
 
+    # Fast mode (lower-resolution pages, no retry loop -- trades quality for speed):
+    python experiments/run_ocr.py --dataset pond --fast
+
 Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
 Available models:   keys of OCR_MODEL_REGISTRY in this file (each must also have a
                      matching block under ``models.<key>`` in experiments/config.yaml).
@@ -105,6 +108,7 @@ def run_ocr(
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     processed_pdfs_dir: str | None = None,
+    fast: bool = False,
 ) -> None:
     """Run an OCR model on all PDFs for a dataset via a vLLM server.
 
@@ -124,6 +128,8 @@ def run_ocr(
             directory instead of rendering PDFs at runtime.  The expected layout
             is ``{processed_pdfs_dir}/{paper_code}/{page_index}.b64``, which
             matches the output of ``experiments/process_pdfs.py``.
+        fast: If True, run DocumentLM in fast mode (lower-resolution page
+            images, no retry loop) trading OCR quality for speed.
     """
     data_dir = Path(dataset_config.data_dir)
     pdf_dir = data_dir / "pdfs"
@@ -166,6 +172,7 @@ def run_ocr(
         sampling_params=sampling_params,
         api_base=api_base,
         api_key=api_key,
+        fast=fast,
     )
 
     start_time = time.time()
@@ -235,6 +242,14 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--fast",
+        action="store_true",
+        help=(
+            "Run DocumentLM in fast mode: lower-resolution page images and no "
+            "retry loop, trading OCR quality for speed."
+        ),
+    )
+    p.add_argument(
         "--api-base",
         default="http://localhost:8081/v1",
         metavar="URL",
@@ -288,6 +303,7 @@ def main(argv: list[str] | None = None) -> None:
         paper_subset_override=args.paper_subset,
         resume=args.resume,
         processed_pdfs_dir=processed_pdfs_dir,
+        fast=args.fast,
     )
 
 
