@@ -107,6 +107,13 @@ ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp',
 # the surviving subset shrinks and (hopefully) grows more faithful to the GT
 # distribution. 0.0 keeps everything -- i.e. reduces to the full extracted set.
 THRESHOLDS = [0.0, 0.25, 0.5, 0.75]
+
+# Fine-grained threshold grid for the Q-Q plots only -- draws one line per value
+# instead of one per THRESHOLDS entry, so the confidence sweep reads as a continuous
+# gradient rather than four discrete lines. Not used anywhere outside the Q-Q
+# plotting path: THRESHOLDS/SETTINGS/build_stats_table's CSV output are unaffected.
+QQ_THRESHOLDS = np.arange(0, 0.96, 0.05)
+
 METHODS = ['ntp', 'probe']
 METHOD_PROB_COL = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
 METHOD_LABELS = {'ntp': 'NTP confidence', 'probe': 'Probe confidence'}
@@ -200,8 +207,28 @@ N_BOOT = 1000
 THRESHOLD_CMAP = plt.cm.coolwarm
 THRESHOLD_NORM = mcolors.Normalize(vmin=min(THRESHOLDS), vmax=max(THRESHOLDS))
 
+# Same colormap, renormalized to the fine QQ_THRESHOLDS grid's full span (0 -> 0.95)
+# for the smoothed Q-Q sweep -- kept separate from THRESHOLD_NORM so plot_qq's
+# existing 4-line coloring is untouched.
+QQ_THRESHOLD_NORM = mcolors.Normalize(vmin=0.0, vmax=0.95)
+
 # Default attribute subset shown in the Q-Q figures (one subplot column each).
 QQ_ATTRIBUTES = ['surface_area', 'ph', 'tn', 'tp']
+
+# Single (ecosystem, method, attribute) cell blown up poster-size, axes flipped
+# (GT on y, Extracted on x) and fonts enlarged relative to the QQ_ATTRIBUTES grid --
+# matches the one-off qq_probe_pond_tn_poster.pdf committed in cdd9f39, whose
+# generating code was never itself committed (see build note
+# 2026-08-18-smoothed-qq-sweep-01 for the reconstruction).
+POSTER_ECOSYSTEM = 'pond'
+POSTER_METHOD = 'probe'
+POSTER_ATTRIBUTE = 'tn'
+
+# Fixed y-axis (Ground Truth) crop for the poster figure only, still log-scale --
+# tighter than the auto-computed range so the sweep isn't dominated by the sparse,
+# noisy high-threshold tail. Does not affect the x-axis (Extracted), which stays
+# auto-ranged, or any other Q-Q figure.
+POSTER_YLIM = (100, 5000)
 
 
 # ── Ecosystem bucketing ─────────────────────────────────────────────────────
@@ -656,6 +683,108 @@ def plot_qq(
     print(f"[meta] wrote {out_path}")
 
 
+def plot_qq_smooth(
+    gt_df: pd.DataFrame,
+    ext_df: pd.DataFrame,
+    ecosystem: str,
+    method: str,
+    attributes: list[str],
+    out_path: Path,
+    n_boot: int = N_BOOT,
+    ci: float = 0.95,
+    seed: int = 0,
+):
+    """Smoothed variant of plot_qq: one Q-Q figure for a fixed (ecosystem, method),
+    overlaying a line for every threshold t in QQ_THRESHOLDS (20 values, 0.0 to 0.95
+    in steps of 0.05) instead of the 4-value THRESHOLDS grid, colored continuously
+    via THRESHOLD_CMAP/QQ_THRESHOLD_NORM so the sweep reads as a gradient rather than
+    discrete lines. Lines are thinner and slightly transparent relative to plot_qq's,
+    since 20 overlapping lines need it for legibility. Otherwise identical in
+    structure -- same quantile helpers, same GT bootstrap band, same axis handling.
+    """
+    n_attrs = len(attributes)
+    fig, axes = plt.subplots(1, n_attrs, figsize=(2.6 * n_attrs, 2.9))
+    if n_attrs == 1:
+        axes = [axes]
+
+    prob_col = METHOD_PROB_COL[method]
+
+    for i, (ax, attribute) in enumerate(zip(axes, attributes)):
+        log_scale = attribute in LOG_SCALE_ATTRIBUTES
+
+        gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
+        gt_x = gt_data[0] if gt_data is not None else np.array([])
+        if log_scale:
+            gt_x = gt_x[gt_x > 0]
+        if gt_x.size < 2:
+            ax.text(0.5, 0.5, f'insufficient GT data\n(n={gt_x.size})',
+                     ha='center', va='center', fontsize=9, color='#888888',
+                     transform=ax.transAxes)
+            ax.set_xticks([]); ax.set_yticks([])
+            ax.set_xlabel('GT')
+            if i == 0:
+                ax.set_ylabel('Extracted')
+            ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
+            continue
+
+        gt_lo, gt_hi = _valid_range(gt_x.size)
+        gt_levels = QLEVELS[(QLEVELS >= gt_lo) & (QLEVELS <= gt_hi)]
+        gt_q = _hazen_quantiles(gt_x, gt_levels)
+        boot_lo, boot_hi = _bootstrap_gt_band(gt_x, gt_levels, n_boot=n_boot, ci=ci, seed=seed)
+
+        all_plotted = [gt_q, boot_lo, boot_hi]
+
+        for t in QQ_THRESHOLDS:
+            data = _setting_data(f'{method}_{t:g}', gt_df, ext_df, ecosystem, attribute)
+            if data is None:
+                continue
+            ext_x = data[0]
+            if log_scale:
+                ext_x = ext_x[ext_x > 0]
+            if ext_x.size == 0:
+                continue
+
+            ext_lo, ext_hi = _valid_range(ext_x.size)
+            lo, hi = max(gt_lo, ext_lo), min(gt_hi, ext_hi)
+            levels_t = QLEVELS[(QLEVELS >= lo) & (QLEVELS <= hi)]
+            if levels_t.size == 0:
+                continue
+
+            gt_q_t = _hazen_quantiles(gt_x, levels_t)
+            ext_q_t = _hazen_quantiles(ext_x, levels_t)
+            color = THRESHOLD_CMAP(QQ_THRESHOLD_NORM(t))
+            if levels_t.size == 1:
+                ax.scatter(gt_q_t, ext_q_t, color=color, s=10, alpha=0.85, zorder=4)
+            else:
+                ax.plot(gt_q_t, ext_q_t, color=color, linewidth=1.0, alpha=0.85,
+                        zorder=4, solid_capstyle='round')
+            all_plotted.extend([gt_q_t, ext_q_t])
+
+        lo_lim, hi_lim = _axis_limits(np.concatenate(all_plotted), log=log_scale)
+        ax.fill_between(gt_q, boot_lo, boot_hi, color='#888888', alpha=0.25, linewidth=0, zorder=1)
+        ax.plot([lo_lim, hi_lim], [lo_lim, hi_lim], color='#888888', linewidth=1.0,
+                 linestyle='--', zorder=2)
+
+        if log_scale:
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+        ax.set_xlim(lo_lim, hi_lim)
+        ax.set_ylim(lo_lim, hi_lim)
+        ax.set_box_aspect(1)
+
+        ax.set_xlabel('GT')
+        if i == 0:
+            ax.set_ylabel('Extracted')
+        ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
+        ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+        ax.set_axisbelow(True)
+
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta] wrote {out_path}")
+
+
 def plot_qq_legend(out_path: Path):
     """Shared legend for all six Q-Q figures: threshold lines on the top row,
     the y=x reference line and the ground-truth bootstrap uncertainty-band
@@ -680,6 +809,151 @@ def plot_qq_legend(out_path: Path):
                   fontsize=11, frameon=False)
     ax_bot.legend(handles=ref_handles, loc='center', ncol=len(ref_handles),
                   fontsize=11, frameon=False)
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta] wrote {out_path}")
+
+
+def plot_qq_legend_smooth(out_path: Path):
+    """Shared legend for the smoothed Q-Q figures: a horizontal colorbar spanning
+    QQ_THRESHOLDS (0 -> 0.95) in place of plot_qq_legend's discrete per-threshold
+    swatches, alongside the same y=x reference and GT bootstrap-band entries.
+    """
+    ref_handles = [
+        mlines.Line2D([], [], color='#888888', linewidth=1.0, linestyle='--',
+                       label='y = x (perfect match)'),
+        mpatches.Patch(facecolor='#888888', alpha=0.25, edgecolor='none',
+                        label='GT bootstrap 95% CI'),
+    ]
+
+    fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(4.5, 1.3))
+    ax_top.axis('off')
+    ax_bot.axis('off')
+
+    cbar_ax = fig.add_axes([0.15, 0.72, 0.7, 0.12])
+    cbar = fig.colorbar(
+        plt.cm.ScalarMappable(norm=QQ_THRESHOLD_NORM, cmap=THRESHOLD_CMAP),
+        cax=cbar_ax, orientation='horizontal',
+    )
+    cbar.set_label('Confidence threshold', fontsize=11)
+    cbar.set_ticks([0.0, 0.25, 0.5, 0.75, 0.95])
+
+    ax_bot.legend(handles=ref_handles, loc='center', ncol=len(ref_handles),
+                  fontsize=11, frameon=False)
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta] wrote {out_path}")
+
+
+def plot_qq_poster_smooth(
+    gt_df: pd.DataFrame,
+    ext_df: pd.DataFrame,
+    out_path: Path,
+    n_boot: int = N_BOOT,
+    ci: float = 0.95,
+    seed: int = 0,
+):
+    """Poster-size smoothed Q-Q figure for the single (POSTER_ECOSYSTEM,
+    POSTER_METHOD, POSTER_ATTRIBUTE) cell, matching qq_probe_pond_tn_poster.pdf's
+    layout: one big subplot, axes flipped relative to plot_qq/plot_qq_smooth (GT on
+    y, Extracted on x), enlarged fonts, QQ_THRESHOLDS sweep colored via
+    THRESHOLD_CMAP/QQ_THRESHOLD_NORM instead of the original's 4 discrete lines.
+    """
+    ecosystem, method, attribute = POSTER_ECOSYSTEM, POSTER_METHOD, POSTER_ATTRIBUTE
+    log_scale = attribute in LOG_SCALE_ATTRIBUTES
+
+    fig, ax = plt.subplots(figsize=(3.3, 3.3))
+
+    gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
+    gt_x = gt_data[0] if gt_data is not None else np.array([])
+    if log_scale:
+        gt_x = gt_x[gt_x > 0]
+    assert gt_x.size >= 2, f"insufficient GT data for poster cell ({ecosystem}, {attribute}): n={gt_x.size}"
+
+    gt_lo, gt_hi = _valid_range(gt_x.size)
+    gt_levels = QLEVELS[(QLEVELS >= gt_lo) & (QLEVELS <= gt_hi)]
+    gt_q = _hazen_quantiles(gt_x, gt_levels)
+    boot_lo, boot_hi = _bootstrap_gt_band(gt_x, gt_levels, n_boot=n_boot, ci=ci, seed=seed)
+
+    all_plotted = [gt_q, boot_lo, boot_hi]
+
+    for t in QQ_THRESHOLDS:
+        data = _setting_data(f'{method}_{t:g}', gt_df, ext_df, ecosystem, attribute)
+        if data is None:
+            continue
+        ext_x = data[0]
+        if log_scale:
+            ext_x = ext_x[ext_x > 0]
+        if ext_x.size == 0:
+            continue
+
+        ext_lo, ext_hi = _valid_range(ext_x.size)
+        lo, hi = max(gt_lo, ext_lo), min(gt_hi, ext_hi)
+        levels_t = QLEVELS[(QLEVELS >= lo) & (QLEVELS <= hi)]
+        if levels_t.size == 0:
+            continue
+
+        gt_q_t = _hazen_quantiles(gt_x, levels_t)
+        ext_q_t = _hazen_quantiles(ext_x, levels_t)
+        color = THRESHOLD_CMAP(QQ_THRESHOLD_NORM(t))
+        if levels_t.size == 1:
+            ax.scatter(ext_q_t, gt_q_t, color=color, s=14, alpha=0.85, zorder=4)
+        else:
+            ax.plot(ext_q_t, gt_q_t, color=color, linewidth=1.4, alpha=0.85,
+                    zorder=4, solid_capstyle='round')
+        all_plotted.extend([gt_q_t, ext_q_t])
+
+    lo_lim, hi_lim = _axis_limits(np.concatenate(all_plotted), log=log_scale)
+    ax.fill_between(gt_q, boot_lo, boot_hi, color='#888888', alpha=0.25, linewidth=0, zorder=1)
+    ax.plot([lo_lim, hi_lim], [lo_lim, hi_lim], color='#888888', linewidth=1.0,
+             linestyle='--', zorder=2)
+
+    if log_scale:
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+    ax.set_xlim(lo_lim, hi_lim)
+    ax.set_ylim(*POSTER_YLIM)
+    ax.set_box_aspect(1)
+
+    ax.set_xlabel('Extracted', fontsize=20)
+    ax.set_ylabel('Ground Truth', fontsize=20)
+    ax.set_title(_attr_title(attribute), fontsize=20, style='italic')
+    ax.tick_params(labelsize=15)
+    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax.set_axisbelow(True)
+
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta] wrote {out_path}")
+
+
+def plot_qq_legend_poster_smooth(out_path: Path):
+    """Poster-size counterpart to plot_qq_legend_smooth (enlarged fonts), matching
+    qq_legend_poster.pdf's poster-scale styling.
+    """
+    ref_handles = [
+        mlines.Line2D([], [], color='#888888', linewidth=1.5, linestyle='--',
+                       label='y = x (perfect match)'),
+        mpatches.Patch(facecolor='#888888', alpha=0.25, edgecolor='none',
+                        label='GT bootstrap 95% CI'),
+    ]
+
+    fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(6.0, 1.9))
+    ax_top.axis('off')
+    ax_bot.axis('off')
+
+    cbar_ax = fig.add_axes([0.15, 0.72, 0.7, 0.16])
+    cbar = fig.colorbar(
+        plt.cm.ScalarMappable(norm=QQ_THRESHOLD_NORM, cmap=THRESHOLD_CMAP),
+        cax=cbar_ax, orientation='horizontal',
+    )
+    cbar.set_label('Confidence threshold', fontsize=16)
+    cbar.set_ticks([0.0, 0.25, 0.5, 0.75, 0.95])
+    cbar.ax.tick_params(labelsize=13)
+
+    ax_bot.legend(handles=ref_handles, loc='center', ncol=len(ref_handles),
+                  fontsize=16, frameon=False)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta] wrote {out_path}")
@@ -711,6 +985,18 @@ def main():
                     n_boot=args.n_boot, seed=args.seed)
 
     plot_qq_legend(FIGURES_DIR / 'qq_legend.pdf')
+
+    for method in METHODS:
+        for ecosystem in ECOSYSTEMS:
+            out_path = FIGURES_DIR / f'qq_{method}_{ecosystem}_smooth.pdf'
+            plot_qq_smooth(gt_df, ext_df, ecosystem, method, args.attributes, out_path,
+                            n_boot=args.n_boot, seed=args.seed)
+
+    plot_qq_legend_smooth(FIGURES_DIR / 'qq_legend_smooth.pdf')
+
+    plot_qq_poster_smooth(gt_df, ext_df, FIGURES_DIR / 'qq_probe_pond_tn_poster_smooth.pdf',
+                           n_boot=args.n_boot, seed=args.seed)
+    plot_qq_legend_poster_smooth(FIGURES_DIR / 'qq_legend_poster_smooth.pdf')
 
 
 if __name__ == "__main__":

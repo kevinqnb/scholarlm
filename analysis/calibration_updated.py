@@ -96,7 +96,7 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 EXTRACTION_SETTINGS = {
     'gemma-3-27b': {
         'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base', 'qwen-2.5-7b-base-cued', 'llama-3.1-8b-base-cued'],
+        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b'],
         # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
         # llama-3.1-8b-base-cued is trained/tested on all three, but its comparison
         # baseline (llama-3.1-8b instruct) only covers pond+nfix -- see
@@ -127,15 +127,9 @@ EXTRACTION_SETTINGS = {
                 'llama-3.1-8b': '2026_05_04',
                 'mistral-7b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
         },
         'judge_dates_real': {
@@ -143,23 +137,14 @@ EXTRACTION_SETTINGS = {
                 'llama-3.1-8b': '2026_05_06',
                 'mistral-7b': '2026_05_06',
                 'qwen-2.5-7b': '2026_05_06',
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_05',
                 'mistral-7b': '2026_05_05',
                 'qwen-2.5-7b': '2026_05_05',
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'supermat': {
                 'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
         },
         'pi_te_estimate': None,

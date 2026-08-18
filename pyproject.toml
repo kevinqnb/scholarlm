@@ -44,6 +44,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "statsmodels>=0.14.6",
     "relplot>=1.0.3",
+    "sentencepiece>=0.2.2",
 ]
 
 [project.optional-dependencies]
