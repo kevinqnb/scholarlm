@@ -1,5 +1,7 @@
 """Unit tests for DocumentLM's fast mode (see
-notes/scholarlm/builds/2026-08-13-documentlm-fast-mode-01.md).
+notes/scholarlm/builds/2026-08-13-documentlm-fast-mode-01.md) and per-document
+formatting isolation / drop_references (see
+notes/scholarlm/builds/2026-08-20-per-document-isolation-01.md).
 
 Mocks scholarlm.documentlm.process_pdf (no real PDFs rendered) and
 DocumentLM._call_batch_with_usage (no network calls). Verifies:
@@ -10,9 +12,21 @@ DocumentLM._call_batch_with_usage (no network calls). Verifies:
     or is_table=True with no <table> tag): only one _call_batch_with_usage
     call happens, and the unmodified first-pass text ends up in self.text.
   * fast=False (unchanged behavior) still retries those same trigger cases.
+  * A chandra-ocr-2 document whose formatted text hits an unrecognized
+    data-label does not take down its batch-mates: self.text[i] is None and
+    format_errors[i] records the failure for that document alone, while every
+    other document's text is unaffected.
+  * save() skips writing a file for a document in format_errors (with a loud
+    warning) instead of crashing on file.write(None), and still writes every
+    unaffected document normally.
+  * drop_references=True removes an unrecognized-label div sitting after a
+    references heading before it ever reaches chandra's label validation;
+    drop_references=False (the default) leaves that failure in place.
 """
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -21,6 +35,7 @@ from scholarlm.documentlm import DocumentLM
 
 
 MODEL_NAME = "allenai/olmOCR-2-7B-1025"
+CHANDRA_MODEL_NAME = "datalab-to/chandra-ocr-2"
 
 
 def _fake_process_pdf(calls):
@@ -119,3 +134,94 @@ def test_normal_mode_still_retries_on_max_tokens_exceeded(monkeypatch):
 
     assert len(call_count) == 2  # initial pass + one retry
     assert "retried page text" in result[0]
+
+
+def _make_chandra_doclm(monkeypatch, **overrides):
+    monkeypatch.setattr(documentlm_module, "process_pdf", _fake_process_pdf([]))
+    kwargs = dict(
+        model_name=CHANDRA_MODEL_NAME,
+        sampling_params={"temperature": 0.1, "max_tokens": 100},
+        api_base="http://localhost:0/v1",
+    )
+    kwargs.update(overrides)
+    return DocumentLM(**kwargs)
+
+
+_GOOD_CHANDRA_PAGE = '<div data-bbox="0 0 1 1" data-label="Text">Fine content.</div>'
+_BAD_CHANDRA_PAGE = '<div data-bbox="0 0 1 1" data-label="Weird-Unknown-Label">Bad content.</div>'
+
+
+def test_chandra_formatting_failure_isolated_to_its_document(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch)
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_BAD_CHANDRA_PAGE, 5), (_GOOD_CHANDRA_PAGE, 5)]
+        ),
+    )
+
+    result = doclm.fit(["bad.pdf", "good.pdf"])
+
+    assert set(doclm.format_errors.keys()) == {0}
+    assert "Unrecognized chandra-ocr-2 data-label" in doclm.format_errors[0]
+    assert result[0] is None
+    assert result[1] is not None
+    assert "Fine content." in result[1]
+
+
+def test_save_skips_document_with_format_error_and_warns(monkeypatch, tmp_path):
+    doclm = _make_chandra_doclm(monkeypatch)
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_BAD_CHANDRA_PAGE, 5), (_GOOD_CHANDRA_PAGE, 5)]
+        ),
+    )
+    doclm.fit(["bad.pdf", "good.pdf"])
+
+    out0 = tmp_path / "bad.txt"
+    out1 = tmp_path / "good.txt"
+    with pytest.warns(UserWarning, match="formatting failed"):
+        doclm.save([str(out0), str(out1)])
+
+    assert not out0.exists()
+    assert out1.exists()
+    assert "Fine content." in out1.read_text()
+
+
+_REFERENCES_CHANDRA_PAGE = (
+    '<div data-bbox="0 0 1 1" data-label="Text">Good intro.</div>'
+    '<div data-bbox="0 0 1 1" data-label="Section-Header"><h2>References</h2></div>'
+    '<div data-bbox="0 0 1 1" data-label="Weird-Unknown-Label">Should be dropped.</div>'
+)
+
+
+def test_drop_references_true_avoids_unrecognized_label_after_heading(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch, drop_references=True)
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_REFERENCES_CHANDRA_PAGE, 5)]
+        ),
+    )
+
+    result = doclm.fit(["paper.pdf"])
+
+    assert doclm.format_errors == {}
+    assert "Good intro." in result[0]
+    assert "Should be dropped." not in result[0]
+
+
+def test_drop_references_default_false_still_fails_on_unrecognized_label(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch)  # drop_references defaults to False
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_REFERENCES_CHANDRA_PAGE, 5)]
+        ),
+    )
+
+    result = doclm.fit(["paper.pdf"])
+
+    assert 0 in doclm.format_errors
+    assert result[0] is None

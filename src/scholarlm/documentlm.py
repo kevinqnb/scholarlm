@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 load_dotenv()
-from scholarlm.utils import process_pdf, add_row_names, format_chandra_output
+from scholarlm.utils import process_pdf, add_row_names, format_chandra_output, drop_references_section
 
 
 # Exact-match allow-list: model_name must be one of these literal HF model IDs --
@@ -41,6 +41,11 @@ class DocumentLM:
             (target_longest_dim=1024 instead of 2048) and skip the
             temperature-escalation retry loop in fit(), trading OCR quality
             for speed.
+        drop_references (bool): If True, truncate each document's assembled
+            OCR text at its references/bibliography heading (if found) before
+            chandra/olmOCR-specific formatting -- applied once, generically,
+            to both formats. Default False; leaves pond-papers (scholarlm's
+            other consumer) unaffected unless it opts in.
     """
     def __init__(
         self,
@@ -51,6 +56,7 @@ class DocumentLM:
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
         fast: bool = False,
+        drop_references: bool = False,
     ):
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
@@ -66,6 +72,8 @@ class DocumentLM:
         self.max_tokens = self.sampling_params.get("max_tokens", 16384)
         self.max_concurrent = max_concurrent
         self.fast = fast
+        self.drop_references = drop_references
+        self.format_errors: dict[int, str] = {}
 
         if ocr_prompt is None:
             self.ocr_prompt = (
@@ -255,7 +263,8 @@ class DocumentLM:
             documents[paper_id][page_id] = cleaned_text
 
         self.text = []
-        for document in documents:
+        self.format_errors = {}
+        for doc_idx, document in enumerate(documents):
             doc_chunks = document
             doc_text = ""
             pages = list(doc_chunks.keys())
@@ -264,13 +273,21 @@ class DocumentLM:
                 chunk = doc_chunks[page_id]
                 doc_text += f'<page number="{int(page_id)}">\n\n' + chunk + f"\n\n</page>\n\n"
 
-            if self._output_format == "chandra-ocr-2":
-                doc_text = format_chandra_output(doc_text)
-            else:
-                counter = count()
-                doc_text = re.sub(
-                    r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
-                )
+            if self.drop_references:
+                doc_text = drop_references_section(doc_text)
+
+            try:
+                if self._output_format == "chandra-ocr-2":
+                    doc_text = format_chandra_output(doc_text)
+                else:
+                    counter = count()
+                    doc_text = re.sub(
+                        r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
+                    )
+            except Exception as e:
+                self.format_errors[doc_idx] = str(e)
+                self.text.append(None)
+                continue
 
             self.text.append(doc_text)
 
@@ -284,8 +301,20 @@ class DocumentLM:
         Args:
             filepaths (list[str]): Output file paths, one per document. Must have
                 the same length as the list passed to fit().
+
+        A document whose formatting failed in fit() (index present in
+        self.format_errors, self.text[i] is None) is skipped -- no file is
+        written for it -- with a loud warning printed instead of crashing on
+        file.write(None). Callers must check self.format_errors, not just file
+        existence, to distinguish "never OCR'd" from "OCR'd but failed to format."
         """
         for i, text in enumerate(self.text):
+            if i in self.format_errors:
+                warnings.warn(
+                    f"Skipping save for document {i} ({filepaths[i]}): "
+                    f"formatting failed with: {self.format_errors[i]}"
+                )
+                continue
             output_filepath = filepaths[i]
             with open(output_filepath, 'w', encoding='utf-8') as file:
                 file.write(text)

@@ -9,7 +9,7 @@ import pandas as pd
 import math
 import re
 from io import StringIO
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI, BadRequestError, OpenAI
 from .instruction_prompts import (
     CLEAN_TABLE_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
@@ -21,6 +21,21 @@ from .instruction_prompts import (
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
     DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
 )
+
+
+class ContextLengthExceededError(Exception):
+    """Raised by _acall when the model server reports the prompt exceeded the
+    model's context window. Distinguishes this specific, deterministic failure
+    from every other exception _acall swallows into an empty-string result --
+    see notes/scholarlm/builds/2026-08-20-per-document-isolation-01.md.
+    """
+
+
+# Confirmed against a real vLLM OpenAI-compatible error body (see the build note
+# above): the response's `type`/`code` fields are generic ('BadRequestError', 400)
+# and do not distinguish a context-length failure from any other 400 -- only the
+# free-text message does.
+_CONTEXT_LENGTH_MESSAGE_RE = re.compile(r"maximum context length", re.IGNORECASE)
 
 
 def response_validator(response_structure, response):
@@ -191,6 +206,7 @@ class MeasurementLM:
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
         self.max_prompt_tokens: int = 0
+        self.context_length_exceeded_docs: set[int] = set()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
 
@@ -255,6 +271,12 @@ class MeasurementLM:
                 if response.usage.prompt_tokens > self.max_prompt_tokens:
                     self.max_prompt_tokens = response.usage.prompt_tokens
             return response.choices[0].message.content
+        except BadRequestError as e:
+            message = e.body.get("message", "") if isinstance(e.body, dict) else str(e)
+            if _CONTEXT_LENGTH_MESSAGE_RE.search(message):
+                raise ContextLengthExceededError(message) from e
+            print(f"API call failed: {e}")
+            return ""
         except Exception as e:
             print(f"API call failed: {e}")
             return ""
@@ -270,7 +292,7 @@ class MeasurementLM:
         timeout: float = 600.0,
         max_concurrent: int | None = None,
         extra_body: dict | None = None,
-    ) -> list[str]:
+    ) -> list[str | ContextLengthExceededError]:
         """Dispatch all message sets concurrently; return response texts in order.
 
         If max_retries > 0, any response that is empty or causes validator to raise
@@ -280,19 +302,29 @@ class MeasurementLM:
         per-step concurrency tuning without changing the instance default.
         extra_body is forwarded unchanged to every request in this batch (merged
         under self.use_extra_body, same as the sampling-params-derived fields).
+
+        A ContextLengthExceededError from an individual call is isolated to that
+        call's slot in the returned list (never retried, never propagated into
+        asyncio.gather) rather than failing the whole batch. Every other exception
+        still propagates and crashes loudly.
         """
         async def _run():
             sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
                 async with sem:
-                    return await self._acall(msgs, response_format, temperature, max_tokens, timeout, extra_body)
+                    try:
+                        return await self._acall(msgs, response_format, temperature, max_tokens, timeout, extra_body)
+                    except ContextLengthExceededError as e:
+                        return e
 
             results = list(await asyncio.gather(*[_limited(msgs) for msgs in message_sets]))
 
             for attempt in range(max_retries):
                 failed = []
                 for i, resp in enumerate(results):
+                    if isinstance(resp, ContextLengthExceededError):
+                        continue
                     if not resp:
                         failed.append(i)
                         continue
@@ -468,6 +500,9 @@ class MeasurementLM:
 
         cleaned_documents = deepcopy(documents)
         for (doc_idx, page_number), cleaned_page_text in zip(message_ids, response_texts):
+            if isinstance(cleaned_page_text, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(doc_idx)
+                continue
             cleaned_page_text = cleaned_page_text.strip()
             if not cleaned_page_text:
                 continue
@@ -558,6 +593,10 @@ class MeasurementLM:
         # Build per-document entity lists
         doc_entities: dict[int, list[dict]] = {}
         for i, r in enumerate(response_texts):
+            if isinstance(r, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(i)
+                doc_entities[i] = []
+                continue
             try:
                 resp_validated = response_validator(IdentificationList, r)
             except Exception as e:
@@ -656,6 +695,9 @@ class MeasurementLM:
 
         for msg_idx, resp in enumerate(response_texts):
             doc_id, entity_id, page_number = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(doc_id)
+                continue
             try:
                 result = response_validator(ProvenanceResponse, resp)
             except Exception as e:
@@ -759,6 +801,10 @@ class MeasurementLM:
 
         for msg_idx, resp in enumerate(response_texts):
             doc_idx = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(doc_idx)
+                detection_results[doc_idx] = {a: False for a in attr_names}
+                continue
             try:
                 batch = response_validator(BatchAttributeDetectionResponse, resp)
             except Exception as e:
@@ -877,6 +923,9 @@ class MeasurementLM:
 
         for msg_idx, resp in enumerate(response_texts):
             doc_id, attr_name, page_number = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(doc_id)
+                continue
             try:
                 result = response_validator(ProvenanceResponse, resp)
             except Exception as e:
@@ -1003,6 +1052,10 @@ class MeasurementLM:
         event_resolution = {}
         for msg_idx, resp in enumerate(response_texts):
             key = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(key[0])
+                event_resolution[key] = []
+                continue
             try:
                 result = response_validator(EventList, resp)
             except Exception as e:
@@ -1138,6 +1191,9 @@ class MeasurementLM:
         text_values = []
         for msg_idx, resp in enumerate(response_texts):
             pair_record, page_number = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(pair_record['document_id'])
+                continue
             try:
                 result = response_validator(TextValueExtractionResponse, resp)
             except Exception as e:
@@ -1327,6 +1383,9 @@ class MeasurementLM:
         table_values = []
         for msg_idx, resp in enumerate(response_texts):
             pair_record, table_number, page_number = message_ids[msg_idx]
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(pair_record['document_id'])
+                continue
             try:
                 result = response_validator(TableValueExtractionResponse, resp)
             except Exception as e:
@@ -1461,6 +1520,9 @@ class MeasurementLM:
         triple_data = []
         dropped_count = 0
         for i, r in enumerate(response_texts):
+            if isinstance(r, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(i)
+                continue
             try:
                 resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
@@ -1559,6 +1621,11 @@ class MeasurementLM:
 
         standardized_data = [dict(datapoint) for datapoint in self.data]
         for i, resp in enumerate(response_texts):
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(
+                    standardized_data[message_data_ids[i]]['document_id']
+                )
+                continue
             try:
                 result = response_validator(StandardizeResponse, resp)
                 standardized_data[message_data_ids[i]]['value'] = result['value']
