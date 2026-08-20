@@ -372,6 +372,38 @@ def test_extract_values_from_text_isolates_context_length_exceeded_document(monk
     assert by_doc[1]["value"] == "3.2"
 
 
+def test_context_length_exceeded_docs_resets_between_fit_calls(monkeypatch):
+    """context_length_exceeded_docs holds positions within the current batch's
+    documents list, not stable document ids -- a second fit() call on the same
+    instance must not carry the first batch's indices forward, or a caller
+    reading the attribute after batch 2 would misattribute batch 1's failure
+    to a document that succeeded in batch 2."""
+    mlm = _make_mlm(
+        extraction_mode="direct",
+        direct_extraction_schema=_DirectSchema,
+        direct_extraction_prompt="Extract all measurements.",
+    )
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    async def fake_acall_batch1(self, messages, response_format=None, temperature=None,
+                                 max_tokens=None, timeout=600.0, extra_body=None):
+        if "DOC0" in messages[0]["content"]:
+            raise ContextLengthExceededError("... exceeds model's maximum context length ...")
+        return '{"items": []}'
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall_batch1)
+    mlm.fit(["DOC0 too-long text", "DOC1 text"])
+    assert mlm.context_length_exceeded_docs == {0}
+
+    async def fake_acall_batch2(self, messages, response_format=None, temperature=None,
+                                 max_tokens=None, timeout=600.0, extra_body=None):
+        return '{"items": []}'
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall_batch2)
+    mlm.fit(["DOC2 fine text"])
+    assert mlm.context_length_exceeded_docs == set()
+
+
 def test_pipeline_mode_default_construction_dispatches_original_seven_steps(monkeypatch):
     mlm = _make_mlm()
     assert mlm.extraction_mode == "pipeline"

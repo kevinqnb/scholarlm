@@ -1751,6 +1751,11 @@ class MeasurementLM:
         Returns:
             Measurement records extracted from the documents.
         """
+        # Reset per-batch state: a second fit() call on the same instance must not
+        # carry forward document indices from the previous batch (those indices are
+        # positions within *this* batch's documents list, not stable document ids).
+        self.context_length_exceeded_docs = set()
+
         # Step 0: Table cleaning (optional)
         if self.clean_tables:
             if processed_pdf_dirs is None:

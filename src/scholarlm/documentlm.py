@@ -273,10 +273,10 @@ class DocumentLM:
                 chunk = doc_chunks[page_id]
                 doc_text += f'<page number="{int(page_id)}">\n\n' + chunk + f"\n\n</page>\n\n"
 
-            if self.drop_references:
-                doc_text = drop_references_section(doc_text)
-
             try:
+                if self.drop_references:
+                    doc_text = drop_references_section(doc_text)
+
                 if self._output_format == "chandra-ocr-2":
                     doc_text = format_chandra_output(doc_text)
                 else:
