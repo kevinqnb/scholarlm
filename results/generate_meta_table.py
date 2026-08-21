@@ -4,16 +4,18 @@ Generate a LaTeX table from the per-cell summary statistics produced by
 analysis/meta_updated.py.
 
 CSV lives at: results/meta_{dataset}_{extraction_model}_{extraction_date}.csv
-Columns: dataset, ecosystem, attribute, setting, unit, n, n_eff, sum_w, mean,
-         std, q1, median, q3, whisker_lo, whisker_hi, n_outliers, w_outliers,
-         quantiles_clamped
+Columns: dataset, ecosystem, attribute, setting, unit, n, n_eff, sum_w, mean, std,
+         q1, median, q3
 
 One table per dataset x ecosystem. Rows: setting (ground truth / extracted /
-judge-filtered / NTP- and probe-confidence hard cuts). Columns: attribute,
-showing "median (Q1, Q3)" -- unweighted Hazen quantiles of the raw values;
-confidence settings are a hard >= threshold filter on which rows are included,
-never a continuous weight (see analysis/meta_updated.py). Cells with n < MIN_N
-are rendered as "--".
+judge-filtered / NTP- and probe-confidence weighted). Columns: attribute, showing
+"median (Q1, Q3)" -- weighted-Hazen quantiles (analysis/meta_updated.py's
+weighted_hazen_quantile), identical to the classic unweighted Hazen (1914)
+plotting-position quantile when every row's weight is 1. The NTP-/probe-weighted
+rows use ALL rows for that (ecosystem, attribute) cell, weighted continuously by
+that method's confidence -- never a hard >= threshold filter (see
+analysis/meta_updated.py's module docstring). Cells with n < MIN_N are rendered
+as "--".
 
 Usage:
   python results/generate_meta_table.py                                # walks results/, writes .tex files
@@ -33,20 +35,15 @@ ECOSYSTEMS = ["pond", "lake", "wetland"]
 ATTRIBUTES = ["surface_area", "max_depth", "vegetation_cover", "ph", "tn", "tp", "chla"]
 SETTINGS = [
     "ground_truth", "judge_filtered", "extracted",
-    "ntp_0.25", "ntp_0.5", "ntp_0.75",
-    "probe_0.25", "probe_0.5", "probe_0.75",
+    "ntp_weighted", "probe_weighted",
 ]
 
 SETTING_HEADERS = {
     "ground_truth":   "Ground truth",
     "judge_filtered": "Judge-filtered",
     "extracted":      "Unfiltered",
-    "ntp_0.25":       r"NTP $\geq$0.25",
-    "ntp_0.5":        r"NTP $\geq$0.5",
-    "ntp_0.75":       r"NTP $\geq$0.75",
-    "probe_0.25":     r"Probe $\geq$0.25",
-    "probe_0.5":      r"Probe $\geq$0.5",
-    "probe_0.75":     r"Probe $\geq$0.75",
+    "ntp_weighted":   "NTP-weighted",
+    "probe_weighted": "Probe-weighted",
 }
 
 ATTRIBUTE_LABELS = {
@@ -118,11 +115,11 @@ def make_caption(
     scope = " (selected attributes)" if subset else ""
     return (
         rf"\textbf{{{ecosystem.capitalize()} attribute statistics{scope} ({dataset}, \texttt{{{extraction_model}}}).}} "
-        rf"Median (Q1, Q3) for each attribute, broken down by setting. All statistics are "
-        rf"unweighted (Hazen plotting-position quantiles of the raw values); the NTP- and "
-        rf"probe-confidence rows are first hard-filtered to confidence $\geq$ the stated "
-        rf"threshold, then computed over the surviving rows only -- confidence is never used "
-        rf"as a continuous weight. Cells with fewer than {MIN_N} contributing rows are "
+        rf"Median (Q1, Q3) for each attribute, broken down by setting. All quantiles use "
+        rf"weighted-Hazen plotting positions, identical to the classic unweighted Hazen (1914) "
+        rf"convention when every row's weight is 1. The NTP- and probe-weighted rows include "
+        rf"every extracted row for that cell, weighted continuously by that method's confidence "
+        rf"-- never a hard threshold filter. Cells with fewer than {MIN_N} contributing rows are "
         rf"omitted (--)."
     )
 
