@@ -61,8 +61,8 @@ Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
 #JUDGE_DATE_SYN = '2026_05_04'           # auto-detect latest synthetic probe run
 
 DATASETS        = ['supermat']
-JUDGE_MODELS    = ['qwen-2.5-7b']   # must match the judge used for the synthetic run
-JUDGE_DATE_SYN = '2026_07_10'           # auto-detect latest synthetic probe run
+JUDGE_MODELS    = ['mistral-7b']   # must match the judge used for the synthetic run
+JUDGE_DATE_SYN = '2026_08_18'           # auto-detect latest synthetic probe run
 
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5

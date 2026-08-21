@@ -102,12 +102,9 @@ EXTRACTION_SETTINGS = {
         # baseline (llama-3.1-8b instruct) only covers pond+nfix -- see
         # 2026-08-11-llama-base-answer-cue-01.
         'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'mistral-7b':   ['pond', 'nfix'],
+            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
+            'mistral-7b':   ['pond', 'nfix', 'supermat'],
             'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b-base': ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b-base-cued': ['pond', 'nfix', 'supermat'],
-            'llama-3.1-8b-base-cued': ['pond', 'nfix', 'supermat'],
         },
         'extraction_dates': {
             'pond': '2026_05_05',
@@ -119,9 +116,6 @@ EXTRACTION_SETTINGS = {
                 'llama-3.1-8b': '2026_05_04',
                 'mistral-7b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
-                'qwen-2.5-7b-base': '2026_08_05',
-                'qwen-2.5-7b-base-cued': '2026_08_10',
-                'llama-3.1-8b-base-cued': '2026_08_11',
             },
             'nfix': {
                 'llama-3.1-8b': '2026_05_04',
@@ -129,7 +123,9 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_04',
             },
             'supermat': {
-                'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
+                'llama-3.1-8b': '2026_08_18',
+                'mistral-7b': '2026_08_18',
+                'qwen-2.5-7b': '2026_07_10',
             },
         },
         'judge_dates_real': {
@@ -144,7 +140,9 @@ EXTRACTION_SETTINGS = {
                 'qwen-2.5-7b': '2026_05_05',
             },
             'supermat': {
-                'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
+                'llama-3.1-8b': '2026_08_18',
+                'mistral-7b': '2026_08_18',
+                'qwen-2.5-7b': '2026_07_09',
             },
         },
         'pi_te_estimate': None,
@@ -152,15 +150,16 @@ EXTRACTION_SETTINGS = {
 
     # Previously analysis/calibration_llama.py
     'llama-3.1-8b': {
-        'datasets': ['pond', 'nfix'],
+        'datasets': ['pond', 'nfix', 'supermat'],
         'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
         'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'qwen-2.5-7b':  ['pond', 'nfix'],
+            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
+            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
         },
         'extraction_dates': {
             'pond': '2026_05_04',
             'nfix': '2026_05_05',
+            'supermat': '2026_07_13',
         },
         'judge_dates_syn': {
             'pond': {
@@ -171,6 +170,10 @@ EXTRACTION_SETTINGS = {
                 'llama-3.1-8b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
             },
+            'supermat': {
+                'llama-3.1-8b': '2026_08_18',
+                'qwen-2.5-7b': '2026_07_10',
+            },
         },
         'judge_dates_real': {
             'pond': {
@@ -180,6 +183,10 @@ EXTRACTION_SETTINGS = {
             'nfix': {
                 'llama-3.1-8b': '2026_05_13',
                 'qwen-2.5-7b': '2026_05_05',
+            },
+            'supermat': {
+                'llama-3.1-8b': '2026_08_18',
+                'qwen-2.5-7b': '2026_08_18',
             },
         },
         'pi_te_estimate': None,
@@ -187,15 +194,16 @@ EXTRACTION_SETTINGS = {
 
     # Previously analysis/calibration_gpt.py
     'gpt-oss-120b': {
-        'datasets': ['pond', 'nfix'],
+        'datasets': ['pond', 'nfix', 'supermat'],
         'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
         'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'qwen-2.5-7b':  ['pond', 'nfix'],
+            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
+            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
         },
         'extraction_dates': {
             'pond': '2026_05_02',
             'nfix': '2026_05_03',
+            'supermat': '2026_07_13',
         },
         'judge_dates_syn': {
             'pond': {
@@ -206,6 +214,10 @@ EXTRACTION_SETTINGS = {
                 'llama-3.1-8b': '2026_05_04',
                 'qwen-2.5-7b': '2026_05_04',
             },
+            'supermat': {
+                'llama-3.1-8b': '2026_08_18',
+                'qwen-2.5-7b': '2026_07_10',
+            },
         },
         'judge_dates_real': {
             'pond': {
@@ -215,6 +227,10 @@ EXTRACTION_SETTINGS = {
             'nfix': {
                 'llama-3.1-8b': '2026_05_13',
                 'qwen-2.5-7b': '2026_05_05',
+            },
+            'supermat': {
+                'llama-3.1-8b': '2026_08_18',
+                'qwen-2.5-7b': '2026_08_18',
             },
         },
         'pi_te_estimate': 0.85,
@@ -411,7 +427,7 @@ for ds in DATASETS:
         gt_df, ext_df,
         strict_matching=strict,
         fuzzy_matching=fuzzy,
-        fuzzy_threshold=0.0,
+        fuzzy_threshold=0.0, # Deliberately 0 for now, so we can filter by EDGE_THRESHOLD below
         cache_path=cache_path,
     )
 
@@ -663,7 +679,7 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
     # (confirmed: identical `mu`/`lower`/`upper` across repeated seeded calls
     # on the same inputs; without this, two full-pipeline runs disagreed).
     np.random.seed(ECE_SEED)
-    d = relplot.prepare_rel_diagram(np.asarray(probs), np.asarray(labels))
+    d = relplot.prepare_rel_diagram(np.asarray(probs), np.asarray(labels), num_bootstrap=ECE_N_BOOT)
     mesh, mu, density = d['mesh'], d['mu'], d['density']
 
     density_norm = density / density.max() if density.max() > 0 else np.ones_like(density)
@@ -682,7 +698,7 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
 
     lc = LineCollection(
         segments, colors=seg_colors, lw=lw,
-        joinstyle='round', zorder=line_zorder,
+        capstyle='round', zorder=line_zorder,
     )
     ax.add_collection(lc)
 
@@ -717,7 +733,7 @@ def plot_calibration_curves(
         for ctype in ['in-domain', 'cross-domain']:
             # Base figure
             fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-            ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
+            ax_cal.plot([0, 1], [0, 1], 'k:', lw=1.0, alpha=0.5, zorder=1)
 
             for train_ds in train_datasets:
                 train_dict = setting_results[dtype][judge_model][train_ds]
@@ -731,16 +747,22 @@ def plot_calibration_curves(
 
                 color = _DS_COLORS[train_ds]
 
+                # zorder layering: both CI bands sit at the bottom (order between
+                # them is irrelevant — probe and NTP share `color`, so the bands
+                # are visually identical), then NTP line, then probe line on top
+                # — so neither line is ever dimmed by a translucent band, and
+                # probe still has final drawing priority.
+
                 # Probe — solid, density-weighted smoothed curve + bootstrap CI band
                 _plot_relplot_curve(
                     ax_cal, rdict['probe_probs'], rdict['labels'], color,
-                    linestyle='-', lw=2.5, line_zorder=3, band_zorder=2,
+                    linestyle='-', lw=2.5, line_zorder=3, band_zorder=1,
                 )
 
                 # NTP baseline — dashed, density-weighted smoothed curve + bootstrap CI band
                 _plot_relplot_curve(
                     ax_cal, rdict['ntp_probs'], rdict['labels'], color,
-                    linestyle='--', lw=2.0, line_zorder=1, band_zorder=2,
+                    linestyle='--', lw=2.0, line_zorder=2, band_zorder=1,
                 )
 
             ax_cal.set_xlim(-0.02, 1.02)
@@ -810,7 +832,7 @@ def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=N
     # otherwise non-reproducible run-to-run.
     np.random.seed(ECE_SEED)
     smece_d = relplot.prepare_rel_diagram(
-        probs, y_true, plot_confidence_band=False, plot_bag_lines=False,
+        probs, y_true, num_bootstrap=ECE_N_BOOT, plot_confidence_band=False, plot_bag_lines=False,
     )
 
     bs    = float(brier_score_loss(y_true, probs))

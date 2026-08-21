@@ -256,16 +256,9 @@ def main():
             'gpt-oss-120b': {'baseline': '2026_05_03', '1': '2026_05_06', '2': '2026_05_06', '3': '2026_05_06', '4': '2026_05_06', '5': '2026_05_07', '6': '2026_05_08'},
         },
         'supermat': {
-            'gemma-3-27b': {'baseline': '2026_07_09', '1': None, '2': None, '3': None, '4': None, '5': None, '6': None},
-        },
-        # No runs yet -- fill in dates as they're produced. Ablation 2 omitted
-        # entirely (not '2': None): it's structurally disabled for measeval
-        # (ablation2_entity_schema is None in experiments/configs/measeval.py),
-        # so run_ablation.py --ablation 2 will raise rather than produce a run
-        # to fill in here. Remember every measeval command needs
-        # --ocr-dir data/measeval/ocr_output_raw (see data/measeval/README.md).
-        'measeval': {
-            'gemma-3-27b': {'baseline': None, '1': None, '3': None, '4': None, '5': None, '6': None},
+            'llama-3.1-8b': {'baseline': '2026_07_13', '1': '2026_08_13', '2': '2026_08_13', '3': '2026_08_14', '4': '2026_08_14', '5': '2026_08_15', '6': '2026_08_20'},
+            'gemma-3-27b': {'baseline': '2026_07_09', '1': '2026_08_13', '2': '2026_08_13', '3': '2026_08_13', '4': '2026_08_14', '5': '2026_08_14', '6': '2026_08_14'},
+            'gpt-oss-120b': {'baseline': '2026_07_13', '1': '2026_08_13', '2': '2026_08_13', '3': '2026_08_13', '4': '2026_08_13', '5': '2026_08_13', '6': '2026_08_13'},
         },
     }
     
