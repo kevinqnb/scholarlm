@@ -17,6 +17,8 @@ def tokenize(
     context: str,
     query: str,
     tokenizer: callable,
+    use_chat_template: bool = True,
+    answer_cue: str | None = None,
 ) -> tuple[list[int], list[int], list[int], list[int]]:
     """
     Apply a chat template to an (instructions, context, query) triple and return the
@@ -27,16 +29,28 @@ def tokenize(
         context (str): The context string.
         query (str): The query string.
         tokenizer (Callable): HuggingFace tokenizer.
+        use_chat_template (bool): If False, skip ``apply_chat_template`` and tokenize
+            the raw content string directly — no role/turn control tokens
+            (e.g. ChatML ``<|im_start|>``/``<|im_end|>``) are added. For base models
+            that ship a chat template inherited from an instruction-tuned sibling but
+            were never trained to follow it, applying it is a silent confound rather
+            than a faithful "same prompt" comparison.
+        answer_cue (str | None): When ``use_chat_template`` is False, appended verbatim
+            to the raw prompt string as a plain-text substitute for the generation
+            prompt that skipping the chat template omits. Ignored when
+            ``use_chat_template`` is True. Not included in ``query_tokens``.
 
     Returns:
         (tokenized_chat, instruction_tokens, context_tokens, query_tokens)
     """
-    chat = [
-        {"role": "user", "content": f"## INSTRUCTIONS:\n{instructions}\n\n## CONTEXT:\n{context}\n\n## QUERY:\n{query}"},
-    ]
-    formatted_chat = tokenizer.apply_chat_template(
-        chat, tokenize=False, add_generation_prompt=True
-    )
+    content = f"## INSTRUCTIONS:\n{instructions}\n\n## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+    if use_chat_template:
+        chat = [{"role": "user", "content": content}]
+        formatted_chat = tokenizer.apply_chat_template(
+            chat, tokenize=False, add_generation_prompt=True
+        )
+    else:
+        formatted_chat = content if answer_cue is None else content + answer_cue
     tokenized_chat = tokenizer(
         formatted_chat, return_offsets_mapping=True, add_special_tokens=False
     )
@@ -75,6 +89,11 @@ class JudgementLM:
             NNsight LanguageModel generate method. Default is {}.
         nnsight_kwargs (dict): Additional keyword arguments to pass to the NNsight LanguageModel.
         verbose (bool): Whether to print verbose output during generation. Default is False.
+        use_chat_template (bool): Whether to wrap prompts with the tokenizer's chat
+            template (role/turn control tokens). Default is True. See ``tokenize()``.
+        answer_cue (str | None): Plain-text generation cue appended to the raw prompt
+            when ``use_chat_template`` is False. Default is None (no cue). See
+            ``tokenize()``.
     """
     def __init__(
         self,
@@ -82,11 +101,15 @@ class JudgementLM:
         sampling_params : dict = {},
         nnsight_kwargs : dict = {},
         verbose : bool = False,
+        use_chat_template : bool = True,
+        answer_cue : str | None = None,
     ):
         self.model_name = model_name
         self.sampling_params = {'max_new_tokens': 50} | sampling_params
         self.max_new_tokens = self.sampling_params['max_new_tokens']
         self.verbose = verbose
+        self.use_chat_template = use_chat_template
+        self.answer_cue = answer_cue
 
         # Detect available GPUs and set up device allocation
         self._setup_devices()
@@ -188,7 +211,8 @@ class JudgementLM:
          instruction_token_indices,
          context_token_indices,
          query_token_indices) = tokenize(
-            instructions, context, query, self.tokenizer
+            instructions, context, query, self.tokenizer,
+            use_chat_template=self.use_chat_template, answer_cue=self.answer_cue,
         )
         prompt_len = len(tokenized_prompt)
         self.max_prompt_tokens = max(self.max_prompt_tokens, prompt_len)

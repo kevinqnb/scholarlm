@@ -221,35 +221,58 @@ def load_synthetic_layer_outputs(
     return np.load(path)
 
 
-def load_trained_ntp_calibrator(dataset: str, judge_model: str) -> dict:
+def load_trained_ntp_calibrator(dataset: str, judge_model: str, variant: str | None = None) -> dict:
     """Load the NTP Platt calibrator saved by synthetic_probe_train.py.
 
+    Args:
+        variant: ``None`` (default) loads the Platt-scaled baseline
+            (``ntp_calibrator.pkl``). ``"noplatt"`` loads the
+            CalibratedClassifierCV-free variant (``ntp_calibrator_noplatt.pkl``)
+            saved when ``synthetic_probe_train.py``'s ``USE_PLATT_SCALING`` is
+            set to ``False``.
+
     Returns a dict with keys:
-        ``calibrator``       — fitted CalibratedClassifierCV (LogisticRegression on NTP probs)
+        ``calibrator``       — fitted calibrator (CalibratedClassifierCV, or the
+                                base Pipeline directly for variant="noplatt")
         ``train_prevalence`` — fraction of positive labels in the synthetic training set
         ``syn_document_ids`` — list of paper IDs in the synthetic training set
         ``judge_model``      — judge model name
         ``dataset``          — training dataset name
 
     Raises:
-        FileNotFoundError: If no calibrator has been saved for this (dataset, judge_model).
+        ValueError: If variant is not one of (None, "noplatt").
+        FileNotFoundError: If no calibrator has been saved for this (dataset, judge_model, variant).
     """
     import joblib
 
-    path = _paths.trained_probe_dir(dataset, judge_model) / "ntp_calibrator.pkl"
+    if variant not in (None, "noplatt"):
+        raise ValueError(f"Unknown variant {variant!r}; expected None or 'noplatt'")
+    filename = "ntp_calibrator.pkl" if variant is None else "ntp_calibrator_noplatt.pkl"
+    path = _paths.trained_probe_dir(dataset, judge_model) / filename
     if not path.exists():
         raise FileNotFoundError(
             f"NTP calibrator not found: {path}. "
-            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' first."
+            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' "
+            f"variant={variant!r} first."
         )
     return joblib.load(path)
 
 
-def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head") -> dict:
+def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head", variant: str | None = None) -> dict:
     """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
 
+    Args:
+        variant: ``None`` (default) loads the Platt-scaled baseline
+            (``head_probe.pkl``). ``"noplatt"`` loads the
+            CalibratedClassifierCV-free variant (``head_probe_noplatt.pkl``)
+            saved when ``synthetic_probe_train.py``'s ``USE_PLATT_SCALING`` is
+            set to ``False``. Only defined for ``ptype="head"`` — the layer
+            probe has no no-Platt variant (out of scope for
+            2026-08-10-no-platt-scaling-01).
+
     Returns a dict with keys:
-        ``probe``            — fitted sklearn Pipeline (StandardScaler + LogisticRegression)
+        ``probe``            — fitted sklearn Pipeline (StandardScaler + LogisticRegression),
+                                or CalibratedClassifierCV wrapping one for the Platt-scaled variant
         ``top_k_heads``      — list of (layer, head) tuples used by the probe
         ``train_prevalence`` — fraction of positive labels in the training set
         ``syn_document_ids`` — list of paper IDs in the synthetic training set
@@ -260,18 +283,26 @@ def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head") -> d
         ``head_dim``         — dimension of each attention head
 
     Raises:
-        FileNotFoundError: If no probe has been saved for this (dataset, judge_model).
+        ValueError: If variant is not one of (None, "noplatt"), or variant="noplatt" with ptype="layer".
+        FileNotFoundError: If no probe has been saved for this (dataset, judge_model, ptype, variant).
     """
     import joblib
 
+    if variant not in (None, "noplatt"):
+        raise ValueError(f"Unknown variant {variant!r}; expected None or 'noplatt'")
+    if variant == "noplatt" and ptype == "layer":
+        raise ValueError("variant='noplatt' is only defined for ptype='head'")
+
     if ptype == "layer":
-        path = _paths.trained_probe_dir(dataset, judge_model) / "layer_probe.pkl"
+        filename = "layer_probe.pkl"
     else:
-        path = _paths.trained_probe_dir(dataset, judge_model) / "head_probe.pkl"
+        filename = "head_probe.pkl" if variant is None else "head_probe_noplatt.pkl"
+    path = _paths.trained_probe_dir(dataset, judge_model) / filename
     if not path.exists():
         raise FileNotFoundError(
             f"Trained probe not found: {path}. "
-            f"Run synthetic_probe_analysis.ipynb for dataset='{dataset}' judge='{judge_model}' first."
+            f"Run synthetic_probe_analysis.ipynb for dataset='{dataset}' judge='{judge_model}' "
+            f"ptype={ptype!r} variant={variant!r} first."
         )
     return joblib.load(path)
 

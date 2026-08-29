@@ -903,3 +903,31 @@ Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/nfix/
 Top layer: 26
 Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_pond.pdf
 Combined F1 plot saved → figures/synthetic_probe/synprobe_layer_F1_all_models_nfix.pdf
+
+============================================================
+Dataset: supermat   Judge: llama-3.1-8b
+============================================================
+  Accuracy  : 0.8137
+  Precision : 0.9850
+  Recall    : 0.4479
+  F1-Score  : 0.6157
+  AUROC     : 0.9762
+  ECE       : 0.3107
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/supermat/synthetic_probe/llama-3.1-8b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(31, 6), (14, 6), (16, 12), (21, 17), (20, 13), (16, 28), (19, 7), (15, 22), (14, 24), (19, 3)]
+  NTP calibrator train ECE: 0.0266
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/supermat/synthetic_probe/llama-3.1-8b/trained_probe/ntp_calibrator.pkl
+
+============================================================
+Dataset: supermat   Judge: mistral-7b
+============================================================
+  Accuracy  : 0.7299
+  Precision : 1.0000
+  Recall    : 0.1897
+  F1-Score  : 0.3190
+  AUROC     : 0.9651
+  ECE       : 0.3354
+Probe saved  → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/supermat/synthetic_probe/mistral-7b/trained_probe/head_probe.pkl
+  Top-10 heads        : [(18, 10), (24, 10), (31, 23), (17, 24), (18, 26), (24, 19), (31, 0), (14, 21), (21, 9), (30, 17)]
+  NTP calibrator train ECE: 0.0311
+NTP calibrator saved → /projectnb/mcnet/kevin/coastal/scholarlm/data/experiments/supermat/synthetic_probe/mistral-7b/trained_probe/ntp_calibrator.pkl

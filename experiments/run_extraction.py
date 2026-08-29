@@ -651,6 +651,137 @@ def run_pipeline(
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
 
 
+def run_direct(
+    dataset_config: DatasetConfig,
+    model_config: ModelConfig,
+    output_dir: Path,
+    ocr_dir: str | None = None,
+    paper_subset_override: list[str] | None = None,
+    api_base: str = "http://localhost:8000/v1",
+    api_key: str = "EMPTY",
+) -> None:
+    """Run direct-mode extraction: a single LLM call per document via
+    ``MeasurementLM(extraction_mode="direct")``, followed by standardize and
+    deduplicate. Writes only ``final.json`` to ``output_dir`` — there are no
+    per-step checkpoints in this mode.
+
+    Requires ``dataset_config.direct_extraction_schema`` and
+    ``dataset_config.direct_extraction_prompt`` (the same fields
+    ``run_ablation.py``'s ablation-1 path reads).
+
+    Args:
+        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        model_config: Model configuration from ``MODEL_REGISTRY``.
+        output_dir: Directory for the output file (created if needed).
+        ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
+            is used and table cleaning is performed automatically.
+        paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
+        api_base: Base URL of the vLLM OpenAI-compatible server.
+        api_key: API key for the vLLM server (any non-empty string works).
+    """
+    data_dir = Path(dataset_config.data_dir)
+    is_frontier = model_config.api_base is not None
+
+    if is_frontier:
+        effective_api_base = model_config.api_base
+        if api_key == "EMPTY":
+            if "openai.com" in model_config.api_base:
+                api_key = os.environ.get("OPENAI_API_KEY", "")
+            else:
+                api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError(
+                f"API key required for frontier model '{model_config.name}'. "
+                "Set OPENAI_API_KEY or GEMINI_API_KEY, or pass --api-key."
+            )
+    else:
+        effective_api_base = api_base
+
+    if ocr_dir is not None or is_frontier:
+        effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
+        clean_tables = False
+        cleaned_ocr_output_dir = None
+    else:
+        effective_ocr_dir = str(data_dir / "ocr_output_raw")
+        clean_tables = True
+        cleaned_ocr_output_dir = str(data_dir / f"ocr_output_cleaned_{model_config.name}")
+
+    print(f"\nDataset   : {dataset_config.name}")
+    print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"Mode      : direct")
+    print(f"OCR dir   : {effective_ocr_dir}")
+    if clean_tables:
+        print(f"Cleaned   : {cleaned_ocr_output_dir}")
+    print(f"Output    : {output_dir}\n")
+
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
+    print(f"Loaded {len(text)} papers.\n")
+
+    mlm = MeasurementLM(
+        model_name=model_config.model_id,
+        entity_identification_prompt=dataset_config.entity_identification_prompt,
+        entity_identification_schema=dataset_config.entity_schema,
+        attribute_info_dict=dataset_config.attribute_info_dict,
+        sampling_params=model_config.sampling_params,
+        api_base=effective_api_base,
+        api_key=api_key,
+        clean_tables=clean_tables,
+        cleaned_ocr_output_dir=cleaned_ocr_output_dir,
+        measurement_event_schema=dataset_config.measurement_event_schema,
+        measurement_event_prompt=dataset_config.measurement_event_prompt,
+        use_extra_body=not is_frontier,
+        collect_attribute_terms=dataset_config.collect_attribute_terms,
+        extraction_mode="direct",
+        direct_extraction_schema=dataset_config.direct_extraction_schema,
+        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
+    )
+
+    processed_pdf_dirs = None
+    if clean_tables:
+        processed_pdf_root = data_dir / "processed_pdfs"
+        if not processed_pdf_root.exists():
+            raise FileNotFoundError(
+                f"Processed PDF directory not found: {processed_pdf_root}\n"
+                f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
+            )
+        processed_pdf_dirs = [
+            str(processed_pdf_root / info["document_id"]) for info in text_info
+        ]
+
+    gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
+
+    print("Running direct extraction...")
+    start_time = time.time()
+    data = mlm.fit(text, processed_pdf_dirs)
+
+    dataset = [
+        info | dp | {"document_id": info["document_id"], "measurement_id": i}
+        for i, dp in enumerate(data)
+        for info in [text_info[dp["document_id"]]]
+    ]
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / "final.json"
+    with open(out_path, "w") as f:
+        json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
+
+    write_run_metadata(
+        output_dir,
+        start_time=start_time,
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ocr_dir=effective_ocr_dir,
+        gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        hostname=urlparse(effective_api_base).hostname,
+        extraction_mode="direct",
+    )
+    print(f"\nDone. Final dataset: {out_path}")
+    print(f"       Records saved: {len(dataset)}")
+
+
 STEP_NAMES = ("entities", "attributes", "entity_prov", "attribute_prov", "events", "values", "final")
 
 
@@ -797,6 +928,18 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Override dataset paper_subset with an explicit list of paper codes.",
     )
     p.add_argument(
+        "--extraction-mode",
+        choices=["pipeline", "direct"],
+        default="pipeline",
+        help=(
+            "'pipeline' (default) runs the full seven-step pipeline. 'direct' runs "
+            "a single LLM call per document (MeasurementLM(extraction_mode='direct')) "
+            "followed by standardize/deduplicate; requires the dataset config to set "
+            "direct_extraction_schema and direct_extraction_prompt. Incompatible with "
+            "--step and --resume (direct mode has no per-step checkpoints)."
+        ),
+    )
+    p.add_argument(
         "--resume",
         action="store_true",
         help="Skip pipeline steps whose output files already exist (full pipeline only).",
@@ -846,6 +989,11 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit("error: --final-only and --step are mutually exclusive.")
     if args.resume and args.step:
         raise SystemExit("error: --resume has no effect when --step is given.")
+    if args.extraction_mode == "direct" and (args.step or args.resume):
+        raise SystemExit(
+            "error: --step and --resume are not supported with "
+            "--extraction-mode direct (direct mode has no per-step checkpoints)."
+        )
 
     from utils import load_config
     cfg = load_config()
@@ -856,7 +1004,17 @@ def main(argv: list[str] | None = None) -> None:
     model_config = get_model_config(args.model)
     output_dir = paths.extraction(args.dataset, args.model, args.date)
 
-    if args.step:
+    if args.extraction_mode == "direct":
+        run_direct(
+            dataset_config=dataset_config,
+            model_config=model_config,
+            output_dir=output_dir,
+            ocr_dir=args.ocr_dir,
+            paper_subset_override=args.paper_subset,
+            api_base=args.api_base,
+            api_key=args.api_key,
+        )
+    elif args.step:
         run_single_step(
             dataset_config=dataset_config,
             model_config=model_config,

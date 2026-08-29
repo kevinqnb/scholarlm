@@ -11,6 +11,7 @@ data/experiments/
     ablations/ablation{N}/{model}/{YYYY_mm_dd}/
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/
+    jacobian_lens/{ext_model}/{ext_date}/{lens_model}/{lens_date}/
     synthetic_probe/{judge_model}/{judge_date}/
     synthetic_probe/{judge_model}/trained_probe/
     synthetic_probe_test/{judge_model}/{judge_date}/
@@ -107,6 +108,26 @@ def judge_combined(
 ) -> Path:
     """Directory that contains combined.json."""
     return judge_base(dataset, extraction_model, extraction_date, ablation) / "combined"
+
+
+def jacobian_lens(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str,
+    lens_model: str,
+    date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/jacobian_lens/{extraction_model}/{extraction_date}/{lens_model}/{date}/
+
+    Deliberately a separate tree from judge()/judge_base(), not a subdirectory
+    of judge/ — jacobian-lens output isn't a judge-combine participant and
+    shouldn't be discoverable as if it were one.
+    """
+    return (
+        EXPERIMENTS_ROOT
+        / dataset / "jacobian_lens"
+        / extraction_model / extraction_date / lens_model / (date or today())
+    )
 
 
 def analysis_dir(dataset: str) -> Path:

@@ -11,6 +11,12 @@ from .pdf import (
 from .tables import (
     add_row_names,
 )
+from .chandra_format import (
+    format_chandra_output,
+)
+from .references import (
+    drop_references_section,
+)
 from .data import (
     match_datasets,
 )

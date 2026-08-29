@@ -8,7 +8,19 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI, OpenAI
 load_dotenv()
-from scholarlm.utils import process_pdf, add_row_names
+from scholarlm.utils import process_pdf, add_row_names, format_chandra_output, drop_references_section
+
+
+# Exact-match allow-list: model_name must be one of these literal HF model IDs --
+# the same strings experiments/run_ocr.py passes as DocumentLM(model_name=...),
+# sourced from experiments/config.yaml's models.<key>.model_id. This doubles as
+# the dispatch key fit() uses to choose olmOCR-shaped vs. chandra-shaped
+# post-processing, so a re-pin of model_id in config.yaml requires a matching
+# update here rather than silently applying the wrong formatter.
+SUPPORTED_MODELS = {
+    "allenai/olmOCR-2-7B-1025": "olmocr",
+    "datalab-to/chandra-ocr-2": "chandra-ocr-2",
+}
 
 
 class DocumentLM:
@@ -17,7 +29,7 @@ class DocumentLM:
 
     Args:
         model_name (str): Name or path of the VLM to use for OCR, served via a
-            vLLM OpenAI-compatible endpoint.
+            vLLM OpenAI-compatible endpoint. Must be a key of SUPPORTED_MODELS.
         ocr_prompt (str): System prompt for the OCR task. Defaults to a standard
             instruction to convert PDF pages to markdown with HTML tables.
         sampling_params (dict[str, any]): Sampling parameters for text generation.
@@ -25,6 +37,15 @@ class DocumentLM:
         api_base (str): Base URL of the vLLM OpenAI-compatible endpoint.
         api_key (str): API key for the endpoint (use "EMPTY" for local vLLM).
         max_concurrent (int): Maximum number of concurrent async API calls.
+        fast (bool): If True, render pages at lower resolution
+            (target_longest_dim=1024 instead of 2048) and skip the
+            temperature-escalation retry loop in fit(), trading OCR quality
+            for speed.
+        drop_references (bool): If True, truncate each document's assembled
+            OCR text at its references/bibliography heading (if found) before
+            chandra/olmOCR-specific formatting -- applied once, generically,
+            to both formats. Default False; leaves pond-papers (scholarlm's
+            other consumer) unaffected unless it opts in.
     """
     def __init__(
         self,
@@ -34,14 +55,25 @@ class DocumentLM:
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
+        fast: bool = False,
+        drop_references: bool = False,
     ):
+        if model_name not in SUPPORTED_MODELS:
+            raise ValueError(
+                f"Unsupported model_name {model_name!r}. DocumentLM supports "
+                f"exactly: {sorted(SUPPORTED_MODELS)}."
+            )
         self.model_name = model_name
+        self._output_format = SUPPORTED_MODELS[model_name]
         self.sampling_params = {
             "temperature": 0.1,
             "max_tokens": 16384,
         } | (sampling_params or {})
         self.max_tokens = self.sampling_params.get("max_tokens", 16384)
         self.max_concurrent = max_concurrent
+        self.fast = fast
+        self.drop_references = drop_references
+        self.format_errors: dict[int, str] = {}
 
         if ocr_prompt is None:
             self.ocr_prompt = (
@@ -119,7 +151,8 @@ class DocumentLM:
         ``processed_pdfs_dir``), sends it through the VLM with the OCR prompt, and
         reassembles page outputs into a single document per file. Pages that exceed
         max_tokens or fail to produce expected table tags are retried with
-        progressively higher temperature.
+        progressively higher temperature — unless ``self.fast`` is True, in which
+        case pages are rendered at a lower resolution and no retry is attempted.
 
         Output text wraps each page in ``<page number="N">`` tags and numbers
         tables sequentially with ``<table number="N">`` tags.
@@ -157,7 +190,8 @@ class DocumentLM:
                         continue
                     b64_images = [f.read_text() for f in b64_files]
                 else:
-                    b64_images = process_pdf(filepath, target_longest_dim=2048)
+                    target_longest_dim = 1024 if self.fast else 2048
+                    b64_images = process_pdf(filepath, target_longest_dim=target_longest_dim)
             except Exception as e:
                 warnings.warn(f"Failed to process {filepath} with error: {e}. Skipping this file.")
                 continue
@@ -179,9 +213,11 @@ class DocumentLM:
 
         results = self._call_batch_with_usage(messages)
 
-        # Retry with higher temperature if max tokens exceeded or if tables failed to be extracted.
+        # Retry with higher temperature if max tokens exceeded or if tables failed to
+        # be extracted. Skipped entirely in fast mode: the single initial pass is
+        # used as-is, with no re-send on truncation or missing table tags.
         temp = self.sampling_params.get("temperature", 0.1)
-        while temp <= 1.0:
+        while not self.fast and temp <= 1.0:
             retry_messages = []
             retry_message_ids = []
             for i, (text, completion_tokens) in enumerate(results):
@@ -227,7 +263,8 @@ class DocumentLM:
             documents[paper_id][page_id] = cleaned_text
 
         self.text = []
-        for document in documents:
+        self.format_errors = {}
+        for doc_idx, document in enumerate(documents):
             doc_chunks = document
             doc_text = ""
             pages = list(doc_chunks.keys())
@@ -236,10 +273,21 @@ class DocumentLM:
                 chunk = doc_chunks[page_id]
                 doc_text += f'<page number="{int(page_id)}">\n\n' + chunk + f"\n\n</page>\n\n"
 
-            counter = count()
-            doc_text = re.sub(
-                r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
-            )
+            try:
+                if self.drop_references:
+                    doc_text = drop_references_section(doc_text)
+
+                if self._output_format == "chandra-ocr-2":
+                    doc_text = format_chandra_output(doc_text)
+                else:
+                    counter = count()
+                    doc_text = re.sub(
+                        r"<table>", lambda m: f'<table number="{next(counter) + 1}">', doc_text
+                    )
+            except Exception as e:
+                self.format_errors[doc_idx] = str(e)
+                self.text.append(None)
+                continue
 
             self.text.append(doc_text)
 
@@ -253,8 +301,20 @@ class DocumentLM:
         Args:
             filepaths (list[str]): Output file paths, one per document. Must have
                 the same length as the list passed to fit().
+
+        A document whose formatting failed in fit() (index present in
+        self.format_errors, self.text[i] is None) is skipped -- no file is
+        written for it -- with a loud warning printed instead of crashing on
+        file.write(None). Callers must check self.format_errors, not just file
+        existence, to distinguish "never OCR'd" from "OCR'd but failed to format."
         """
         for i, text in enumerate(self.text):
+            if i in self.format_errors:
+                warnings.warn(
+                    f"Skipping save for document {i} ({filepaths[i]}): "
+                    f"formatting failed with: {self.format_errors[i]}"
+                )
+                continue
             output_filepath = filepaths[i]
             with open(output_filepath, 'w', encoding='utf-8') as file:
                 file.write(text)

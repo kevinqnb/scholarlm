@@ -31,7 +31,6 @@ ROWS = [
     ("$A_3$", "ablation_3"),
     ("$A_4$", "ablation_4"),
     ("$A_5$", "ablation_5"),
-    ("$A_6$", "ablation_6"),
 ]
 
 
@@ -111,6 +110,80 @@ def _generate_table(pond_by_model, nfix_by_model, metric: str, caption: str, lab
     return "\n".join(lines)
 
 
+def _collect_pair_values(supermat_by_model):
+    """Return (rec_vals, val_vals) each shaped (n_rows, n_models)."""
+    rec_vals = [[float("nan")] * len(MODELS) for _ in ROWS]
+    val_vals = [[float("nan")] * len(MODELS) for _ in ROWS]
+
+    for row_idx, (_, col_prefix) in enumerate(ROWS):
+        for col_idx, model in enumerate(MODELS):
+            if model in supermat_by_model:
+                r = supermat_by_model[model]
+                rec_vals[row_idx][col_idx] = r.get(f"{col_prefix}_recovery", float("nan"))
+                val_vals[row_idx][col_idx] = r.get(f"{col_prefix}_validity", float("nan"))
+
+    return rec_vals, val_vals
+
+
+def _generate_supermat_table(supermat_by_model) -> str:
+    rec_vals, val_vals = _collect_pair_values(supermat_by_model)
+    n_cols = len(MODELS)
+
+    best_rec = [
+        max((rec_vals[r][c] for r in range(len(ROWS)) if not pd.isna(rec_vals[r][c])), default=None)
+        for c in range(n_cols)
+    ]
+    best_val = [
+        max((val_vals[r][c] for r in range(len(ROWS)) if not pd.isna(val_vals[r][c])), default=None)
+        for c in range(n_cols)
+    ]
+
+    def fmt_cell(rec, val, col_idx) -> str:
+        if pd.isna(rec) or pd.isna(val):
+            return "--"
+        rec_str = f"{rec:.2f}"
+        val_str = f"{val:.2f}"
+        if best_rec[col_idx] is not None and rec == best_rec[col_idx]:
+            rec_str = r"\textbf{" + rec_str + "}"
+        if best_val[col_idx] is not None and val == best_val[col_idx]:
+            val_str = r"\textbf{" + val_str + "}"
+        return f"({rec_str}, {val_str})"
+
+    model_headers = " & ".join(MODEL_DISPLAY[m] for m in MODELS)
+    lines = []
+    lines.append(r"\begin{table*}[ht]")
+    lines.append(r"  \small")
+    lines.append(r"  \setlength{\tabcolsep}{4pt}")
+    lines.append(r"  \centering")
+    lines.append(r"  \begin{tabular}{l ccc}")
+    lines.append(r"    \toprule")
+    lines.append(f"    & {model_headers} \\\\")
+    lines.append(r"    \midrule")
+
+    for row_idx, (row_label, _) in enumerate(ROWS):
+        cells = [fmt_cell(rec_vals[row_idx][c], val_vals[row_idx][c], c) for c in range(n_cols)]
+        lines.append(f"    {row_label} & {' & '.join(cells)} \\\\")
+
+    lines.append(r"    \bottomrule")
+    lines.append(r"  \end{tabular}")
+    lines.append(
+        r"  \caption{\textbf{Ablation Recovery/Validity Rate on \supermat.} "
+        r"(Recovery rate, validity rate) for the base pipeline and ablations "
+        r"$A_1$--$A_5$ on the \supermat dataset for each extraction LLM. "
+        r"Bold marks the best value per column, per metric.}"
+    )
+    lines.append(r"  \label{tab:ablation_supermat}")
+    lines.append(r"\end{table*}")
+
+    return "\n".join(lines)
+
+
+def generate_supermat_table(supermat_csv: str) -> str:
+    df_supermat = load_ablation(supermat_csv)
+    supermat_by_model = {row["model"]: row for _, row in df_supermat.iterrows()}
+    return _generate_supermat_table(supermat_by_model)
+
+
 def generate_tables(pond_csv: str, nfix_csv: str) -> tuple[str, str]:
     df_pond = load_ablation(pond_csv)
     df_nfix = load_ablation(nfix_csv)
@@ -123,7 +196,7 @@ def generate_tables(pond_csv: str, nfix_csv: str) -> tuple[str, str]:
         metric="recovery",
         caption=(
             r"\caption{\textbf{Ablation Recovery Rate.} Recovery rate with 95\% Wilson CIs "
-            r"for the base pipeline and ablations $A_1$--$A_6$ across the \pond and \nfix "
+            r"for the base pipeline and ablations $A_1$--$A_5$ across the \pond and \nfix "
             r"datasets and each extraction LLM. Bold marks the best value per column.}"
         ),
         label="tab:ablation_recovery",
@@ -134,7 +207,7 @@ def generate_tables(pond_csv: str, nfix_csv: str) -> tuple[str, str]:
         metric="validity",
         caption=(
             r"\caption{\textbf{Ablation Validity Rate.} Validity rate with 95\% Wilson CIs "
-            r"for the base pipeline and ablations $A_1$--$A_6$ across the \pond and \nfix "
+            r"for the base pipeline and ablations $A_1$--$A_5$ across the \pond and \nfix "
             r"datasets and each extraction LLM. Bold marks the best value per column.}"
         ),
         label="tab:ablation_validity",
@@ -147,18 +220,27 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         pond_csv = sys.argv[1]
         nfix_csv = sys.argv[2] if len(sys.argv) > 2 else "ablation_nfix.csv"
+        supermat_csv = sys.argv[3] if len(sys.argv) > 3 else "ablation_supermat.csv"
         rec_tex, hal_tex = generate_tables(pond_csv, nfix_csv)
+        supermat_tex = generate_supermat_table(supermat_csv)
         print(rec_tex)
         print()
         print(hal_tex)
+        print()
+        print(supermat_tex)
     else:
         ablation_dir = RESULTS_DIR / "ablation"
         pond_csv = ablation_dir / "ablation_pond.csv"
         nfix_csv = ablation_dir / "ablation_nfix.csv"
+        supermat_csv = ablation_dir / "ablation_supermat.csv"
         rec_tex, hal_tex = generate_tables(str(pond_csv), str(nfix_csv))
+        supermat_tex = generate_supermat_table(str(supermat_csv))
         rec_path = ablation_dir / "ablation_table_recovery.tex"
         hal_path = ablation_dir / "ablation_table_hallucination.tex"
+        supermat_path = ablation_dir / "ablation_table_supermat.tex"
         rec_path.write_text(rec_tex + "\n")
         hal_path.write_text(hal_tex + "\n")
+        supermat_path.write_text(supermat_tex + "\n")
         print(f"Wrote {rec_path}")
         print(f"Wrote {hal_path}")
+        print(f"Wrote {supermat_path}")
