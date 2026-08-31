@@ -250,11 +250,15 @@ def attribute_dataset(
             f"measurement_id {mid}: paired judge record has judgement_p_true=None "
             f"(skipped judge row?) — join would silently pair to a non-judgement"
         )
-        assert jr["document_id"] == entry["document_id"], (
-            f"measurement_id {mid}: paired judge record document_id="
-            f"{jr['document_id']!r} != attributed entry document_id="
-            f"{entry['document_id']!r} — responses.json is not row-aligned with "
-            f"this extraction / chat-entry set (stale or mismatched judge run)"
+        # prepare_chat_entries stringifies document_id (judge_common.py:194);
+        # match that normalization so a real int-vs-str schema quirk isn't a
+        # false positive, but a genuine cross-document join still fails loud.
+        jr_doc = str(jr.get("document_id"))
+        assert jr_doc == entry["document_id"], (
+            f"measurement_id {mid}: paired judge record document_id={jr_doc!r} "
+            f"!= attributed entry document_id={entry['document_id']!r} — "
+            f"responses.json is not row-aligned with this extraction / "
+            f"chat-entry set (stale or mismatched judge run)"
         )
 
         idx_key = f"{mid}__context_token_indices"
