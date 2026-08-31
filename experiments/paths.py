@@ -12,6 +12,7 @@ data/experiments/
     judge/{ext_model}/{ext_date}/{judge_model}/{judge_date}/
     judge/{ext_model}/{ext_date}/combined/
     jacobian_lens/{ext_model}/{ext_date}/{lens_model}/{lens_date}/
+    representation_lm/{model}/{date}/
     synthetic_probe/{judge_model}/{judge_date}/
     synthetic_probe/{judge_model}/trained_probe/
     synthetic_probe_test/{judge_model}/{judge_date}/
@@ -128,6 +129,16 @@ def jacobian_lens(
         / dataset / "jacobian_lens"
         / extraction_model / extraction_date / lens_model / (date or today())
     )
+
+
+def representation_lm(dataset: str, model: str, date: str | None = None) -> Path:
+    """data/experiments/{dataset}/representation_lm/{model}/{date}/
+
+    Key-term representation collection (RepresentationLM). A separate tree,
+    like jacobian_lens() — not keyed by an extraction run, since it reads raw
+    OCR documents directly, not extraction output.
+    """
+    return EXPERIMENTS_ROOT / dataset / "representation_lm" / model / (date or today())
 
 
 def analysis_dir(dataset: str) -> Path:

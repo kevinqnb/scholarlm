@@ -258,9 +258,27 @@ JACOBIAN_LENS_REGISTRY: dict[str, dict] = {
 
 
 # ---------------------------------------------------------------------------
+# Representation-LM registry
+#
+# Used by run_representation_lm.py. Base (non-instruction-tuned) models run as
+# raw next-token prediction under NNsight/nnterp for last-layer
+# post-final-norm representation collection at key-term token positions. Kept
+# separate from JACOBIAN_LENS_REGISTRY: no paired Jacobian-lens artifact, and
+# the two runners may diverge in model set.
+# ---------------------------------------------------------------------------
+
+REPRESENTATION_LM_REGISTRY: dict[str, dict] = {
+    "llama-3.1-8b-base": {
+        "model_id": "meta-llama/Llama-3.1-8B",
+        "nnsight_kwargs": {"torch_dtype": _bfloat16},
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # vLLM judge registry
 #
-# Used by run_judge_local.py (as JUDGE_REGISTRY). 
+# Used by run_judge_local.py (as JUDGE_REGISTRY).
 # ---------------------------------------------------------------------------
 
 VLLM_JUDGE_REGISTRY: dict[str, dict] = {
