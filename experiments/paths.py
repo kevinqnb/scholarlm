@@ -13,6 +13,9 @@ data/experiments/
     judge/{ext_model}/{ext_date}/combined/
     jacobian_lens/{ext_model}/{ext_date}/{lens_model}/{lens_date}/
     representation_lm/{model}/{date}/
+    attribution/{ext_model}/{ext_date}/{judge_model}/{method}/{date}/
+    attribution_synthetic/{judge_model}/{method}/{date}/
+    attribution_synthetic_test/{judge_model}/{method}/{date}/
     synthetic_probe/{judge_model}/{judge_date}/
     synthetic_probe/{judge_model}/trained_probe/
     synthetic_probe_test/{judge_model}/{judge_date}/
@@ -141,6 +144,48 @@ def representation_lm(dataset: str, model: str, date: str | None = None) -> Path
     return EXPERIMENTS_ROOT / dataset / "representation_lm" / model / (date or today())
 
 
+def attribution(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str,
+    judge_model: str,
+    method: str,
+    date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/attribution/{extraction_model}/{extraction_date}/{judge_model}/{method}/{date}/
+
+    Input-token attribution scores (``src/scholarlm/attribution.py``). A separate
+    tree from judge()/jacobian_lens(): attribution output is not a
+    judge-combine participant. Keyed by the extraction run *and* the judge model
+    whose true/false judgement (or head probe) was attributed, plus the
+    attribution method (``contrastive_gradient`` / ``probe``).
+    """
+    return (
+        EXPERIMENTS_ROOT
+        / dataset / "attribution"
+        / extraction_model / extraction_date / judge_model / method / (date or today())
+    )
+
+
+def attribution_synthetic(
+    dataset: str,
+    judge_model: str,
+    method: str,
+    date: str | None = None,
+    split: str = "train",
+) -> Path:
+    """data/experiments/{dataset}/attribution_synthetic[_test]/{judge_model}/{method}/{date}/
+
+    Synthetic-probe-dataset counterpart of attribution(), mirroring the
+    synthetic_probe / synthetic_probe_test split convention (no extraction run
+    to key by).
+    """
+    if split not in {"train", "test"}:
+        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+    subdir = "attribution_synthetic_test" if split == "test" else "attribution_synthetic"
+    return EXPERIMENTS_ROOT / dataset / subdir / judge_model / method / (date or today())
+
+
 def analysis_dir(dataset: str) -> Path:
     """data/experiments/{dataset}/analysis/"""
     return EXPERIMENTS_ROOT / dataset / "analysis"
@@ -227,6 +272,44 @@ def find_activations(
         f"No attention_outputs.npz for dataset='{dataset}' "
         f"extraction_model='{extraction_model}' extraction_date='{extraction_date}' "
         f"judge='{judge_model}' under {judge_dir}"
+    )
+
+
+def find_judge_responses(
+    dataset: str,
+    extraction_model: str,
+    extraction_date: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> tuple[Path, str]:
+    """Return (path to responses.json, resolved judge_date) for an interp-judge run.
+
+    Mirrors ``find_activations``: with ``judge_date=None`` it returns the
+    most-recent judge run under
+    ``judge/{extraction_model}/{extraction_date}/{judge_model}/`` that has a
+    ``responses.json``; with ``judge_date`` set it pins that exact directory.
+
+    Raises:
+        FileNotFoundError: If the judge directory or a matching responses.json
+            does not exist.
+    """
+    judge_dir = (
+        EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / extraction_date / judge_model
+    )
+    if not judge_dir.exists():
+        raise FileNotFoundError(f"No judge directory: {judge_dir}")
+    if judge_date is not None:
+        candidate = judge_dir / judge_date / "responses.json"
+        if candidate.exists():
+            return candidate, judge_date
+        raise FileNotFoundError(f"Judge responses not found: {candidate}")
+    for date_dir in sorted(judge_dir.iterdir(), reverse=True):
+        candidate = date_dir / "responses.json"
+        if candidate.exists():
+            return candidate, date_dir.name
+    raise FileNotFoundError(
+        f"No responses.json for dataset='{dataset}' extraction_model='{extraction_model}' "
+        f"extraction_date='{extraction_date}' judge='{judge_model}' under {judge_dir}"
     )
 
 

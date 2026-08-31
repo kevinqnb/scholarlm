@@ -1,0 +1,59 @@
+id: 2026-08-31-attribution-runner-01
+project: scholarlm
+description: >-
+  Wire src/scholarlm/attribution.py (ATTRIBUTION_REGISTRY) into the pond, nfix,
+  and supermat experiments via a native runner experiments/run_attribution.py
+  that runs one attribution method over a dataset's interp-judge inputs and
+  persists per-context-token Input×Gradient scores per measurement, joined to
+  the pre-existing interp-judge responses.json. Artifact only (per-measurement
+  score arrays + token indices + method scalar + judgement); no analysis,
+  aggregation, visualization, or target number.
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow -- it only
+  # supports entry_point extraction|ablation, and the INTERP_JUDGE_REGISTRY
+  # models (llama-3.1-8b Instruct aside) are not in the extraction
+  # MODEL_REGISTRY, so `bash scripts/submit.sh 2026-08-31-attribution-runner-01`
+  # FAILS. Same gap as 2026-08-31-representation-lm-01 /
+  # 2026-08-05-qwen-base-judge-calibration-01. This config documents the run for
+  # reproducibility; run_attribution.py is invoked directly (native entry
+  # point) via hand-authored single-GPU qsub jobs the user submits.
+  entry_point: manual
+
+  extraction_model: gemma-3-27b
+  datasets: [pond, nfix, supermat]
+
+  # Latest valid gemma-3-27b extraction per dataset (Stage 1 verified: real
+  # completed final.json; .gitignore whitelists pond/2026_05_05 and
+  # nfix/2026_05_06; matches configs/2026-08-05-qwen-base-judge-calibration-01).
+  extraction_dates:
+    pond: "2026_05_05"
+    nfix: "2026_05_06"
+    supermat: "2026_07_09"
+
+  # method -> interp-judge models. `probe` is restricted to the two judge models
+  # with a head_probe_noplatt.pkl cache on disk (all 6 verified Stage 1: bare
+  # sklearn Pipeline, matching provenance, (1280,) scaler shape).
+  methods:
+    probe: [qwen-2.5-7b, qwen-2.5-7b-base]
+    contrastive_gradient: [llama-3.1-8b, mistral-7b, qwen-2.5-7b]
+
+  # 15 real-extraction-mode runs = 6 (probe x 2 judges x 3 datasets)
+  #                              + 9 (contrastive_gradient x 3 judges x 3 datasets)
+  # qwen-2.5-7b appears in both method lists -> 2 runs for it per dataset, one
+  # per method, different output subdirs.
+  #
+  # Paired interp-judge responses.json (HARD PREREQUISITE, not produced here):
+  # all 15 verified present Stage 1. Judge dates vary per combo; the runner
+  # resolves the latest responses.json under each judge dir (or --judge-date)
+  # and records the resolved date in run_metadata.json.
+
+  # Output tree (new, per paths.attribution / paths.attribution_synthetic):
+  #   data/experiments/{dataset}/attribution/{extraction_model}/{extraction_date}/{judge_model}/{method}/{date}/
+  #     attribution_scores.npz  +  attribution.json  +  run_metadata.json
+
+  steps:
+    - "run_attribution.py --dataset <ds> --extraction-model gemma-3-27b --extraction-date <extraction_dates[ds]> --judge <j> --method probe                  (j in [qwen-2.5-7b, qwen-2.5-7b-base])"
+    - "run_attribution.py --dataset <ds> --extraction-model gemma-3-27b --extraction-date <extraction_dates[ds]> --judge <j> --method contrastive_gradient  (j in [llama-3.1-8b, mistral-7b, qwen-2.5-7b])"
+
+  # Done = attribution_scores.npz exists in the standard tree for all 15 combos.
