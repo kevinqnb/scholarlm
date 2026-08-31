@@ -237,6 +237,18 @@ def test_load_responses_by_mid_dedup(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def test_analysis_loaders_importable_via_runner():
+    # `--method probe` does `from analysis.loaders import load_trained_probe` at
+    # runtime (run_attribution.run_attribution). `analysis` is a repo-root
+    # package; when the script runs as `python experiments/run_attribution.py`,
+    # sys.path[0] is experiments/, not the repo root — the runner must add the
+    # repo root itself or the probe path ModuleNotFoundErrors deep into a GPU job.
+    import importlib
+
+    importlib.import_module("run_attribution")  # triggers its sys.path setup
+    importlib.import_module("analysis.loaders")
+
+
 def test_seed_read_has_no_fallback():
     src = (_REPO_ROOT / "experiments" / "run_attribution.py").read_text()
     assert 'cfg["defaults"]["seed"]' in src

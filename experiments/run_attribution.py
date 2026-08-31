@@ -69,6 +69,10 @@ _REPO_ROOT = Path(__file__).parent.parent
 _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
+# Repo root too, so `analysis.loaders` (used by --method probe) imports whether
+# the script is run as `python experiments/run_attribution.py` (sys.path[0] =
+# experiments/) or from a stdin heredoc.
+sys.path.insert(0, str(_REPO_ROOT))
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -399,9 +403,12 @@ def run_attribution(
         scalar_name=SCALAR_KEYS[method_name],
         resolved_judge_date=resolved_judge_date,
         seed=seed,
-        max_prompt_tokens=llm.max_prompt_tokens,
         **summary,
     )
+    # NB: no max_prompt_tokens here — JudgementLM only updates that inside
+    # generate()/predict(), and the attribution path calls llm.trace() directly
+    # (attribution.py), so it would always be 0. summary's
+    # context_token_count_{min,max,mean} is the real per-measurement size signal.
 
 
 # ---------------------------------------------------------------------------
