@@ -30,7 +30,7 @@ from transformers import LlamaForCausalLM  # noqa: E402
 from transformers.models.llama.configuration_llama import LlamaConfig  # noqa: E402
 
 from scholarlm.attribution import (  # noqa: E402
-    _reassert_decoder_layers_training,
+    _reassert_decoder_checkpointing,
     enable_decoder_gradient_checkpointing,
     freeze_model_except_input_embeddings,
 )
@@ -106,22 +106,25 @@ def test_enable_actually_engages_the_checkpoint_wrapper():
     assert calls["n"] == _N_LAYERS, calls["n"]
 
 
-def test_reassert_training_restores_the_gate_without_touching_children():
-    """nnsight's trace lifecycle flips decoder-layer .training back to False after
-    a forward (observed in attribution_smoke.sh check 0), which would silently
-    un-checkpoint calls 2..N of a dataset run. attribute() calls
-    _reassert_decoder_layers_training before every trace to restore it."""
+def test_reassert_restores_the_full_checkpointing_state():
+    """The first attribute() trace clears the checkpointing state (flag, func,
+    and .training -- attribution_smoke.sh check 0 [B]). attribute() calls
+    _reassert_decoder_checkpointing before every trace, which re-runs the full
+    enable so calls 2..N of a dataset run stay checkpointed."""
     m = _tiny_llama()
     enable_decoder_gradient_checkpointing(_Judge(m))
-    for layer in m.model.layers:          # simulate the post-trace reset
+    for layer in m.model.layers:                 # simulate the post-trace clear
         layer.training = False
+        layer.gradient_checkpointing = False
+        layer._gradient_checkpointing_func = None
 
-    _reassert_decoder_layers_training(_Judge(m))
+    _reassert_decoder_checkpointing(_Judge(m))
 
     for layer in m.model.layers:
         assert layer.training is True
+        assert layer.gradient_checkpointing is True
+        assert layer._gradient_checkpointing_func is not None
         assert layer.self_attn.training is False   # children untouched
-        assert layer.gradient_checkpointing is True  # flag never got cleared
 
 
 def test_enable_refuses_nonzero_dropout():

@@ -175,26 +175,26 @@ def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
         layer.training = True
 
 
-def _reassert_decoder_layers_training(judge: JudgementLM) -> None:
-    """Re-set ``.training = True`` on the judge's decoder-layer objects.
+def _reassert_decoder_checkpointing(judge: JudgementLM) -> None:
+    """Re-run ``enable_decoder_gradient_checkpointing`` before every trace.
 
-    ``enable_decoder_gradient_checkpointing`` sets this once, but *something* in
-    the nnsight-trace / ``torch.utils.checkpoint``-backward lifecycle flips it
-    back to ``False`` after a forward: ``attribution_smoke.sh`` check 0 sees
-    ``layer.training`` ``False`` once ``attribute()`` returns, even though the
-    forward it just ran *was* checkpointed (the peak-memory curve stays flat
-    across context length, which only holds with checkpointing on). nnsight,
-    nnterp and accelerate contain no ``.train()`` / ``.eval()`` call, so the
-    exact trigger is unidentified — but the fix is the same regardless: HF gates
-    the checkpoint call on ``layer.training`` at forward time, so
-    ``ContrastiveGradientAttribution.attribute`` must restore the flag before
-    every trace. Otherwise calls 2..N of a dataset run (one ``__init__``, N
-    ``attribute()`` calls) execute un-checkpointed and OOM the long pond/supermat
-    contexts. Idempotent flag flips — microseconds. Verified persistent across
-    consecutive calls in ``attribution_smoke.sh`` check 0 [B].
+    ``ContrastiveGradientAttribution.__init__`` enables checkpointing once, but
+    the first ``attribute()`` trace clears it: ``attribution_smoke.sh`` check 0
+    [B] saw the *2nd* consecutive checkpointed call fall back to the
+    non-checkpointed peak (49 GiB vs 34) and runtime (0.9 s vs 4.3 s) — the
+    forward still ran (valid ``target``, baseline cost), it just wasn't
+    checkpointed. Re-setting ``.training`` alone did not fix it, so the
+    ``gradient_checkpointing`` flag and/or ``_gradient_checkpointing_func`` are
+    cleared too; this re-runs the full enable (idempotent — its asserts are
+    microseconds against a ~2.5 s forward). nnsight / nnterp / accelerate contain
+    no ``.train()`` / ``.eval()`` and no write to ``gradient_checkpointing``; the
+    trigger is unidentified but the full re-enable is trigger-independent. The
+    dataset runner does one ``__init__`` + N ``attribute()`` calls with no
+    re-enable, so without this calls 2..N run un-checkpointed and OOM the long
+    pond/supermat contexts. Persistence is asserted across consecutive calls in
+    ``attribution_smoke.sh`` check 0 [B].
     """
-    for layer in judge.llm._model.model.layers:
-        layer.training = True
+    enable_decoder_gradient_checkpointing(judge)
 
 
 class AttributionMethod(ABC):
@@ -237,7 +237,10 @@ class ContrastiveGradientAttribution(AttributionMethod):
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
-        _reassert_decoder_layers_training(judge)  # nnsight trace resets it; see helper
+        # The prior trace clears the checkpointing state; re-establish it (unless
+        # a smoke test is deliberately measuring the un-checkpointed baseline).
+        if not getattr(self, "_skip_ckpt_reassert", False):
+            _reassert_decoder_checkpointing(judge)
         (
             tokenized_prompt,
             instruction_token_indices,
