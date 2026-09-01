@@ -13,6 +13,7 @@ provenance of every rule below -- each one traces back to a concrete example
 found by auditing the cached chandra-ocr-2 output for the pond dataset.
 """
 import re
+import warnings
 from itertools import count
 
 from bs4 import BeautifulSoup
@@ -23,6 +24,23 @@ _FIGURE_LABELS = {"Figure", "Diagram", "Image"}
 _TABLE_LABEL = "Table"
 _CAPTION_LABEL = "Caption"
 _PLAIN_LABELS = {"Text", "Section-Header", "List-Group", "Footnote", "Equation-Block"}
+
+_RECOGNIZED_LABELS = _FIGURE_LABELS | _PLAIN_LABELS | {_TABLE_LABEL}
+
+# Canonical labels the structure-based fallback (unknown_label_policy="coerce")
+# re-tags an unrecognized div as, so it falls into the matching recognized-label
+# branch below. Asserted members of their branch's label set so a future rename
+# of those sets can't silently desync the fallback.
+_COERCE_FIGURE_LABEL = "Figure"
+_COERCE_PLAIN_LABEL = "Text"
+assert _COERCE_FIGURE_LABEL in _FIGURE_LABELS
+assert _COERCE_PLAIN_LABEL in _PLAIN_LABELS
+
+_UNKNOWN_LABEL_POLICIES = ("raise", "coerce")
+
+# Stand-in key for a <div> that carries no data-label attribute at all, so the
+# coerced-label reporting channel stays a str->int mapping.
+_MISSING_LABEL_KEY = "<no-data-label>"
 
 # Phrase-level, not bare "cover": pond/wetland papers measure vegetation/ice/percent
 # cover, which must not be mistaken for a decorative journal-cover image.
@@ -70,7 +88,38 @@ def _render_entry(entry: dict) -> str:
     raise AssertionError(f"Unhandled entry kind: {entry['kind']!r}")
 
 
-def _format_page(page_html: str, table_counter: count, figure_counter: count) -> str:
+def _classify_by_structure(div) -> tuple[str | None, str | None]:
+    """Re-tag an unrecognized div by its HTML shape, not its label name.
+
+    Label names churn between chandra-ocr-2 corpora; the HTML inside a region is
+    stable. Returns ``(effective_label, coerced_kind)`` where ``effective_label``
+    routes into the matching recognized-label branch of ``_format_page`` and
+    ``coerced_kind`` is the human-facing ``"table"``/``"figure"``/``"text"``
+    label for the reporting channel. Returns ``(None, None)`` for a div that has
+    no content left to emit (e.g. one that held only a decorative image, already
+    stripped upstream) so the caller drops it without recording a coercion.
+
+    Decorative-image stripping has already run on ``div`` by the time this is
+    called, so a surviving ``<img>`` is non-decorative by construction.
+    """
+    # "top-level <table>" only -- a <table> nested inside a figure-shaped div is
+    # figure content (build note 2026-08-13 item 3), not a table in its own right.
+    if div.find("table", recursive=False) is not None:
+        return _TABLE_LABEL, "table"
+    if div.find("img") is not None:
+        return _COERCE_FIGURE_LABEL, "figure"
+    if _render_children(div).strip():
+        return _COERCE_PLAIN_LABEL, "text"
+    return None, None
+
+
+def _format_page(
+    page_html: str,
+    table_counter: count,
+    figure_counter: count,
+    unknown_label_policy: str = "raise",
+    coercion_log: list[tuple[str, str]] | None = None,
+) -> str:
     soup = BeautifulSoup(page_html, "html.parser")
     divs = [child for child in soup.contents if getattr(child, "name", None) == "div"]
 
@@ -100,8 +149,33 @@ def _format_page(page_html: str, table_counter: count, figure_counter: count) ->
                 pending_caption = caption_text
             continue
 
-        if label == _TABLE_LABEL:
-            table_tag = div.find("table")
+        # Recognized labels route straight through; an unrecognized label is
+        # either a hard error (policy "raise", today's default) or gets re-tagged
+        # by its HTML shape (policy "coerce") and recorded in coercion_log.
+        if label in _RECOGNIZED_LABELS:
+            effective_label = label
+        elif unknown_label_policy == "raise":
+            raise ValueError(
+                f"Unrecognized chandra-ocr-2 data-label {label!r}; not in the audited "
+                "label set from notes/scholarlm/builds/2026-08-13-chandra-ocr-adapter-01.md."
+            )
+        else:
+            effective_label, coerced_kind = _classify_by_structure(div)
+            if coerced_kind is None:
+                # Nothing left to emit (e.g. a stripped decorative image) --
+                # drop it transparently, don't record a coercion that produced
+                # no output.
+                continue
+            if coercion_log is not None:
+                coercion_log.append(
+                    (label if label is not None else _MISSING_LABEL_KEY, coerced_kind)
+                )
+
+        if effective_label == _TABLE_LABEL:
+            # Prefer a direct-child <table> (matches what _classify_by_structure
+            # keys the coerce path on); fall back to a nested one for a genuine
+            # Table div that wraps its <table> a level down.
+            table_tag = div.find("table", recursive=False) or div.find("table")
             if table_tag is None:
                 raise ValueError(
                     "Table div has no nested <table> element -- unexpected "
@@ -120,7 +194,7 @@ def _format_page(page_html: str, table_counter: count, figure_counter: count) ->
             open_entry = entry
             continue
 
-        if label in _FIGURE_LABELS:
+        if effective_label in _FIGURE_LABELS:
             img = div.find("img")
             alt = img.get("alt", "").strip() if img else None
             if img is not None:
@@ -154,7 +228,7 @@ def _format_page(page_html: str, table_counter: count, figure_counter: count) ->
             open_entry = entry
             continue
 
-        if label in _PLAIN_LABELS:
+        if effective_label in _PLAIN_LABELS:
             if pending_caption is not None:
                 entries.append({"kind": "text", "body": pending_caption})
                 pending_caption = None
@@ -162,9 +236,9 @@ def _format_page(page_html: str, table_counter: count, figure_counter: count) ->
             open_entry = None
             continue
 
-        raise ValueError(
-            f"Unrecognized chandra-ocr-2 data-label {label!r}; not in the audited "
-            "label set from notes/scholarlm/builds/2026-08-13-chandra-ocr-adapter-01.md."
+        raise AssertionError(
+            f"unreachable: effective_label {effective_label!r} is neither table, "
+            "figure, nor plain after classification."
         )
 
     # An orphaned caption with no adjacent table/figure is kept as body prose,
@@ -175,7 +249,11 @@ def _format_page(page_html: str, table_counter: count, figure_counter: count) ->
     return "\n\n".join(_render_entry(entry) for entry in entries)
 
 
-def format_chandra_output(doc_text: str) -> str:
+def format_chandra_output(
+    doc_text: str,
+    unknown_label_policy: str = "raise",
+    coercion_log: list[tuple[str, str]] | None = None,
+) -> str:
     """
     Reformat a chandra-ocr-2 document's bbox-tagged HTML into readable prose.
 
@@ -184,18 +262,46 @@ def format_chandra_output(doc_text: str) -> str:
             ``DocumentLM.fit()``'s generic step, i.e. a sequence of
             ``<page number="N">...</page>`` blocks each containing chandra's
             flat ``<div data-bbox="..." data-label="...">`` region stream.
+        unknown_label_policy: What to do with a ``<div>`` whose ``data-label``
+            is not in the audited recognized set. ``"raise"`` (default) raises
+            ``ValueError`` -- today's behavior. ``"coerce"`` re-tags the div by
+            its HTML shape (top-level ``<table>`` -> table; else non-decorative
+            ``<img>`` -> figure; else -> body text) and records each coercion.
+            ``_DROP_LABELS`` is never a coercion destination -- dropping content
+            stays opt-in per label.
+        coercion_log: Optional mutable list. When provided and
+            ``unknown_label_policy="coerce"``, one ``(original_label, kind)``
+            tuple is appended per coerced div, where ``kind`` is
+            ``"table"`` / ``"figure"`` / ``"text"``. A div with no data-label
+            attribute is logged under ``"<no-data-label>"``. Left untouched
+            under ``"raise"``.
 
     Returns:
         str: The same page structure with all ``data-bbox`` coordinates and
             decorative page furniture stripped, and tables/figures numbered
             sequentially with their captions inlined as prose.
     """
+    if unknown_label_policy not in _UNKNOWN_LABEL_POLICIES:
+        raise ValueError(
+            f"unknown_label_policy must be one of {_UNKNOWN_LABEL_POLICIES}, "
+            f"got {unknown_label_policy!r}."
+        )
+
     table_counter = count(1)
     figure_counter = count(1)
+    # Always collect internally so a coercion is never wholly invisible (it gets
+    # a warning below); mirror into the caller's list too when one was passed.
+    _log: list[tuple[str, str]] = []
 
     def _replace(match: re.Match) -> str:
         page_number = match.group(1)
-        cleaned = _format_page(match.group(2), table_counter, figure_counter)
+        cleaned = _format_page(
+            match.group(2),
+            table_counter,
+            figure_counter,
+            unknown_label_policy=unknown_label_policy,
+            coercion_log=_log,
+        )
         return f'<page number="{page_number}">\n\n{cleaned}\n\n</page>\n\n'
 
     result, n_subs = _PAGE_RE.subn(_replace, doc_text)
@@ -204,5 +310,14 @@ def format_chandra_output(doc_text: str) -> str:
             "No <page number=\"N\"> tags found in input. format_chandra_output "
             "expects DocumentLM.fit()'s already page-wrapped document text, not "
             "raw per-page model output."
+        )
+
+    if coercion_log is not None:
+        coercion_log.extend(_log)
+    if _log:
+        summary = ", ".join(f"{lbl} -> {kind}" for lbl, kind in _log)
+        warnings.warn(
+            f"format_chandra_output coerced {len(_log)} unrecognized-label "
+            f"region(s) by HTML shape: {summary}"
         )
     return result

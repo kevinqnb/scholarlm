@@ -225,3 +225,69 @@ def test_drop_references_default_false_still_fails_on_unrecognized_label(monkeyp
 
     assert 0 in doclm.format_errors
     assert result[0] is None
+
+
+# ---------------------------------------------------------------------------
+# unknown_label_policy (see 2026-09-01-chandra-unknown-label-fallback-01.md)
+# ---------------------------------------------------------------------------
+
+_COERCE_BAD_PAGE = (
+    '<div data-bbox="0 0 1 1" data-label="Text">Recognized body.</div>'
+    '<div data-bbox="0 0 1 1" data-label="Chemical-Block"><p>H2O + CO2</p></div>'
+)
+
+
+def test_invalid_unknown_label_policy_raises_at_construction(monkeypatch):
+    with pytest.raises(ValueError, match="unknown_label_policy"):
+        _make_chandra_doclm(monkeypatch, unknown_label_policy="drop")
+
+
+def test_coerce_policy_recovers_document_and_records_coerced_labels(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch, unknown_label_policy="coerce")
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_COERCE_BAD_PAGE, 5), (_GOOD_CHANDRA_PAGE, 5)]
+        ),
+    )
+
+    result = doclm.fit(["chem.pdf", "plain.pdf"])
+
+    assert doclm.format_errors == {}
+    assert result[0] is not None and "Recognized body." in result[0]
+    assert result[1] is not None and "Fine content." in result[1]
+    assert doclm.coerced_labels == {0: {"Chemical-Block": 1}}
+
+
+def test_default_raise_policy_still_isolates_unknown_label_to_format_errors(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch)  # unknown_label_policy defaults to "raise"
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: (
+            [(_COERCE_BAD_PAGE, 5)]
+        ),
+    )
+
+    result = doclm.fit(["chem.pdf"])
+
+    assert result[0] is None
+    assert 0 in doclm.format_errors
+    assert doclm.coerced_labels == {}
+
+
+def test_coerced_labels_reset_between_fit_calls(monkeypatch):
+    doclm = _make_chandra_doclm(monkeypatch, unknown_label_policy="coerce")
+
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: [(_COERCE_BAD_PAGE, 5)],
+    )
+    doclm.fit(["chem.pdf"])
+    assert doclm.coerced_labels == {0: {"Chemical-Block": 1}}
+
+    monkeypatch.setattr(
+        DocumentLM, "_call_batch_with_usage",
+        lambda self, message_sets, temperature=None, max_tokens=None: [(_GOOD_CHANDRA_PAGE, 5)],
+    )
+    doclm.fit(["plain.pdf"])
+    assert doclm.coerced_labels == {}
