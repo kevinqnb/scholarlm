@@ -74,6 +74,27 @@ def test_freeze_keeps_embed_output_in_autograd_graph():
     assert m.head.weight.grad is None
 
 
+def test_freeze_leaves_input_grad_exactly_unchanged():
+    """The freeze must not change d(loss)/d(embed_out) — the only quantity the
+    attribution score depends on. On CPU float64 this is exact, so any
+    difference here would be a real semantic change, not fp noise (the GPU
+    smoke sees ~1e-2 run-to-run from non-deterministic SDPA backward, which
+    this isolates out)."""
+    ids = torch.tensor([[1, 2, 3, 4, 5]])
+
+    def input_grad(*, frozen: bool) -> torch.Tensor:
+        torch.manual_seed(0)
+        m = _TinyModel().double()
+        if frozen:
+            freeze_model_except_input_embeddings(_Judge(m))
+        emb_out = m.embed(ids)
+        emb_out.retain_grad()
+        m.head(torch.tanh(m.lin(emb_out))).sum().backward()
+        return emb_out.grad.clone()
+
+    assert torch.equal(input_grad(frozen=False), input_grad(frozen=True))
+
+
 def test_freeze_asserts_loud_when_no_input_embeddings():
     class _NoEmb(nn.Module):
         def __init__(self):
