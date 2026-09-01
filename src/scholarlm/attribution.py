@@ -61,6 +61,42 @@ def _logsumexp_true_false(logits_last: "torch.Tensor", binary_token_ids: dict[st
     return log_p_true, log_p_false
 
 
+def freeze_model_except_input_embeddings(judge: JudgementLM) -> None:
+    """Set ``requires_grad=False`` on every judge-model parameter *except* the
+    input-embedding matrix.
+
+    Input×Gradient attribution only needs ``d(target)/d(input embeddings)``.
+    ``attribute()`` runs ``target.backward()`` with no ``torch.no_grad()``; if
+    every weight still has ``requires_grad=True`` (the HF default), autograd
+    allocates a ``.grad`` buffer for all ~8B parameters — a second full copy of
+    the model — which OOMs an 80 GB GPU on the larger judges (see build note
+    ``2026-08-31-attribution-runner-01``, rung-4 first qsub: llama-3.1-8b OOM at
+    a 1.6k-token context where qwen-2.5-7b peaked at 32.8 GB).
+
+    This is mathematically inert for the score. The embedding matrix stays
+    ``requires_grad=True`` so ``embed_tokens.output`` remains a non-leaf that
+    participates in autograd (freezing it too would break the graph and make
+    ``embed_out.grad`` ``None``). Every downstream op still enters the graph
+    because it depends on ``embed_out``, so ``grad_{embed_out} target`` is
+    unchanged — the transformer-block weight grads that we no longer store were
+    never read (the scores are ``<grad_{embed_out}, embed_out>``). Verified
+    byte-identical frozen-vs-unfrozen in ``attribution_smoke.sh`` check 0.
+    """
+    # Underlying HF nn.Module. `device_map="auto"` (nnterp's default) keeps the
+    # whole model on one GPU when it fits — no accelerate offload swapping the
+    # parameter tensors out from under these flags — which is the only regime
+    # this attribution runs in. requires_grad_ is a flag flip, not a data copy,
+    # so it is safe even on a meta/offloaded parameter.
+    raw = judge.llm._model
+    raw.requires_grad_(False)
+    emb = raw.get_input_embeddings()
+    assert emb is not None, (
+        "judge model get_input_embeddings() is None — cannot attribute to "
+        "input-token embeddings"
+    )
+    emb.weight.requires_grad_(True)
+
+
 class AttributionMethod(ABC):
     """
     Base interface for input-token attribution methods against a loaded
@@ -96,6 +132,7 @@ class ContrastiveGradientAttribution(AttributionMethod):
 
     def __init__(self, judge: JudgementLM):
         self.judge = judge
+        freeze_model_except_input_embeddings(judge)
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
@@ -174,6 +211,8 @@ class ProbeAttribution(AttributionMethod):
         self.scaler_scale = torch.tensor(scaler.scale_, dtype=torch.float32)
         self.clf_coef = torch.tensor(clf.coef_[0], dtype=torch.float32)
         self.clf_intercept = torch.tensor(clf.intercept_[0], dtype=torch.float32)
+
+        freeze_model_except_input_embeddings(judge)
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
