@@ -97,7 +97,9 @@ def freeze_model_except_input_embeddings(judge: JudgementLM) -> None:
     emb.weight.requires_grad_(True)
 
 
-def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
+def enable_decoder_gradient_checkpointing(
+    judge: JudgementLM, *, skip_layers: "frozenset[int] | set[int]" = frozenset()
+) -> None:
     """Turn on activation (gradient) checkpointing for the judge's decoder stack.
 
     ``ContrastiveGradientAttribution`` runs the full forward with a live autograd
@@ -132,9 +134,15 @@ def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
       ``None``) first — a nonzero one would make the attribution scores
       stochastic in a way that still looks plausible.
 
-    Applied by ``ContrastiveGradientAttribution`` only. ``ProbeAttribution``
-    reads ``o_proj.input`` mid-stack; non-reentrant recompute would re-run that
-    region in the backward pass, and probe's forward footprint already fits.
+    ``skip_layers`` — decoder-layer indices left *un*-checkpointed (they run
+    normally and store their activations). ``ProbeAttribution`` reads
+    ``o_proj.input`` at its ``top_k_heads`` layers mid-stack; a non-reentrant
+    recompute of those layers in the backward pass would re-run the region and
+    re-fire nnsight's hooks on the read, so those layers must not be
+    checkpointed. Every *other* layer still is — ``top_k_heads`` spans only
+    ~2–6 of the 28 layers for every trained probe, so this keeps most of the
+    activation-scaling saving. Empty (default) = checkpoint the whole stack,
+    which is what ``ContrastiveGradientAttribution`` uses.
     """
     raw = judge.llm._model
     if not raw.supports_gradient_checkpointing:
@@ -167,15 +175,30 @@ def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
         f"raw.model.layers has {len(layers)} entries, config num_hidden_layers "
         f"is {n_layers}"
     )
-    for layer in layers:
+    bad = {i for i in skip_layers if not 0 <= i < n_layers}
+    assert not bad, f"skip_layers {sorted(bad)} out of range [0, {n_layers})"
+    n_ckpt = 0
+    for i, layer in enumerate(layers):
         assert getattr(layer, "gradient_checkpointing", False), (
             f"{type(layer).__name__}.gradient_checkpointing is False after "
             "gradient_checkpointing_enable() — the checkpoint wrapper will not run"
         )
-        layer.training = True
+        if i in skip_layers:
+            layer.gradient_checkpointing = False   # runs normally: stores its
+            layer.training = False                 # activations, so a mid-stack
+            #                                        .input read is not re-fired
+            #                                        by a backward recompute
+        else:
+            layer.training = True
+            n_ckpt += 1
+    assert n_ckpt == n_layers - len(set(skip_layers)), (
+        f"checkpointed {n_ckpt} layers, expected {n_layers - len(set(skip_layers))}"
+    )
 
 
-def _reassert_decoder_checkpointing(judge: JudgementLM) -> None:
+def _reassert_decoder_checkpointing(
+    judge: JudgementLM, *, skip_layers: "frozenset[int] | set[int]" = frozenset()
+) -> None:
     """Re-run ``enable_decoder_gradient_checkpointing`` before every trace.
 
     ``ContrastiveGradientAttribution.__init__`` enables checkpointing once, but
@@ -192,9 +215,10 @@ def _reassert_decoder_checkpointing(judge: JudgementLM) -> None:
     dataset runner does one ``__init__`` + N ``attribute()`` calls with no
     re-enable, so without this calls 2..N run un-checkpointed and OOM the long
     pond/supermat contexts. Persistence is asserted across consecutive calls in
-    ``attribution_smoke.sh`` check 0 [B].
+    ``attribution_smoke.sh`` check 0 [B]. ``skip_layers`` is forwarded so probe's
+    partial-checkpointing layout is preserved on every call.
     """
-    enable_decoder_gradient_checkpointing(judge)
+    enable_decoder_gradient_checkpointing(judge, skip_layers=skip_layers)
 
 
 class AttributionMethod(ABC):
@@ -232,6 +256,7 @@ class ContrastiveGradientAttribution(AttributionMethod):
 
     def __init__(self, judge: JudgementLM):
         self.judge = judge
+        self._ckpt_skip_layers: frozenset[int] = frozenset()  # checkpoint the whole stack
         freeze_model_except_input_embeddings(judge)
         enable_decoder_gradient_checkpointing(judge)
 
@@ -240,7 +265,7 @@ class ContrastiveGradientAttribution(AttributionMethod):
         # The prior trace clears the checkpointing state; re-establish it (unless
         # a smoke test is deliberately measuring the un-checkpointed baseline).
         if not getattr(self, "_skip_ckpt_reassert", False):
-            _reassert_decoder_checkpointing(judge)
+            _reassert_decoder_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
         (
             tokenized_prompt,
             instruction_token_indices,
@@ -282,6 +307,11 @@ class ProbeAttribution(AttributionMethod):
     sklearn artifact (``head_probe_noplatt.pkl`` — a bare
     ``Pipeline(StandardScaler, LogisticRegression)``, no Platt/
     CalibratedClassifierCV wrapper).
+
+    Uses *partial* gradient checkpointing: every decoder layer is checkpointed
+    except the ``top_k_heads`` layers, whose ``o_proj.input`` this reads
+    mid-trace (a backward recompute of those would re-fire nnsight's read
+    hooks). See ``enable_decoder_gradient_checkpointing(skip_layers=...)``.
     """
 
     def __init__(self, judge: JudgementLM, probe_data: dict):
@@ -317,10 +347,21 @@ class ProbeAttribution(AttributionMethod):
         self.clf_coef = torch.tensor(clf.coef_[0], dtype=torch.float32)
         self.clf_intercept = torch.tensor(clf.intercept_[0], dtype=torch.float32)
 
+        # Layers whose `o_proj.input` attribute() reads mid-stack — must NOT be
+        # checkpointed (a backward recompute of those layers would re-fire
+        # nnsight's read hooks). Every other layer is, keeping most of the
+        # activation-memory saving: top_k_heads spans only ~2–6 of 28 layers.
+        self._ckpt_skip_layers: frozenset[int] = frozenset(l for l, _ in self.top_k_heads)
+
         freeze_model_except_input_embeddings(judge)
+        enable_decoder_gradient_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
+        # The prior trace clears the checkpointing state; re-establish the
+        # partial layout (skip the top_k_heads layers) before every trace.
+        if not getattr(self, "_skip_ckpt_reassert", False):
+            _reassert_decoder_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
         (
             tokenized_prompt,
             instruction_token_indices,
