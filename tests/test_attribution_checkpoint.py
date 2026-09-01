@@ -30,6 +30,7 @@ from transformers import LlamaForCausalLM  # noqa: E402
 from transformers.models.llama.configuration_llama import LlamaConfig  # noqa: E402
 
 from scholarlm.attribution import (  # noqa: E402
+    _reassert_decoder_layers_training,
     enable_decoder_gradient_checkpointing,
     freeze_model_except_input_embeddings,
 )
@@ -103,6 +104,24 @@ def test_enable_actually_engages_the_checkpoint_wrapper():
     m.model(inputs_embeds=emb, use_cache=False).last_hidden_state.pow(2).sum().backward()
 
     assert calls["n"] == _N_LAYERS, calls["n"]
+
+
+def test_reassert_training_restores_the_gate_without_touching_children():
+    """nnsight's trace lifecycle flips decoder-layer .training back to False after
+    a forward (observed in attribution_smoke.sh check 0), which would silently
+    un-checkpoint calls 2..N of a dataset run. attribute() calls
+    _reassert_decoder_layers_training before every trace to restore it."""
+    m = _tiny_llama()
+    enable_decoder_gradient_checkpointing(_Judge(m))
+    for layer in m.model.layers:          # simulate the post-trace reset
+        layer.training = False
+
+    _reassert_decoder_layers_training(_Judge(m))
+
+    for layer in m.model.layers:
+        assert layer.training is True
+        assert layer.self_attn.training is False   # children untouched
+        assert layer.gradient_checkpointing is True  # flag never got cleared
 
 
 def test_enable_refuses_nonzero_dropout():

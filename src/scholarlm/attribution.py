@@ -175,6 +175,28 @@ def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
         layer.training = True
 
 
+def _reassert_decoder_layers_training(judge: JudgementLM) -> None:
+    """Re-set ``.training = True`` on the judge's decoder-layer objects.
+
+    ``enable_decoder_gradient_checkpointing`` sets this once, but *something* in
+    the nnsight-trace / ``torch.utils.checkpoint``-backward lifecycle flips it
+    back to ``False`` after a forward: ``attribution_smoke.sh`` check 0 sees
+    ``layer.training`` ``False`` once ``attribute()`` returns, even though the
+    forward it just ran *was* checkpointed (the peak-memory curve stays flat
+    across context length, which only holds with checkpointing on). nnsight,
+    nnterp and accelerate contain no ``.train()`` / ``.eval()`` call, so the
+    exact trigger is unidentified — but the fix is the same regardless: HF gates
+    the checkpoint call on ``layer.training`` at forward time, so
+    ``ContrastiveGradientAttribution.attribute`` must restore the flag before
+    every trace. Otherwise calls 2..N of a dataset run (one ``__init__``, N
+    ``attribute()`` calls) execute un-checkpointed and OOM the long pond/supermat
+    contexts. Idempotent flag flips — microseconds. Verified persistent across
+    consecutive calls in ``attribution_smoke.sh`` check 0 [B].
+    """
+    for layer in judge.llm._model.model.layers:
+        layer.training = True
+
+
 class AttributionMethod(ABC):
     """
     Base interface for input-token attribution methods against a loaded
@@ -215,6 +237,7 @@ class ContrastiveGradientAttribution(AttributionMethod):
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
+        _reassert_decoder_layers_training(judge)  # nnsight trace resets it; see helper
         (
             tokenized_prompt,
             instruction_token_indices,
