@@ -97,6 +97,84 @@ def freeze_model_except_input_embeddings(judge: JudgementLM) -> None:
     emb.weight.requires_grad_(True)
 
 
+def enable_decoder_gradient_checkpointing(judge: JudgementLM) -> None:
+    """Turn on activation (gradient) checkpointing for the judge's decoder stack.
+
+    ``ContrastiveGradientAttribution`` runs the full forward with a live autograd
+    graph and backpropagates from the final logits, so every decoder layer's
+    activations (residual stream, attention projections, MLP intermediates) are
+    retained for the whole context. At pond/supermat context lengths (up to
+    ~7.6k tokens) that is ~55–60 GB on the 32-layer judges (llama-3.1-8b,
+    mistral-7b) and OOMs an 80 GB GPU *even after* the input-embedding freeze
+    (build note ``2026-08-31-attribution-runner-01``, rung-4 second qsub — the
+    28-layer qwen-2.5-7b peaked at 76 GiB, a 3.6% margin; the 32-layer judges go
+    over). Checkpointing recomputes each layer during the backward pass instead
+    of storing it — ~35% more walltime for an ~5–8× cut to that term.
+
+    Mathematically inert for the score: checkpointing only recomputes forward
+    activations, it does not change ``d(target)/d(embed_out)``. Verified
+    bitwise on CPU float32 in ``tests/test_attribution_checkpoint.py`` and by a
+    peak-memory-drop assertion on a real judge at a >7.6k-token context in
+    ``attribution_smoke.sh`` check 0.
+
+    Two silent-failure modes this guards against explicitly (both are the
+    CLAUDE.md "runs clean, number quietly wrong" trap):
+
+    - HF gates the checkpoint call on ``module.training``
+      (``transformers.modeling_layers.GradientCheckpointingLayer.__call__``:
+      ``if self.gradient_checkpointing and self.training``). nnsight loads the
+      judge in eval mode, so ``gradient_checkpointing_enable()`` alone is a
+      no-op. We set ``.training = True`` on the decoder-layer objects only (not
+      recursively) to engage the gate while leaving ``self_attn.training``
+      ``False``.
+    - ``.training = True`` would also activate any dropout. We assert every
+      ``*dropout`` / ``*pdrop`` probability in the model config is ``0.0`` (or
+      ``None``) first — a nonzero one would make the attribution scores
+      stochastic in a way that still looks plausible.
+
+    Applied by ``ContrastiveGradientAttribution`` only. ``ProbeAttribution``
+    reads ``o_proj.input`` mid-stack; non-reentrant recompute would re-run that
+    region in the backward pass, and probe's forward footprint already fits.
+    """
+    raw = judge.llm._model
+    if not raw.supports_gradient_checkpointing:
+        raise ValueError(
+            f"{type(raw).__name__} does not support gradient checkpointing"
+        )
+
+    cfg = raw.config
+    dropout_keys = [
+        k for k in vars(cfg) if k.endswith("dropout") or k.endswith("pdrop")
+    ]
+    assert dropout_keys, (
+        f"{type(cfg).__name__} exposes no *dropout / *pdrop keys — cannot verify "
+        "that train() mode adds no stochasticity; refusing to enable checkpointing"
+    )
+    nonzero = {k: getattr(cfg, k) for k in dropout_keys if getattr(cfg, k)}
+    assert not nonzero, (
+        f"judge model config has nonzero dropout {nonzero} — setting decoder "
+        "layers to train() mode for gradient checkpointing would make the "
+        "attribution scores stochastic"
+    )
+
+    raw.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
+
+    layers = raw.model.layers
+    n_layers = raw.config.num_hidden_layers
+    assert len(layers) == n_layers, (
+        f"raw.model.layers has {len(layers)} entries, config num_hidden_layers "
+        f"is {n_layers}"
+    )
+    for layer in layers:
+        assert getattr(layer, "gradient_checkpointing", False), (
+            f"{type(layer).__name__}.gradient_checkpointing is False after "
+            "gradient_checkpointing_enable() — the checkpoint wrapper will not run"
+        )
+        layer.training = True
+
+
 class AttributionMethod(ABC):
     """
     Base interface for input-token attribution methods against a loaded
@@ -133,6 +211,7 @@ class ContrastiveGradientAttribution(AttributionMethod):
     def __init__(self, judge: JudgementLM):
         self.judge = judge
         freeze_model_except_input_embeddings(judge)
+        enable_decoder_gradient_checkpointing(judge)
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
