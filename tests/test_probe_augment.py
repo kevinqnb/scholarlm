@@ -166,6 +166,17 @@ def test_hard_negative_on_edited_context_carries_the_edit():
     assert neg["augment_axis"] == "pos_entity"
 
 
+def test_hard_entity_skips_when_source_entity_field_is_null():
+    # supermat case: sample_details is null for most rows -> a fabricated
+    # "the paper says X" would be label noise, so hard_entity must skip it.
+    rules, rng = _rules(), random.Random(0)
+    src = pa._prep_base_valid(_valid_record(0, None, "pond", "tp", "10.0", "µg/L"), rules)
+    assert src.get("name") is None
+    assert pa.make_hard_negative(src, "hard_entity", rules, rng) is None
+    # hard_value still fires — it corrupts a stated numeric claim
+    assert pa.make_hard_negative(src, "hard_value", rules, rng) is not None
+
+
 def test_gt_hard_negative_has_no_edited_context():
     rules, rng = _rules(), random.Random(0)
     src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tp", "10.0", "µg/L"), rules)

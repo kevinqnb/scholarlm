@@ -818,6 +818,13 @@ def make_hard_negative(
     elif kind == "hard_entity":
         if rules.entity_field_locked:
             return None
+        # A hard negative must corrupt a *stated* claim, not invent one. If the
+        # source row's entity field is empty (e.g. supermat's sample_details is
+        # null for ~82% of GT rows), overwriting it with a fabricated value would
+        # label "the paper says X" invalid on a row where the paper says nothing
+        # — which may actually be true. Skip instead.
+        if not src.get(rules.entity_name_field):
+            return None
         new_name = rules.fabricated_name(src, rng)
         if not new_name:
             return None
