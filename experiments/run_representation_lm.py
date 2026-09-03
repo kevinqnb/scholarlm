@@ -2,9 +2,16 @@
 
 Passes every non-excluded document of a dataset through a base
 (non-instruction-tuned) model as raw next-token prediction and collects the
-last-layer, post-final-norm hidden state at the token positions inside a
-whole-word occurrence of a supplied key term. Writes an ``n x d`` array plus
-the parallel label / provenance arrays.
+hidden state at a configurable list of layers (``--layers``) at the token
+positions inside a whole-word occurrence of a supplied key term. One forward
+pass per document yields every requested layer. Writes one ``n x d`` array per
+layer plus the shared label / provenance arrays.
+
+Layer indices: ``0`` = token embeddings, ``1..n_layers-1`` = residual stream
+after that many blocks, ``n_layers`` (32 for llama-3.1-8b-base) =
+post-final-norm (the vector the unembedding sees). Layers ``0..n_layers-1``
+are pre-norm residuals; only ``n_layers`` is post-norm — row-L2 norms are not
+comparable across that boundary.
 
 This is exploratory groundwork for the ``naacl-27`` direction — see
 ``notes/scholarlm/builds/2026-08-31-representation-lm-01.md``. No probing /
@@ -14,10 +21,12 @@ Standard output path (a separate tree, like jacobian_lens/):
     data/experiments/{dataset}/representation_lm/{model}/{date}/
 
 Saves:
-  - ``representations.npz`` — ``representations`` (float32 [n, d]), ``labels``,
-    ``doc_ids``, ``char_starts``, ``char_ends``, ``token_indices`` (all length
-    n), plus scalars ``key_terms``, ``model_name``, ``hidden_size``,
-    ``n_documents``, ``n_truncated``, ``seed``.
+  - ``representations.npz`` — one ``rep_layer_{L:02d}`` array per collected
+    layer (float32 [n, d]), ``layers`` (int64 [k]), ``labels``, ``doc_ids``,
+    ``char_starts``, ``char_ends``, ``token_indices`` (all length n), plus
+    scalars ``key_terms``, ``model_name``, ``hidden_size``, ``n_documents``,
+    ``n_truncated``, ``seed``.  (``savez_compressed`` decompresses per member,
+    so a per-layer probe reads one array, not all of them.)
   - ``run_metadata.json``
 
 Usage
@@ -26,6 +35,7 @@ Usage
         --dataset pond \\
         --model llama-3.1-8b-base \\
         --key-terms pond lake wetland \\
+        --layers 0 8 16 24 32 \\
         [--limit N] [--date YYYY_mm_dd]
 
 NOTE: ``scripts/submit.sh <id>`` cannot run this — the contract adapter only
@@ -93,6 +103,7 @@ def run_representation_lm(
     dataset: str,
     model_key: str,
     key_terms: list[str],
+    layers: list[int],
     output_dir: Path,
     seed: int,
     limit: int | None = None,
@@ -108,6 +119,7 @@ def run_representation_lm(
     documents = _load_documents(dataset_config, limit)
     print(f"Documents        : {len(documents)}")
     print(f"Key terms        : {key_terms}")
+    print(f"Layers           : {layers}")
 
     # Independent known-answer prediction: total row count and per-term counts
     # from a fresh regex pass. (The module uses the same regex helper, so this
@@ -122,26 +134,34 @@ def run_representation_lm(
 
     llm = RepresentationLM(
         model_name=model_cfg["model_id"],
+        layers=layers,
         nnsight_kwargs=model_cfg["nnsight_kwargs"],
         hf_cache_dir=os.environ.get("HF_CACHE"),
         verbose=True,
     )
+    # RepresentationLM validated/sorted/deduped the list against the model.
+    resolved_layers = list(llm.layers)
+    print(f"Resolved layers  : {resolved_layers}")
 
     if verify_read_point:
-        print("\n--- verify_read_point (post-final-norm + determinism gate) ---")
+        print("\n--- verify_read_point (per-layer determinism + read-point gate) ---")
         llm.verify_read_point(next(iter(documents.values())), key_terms)
         print("--- verify_read_point passed ---\n")
 
     start_time = time.time()
     out = llm.collect(documents, key_terms)
 
-    n = out["representations"].shape[0]
+    reps = out["representations"]  # {layer: float32 [n, d]}
+    assert sorted(reps) == resolved_layers, (sorted(reps), resolved_layers)
+    assert out["layers"].tolist() == resolved_layers
+    n = len(out["labels"])
     collected_per_term = {
         t: int((out["labels"] == t).sum()) for t in key_terms
     }
     print(f"Collected rows   : {n}  {collected_per_term}")
 
-    # Every occurrence is collected unless it fell in a truncated tail.
+    # Every occurrence is collected unless it fell in a truncated tail. The row
+    # set is shared across layers, so this row-count gate is layer-independent.
     dropped_to_truncation = predicted_total - n
     assert dropped_to_truncation >= 0
     if llm.n_truncated == 0:
@@ -157,14 +177,21 @@ def run_representation_lm(
             f"{dropped_to_truncation} occurrence(s) past the cutoff dropped."
         )
 
-    assert out["representations"].shape == (n, llm.hidden_size)
-    assert np.isfinite(out["representations"]).all(), "non-finite representations"
+    per_layer_norms: dict[str, float] = {}
+    for L in resolved_layers:
+        assert reps[L].shape == (n, llm.hidden_size), (L, reps[L].shape)
+        assert np.isfinite(reps[L]).all(), f"non-finite representations at layer {L}"
+        per_layer_norms[str(L)] = float(np.linalg.norm(reps[L], axis=1).mean())
+        print(f"  layer {L:>2d}: mean row L2 {per_layer_norms[str(L)]:.4g}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     npz_path = output_dir / "representations.npz"
+    npz_arrays = {
+        f"rep_layer_{L:02d}": reps[L] for L in resolved_layers
+    }
     np.savez_compressed(
         npz_path,
-        representations=out["representations"],
+        layers=out["layers"],
         labels=out["labels"],
         doc_ids=out["doc_ids"],
         char_starts=out["char_starts"],
@@ -176,6 +203,7 @@ def run_representation_lm(
         n_documents=np.asarray(len(documents)),
         n_truncated=np.asarray(llm.n_truncated),
         seed=np.asarray(seed),
+        **npz_arrays,
     )
     print(f"Representations   : {npz_path}  ({npz_path.stat().st_size / 1e6:.1f} MB)")
 
@@ -186,11 +214,13 @@ def run_representation_lm(
         model=model_key,
         model_id=model_cfg["model_id"],
         key_terms=key_terms,
+        layers=resolved_layers,
         seed=seed,
         n_documents=len(documents),
         n_rows=int(n),
         rows_per_term=collected_per_term,
         predicted_rows_per_term=predicted_per_term,
+        mean_row_l2_by_layer=per_layer_norms,
         n_truncated=llm.n_truncated,
         truncated_docs=llm.truncated_docs,
         hidden_size=llm.hidden_size,
@@ -212,6 +242,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--key-terms", required=True, nargs="+", metavar="TERM",
         help="Base key terms to match (case-insensitive, whole-word, simple plural).",
     )
+    p.add_argument(
+        "--layers", required=True, nargs="+", type=int, metavar="L",
+        help=(
+            "Layer indices to collect. 0 = token embeddings, 1..n_layers-1 = "
+            "residual after that many blocks, n_layers (32) = post-final-norm. "
+            "No default (CLAUDE.md no-magic-numbers); the module's own default "
+            "is [0, 8, 16, 24, 32]."
+        ),
+    )
     p.add_argument("--date", default=None, help="Output date tag YYYY_mm_dd (default: today).")
     p.add_argument(
         "--limit", type=int, default=None, metavar="N",
@@ -221,9 +260,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--verify-read-point", action="store_true",
         help=(
             "Smoke-only gate: before collecting, prove on one document that "
-            "the collected vector is the post-final-norm state (vs the "
-            "pre-norm residual and vs the model's own ln_final) and that two "
-            "identical passes are bitwise equal. Aborts on failure."
+            "every requested layer is bitwise-deterministic across two passes, "
+            "adjacent layers are distinct, and (if n_layers is requested) the "
+            "final read point is the post-final-norm state. Aborts on failure."
         ),
     )
     return p
@@ -250,6 +289,7 @@ def main(argv: list[str] | None = None) -> None:
         dataset=args.dataset,
         model_key=args.model,
         key_terms=args.key_terms,
+        layers=args.layers,
         output_dir=output_dir,
         seed=seed,
         limit=args.limit,

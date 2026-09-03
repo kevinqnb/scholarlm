@@ -1,0 +1,48 @@
+id: 2026-09-01-representation-lm-layers-01
+project: scholarlm
+description: >-
+  Multi-layer extension of 2026-08-31-representation-lm-01. Collect key-term
+  ([pond, lake, wetland]) representations across every non-excluded pond paper
+  at layers [0, 8, 16, 24, 32] of llama-3.1-8b-base in a single forward pass
+  per document: 0 = token embeddings, 8/16/24 = residual stream after that many
+  transformer blocks (pre-norm), 32 = post-final-norm (the vector the
+  unembedding sees; identical read point to the original single-layer run).
+  Artifact only (one n x d array per layer + shared labels + provenance);
+  correctness of the representations is deferred to later analysis.
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow -- it only
+  # supports entry_point extraction|ablation, and llama-3.1-8b-base is not in
+  # the extraction MODEL_REGISTRY, so `bash scripts/submit.sh
+  # 2026-09-01-representation-lm-layers-01` FAILS resolving params.model. Same
+  # gap as 2026-08-31-representation-lm-01. This config documents the run for
+  # reproducibility; the step below is invoked directly (native entry point),
+  # via a hand-authored single-GPU qsub job the user submits.
+  entry_point: manual
+
+  dataset: pond
+  model: llama-3.1-8b-base           # REPRESENTATION_LM_REGISTRY key
+  key_terms: [pond, lake, wetland]
+  layers: [0, 8, 16, 24, 32]
+
+  # Independent regex known-answer prediction over the 115 non-excluded pond
+  # papers (re.finditer(r'\b<term>s?\b', text, re.I); plurals included):
+  #   pond 5807, lake 10105, wetland 1608  ->  total n = 17520 rows
+  # The row set is SHARED across layers (same token positions), so this count
+  # is layer-independent. llama-3.1-8b-base context is 131072 tokens vs
+  # ~10-15K per pond paper, so tail-truncation should never fire
+  # (n_truncated == 0) and the runner asserts n == 17520 exactly in that case.
+  predicted_rows: 17520
+
+  # Regression gate (rung 3, in the smoke qsub script): re-collecting ONLY
+  # layer 32 on a 2-doc slice must be BITWISE equal to the pre-2026-09-01
+  # single-layer artifact at
+  #   data/experiments/pond/representation_lm/llama-3.1-8b-base/2026_08_31/
+  # for every shared (doc_id, char_start, char_end).
+  regression_baseline: data/experiments/pond/representation_lm/llama-3.1-8b-base/2026_08_31/representations.npz
+
+  # Artifact size: 5 layers x 17520 x 4096 float32 ~= 1.4 GB raw
+  # (~0.6 GB after savez_compressed; single-threaded zlib, multi-minute write).
+
+  steps:
+    - "python experiments/run_representation_lm.py --dataset pond --model llama-3.1-8b-base --key-terms pond lake wetland --layers 0 8 16 24 32  ->  data/experiments/pond/representation_lm/llama-3.1-8b-base/<date>/representations.npz"

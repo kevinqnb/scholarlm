@@ -20,7 +20,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from scholarlm.representationlm import (
+    DEFAULT_LAYERS,
     find_key_term_occurrences,
+    resolve_layers,
     select_last_subword_index,
 )
 
@@ -85,6 +87,48 @@ def test_empty_terms_and_bad_terms_raise():
         find_key_term_occurrences("text", [])
     with pytest.raises(ValueError):
         find_key_term_occurrences("text", ["pond", " lake"])
+
+
+# ---------------------------------------------------------------------------
+# resolve_layers — pure layer-list validation
+# ---------------------------------------------------------------------------
+
+
+def test_default_layers_resolve_for_a_32_block_model():
+    # 0 = embeddings, 32 = post-final-norm — both endpoints valid.
+    assert resolve_layers(DEFAULT_LAYERS, 32) == [0, 8, 16, 24, 32]
+
+
+def test_resolve_layers_sorts_and_is_order_independent():
+    assert resolve_layers([32, 0, 16], 32) == [0, 16, 32]
+
+
+def test_resolve_layers_rejects_out_of_range():
+    with pytest.raises(ValueError):
+        resolve_layers([0, 33], 32)      # 33 > n_layers
+    with pytest.raises(ValueError):
+        resolve_layers([-1, 8], 32)      # negative
+    with pytest.raises(ValueError):
+        resolve_layers([8, 16], 8)       # 16 > n_layers=8
+
+
+def test_resolve_layers_rejects_duplicates_and_empty():
+    with pytest.raises(ValueError):
+        resolve_layers([8, 8, 16], 32)
+    with pytest.raises(ValueError):
+        resolve_layers([], 32)
+
+
+def test_resolve_layers_rejects_non_int():
+    with pytest.raises(ValueError):
+        resolve_layers([0, 8.0], 32)
+    with pytest.raises(ValueError):
+        resolve_layers([True, 8], 32)    # bool is not an accepted layer index
+
+
+def test_resolve_layers_endpoints_only():
+    assert resolve_layers([0], 32) == [0]
+    assert resolve_layers([32], 32) == [32]
 
 
 # ---------------------------------------------------------------------------
