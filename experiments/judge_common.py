@@ -142,6 +142,7 @@ def prepare_chat_entries(
     data: list[dict],
     documents: dict[str, str],
     dataset_config: DatasetConfig,
+    context_overrides: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Convert raw extraction data to provider-agnostic chat entries.
 
@@ -166,10 +167,32 @@ def prepare_chat_entries(
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
             attribute catalogue, entity type description, and optional
             measurement event schema.
+        context_overrides: Optional ``{str(measurement_id): page_text}`` map.
+            When a row's ``str(row["measurement_id"])`` is a key, that row's
+            ``## CONTEXT`` is the override text instead of the OCR page lookup
+            (used by the synthetic-probe augmentation pipeline, which edits the
+            document context alongside the measurement).  ``None`` (the default)
+            is fully inert — every prompt is byte-identical to the no-override
+            path.  A non-empty map whose keys match no row in ``data`` is a hard
+            error (guards against a side-car being loaded against the wrong file).
 
     Returns:
         List of chat entry dicts ready for any judge runner.
     """
+    if context_overrides:
+        _mid_set = {str(r["measurement_id"]) for r in data if "measurement_id" in r}
+        _unmatched = set(context_overrides) - _mid_set
+        if _unmatched == set(context_overrides):
+            raise ValueError(
+                f"context_overrides has {len(context_overrides)} keys, none of which "
+                f"match a measurement_id in this data file — wrong side-car for this "
+                f"input? (first few unmatched: {sorted(_unmatched)[:5]})"
+            )
+        if _unmatched:
+            raise ValueError(
+                f"context_overrides has {len(_unmatched)} key(s) with no matching "
+                f"measurement_id in this data file: {sorted(_unmatched)[:10]}"
+            )
     _filter: set[str] = set(dataset_config.judge_filter_fields or [])
     _entity_fields: list[str] = [
         k for k in dataset_config.entity_schema.model_fields.keys()
@@ -221,12 +244,20 @@ def prepare_chat_entries(
             else ([pn_raw] if pn_raw is not None else [])
         )
 
-        page_text = extract_page_text(document, page_numbers)
-        # extract_page_text returns the `document` object itself on every
-        # fallback path (no page_number, all-None, or no matching page block),
-        # so an identity check reliably flags a full-document context.
-        if not page_numbers or page_text is document:
-            fulldoc_fallbacks += 1
+        override_text = (
+            context_overrides.get(str(entry.get("measurement_id")))
+            if context_overrides else None
+        )
+        if override_text is not None:
+            # Context was edited by the augmentation pipeline; use it verbatim.
+            page_text = override_text
+        else:
+            page_text = extract_page_text(document, page_numbers)
+            # extract_page_text returns the `document` object itself on every
+            # fallback path (no page_number, all-None, or no matching page block),
+            # so an identity check reliably flags a full-document context.
+            if not page_numbers or page_text is document:
+                fulldoc_fallbacks += 1
 
         system = dataset_config.judge_instructions or JUDGE_INSTRUCTIONS
 
