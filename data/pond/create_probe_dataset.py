@@ -66,8 +66,9 @@ REPO_ROOT = BASE.parent.parent      # repo root
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
-from configs.pond import CONFIG
+from configs.pond import CONFIG, _MEASUREMENT_EVENT_PROMPT
 from scholarlm.utils.page_attribution import parse_ocr
+from scholarlm.utils import probe_augment as _aug
 
 _JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "ecosystem", "additional_details"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
@@ -564,6 +565,93 @@ def build_probe_output(
 
 
 # ---------------------------------------------------------------------------
+# Augmentation (opt-in; see notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md)
+# ---------------------------------------------------------------------------
+
+_POND_TYPE_TOKENS = ["reservoir", "wetland", "pool", "lake", "pond"]  # order = priority
+
+
+def _pond_type_token(record: dict) -> str | None:
+    """Coarse ecosystem-type token from pond's messy free-text ``ecosystem`` field."""
+    eco = (record.get("ecosystem") or "").lower()
+    for tok in _POND_TYPE_TOKENS:
+        if tok in eco:
+            return tok
+    return None
+
+
+def _fabricated_names_by_type() -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {tok: [] for tok in _POND_TYPE_TOKENS}
+    for n in _MADE_UP_NAMES:
+        last = n.rsplit(" ", 1)[-1].lower()
+        key = {"pond": "pond", "lake": "lake", "reservoir": "reservoir",
+               "pool": "pool", "brook": "pond"}.get(last)
+        if key:
+            out[key].append(n)
+    return {k: v for k, v in out.items() if v}
+
+
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
+    """Augmented-dataset path — see the build note. Consumes RNG only after
+    sample_valid_set() so the default (non-augment) path is byte-identical."""
+    rules = _build_augment_rules()
+    flags = _aug.AugmentFlags(
+        augment_events=args.augment_events,
+        pos_axes=tuple(args.augment_pos_axes),
+        hard_negatives=True,
+        target_rows=args.augment_target_rows,
+        floor_rows=args.augment_floor_rows,
+        max_derived_per_source=args.augment_max_derived_per_source,
+        diag_pos_event=not args.augment_no_diag_pos_event,
+    )
+    cache_path = Path(args.augment_cache) if args.augment_cache else None
+    cache = _aug.AugmentCache(cache_path)
+    if args.augment_stub:
+        client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
+        print("Augment client: STUB (no LLM)")
+    else:
+        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache)
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base}")
+
+    written = _aug.run_and_write(
+        base_dir=BASE,
+        out_suffix=args.augment_out_suffix,
+        ocr_dir=_OCR_DIR,
+        xv_train=xv_train,
+        xv_test=xv_test,
+        rules=rules,
+        flags=flags,
+        client=client,
+        rng=rng,
+    )
+    print(f"\n{cache.stats}")
+    print("Augmented outputs:")
+    for k, p in written.items():
+        print(f"  {k:16s} {p}")
+
+
+def _build_augment_rules() -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", []))
+                  for a, info in _ATTR_DICT.items()}
+    return _aug.DatasetAugmentRules(
+        name="pond",
+        entity_name_field="name",
+        fabricated_names_by_type=_fabricated_names_by_type(),
+        fabricated_names_any=list(_MADE_UP_NAMES),
+        entity_type_token=_pond_type_token,
+        attr_units=attr_units,
+        # tn / tp / chla share the same canonical unit list -> safe to swap between
+        shared_unit_groups=[["tn", "tp", "chla"]],
+        entity_field_locked=False,
+        event_fields=["date", "additional_details"],  # judge-visible (location filtered)
+        event_prompt=_MEASUREMENT_EVENT_PROMPT,
+        event_synth_field="date",
+        event_synth_value="Summer 2019",
+        gt_cols=list(_GT_COLS),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -581,6 +669,33 @@ def main(argv: list[str] | None = None) -> None:
         "--reviewed", action="store_true",
         help="Use ground_truth_review.json instead of ground_truth.json.",
     )
+    ag = parser.add_argument_group("augmentation (opt-in; default OFF reproduces "
+                                   "the current probe_dataset{,_test}.json byte-for-byte)")
+    ag.add_argument("--augment", action="store_true",
+                    help="Build the augmented train + primary-test + diagnostic-test "
+                         "files (probe_dataset<suffix>.json etc.) instead of the "
+                         "current two files. Needs a served gpt-oss-120b unless "
+                         "--augment-stub is set.")
+    ag.add_argument("--augment-stub", action="store_true",
+                    help="Use the deterministic stub client (no LLM) — for smoke "
+                         "tests only; produces trivially-edited contexts.")
+    ag.add_argument("--augment-events", action="store_true",
+                    help="Axis #1: gpt-oss event-fill on train + diagnostic-test "
+                         "source valids (pond only).")
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
+                    choices=list(_aug.POS_AXES),
+                    help=f"Axis #2 sub-axes to attempt (default: "
+                         f"{list(_aug.DEFAULT_POS_AXES)}).")
+    ag.add_argument("--augment-target-rows", type=int, default=10000)
+    ag.add_argument("--augment-floor-rows", type=int, default=5000)
+    ag.add_argument("--augment-max-derived-per-source", type=int, default=4)
+    ag.add_argument("--augment-no-diag-pos-event", action="store_true",
+                    help="Drop the pos_event slice from the diagnostic-test file.")
+    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
+    ag.add_argument("--augment-cache",
+                    default=str(BASE / "probe_augment_cache.json"),
+                    help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
 
     gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
@@ -604,6 +719,10 @@ def main(argv: list[str] | None = None) -> None:
     xv_train, xv_test = sample_valid_set(all_records, rng)
     print(f"Train valid: {len(xv_train):,} records ({len(xv_train) / len(all_records) * 100:.1f}% of total)")
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
+
+    if args.augment:
+        _run_augment(args, xv_train, xv_test, rng)
+        return
 
     # Build train probe dataset
     print("\nBuilding train probe dataset ...")
