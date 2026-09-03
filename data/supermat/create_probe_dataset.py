@@ -68,6 +68,7 @@ sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from configs.supermat import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
+from scholarlm.utils import probe_augment as _aug
 
 _JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "sample_details"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
@@ -562,6 +563,82 @@ def build_probe_output(
 
 
 # ---------------------------------------------------------------------------
+# Augmentation (opt-in; see notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md)
+# ---------------------------------------------------------------------------
+
+# Plausible sample_details values — the ONLY entity field the augmenter is
+# allowed to touch for supermat (the formula in `name` is never rewritten).
+_SUPERMAT_SAMPLE_DETAILS = [
+    "doping: x = 0.10", "doping: x = 0.15", "doping: x = 0.20", "doping: x = 0.24",
+    "optimally doped", "underdoped", "overdoped", "single crystal",
+    "polycrystalline", "thin film", "as-grown", "annealed",
+]
+
+
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
+    """Augmented-dataset path — see the build note. Consumes RNG only after
+    sample_valid_set() so the default (non-augment) path is byte-identical."""
+    rules = _build_augment_rules()
+    flags = _aug.AugmentFlags(
+        augment_events=args.augment_events,
+        pos_axes=tuple(args.augment_pos_axes),
+        hard_negatives=True,
+        target_rows=args.augment_target_rows,
+        floor_rows=args.augment_floor_rows,
+        max_derived_per_source=args.augment_max_derived_per_source,
+        diag_pos_event=not args.augment_no_diag_pos_event,
+    )
+    cache_path = Path(args.augment_cache) if args.augment_cache else None
+    cache = _aug.AugmentCache(cache_path)
+    if args.augment_stub:
+        client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
+        print("Augment client: STUB (no LLM)")
+    else:
+        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache)
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base}")
+
+    written = _aug.run_and_write(
+        base_dir=BASE,
+        out_suffix=args.augment_out_suffix,
+        ocr_dir=_OCR_DIR,
+        xv_train=xv_train,
+        xv_test=xv_test,
+        rules=rules,
+        flags=flags,
+        client=client,
+        rng=rng,
+    )
+    print(f"\n{cache.stats}")
+    print("Augmented outputs:")
+    for k, p in written.items():
+        print(f"  {k:16s} {p}")
+
+
+def _build_augment_rules() -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", []))
+                  for a, info in _ATTR_DICT.items()}
+    return _aug.DatasetAugmentRules(
+        name="supermat",
+        # "never touch the formula" is expressed by pointing the entity edits at
+        # sample_details, not `name`. sample_details is judge-visible
+        # (_JUDGE_ENTITY_FIELDS) and non-null for ~18% of GT rows, which bounds
+        # the axis-2 positive yield — see the build note.
+        entity_name_field="sample_details",
+        fabricated_names_by_type={},
+        fabricated_names_any=list(_SUPERMAT_SAMPLE_DETAILS),
+        entity_type_token=lambda r: None,
+        attr_units=attr_units,
+        shared_unit_groups=[],           # single measurand (tc)
+        entity_field_locked=False,        # locking is via the entity_name_field choice
+        event_fields=[],                  # axis #1 event-fill is pond-only
+        event_prompt="",
+        event_synth_field=None,           # no date-like field -> pos_event disabled
+        event_synth_value=None,
+        gt_cols=list(_GT_COLS),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -579,6 +656,35 @@ def main(argv: list[str] | None = None) -> None:
         "--reviewed", action="store_true",
         help="Use ground_truth_review.json instead of ground_truth.json.",
     )
+    ag = parser.add_argument_group("augmentation (opt-in; default OFF reproduces "
+                                   "the current probe_dataset{,_test}.json byte-for-byte)")
+    ag.add_argument("--augment", action="store_true",
+                    help="Build the augmented train + primary-test + diagnostic-test "
+                         "files (probe_dataset<suffix>.json etc.) instead of the "
+                         "current two files. Needs a served gpt-oss-120b unless "
+                         "--augment-stub is set.")
+    ag.add_argument("--augment-stub", action="store_true",
+                    help="Use the deterministic stub client (no LLM). NOTE: the stub "
+                         "needs the source span verbatim in the OCR page, which "
+                         "supermat's sample_details rarely is — the augment path is "
+                         "exercised by the real gpt-oss client, not this stub.")
+    ag.add_argument("--augment-events", action="store_true",
+                    help="Axis #1: gpt-oss event-fill (pond only; a no-op here).")
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
+                    choices=list(_aug.POS_AXES),
+                    help=f"Axis #2 sub-axes to attempt (default: "
+                         f"{list(_aug.DEFAULT_POS_AXES)}). Only pos_entity "
+                         f"(sample_details edits) is live for supermat.")
+    ag.add_argument("--augment-target-rows", type=int, default=10000)
+    ag.add_argument("--augment-floor-rows", type=int, default=5000)
+    ag.add_argument("--augment-max-derived-per-source", type=int, default=4)
+    ag.add_argument("--augment-no-diag-pos-event", action="store_true",
+                    help="Drop the pos_event slice from the diagnostic-test file.")
+    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
+    ag.add_argument("--augment-cache",
+                    default=str(BASE / "probe_augment_cache.json"),
+                    help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
 
     gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
@@ -607,6 +713,10 @@ def main(argv: list[str] | None = None) -> None:
     xv_train, xv_test = sample_valid_set(all_records, rng)
     print(f"Train valid: {len(xv_train):,} records ({len(xv_train) / len(all_records) * 100:.1f}% of total)")
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
+
+    if args.augment:
+        _run_augment(args, xv_train, xv_test, rng)
+        return
 
     # Build train probe dataset
     print("\nBuilding train probe dataset ...")
