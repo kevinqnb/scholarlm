@@ -226,7 +226,13 @@ class GptOssClient:
         return dict(results)
 
     def _resolve(self, key: str, op: str, messages: list[dict]) -> str:
-        """Return raw model text for ``key``, using the cache."""
+        """Return raw model text for ``key``, using the cache.
+
+        NOTE: on a cache miss this runs a one-shot event loop for a single call
+        — fully serial.  For a full generation run the orchestrator MUST call
+        ``prewarm`` with every ``(key, messages)`` first so this only ever hits
+        the cache (see the build note's remaining-work item 4).
+        """
         cached = self.cache.get(key)
         if cached is not None:
             return cached
