@@ -298,6 +298,53 @@ def prepare_chat_entries(
     return entries
 
 
+# ─── Context-override side-car loading ────────────────────────────────────────
+
+
+def sidecar_path_for(probe_file: Path) -> Path:
+    """``…/probe_dataset<x>.json`` → ``…/probe_context_overrides<x>.json``.
+
+    The augmentation pipeline writes each split's edited-context side-car next to
+    its data file under this name.
+    """
+    probe_file = Path(probe_file)
+    new_name = probe_file.name.replace("probe_dataset", "probe_context_overrides", 1)
+    if new_name == probe_file.name:
+        raise ValueError(
+            f"cannot derive a side-car name from {probe_file.name!r} "
+            f"(expected it to contain 'probe_dataset')"
+        )
+    return probe_file.with_name(new_name)
+
+
+def load_context_overrides(
+    probe_file: str | Path, explicit_path: str | Path | None = None,
+) -> dict[str, str] | None:
+    """Load a ``{measurement_id: page_text}`` side-car for ``probe_file``.
+
+    ``explicit_path`` given  → must exist (hard error otherwise).
+    ``explicit_path`` None   → the sibling side-car is used if present, else
+                               ``None`` is returned (a split with no edited
+                               contexts — e.g. the primary test file).
+    """
+    if explicit_path is not None:
+        p = Path(explicit_path)
+        if not p.exists():
+            raise FileNotFoundError(f"--context-overrides file not found: {p}")
+    else:
+        p = sidecar_path_for(probe_file)
+        if not p.exists():
+            return None
+    with open(p) as f:
+        overrides = json.load(f)
+    if not isinstance(overrides, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in overrides.items()
+    ):
+        raise ValueError(f"side-car {p} is not a flat {{str: str}} mapping")
+    print(f"Context overrides: {len(overrides)} from {p.name}")
+    return overrides
+
+
 # ─── Document loading ─────────────────────────────────────────────────────────
 
 

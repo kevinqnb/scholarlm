@@ -197,27 +197,34 @@ def load_layer_outputs(
 
 
 def load_synthetic_responses(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> list[dict]:
-    """Load responses.json from a synthetic probe run."""
-    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split)
+    """Load responses.json from a synthetic probe run.
+
+    ``name`` (a ``--synthetic-name`` label, e.g. ``v2_diag``) selects a
+    ``synthetic_probe_<name>`` tree and takes precedence over ``split``.
+    """
+    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split, name)
     with open(path) as f:
         return json.load(f)
 
 
 def load_synthetic_activations(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
-    """Load attention_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split)
+    """Load attention_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
+    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split, name)
     return np.load(path)
 
 
 def load_synthetic_layer_outputs(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
-    """Load layer_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split)
+    """Load layer_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
+    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split, name)
     return np.load(path)
 
 

@@ -25,6 +25,7 @@ data/experiments/
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -347,13 +348,41 @@ def find_layer_outputs(
     )
 
 
+_SYNTHETIC_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_]*$")
+
+
+def _synthetic_subdir(split: str = "train", name: str | None = None) -> str:
+    """Directory name under ``{dataset}/`` for a synthetic-probe judge run.
+
+    ``name`` (the ``--synthetic-name`` arg) takes precedence over ``split`` and
+    routes to a dedicated ``synthetic_probe_<name>`` tree — used by the
+    augmentation pipeline, which produces three files (augmented train, primary
+    test, diagnostic test) that don't fit the two-way ``train``/``test`` split.
+    """
+    if name is not None:
+        if not _SYNTHETIC_NAME_RE.match(name):
+            raise ValueError(
+                f"--synthetic-name must match [a-z0-9][a-z0-9_]*, got {name!r}"
+            )
+        return f"synthetic_probe_{name}"
+    if split == "test":
+        return "synthetic_probe_test"
+    if split == "train":
+        return "synthetic_probe"
+    raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
+
+
 def synthetic_probe(
     dataset: str,
     judge_model: str,
     judge_date: str | None = None,
+    *,
+    split: str = "train",
+    name: str | None = None,
 ) -> Path:
-    """data/experiments/{dataset}/synthetic_probe/{judge_model}/{judge_date}/"""
-    return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / (judge_date or today())
+    """data/experiments/{dataset}/synthetic_probe[_test|_<name>]/{judge_model}/{judge_date}/"""
+    sub = _synthetic_subdir(split, name)
+    return EXPERIMENTS_ROOT / dataset / sub / judge_model / (judge_date or today())
 
 
 def synthetic_probe_test(
@@ -362,7 +391,17 @@ def synthetic_probe_test(
     judge_date: str | None = None,
 ) -> Path:
     """data/experiments/{dataset}/synthetic_probe_test/{judge_model}/{judge_date}/"""
-    return EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model / (judge_date or today())
+    return synthetic_probe(dataset, judge_model, judge_date, split="test")
+
+
+def synthetic_probe_named(
+    dataset: str,
+    name: str,
+    judge_model: str,
+    judge_date: str | None = None,
+) -> Path:
+    """data/experiments/{dataset}/synthetic_probe_<name>/{judge_model}/{judge_date}/"""
+    return synthetic_probe(dataset, judge_model, judge_date, name=name)
 
 
 def trained_probe_dir(dataset: str, judge_model: str) -> Path:
@@ -370,91 +409,57 @@ def trained_probe_dir(dataset: str, judge_model: str) -> Path:
     return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / "trained_probe"
 
 
-def find_synthetic_activations(
+def _find_synthetic(
     dataset: str,
     judge_model: str,
+    filename: str,
     judge_date: str | None = None,
     split: str = "train",
+    name: str | None = None,
 ) -> Path:
-    """Return path to the most-recent attention_outputs.npz in synthetic_probe."""
-    if split not in {"train", "test"}:
-        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
-    if split == "test":
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
-    else:
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
+    """Locate ``filename`` in the most-recent (or date-pinned) synthetic-probe run."""
+    judge_dir = EXPERIMENTS_ROOT / dataset / _synthetic_subdir(split, name) / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
     if judge_date is not None:
-        candidate = judge_dir / judge_date / "attention_outputs.npz"
+        candidate = judge_dir / judge_date / filename
         if candidate.exists():
             return candidate
     else:
         for date_dir in sorted(judge_dir.iterdir(), reverse=True):
-            candidate = date_dir / "attention_outputs.npz"
+            candidate = date_dir / filename
             if candidate.exists():
                 return candidate
     raise FileNotFoundError(
-        f"No attention_outputs.npz for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
+        f"No {filename} for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
     )
+
+
+def find_synthetic_activations(
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
+) -> Path:
+    """Return path to the most-recent attention_outputs.npz in a synthetic-probe run."""
+    return _find_synthetic(dataset, judge_model, "attention_outputs.npz",
+                           judge_date, split, name)
 
 
 def find_synthetic_layer_outputs(
-    dataset: str,
-    judge_model: str,
-    judge_date: str | None = None,
-    split: str = "train",
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> Path:
-    """Return path to the most-recent layer_outputs.npz in synthetic_probe."""
-    if split not in {"train", "test"}:
-        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
-    if split == "test":
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
-    else:
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
-    if not judge_dir.exists():
-        raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
-    if judge_date is not None:
-        candidate = judge_dir / judge_date / "layer_outputs.npz"
-        if candidate.exists():
-            return candidate
-    else:
-        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
-            candidate = date_dir / "layer_outputs.npz"
-            if candidate.exists():
-                return candidate
-    raise FileNotFoundError(
-        f"No layer_outputs.npz for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
-    )
+    """Return path to the most-recent layer_outputs.npz in a synthetic-probe run."""
+    return _find_synthetic(dataset, judge_model, "layer_outputs.npz",
+                           judge_date, split, name)
 
 
 def find_synthetic_responses(
-    dataset: str,
-    judge_model: str,
-    judge_date: str | None = None,
-    split: str = "train",
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> Path:
-    """Return path to the most-recent responses.json in synthetic_probe."""
-    if split not in {"train", "test"}:
-        raise ValueError(f"Invalid split: {split} (expected 'train' or 'test')")
-    if split == "test":
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe_test" / judge_model
-    else:
-        judge_dir = EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model
-    if not judge_dir.exists():
-        raise FileNotFoundError(f"No synthetic probe directory: {judge_dir}")
-    if judge_date is not None:
-        candidate = judge_dir / judge_date / "responses.json"
-        if candidate.exists():
-            return candidate
-    else:
-        for date_dir in sorted(judge_dir.iterdir(), reverse=True):
-            candidate = date_dir / "responses.json"
-            if candidate.exists():
-                return candidate
-    raise FileNotFoundError(
-        f"No responses.json for dataset='{dataset}' judge='{judge_model}' under {judge_dir}"
-    )
+    """Return path to the most-recent responses.json in a synthetic-probe run."""
+    return _find_synthetic(dataset, judge_model, "responses.json",
+                           judge_date, split, name)
 
 
 def find_human_responses(

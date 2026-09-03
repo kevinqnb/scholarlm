@@ -308,3 +308,86 @@ def test_prepare_chat_entries_rejects_partial_sidecar_mismatch():
     with pytest.raises(ValueError):
         judge_common.prepare_chat_entries(
             data, docs, cfg, context_overrides={"7": "ok", "8": "orphan"})
+
+
+# ─── --synthetic-name path routing (experiments/paths.py) ─────────────────────
+
+
+def test_synthetic_probe_named_routes_to_dedicated_tree():
+    import paths
+    p = paths.synthetic_probe_named("pond", "v2_diag", "mistral-7b", "2026_09_10")
+    assert p.parts[-3:] == ("synthetic_probe_v2_diag", "mistral-7b", "2026_09_10")
+
+
+def test_synthetic_probe_split_vs_name_precedence():
+    import paths
+    assert paths.synthetic_probe("pond", "m").parts[-3] == "synthetic_probe"
+    assert paths.synthetic_probe_test("pond", "m").parts[-3] == "synthetic_probe_test"
+    # name wins over the default split
+    assert paths.synthetic_probe("pond", "m", name="foo").parts[-3] == "synthetic_probe_foo"
+
+
+def test_synthetic_name_rejects_bad_chars():
+    import paths
+    for bad in ("Bad-Name", "has space", "UPPER", "trailing/slash", ""):
+        with pytest.raises(ValueError):
+            paths.synthetic_probe_named("pond", bad, "m")
+
+
+def test_find_synthetic_carries_name_through(tmp_path, monkeypatch):
+    import paths
+    monkeypatch.setattr(paths, "EXPERIMENTS_ROOT", tmp_path)
+    run = tmp_path / "pond" / "synthetic_probe_v2_diag" / "mistral-7b" / "2026_09_10"
+    run.mkdir(parents=True)
+    (run / "responses.json").write_text("[]")
+    got = paths.find_synthetic_responses("pond", "mistral-7b", "2026_09_10", name="v2_diag")
+    assert got == run / "responses.json"
+    # same lookup without the name looks in the wrong tree and fails loud
+    with pytest.raises(FileNotFoundError):
+        paths.find_synthetic_responses("pond", "mistral-7b", "2026_09_10")
+
+
+# ─── context-override side-car loading (judge_common) ─────────────────────────
+
+
+def test_sidecar_path_for_derives_sibling_name():
+    import judge_common
+    for src, want in [
+        ("data/pond/probe_dataset.json", "probe_context_overrides.json"),
+        ("data/pond/probe_dataset_v2.json", "probe_context_overrides_v2.json"),
+        ("d/probe_dataset_test_v2_diag.json", "probe_context_overrides_test_v2_diag.json"),
+    ]:
+        assert judge_common.sidecar_path_for(Path(src)).name == want
+
+
+def test_sidecar_path_for_rejects_unrelated_name():
+    import judge_common
+    with pytest.raises(ValueError):
+        judge_common.sidecar_path_for(Path("data/pond/something_else.json"))
+
+
+def test_load_context_overrides_missing_sibling_returns_none(tmp_path):
+    import judge_common
+    probe = tmp_path / "probe_dataset_v2.json"
+    probe.write_text("[]")
+    assert judge_common.load_context_overrides(probe) is None
+
+
+def test_load_context_overrides_explicit_missing_raises(tmp_path):
+    import judge_common
+    with pytest.raises(FileNotFoundError):
+        judge_common.load_context_overrides(tmp_path / "probe_dataset.json",
+                                            explicit_path=tmp_path / "no_such.json")
+
+
+def test_load_context_overrides_reads_sibling_and_validates_shape(tmp_path):
+    import json
+    import judge_common
+    probe = tmp_path / "probe_dataset_v2.json"
+    probe.write_text("[]")
+    (tmp_path / "probe_context_overrides_v2.json").write_text(json.dumps({"3": "ctx"}))
+    assert judge_common.load_context_overrides(probe) == {"3": "ctx"}
+    # non-{str: str} payload is a hard error
+    (tmp_path / "probe_context_overrides_v2.json").write_text(json.dumps({"3": 5}))
+    with pytest.raises(ValueError):
+        judge_common.load_context_overrides(probe)
