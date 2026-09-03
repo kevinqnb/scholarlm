@@ -600,6 +600,11 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
     """Augmented-dataset path — see the build note. Consumes RNG only after
     sample_valid_set() so the default (non-augment) path is byte-identical."""
     rules = _build_augment_rules()
+    if args.augment_events and not rules.event_fields:
+        raise ValueError(
+            "--augment-events was passed but nfix has no judge-visible event "
+            "fields (axis #1 event-fill is pond-only). Drop the flag."
+        )
     flags = _aug.AugmentFlags(
         augment_events=args.augment_events,
         pos_axes=tuple(args.augment_pos_axes),
