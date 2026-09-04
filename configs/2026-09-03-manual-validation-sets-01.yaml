@@ -1,0 +1,54 @@
+id: 2026-09-03-manual-validation-sets-01
+project: scholarlm
+description: >-
+  Phase 1 of the manual-validation build: a seeded, reproducible sampler
+  (data/validation/create_validation_set.py) that draws a simple random sample
+  of n_sample extracted measurements per dataset (pond / nfix / supermat) from
+  the pinned gemma-3-27b MeasurementLM extractions, restricted to the
+  probe-dataset test split, and writes a self-contained data/{ds}/validation_set.json:
+  every sampled row plus every measurement reached by a page-closure fixpoint
+  over their page_number sets (flagged sampled:false), plus the full verbatim
+  page text (from the run's OCR dir) for every page any included row touches.
+  The per-measurement retrieval `context` chunk is deliberately NOT stored
+  (prose context == page text verbatim; table context is one already-identified
+  table; re-derivable from extraction_final_json keyed on measurement_id).
+  Artifact only: three committed validation_set.json. The validation website is
+  a separate build ([[2026-09-03-manual-validation-site-01]]).
+seed: 342
+params:
+  # No scripts/run_experiment.py adapter covers this workflow (entry_point only
+  # supports extraction|ablation). create_validation_set.py is a native script,
+  # run directly in-shell. This config documents the run for reproducibility.
+  entry_point: manual
+
+  extraction_model: gemma-3-27b
+  datasets: [pond, nfix, supermat]
+
+  # Pinned gemma-3-27b MeasurementLM extraction per dataset (Stage 1 verified:
+  # real completed final.json; matches configs/2026-08-31-attribution-runner-01).
+  extraction_dates:
+    pond: "2026_05_05"
+    nfix: "2026_05_06"
+    supermat: "2026_07_09"
+
+  # Exactly this many measurements sampled per dataset (SRS without replacement).
+  n_sample: 1000
+
+  # The probe-dataset split files (git-tracked). test_split_file defines the
+  # document_id pool; train_split_file is the leakage guard only.
+  test_split_file: probe_dataset_test.json
+  train_split_file: probe_dataset.json
+
+  # ocr_dir is NOT a param: it is read from each extraction's run_metadata.json
+  # ("ocr_dir"), asserted to resolve under the repo root, and stored repo-relative
+  # in the output. All three pinned runs used data/{ds}/ocr_output_cleaned_qwen-3.5-27b.
+
+  # Output (self-contained; the site repo needs zero access to data/experiments/):
+  #   data/{ds}/validation_set.json
+  steps:
+    - "create_validation_set.py --dataset pond"
+    - "create_validation_set.py --dataset nfix"
+    - "create_validation_set.py --dataset supermat"
+
+  # Done = data/{pond,nfix,supermat}/validation_set.json committed, each with
+  # exactly n_sample sampled:true rows and every boundary assert passing.
