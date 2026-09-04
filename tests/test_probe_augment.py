@@ -7,7 +7,9 @@ Everything here runs against a hand-built fixture with the ``StubAugmentClient``
 """
 from __future__ import annotations
 
+import json
 import random
+import re
 import sys
 from pathlib import Path
 
@@ -265,6 +267,150 @@ def test_pipeline_files_are_wellformed(tmp_path):
     # diagnostic file: every row sits on an edited context
     d_rows, d_sc, _ = out["diagnostic_test"]
     assert set(d_sc) == {str(r["measurement_id"]) for r in d_rows}
+
+
+# ─── GptOssClient prewarm / record-pass plumbing ─────────────────────────────
+#
+# A full generation run does a `record` dry pass through `build_augmented_files`
+# to collect every gpt-oss prompt, `prewarm`s them in one concurrent batch, then
+# runs for real against a warm cache.  These tests use a canned `_run_batch`
+# (no server) to check: the record pass calls no model and leaves the cache
+# untouched; two prewarm orderings produce a byte-identical cache; and the real
+# pass that follows a record pass makes zero model calls (RNG parity — the whole
+# point of the phase reorder in `build_augmented_files`).
+
+
+def _canned_run_batch(*, event_date: str | None = None):
+    """An async `_run_batch` stand-in: stub-style rewrites, canned event-fill."""
+
+    async def _run_batch(self, jobs):
+        out: dict[str, str] = {}
+        for key, messages in jobs:
+            user = messages[-1]["content"]
+            if "## MEASUREMENT\n" in user:                       # event_fill
+                out[key] = json.dumps({} if event_date is None else {"date": event_date})
+                continue
+            instr, page = user.split("## PAGE TEXT\n", 1)        # rewrite
+            quoted = re.findall(r'"([^"]+)"', instr)
+            olds = [t for t in quoted if t in page]
+            news = [t for t in quoted if t not in page]
+            ctx = page
+            for o in olds:
+                ctx = ctx.replace(o, news[0] if news else o + "_X")
+            out[key] = json.dumps({"feasible": True, "context": ctx, "replacements": []})
+        return out
+
+    return _run_batch
+
+
+def _augment_fixture(axes=("pos_entity", "pos_attribute"), *, events=False):
+    rules = _rules()
+    flags = pa.AugmentFlags(augment_events=events, pos_axes=axes,
+                            target_rows=0, floor_rows=0, max_derived_per_source=4)
+    valids = _fixture_valids(24)
+    tr = [dict(v) for v in valids[:16]]
+    te = [dict(v) for v in valids[16:]]
+    return tr, te, rules, flags
+
+
+def _record_pass(client, tr, te, rules, flags, seed=42):
+    """Run the `record` dry pass; return (jobs, rng) with rng rewound to pre-pass."""
+    rng = random.Random(seed)
+    state = rng.getstate()
+    client.record = True
+    pa.build_augmented_files(xv_train=tr, xv_test=te, rng=rng,
+                             client=client, rules=rules, flags=flags, quiet=True)
+    client.record = False
+    jobs = list(client._pending.items())
+    client._pending.clear()
+    rng.setstate(state)
+    return jobs, rng
+
+
+def test_gptoss_record_pass_collects_prompts_and_leaves_cache_clean(monkeypatch):
+    async def _boom(self, jobs):
+        raise AssertionError("the record pass must not call the model")
+
+    monkeypatch.setattr(pa.GptOssClient, "_run_batch", _boom)
+    client = pa.GptOssClient(api_base="http://unused/v1", cache=pa.AugmentCache(None))
+    jobs, _ = _record_pass(client, *_augment_fixture())
+
+    assert len(jobs) > 0
+    assert all(len(k) == 64 and re.fullmatch(r"[0-9a-f]{64}", k) for k, _ in jobs)
+    # the record pass never writes the cache — a canned `feasible: false` landing
+    # in the store would poison every subsequent run
+    assert client.cache._store == {}
+    assert client.cache._misses == 0
+
+
+def test_prewarm_is_order_independent(tmp_path, monkeypatch):
+    monkeypatch.setattr(pa.GptOssClient, "_run_batch", _canned_run_batch())
+    p1, p2 = tmp_path / "c1.json", tmp_path / "c2.json"
+
+    c1 = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(p1))
+    jobs, _ = _record_pass(c1, *_augment_fixture())
+    assert len(jobs) >= 3
+    c1.prewarm(jobs)
+
+    c2 = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(p2))
+    c2.prewarm(list(reversed(jobs)))
+
+    assert c1.cache._store == c2.cache._store
+    c1.cache.save()
+    c2.cache.save()
+    assert p1.read_bytes() == p2.read_bytes()      # committed cache: no ordering diff
+
+
+@pytest.mark.parametrize("resumed", [False, True])
+def test_record_then_real_pass_makes_zero_model_calls(monkeypatch, resumed):
+    monkeypatch.setattr(pa.GptOssClient, "_run_batch", _canned_run_batch())
+    tr, te, rules, flags = _augment_fixture()
+
+    # discover the rewrite keys with a throwaway probe client
+    probe = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    discovered, _ = _record_pass(probe, tr, te, rules, flags)
+    rewrite_keys = [k for k, m in discovered if "## PAGE TEXT\n" in m[-1]["content"]]
+    assert rewrite_keys
+
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    if resumed:
+        # a crashed-and-restarted run: some rewrites are already cached.  The
+        # cached value need not verify — RNG draws in `_axis2_positives` happen
+        # before the client call and do not depend on its return.
+        for k in rewrite_keys[::2]:
+            client.cache._store[k] = json.dumps(
+                {"feasible": True, "context": "stale", "replacements": []})
+
+    jobs, rng = _record_pass(client, tr, te, rules, flags)
+    client.prewarm(jobs)
+    misses_after_prewarm = client.cache._misses
+    client.strict_cache = True
+
+    out = pa.build_augmented_files(xv_train=tr, xv_test=te, rng=rng,
+                                   client=client, rules=rules, flags=flags)
+
+    # strict_cache did not raise, and not one new model call happened
+    assert client.cache._misses == misses_after_prewarm
+    for key in ("train", "primary_test", "diagnostic_test"):
+        pa.assert_wellformed(key, out[key][0], out[key][1])
+
+
+def test_strict_cache_raises_when_eventfill_result_feeds_pos_event(monkeypatch):
+    # Known residual dependency: event-fill output changes the pos_event rewrite
+    # instruction (`if cur:` vs the inject-a-sentence branch), so with
+    # `--augment-pos-axes pos_event` the record pass (canned empty event-fill)
+    # collects the wrong rewrite prompt.  strict_cache must catch this loudly.
+    monkeypatch.setattr(pa.GptOssClient, "_run_batch", _canned_run_batch(event_date="2019"))
+    tr, te, rules, flags = _augment_fixture(axes=("pos_entity", "pos_event"), events=True)
+
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    jobs, rng = _record_pass(client, tr, te, rules, flags)
+    client.prewarm(jobs)
+    client.strict_cache = True
+
+    with pytest.raises(RuntimeError, match="pos_event"):
+        pa.build_augmented_files(xv_train=tr, xv_test=te, rng=rng,
+                                 client=client, rules=rules, flags=flags)
 
 
 # ─── judge_common.prepare_chat_entries context-override plumbing ──────────────

@@ -196,7 +196,16 @@ class GptOssClient:
     temperature: float = 0.2
     max_concurrent: int = 32
     max_tokens: int = 20000
-    _pending: dict[str, tuple[str, list[dict]]] = field(default_factory=dict, repr=False)
+    # Record mode: `_resolve` collects every (key, messages) it is asked for into
+    # `_pending` and returns a benign canned response instead of calling the
+    # model, so the orchestrator can gather the whole run's prompts in one RNG-
+    # matched dry pass and `prewarm` them concurrently (see `run_and_write`).
+    record: bool = False
+    # Set True after `prewarm`: a cache miss on the real pass is then a hard
+    # error rather than a silent fall-through to the serial one-shot path (which
+    # would surface only as a blown job walltime).
+    strict_cache: bool = False
+    _pending: dict[str, list[dict]] = field(default_factory=dict, repr=False)
 
     # -- low level -----------------------------------------------------------
 
@@ -225,17 +234,41 @@ class GptOssClient:
         results = await asyncio.gather(*(_guarded(k, m) for k, m in jobs))
         return dict(results)
 
+    # Canned responses returned during a record pass — parseable by the callers
+    # so control flow (and RNG consumption) matches a normal run up to the point
+    # where the collected prompts are all that matters.
+    _RECORD_RESPONSES = {
+        "event_fill": "{}",                                  # -> every field null
+        "rewrite": '{"feasible": false, "reason": "record pass"}',
+    }
+
     def _resolve(self, key: str, op: str, messages: list[dict]) -> str:
         """Return raw model text for ``key``, using the cache.
 
-        NOTE: on a cache miss this runs a one-shot event loop for a single call
-        — fully serial.  For a full generation run the orchestrator MUST call
-        ``prewarm`` with every ``(key, messages)`` first so this only ever hits
-        the cache (see the build note's remaining-work item 4).
+        On a cache miss outside record mode this runs a one-shot event loop for a
+        single call — fully serial.  A full generation run therefore does a
+        record pass first (``record=True``) so every ``(key, messages)`` is
+        collected and ``prewarm``-ed concurrently; the real pass then only ever
+        hits the cache.  ``run_and_write`` wires this up.
         """
         cached = self.cache.get(key)
         if cached is not None:
             return cached
+        if self.record:
+            self._pending[key] = messages
+            if op not in self._RECORD_RESPONSES:
+                raise ValueError(f"no canned record-pass response for op {op!r}")
+            return self._RECORD_RESPONSES[op]
+        if self.strict_cache:
+            raise RuntimeError(
+                f"gpt-oss cache miss for op {op!r} on the real pass, after "
+                f"prewarm — the record pass did not collect this prompt. This "
+                f"means an earlier phase's output changed a later phase's "
+                f"prompt: today the only such dependency is event-fill results "
+                f"feeding the pos_event rewrite instruction, so it fires only "
+                f"with --augment-pos-axes pos_event. Run prewarm in two rounds "
+                f"(event-fill, then the rest) or drop that axis."
+            )
         raw = asyncio.run(self._run_batch([(key, messages)]))[key]
         self.cache.put(key, raw)
         return raw
@@ -913,6 +946,7 @@ def build_augmented_files(
     client: AugmentClient,
     rules: DatasetAugmentRules,
     flags: AugmentFlags,
+    quiet: bool = False,
 ) -> dict[str, tuple[list[dict], dict[str, str], list[dict]]]:
     """Build the three augmented output files.
 
@@ -921,9 +955,25 @@ def build_augmented_files(
     event fields.  Returns ``{file: (output_rows, side_car, rows_with_contexts)}``
     where ``rows_with_contexts`` still has the ``_context_*`` fields for the diff
     report; ``output_rows`` is already projected onto the file schema.
+
+    **Phase ordering.**  Every step that calls the client (event-fill, axis-2
+    rewrites) runs first, contiguously, for all three splits — *before* any
+    hard-negative or balancing work.  ``run_and_write`` relies on this: it runs
+    this function once in a ``record`` dry pass to collect every gpt-oss prompt
+    for one concurrent ``prewarm``, and that pass only makes the same RNG draws
+    as the real pass up to the point where control flow first depends on a
+    client return value (``len(axis_pos)``, which the record pass gets wrong
+    because it can't know which rewrites the model would accept).  Keeping all
+    client calls ahead of that divergence point is what makes the collected
+    prompt set correct.  ``quiet`` silences the per-split progress prints for
+    the record pass (its counts are all zero and would mislead a log reader).
     """
     extra_keep = ["label", "modification_type", "gt_row_index", "donor_gt_row_index",
                   "measurement_id", "source_group_id", "augment_axis"]
+
+    def _say(msg: str) -> None:
+        if not quiet:
+            print(msg)
 
     def _finalize(rows: list[dict]) -> tuple[list[dict], dict[str, str], list[dict]]:
         assign_measurement_ids(rows)
@@ -931,45 +981,56 @@ def build_augmented_files(
         clean = strip_internal_fields(rows, rules.gt_cols, extra_keep)
         return clean, side_car, rows
 
-    # ---- TRAIN --------------------------------------------------------------
+    # ---- client-calling phases (run first, contiguously — see the docstring) --
+    # Three independent shallow-copy passes over the two input lists.  The
+    # primary-test valids MUST NOT share a list with the diagnostic-test valids:
+    # `event_fill_records` mutates rows in place and the primary test split is
+    # exempt from event-fill (its GT event fields are the headline metric's
+    # ground truth).
     train_valids = [_prep_base_valid(v, rules) for v in xv_train]
+    ptest_valids = [_prep_base_valid(v, rules) for v in xv_test]
+    dtest_valids = [_prep_base_valid(v, rules) for v in xv_test]
+
     if flags.augment_events:
         n = event_fill_records(train_valids, client, rules)
-        print(f"  [train] event-fill: {n} (record, field) pairs filled")
-    axis_pos = _axis2_positives(train_valids, rules, client, rng, flags.pos_axes)
-    print(f"  [train] axis-2 positives: {len(axis_pos)}")
+        _say(f"  [train] event-fill: {n} (record, field) pairs filled")
+        m = event_fill_records(dtest_valids, client, rules)
+        _say(f"  [diagnostic-test] event-fill: {m} (record, field) pairs filled")
+
+    train_axis_pos = _axis2_positives(train_valids, rules, client, rng, flags.pos_axes)
+    _say(f"  [train] axis-2 positives: {len(train_axis_pos)}")
+    diag_axes = tuple(a for a in flags.pos_axes
+                      if flags.diag_pos_event or a != "pos_event")
+    dtest_axis_pos = _axis2_positives(dtest_valids, rules, client, rng, diag_axes)
+    _say(f"  [diagnostic-test] axis-2 positives: {len(dtest_axis_pos)}")
+
+    # ---- assembly (no client calls past this point; a record pass may diverge
+    #      in RNG here and it does not matter — nothing below is collected) -----
+    # TRAIN
     gt_neg = _gt_hard_negatives(train_valids, rules, rng)
-    edit_neg = _matched_hard_negatives(axis_pos, rules, rng)
-    positives = train_valids + axis_pos
-    negatives = gt_neg + edit_neg
+    edit_neg = _matched_hard_negatives(train_axis_pos, rules, rng)
     train_rows, train_report = balance_and_cap(
-        positives, negatives, target=flags.target_rows, floor=flags.floor_rows,
+        train_valids + train_axis_pos, gt_neg + edit_neg,
+        target=flags.target_rows, floor=flags.floor_rows,
         max_derived_per_source=flags.max_derived_per_source, rng=rng,
     )
-    print(f"  [train] {train_report}")
+    _say(f"  [train] {train_report}")
 
-    # ---- PRIMARY TEST (no event-fill, no axis-2, GT-derived negatives) -----
-    ptest_valids = [_prep_base_valid(v, rules) for v in xv_test]
+    # PRIMARY TEST (no event-fill, no axis-2, GT-derived negatives)
     ptest_neg = _gt_hard_negatives(ptest_valids, rules, rng)
     ptest_rows, ptest_report = balance_and_cap(
         ptest_valids, ptest_neg, target=0, floor=0,
         max_derived_per_source=flags.max_derived_per_source, rng=rng,
     )
-    print(f"  [primary-test] {ptest_report}")
+    _say(f"  [primary-test] {ptest_report}")
 
-    # ---- DIAGNOSTIC TEST (axis-2 positives + matched negatives on edits) --
-    dtest_valids = [_prep_base_valid(v, rules) for v in xv_test]
-    if flags.augment_events:
-        event_fill_records(dtest_valids, client, rules)
-    diag_axes = tuple(a for a in flags.pos_axes
-                      if flags.diag_pos_event or a != "pos_event")
-    dtest_pos = _axis2_positives(dtest_valids, rules, client, rng, diag_axes)
-    dtest_neg = _matched_hard_negatives(dtest_pos, rules, rng)
+    # DIAGNOSTIC TEST (axis-2 positives + matched negatives on edited contexts)
+    dtest_neg = _matched_hard_negatives(dtest_axis_pos, rules, rng)
     dtest_rows, dtest_report = balance_and_cap(
-        dtest_pos, dtest_neg, target=0, floor=0,
+        dtest_axis_pos, dtest_neg, target=0, floor=0,
         max_derived_per_source=flags.max_derived_per_source, rng=rng,
     )
-    print(f"  [diagnostic-test] {dtest_report}")
+    _say(f"  [diagnostic-test] {dtest_report}")
 
     return {
         "train": _finalize(train_rows),
@@ -1028,6 +1089,26 @@ def run_and_write(
         if code not in doc_cache:
             doc_cache[code] = (ocr_dir / f"{code}.txt").read_text(encoding="utf-8")
         v[_CTX_ORIG_KEY] = extract_page_text(doc_cache[code], v.get(page_numbers_key) or [])
+
+    # gpt-oss: gather every prompt in an RNG-matched dry pass, then fill the cache
+    # in one concurrent batch. Without this the real pass hits the model serially
+    # (one event loop per call) and blows the generation-job walltime.
+    if isinstance(client, GptOssClient):
+        rng_state = rng.getstate()
+        client.record = True
+        build_augmented_files(
+            xv_train=xv_train, xv_test=xv_test, rng=rng, client=client,
+            rules=rules, flags=flags, quiet=True,
+        )
+        client.record = False
+        jobs = list(client._pending.items())
+        client._pending.clear()
+        rng.setstate(rng_state)
+        print(f"  prewarm: {len(jobs)} gpt-oss call(s) to batch "
+              f"({client.cache.stats})")
+        client.prewarm(jobs)
+        client.strict_cache = True   # a real-pass miss is now a hard error
+        print(f"  prewarm done ({client.cache.stats})")
 
     bundles = build_augmented_files(
         xv_train=xv_train, xv_test=xv_test, rng=rng, client=client, rules=rules, flags=flags,
