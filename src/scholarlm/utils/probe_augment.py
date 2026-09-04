@@ -1126,8 +1126,13 @@ def run_and_write(
         print(f"  wrote {len(rows):,} rows -> {data_path.name}")
         if sc_fmt is not None:
             sc_path = base_dir / sc_fmt.format(s=out_suffix)
+            # Stamp the side-car with the data file it belongs to. measurement_id
+            # is a dense 0..N-1 per-file index, so a side-car whose id range nests
+            # inside another file's would otherwise be silently accepted against
+            # the wrong file (audit List-1 #5). load_context_overrides checks this.
             with open(sc_path, "w") as f:
-                json.dump(side_car, f, indent=2, ensure_ascii=False, sort_keys=True)
+                json.dump({"probe_file": data_path.name, "overrides": side_car},
+                          f, indent=2, ensure_ascii=False, sort_keys=True)
             n_diff = emit_context_diff_report(rows_ctx, base_dir / (data_path.name + ".diff.txt"))
             print(f"  wrote {len(side_car):,} side-car contexts -> {sc_path.name} "
                   f"({n_diff} in the diff report)")

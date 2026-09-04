@@ -320,7 +320,14 @@ def sidecar_path_for(probe_file: Path) -> Path:
 def load_context_overrides(
     probe_file: str | Path, explicit_path: str | Path | None = None,
 ) -> dict[str, str] | None:
-    """Load a ``{measurement_id: page_text}`` side-car for ``probe_file``.
+    """Load the edited-context side-car for ``probe_file``.
+
+    The side-car is ``{"probe_file": <data filename>, "overrides": {measurement_id:
+    page_text}}``.  The ``probe_file`` stamp is checked against the file being
+    judged: ``measurement_id`` is a dense per-file ``0..N-1`` index, so without
+    this a side-car whose id range is contained in another file's would be
+    silently accepted against the wrong file (audit List-1 #5).  Returns the
+    inner ``overrides`` map.
 
     ``explicit_path`` given  → must exist (hard error otherwise).
     ``explicit_path`` None   → the sibling side-car is used if present, else
@@ -336,11 +343,23 @@ def load_context_overrides(
         if not p.exists():
             return None
     with open(p) as f:
-        overrides = json.load(f)
+        doc = json.load(f)
+    if not isinstance(doc, dict) or set(doc) != {"probe_file", "overrides"}:
+        raise ValueError(
+            f"side-car {p} is not {{'probe_file': str, 'overrides': {{str: str}}}} "
+            f"(got keys {sorted(doc) if isinstance(doc, dict) else type(doc).__name__})"
+        )
+    overrides = doc["overrides"]
     if not isinstance(overrides, dict) or not all(
         isinstance(k, str) and isinstance(v, str) for k, v in overrides.items()
     ):
-        raise ValueError(f"side-car {p} is not a flat {{str: str}} mapping")
+        raise ValueError(f"side-car {p} 'overrides' is not a flat {{str: str}} mapping")
+    stamped = doc["probe_file"]
+    if stamped != Path(probe_file).name:
+        raise ValueError(
+            f"side-car {p.name} is for {stamped!r} but was loaded against "
+            f"{Path(probe_file).name!r} — wrong side-car for this input file."
+        )
     print(f"Context overrides: {len(overrides)} from {p.name}")
     return overrides
 
