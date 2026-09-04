@@ -1,0 +1,80 @@
+id: 2026-09-03-probe-synthetic-augmentation-01
+project: scholarlm
+description: >-
+  Synthetic augmentation of the judge probe-training data via gpt-oss-120b:
+  event-fill on ground-truth-valid rows, axis-2 synthetic positives (context
+  rewrite), and derived hard negatives (hard_value / hard_units / hard_entity),
+  balanced 50/50 and capped, for pond / nfix / supermat. Context-edited rows
+  carry their edited page text inline on the row (context_override field);
+  no side-car file. Output files are additional (_v2 suffix) -- the default,
+  non-augmented probe_dataset{,_test}.json outputs are untouched byte-for-byte.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
+          # -- this is the actual --seed value every documented step below uses.
+params:
+  # No scripts/run_experiment.py adapter covers this workflow (entry_point
+  # only supports extraction|ablation). Each dataset's create_probe_dataset.py
+  # --augment is a native script, run directly in-shell (train) or via a
+  # hand-written qsub job that also brings up the gpt-oss-120b vLLM server
+  # (generation). This config documents the run for reproducibility; see
+  # notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md for
+  # the design rationale and the staged-gate history (Rungs 1-3 passed on the
+  # stub client; Rung 4, the real gpt-oss generation below, not yet run).
+  entry_point: manual
+
+  datasets: [pond, nfix, supermat]
+
+  # gpt-oss-120b vLLM server, one job per dataset, brought up in-job by
+  # inlining experiments/serve_gpt_oss_120b.sh's server invocation verbatim
+  # (NOT gen_serve_script.py -- experiments/config.yaml's gpt-oss-120b serve
+  # block has drifted from the working recipe, see the build note's Stage-2
+  # plan notes). Poll /health before sending requests -- the endpoint file
+  # only means the process started, not that weights are loaded.
+  gpt_oss_api_base: http://localhost:8081/v1
+
+  # SGE resources for the generation job (per dataset, one job), taken
+  # verbatim from experiments/serve_gpt_oss_120b.sh's own qsub header except
+  # h_rt, raised for the generation work that follows the serve step in the
+  # same job (remaining-work #4): gpu_type=A100 ([[env_blackwell_torch_cu126]]
+  # applies), gpu_memory=80G, gpu_c=9.0, -pe omp 16, h_rt=24:00:00 (serve
+  # script's own default is 12:00:00, insufficient once generation runs
+  # after the server comes up).
+  job_resources:
+    gpu_type: A100
+    gpu_memory: 80G
+    gpu_c: 9.0
+    pe_omp: 16
+    h_rt: "24:00:00"
+
+  # Augmentation knobs (recorded, not tuned -- see the build note's "Knob
+  # defaults" for the reasoning behind each).
+  augment_target_rows: 10000
+  augment_floor_rows: 5000  # waived for nfix (below floor even with real gpt-oss, per resolution B)
+  augment_max_derived_per_source: 4
+  out_suffix: _v2
+
+  # Per-dataset invocation differs -- do not use one template (pond has
+  # judge-visible event fields; nfix's baseline was re-pinned to the current
+  # OCR corpus so --reviewed is required to match; supermat has no
+  # ground_truth_review.json so --reviewed would hard-error there).
+  steps:
+    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined into the job (h_rt/pe_omp per job_resources above) -> wait for /health -> data/pond/create_probe_dataset.py --augment --augment-events --seed 42 --reviewed"
+    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/nfix/create_probe_dataset.py --augment --seed 42 --reviewed  # NO --augment-events: hard error since commit 4698751"
+    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/supermat/create_probe_dataset.py --augment --seed 42  # NO --reviewed (no ground_truth_review.json), NO --augment-events"
+  # --augment-cache defaults to data/{ds}/probe_augment_cache.json (on by
+  # default, no flag needed) -- this is what makes the done_when
+  # "byte-identical regeneration" clause hold in practice.
+
+  # Output (per dataset, additional to the untouched defaults):
+  #   probe_dataset_v2.json (augmented train)
+  #   probe_dataset_test_v2.json (primary test, zero context_override rows by construction)
+  #   probe_dataset_test_v2_diag.json (diagnostic test, fully synthetic)
+  #   probe_augment_cache.json (gpt-oss response cache, content-hash keyed --
+  #     reproducibility artifact; commit-or-not is the user's call, ~10-20MB pond)
+  #   <data file>.diff.txt (unified diff report, one per split where n_edited > 0 --
+  #     i.e. probe_dataset_v2.json.diff.txt / probe_dataset_test_v2_diag.json.diff.txt;
+  #     none for the primary-test file)
+
+  # Done = the Rung-4 well-formedness / seed-determinism (x2) / diff-report
+  # spot-check / row-count / prevalence / supermat-formula-invariant checks all
+  # pass on the real gpt-oss output for all three datasets; see the build
+  # note's Stage-3 done_when table and remaining-work #6.
