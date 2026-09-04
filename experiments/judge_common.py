@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -142,7 +141,6 @@ def prepare_chat_entries(
     data: list[dict],
     documents: dict[str, str],
     dataset_config: DatasetConfig,
-    context_overrides: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Convert raw extraction data to provider-agnostic chat entries.
 
@@ -160,6 +158,18 @@ def prepare_chat_entries(
     occurrences.  This function unwraps them to the appropriate scalar or list
     types before building prompts.
 
+    Context override: when a row carries a non-null ``context_override`` field,
+    its ``## CONTEXT`` is that text verbatim instead of the OCR page lookup
+    (the synthetic-probe augmentation pipeline sets this on rows whose context
+    was edited alongside the measurement — see ``probe_augment.py``). A row
+    with no such field, or ``context_override: null``, is unaffected — the
+    lookup is the same OCR-page extraction as before this field existed, so
+    every prompt for a file that has never carried the field is byte-identical.
+    Because the override travels *on* the row, there is no cross-file guard to
+    write here: unlike the retired side-car scheme (commit `12a3dd1`, superseded
+    by this change), an override cannot be "for" the wrong row or the wrong file
+    by construction — it either is that row's own field or it doesn't exist.
+
     Args:
         data: List of extraction records from a ``final.json`` file.
         documents: Dict mapping paper_code strings to raw OCR text, as returned
@@ -167,32 +177,10 @@ def prepare_chat_entries(
         dataset_config: ``DatasetConfig`` instance supplying entity schema,
             attribute catalogue, entity type description, and optional
             measurement event schema.
-        context_overrides: Optional ``{str(measurement_id): page_text}`` map.
-            When a row's ``str(row["measurement_id"])`` is a key, that row's
-            ``## CONTEXT`` is the override text instead of the OCR page lookup
-            (used by the synthetic-probe augmentation pipeline, which edits the
-            document context alongside the measurement).  ``None`` (the default)
-            is fully inert — every prompt is byte-identical to the no-override
-            path.  A non-empty map whose keys match no row in ``data`` is a hard
-            error (guards against a side-car being loaded against the wrong file).
 
     Returns:
         List of chat entry dicts ready for any judge runner.
     """
-    if context_overrides:
-        _mid_set = {str(r["measurement_id"]) for r in data if "measurement_id" in r}
-        _unmatched = set(context_overrides) - _mid_set
-        if _unmatched == set(context_overrides):
-            raise ValueError(
-                f"context_overrides has {len(context_overrides)} keys, none of which "
-                f"match a measurement_id in this data file — wrong side-car for this "
-                f"input? (first few unmatched: {sorted(_unmatched)[:5]})"
-            )
-        if _unmatched:
-            raise ValueError(
-                f"context_overrides has {len(_unmatched)} key(s) with no matching "
-                f"measurement_id in this data file: {sorted(_unmatched)[:10]}"
-            )
     _filter: set[str] = set(dataset_config.judge_filter_fields or [])
     _entity_fields: list[str] = [
         k for k in dataset_config.entity_schema.model_fields.keys()
@@ -244,10 +232,7 @@ def prepare_chat_entries(
             else ([pn_raw] if pn_raw is not None else [])
         )
 
-        override_text = (
-            context_overrides.get(str(entry.get("measurement_id")))
-            if context_overrides else None
-        )
+        override_text = entry.get("context_override")
         if override_text is not None:
             # Context was edited by the augmentation pipeline; use it verbatim.
             page_text = override_text
@@ -296,72 +281,6 @@ def prepare_chat_entries(
         )
 
     return entries
-
-
-# ─── Context-override side-car loading ────────────────────────────────────────
-
-
-def sidecar_path_for(probe_file: Path) -> Path:
-    """``…/probe_dataset<x>.json`` → ``…/probe_context_overrides<x>.json``.
-
-    The augmentation pipeline writes each split's edited-context side-car next to
-    its data file under this name.
-    """
-    probe_file = Path(probe_file)
-    new_name = probe_file.name.replace("probe_dataset", "probe_context_overrides", 1)
-    if new_name == probe_file.name:
-        raise ValueError(
-            f"cannot derive a side-car name from {probe_file.name!r} "
-            f"(expected it to contain 'probe_dataset')"
-        )
-    return probe_file.with_name(new_name)
-
-
-def load_context_overrides(
-    probe_file: str | Path, explicit_path: str | Path | None = None,
-) -> dict[str, str] | None:
-    """Load the edited-context side-car for ``probe_file``.
-
-    The side-car is ``{"probe_file": <data filename>, "overrides": {measurement_id:
-    page_text}}``.  The ``probe_file`` stamp is checked against the file being
-    judged: ``measurement_id`` is a dense per-file ``0..N-1`` index, so without
-    this a side-car whose id range is contained in another file's would be
-    silently accepted against the wrong file (audit List-1 #5).  Returns the
-    inner ``overrides`` map.
-
-    ``explicit_path`` given  → must exist (hard error otherwise).
-    ``explicit_path`` None   → the sibling side-car is used if present, else
-                               ``None`` is returned (a split with no edited
-                               contexts — e.g. the primary test file).
-    """
-    if explicit_path is not None:
-        p = Path(explicit_path)
-        if not p.exists():
-            raise FileNotFoundError(f"--context-overrides file not found: {p}")
-    else:
-        p = sidecar_path_for(probe_file)
-        if not p.exists():
-            return None
-    with open(p) as f:
-        doc = json.load(f)
-    if not isinstance(doc, dict) or set(doc) != {"probe_file", "overrides"}:
-        raise ValueError(
-            f"side-car {p} is not {{'probe_file': str, 'overrides': {{str: str}}}} "
-            f"(got keys {sorted(doc) if isinstance(doc, dict) else type(doc).__name__})"
-        )
-    overrides = doc["overrides"]
-    if not isinstance(overrides, dict) or not all(
-        isinstance(k, str) and isinstance(v, str) for k, v in overrides.items()
-    ):
-        raise ValueError(f"side-car {p} 'overrides' is not a flat {{str: str}} mapping")
-    stamped = doc["probe_file"]
-    if stamped != Path(probe_file).name:
-        raise ValueError(
-            f"side-car {p.name} is for {stamped!r} but was loaded against "
-            f"{Path(probe_file).name!r} — wrong side-car for this input file."
-        )
-    print(f"Context overrides: {len(overrides)} from {p.name}")
-    return overrides
 
 
 # ─── Document loading ─────────────────────────────────────────────────────────

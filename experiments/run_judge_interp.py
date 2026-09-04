@@ -83,7 +83,6 @@ def run_interp_judge(
     ocr_dir: str | None = None,
     ablation: str | None = None,
     input_file: Path | None = None,
-    context_overrides: dict[str, str] | None = None,
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
@@ -92,7 +91,9 @@ def run_interp_judge(
     description, attribute description, value/units, closing question) is
     identical across all judge backends.  JudgementLM receives
     the three parts separately as (instructions, context, query), which it
-    wraps into a single user message internally.
+    wraps into a single user message internally.  A row carrying a
+    ``context_override`` field (set by the synthetic-probe augmentation
+    pipeline) uses that text verbatim in place of the OCR page lookup.
 
     Args:
         dataset_config: Dataset configuration.
@@ -124,9 +125,7 @@ def run_interp_judge(
 
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = judge_common.prepare_chat_entries(
-        data, documents, dataset_config, context_overrides=context_overrides,
-    )
+    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
     # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
@@ -258,8 +257,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Judge an arbitrary probe file (e.g. an augmentation-pipeline output "
             "like data/pond/probe_dataset_test_v2_diag.json). Requires "
-            "--synthetic-name. Its sibling probe_context_overrides side-car is "
-            "auto-loaded if present (override with --context-overrides)."
+            "--synthetic-name. Rows carrying a context_override field use that "
+            "text verbatim in place of the OCR page lookup."
         ),
     )
     p.add_argument(
@@ -267,13 +266,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Output tree label for --synthetic-file: results go to "
             "synthetic_probe_<NAME>/{judge}/{judge_date}/. [a-z0-9_]."
-        ),
-    )
-    p.add_argument(
-        "--context-overrides", default=None, metavar="PATH",
-        help=(
-            "Explicit {measurement_id: page_text} side-car for --synthetic-file "
-            "(default: the sibling probe_context_overrides file if it exists)."
         ),
     )
     return p
@@ -290,20 +282,17 @@ def main(argv: list[str] | None = None) -> None:
     dataset_config = load_dataset_config(args.dataset)
 
     if args.synthetic_file:
-        import judge_common
         if not args.synthetic_name:
             _build_parser().error("--synthetic-name is required with --synthetic-file.")
         probe_file = Path(args.synthetic_file)
         if not probe_file.exists():
             raise FileNotFoundError(f"--synthetic-file not found: {probe_file}")
-        overrides = judge_common.load_context_overrides(probe_file, args.context_overrides)
         output_dir = paths.synthetic_probe_named(
             args.dataset, args.synthetic_name, args.judge, args.judge_date
         )
         print(f"\nDataset          : {args.dataset}")
         print(f"Mode             : synthetic probe (named: {args.synthetic_name})")
         print(f"Input            : {probe_file}")
-        print(f"Context overrides: {0 if overrides is None else len(overrides)}")
         print(f"Judge            : {args.judge}")
         print(f"Output           : {output_dir}\n")
         run_interp_judge(
@@ -313,7 +302,6 @@ def main(argv: list[str] | None = None) -> None:
             output_dir=output_dir,
             ocr_dir=args.ocr_dir,
             input_file=probe_file,
-            context_overrides=overrides,
         )
         return
 

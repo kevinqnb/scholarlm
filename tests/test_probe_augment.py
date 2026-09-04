@@ -269,58 +269,6 @@ def test_pipeline_files_are_wellformed(tmp_path):
     assert set(d_sc) == {str(r["measurement_id"]) for r in d_rows}
 
 
-def test_run_and_write_stamps_sidecars_and_load_roundtrips(tmp_path):
-    """run_and_write → stamped side-car files → judge_common.load_context_overrides.
-
-    The stamp is what closes audit List-1 #5: a side-car whose measurement_id
-    range nests inside another file's must not load against the wrong file.
-    """
-    import judge_common
-    rules = _rules()
-    flags = pa.AugmentFlags(augment_events=False, pos_axes=("pos_entity", "pos_attribute"),
-                            target_rows=0, floor_rows=0, max_derived_per_source=4)
-    valids = _fixture_valids(24)
-    # OCR files: one per _paper_code, each page-1 block naming its sites verbatim
-    # so the stub rewrite can find the entity span.
-    ocr_dir = tmp_path / "ocr"
-    ocr_dir.mkdir()
-    by_code: dict[str, list[dict]] = {}
-    for v in valids:
-        by_code.setdefault(v["_paper_code"], []).append(v)
-    for code, vs in by_code.items():
-        body = " ".join(f"{v['name']} reported {v['attribute']} of {v['value']} {v['units']}."
-                        for v in vs)
-        (ocr_dir / f"{code}.txt").write_text(f'<page number="1">{body}</page>')
-
-    written = pa.run_and_write(
-        base_dir=tmp_path, out_suffix="_v2", ocr_dir=ocr_dir,
-        xv_train=[dict(v) for v in valids[:16]], xv_test=[dict(v) for v in valids[16:]],
-        rules=rules, flags=flags, client=pa.StubAugmentClient(), rng=random.Random(42),
-    )
-    train_p, primary_p, diag_p = (written["train"], written["primary_test"],
-                                  written["diagnostic_test"])
-
-    # side-car files are stamped with the data file they belong to
-    for p, sc_name in [(train_p, "probe_context_overrides_v2.json"),
-                       (diag_p, "probe_context_overrides_test_v2_diag.json")]:
-        doc = json.loads((tmp_path / sc_name).read_text())
-        assert set(doc) == {"probe_file", "overrides"}
-        assert doc["probe_file"] == p.name
-        data_mids = {str(r["measurement_id"]) for r in json.loads(p.read_text())}
-        assert set(doc["overrides"]) <= data_mids            # resolution (c)
-
-    # sibling auto-load: train + diag resolve, primary has none
-    assert isinstance(judge_common.load_context_overrides(train_p), dict)
-    assert isinstance(judge_common.load_context_overrides(diag_p), dict)
-    assert judge_common.load_context_overrides(primary_p) is None
-
-    # the audit List-1 #5 case: diag side-car explicitly loaded against the
-    # primary file — nested id ranges, previously silent — now a hard error
-    diag_sc = judge_common.sidecar_path_for(diag_p)
-    with pytest.raises(ValueError, match="wrong side-car"):
-        judge_common.load_context_overrides(primary_p, explicit_path=diag_sc)
-
-
 # ─── GptOssClient prewarm / record-pass plumbing ─────────────────────────────
 #
 # A full generation run does a `record` dry pass through `build_augmented_files`
@@ -473,50 +421,59 @@ def _dcfg():
     return load_dataset_config("pond")
 
 
-def test_prepare_chat_entries_none_override_is_inert():
+def test_prepare_chat_entries_no_override_field_is_unaffected():
+    """A row with no context_override key behaves exactly like every row did
+    before this field existed — byte-identical prompt from the OCR lookup."""
     import judge_common
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 0, "name": "L", "page_number": [1]}]
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    a = judge_common.prepare_chat_entries(data, docs, cfg)
-    b = judge_common.prepare_chat_entries(data, docs, cfg, context_overrides=None)
+    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    assert entries[0]["page_text"] == judge_common.extract_page_text(docs["X"], [1])
+
+
+def test_prepare_chat_entries_null_override_is_inert():
+    """context_override: null (the JSON round-trip of an absent field) behaves
+    the same as the field being absent entirely."""
+    import judge_common
+    cfg = _dcfg()
+    base = {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
+            "measurement_id": 0, "name": "L", "page_number": [1]}
+    docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
+    a = judge_common.prepare_chat_entries([dict(base)], docs, cfg)
+    b = judge_common.prepare_chat_entries([dict(base, context_override=None)], docs, cfg)
     assert a == b
 
 
-def test_prepare_chat_entries_applies_override():
+def test_prepare_chat_entries_applies_row_override():
     import judge_common
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
-             "measurement_id": 7, "name": "L", "page_number": [1]}]
+             "measurement_id": 7, "name": "L", "page_number": [1],
+             "context_override": "REWRITTEN CONTEXT for the probe"}]
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(
-        data, docs, cfg, context_overrides={"7": "REWRITTEN CONTEXT for the probe"}
-    )
+    entries = judge_common.prepare_chat_entries(data, docs, cfg)
     assert entries[0]["page_text"] == "REWRITTEN CONTEXT for the probe"
     assert "REWRITTEN CONTEXT" in entries[0]["user"]
 
 
-def test_prepare_chat_entries_rejects_wrong_sidecar():
+def test_prepare_chat_entries_override_is_per_row():
+    """One row's override does not leak onto a sibling row with none."""
     import judge_common
     cfg = _dcfg()
-    data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
-             "measurement_id": 7, "name": "L", "page_number": [1]}]
-    docs = {"X": '<page number="1">x</page>'}
-    with pytest.raises(ValueError):
-        judge_common.prepare_chat_entries(data, docs, cfg,
-                                          context_overrides={"999": "nope"})
-
-
-def test_prepare_chat_entries_rejects_partial_sidecar_mismatch():
-    import judge_common
-    cfg = _dcfg()
-    data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
-             "measurement_id": 7, "name": "L", "page_number": [1]}]
-    docs = {"X": '<page number="1">x</page>'}
-    with pytest.raises(ValueError):
-        judge_common.prepare_chat_entries(
-            data, docs, cfg, context_overrides={"7": "ok", "8": "orphan"})
+    data = [
+        {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
+         "measurement_id": 0, "name": "L", "page_number": [1],
+         "context_override": "EDITED"},
+        {"document_id": "X", "attribute": "tp", "value": "6", "units": "µg/L",
+         "measurement_id": 1, "name": "M", "page_number": [1]},
+    ]
+    docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
+    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    by_mid = {int(e["custom_id"]): e for e in entries}
+    assert by_mid[0]["page_text"] == "EDITED"
+    assert by_mid[1]["page_text"] == judge_common.extract_page_text(docs["X"], [1])
 
 
 # ─── --synthetic-name path routing (experiments/paths.py) ─────────────────────
@@ -555,69 +512,3 @@ def test_find_synthetic_carries_name_through(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError):
         paths.find_synthetic_responses("pond", "mistral-7b", "2026_09_10")
 
-
-# ─── context-override side-car loading (judge_common) ─────────────────────────
-
-
-def test_sidecar_path_for_derives_sibling_name():
-    import judge_common
-    for src, want in [
-        ("data/pond/probe_dataset.json", "probe_context_overrides.json"),
-        ("data/pond/probe_dataset_v2.json", "probe_context_overrides_v2.json"),
-        ("d/probe_dataset_test_v2_diag.json", "probe_context_overrides_test_v2_diag.json"),
-    ]:
-        assert judge_common.sidecar_path_for(Path(src)).name == want
-
-
-def test_sidecar_path_for_rejects_unrelated_name():
-    import judge_common
-    with pytest.raises(ValueError):
-        judge_common.sidecar_path_for(Path("data/pond/something_else.json"))
-
-
-def test_load_context_overrides_missing_sibling_returns_none(tmp_path):
-    import judge_common
-    probe = tmp_path / "probe_dataset_v2.json"
-    probe.write_text("[]")
-    assert judge_common.load_context_overrides(probe) is None
-
-
-def test_load_context_overrides_explicit_missing_raises(tmp_path):
-    import judge_common
-    with pytest.raises(FileNotFoundError):
-        judge_common.load_context_overrides(tmp_path / "probe_dataset.json",
-                                            explicit_path=tmp_path / "no_such.json")
-
-
-def test_load_context_overrides_reads_sibling_and_validates_shape(tmp_path):
-    import json
-    import judge_common
-    probe = tmp_path / "probe_dataset_v2.json"
-    probe.write_text("[]")
-    sc = tmp_path / "probe_context_overrides_v2.json"
-    sc.write_text(json.dumps({"probe_file": "probe_dataset_v2.json",
-                              "overrides": {"3": "ctx"}}))
-    assert judge_common.load_context_overrides(probe) == {"3": "ctx"}
-    # non-{str: str} overrides payload is a hard error
-    sc.write_text(json.dumps({"probe_file": "probe_dataset_v2.json",
-                              "overrides": {"3": 5}}))
-    with pytest.raises(ValueError):
-        judge_common.load_context_overrides(probe)
-    # a bare flat dict (the pre-stamp format) is now rejected
-    sc.write_text(json.dumps({"3": "ctx"}))
-    with pytest.raises(ValueError):
-        judge_common.load_context_overrides(probe)
-
-
-def test_load_context_overrides_rejects_wrong_probe_file_stamp(tmp_path):
-    """A side-car whose measurement_id range nests inside another file's is
-    caught by the probe_file stamp, not by prepare_chat_entries (audit List-1 #5)."""
-    import json
-    import judge_common
-    primary = tmp_path / "probe_dataset_test_v2.json"
-    primary.write_text("[]")
-    diag_sc = tmp_path / "probe_context_overrides_test_v2_diag.json"
-    diag_sc.write_text(json.dumps({"probe_file": "probe_dataset_test_v2_diag.json",
-                                   "overrides": {"0": "ctx"}}))
-    with pytest.raises(ValueError, match="wrong side-car"):
-        judge_common.load_context_overrides(primary, explicit_path=diag_sc)

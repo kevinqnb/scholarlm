@@ -136,9 +136,12 @@ def run_local_vllm_judge(
     max_concurrent: int = 64,
     ablation: str | None = None,
     input_file: Path | None = None,
-    context_overrides: dict[str, str] | None = None,
 ) -> None:
     """Run a local vLLM judge and save responses.
+
+    A row carrying a ``context_override`` field (set by the synthetic-probe
+    augmentation pipeline) uses that text verbatim in place of the OCR page
+    lookup — see ``judge_common.prepare_chat_entries``.
 
     Args:
         dataset_config: Dataset configuration.
@@ -171,9 +174,7 @@ def run_local_vllm_judge(
     documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
     print(f"Documents: {len(documents)} loaded from {effective_ocr_dir}")
 
-    chat_entries = judge_common.prepare_chat_entries(
-        data, documents, dataset_config, context_overrides=context_overrides,
-    )
+    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # chat_entries are sorted by document_id for cache locality; we need to
     # track the original indices to merge results back in order.
@@ -272,8 +273,8 @@ def _build_parser() -> argparse.ArgumentParser:
         "--synthetic-file", default=None, metavar="PATH",
         help=(
             "Judge an arbitrary probe file (e.g. an augmentation-pipeline output). "
-            "Requires --synthetic-name. Its sibling probe_context_overrides "
-            "side-car is auto-loaded if present (override with --context-overrides)."
+            "Requires --synthetic-name. Rows carrying a context_override field "
+            "use that text verbatim in place of the OCR page lookup."
         ),
     )
     p.add_argument(
@@ -282,10 +283,6 @@ def _build_parser() -> argparse.ArgumentParser:
             "Output tree label for --synthetic-file: results go to "
             "synthetic_probe_<NAME>/{judge}/{judge_date}/. [a-z0-9_]."
         ),
-    )
-    p.add_argument(
-        "--context-overrides", default=None, metavar="PATH",
-        help="Explicit {measurement_id: page_text} side-car for --synthetic-file.",
     )
     p.add_argument(
         "--ocr-dir", default=None, metavar="DIR",
@@ -317,20 +314,17 @@ def main(argv: list[str] | None = None) -> None:
     dataset_config = load_dataset_config(args.dataset)
 
     if args.synthetic_file:
-        import judge_common
         if not args.synthetic_name:
             _build_parser().error("--synthetic-name is required with --synthetic-file.")
         probe_file = Path(args.synthetic_file)
         if not probe_file.exists():
             raise FileNotFoundError(f"--synthetic-file not found: {probe_file}")
-        overrides = judge_common.load_context_overrides(probe_file, args.context_overrides)
         output_dir = paths.synthetic_probe_named(
             args.dataset, args.synthetic_name, args.judge, args.judge_date
         )
         print(f"\nDataset          : {args.dataset}")
         print(f"Mode             : synthetic probe (named: {args.synthetic_name})")
         print(f"Input            : {probe_file}")
-        print(f"Context overrides: {0 if overrides is None else len(overrides)}")
         print(f"Judge            : {args.judge}")
         print(f"API base         : {args.api_base}")
         print(f"Output           : {output_dir}\n")
@@ -346,7 +340,6 @@ def main(argv: list[str] | None = None) -> None:
             max_concurrent=args.max_concurrent,
             ablation=None,
             input_file=probe_file,
-            context_overrides=overrides,
         )
         return
 
