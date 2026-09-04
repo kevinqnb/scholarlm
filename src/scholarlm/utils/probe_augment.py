@@ -18,8 +18,10 @@ the same across datasets:
   * ``apply_verified_edit`` — string replace that asserts the span it is told to
                              replace actually occurs (fail-loud).
   * ``balance_and_cap``     — per-source cap, exact 50/50 prevalence, target size.
-  * ``build_context_overrides`` / ``emit_context_diff_report`` — side-car assembly
-                             and the spot-check diff report.
+  * ``inline_context_overrides`` / ``emit_context_diff_report`` — stamp the public
+                             ``context_override`` field onto edited rows (read by
+                             ``judge_common.prepare_chat_entries``) and the
+                             spot-check diff report.
 
 Nothing here reads a config or a path by itself — every input is passed in.
 """
@@ -572,16 +574,25 @@ def balance_and_cap(
 
 _CTX_ORIG_KEY = "_context_original"
 _CTX_EDIT_KEY = "_context_override"
+_CTX_PUBLIC_KEY = "context_override"   # kept on the output row (see strip_internal_fields)
 
 
-def build_context_overrides(rows: list[dict]) -> dict[str, str]:
-    """``{str(measurement_id): edited_page_text}`` for rows whose context was edited."""
-    out: dict[str, str] = {}
+def inline_context_overrides(rows: list[dict]) -> int:
+    """Stamp the public ``context_override`` field onto rows whose context was
+    genuinely edited (in place). Returns the count stamped.
+
+    ``judge_common.prepare_chat_entries`` reads this field directly off the row
+    — no side-car, no measurement_id-keyed lookup. A no-op edit (edited text
+    identical to the original) is not stamped, same filter the retired
+    side-car builder used.
+    """
+    n = 0
     for r in rows:
         edited = r.get(_CTX_EDIT_KEY)
         if edited is not None and edited != r.get(_CTX_ORIG_KEY):
-            out[str(r["measurement_id"])] = edited
-    return out
+            r[_CTX_PUBLIC_KEY] = edited
+            n += 1
+    return n
 
 
 def emit_context_diff_report(rows: list[dict], path: Path) -> int:
@@ -947,14 +958,16 @@ def build_augmented_files(
     rules: DatasetAugmentRules,
     flags: AugmentFlags,
     quiet: bool = False,
-) -> dict[str, tuple[list[dict], dict[str, str], list[dict]]]:
+) -> dict[str, tuple[list[dict], list[dict]]]:
     """Build the three augmented output files.
 
     Each input record must carry ``_context_original`` (the original page text),
     ``gt_row_index``, the entity / attribute / value / units fields, and any GT
-    event fields.  Returns ``{file: (output_rows, side_car, rows_with_contexts)}``
-    where ``rows_with_contexts`` still has the ``_context_*`` fields for the diff
-    report; ``output_rows`` is already projected onto the file schema.
+    event fields.  Returns ``{file: (output_rows, rows_with_contexts)}`` where
+    ``rows_with_contexts`` still has the internal ``_context_*`` fields for the
+    diff report; ``output_rows`` is already projected onto the file schema and
+    carries the public ``context_override`` field on rows whose context was
+    edited (read directly by ``judge_common.prepare_chat_entries`` — no side-car).
 
     **Phase ordering.**  Every step that calls the client (event-fill, axis-2
     rewrites) runs first, contiguously, for all three splits — *before* any
@@ -975,11 +988,11 @@ def build_augmented_files(
         if not quiet:
             print(msg)
 
-    def _finalize(rows: list[dict]) -> tuple[list[dict], dict[str, str], list[dict]]:
+    def _finalize(rows: list[dict]) -> tuple[list[dict], list[dict]]:
         assign_measurement_ids(rows)
-        side_car = build_context_overrides(rows)
-        clean = strip_internal_fields(rows, rules.gt_cols, extra_keep)
-        return clean, side_car, rows
+        inline_context_overrides(rows)
+        clean = strip_internal_fields(rows, rules.gt_cols, extra_keep + [_CTX_PUBLIC_KEY])
+        return clean, rows
 
     # ---- client-calling phases (run first, contiguously — see the docstring) --
     # Three independent shallow-copy passes over the two input lists.  The
@@ -1040,15 +1053,13 @@ def build_augmented_files(
 
 
 _OUT_NAMES = {
-    # key: (data filename fmt, side-car filename fmt or None)
-    "train": ("probe_dataset{s}.json", "probe_context_overrides{s}.json"),
-    "primary_test": ("probe_dataset_test{s}.json", None),
-    "diagnostic_test": ("probe_dataset_test{s}_diag.json",
-                        "probe_context_overrides_test{s}_diag.json"),
+    "train": "probe_dataset{s}.json",
+    "primary_test": "probe_dataset_test{s}.json",
+    "diagnostic_test": "probe_dataset_test{s}_diag.json",
 }
 
 
-def assert_wellformed(key: str, rows: list[dict], side_car: dict[str, str]) -> None:
+def assert_wellformed(key: str, rows: list[dict]) -> None:
     """Fail loud on any malformed output file."""
     assert rows, f"[{key}] no rows"
     n_pos = sum(1 for r in rows if r["label"] == "valid")
@@ -1059,9 +1070,9 @@ def assert_wellformed(key: str, rows: list[dict], side_car: dict[str, str]) -> N
     for r in rows:
         assert "source_group_id" in r and r["source_group_id"] is not None, \
             f"[{key}] row {r['measurement_id']} missing source_group_id"
-    mid_set = {str(m) for m in mids}
-    assert set(side_car) <= mid_set, \
-        f"[{key}] side-car has keys not in this file: {sorted(set(side_car) - mid_set)[:5]}"
+        override = r.get(_CTX_PUBLIC_KEY)
+        assert override is None or (isinstance(override, str) and override), \
+            f"[{key}] row {r['measurement_id']} has a non-string/empty {_CTX_PUBLIC_KEY}"
 
 
 def run_and_write(
@@ -1079,7 +1090,9 @@ def run_and_write(
     page_numbers_key: str = "_page_numbers",
 ) -> dict[str, Path]:
     """End-to-end: attach original contexts, build the three files, write them
-    (+ side-cars + diff reports), assert well-formed. Returns ``{key: data_path}``."""
+    (+ diff reports for splits with edited rows), assert well-formed. Returns
+    ``{key: data_path}``. Edited-context rows carry their edited text inline as
+    the public ``context_override`` field — no side-car file."""
     base_dir = Path(base_dir)
     ocr_dir = Path(ocr_dir)
 
@@ -1116,24 +1129,20 @@ def run_and_write(
     client.flush()
 
     written: dict[str, Path] = {}
-    for key, (data_fmt, sc_fmt) in _OUT_NAMES.items():
-        rows, side_car, rows_ctx = bundles[key]
-        assert_wellformed(key, rows, side_car)
+    for key, data_fmt in _OUT_NAMES.items():
+        rows, raw_rows = bundles[key]
+        assert_wellformed(key, rows)
         data_path = base_dir / data_fmt.format(s=out_suffix)
         with open(data_path, "w") as f:
             json.dump(rows, f, indent=2, ensure_ascii=False)
         written[key] = data_path
-        print(f"  wrote {len(rows):,} rows -> {data_path.name}")
-        if sc_fmt is not None:
-            sc_path = base_dir / sc_fmt.format(s=out_suffix)
-            # Stamp the side-car with the data file it belongs to. measurement_id
-            # is a dense 0..N-1 per-file index, so a side-car whose id range nests
-            # inside another file's would otherwise be silently accepted against
-            # the wrong file (audit List-1 #5). load_context_overrides checks this.
-            with open(sc_path, "w") as f:
-                json.dump({"probe_file": data_path.name, "overrides": side_car},
-                          f, indent=2, ensure_ascii=False, sort_keys=True)
-            n_diff = emit_context_diff_report(rows_ctx, base_dir / (data_path.name + ".diff.txt"))
-            print(f"  wrote {len(side_car):,} side-car contexts -> {sc_path.name} "
-                  f"({n_diff} in the diff report)")
+        n_edited = sum(1 for r in rows if r.get(_CTX_PUBLIC_KEY) is not None)
+        print(f"  wrote {len(rows):,} rows ({n_edited:,} with an edited context) -> "
+              f"{data_path.name}")
+        # Diff report is data-derived, not tied to a fixed set of split names: any
+        # split with edited rows gets one (today that's train + diagnostic_test;
+        # the primary test structurally never has axis-2 edits).
+        if n_edited:
+            n_diff = emit_context_diff_report(raw_rows, base_dir / (data_path.name + ".diff.txt"))
+            print(f"  wrote diff report for {n_diff} edited row(s) -> {data_path.name}.diff.txt")
     return written

@@ -225,17 +225,20 @@ def test_balance_and_cap_respects_target():
     assert len(rows) == 20 and report.hit_target and report.hit_floor
 
 
-# ─── side-car assembly + full pipeline determinism ───────────────────────────
+# ─── context-override inlining + full pipeline determinism ───────────────────
 
 
-def test_build_context_overrides_only_edited_rows():
+def test_inline_context_overrides_only_edited_rows():
     rows = [
         {"measurement_id": 0, pa._CTX_ORIG_KEY: "a", pa._CTX_EDIT_KEY: "A"},
         {"measurement_id": 1, pa._CTX_ORIG_KEY: "b"},                       # unedited
         {"measurement_id": 2, pa._CTX_ORIG_KEY: "c", pa._CTX_EDIT_KEY: "c"},  # noop edit
     ]
-    sc = pa.build_context_overrides(rows)
-    assert sc == {"0": "A"}
+    n = pa.inline_context_overrides(rows)
+    assert n == 1
+    assert rows[0]["context_override"] == "A"
+    assert "context_override" not in rows[1]
+    assert "context_override" not in rows[2]
 
 
 def _run_pipeline(seed: int, tmp_path: Path) -> dict:
@@ -255,18 +258,85 @@ def test_pipeline_is_seed_deterministic(tmp_path):
     b = _run_pipeline(42, tmp_path)
     for key in ("train", "primary_test", "diagnostic_test"):
         assert a[key][0] == b[key][0], f"{key} rows differ across two seed-42 runs"
-        assert a[key][1] == b[key][1], f"{key} side-car differs across two seed-42 runs"
+        assert a[key][1] == b[key][1], f"{key} raw (pre-strip) rows differ across two seed-42 runs"
 
 
 def test_pipeline_files_are_wellformed(tmp_path):
     out = _run_pipeline(42, tmp_path)
     for key in ("train", "primary_test", "diagnostic_test"):
-        rows, side_car, _ = out[key]
-        pa.assert_wellformed(key, rows, side_car)
+        rows, _ = out[key]
+        pa.assert_wellformed(key, rows)
         assert all("source_group_id" in r for r in rows)
-    # diagnostic file: every row sits on an edited context
-    d_rows, d_sc, _ = out["diagnostic_test"]
-    assert set(d_sc) == {str(r["measurement_id"]) for r in d_rows}
+    # diagnostic file: every row sits on an edited context, inlined on the row
+    d_rows, _ = out["diagnostic_test"]
+    assert all(r.get("context_override") for r in d_rows)
+
+
+def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
+    """run_and_write -> data files carry context_override inline; no side-car
+    file is written; judge_common.prepare_chat_entries picks the field straight
+    off the row, per-row-aligned (replaces the retired side-car round-trip)."""
+    import judge_common
+    rules = _rules()
+    flags = pa.AugmentFlags(augment_events=False, pos_axes=("pos_entity", "pos_attribute"),
+                            target_rows=0, floor_rows=0, max_derived_per_source=4)
+    valids = _fixture_valids(24)
+    # OCR files: one per _paper_code, each page-1 block naming its sites verbatim
+    # so the stub rewrite can find the entity span.
+    ocr_dir = tmp_path / "ocr"
+    ocr_dir.mkdir()
+    by_code: dict[str, list[dict]] = {}
+    for v in valids:
+        by_code.setdefault(v["_paper_code"], []).append(v)
+    for code, vs in by_code.items():
+        body = " ".join(f"{v['name']} reported {v['attribute']} of {v['value']} {v['units']}."
+                        for v in vs)
+        (ocr_dir / f"{code}.txt").write_text(f'<page number="1">{body}</page>')
+
+    written = pa.run_and_write(
+        base_dir=tmp_path, out_suffix="_v2", ocr_dir=ocr_dir,
+        xv_train=[dict(v) for v in valids[:16]], xv_test=[dict(v) for v in valids[16:]],
+        rules=rules, flags=flags, client=pa.StubAugmentClient(), rng=random.Random(42),
+    )
+    train_p, primary_p, diag_p = (written["train"], written["primary_test"],
+                                  written["diagnostic_test"])
+
+    # no side-car files anywhere in the output directory
+    assert not list(tmp_path.glob("probe_context_overrides*"))
+    # a diff report exists for the two splits that have edited rows, not primary
+    assert (tmp_path / (train_p.name + ".diff.txt")).exists()
+    assert (tmp_path / (diag_p.name + ".diff.txt")).exists()
+    assert not (tmp_path / (primary_p.name + ".diff.txt")).exists()
+
+    train_data = json.loads(train_p.read_text())
+    diag_data = json.loads(diag_p.read_text())
+    primary_data = json.loads(primary_p.read_text())
+    n_train_edited = sum(1 for r in train_data if r.get("context_override"))
+    assert n_train_edited > 0 and n_train_edited < len(train_data)
+    assert all(r.get("context_override") for r in diag_data)         # fully synthetic
+    assert not any(r.get("context_override") for r in primary_data)  # never edited
+
+    cfg = _dcfg()
+    documents = {v["_paper_code"]: (ocr_dir / f"{v['_paper_code']}.txt").read_text()
+                for v in valids}
+
+    for data, has_any_edits in [(train_data, True), (diag_data, True), (primary_data, False)]:
+        entries = judge_common.prepare_chat_entries(data, documents, cfg)
+        for entry in entries:
+            orig_idx = int(entry["custom_id"])
+            row = data[orig_idx]
+            override = row.get("context_override")
+            if override is not None:
+                assert entry["page_text"] == override
+            else:
+                pn = row.get("page_number")
+                page_numbers = ([p for p in pn if p is not None] if isinstance(pn, list)
+                                else ([pn] if pn is not None else []))
+                assert entry["page_text"] == judge_common.extract_page_text(
+                    documents[str(row["document_id"])], page_numbers)
+        if has_any_edits:
+            assert any(e["page_text"] == data[int(e["custom_id"])].get("context_override")
+                      for e in entries if data[int(e["custom_id"])].get("context_override"))
 
 
 # ─── GptOssClient prewarm / record-pass plumbing ─────────────────────────────
@@ -392,7 +462,7 @@ def test_record_then_real_pass_makes_zero_model_calls(monkeypatch, resumed):
     # strict_cache did not raise, and not one new model call happened
     assert client.cache._misses == misses_after_prewarm
     for key in ("train", "primary_test", "diagnostic_test"):
-        pa.assert_wellformed(key, out[key][0], out[key][1])
+        pa.assert_wellformed(key, out[key][0])
 
 
 def test_strict_cache_raises_when_eventfill_result_feeds_pos_event(monkeypatch):
