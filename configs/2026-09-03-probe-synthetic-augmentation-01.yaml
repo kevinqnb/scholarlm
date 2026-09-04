@@ -31,15 +31,28 @@ params:
   # only means the process started, not that weights are loaded.
   gpt_oss_api_base: http://localhost:8081/v1
 
-  # SGE resources for the generation job (per dataset, one job), taken
-  # verbatim from experiments/serve_gpt_oss_120b.sh's own qsub header except
-  # h_rt, raised for the generation work that follows the serve step in the
-  # same job (remaining-work #4): gpu_type=A100 ([[env_blackwell_torch_cu126]]
-  # applies), gpu_memory=80G, gpu_c=9.0, -pe omp 16, h_rt=24:00:00 (serve
-  # script's own default is 12:00:00, insufficient once generation runs
-  # after the server comes up).
+  # SGE resources for the generation job (per dataset, one job), taken from
+  # experiments/serve_gpt_oss_120b.sh's own qsub header (gpu_memory=80G,
+  # gpu_c=9.0, -pe omp 16) except h_rt, raised for the generation work that
+  # follows the serve step in the same job (remaining-work #4): serve
+  # script's own default is 12:00:00, insufficient once generation runs after
+  # the server comes up.
+  #
+  # gpu_c=9.0 is a real requirement, not a stale value: gpt-oss-120b's mxfp4
+  # quantization needs Hopper-class hardware (config.yaml's OWN gpt-oss-120b
+  # serve block asks for gpu_capability: 8.0 and quantization: null -- that's
+  # the stale block the build note flags, not a viable alternative).
+  # SCC's `-l gpu_c=` floor is `<=` (host capability must be >= request), so
+  # gpu_c=9.0 alone does NOT exclude Blackwell nodes (gpu_type=RTXP6000,
+  # sm_120, which satisfies the floor) -- only `-l gpu_type=` (exact match)
+  # can. Blackwell crashes torch built against cu126 mid-forward
+  # ([[env_blackwell_torch_cu126]]), and A100 (sm_80) does NOT satisfy the
+  # gpu_c=9.0 floor at all, so the usual "pin gpu_type=A100" fix is not an
+  # option here. Checked `qhost -F gpu_type` on 2026-09-04: H200 (sm_90) is
+  # the only gpu_type on this cluster that is both >= gpu_c 9.0 and not
+  # Blackwell -- pin that, exact match, instead.
   job_resources:
-    gpu_type: A100
+    gpu_type: H200
     gpu_memory: 80G
     gpu_c: 9.0
     pe_omp: 16
