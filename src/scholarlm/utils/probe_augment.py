@@ -159,8 +159,62 @@ class AugmentClient(Protocol):
     def flush(self) -> None: ...
 
 
-def _extract_json_object(text: str) -> dict:
-    """Parse the first top-level JSON object in ``text``; fail loud otherwise."""
+def _dump_bad_response(raw: str, op: str, dump_dir: Path | None) -> Path | None:
+    """Write an unparseable gpt-oss response to ``dump_dir`` for post-mortem.
+
+    Called only on a path that is about to raise -- this makes the failure
+    inspectable, it does not soften it. The raw text is not recoverable
+    otherwise: nothing upstream logs it and the response cache is flushed to
+    disk only at end of run, so an exception here would take a ``rewrite``
+    response's full rewritten page with it.
+    """
+    if dump_dir is None:
+        return None
+    dump_dir.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    path = dump_dir / f"bad_response_{op}_{digest}.txt"
+    path.write_text(raw, encoding="utf-8")
+    return path
+
+
+# gpt-oss is asked to echo page text verbatim, and OCR'd pages sometimes carry
+# literal LaTeX-style math delimiters (`\( n = 3 \)`); the model reproduces the
+# backslash unescaped, which is invalid JSON (`\(` is not a recognized escape)
+# though the response is otherwise fine. This regex matches every backslash
+# escape *as a single unit* (valid two-char escape, `\uXXXX`, or a lone
+# backslash) so an already-correct `\\` pair is consumed whole and never
+# miscounted, character by character, as two separate invalid backslashes --
+# a bug the first version of this regex actually had.
+_JSON_ESCAPE_UNIT_RE = re.compile(r'\\u[0-9a-fA-F]{4}|\\.|\\', re.DOTALL)
+
+
+def _repair_invalid_escapes(text: str) -> str:
+    """Double any backslash that isn't part of a valid JSON escape sequence.
+
+    Last-resort repair, tried only after a normal parse has already failed
+    (see ``_extract_json_object``). It targets one specific, understood
+    JSON-encoding quirk (see the comment above), not generation errors in
+    general: if the repaired text still doesn't parse, the caller dumps and
+    raises. This narrows what counts as a failure, it doesn't remove the
+    fail-loud path.
+    """
+    def _fix(m: re.Match) -> str:
+        s = m.group(0)
+        if s.startswith("\\u") or (len(s) == 2 and s[1] in '"\\/bfnrt'):
+            return s  # already a valid escape -- leave untouched
+        return "\\\\" + s[1:]  # lone or invalid backslash -- double it
+
+    return _JSON_ESCAPE_UNIT_RE.sub(_fix, text)
+
+
+def _extract_json_object(text: str, *, op: str, dump_dir: Path | None) -> dict:
+    """Parse the first top-level JSON object in ``text``; fail loud otherwise.
+
+    ``op`` and ``dump_dir`` are only used to label/save the raw response via
+    ``_dump_bad_response`` when parsing fails -- they play no role in a
+    successful parse.
+    """
+    raw = text
     text = text.strip()
     # strip a ```json ... ``` fence if present
     fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
@@ -172,10 +226,29 @@ def _extract_json_object(text: str) -> dict:
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1 or end <= start:
-            raise ValueError(f"gpt-oss response is not JSON: {text[:400]!r}")
-        obj = json.loads(text[start : end + 1])
+            _dump_bad_response(raw, op, dump_dir)
+            raise ValueError(f"gpt-oss {op} response is not JSON: {text[:400]!r}")
+        trimmed = text[start : end + 1]
+        try:
+            obj = json.loads(trimmed)
+        except json.JSONDecodeError as e:
+            try:
+                obj = json.loads(_repair_invalid_escapes(trimmed))
+                # the repair rewrites text that lands in the dataset -- never
+                # let it fire silently
+                print(f"  probe_augment: repaired an invalid backslash escape "
+                      f"in a gpt-oss {op} response ({e.msg} at char {e.pos})")
+            except json.JSONDecodeError:
+                path = _dump_bad_response(raw, op, dump_dir)
+                where = f"; full raw response written to {path}" if path else ""
+                raise ValueError(
+                    f"gpt-oss {op} response is not valid JSON even after brace-"
+                    f"trimming ({e.msg} at line {e.lineno} column {e.colno}, "
+                    f"char {e.pos}){where}"
+                ) from e
     if not isinstance(obj, dict):
-        raise ValueError(f"gpt-oss response is JSON but not an object: {text[:400]!r}")
+        _dump_bad_response(raw, op, dump_dir)
+        raise ValueError(f"gpt-oss {op} response is JSON but not an object: {text[:400]!r}")
     return obj
 
 
@@ -198,6 +271,17 @@ class GptOssClient:
     temperature: float = 0.2
     max_concurrent: int = 32
     max_tokens: int = 20000
+    # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/high,
+    # default "medium" if omitted); it has no `enable_thinking` variable at all,
+    # unlike Qwen3 (checked against the cached chat_template.jinja). "low" is set
+    # deliberately so the whole cache is generated under one known regime.
+    # Hypothesis (not confirmed): at the default effort, reasoning competes with
+    # this client's large expected outputs (the rewrite task echoes a full page
+    # back) for `max_tokens` and can exhaust it before the answer -- a plausible
+    # cause of the truncated-JSON and empty-message crashes seen during the
+    # initial generation run. The empty-message diagnostic in `_one` would
+    # confirm it if it recurs.
+    reasoning_effort: str = "low"
     # Record mode: `_resolve` collects every (key, messages) it is asked for into
     # `_pending` and returns a benign canned response instead of calling the
     # model, so the orchestrator can gather the whole run's prompts in one RNG-
@@ -209,6 +293,13 @@ class GptOssClient:
     strict_cache: bool = False
     _pending: dict[str, list[dict]] = field(default_factory=dict, repr=False)
 
+    @property
+    def _bad_response_dir(self) -> Path | None:
+        """Where to dump a response that fails JSON parsing, or None if the
+        cache is path-less (e.g. in unit tests) and there's nowhere durable to
+        put it."""
+        return self.cache.path.parent / "bad_responses" if self.cache.path is not None else None
+
     # -- low level -----------------------------------------------------------
 
     async def _one(self, client, messages: list[dict]) -> str:
@@ -217,24 +308,62 @@ class GptOssClient:
             messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            extra_body={"chat_template_kwargs": {"reasoning_effort": self.reasoning_effort}},
         )
-        content = resp.choices[0].message.content
+        choice = resp.choices[0]
+        content = choice.message.content
         if not content:
-            raise ValueError("gpt-oss returned an empty message")
+            # Diagnostic, not a fallback: still raises. `finish_reason="length"`
+            # plus a non-trivial `reasoning_content` would confirm the
+            # reasoning-exhausted-the-budget hypothesis (see `reasoning_effort`);
+            # nothing upstream logs either field otherwise.
+            reasoning = getattr(choice.message, "reasoning_content", None)
+            raise ValueError(
+                f"gpt-oss returned an empty message (finish_reason="
+                f"{choice.finish_reason!r}, reasoning_content_len="
+                f"{len(reasoning) if reasoning else 0})"
+            )
         return content
 
     async def _run_batch(self, jobs: list[tuple[str, list[dict]]]) -> dict[str, str]:
+        """Run ``jobs`` concurrently, caching each success as it lands.
+
+        ``asyncio.gather`` without ``return_exceptions=True`` would propagate
+        the first failure and discard every sibling response already computed
+        in the same batch -- for a ``prewarm`` batch, potentially thousands of
+        GPU calls lost because one came back malformed. Every success is cached,
+        and the cache saved if any job failed, before this still fails loud on
+        the failures.
+        """
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key="EMPTY", base_url=self.api_base, timeout=600.0)
         sem = asyncio.Semaphore(self.max_concurrent)
 
-        async def _guarded(key: str, messages: list[dict]) -> tuple[str, str]:
+        async def _guarded(key: str, messages: list[dict]) -> tuple[str, str | BaseException]:
             async with sem:
-                return key, await self._one(client, messages)
+                try:
+                    return key, await self._one(client, messages)
+                except Exception as e:
+                    return key, e
 
-        results = await asyncio.gather(*(_guarded(k, m) for k, m in jobs))
-        return dict(results)
+        pairs = await asyncio.gather(*(_guarded(k, m) for k, m in jobs))
+        results: dict[str, str] = {}
+        failures: list[tuple[str, BaseException]] = []
+        for key, value in pairs:
+            if isinstance(value, BaseException):
+                failures.append((key, value))
+            else:
+                results[key] = value
+                self.cache.put(key, value)
+        if failures:
+            self.cache.save()
+            raise RuntimeError(
+                f"{len(failures)}/{len(jobs)} gpt-oss call(s) failed in this "
+                f"batch; {len(results)} succeeded and are already cached. "
+                f"First failure (key {failures[0][0][:12]}...): {failures[0][1]!r}"
+            ) from failures[0][1]
+        return results
 
     # Canned responses returned during a record pass — parseable by the callers
     # so control flow (and RNG consumption) matches a normal run up to the point
@@ -271,17 +400,18 @@ class GptOssClient:
                 f"with --augment-pos-axes pos_event. Run prewarm in two rounds "
                 f"(event-fill, then the rest) or drop that axis."
             )
-        raw = asyncio.run(self._run_batch([(key, messages)]))[key]
-        self.cache.put(key, raw)
-        return raw
+        return asyncio.run(self._run_batch([(key, messages)]))[key]
 
     def prewarm(self, jobs: list[tuple[str, list[dict]]]) -> None:
-        """Fill the cache for a list of ``(cache_key, messages)`` in one batch."""
+        """Fill the cache for a list of ``(cache_key, messages)`` in one batch.
+
+        ``_run_batch`` caches each success itself, so nothing further to do
+        here on the happy path.
+        """
         misses = [(k, m) for k, m in jobs if self.cache.get(k) is None]
         if not misses:
             return
-        for k, raw in asyncio.run(self._run_batch(misses)).items():
-            self.cache.put(k, raw)
+        asyncio.run(self._run_batch(misses))
 
     def flush(self) -> None:
         self.cache.save()
@@ -307,7 +437,7 @@ class GptOssClient:
         key = _cache_key("event_fill", payload)
         raw = self._resolve(key, "event_fill",
                             self._event_fill_messages(context, measurement, event_prompt, event_fields))
-        obj = _extract_json_object(raw)
+        obj = _extract_json_object(raw, op="event_fill", dump_dir=self._bad_response_dir)
         out: dict[str, str | None] = {}
         for f in event_fields:
             v = obj.get(f)
@@ -327,7 +457,7 @@ class GptOssClient:
         payload = {"context": context, "instruction": instruction}
         key = _cache_key("rewrite", payload)
         raw = self._resolve(key, "rewrite", self._rewrite_messages(context, instruction))
-        obj = _extract_json_object(raw)
+        obj = _extract_json_object(raw, op="rewrite", dump_dir=self._bad_response_dir)
         if not obj.get("feasible", False):
             return False, context, [], str(obj.get("reason", "infeasible"))
         new_ctx = obj.get("context")
@@ -1120,6 +1250,9 @@ def run_and_write(
         print(f"  prewarm: {len(jobs)} gpt-oss call(s) to batch "
               f"({client.cache.stats})")
         client.prewarm(jobs)
+        # persist the GPU-generated responses before the real pass: it makes no
+        # further model calls (strict_cache), so a later crash must not lose them
+        client.flush()
         client.strict_cache = True   # a real-pass miss is now a hard error
         print(f"  prewarm done ({client.cache.stats})")
 

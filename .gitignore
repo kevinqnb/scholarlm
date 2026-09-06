@@ -203,6 +203,13 @@ data/measeval/ocr_output_raw/*
 
 data/pond_ten/*
 
+# throwaway forensic dumps of gpt-oss responses that failed JSON parsing
+# during probe-augmentation (src/scholarlm/utils/probe_augment.py); unlike
+# probe_augment_cache.json, never meant to be committed
+data/pond/bad_responses/*
+data/nfix/bad_responses/*
+data/supermat/bad_responses/*
+
 !data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
 !data/experiments/nfix/extraction/gemma-3-27b/2026_05_06/final.json
 

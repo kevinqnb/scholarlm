@@ -7,11 +7,13 @@ Everything here runs against a hand-built fixture with the ``StubAugmentClient``
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import random
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -78,6 +80,101 @@ def test_stub_rewrite_applies_expected_and_flags_missing():
         context="Lake Bob has pH 7", instruction="x", expected=[("Zzz", "Sue")]
     )
     assert not ok and ctx == "Lake Bob has pH 7" and "not in context" in reason
+
+
+# ─── _extract_json_object: malformed gpt-oss responses ────────────────────────
+#
+# The generated text lands in the probe dataset, so a malformed gpt-oss
+# response must fail loud, and the raw text must survive the failure for a
+# post-mortem (it is not logged upstream and the cache flushes only at end of
+# run). One narrow repair is allowed -- unescaped backslashes echoed from OCR'd
+# LaTeX (`\( n = 3 \)`) -- and nothing else. See the build note's Rung-4 entry
+# for the incident history.
+
+
+def test_extract_json_object_dumps_raw_text_on_parse_failure(tmp_path):
+    # Valid JSON up to a comma inside "replacements", then a token that isn't a
+    # legal value start -- an `Expecting value` failure, not a bad brace.
+    bad = ('{"feasible": true, "context": "line one\\nline two", '
+           '"replacements": [["old", "new"], ...]}')
+    dump_dir = tmp_path / "bad_responses"
+
+    with pytest.raises(ValueError, match="not valid JSON"):
+        pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
+
+    dumped = list(dump_dir.glob("bad_response_rewrite_*.txt"))
+    assert len(dumped) == 1
+    assert dumped[0].read_text() == bad
+
+
+def test_extract_json_object_raises_without_dump_dir():
+    # GptOssClient built on a path-less cache (unit tests, StubAugmentClient's
+    # callers) has nowhere durable to dump -- must still fail loud, just
+    # without a dump file.
+    with pytest.raises(ValueError, match="not valid JSON"):
+        pa._extract_json_object('{"a": [1, ...]}', op="event_fill", dump_dir=None)
+
+
+def test_extract_json_object_valid_json_untouched():
+    obj = pa._extract_json_object('{"feasible": false, "reason": "x"}',
+                                  op="rewrite", dump_dir=None)
+    assert obj == {"feasible": False, "reason": "x"}
+
+
+def test_extract_json_object_valid_json_does_not_dump(tmp_path):
+    # _dump_bad_response is called on three separate branches now; a regression
+    # that dumps on the happy path would litter data/{ds}/bad_responses/ silently.
+    dump_dir = tmp_path / "bad_responses"
+    pa._extract_json_object('{"feasible": true, "context": "x", "replacements": []}',
+                            op="rewrite", dump_dir=dump_dir)
+    assert not dump_dir.exists()
+
+
+# The repair targets exactly one quirk: gpt-oss echoes OCR'd LaTeX delimiters
+# (`\( n = 3 \)`) into a JSON string with the backslash unescaped. Any other
+# malformed response (e.g. a token-repetition loop that runs out of budget
+# mid-object) must keep failing loud.
+
+
+def test_extract_json_object_repairs_unescaped_latex_backslash():
+    # A literal `\(`/`\)` pair dropped into the "context" string unescaped.
+    bad = ('{"feasible": true, "context": "Chlorophyll \\( a \\) rose", '
+           '"replacements": [["x", "y"]]}')
+    obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
+    assert obj["context"] == "Chlorophyll \\( a \\) rose"
+
+
+def test_extract_json_object_repair_leaves_valid_escapes_alone():
+    # An already-correct `\\` escape (decoding to one literal backslash) must
+    # not be miscounted as a second invalid backslash and doubled again -- a
+    # real bug in the first version of the repair regex.
+    bad = ('{"feasible": true, "context": "(\\\\( r = 0.5 \\\\))", '
+           '"replacements": [["x", "y"]]}')
+    obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
+    assert obj["context"] == "(\\( r = 0.5 \\))"
+
+
+def test_extract_json_object_repair_does_not_rescue_truncation_no_brace(tmp_path):
+    # Ran out of budget mid-object, no closing brace at all -- caught before
+    # the repair path even runs (start/end check). Still dumps and raises.
+    bad = ('{"feasible": true, "context": "x", "replacements": '
+           '[["a", "b"], ["a", "b"], ["a", "b"]')  # never closes
+    dump_dir = tmp_path / "bad_responses"
+    with pytest.raises(ValueError, match="not JSON"):
+        pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
+    assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
+
+
+def test_extract_json_object_repair_does_not_rescue_truncation_inner_brace(tmp_path):
+    # Truncated mid-object, but `rfind("}")` lands on an inner object's brace,
+    # so brace-trimming produces a still-unbalanced fragment. Reaches the repair
+    # path, which can't help -- must dump and raise, not silently return the
+    # half-object.
+    bad = '{"feasible": true, "replacements": [{"a": "b"}, {"c":'
+    dump_dir = tmp_path / "bad_responses"
+    with pytest.raises(ValueError, match="not valid JSON"):
+        pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
+    assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
 
 
 # ─── fixture ─────────────────────────────────────────────────────────────────
@@ -351,7 +448,12 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
 
 
 def _canned_run_batch(*, event_date: str | None = None):
-    """An async `_run_batch` stand-in: stub-style rewrites, canned event-fill."""
+    """An async `_run_batch` stand-in: stub-style rewrites, canned event-fill.
+
+    Caches each result itself -- the real `_run_batch` owns that (so a
+    partial-batch failure doesn't discard sibling successes), and this stands
+    in for the whole method, so it must honor the same contract.
+    """
 
     async def _run_batch(self, jobs):
         out: dict[str, str] = {}
@@ -368,6 +470,8 @@ def _canned_run_batch(*, event_date: str | None = None):
             for o in olds:
                 ctx = ctx.replace(o, news[0] if news else o + "_X")
             out[key] = json.dumps({"feasible": True, "context": ctx, "replacements": []})
+        for key, raw in out.items():
+            self.cache.put(key, raw)
         return out
 
     return _run_batch
@@ -413,6 +517,75 @@ def test_gptoss_record_pass_collects_prompts_and_leaves_cache_clean(monkeypatch)
     assert client.cache._misses == 0
 
 
+# A fake AsyncOpenAI `client.chat.completions.create` for testing `_one`
+# directly, without a real server. gpt-oss's harmony chat template has no
+# `enable_thinking` variable (checked against the cached chat_template.jinja),
+# only `reasoning_effort`, so `_one` must send that via `extra_body`.
+class _FakeChoice:
+    def __init__(self, content, finish_reason="stop", reasoning_content=None):
+        self.finish_reason = finish_reason
+        self.message = SimpleNamespace(content=content, reasoning_content=reasoning_content)
+
+
+class _FakeChatCompletions:
+    def __init__(self, resp, captured):
+        self._resp, self._captured = resp, captured
+
+    async def create(self, **kwargs):
+        self._captured.update(kwargs)
+        return self._resp
+
+
+class _FakeClient:
+    def __init__(self, choice, captured):
+        self.chat = SimpleNamespace(
+            completions=_FakeChatCompletions(SimpleNamespace(choices=[choice]), captured))
+
+
+def test_one_sends_reasoning_effort():
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None), reasoning_effort="low")
+    captured: dict = {}
+    fake = _FakeClient(_FakeChoice("hello"), captured)
+
+    out = asyncio.run(client._one(fake, [{"role": "user", "content": "hi"}]))
+
+    assert out == "hello"
+    assert captured["extra_body"] == {"chat_template_kwargs": {"reasoning_effort": "low"}}
+
+
+def test_one_empty_content_error_carries_finish_reason_and_reasoning_length():
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    fake = _FakeClient(_FakeChoice(None, finish_reason="length", reasoning_content="x" * 500), {})
+
+    with pytest.raises(ValueError, match=r"finish_reason='length'.*reasoning_content_len=500"):
+        asyncio.run(client._one(fake, [{"role": "user", "content": "hi"}]))
+
+
+def test_run_batch_partial_failure_caches_successes_before_raising(tmp_path, monkeypatch):
+    """One job in a `prewarm` batch fails. `asyncio.gather` without
+    `return_exceptions=True` would propagate that and discard every sibling
+    response already computed in the same batch. `_run_batch` must cache and
+    persist the successes before it re-raises."""
+
+    async def _one(self, client, messages):
+        if messages[0]["content"] == "fail":
+            raise ValueError("simulated gpt-oss failure")
+        return json.dumps({"feasible": True, "context": "ok", "replacements": []})
+
+    monkeypatch.setattr(pa.GptOssClient, "_one", _one)
+    cache_path = tmp_path / "cache.json"
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
+    jobs = [(f"k{i}", [{"role": "user", "content": "fail" if i == 1 else "ok"}])
+            for i in range(4)]
+
+    with pytest.raises(RuntimeError, match=r"1/4 gpt-oss call\(s\) failed"):
+        asyncio.run(client._run_batch(jobs))
+
+    assert set(client.cache._store) == {"k0", "k2", "k3"}   # the 3 successes
+    assert cache_path.exists()                                # persisted, not just in memory
+    assert json.loads(cache_path.read_text()) == client.cache._store
+
+
 def test_prewarm_is_order_independent(tmp_path, monkeypatch):
     monkeypatch.setattr(pa.GptOssClient, "_run_batch", _canned_run_batch())
     p1, p2 = tmp_path / "c1.json", tmp_path / "c2.json"
@@ -429,6 +602,51 @@ def test_prewarm_is_order_independent(tmp_path, monkeypatch):
     c1.cache.save()
     c2.cache.save()
     assert p1.read_bytes() == p2.read_bytes()      # committed cache: no ordering diff
+
+
+def test_prewarm_cache_survives_a_crash_in_the_post_prewarm_assembly(tmp_path, monkeypatch):
+    """`run_and_write` must persist prewarm's model-generated responses before
+    running the real pass, so a crash anywhere after prewarm (including inside
+    build_augmented_files itself) costs a cache reload, not a re-run against
+    the model."""
+    monkeypatch.setattr(pa.GptOssClient, "_run_batch", _canned_run_batch())
+    rules = _rules()
+    flags = pa.AugmentFlags(augment_events=False, pos_axes=("pos_entity", "pos_attribute"),
+                            target_rows=0, floor_rows=0, max_derived_per_source=4)
+    valids = _fixture_valids(24)
+    ocr_dir = tmp_path / "ocr"
+    ocr_dir.mkdir()
+    by_code: dict[str, list[dict]] = {}
+    for v in valids:
+        by_code.setdefault(v["_paper_code"], []).append(v)
+    for code, vs in by_code.items():
+        body = " ".join(f"{v['name']} reported {v['attribute']} of {v['value']} {v['units']}."
+                        for v in vs)
+        (ocr_dir / f"{code}.txt").write_text(f'<page number="1">{body}</page>')
+
+    cache_path = tmp_path / "cache.json"
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
+
+    real_build = pa.build_augmented_files
+
+    def _boom_after_prewarm(*, client, **kwargs):
+        if not client.record:      # the real pass: prewarm has already run
+            raise RuntimeError("simulated crash in assembly, after prewarm")
+        return real_build(client=client, **kwargs)
+
+    monkeypatch.setattr(pa, "build_augmented_files", _boom_after_prewarm)
+
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        pa.run_and_write(
+            base_dir=tmp_path, out_suffix="_v2", ocr_dir=ocr_dir,
+            xv_train=[dict(v) for v in valids[:16]], xv_test=[dict(v) for v in valids[16:]],
+            rules=rules, flags=flags, client=client, rng=random.Random(42),
+        )
+
+    assert cache_path.exists(), "prewarm's responses must survive a crash later in the same run"
+    saved = json.loads(cache_path.read_text())
+    assert saved == client.cache._store
+    assert len(saved) > 0
 
 
 @pytest.mark.parametrize("resumed", [False, True])
