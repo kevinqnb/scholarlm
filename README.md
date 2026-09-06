@@ -66,6 +66,15 @@ python experiments/run_judge_interp.py \
     --judge llama-3.1-8b --extraction-date 2026_04_01
 ```
 
+## Development log
+
+Much of the experiment and build work in this repo is done with AI coding
+assistance. [`dev-log/`](dev-log/) records it: one file per experiment/build id
+(`YYYY-MM-DD-slug-NN`, the same id as `configs/<id>.yaml`), pairing the
+human-written prompts that drove the work with a short summary of what landed and
+the commits that carry it. Individual commits also carry a `Claude-Session:`
+trailer. See [`dev-log/README.md`](dev-log/README.md) for the format.
+
 ## Examples
 Please see the [demo](demo.ipynb) notebook for a look at how the extraction system operates. 
 

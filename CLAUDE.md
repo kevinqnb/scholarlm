@@ -62,6 +62,23 @@ repo-wide values (the global seed, per-model default sampling params, SGE serve
 resources) stay in `experiments/config.yaml`, which is the single source of truth for
 those and is itself committed and git-tracked for reproducibility.
 
+## Development log
+
+`dev-log/<id>.md` is the public, curated record of AI-assisted work on an experiment
+or build — human prompts + a short summary + commit hashes. `<id>` is the same
+experiment-contract id as `configs/<id>.yaml` and the private note; a dev-log file is
+created only for an `<id>` that already exists as a build or experiment note. Plain
+refactors and bug fixes are not experiments or builds and do not get one.
+
+At the end of a session that produced commits for an experiment or build: after the
+code commits land, create or append to `dev-log/<id>.md` — a new `## Session <date>`
+block with that session's prompts, a 3–5 sentence summary, and the commit hashes —
+then commit it on its own (`dev-log: log <id> session <date>`). It is a trailing
+commit, so every hash it lists already exists and it does not list itself. It is a
+public file: same review bar as a commit message, and it is not a second copy of the
+private note's `## Implementation` / `## Session log`. See `dev-log/README.md` and
+`dev-log/_TEMPLATE.md`.
+
 ## Entry points
 
 The contract-standard way to run an experiment:
