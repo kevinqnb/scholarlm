@@ -70,14 +70,16 @@ experiment-contract id as `configs/<id>.yaml` and the private note; a dev-log fi
 created only for an `<id>` that already exists as a build or experiment note. Plain
 refactors and bug fixes are not experiments or builds and do not get one.
 
-At the end of a session that produced commits for an experiment or build: after the
-code commits land, create or append to `dev-log/<id>.md` — a new `## Session <date>`
-block with that session's prompts, a 3–5 sentence summary, and the commit hashes —
-then commit it on its own (`dev-log: log <id> session <date>`). It is a trailing
-commit, so every hash it lists already exists and it does not list itself. It is a
-public file: same review bar as a commit message, and it is not a second copy of the
-private note's `## Implementation` / `## Session log`. See `dev-log/README.md` and
-`dev-log/_TEMPLATE.md`.
+At the end of a session that produced commits for an experiment or build, run
+`/devlog <id>` (`.claude/commands/devlog.md`). It creates or appends to
+`dev-log/<id>.md` — a new `## Session <date>` block with that session's prompts, a
+3–5 sentence summary naming the configs used, and the session's commit hashes — then
+commits that file on its own (`dev-log: log <id> session <date>`). It is a trailing
+commit, so every hash it lists already exists and it does not list itself; it never
+commits implementation code, which lands through the normal staged-gate workflow
+first. It is a public file: same review bar as a commit message, and it is not a
+second copy of the private note's `## Implementation` / `## Session log`. See
+`dev-log/README.md` and `dev-log/_TEMPLATE.md`.
 
 ## Entry points
 
