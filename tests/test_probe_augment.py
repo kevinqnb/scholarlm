@@ -82,6 +82,158 @@ def test_stub_rewrite_applies_expected_and_flags_missing():
     assert not ok and ctx == "Lake Bob has pH 7" and "not in context" in reason
 
 
+# ─── GptOssClient.rewrite_context: the diff protocol ─────────────────────────
+#
+# Build note: 2026-09-XX diff-protocol section. The model returns ONLY a list of
+# {"find","replace"} edits, each `find` a verbatim substring of the page; the
+# client applies them itself (count=1 per edit) and verifies against the
+# `expected` measurement spans. A missing `find` span is a skip (same category
+# as `feasible: false`), not a crash (§4.1); a `feasible: true` with no usable
+# `edits` list is a schema violation and crashes (§2.2 step 4).
+
+
+def _rewrite_client(raw_response: str, monkeypatch, cache_path=None):
+    """A GptOssClient whose `_one` returns `raw_response` verbatim (no server)."""
+    async def _one(self, client, messages):
+        return raw_response
+    monkeypatch.setattr(pa.GptOssClient, "_one", _one)
+    return pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
+
+
+def test_rewrite_applies_model_edits_and_verifies(monkeypatch):
+    raw = json.dumps({"feasible": True, "edits": [
+        {"find": "Lake Bob has pH 7", "replace": "Lake Sue has pH 7"}]})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, edits, reason = c.rewrite_context(
+        context="Lake Bob has pH 7 today", instruction="i", expected=[("Bob", "Sue")])
+    assert ok is True and reason == ""
+    assert new_ctx == "Lake Sue has pH 7 today"
+    assert edits == [("Lake Bob has pH 7", "Lake Sue has pH 7")]
+
+
+def test_rewrite_patches_every_site_multi_edit(monkeypatch):
+    # Same claim in prose, a table cell and a caption -> three edits, all applied.
+    ctx = "The pond Bob was sampled. | Bob | 5 | \nFigure 2. Bob at dusk."
+    raw = json.dumps({"feasible": True, "edits": [
+        {"find": "The pond Bob was sampled.", "replace": "The pond Sue was sampled."},
+        {"find": "| Bob | 5 |", "replace": "| Sue | 5 |"},
+        {"find": "Figure 2. Bob at dusk.", "replace": "Figure 2. Sue at dusk."}]})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, _, _ = c.rewrite_context(context=ctx, instruction="i",
+                                          expected=[("Bob", "Sue")])
+    assert ok is True
+    assert "Bob" not in new_ctx and new_ctx.count("Sue") == 3
+
+
+def test_rewrite_skips_when_find_span_absent(monkeypatch):
+    raw = json.dumps({"feasible": True, "edits": [
+        {"find": "a span that is not on the page", "replace": "x"}]})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, edits, reason = c.rewrite_context(
+        context="the actual page text", instruction="i", expected=[("page", "leaf")])
+    assert ok is False and new_ctx == "the actual page text" and edits == []
+    assert "not applicable" in reason
+
+
+def test_rewrite_skips_when_later_edit_find_destroyed_by_earlier(monkeypatch):
+    # edit #1's replacement removes edit #2's `find` span -> apply_verified_edit
+    # raises mid-loop against the running text -> caught -> skip, not crash.
+    ctx = "alpha beta gamma"
+    raw = json.dumps({"feasible": True, "edits": [
+        {"find": "alpha beta", "replace": "ALPHA"},
+        {"find": "beta gamma", "replace": "GAMMA"}]})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, edits, reason = c.rewrite_context(
+        context=ctx, instruction="i", expected=[])
+    assert ok is False and new_ctx == ctx and edits == [] and "not applicable" in reason
+
+
+def test_rewrite_infeasible_is_a_clean_skip(monkeypatch):
+    raw = json.dumps({"feasible": False, "reason": "would contradict Table 2"})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, edits, reason = c.rewrite_context(
+        context="ctx", instruction="i", expected=[("x", "y")])
+    assert ok is False and new_ctx == "ctx" and edits == []
+    assert reason == "would contradict Table 2"
+
+
+def test_rewrite_feasible_but_no_edits_is_a_hard_error(monkeypatch):
+    c = _rewrite_client(json.dumps({"feasible": True, "edits": []}), monkeypatch)
+    with pytest.raises(ValueError, match="proposed no edits"):
+        c.rewrite_context(context="ctx", instruction="i", expected=[])
+
+
+@pytest.mark.parametrize("bad_edits", [
+    "not a list",
+    [{"find": "x"}],                       # missing replace
+    [{"replace": "y"}],                    # missing find
+    [{"find": 3, "replace": "y"}],         # find not a string
+    ["justastring"],
+])
+def test_rewrite_malformed_edits_shape_is_a_hard_error(monkeypatch, bad_edits):
+    c = _rewrite_client(json.dumps({"feasible": True, "edits": bad_edits}), monkeypatch)
+    with pytest.raises(ValueError, match="edits.*not a list|edit is not a"):
+        c.rewrite_context(context="ctx", instruction="i", expected=[])
+
+
+def test_rewrite_repairs_commented_edits_then_applies(monkeypatch, capsys):
+    raw = ('{"feasible": true, "edits": [\n'
+           '  {"find": "in Bob Pond", "replace": "in Sue Pond"}  // rename\n'
+           ']}')
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, _, _ = c.rewrite_context(
+        context="chlorophyll rose in Bob Pond last year", instruction="i",
+        expected=[("Bob Pond", "Sue Pond")])
+    assert ok is True and new_ctx == "chlorophyll rose in Sue Pond last year"
+    assert "line comment" in capsys.readouterr().out
+
+
+def test_rewrite_repairs_unescaped_latex_in_find_then_applies(monkeypatch):
+    # `\(`/`\)` copied verbatim from an OCR'd page span into `find`, unescaped.
+    raw = '{"feasible": true, "edits": [{"find": "ratio \\( r = 0.5 \\)", "replace": "ratio \\( r = 0.9 \\)"}]}'
+    c = _rewrite_client(raw, monkeypatch)
+    ok, new_ctx, _, _ = c.rewrite_context(
+        context="the ratio \\( r = 0.5 \\) was noted", instruction="i",
+        expected=[("r = 0.5", "r = 0.9")])
+    assert ok is True and new_ctx == "the ratio \\( r = 0.9 \\) was noted"
+
+
+def test_rewrite_expected_check_still_catches_incomplete_edit(monkeypatch):
+    # The GT span DOES appear verbatim and the model only covers one of two
+    # sites -> `old in new_ctx` -> skip (the row's `valid` label would be wrong).
+    ctx = "Site X value 5. Later, Site X value 5 again."
+    raw = json.dumps({"feasible": True, "edits": [
+        {"find": "Site X value 5.", "replace": "Site Y value 5."}]})
+    c = _rewrite_client(raw, monkeypatch)
+    ok, _, _, reason = c.rewrite_context(
+        context=ctx, instruction="i", expected=[("Site X", "Site Y")])
+    assert ok is False and "left the original span in place" in reason
+
+
+def test_rewrite_fresh_miss_malformed_json_stays_out_of_cache(monkeypatch, tmp_path):
+    # A malformed response on a live (non-record, non-strict) miss goes through
+    # _run_batch, whose admission gate keeps it out of the cache and raises.
+    raw = '{"feasible": true, "edits": [{"find": "a", "replace": "b"}, {"find": "c"'  # truncated
+    c = _rewrite_client(raw, monkeypatch, cache_path=tmp_path / "cache.json")
+    with pytest.raises(RuntimeError, match=r"1/1 gpt-oss call\(s\) failed"):
+        c.rewrite_context(context="a c", instruction="i", expected=[])
+    assert c.cache._store == {}
+
+
+def test_rewrite_cache_key_carries_protocol_version(monkeypatch):
+    # A cached OLD-protocol full-page response must NOT be read back by the new
+    # parser: the payload's `protocol: 2` gives it a different key -> permanent
+    # miss -> regenerated under the diff protocol.
+    c = _rewrite_client(json.dumps({"feasible": True, "edits": []}), monkeypatch)
+    old_key = pa._cache_key("rewrite", {"context": "ctx", "instruction": "i"})
+    c.cache._store[old_key] = json.dumps(
+        {"feasible": True, "context": "<whole page>", "replacements": []})
+    # the new call computes a protocol-2 key, misses the stale entry, and (here)
+    # raises on the canned empty-edits response rather than returning the page
+    with pytest.raises(ValueError, match="proposed no edits"):
+        c.rewrite_context(context="ctx", instruction="i", expected=[])
+
+
 # ─── _extract_json_object: malformed gpt-oss responses ────────────────────────
 #
 # The generated text lands in the probe dataset, so a malformed gpt-oss
@@ -89,18 +241,18 @@ def test_stub_rewrite_applies_expected_and_flags_missing():
 # post-mortem (it is not logged upstream and the cache flushes only at end of
 # run). Two narrow, understood repairs are allowed, each tried only after a
 # plain parse fails and each announced when it fires:
-#   * unescaped backslashes echoed from OCR'd LaTeX (`\( n = 3 \)`);
+#   * unescaped backslashes copied from OCR'd LaTeX page spans (`\( n = 3 \)`);
 #   * JS-style `// ...` line comments gpt-oss sometimes puts on a rewrite
-#     response's `replacements` array (nfix Rung-4, cached key bf3746a2...).
+#     response's `edits` array (first seen on the old-protocol `replacements`
+#     array, nfix Rung-4, cached key bf3746a2...).
 # Anything else (a token-repetition loop that runs out of budget mid-object,
 # truncation) must keep failing loud. See the build note's Rung-4 entries.
 
 
 def test_extract_json_object_dumps_raw_text_on_parse_failure(tmp_path):
-    # Valid JSON up to a comma inside "replacements", then a token that isn't a
+    # Valid JSON up to a comma inside "edits", then a token that isn't a
     # legal value start -- an `Expecting value` failure, not a bad brace.
-    bad = ('{"feasible": true, "context": "line one\\nline two", '
-           '"replacements": [["old", "new"], ...]}')
+    bad = ('{"feasible": true, "edits": [{"find": "old", "replace": "new"}, ...]}')
     dump_dir = tmp_path / "bad_responses"
 
     with pytest.raises(ValueError, match="not valid JSON"):
@@ -129,40 +281,39 @@ def test_extract_json_object_valid_json_does_not_dump(tmp_path):
     # _dump_bad_response is called on three separate branches now; a regression
     # that dumps on the happy path would litter data/{ds}/bad_responses/ silently.
     dump_dir = tmp_path / "bad_responses"
-    pa._extract_json_object('{"feasible": true, "context": "x", "replacements": []}',
+    pa._extract_json_object('{"feasible": true, "edits": []}',
                             op="rewrite", dump_dir=dump_dir)
     assert not dump_dir.exists()
 
 
-# The repair targets exactly one quirk: gpt-oss echoes OCR'd LaTeX delimiters
-# (`\( n = 3 \)`) into a JSON string with the backslash unescaped. Any other
-# malformed response (e.g. a token-repetition loop that runs out of budget
-# mid-object) must keep failing loud.
+# The repair targets exactly one quirk: gpt-oss copies OCR'd LaTeX delimiters
+# (`\( n = 3 \)`) verbatim into an `edits` `find` string with the backslash
+# unescaped. Any other malformed response (e.g. a token-repetition loop that
+# runs out of budget mid-object) must keep failing loud.
 
 
 def test_extract_json_object_repairs_unescaped_latex_backslash():
-    # A literal `\(`/`\)` pair dropped into the "context" string unescaped.
-    bad = ('{"feasible": true, "context": "Chlorophyll \\( a \\) rose", '
-           '"replacements": [["x", "y"]]}')
+    # A literal `\(`/`\)` pair copied into a `find` string unescaped.
+    bad = ('{"feasible": true, "edits": [{"find": "Chlorophyll \\( a \\) rose", '
+           '"replace": "Chlorophyll \\( b \\) rose"}]}')
     obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
-    assert obj["context"] == "Chlorophyll \\( a \\) rose"
+    assert obj["edits"][0]["find"] == "Chlorophyll \\( a \\) rose"
 
 
 def test_extract_json_object_repair_leaves_valid_escapes_alone():
     # An already-correct `\\` escape (decoding to one literal backslash) must
     # not be miscounted as a second invalid backslash and doubled again -- a
     # real bug in the first version of the repair regex.
-    bad = ('{"feasible": true, "context": "(\\\\( r = 0.5 \\\\))", '
-           '"replacements": [["x", "y"]]}')
+    bad = ('{"feasible": true, "edits": [{"find": "(\\\\( r = 0.5 \\\\))", '
+           '"replace": "(\\\\( r = 0.9 \\\\))"}]}')
     obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
-    assert obj["context"] == "(\\( r = 0.5 \\))"
+    assert obj["edits"][0]["find"] == "(\\( r = 0.5 \\))"
 
 
 def test_extract_json_object_repair_does_not_rescue_truncation_no_brace(tmp_path):
     # Ran out of budget mid-object, no closing brace at all -- caught before
     # the repair path even runs (start/end check). Still dumps and raises.
-    bad = ('{"feasible": true, "context": "x", "replacements": '
-           '[["a", "b"], ["a", "b"], ["a", "b"]')  # never closes
+    bad = '{"feasible": true, "edits": [{"find": "a long verbatim span that got cut'  # no `}` at all
     dump_dir = tmp_path / "bad_responses"
     with pytest.raises(ValueError, match="not JSON"):
         pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
@@ -174,14 +325,14 @@ def test_extract_json_object_repair_does_not_rescue_truncation_inner_brace(tmp_p
     # so brace-trimming produces a still-unbalanced fragment. Reaches the repair
     # path, which can't help -- must dump and raise, not silently return the
     # half-object.
-    bad = '{"feasible": true, "replacements": [{"a": "b"}, {"c":'
+    bad = '{"feasible": true, "edits": [{"find": "b"}, {"replace":'
     dump_dir = tmp_path / "bad_responses"
     with pytest.raises(ValueError, match="not valid JSON"):
         pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
     assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
 
 
-# ── _strip_json_line_comments: gpt-oss annotates `replacements` with `// ...` ──
+# ── _strip_json_line_comments: gpt-oss annotates the `edits` array with `// ...` ──
 
 
 def test_strip_json_line_comments_removes_comments_outside_strings():
@@ -198,30 +349,28 @@ def test_strip_json_line_comments_preserves_double_slash_inside_a_string():
 
 
 def test_strip_json_line_comments_noop_on_clean_json():
-    src = '{"feasible": true, "context": "a / b", "replacements": []}'
+    src = '{"feasible": true, "edits": [{"find": "a / b", "replace": "c / d"}]}'
     assert pa._strip_json_line_comments(src) == src
 
 
-def test_extract_json_object_repairs_js_line_comments_on_replacements(capsys):
-    # Modelled on the real nfix cached response bf3746a2... that crashed Rung-4:
-    # a well-formed rewrite object whose `replacements` array carries JS-style
-    # `// unchanged` annotations. The array is not consumed downstream, but the
-    # object must still parse so `context` / `feasible` are usable.
+def test_extract_json_object_repairs_js_line_comments_on_edits(capsys):
+    # Modelled on the real nfix cached response bf3746a2... that crashed Rung-4
+    # (there on the old `replacements` array): a well-formed rewrite object whose
+    # `edits` array carries JS-style `// unchanged` annotations. Not legal JSON,
+    # but the object must still parse so `feasible` / `edits` are usable.
     bad = (
         '{\n'
         '  "feasible": true,\n'
-        '  "context": "Site Coastal Site Bravo had a fixation rate of 24 mmol.",\n'
-        '  "replacements": [\n'
-        '    ["<td>S3</td>", "<td>Coastal Site Bravo</td>"],\n'
-        '    ["<td>846</td>", "<td>846</td>"],  // column data unchanged, just context\n'
-        '    ["sites S1-S3", "sites S1-Coastal Site Bravo"] // last one\n'
+        '  "edits": [\n'
+        '    {"find": "<td>S3</td>", "replace": "<td>Coastal Site Bravo</td>"},  // table cell\n'
+        '    {"find": "sites S1-S3", "replace": "sites S1-Coastal Site Bravo"} // last one\n'
         '  ]\n'
         '}'
     )
     obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
     assert obj["feasible"] is True
-    assert obj["context"].startswith("Site Coastal Site Bravo")
-    assert len(obj["replacements"]) == 3
+    assert len(obj["edits"]) == 2
+    assert obj["edits"][0]["replace"] == "<td>Coastal Site Bravo</td>"
     assert "line comment" in capsys.readouterr().out   # fired loudly
 
 
@@ -235,13 +384,14 @@ def test_extract_json_object_does_not_dump_when_comment_strip_succeeds(tmp_path)
 
 def test_extract_json_object_combines_comment_strip_and_escape_repair(capsys):
     # One response with both quirks: a `//` comment AND an unescaped LaTeX
-    # backslash in `context`. Needs the third (composed) entry in the ladder.
+    # backslash in a `find` string. Needs the third (composed) entry in the ladder.
     bad = (
-        '{"feasible": true, "context": "Chlorophyll \\( a \\) rose",\n'
-        ' "replacements": [["x", "y"]] // trivial\n}'
+        '{"feasible": true, "edits": [\n'
+        '  {"find": "Chlorophyll \\( a \\) rose", "replace": "Chlorophyll \\( b \\) rose"}  // trivial\n'
+        ']}'
     )
     obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
-    assert obj["context"] == "Chlorophyll \\( a \\) rose"
+    assert obj["edits"][0]["find"] == "Chlorophyll \\( a \\) rose"
     assert "backslash" in capsys.readouterr().out
 
 
@@ -249,7 +399,8 @@ def test_extract_json_object_comment_strip_does_not_rescue_repetition_loop(tmp_p
     # The other real nfix bad response (ced92306...): a token-repetition loop
     # that ran out of `max_tokens` mid-string. No `//` comments; stripping them
     # is a no-op and the unterminated string still fails. Must dump and raise.
-    bad = '{"feasible": true, "replacements": [' + '["WCD", "ILBB"], ' * 40 + '["WCD", "IL'
+    bad = ('{"feasible": true, "edits": ['
+           + '{"find": "WCD", "replace": "ILBB"}, ' * 40 + '{"find": "WCD", "replace": "IL')
     dump_dir = tmp_path / "bad_responses"
     with pytest.raises(ValueError, match="not valid JSON|not JSON"):
         pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
@@ -268,10 +419,10 @@ def test_run_batch_keeps_unparseable_response_out_of_the_cache(tmp_path, monkeyp
     async def _one(self, client, messages):
         tag = messages[0]["content"]
         if tag == "loop":                       # unterminated string, no rescue
-            return '{"feasible": true, "replacements": [["a","b"], ["a","b"'
+            return '{"feasible": true, "edits": [{"find": "a", "replace": "b"}, {"find": "a"'
         if tag == "commented":                  # repairable -> admitted (raw)
             return '{"feasible": false, "reason": "x"} // nope'
-        return json.dumps({"feasible": True, "context": "ok", "replacements": []})
+        return json.dumps({"feasible": True, "edits": []})
 
     monkeypatch.setattr(pa.GptOssClient, "_one", _one)
     cache_path = tmp_path / "cache.json"
@@ -475,8 +626,11 @@ def test_pipeline_files_are_wellformed(tmp_path):
         rows, _ = out[key]
         pa.assert_wellformed(key, rows)
         assert all("source_group_id" in r for r in rows)
-    # diagnostic file: every row sits on an edited context, inlined on the row
+    # diagnostic file: every row sits on an edited context, inlined on the row.
+    # Guard against the vacuous pass — an empty diagnostic split (every axis-2
+    # rewrite skipped) would satisfy `all(...)` trivially.
     d_rows, _ = out["diagnostic_test"]
+    assert d_rows, "no diagnostic-test rows — every axis-2 positive was skipped"
     assert all(r.get("context_override") for r in d_rows)
 
 
@@ -559,7 +713,8 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
 
 
 def _canned_run_batch(*, event_date: str | None = None):
-    """An async `_run_batch` stand-in: stub-style rewrites, canned event-fill.
+    """An async `_run_batch` stand-in: stub-style diff-protocol edits, canned
+    event-fill.
 
     Caches each result itself -- the real `_run_batch` owns that (so a
     partial-batch failure doesn't discard sibling successes), and this stands
@@ -573,14 +728,16 @@ def _canned_run_batch(*, event_date: str | None = None):
             if "## MEASUREMENT\n" in user:                       # event_fill
                 out[key] = json.dumps({} if event_date is None else {"date": event_date})
                 continue
-            instr, page = user.split("## PAGE TEXT\n", 1)        # rewrite
+            instr, page = user.split("## PAGE TEXT\n", 1)        # rewrite (diff protocol)
             quoted = re.findall(r'"([^"]+)"', instr)
-            olds = [t for t in quoted if t in page]
-            news = [t for t in quoted if t not in page]
-            ctx = page
-            for o in olds:
-                ctx = ctx.replace(o, news[0] if news else o + "_X")
-            out[key] = json.dumps({"feasible": True, "context": ctx, "replacements": []})
+            olds = [t for t in quoted if t in page]              # spans verbatim in the page
+            news = [t for t in quoted if t not in page]          # candidate replacements
+            if not olds:
+                out[key] = json.dumps(
+                    {"feasible": False, "reason": "canned: no page-verbatim span"})
+                continue
+            edits = [{"find": o, "replace": (news[0] if news else o + "_X")} for o in olds]
+            out[key] = json.dumps({"feasible": True, "edits": edits})
         for key, raw in out.items():
             self.cache.put(key, raw)
         return out
@@ -672,6 +829,18 @@ def test_one_empty_content_error_carries_finish_reason_and_reasoning_length():
         asyncio.run(client._one(fake, [{"role": "user", "content": "hi"}]))
 
 
+def test_one_raises_on_length_finish_with_nonempty_content():
+    # Truncated at max_tokens but content non-empty: caught at the call site with
+    # the diagnostic fields attached, not two layers down as an opaque parse
+    # failure. Under the diff protocol the output is tiny so this should not
+    # fire, but truncation is exactly what the protocol change set out to kill.
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    fake = _FakeClient(_FakeChoice('{"feasible": tr', finish_reason="length"), {})
+
+    with pytest.raises(ValueError, match=r"truncated at max_tokens.*finish_reason='length'"):
+        asyncio.run(client._one(fake, [{"role": "user", "content": "hi"}]))
+
+
 def test_run_batch_partial_failure_caches_successes_before_raising(tmp_path, monkeypatch):
     """One job in a `prewarm` batch fails. `asyncio.gather` without
     `return_exceptions=True` would propagate that and discard every sibling
@@ -681,7 +850,7 @@ def test_run_batch_partial_failure_caches_successes_before_raising(tmp_path, mon
     async def _one(self, client, messages):
         if messages[0]["content"] == "fail":
             raise ValueError("simulated gpt-oss failure")
-        return json.dumps({"feasible": True, "context": "ok", "replacements": []})
+        return json.dumps({"feasible": True, "edits": []})
 
     monkeypatch.setattr(pa.GptOssClient, "_one", _one)
     cache_path = tmp_path / "cache.json"
@@ -775,10 +944,11 @@ def test_record_then_real_pass_makes_zero_model_calls(monkeypatch, resumed):
     if resumed:
         # a crashed-and-restarted run: some rewrites are already cached.  The
         # cached value need not verify — RNG draws in `_axis2_positives` happen
-        # before the client call and do not depend on its return.
+        # before the client call and do not depend on its return. A cached
+        # `feasible: false` just means that axis-2 positive is skipped.
         for k in rewrite_keys[::2]:
             client.cache._store[k] = json.dumps(
-                {"feasible": True, "context": "stale", "replacements": []})
+                {"feasible": False, "reason": "stale (resumed-run cache)"})
 
     jobs, rng = _record_pass(client, tr, te, rules, flags)
     client.prewarm(jobs)
@@ -792,6 +962,10 @@ def test_record_then_real_pass_makes_zero_model_calls(monkeypatch, resumed):
     assert client.cache._misses == misses_after_prewarm
     for key in ("train", "primary_test", "diagnostic_test"):
         pa.assert_wellformed(key, out[key][0])
+    # the canned `_run_batch` produced real edits (find spans are in the fixture
+    # pages) — the diagnostic split is non-empty, not a vacuous pass
+    diag_rows = out["diagnostic_test"][0]
+    assert diag_rows and all(r.get("context_override") for r in diag_rows)
 
 
 def test_strict_cache_raises_when_eventfill_result_feeds_pos_event(monkeypatch):

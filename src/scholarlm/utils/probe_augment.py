@@ -74,6 +74,12 @@ def _cache_key(op: str, payload: dict) -> str:
     Keyed on the *semantic* inputs (operation + payload), never on row order or
     ``measurement_id``, so the cache survives dataset regeneration and the
     per-file ``measurement_id`` renumbering.
+
+    The payload must carry everything that changes the model's expected output.
+    In particular ``rewrite`` payloads carry ``protocol: 2`` (the diff protocol):
+    an old-protocol full-page ``rewrite`` entry has a different key and is a
+    permanent miss, so it can never be read back by the new ``edits`` parser.
+    ``event_fill`` payloads are unaffected and keep hitting.
     """
     blob = json.dumps({"op": op, "payload": payload}, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
@@ -134,14 +140,28 @@ _EVENT_FILL_SYS = (
 )
 
 _REWRITE_SYS = (
-    "You are a careful scientific text editor. You rewrite a page of text from a "
-    "scientific paper so that one specific claim changes, while changing as "
-    "little else as possible. Preserve layout, tables, sentence structure, and "
-    "every other fact. If the requested change cannot be made without extensive "
-    "rewriting or by introducing contradictions, respond with the JSON object "
-    '{\"feasible\": false, \"reason\": \"...\"}. Otherwise respond with '
-    '{\"feasible\": true, \"context\": \"<full rewritten page>\", '
-    '\"replacements\": [[\"old span\", \"new span\"], ...]} and nothing else.'
+    "You are a careful scientific text editor. You are given a page of text from "
+    "a scientific paper and asked to change one specific claim in it while "
+    "changing as little else as possible. You do NOT rewrite or re-emit the "
+    "page. Instead you return the minimal list of exact-text edits that make the "
+    "change. Respond with a single JSON object and nothing else.\n"
+    "If the change can be made, respond with:\n"
+    '{\"feasible\": true, \"edits\": [{\"find\": \"<verbatim substring of the '
+    'page>\", \"replace\": \"<what it becomes>\"}, ...]}\n'
+    "Rules for every edit:\n"
+    "- \"find\" MUST be copied character-for-character from the PAGE TEXT below "
+    "(same whitespace, casing, LaTeX and markdown) so it can be located by an "
+    "exact string search.\n"
+    "- \"find\" SHOULD carry enough surrounding words to be unambiguous (e.g. "
+    "\"a critical temperature of 5.2 K\", not \"5.2\"), so applying the edit "
+    "cannot corrupt an unrelated occurrence (a year, a different measurement, a "
+    "substring of a larger number).\n"
+    "- Return one edit per site. If the edited claim appears in the running "
+    "text, a table cell and a figure caption, that is three edits. Change every "
+    "place the edited claim appears and nothing else.\n"
+    "If making the change consistently would require rewriting large parts of "
+    "the page, or would contradict other statements or tables on the page, "
+    'respond with {\"feasible\": false, \"reason\": \"...\"} instead.'
 )
 
 
@@ -165,8 +185,8 @@ def _dump_bad_response(raw: str, op: str, dump_dir: Path | None) -> Path | None:
     Called only on a path that is about to raise -- this makes the failure
     inspectable, it does not soften it. The raw text is not recoverable
     otherwise: nothing upstream logs it and the response cache is flushed to
-    disk only at end of run, so an exception here would take a ``rewrite``
-    response's full rewritten page with it.
+    disk only at end of run, so an exception here would take the response
+    with it.
     """
     if dump_dir is None:
         return None
@@ -177,9 +197,9 @@ def _dump_bad_response(raw: str, op: str, dump_dir: Path | None) -> Path | None:
     return path
 
 
-# gpt-oss is asked to echo page text verbatim, and OCR'd pages sometimes carry
-# literal LaTeX-style math delimiters (`\( n = 3 \)`); the model reproduces the
-# backslash unescaped, which is invalid JSON (`\(` is not a recognized escape)
+# gpt-oss copies `find` spans verbatim from the page, and OCR'd pages sometimes
+# carry literal LaTeX-style math delimiters (`\( n = 3 \)`); the model reproduces
+# the backslash unescaped, which is invalid JSON (`\(` is not a recognized escape)
 # though the response is otherwise fine. This regex matches every backslash
 # escape *as a single unit* (valid two-char escape, `\uXXXX`, or a lone
 # backslash) so an already-correct `\\` pair is consumed whole and never
@@ -212,9 +232,10 @@ def _strip_json_line_comments(text: str) -> str:
 
     Last-resort repair, tried only after a normal parse has already failed
     (see ``_extract_json_object``), for one understood, verified quirk: gpt-oss
-    sometimes annotates a ``rewrite`` response's ``replacements`` array with
-    JS-style ``// unchanged`` comments -- not legal JSON, though the response is
-    otherwise well-formed (cached nfix key ``bf3746a2...``). The scan is
+    sometimes annotates a ``rewrite`` response's ``edits`` array with JS-style
+    ``// unchanged`` comments -- not legal JSON, though the response is
+    otherwise well-formed (first seen on the old-protocol ``replacements``
+    array, cached nfix key ``bf3746a2...``). The scan is
     string-aware, so a ``//`` *inside* a value (a ``http://`` URL echoed from
     OCR'd page text) is never touched. Like ``_repair_invalid_escapes``: if the
     stripped text still doesn't parse the caller dumps and raises -- this
@@ -249,9 +270,9 @@ def _strip_json_line_comments(text: str) -> str:
 
 # Ordered last-resort repairs for a gpt-oss JSON response that failed a plain
 # ``json.loads``. Each targets one understood, verified-against-real-output
-# quirk (unescaped LaTeX backslashes echoed from OCR; JS-style ``//`` comments
-# on the ``replacements`` array); the third entry is for a response that has
-# both. Cheapest/safest first. Kept as one list so the admission-time probe in
+# quirk (unescaped LaTeX backslashes copied from OCR'd page spans; JS-style
+# ``//`` comments on the ``edits`` array); the third entry is for a response
+# that has both. Cheapest/safest first. Kept as one list so the admission-time probe in
 # ``GptOssClient._run_batch`` and the raise-time path in ``_extract_json_object``
 # run the identical ladder.
 _JSON_LAST_RESORT_REPAIRS: list[tuple[str, Callable[[str], str]]] = [
@@ -362,17 +383,21 @@ class GptOssClient:
     model_id: str = "openai/gpt-oss-120b"
     temperature: float = 0.2
     max_concurrent: int = 32
+    # Both ops now emit a small JSON object (event-fill: a handful of fields;
+    # rewrite under the diff protocol: a ~100-token `edits` list), so this cap is
+    # generous headroom, not a real constraint. It was 20k when the rewrite op
+    # re-emitted the whole page; kept oversized deliberately -- truncation at the
+    # cap is exactly what the protocol change set out to eliminate.
     max_tokens: int = 20000
     # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/high,
     # default "medium" if omitted); it has no `enable_thinking` variable at all,
     # unlike Qwen3 (checked against the cached chat_template.jinja). "low" is set
-    # deliberately so the whole cache is generated under one known regime.
-    # Hypothesis (not confirmed): at the default effort, reasoning competes with
-    # this client's large expected outputs (the rewrite task echoes a full page
-    # back) for `max_tokens` and can exhaust it before the answer -- a plausible
-    # cause of the truncated-JSON and empty-message crashes seen during the
-    # initial generation run. The empty-message diagnostic in `_one` would
-    # confirm it if it recurs.
+    # deliberately so the whole cache is generated under one known regime. It also
+    # predates the diff protocol: at the default effort, reasoning could compete
+    # with the old full-page rewrite output for `max_tokens` and exhaust it before
+    # the answer -- a plausible cause of the truncated-JSON and empty-message
+    # crashes on the initial generation run. Far less likely now the output is
+    # tiny, but the regime stays pinned so the cache is single-regime.
     reasoning_effort: str = "low"
     # Record mode: `_resolve` collects every (key, messages) it is asked for into
     # `_pending` and returns a benign canned response instead of calling the
@@ -415,6 +440,20 @@ class GptOssClient:
                 f"{choice.finish_reason!r}, reasoning_content_len="
                 f"{len(reasoning) if reasoning else 0})"
             )
+        if choice.finish_reason == "length":
+            # Non-empty but truncated at `max_tokens`: the tail of the JSON is
+            # gone, so a downstream parse failure is guaranteed. Catch it here,
+            # at the call site, with the diagnostic fields attached -- rather
+            # than two layers down as an opaque `not valid JSON`. Still a hard
+            # error, never a fallback. Under the diff protocol the output is
+            # tiny, so this should never fire; if it does, something is wrong
+            # upstream (a runaway repetition loop, a bad `max_tokens`).
+            reasoning = getattr(choice.message, "reasoning_content", None)
+            raise ValueError(
+                f"gpt-oss response was truncated at max_tokens={self.max_tokens} "
+                f"(finish_reason='length', content_len={len(content)}, "
+                f"reasoning_content_len={len(reasoning) if reasoning else 0})"
+            )
         return content
 
     async def _run_batch(self, jobs: list[tuple[str, list[dict]]]) -> dict[str, str]:
@@ -433,6 +472,14 @@ class GptOssClient:
         "success" and only detonates hours later in the strict-cache real pass,
         with no way to regenerate just that key without a manual cache edit
         (nfix Rung-4; pond incident #3).
+
+        The gate only checks JSON-*object*-ness, not the ``rewrite`` schema, so
+        a response that is a well-formed object with a malformed ``edits`` array
+        (not a list, an element missing ``find``/``replace``) still gets cached
+        and then raises in ``rewrite_context`` on the real pass. Known residual,
+        unchanged from the old protocol (which cached ``feasible: true`` objects
+        with no ``context`` the same way); the diff protocol just has more such
+        shapes. ``rewrite_context`` fails loud on all of them.
         """
         from openai import AsyncOpenAI
 
@@ -552,36 +599,80 @@ class GptOssClient:
     def _rewrite_messages(self, context: str, instruction: str) -> list[dict]:
         user = (
             f"{instruction}\n\n"
-            f"Change as little as possible. Do not alter any other fact, number, "
-            f"unit, name, table cell, or sentence.\n\n## PAGE TEXT\n{context}"
+            f"Return only the minimal exact-text edits needed. Do not alter any "
+            f"other fact, number, unit, name, table cell, or sentence.\n\n"
+            f"## PAGE TEXT\n{context}"
         )
         return [{"role": "system", "content": _REWRITE_SYS},
                 {"role": "user", "content": user}]
 
     def rewrite_context(self, *, context, instruction, expected):
-        payload = {"context": context, "instruction": instruction}
+        """Diff-protocol context edit: ask the model only for the edits, apply
+        them ourselves, verify.
+
+        The model returns ``{"feasible": true, "edits": [{"find": ..., "replace":
+        ...}]}`` where each ``find`` is a verbatim substring of ``context``. We
+        apply the edits by exact string replacement (``count=1`` per edit; the
+        prompt asks for one edit per site) and run the ``expected``-span sanity
+        check against the locally-patched text. Returns
+        ``(applied, new_context, edits, reason)``:
+
+          * ``(True, new_ctx, [(find, replace), ...], "")`` on success;
+          * ``(False, context, [], reason)`` when the model says infeasible, when
+            a proposed ``find`` span is not in the context (same category as
+            infeasible -- skip, don't force, per build note §4.1), or when the
+            ``expected`` check fails.
+
+        Fails loud (``ValueError``) only on a schema violation: ``feasible: true``
+        with no usable ``edits`` list.
+        """
+        payload = {"context": context, "instruction": instruction, "protocol": 2}
         key = _cache_key("rewrite", payload)
         raw = self._resolve(key, "rewrite", self._rewrite_messages(context, instruction))
         obj = _extract_json_object(raw, op="rewrite", dump_dir=self._bad_response_dir)
         if not obj.get("feasible", False):
             return False, context, [], str(obj.get("reason", "infeasible"))
-        new_ctx = obj.get("context")
-        if not isinstance(new_ctx, str) or not new_ctx.strip():
-            raise ValueError(f"gpt-oss rewrite marked feasible but returned no context: {raw[:400]!r}")
-        reps_raw = obj.get("replacements", [])
-        reps: list[tuple[str, str]] = []
-        for pair in reps_raw:
-            if not (isinstance(pair, list) and len(pair) == 2):
-                raise ValueError(f"gpt-oss replacement is not a [old, new] pair: {pair!r}")
-            reps.append((str(pair[0]), str(pair[1])))
-        # Sanity-check the model actually did (roughly) what was asked: every
-        # expected old-span must be gone from the rewrite and the new-span present.
+        edits_raw = obj.get("edits")
+        if not isinstance(edits_raw, list):
+            raise ValueError(
+                f"gpt-oss rewrite marked feasible but 'edits' is not a list: {raw[:400]!r}"
+            )
+        if not edits_raw:
+            raise ValueError(
+                f"gpt-oss rewrite marked feasible but proposed no edits: {raw[:400]!r}"
+            )
+        edits: list[tuple[str, str]] = []
+        for e in edits_raw:
+            if not (isinstance(e, dict)
+                    and isinstance(e.get("find"), str)
+                    and isinstance(e.get("replace"), str)):
+                raise ValueError(
+                    f"gpt-oss rewrite edit is not a {{'find': str, 'replace': str}} "
+                    f"object: {e!r}"
+                )
+            edits.append((e["find"], e["replace"]))
+        # Apply the model's edits to the ORIGINAL context. `apply_verified_edit`
+        # checks each `find` against the running (progressively-patched) text and
+        # raises if it is absent -- which also covers the case where an earlier
+        # edit's replacement destroyed a later edit's `find` span. A missing span
+        # is "the model proposed something that doesn't apply": same category as
+        # an infeasible rewrite, so we skip rather than force.
+        try:
+            new_ctx = apply_verified_edit(context, edits)
+        except ValueError as exc:
+            return False, context, [], f"rewrite edit not applicable: {exc}"
+        # Sanity-check the model did (roughly) what was asked, against the
+        # locally-patched text: every expected old-span gone, every expected
+        # new-span present. (The `expected` old-span is the ground-truth
+        # measurement string, which is often not a verbatim page substring at
+        # all -- in that case the first check passes vacuously and this reduces
+        # to "did the intended new value get introduced somewhere".)
         for old, new in expected:
             if old and old in new_ctx and old != new:
                 return False, context, [], f"rewrite left the original span in place: {old!r}"
             if new and new not in new_ctx:
                 return False, context, [], f"rewrite did not introduce the target span: {new!r}"
-        return True, new_ctx, reps, ""
+        return True, new_ctx, edits, ""
 
 
 class StubAugmentClient:
@@ -590,8 +681,12 @@ class StubAugmentClient:
     ``event_fill`` returns null for every field (no event claimed).
     ``rewrite_context`` applies the ``expected`` ``(old, new)`` replacements
     directly, marking infeasible when an ``old`` span is absent — no LLM, no
-    prompt parsing.  This is the same ``expected`` list the real client verifies
-    the model's output against, so both clients take the same code path.
+    prompt parsing.  It is deliberately *stricter* than the real client: it
+    patches the bare ``expected`` span, where the real client applies
+    model-chosen multi-word spans and only uses ``expected`` for the final
+    sanity check.  So on real OCR (where the GT measurement string is usually
+    not a verbatim page substring) the stub skips almost everything — fine for
+    plumbing/determinism tests, not representative of real yield.
     """
 
     def __init__(self, cache: AugmentCache | None = None):
@@ -623,10 +718,19 @@ class StubAugmentClient:
 
 
 def apply_verified_edit(context: str, replacements: list[tuple[str, str]]) -> str:
-    """Apply ``(old, new)`` replacements, asserting each ``old`` occurs first.
+    """Apply ``(old, new)`` replacements in order, asserting each ``old`` occurs
+    in the *running* (progressively-patched) text first.
 
-    Raises ``ValueError`` if a span is not found — a claimed edit that does not
-    land is a silent-wrong-result bug, so it must crash.
+    Each replacement is ``count=1`` (first occurrence); the diff-protocol prompt
+    asks the model for one edit per site, so a claim that recurs comes back as
+    one edit per occurrence. Checking against the running text (not the original)
+    also catches an earlier edit's replacement having destroyed a later edit's
+    ``old`` span.
+
+    Raises ``ValueError`` if a span is not found. Whether that is fatal or a
+    skip is the caller's call: ``GptOssClient.rewrite_context`` catches it and
+    skips (a model-proposed span that doesn't apply is the infeasible category);
+    a caller passing spans it computed itself should let it crash.
     """
     out = context
     for old, new in replacements:
@@ -985,14 +1089,14 @@ def make_axis2_positive(
     """Attempt one equivalent (context, measurement) edit → a new valid row.
 
     Returns ``None`` when the edit is infeasible (skip, don't force).  On success
-    the row carries ``_context_override`` (the rewritten page) and the updated
-    measurement field(s); ``label='valid'``.
+    the row carries ``_context_override`` (the locally-patched page) and the
+    updated measurement field(s); ``label='valid'``.
     """
     ctx = src[_CTX_ORIG_KEY]
 
     def _finish(axis: str, expected: list[tuple[str, str]], instr: str,
                 field_updates: dict) -> dict | None:
-        ok, new_ctx, _reps, _reason = client.rewrite_context(
+        ok, new_ctx, _edits, _reason = client.rewrite_context(
             context=ctx, instruction=instr, expected=expected,
         )
         if not ok:
