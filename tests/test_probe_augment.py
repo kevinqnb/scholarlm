@@ -87,9 +87,13 @@ def test_stub_rewrite_applies_expected_and_flags_missing():
 # The generated text lands in the probe dataset, so a malformed gpt-oss
 # response must fail loud, and the raw text must survive the failure for a
 # post-mortem (it is not logged upstream and the cache flushes only at end of
-# run). One narrow repair is allowed -- unescaped backslashes echoed from OCR'd
-# LaTeX (`\( n = 3 \)`) -- and nothing else. See the build note's Rung-4 entry
-# for the incident history.
+# run). Two narrow, understood repairs are allowed, each tried only after a
+# plain parse fails and each announced when it fires:
+#   * unescaped backslashes echoed from OCR'd LaTeX (`\( n = 3 \)`);
+#   * JS-style `// ...` line comments gpt-oss sometimes puts on a rewrite
+#     response's `replacements` array (nfix Rung-4, cached key bf3746a2...).
+# Anything else (a token-repetition loop that runs out of budget mid-object,
+# truncation) must keep failing loud. See the build note's Rung-4 entries.
 
 
 def test_extract_json_object_dumps_raw_text_on_parse_failure(tmp_path):
@@ -175,6 +179,113 @@ def test_extract_json_object_repair_does_not_rescue_truncation_inner_brace(tmp_p
     with pytest.raises(ValueError, match="not valid JSON"):
         pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
     assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
+
+
+# ── _strip_json_line_comments: gpt-oss annotates `replacements` with `// ...` ──
+
+
+def test_strip_json_line_comments_removes_comments_outside_strings():
+    src = '{\n  "a": 1,  // trailing note\n  "b": [2, 3]  // another\n}'
+    assert json.loads(pa._strip_json_line_comments(src)) == {"a": 1, "b": [2, 3]}
+
+
+def test_strip_json_line_comments_preserves_double_slash_inside_a_string():
+    # A `//` inside a value (a URL echoed from OCR'd page text) must survive --
+    # the strip is string-aware, it is not a blind `//.*$` regex.
+    src = '{"context": "see https://example.org/x for detail", "n": 1}'
+    assert pa._strip_json_line_comments(src) == src
+    assert json.loads(pa._strip_json_line_comments(src))["context"].endswith("/x for detail")
+
+
+def test_strip_json_line_comments_noop_on_clean_json():
+    src = '{"feasible": true, "context": "a / b", "replacements": []}'
+    assert pa._strip_json_line_comments(src) == src
+
+
+def test_extract_json_object_repairs_js_line_comments_on_replacements(capsys):
+    # Modelled on the real nfix cached response bf3746a2... that crashed Rung-4:
+    # a well-formed rewrite object whose `replacements` array carries JS-style
+    # `// unchanged` annotations. The array is not consumed downstream, but the
+    # object must still parse so `context` / `feasible` are usable.
+    bad = (
+        '{\n'
+        '  "feasible": true,\n'
+        '  "context": "Site Coastal Site Bravo had a fixation rate of 24 mmol.",\n'
+        '  "replacements": [\n'
+        '    ["<td>S3</td>", "<td>Coastal Site Bravo</td>"],\n'
+        '    ["<td>846</td>", "<td>846</td>"],  // column data unchanged, just context\n'
+        '    ["sites S1-S3", "sites S1-Coastal Site Bravo"] // last one\n'
+        '  ]\n'
+        '}'
+    )
+    obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
+    assert obj["feasible"] is True
+    assert obj["context"].startswith("Site Coastal Site Bravo")
+    assert len(obj["replacements"]) == 3
+    assert "line comment" in capsys.readouterr().out   # fired loudly
+
+
+def test_extract_json_object_does_not_dump_when_comment_strip_succeeds(tmp_path):
+    bad = '{"feasible": false, "reason": "x"}  // no can do'
+    dump_dir = tmp_path / "bad_responses"
+    obj = pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
+    assert obj == {"feasible": False, "reason": "x"}
+    assert not dump_dir.exists()
+
+
+def test_extract_json_object_combines_comment_strip_and_escape_repair(capsys):
+    # One response with both quirks: a `//` comment AND an unescaped LaTeX
+    # backslash in `context`. Needs the third (composed) entry in the ladder.
+    bad = (
+        '{"feasible": true, "context": "Chlorophyll \\( a \\) rose",\n'
+        ' "replacements": [["x", "y"]] // trivial\n}'
+    )
+    obj = pa._extract_json_object(bad, op="rewrite", dump_dir=None)
+    assert obj["context"] == "Chlorophyll \\( a \\) rose"
+    assert "backslash" in capsys.readouterr().out
+
+
+def test_extract_json_object_comment_strip_does_not_rescue_repetition_loop(tmp_path):
+    # The other real nfix bad response (ced92306...): a token-repetition loop
+    # that ran out of `max_tokens` mid-string. No `//` comments; stripping them
+    # is a no-op and the unterminated string still fails. Must dump and raise.
+    bad = '{"feasible": true, "replacements": [' + '["WCD", "ILBB"], ' * 40 + '["WCD", "IL'
+    dump_dir = tmp_path / "bad_responses"
+    with pytest.raises(ValueError, match="not valid JSON|not JSON"):
+        pa._extract_json_object(bad, op="rewrite", dump_dir=dump_dir)
+    assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
+
+
+# ── _run_batch admission gate: never cache an unparseable response ────────────
+
+
+def test_run_batch_keeps_unparseable_response_out_of_the_cache(tmp_path, monkeypatch):
+    """A response `_one` returns but that will not parse as a JSON object (even
+    after the repair ladder) must be treated as a batch failure and kept out of
+    the cache -- otherwise `prewarm` flushes it as a "success" and it detonates
+    in the strict-cache real pass with no way to regenerate just that key."""
+
+    async def _one(self, client, messages):
+        tag = messages[0]["content"]
+        if tag == "loop":                       # unterminated string, no rescue
+            return '{"feasible": true, "replacements": [["a","b"], ["a","b"'
+        if tag == "commented":                  # repairable -> admitted (raw)
+            return '{"feasible": false, "reason": "x"} // nope'
+        return json.dumps({"feasible": True, "context": "ok", "replacements": []})
+
+    monkeypatch.setattr(pa.GptOssClient, "_one", _one)
+    cache_path = tmp_path / "cache.json"
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
+    jobs = [("k_ok", [{"role": "user", "content": "ok"}]),
+            ("k_loop", [{"role": "user", "content": "loop"}]),
+            ("k_commented", [{"role": "user", "content": "commented"}])]
+
+    with pytest.raises(RuntimeError, match=r"1/3 gpt-oss call\(s\) failed"):
+        asyncio.run(client._run_batch(jobs))
+
+    assert set(client.cache._store) == {"k_ok", "k_commented"}   # loop excluded
+    assert client.cache._store["k_commented"].endswith("// nope")  # cached raw
+    assert json.loads(cache_path.read_text()) == client.cache._store  # persisted
 
 
 # ─── fixture ─────────────────────────────────────────────────────────────────

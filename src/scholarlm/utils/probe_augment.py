@@ -207,6 +207,113 @@ def _repair_invalid_escapes(text: str) -> str:
     return _JSON_ESCAPE_UNIT_RE.sub(_fix, text)
 
 
+def _strip_json_line_comments(text: str) -> str:
+    """Delete ``// ...`` line comments that sit *outside* any JSON string.
+
+    Last-resort repair, tried only after a normal parse has already failed
+    (see ``_extract_json_object``), for one understood, verified quirk: gpt-oss
+    sometimes annotates a ``rewrite`` response's ``replacements`` array with
+    JS-style ``// unchanged`` comments -- not legal JSON, though the response is
+    otherwise well-formed (cached nfix key ``bf3746a2...``). The scan is
+    string-aware, so a ``//`` *inside* a value (a ``http://`` URL echoed from
+    OCR'd page text) is never touched. Like ``_repair_invalid_escapes``: if the
+    stripped text still doesn't parse the caller dumps and raises -- this
+    narrows what counts as a failure, it does not remove the fail-loud path.
+    """
+    out: list[str] = []
+    i, n = 0, len(text)
+    in_str = esc = False
+    while i < n:
+        c = text[i]
+        if in_str:
+            out.append(c)
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            i += 1
+        elif c == '"':
+            in_str = True
+            out.append(c)
+            i += 1
+        elif c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] not in "\r\n":   # skip to end of line
+                i += 1
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+# Ordered last-resort repairs for a gpt-oss JSON response that failed a plain
+# ``json.loads``. Each targets one understood, verified-against-real-output
+# quirk (unescaped LaTeX backslashes echoed from OCR; JS-style ``//`` comments
+# on the ``replacements`` array); the third entry is for a response that has
+# both. Cheapest/safest first. Kept as one list so the admission-time probe in
+# ``GptOssClient._run_batch`` and the raise-time path in ``_extract_json_object``
+# run the identical ladder.
+_JSON_LAST_RESORT_REPAIRS: list[tuple[str, Callable[[str], str]]] = [
+    ("repaired an invalid backslash escape", _repair_invalid_escapes),
+    ("stripped one or more // line comments", _strip_json_line_comments),
+    ("stripped // line comments and repaired an invalid backslash escape",
+     lambda s: _repair_invalid_escapes(_strip_json_line_comments(s))),
+]
+
+
+def _try_json_object(text: str):
+    """Best-effort parse of a gpt-oss JSON-*object* response, with repairs.
+
+    Returns ``(obj, repair_note, detail)``:
+      * ``(dict, None, None)``       — parsed as-is;
+      * ``(dict, "<note>", <err>)``  — parsed only after a last-resort repair;
+        ``<err>`` is the original ``JSONDecodeError`` (kept for the location it
+        carries). The caller MUST surface ``<note>``: repaired text lands in the
+        dataset and must never be rewritten silently;
+      * ``(None, None, "not-json")``   — no ``{...}`` span to try;
+      * ``(None, None, "not-object")`` — parsed, but the value is not an object;
+      * ``(None, None, <JSONDecodeError>)`` — had a ``{...}`` span, nothing parsed.
+    """
+    text = text.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+    try:
+        obj = json.loads(text)
+        return (obj, None, None) if isinstance(obj, dict) else (None, None, "not-object")
+    except json.JSONDecodeError:
+        pass
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None, None, "not-json"
+    trimmed = text[start : end + 1]
+    try:
+        obj = json.loads(trimmed)
+        return (obj, None, None) if isinstance(obj, dict) else (None, None, "not-object")
+    except json.JSONDecodeError as first:
+        for note, fn in _JSON_LAST_RESORT_REPAIRS:
+            try:
+                obj = json.loads(fn(trimmed))
+            except json.JSONDecodeError:
+                continue
+            return (obj, note, first) if isinstance(obj, dict) else (None, None, "not-object")
+        return None, None, first
+
+
+def _looks_like_json_object(text: str) -> bool:
+    """True if ``text`` yields a JSON object as-is or after a last-resort repair.
+
+    The admission gate in ``GptOssClient._run_batch`` uses this to keep a
+    malformed response out of the cache, where it would otherwise be flushed as
+    a "success" and only detonate hours later in the strict-cache real pass
+    (nfix Rung-4, and pond incident #3 before it). Same parse ladder as
+    ``_extract_json_object`` -- ``_try_json_object`` is the shared core.
+    """
+    obj, _note, _detail = _try_json_object(text)
+    return obj is not None
+
+
 def _extract_json_object(text: str, *, op: str, dump_dir: Path | None) -> dict:
     """Parse the first top-level JSON object in ``text``; fail loud otherwise.
 
@@ -214,42 +321,27 @@ def _extract_json_object(text: str, *, op: str, dump_dir: Path | None) -> dict:
     ``_dump_bad_response`` when parsing fails -- they play no role in a
     successful parse.
     """
-    raw = text
-    text = text.strip()
-    # strip a ```json ... ``` fence if present
-    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
-    if fence:
-        text = fence.group(1).strip()
-    try:
-        obj = json.loads(text)
-    except json.JSONDecodeError:
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            _dump_bad_response(raw, op, dump_dir)
-            raise ValueError(f"gpt-oss {op} response is not JSON: {text[:400]!r}")
-        trimmed = text[start : end + 1]
-        try:
-            obj = json.loads(trimmed)
-        except json.JSONDecodeError as e:
-            try:
-                obj = json.loads(_repair_invalid_escapes(trimmed))
-                # the repair rewrites text that lands in the dataset -- never
-                # let it fire silently
-                print(f"  probe_augment: repaired an invalid backslash escape "
-                      f"in a gpt-oss {op} response ({e.msg} at char {e.pos})")
-            except json.JSONDecodeError:
-                path = _dump_bad_response(raw, op, dump_dir)
-                where = f"; full raw response written to {path}" if path else ""
-                raise ValueError(
-                    f"gpt-oss {op} response is not valid JSON even after brace-"
-                    f"trimming ({e.msg} at line {e.lineno} column {e.colno}, "
-                    f"char {e.pos}){where}"
-                ) from e
-    if not isinstance(obj, dict):
-        _dump_bad_response(raw, op, dump_dir)
-        raise ValueError(f"gpt-oss {op} response is JSON but not an object: {text[:400]!r}")
-    return obj
+    obj, repair_note, detail = _try_json_object(text)
+    if obj is not None:
+        if repair_note:
+            # a repair rewrites text that lands in the dataset -- never silent
+            loc = (f" ({detail.msg} at char {detail.pos})"
+                   if isinstance(detail, json.JSONDecodeError) else "")
+            print(f"  probe_augment: {repair_note} in a gpt-oss {op} response{loc}")
+        return obj
+
+    path = _dump_bad_response(text, op, dump_dir)
+    snippet = text.strip()[:400]
+    if detail == "not-json":
+        raise ValueError(f"gpt-oss {op} response is not JSON: {snippet!r}")
+    if detail == "not-object":
+        raise ValueError(f"gpt-oss {op} response is JSON but not an object: {snippet!r}")
+    e = detail  # the original json.JSONDecodeError
+    where = f"; full raw response written to {path}" if path else ""
+    raise ValueError(
+        f"gpt-oss {op} response is not valid JSON even after brace-trimming "
+        f"({e.msg} at line {e.lineno} column {e.colno}, char {e.pos}){where}"
+    ) from e
 
 
 @dataclass
@@ -334,6 +426,13 @@ class GptOssClient:
         GPU calls lost because one came back malformed. Every success is cached,
         and the cache saved if any job failed, before this still fails loud on
         the failures.
+
+        A response that ``_one`` returns but that does not parse as a JSON
+        object (even after ``_JSON_LAST_RESORT_REPAIRS``) is treated as a
+        failure here and kept OUT of the cache: otherwise it is flushed as a
+        "success" and only detonates hours later in the strict-cache real pass,
+        with no way to regenerate just that key without a manual cache edit
+        (nfix Rung-4; pond incident #3).
         """
         from openai import AsyncOpenAI
 
@@ -353,6 +452,12 @@ class GptOssClient:
         for key, value in pairs:
             if isinstance(value, BaseException):
                 failures.append((key, value))
+            elif not _looks_like_json_object(value):
+                _dump_bad_response(value, "prewarm", self._bad_response_dir)
+                failures.append((key, ValueError(
+                    "gpt-oss response is not a JSON object even after last-resort "
+                    f"repairs: {value.strip()[:200]!r}"
+                )))
             else:
                 results[key] = value
                 self.cache.put(key, value)
