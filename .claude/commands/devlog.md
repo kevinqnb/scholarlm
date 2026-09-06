@@ -53,5 +53,14 @@ Commit `dev-log/<id>.md` on its own — nothing else staged:
     git add dev-log/<id>.md
     git commit -m "dev-log: log <id> session <today's date>"
 
+The commit message is the one-line subject and nothing else:
+
+- No body. The detail lives in the dev-log file, not the message.
+- No `Co-Authored-By` trailer and no `Claude-Session:` / `claude.ai` link on this
+  commit, whatever the session's default attribution is.
+- Nothing sensitive: no secrets, no absolute cluster paths, no unpublished-result
+  specifics — the subject is just `dev-log: log <id> session <date>`, so this is
+  only a reminder if you vary it.
+
 This is a trailing commit: every hash it lists already exists, and it does not list
 itself. Report the resulting commit hash. Do not push.
