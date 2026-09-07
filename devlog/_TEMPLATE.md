@@ -15,7 +15,7 @@ Prompts:      the human instructions, verbatim or lightly trimmed. Substantive
 Implemented:  3-5 sentences, written by Claude. A pointer-length summary, not a
               copy of the private note's ## Implementation section.
 Commits:      short hashes + subjects that already exist when this file is
-              committed. The trailing dev-log commit does not list itself.
+              committed. The trailing devlog commit does not list itself.
 
 Public file: no secrets, no absolute cluster paths, no unpublished-result
 specifics you would not put in a commit message.
