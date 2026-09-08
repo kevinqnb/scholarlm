@@ -66,7 +66,7 @@ REPO_ROOT = BASE.parent.parent      # repo root
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
-from configs.pond import CONFIG, _MEASUREMENT_EVENT_PROMPT
+from configs.pond import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
@@ -610,18 +610,33 @@ def _fabricated_names_by_type() -> dict[str, list[str]]:
     return {k: v for k, v in out.items() if v}
 
 
-def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
+# pond's ground-truth `date` field is entirely null, so pos_event has to
+# inject a date and a bad_event negative swaps between these. Coarse
+# seasons/years covering the corpus period — deliberately vague, since a
+# precise fabricated date is more likely to contradict something on the page.
+_POND_DATE_POOL = [
+    f"{season} {year}"
+    for year in range(2012, 2022)
+    for season in ("Spring", "Summer", "Autumn", "Winter")
+] + [str(year) for year in range(2012, 2022)]
+
+
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
+                 all_records: list[dict], rng) -> None:
     """Augmented-dataset path — see the build note. Consumes RNG only after
     sample_valid_set() so the default (non-augment) path is byte-identical."""
-    rules = _build_augment_rules()
+    rules = _build_augment_rules(all_records)
+    if args.augment_sample_gt:
+        n = args.augment_sample_gt
+        xv_train = rng.sample(xv_train, min(n, len(xv_train)))
+        xv_test = rng.sample(xv_test, min(n, len(xv_test)))
+        print(f"RUNG-3 SAMPLE: {len(xv_train)} train / {len(xv_test)} test "
+              f"GT valids (--augment-sample-gt {n})")
     flags = _aug.AugmentFlags(
-        augment_events=args.augment_events,
         pos_axes=tuple(args.augment_pos_axes),
-        hard_negatives=True,
-        target_rows=args.augment_target_rows,
-        floor_rows=args.augment_floor_rows,
-        max_derived_per_source=args.augment_max_derived_per_source,
-        diag_pos_event=not args.augment_no_diag_pos_event,
+        valid_floor=args.augment_valid_floor,
+        diag_valid_floor=args.augment_diag_valid_floor,
+        prompt_budget_multiple=args.augment_prompt_budget_multiple,
     )
     cache_path = Path(args.augment_cache) if args.augment_cache else None
     cache = _aug.AugmentCache(cache_path)
@@ -629,8 +644,10 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
         print("Augment client: STUB (no LLM)")
     else:
-        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache)
-        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base}")
+        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache,
+                                   temperature=args.augment_rewrite_temperature)
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base} "
+              f"(temperature {args.augment_rewrite_temperature})")
 
     written = _aug.run_and_write(
         base_dir=BASE,
@@ -649,27 +666,35 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         print(f"  {k:16s} {p}")
 
 
-def _build_augment_rules() -> "_aug.DatasetAugmentRules":
-    attr_units = {a: list(info.get("units", []))
-                  for a, info in _ATTR_DICT.items()}
+def _value_pool_by_attr(records: list[dict]) -> dict[str, list[str]]:
+    pool: dict[str, set] = {}
+    for r in records:
+        pool.setdefault(r["attribute"], set()).add(str(r["value"]))
+    return {a: sorted(v) for a, v in pool.items()}
+
+
+def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", [])) for a, info in _ATTR_DICT.items()}
     return _aug.DatasetAugmentRules(
         name="pond",
         entity_name_field="name",
+        entity_noun="water body",
         fabricated_names_by_type=_fabricated_names_by_type(),
         fabricated_names_any=[*_MADE_UP_NAMES, *_WETLAND_NAMES],
         entity_type_token=_pond_type_token,
-        entity_swap_preserve_clause=(
-            "Keep the ecosystem type and every measured quantity identical."
+        name_suffix_to_type=dict(_NAME_SUFFIX_TO_TYPE),
+        entity_preserve_clause=(
+            "Keep the ecosystem type and every measured quantity — value, units, "
+            "attribute and measurement event — identical."
         ),
         entity_swap_clear_fields=(),   # pond GT rows carry ~no `identifiers`
         attr_units=attr_units,
-        # tn / tp / chla share the same canonical unit list -> safe to swap between
-        shared_unit_groups=[["tn", "tp", "chla"]],
-        entity_field_locked=False,
-        event_fields=["date", "additional_details"],  # judge-visible (location filtered)
-        event_prompt=_MEASUREMENT_EVENT_PROMPT,
-        event_synth_field="date",
-        event_synth_value="Summer 2019",
+        attribute_pool=sorted(_ATTR_DICT.keys()),
+        value_pool_by_attr=_value_pool_by_attr(all_records),
+        event_field="date",            # judge-visible (location is filtered)
+        event_noun="measurement date",
+        event_pool=list(_POND_DATE_POOL),
+        event_allow_inject=True,       # GT date is null everywhere -> must inject
         gt_cols=list(_GT_COLS),
     )
 
@@ -702,18 +727,21 @@ def main(argv: list[str] | None = None) -> None:
     ag.add_argument("--augment-stub", action="store_true",
                     help="Use the deterministic stub client (no LLM) — for smoke "
                          "tests only; produces trivially-edited contexts.")
-    ag.add_argument("--augment-events", action="store_true",
-                    help="Axis #1: gpt-oss event-fill on train + diagnostic-test "
-                         "source valids (pond only).")
-    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.POS_AXES),
                     choices=list(_aug.POS_AXES),
-                    help=f"Axis #2 sub-axes to attempt (default: "
-                         f"{list(_aug.DEFAULT_POS_AXES)}).")
-    ag.add_argument("--augment-target-rows", type=int, default=10000)
-    ag.add_argument("--augment-floor-rows", type=int, default=5000)
-    ag.add_argument("--augment-max-derived-per-source", type=int, default=4)
-    ag.add_argument("--augment-no-diag-pos-event", action="store_true",
-                    help="Drop the pos_event slice from the diagnostic-test file.")
+                    help=f"Positive rewrite axes to attempt (default: {list(_aug.POS_AXES)}).")
+    ag.add_argument("--augment-valid-floor", type=int, default=5000,
+                    help="Minimum valids in the train file (GT carried + distinct synthetic). Usually exceeded; negatives balance to whatever it reaches.")
+    ag.add_argument("--augment-diag-valid-floor", type=int, default=1000,
+                    help="Minimum valids in the diagnostic file (built like the train file).")
+    ag.add_argument("--augment-prompt-budget-multiple", type=int, default=1,
+                    help="Attempt budget = n_gt_valids × n_axes × this. 1 = round 0 only. Falling "
+                         "short inside the budget is a hard error — set from the "
+                         "rung-3 measured yield.")
+    ag.add_argument("--augment-rewrite-temperature", type=float, default=0.7)
+    ag.add_argument("--augment-sample-gt", type=int, default=0,
+                    help="Rung 3: randomly sample this many GT valids (train and test each) "
+                         "before augmenting, for a quick per-axis yield read. 0 = all.")
     ag.add_argument("--augment-out-suffix", default="_v2")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
@@ -744,7 +772,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
 
     if args.augment:
-        _run_augment(args, xv_train, xv_test, rng)
+        _run_augment(args, xv_train, xv_test, all_records, rng)
         return
 
     # Build train probe dataset

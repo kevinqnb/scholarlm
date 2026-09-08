@@ -3,21 +3,25 @@ Dataset-agnostic machinery for synthetic probe-dataset augmentation.
 
 Used by ``data/{pond,nfix,supermat}/create_probe_dataset.py`` when run with the
 ``--augment`` family of flags.  The per-dataset scripts own their dataset-specific
-rules (entity fields, shared-unit attribute groups, fabricated-name lists,
-supermat's "never touch the formula" rule); this module owns everything that is
-the same across datasets:
+rules (entity fields, fabricated-name / value / event alternative pools, the
+ecosystem-type map); this module owns everything that is the same across
+datasets:
 
   * ``AugmentCache``        — content-hash cache of gpt-oss responses so that two
                              regenerations at the same seed are byte-identical
                              (the LLM is only ever called on a cache miss).
   * ``GptOssClient``        — batched async OpenAI-compatible client for a locally
-                             served ``openai/gpt-oss-120b``.
+                             served ``openai/gpt-oss-120b``.  Protocol 3: the
+                             model picks BOTH the new property value and the
+                             minimal ``{find, replace}`` page edits.
   * ``StubAugmentClient``   — deterministic canned edits, for unit tests and the
                              no-server smoke rung.
-  * value / unit perturbation helpers for hard negatives.
-  * ``apply_verified_edit`` — string replace that asserts the span it is told to
-                             replace actually occurs (fail-loud).
-  * ``balance_and_cap``     — per-source cap, exact 50/50 prevalence, target size.
+  * ``make_axis2_positive`` — one equivalence-preserving rewrite (entity name,
+                             value, or event) → a synthetic valid row.
+  * ``make_typed_negative`` — one direct measurement swap from a pre-generated
+                             per-type alternative pool → an invalid row.
+  * ``fill_positive_target`` / ``fill_negative_quota`` — resample to the valid
+                             floor; fill each error type to its quota, no repeats.
   * ``inline_context_overrides`` / ``emit_context_diff_report`` — stamp the public
                              ``context_override`` field onto edited rows (read by
                              ``judge_common.prepare_chat_entries``) and the
@@ -30,9 +34,11 @@ from __future__ import annotations
 import asyncio
 import difflib
 import hashlib
+import itertools
 import json
 import random
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -76,10 +82,11 @@ def _cache_key(op: str, payload: dict) -> str:
     per-file ``measurement_id`` renumbering.
 
     The payload must carry everything that changes the model's expected output.
-    In particular ``rewrite`` payloads carry ``protocol: 2`` (the diff protocol):
-    an old-protocol full-page ``rewrite`` entry has a different key and is a
-    permanent miss, so it can never be read back by the new ``edits`` parser.
-    ``event_fill`` payloads are unaffected and keep hitting.
+    ``rewrite`` payloads carry ``protocol: 3`` (the model picks the replacement
+    value AND the edits) plus ``attempt`` (the resample round): an entry from an
+    earlier protocol, or from a different resample round, has a different key and
+    is a permanent miss, so a stale response can never be read back by the
+    current parser.
     """
     blob = json.dumps({"op": op, "payload": payload}, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
@@ -88,9 +95,9 @@ def _cache_key(op: str, payload: dict) -> str:
 class AugmentCache:
     """JSON-backed ``{cache_key: response}`` store.
 
-    ``response`` is whatever the client method returns (a dict for event-fill, a
-    string for context rewrites).  Load/save are explicit; the client checks
-    ``get`` before every call and ``put`` after every miss.
+    ``response`` is the raw model text for a ``rewrite`` call.  Load/save are
+    explicit; the client checks ``get`` before every call and ``put`` after
+    every miss.
     """
 
     def __init__(self, path: Path | None):
@@ -130,28 +137,24 @@ class AugmentCache:
 # Client protocol + implementations
 # ---------------------------------------------------------------------------
 
-_EVENT_FILL_SYS = (
-    "You are a careful scientific data annotator. You are given a page of text "
-    "from a scientific paper and one measurement extracted from it. Your job is "
-    "to report ONLY the measurement-event fields that the page text explicitly "
-    "states for THIS specific measurement. Never guess. If the page does not "
-    "state a field for this measurement, return null for it. Respond with a "
-    "single JSON object and nothing else."
-)
-
 _REWRITE_SYS = (
     "You are a careful scientific text editor. You are given a page of text from "
-    "a scientific paper and asked to change one specific claim in it while "
-    "changing as little else as possible. You do NOT rewrite or re-emit the "
-    "page. Instead you return the minimal list of exact-text edits that make the "
-    "change. Respond with a single JSON object and nothing else.\n"
+    "a scientific paper and asked to change one specific property of one "
+    "measurement it reports, while changing as little else as possible. You do "
+    "NOT rewrite or re-emit the page. You choose a concrete new value for the "
+    "property and return the minimal list of exact-text edits that make the "
+    "whole page consistent with it. Respond with a single JSON object and "
+    "nothing else.\n"
     "If the change can be made, respond with:\n"
-    '{\"feasible\": true, \"edits\": [{\"find\": \"<verbatim substring of the '
-    'page>\", \"replace\": \"<what it becomes>\"}, ...]}\n'
-    "Rules for every edit:\n"
-    "- \"find\" MUST be copied character-for-character from the PAGE TEXT below "
-    "(same whitespace, casing, LaTeX and markdown) so it can be located by an "
-    "exact string search.\n"
+    '{\"feasible\": true, \"replacement\": \"<the new value, ready to paste into '
+    'the measurement record verbatim>\", \"edits\": [{\"find\": \"<verbatim '
+    'substring of the page>\", \"replace\": \"<what it becomes>\"}, ...]}\n'
+    "Rules:\n"
+    "- \"replacement\" is the new property value on its own (e.g. a site name, a "
+    "number, a date) — not a sentence, and not the old value.\n"
+    "- Every \"find\" MUST be copied character-for-character from the PAGE TEXT "
+    "below (same whitespace, casing, LaTeX and markdown) so it can be located by "
+    "an exact string search.\n"
     "- \"find\" SHOULD carry enough surrounding words to be unambiguous (e.g. "
     "\"a critical temperature of 5.2 K\", not \"5.2\"), so applying the edit "
     "cannot corrupt an unrelated occurrence (a year, a different measurement, a "
@@ -168,15 +171,30 @@ _REWRITE_SYS = (
 class AugmentClient(Protocol):
     """Interface the generators depend on. Both real and stub satisfy it."""
 
-    def event_fill(
-        self, *, context: str, measurement: dict, event_prompt: str, event_fields: list[str]
-    ) -> dict[str, str | None]: ...
-
     def rewrite_context(
-        self, *, context: str, instruction: str, expected: list[tuple[str, str]],
-    ) -> tuple[bool, str, list[tuple[str, str]], str]: ...
+        self, *, context: str, instruction: str, original: str, attempt: int = 0,
+    ) -> "RewriteResult": ...
 
     def flush(self) -> None: ...
+
+
+@dataclass
+class RewriteResult:
+    """Outcome of one context-rewrite attempt.
+
+    ``applied`` False is a clean skip (model declined, a ``find`` span did not
+    apply, or the local verification failed) — never an error. ``unverified_span``
+    is True when ``original`` was not a verbatim substring of the source context,
+    so the "old value is gone from the page" check could not run and the row
+    rests on the model's self-consistency alone (reported per split).
+    """
+
+    applied: bool
+    new_context: str
+    replacement: str
+    edits: list[tuple[str, str]]
+    reason: str
+    unverified_span: bool = False
 
 
 def _dump_bad_response(raw: str, op: str, dump_dir: Path | None) -> Path | None:
@@ -371,9 +389,9 @@ class GptOssClient:
 
     Mirrors ``experiments/run_judge_local.py``'s ``AsyncOpenAI`` + ``Semaphore``
     pattern.  Every call is checked against ``cache`` first; the model is only
-    hit on a miss.  ``event_fill`` / ``rewrite_context`` are synchronous from the
-    caller's point of view — batching happens because the generator collects many
-    calls and the OS event loop runs them concurrently via ``_run_batch``.  For
+    hit on a miss.  ``rewrite_context`` is synchronous from the caller's point of
+    view — batching happens because the generator collects many calls and the OS
+    event loop runs them concurrently via ``_run_batch``.  For
     simplicity (the generators are straight-line loops) each public method runs a
     one-shot event loop; call ``prewarm`` with a list of payloads to parallelise.
     """
@@ -381,13 +399,17 @@ class GptOssClient:
     api_base: str
     cache: AugmentCache
     model_id: str = "openai/gpt-oss-120b"
-    temperature: float = 0.2
+    # One fixed temperature for the whole augment run. Higher than a judge run's
+    # 0.2 on purpose: `fill_positive_target` resamples the same (source, axis)
+    # across rounds and needs the model to give a genuinely different replacement
+    # each time. The resample round is in the cache key (`attempt`), so rounds
+    # stay individually reproducible; the temperature is the documented "schedule".
+    temperature: float = 0.7
     max_concurrent: int = 32
-    # Both ops now emit a small JSON object (event-fill: a handful of fields;
-    # rewrite under the diff protocol: a ~100-token `edits` list), so this cap is
-    # generous headroom, not a real constraint. It was 20k when the rewrite op
-    # re-emitted the whole page; kept oversized deliberately -- truncation at the
-    # cap is exactly what the protocol change set out to eliminate.
+    # The rewrite response is a small JSON object (a `replacement` string + a
+    # ~100-token `edits` list), so this cap is generous headroom, not a real
+    # constraint -- truncation at the cap is exactly what the diff protocol set
+    # out to eliminate.
     max_tokens: int = 20000
     # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/high,
     # default "medium" if omitted); it has no `enable_thinking` variable at all,
@@ -474,12 +496,10 @@ class GptOssClient:
         (nfix Rung-4; pond incident #3).
 
         The gate only checks JSON-*object*-ness, not the ``rewrite`` schema, so
-        a response that is a well-formed object with a malformed ``edits`` array
-        (not a list, an element missing ``find``/``replace``) still gets cached
-        and then raises in ``rewrite_context`` on the real pass. Known residual,
-        unchanged from the old protocol (which cached ``feasible: true`` objects
-        with no ``context`` the same way); the diff protocol just has more such
-        shapes. ``rewrite_context`` fails loud on all of them.
+        a well-formed object with a bad ``edits`` array (not a list, an element
+        missing ``find``/``replace``) or a missing ``replacement`` string still
+        gets cached and then raises in ``rewrite_context`` on the real pass.
+        Known residual; ``rewrite_context`` fails loud on all of them.
         """
         from openai import AsyncOpenAI
 
@@ -517,11 +537,10 @@ class GptOssClient:
             ) from failures[0][1]
         return results
 
-    # Canned responses returned during a record pass — parseable by the callers
-    # so control flow (and RNG consumption) matches a normal run up to the point
+    # Canned response returned during a record pass — parseable by the caller so
+    # control flow (and RNG consumption) matches a normal run up to the point
     # where the collected prompts are all that matters.
     _RECORD_RESPONSES = {
-        "event_fill": "{}",                                  # -> every field null
         "rewrite": '{"feasible": false, "reason": "record pass"}',
     }
 
@@ -545,12 +564,12 @@ class GptOssClient:
         if self.strict_cache:
             raise RuntimeError(
                 f"gpt-oss cache miss for op {op!r} on the real pass, after "
-                f"prewarm — the record pass did not collect this prompt. This "
-                f"means an earlier phase's output changed a later phase's "
-                f"prompt: today the only such dependency is event-fill results "
-                f"feeding the pos_event rewrite instruction, so it fires only "
-                f"with --augment-pos-axes pos_event. Run prewarm in two rounds "
-                f"(event-fill, then the rest) or drop that axis."
+                f"prewarm — the record pass did not collect this prompt. Every "
+                f"rewrite prompt is a pure function of (source row, axis, "
+                f"attempt) with no dependence on a prior model call, so the "
+                f"record pass should collect all of them; a miss here means the "
+                f"record dry pass and the real pass diverged in their RNG-driven "
+                f"(source, axis, attempt) enumeration."
             )
         return asyncio.run(self._run_batch([(key, messages)]))[key]
 
@@ -570,77 +589,33 @@ class GptOssClient:
 
     # -- public ops --------------------------------------------------------
 
-    def _event_fill_messages(self, context: str, measurement: dict, event_prompt: str,
-                             event_fields: list[str]) -> list[dict]:
-        user = (
-            f"{event_prompt}\n\n"
-            f"Report only these fields: {event_fields}. "
-            f"Return a JSON object with exactly those keys; use null where the "
-            f"page does not state the field for this measurement.\n\n"
-            f"## MEASUREMENT\n{json.dumps(measurement, ensure_ascii=False)}\n\n"
-            f"## PAGE TEXT\n{context}"
-        )
-        return [{"role": "system", "content": _EVENT_FILL_SYS},
-                {"role": "user", "content": user}]
+    _RESAMPLE_NUDGE = (
+        "\n\nThis is an ALTERNATIVE rewrite of the same page. Choose a "
+        "noticeably different, less obvious replacement value than the first "
+        "one that comes to mind, while still keeping it plausible for this "
+        "measurement."
+    )
 
-    def event_fill(self, *, context, measurement, event_prompt, event_fields):
-        payload = {"context": context, "measurement": measurement,
-                   "event_prompt": event_prompt, "event_fields": sorted(event_fields)}
-        key = _cache_key("event_fill", payload)
-        raw = self._resolve(key, "event_fill",
-                            self._event_fill_messages(context, measurement, event_prompt, event_fields))
-        obj = _extract_json_object(raw, op="event_fill", dump_dir=self._bad_response_dir)
-        out: dict[str, str | None] = {}
-        for f in event_fields:
-            v = obj.get(f)
-            out[f] = v if (isinstance(v, str) and v.strip()) else None
-        return out
-
-    def _rewrite_messages(self, context: str, instruction: str) -> list[dict]:
+    def _rewrite_messages(self, context: str, instruction: str, attempt: int) -> list[dict]:
+        nudge = self._RESAMPLE_NUDGE if attempt else ""
         user = (
-            f"{instruction}\n\n"
-            f"Return only the minimal exact-text edits needed. Do not alter any "
-            f"other fact, number, unit, name, table cell, or sentence.\n\n"
+            f"{instruction}{nudge}\n\n"
+            f"Return the new value and only the minimal exact-text edits needed. "
+            f"Do not alter any other fact, number, unit, name, table cell, or "
+            f"sentence.\n\n"
             f"## PAGE TEXT\n{context}"
         )
         return [{"role": "system", "content": _REWRITE_SYS},
                 {"role": "user", "content": user}]
 
-    def rewrite_context(self, *, context, instruction, expected):
-        """Diff-protocol context edit: ask the model only for the edits, apply
-        them ourselves, verify.
-
-        The model returns ``{"feasible": true, "edits": [{"find": ..., "replace":
-        ...}]}`` where each ``find`` is a verbatim substring of ``context``. We
-        apply the edits by exact string replacement (``count=1`` per edit; the
-        prompt asks for one edit per site) and run the ``expected``-span sanity
-        check against the locally-patched text. Returns
-        ``(applied, new_context, edits, reason)``:
-
-          * ``(True, new_ctx, [(find, replace), ...], "")`` on success;
-          * ``(False, context, [], reason)`` when the model says infeasible, when
-            a proposed ``find`` span is not in the context (same category as
-            infeasible -- skip, don't force, per build note §4.1), or when the
-            ``expected`` check fails.
-
-        Fails loud (``ValueError``) only on a schema violation: ``feasible: true``
-        with no usable ``edits`` list.
-        """
-        payload = {"context": context, "instruction": instruction, "protocol": 2}
-        key = _cache_key("rewrite", payload)
-        raw = self._resolve(key, "rewrite", self._rewrite_messages(context, instruction))
-        obj = _extract_json_object(raw, op="rewrite", dump_dir=self._bad_response_dir)
-        if not obj.get("feasible", False):
-            return False, context, [], str(obj.get("reason", "infeasible"))
+    @staticmethod
+    def _parse_edits(obj: dict, raw: str) -> list[tuple[str, str]]:
+        """Validate the ``edits`` array; hard error on any schema violation."""
         edits_raw = obj.get("edits")
+        if edits_raw is None or (isinstance(edits_raw, list) and not edits_raw):
+            raise ValueError(f"gpt-oss rewrite feasible but proposed no edits: {raw[:400]!r}")
         if not isinstance(edits_raw, list):
-            raise ValueError(
-                f"gpt-oss rewrite marked feasible but 'edits' is not a list: {raw[:400]!r}"
-            )
-        if not edits_raw:
-            raise ValueError(
-                f"gpt-oss rewrite marked feasible but proposed no edits: {raw[:400]!r}"
-            )
+            raise ValueError(f"gpt-oss rewrite feasible but 'edits' is not a list: {raw[:400]!r}")
         edits: list[tuple[str, str]] = []
         for e in edits_raw:
             if not (isinstance(e, dict)
@@ -651,62 +626,101 @@ class GptOssClient:
                     f"object: {e!r}"
                 )
             edits.append((e["find"], e["replace"]))
-        # Apply the model's edits to the ORIGINAL context. `apply_verified_edit`
-        # checks each `find` against the running (progressively-patched) text and
-        # raises if it is absent -- which also covers the case where an earlier
-        # edit's replacement destroyed a later edit's `find` span. A missing span
-        # is "the model proposed something that doesn't apply": same category as
-        # an infeasible rewrite, so we skip rather than force.
+        return edits
+
+    @staticmethod
+    def verify_rewrite(orig_ctx: str, new_ctx: str, original: str, replacement: str,
+                       edits: list[tuple[str, str]]) -> RewriteResult:
+        """Local, model-independent check that the rewrite did what was asked.
+
+        ``original`` is the property's old surface value (a name, a number, a
+        date), or ``""`` for the pos_event *inject* case where the source page
+        stated no event. Shared by ``GptOssClient`` and ``StubAugmentClient`` so
+        both admit exactly the same rows.
+        """
+        if replacement not in new_ctx:
+            return RewriteResult(
+                False, orig_ctx, "", [],
+                f"rewrite did not introduce the replacement {replacement!r}")
+        if not original:                       # inject case (pos_event, no prior event)
+            if replacement in orig_ctx:
+                return RewriteResult(False, orig_ctx, "", [],
+                                     f"replacement {replacement!r} was already on the page")
+            # the added event is not grounded in the source page by construction
+            return RewriteResult(True, new_ctx, replacement, edits, "", unverified_span=True)
+        if orig_ctx.count(original) == 0:
+            # `original` is not a verbatim page span, so "old value is gone" can't
+            # be checked -- the row rests on the model's self-consistency alone.
+            return RewriteResult(True, new_ctx, replacement, edits, "", unverified_span=True)
+        if new_ctx.count(original) and original != replacement:
+            return RewriteResult(False, orig_ctx, "", [],
+                                 f"rewrite left the original {original!r} on the page")
+        return RewriteResult(True, new_ctx, replacement, edits, "")
+
+    def rewrite_context(self, *, context, instruction, original, attempt=0,
+                        stub_replacement=None):
+        """Protocol-3 context edit: the model picks the new value AND the edits.
+
+        Returns a ``RewriteResult``. ``applied=False`` is a clean skip (model
+        declined, a ``find`` span did not apply, or ``verify_rewrite`` failed).
+        Fails loud (``ValueError``) only on a schema violation: ``feasible: true``
+        with no ``replacement`` string or no usable ``edits`` list.
+        ``stub_replacement`` is ignored here — it only steers ``StubAugmentClient``.
+        """
+        payload = {"context": context, "instruction": instruction,
+                   "protocol": 3, "attempt": attempt}
+        key = _cache_key("rewrite", payload)
+        raw = self._resolve(key, "rewrite",
+                            self._rewrite_messages(context, instruction, attempt))
+        obj = _extract_json_object(raw, op="rewrite", dump_dir=self._bad_response_dir)
+        if not obj.get("feasible", False):
+            return RewriteResult(False, context, "", [], str(obj.get("reason", "infeasible")))
+        replacement = obj.get("replacement")
+        if not (isinstance(replacement, str) and replacement.strip()):
+            raise ValueError(
+                f"gpt-oss rewrite feasible but 'replacement' is missing/empty: {raw[:400]!r}"
+            )
+        replacement = replacement.strip()
+        edits = self._parse_edits(obj, raw)
         try:
             new_ctx = apply_verified_edit(context, edits)
         except ValueError as exc:
-            return False, context, [], f"rewrite edit not applicable: {exc}"
-        # Sanity-check the model did (roughly) what was asked, against the
-        # locally-patched text: every expected old-span gone, every expected
-        # new-span present. (The `expected` old-span is the ground-truth
-        # measurement string, which is often not a verbatim page substring at
-        # all -- in that case the first check passes vacuously and this reduces
-        # to "did the intended new value get introduced somewhere".)
-        for old, new in expected:
-            if old and old in new_ctx and old != new:
-                return False, context, [], f"rewrite left the original span in place: {old!r}"
-            if new and new not in new_ctx:
-                return False, context, [], f"rewrite did not introduce the target span: {new!r}"
-        return True, new_ctx, edits, ""
+            return RewriteResult(False, context, "", [], f"rewrite edit not applicable: {exc}")
+        return self.verify_rewrite(context, new_ctx, original, replacement, edits)
 
 
 class StubAugmentClient:
     """Deterministic canned client for tests and the no-server smoke rung.
 
-    ``event_fill`` returns null for every field (no event claimed).
-    ``rewrite_context`` applies the ``expected`` ``(old, new)`` replacements
-    directly, marking infeasible when an ``old`` span is absent — no LLM, no
-    prompt parsing.  It is deliberately *stricter* than the real client: it
-    patches the bare ``expected`` span, where the real client applies
-    model-chosen multi-word spans and only uses ``expected`` for the final
-    sanity check.  So on real OCR (where the GT measurement string is usually
-    not a verbatim page substring) the stub skips almost everything — fine for
-    plumbing/determinism tests, not representative of real yield.
+    ``rewrite_context`` replaces the caller-supplied ``original`` span with the
+    caller's ``stub_replacement`` hint (which stands in for the model's proposed
+    replacement) everywhere it occurs in the context — no LLM, no prompt
+    parsing.  The pos_event inject case (``original == ""``) appends a short
+    sentence naming the replacement.  Marks the attempt infeasible when there is
+    no hint or the ``original`` span is absent, so on real OCR (where the GT
+    surface form is often not a verbatim page substring) the stub skips more
+    than the real client — fine for plumbing/determinism tests, not
+    representative of real yield.
     """
 
     def __init__(self, cache: AugmentCache | None = None):
         self.cache = cache or AugmentCache(None)
 
-    def event_fill(self, *, context, measurement, event_prompt, event_fields):
-        return {f: None for f in event_fields}
-
-    def rewrite_context(self, *, context, instruction, expected):
-        if not expected:
-            return False, context, [], "stub: nothing to replace"
-        new_ctx = context
-        applied: list[tuple[str, str]] = []
-        for old, new in expected:
-            if old and old not in new_ctx:
-                return False, context, [], f"stub: span {old!r} not in context"
-            if old:
-                new_ctx = new_ctx.replace(old, new, 1)
-            applied.append((old, new))
-        return True, new_ctx, applied, ""
+    def rewrite_context(self, *, context, instruction, original, attempt=0,
+                        stub_replacement=None):
+        if not stub_replacement:
+            return RewriteResult(False, context, "", [], "stub: no stub_replacement hint")
+        if not original:                       # pos_event inject case
+            sentence = f" This measurement's event was {stub_replacement}."
+            new_ctx = context + sentence
+            edits = [(context, new_ctx)]
+        else:
+            if original not in context:
+                return RewriteResult(False, context, "", [],
+                                     f"stub: span {original!r} not in context")
+            new_ctx = context.replace(original, stub_replacement)
+            edits = [(original, stub_replacement)]
+        return GptOssClient.verify_rewrite(context, new_ctx, original, stub_replacement, edits)
 
     def flush(self):
         pass
@@ -743,7 +757,7 @@ def apply_verified_edit(context: str, replacements: list[tuple[str, str]]) -> st
 
 
 # ---------------------------------------------------------------------------
-# Value / unit perturbation (hard negatives)
+# Numeric value perturbation (pos_value stub hint)
 # ---------------------------------------------------------------------------
 
 _NUM_RE = re.compile(r"^[+-]?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?$")
@@ -777,39 +791,9 @@ def perturb_value(value_str: str, rng: random.Random, *, lo: float = 0.05, hi: f
     return None
 
 
-def alt_unit(current: str | None, units: list[str], rng: random.Random,
-             *, family_bias: float = 0.7) -> str | None:
-    """Pick a different unit from ``units`` for a hard-negative unit error.
-
-    With probability ``family_bias`` prefer a unit that shares a leading
-    metric-prefix / measure token with ``current`` (e.g. µg/L → mg/L, m → cm),
-    which is a harder error than an out-of-family swap.
-    """
-    cands = [u for u in units if current is None or u.lower() != current.lower()]
-    if not cands:
-        return None
-    if current is not None and rng.random() < family_bias:
-        cur_tokens = set(re.findall(r"[A-Za-zµμ]+", current.lower()))
-        near = [u for u in cands if set(re.findall(r"[A-Za-zµμ]+", u.lower())) & cur_tokens]
-        if near:
-            return rng.choice(sorted(near))
-    return rng.choice(sorted(cands))
-
-
 # ---------------------------------------------------------------------------
-# source_group_id + measurement_id bookkeeping
+# measurement_id bookkeeping
 # ---------------------------------------------------------------------------
-
-
-def stamp_source_group_id(rows: list[dict], *, key: str = "gt_row_index") -> None:
-    """Set ``row['source_group_id']`` = the originating GT row index.
-
-    Every augmented row must carry this so CV / analysis can group near-duplicate
-    derivatives.  For a GT-derived row it equals ``gt_row_index``; a row already
-    carrying ``source_group_id`` (a derivative of a derivative) is left alone.
-    """
-    for r in rows:
-        r.setdefault("source_group_id", r[key])
 
 
 def assign_measurement_ids(rows: list[dict], *, start: int = 0) -> None:
@@ -820,95 +804,34 @@ def assign_measurement_ids(rows: list[dict], *, start: int = 0) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Balancing + per-source cap + target size
+# File assembly
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class BalanceReport:
-    n_positive: int
-    n_negative: int
-    n_capped_dropped: int
-    target: int
-    floor: int
-    hit_target: bool
-    hit_floor: bool
-
-    def __str__(self) -> str:
-        return (
-            f"balanced: {self.n_positive} pos / {self.n_negative} neg "
-            f"= {self.n_positive + self.n_negative} rows "
-            f"({self.n_capped_dropped} dropped by per-source cap); "
-            f"target {self.target} {'MET' if self.hit_target else 'not met'}, "
-            f"floor {self.floor} {'MET' if self.hit_floor else 'NOT MET'}"
-        )
+def even_quota(total: int, types: list[str]) -> dict[str, int]:
+    """Split ``total`` across ``types`` as evenly as possible (deterministic —
+    the first ``total % len(types)`` types get one extra)."""
+    assert types, "even_quota: no error types"
+    base, rem = divmod(total, len(types))
+    return {t: base + (1 if i < rem else 0) for i, t in enumerate(types)}
 
 
-def balance_and_cap(
-    positives: list[dict],
-    negatives: list[dict],
-    *,
-    target: int,
-    floor: int,
-    max_derived_per_source: int,
-    rng: random.Random,
-) -> tuple[list[dict], BalanceReport]:
-    """Enforce the per-source cap, then trim to exact 50/50 and to ``target``.
+def assemble_file(positives: list[dict], negatives: list[dict],
+                  rng: random.Random) -> list[dict]:
+    """Concatenate the two classes, shuffle, assign contiguous measurement_ids.
 
-    ``positives`` / ``negatives`` each carry ``source_group_id``.  The per-source
-    cap counts *derived* rows only — a row flagged ``_is_base`` (an original GT
-    valid kept verbatim) is never dropped by the cap.  After capping, the
-    majority class is randomly down-sampled to match the minority, then both
-    classes are trimmed evenly so the total does not exceed ``target``.  Falling
-    below ``floor`` is reported, not raised (the caller decides — nfix is
-    allowed to).
+    Prevalence and per-class counts are the caller's responsibility (the
+    positive filler and the negative quota already produce a balanced pair);
+    this only interleaves them reproducibly.
     """
-
-    def _cap(rows: list[dict]) -> tuple[list[dict], int]:
-        by_src: dict[Any, list[dict]] = {}
-        for r in rows:  # insertion order is deterministic given deterministic input
-            by_src.setdefault(r["source_group_id"], []).append(r)
-        kept: list[dict] = []
-        dropped = 0
-        for sid in by_src:
-            group = by_src[sid]
-            base = [r for r in group if r.get("_is_base")]
-            derived = [r for r in group if not r.get("_is_base")]
-            rng.shuffle(derived)
-            keep_derived = derived[:max_derived_per_source]
-            dropped += len(derived) - len(keep_derived)
-            kept.extend(base + keep_derived)
-        return kept, dropped
-
-    pos, d_pos = _cap(positives)
-    neg, d_neg = _cap(negatives)
-
-    n = min(len(pos), len(neg))
-    # trim to target (must stay even between classes)
-    per_class_cap = target // 2
-    n = min(n, per_class_cap) if target else n
-
-    rng.shuffle(pos)
-    rng.shuffle(neg)
-    pos, neg = pos[:n], neg[:n]
-
-    out = pos + neg
+    out = list(positives) + list(negatives)
     rng.shuffle(out)
-
-    report = BalanceReport(
-        n_positive=len(pos),
-        n_negative=len(neg),
-        n_capped_dropped=d_pos + d_neg,
-        target=target,
-        floor=floor,
-        hit_target=(len(out) >= target) if target else True,
-        hit_floor=len(out) >= floor,
-    )
-    return out, report
+    assign_measurement_ids(out)
+    return out
 
 
 # ---------------------------------------------------------------------------
-# Side-car assembly + diff report
+# Context-override inlining + diff report
 # ---------------------------------------------------------------------------
 
 _CTX_ORIG_KEY = "_context_original"
@@ -968,15 +891,18 @@ def strip_internal_fields(rows: list[dict], gt_cols: list[str], extra_keep: list
 # Dataset rules + axis orchestration
 # ---------------------------------------------------------------------------
 
-# axis-2 sub-axes, each its own opt-in flag on the generator CLI.
-# DEFAULT_POS_AXES are the equivalence-preserving ones enabled by --augment-pos;
-# pos_value / pos_units / pos_event carry a higher label-noise risk (a perturbed
-# value or a cross-measurand unit can make the "valid" label wrong) and ship
-# off-by-default — the enabled experiment turns them on once the diagnostic file
-# shows whether the safe axes hold up.
-POS_AXES = ("pos_entity", "pos_attribute", "pos_value", "pos_units", "pos_event")
-DEFAULT_POS_AXES = ("pos_entity", "pos_attribute")
-HARD_NEG_KINDS = ("hard_value", "hard_units", "hard_entity")
+# Positive axes: for every ground-truth valid we attempt an equivalence-preserving
+# rewrite along each of these — the entity name, the measured value, the
+# measurement event. Attribute and units are deliberately excluded: a consistent
+# change to either usually needs a much larger context edit (a whole table) than
+# the diff protocol can make safely.
+POS_AXES = ("pos_entity", "pos_value", "pos_event")
+
+# Invalid error types, in the canonical order used for even quotas. `attribute`
+# is only constructible where the dataset reports more than one attribute (pond);
+# `event` needs a stated (GT) or synthesised (pos_event) event on the source
+# valid to contradict.
+ERROR_TYPES = ("entity", "attribute", "value", "units", "event")
 
 
 @dataclass
@@ -985,428 +911,569 @@ class DatasetAugmentRules:
     ``create_probe_dataset.py`` from its own config."""
 
     name: str
-    # entity handling
-    entity_name_field: str                      # "name" — the only field an entity
-                                                # swap touches (resolution D: no
-                                                # wholesale donor-field copy)
-    fabricated_names_by_type: dict[str, list[str]]   # type-token -> candidate names
-    fabricated_names_any: list[str]             # fallback pool
-    # maps a record to a coarse entity-type token used to pick a same-type
-    # fabricated name (pond: pond/lake/wetland/pool/reservoir from the messy
-    # free-text ``ecosystem`` field; nfix: ``site_type``; supermat: None)
-    entity_type_token: Callable[[dict], str | None]
-    # trailing sentence of the pos_entity rewrite instruction — what must stay
-    # fixed while the entity is renamed. Dataset-specific: pond/nfix talk about
-    # "the ecosystem type", supermat about the measured Tc and its conditions.
-    entity_swap_preserve_clause: str
-    # judge-visible entity fields (besides entity_name_field) that go stale after
-    # a pos_entity rename and are nulled on the positive row + any hard negative
-    # derived from it. supermat: ("identifiers",) — the abbreviation catalogue no
-    # longer matches the fabricated formula. pond/nfix: () (identifiers ~always
-    # null on their GT rows).
-    entity_swap_clear_fields: tuple[str, ...]
-    # attribute handling
-    attr_units: dict[str, list[str]]            # attribute -> canonical units list
-    shared_unit_groups: list[list[str]]         # groups of attributes safe to swap between
-    entity_field_locked: bool                   # supermat: never touch entity_name_field
-    # event handling (judge-VISIBLE fields only)
-    event_fields: list[str]
-    event_prompt: str
-    # pos_event: the single field to synthesise into + the canned value to use
-    # when the source measurement has no event at all.  None disables pos_event
-    # for this dataset.
-    event_synth_field: str | None
-    event_synth_value: str | None
-    # output schema
+    # --- entity ---------------------------------------------------------------
+    entity_name_field: str                     # "name" — the only field a rename touches
+    entity_noun: str                           # "site", "material" — for the instruction
+    fabricated_names_by_type: dict[str, list[str]]   # type token -> candidate names
+    fabricated_names_any: list[str]            # fallback pool (also the negative pool)
+    entity_type_token: Callable[[dict], str | None]  # record -> coarse type or None
+    name_suffix_to_type: dict[str, str]        # last-word -> type; {} = cannot verify a name
+    entity_preserve_clause: str                # what a rename must hold fixed
+    entity_swap_clear_fields: tuple[str, ...]  # judge-visible fields nulled on a rename
+    # --- attribute / units --------------------------------------------------
+    attr_units: dict[str, list[str]]           # attribute -> canonical units list
+    attribute_pool: list[str]                  # every attribute key; < 2 -> no attribute error
+    value_pool_by_attr: dict[str, list[str]]   # attribute -> distinct GT value strings
+    # --- event ------------------------------------------------------------
+    event_field: str                           # measurement field a pos_event / bad_event writes
+    event_noun: str                            # "measurement date", "applied pressure"
+    event_pool: list[str]                      # distinct plausible event values
+    event_allow_inject: bool                   # pos_event may ADD an event to a page
+                                               # that states none (pond/nfix: a date
+                                               # is always injectable; supermat: no —
+                                               # unstated pressure means "ambient")
+    # --- output schema --------------------------------------------------
     gt_cols: list[str]
+
+    def entity_candidates(self, record: dict) -> list[str]:
+        tok = self.entity_type_token(record)
+        pool = self.fabricated_names_by_type.get(tok) if tok else None
+        return list(pool or self.fabricated_names_any)
 
     def fabricated_name(self, record: dict, rng: random.Random) -> str | None:
         cur = record.get(self.entity_name_field)
-        token = self.entity_type_token(record)
-        pool = self.fabricated_names_by_type.get(token) if token else None
-        pool = pool or self.fabricated_names_any
-        cands = sorted(n for n in pool if n != cur)
+        cands = sorted(n for n in self.entity_candidates(record) if n != cur)
         return rng.choice(cands) if cands else None
 
-    def attribute_swap_target(self, attribute: str, rng: random.Random) -> str | None:
-        for group in self.shared_unit_groups:
-            if attribute in group:
-                cands = sorted(a for a in group if a != attribute)
-                if cands:
-                    return rng.choice(cands)
-        return None
+    def name_type(self, name: str) -> str | None:
+        return self.name_suffix_to_type.get(name.rsplit(" ", 1)[-1].lower())
+
+    def entity_type_ok(self, record: dict, proposed_name: str) -> bool:
+        """Does a model-proposed replacement name preserve the source's type?
+
+        Returns True unconditionally where the dataset gives no name→type map
+        (nfix, supermat). Where it does (pond), the proposed name must have a
+        recognised suffix, and it must match the source record's type token.
+        """
+        if not self.name_suffix_to_type:
+            return True
+        want = self.entity_type_token(record)
+        got = self.name_type(proposed_name)
+        return got is not None if want is None else got == want
 
 
-def event_fill_records(
-    records: list[dict], client: AugmentClient, rules: DatasetAugmentRules,
-) -> int:
-    """Fill judge-visible event fields on each record from its context (pond only).
-
-    Measurement fields only — the context is never edited here.  A field already
-    non-null on the record is left as-is (it came from reviewed GT).  Returns the
-    number of (record, field) pairs newly filled.
-    """
-    if not rules.event_fields:
-        return 0
-    filled = 0
-    for r in records:
-        need = [f for f in rules.event_fields if not r.get(f)]
-        if not need:
-            continue
-        measurement = {
-            "entity": r.get(rules.entity_name_field),
-            "attribute": r.get("attribute"),
-            "value": r.get("value"),
-            "units": r.get("units"),
-        }
-        got = client.event_fill(
-            context=r[_CTX_ORIG_KEY], measurement=measurement,
-            event_prompt=rules.event_prompt, event_fields=need,
-        )
-        for f, v in got.items():
-            if v:
-                r[f] = v
-                filled += 1
-    return filled
+@dataclass
+class AugmentFlags:
+    pos_axes: tuple[str, ...] = POS_AXES
+    # FLOORS, not caps. Every GT valid is carried through and gets one rewrite
+    # attempt per axis (round 0, always kept); resampling only kicks in if the
+    # distinct-synthetic count is still below the floor. The train / diagnostic
+    # files therefore usually end up LARGER than the floor, balanced 1:1 with
+    # negatives at whatever size the positives reach.
+    valid_floor: int = 5000
+    diag_valid_floor: int = 1000
+    # Attempt budget = len(gt_valids) * len(axes) * prompt_budget_multiple.
+    # multiple 1 == round 0 only (no resampling); raise it (per dataset, in the
+    # config) when round 0 alone doesn't clear the floor. Falling short inside
+    # the budget is a hard error.
+    prompt_budget_multiple: int = 1
 
 
-def _new_derived_row(src: dict, *, label: str, mod_type: str | None, axis: str | None) -> dict:
-    """Copy a source record into a fresh derived row, carrying provenance.
+# ---------------------------------------------------------------------------
+# Provenance-stamped rows
+# ---------------------------------------------------------------------------
 
-    Deliberately *drops* fields that must be set explicitly per derivation:
-    ``_context_override`` (only present if the caller edits the context),
-    ``augment_axis`` (set from the ``axis`` arg), ``measurement_id`` (assigned
-    per output file, after balancing), and ``_is_base`` (only the verbatim GT
-    valids are base).  ``_context_original`` is kept — it is the source page and
-    is needed for the diff report and for building negatives on the original
-    context.
-    """
+_INTERNAL_DERIVED_KEYS = (_CTX_EDIT_KEY, "measurement_id",
+                          "_unverified_span", "_augment_edits", "augment_attempt")
+
+
+def _prep_base_valid(src: dict, rules: DatasetAugmentRules) -> dict:
+    """A verbatim GT valid, carried through as a positive row (every file)."""
     row = dict(src)
-    for k in (_CTX_EDIT_KEY, "measurement_id", "_is_base"):
+    row.pop(_CTX_EDIT_KEY, None)
+    row["label"] = "valid"
+    row["modification_type"] = None
+    row["augment_axis"] = None
+    row["augment_attempt"] = None
+    row["donor_gt_row_index"] = None
+    row["source_group_id"] = src["gt_row_index"]
+    return row
+
+
+def _new_derived_row(src: dict, *, label: str, mod_type: str | None,
+                     axis: str | None) -> dict:
+    """Copy a source record into a fresh derived row, carrying provenance and
+    dropping every field that must be set per derivation."""
+    row = dict(src)
+    for k in _INTERNAL_DERIVED_KEYS:
         row.pop(k, None)
     row["label"] = label
     row["modification_type"] = mod_type
     row["augment_axis"] = axis
+    row["augment_attempt"] = None
     row["donor_gt_row_index"] = None
     row["source_group_id"] = src.get("source_group_id", src["gt_row_index"])
     return row
 
 
+def _row_signature(row: dict, gt_cols: list[str]) -> tuple:
+    """Content identity of a row, for de-duplication: every GT-schema field the
+    probe sees plus the edited page text (``None`` when unedited). Works before
+    and after ``strip_internal_fields`` — the edited page lives on
+    ``_context_override`` until finalize, then on the public ``context_override``.
+    Two rows with the same signature are the same example regardless of
+    provenance; only the first is kept."""
+    ctx = row.get(_CTX_EDIT_KEY) if _CTX_EDIT_KEY in row else row.get(_CTX_PUBLIC_KEY)
+    vals = (tuple(v) if isinstance(v, list) else v for v in (row.get(c) for c in gt_cols))
+    return (*vals, ctx)
+
+
+def _dedup_rows(rows: list[dict], gt_cols: list[str]) -> list[dict]:
+    seen: set = set()
+    out: list[dict] = []
+    for r in rows:
+        sig = _row_signature(r, gt_cols)
+        if sig not in seen:
+            seen.add(sig)
+            out.append(r)
+    return out
+
+
+def _draw_alt(pool, current, rng: random.Random, context: str) -> str | None:
+    """Pick a pool entry that differs from ``current`` and does not already
+    occur verbatim in ``context`` (the mislabel guard — a "wrong" value that the
+    page happens to state elsewhere is not wrong). Deterministic given ``rng``."""
+    cands = sorted({str(x) for x in pool if str(x) != str(current) and str(x) not in context})
+    return rng.choice(cands) if cands else None
+
+
+# ---------------------------------------------------------------------------
+# Axis-2 synthetic positives — the model picks the new value AND the edits
+# ---------------------------------------------------------------------------
+
+
+def _axis_entity(src, rules, rng):
+    old = src.get(rules.entity_name_field)
+    if not old:
+        return None
+    tok = rules.entity_type_token(src)
+    examples = ", ".join(f'"{n}"' for n in sorted(rules.entity_candidates(src))[:3])
+    type_hint = f" of the same kind ({tok})" if tok else ""
+    instr = (
+        f'This page reports a measurement attributed to the {rules.entity_noun} '
+        f'"{old}". Rewrite the page so the identical measurement is attributed to '
+        f'a different, made-up {rules.entity_noun}{type_hint} that is not a real '
+        f'place' + (f' — for example {examples}' if examples else '') + '. '
+        f'{rules.entity_preserve_clause} Report the new name alone as "replacement".'
+    )
+    updates = {f: None for f in rules.entity_swap_clear_fields}
+    return old, instr, rules.fabricated_name(src, rng), rules.entity_name_field, updates
+
+
+def _axis_value(src, rules, rng):
+    old_v = str(src.get("value")).strip()
+    if not _NUM_RE.match(old_v):
+        return None
+    attr = src.get("attribute")
+    units = src.get("units") or ""
+    instr = (
+        f'This page reports a {attr} measurement of "{old_v}" {units} for '
+        f'"{src.get(rules.entity_name_field)}". Rewrite the page so the identical '
+        f'measurement instead reads a different, plausible {attr} value — same '
+        f'units, same entity, same measurement event — changing the number every '
+        f'place it appears. Report the new number alone as "replacement".'
+    )
+    return old_v, instr, perturb_value(old_v, rng, lo=0.15, hi=0.6), "value", {}
+
+
+def _axis_event(src, rules, rng):
+    field = rules.event_field
+    ctx = src[_CTX_ORIG_KEY]
+    cur = src.get(field)
+    if cur:
+        instr = (
+            f'This page states the {rules.event_noun} for this measurement is '
+            f'"{cur}". Rewrite the page so it instead states a different but '
+            f'plausible {rules.event_noun} for the same measurement (same entity, '
+            f'value and units), everywhere it appears. Report the new '
+            f'{rules.event_noun} alone as "replacement".'
+        )
+        return str(cur), instr, _draw_alt(rules.event_pool, cur, rng, ctx), field, {}
+    if not rules.event_allow_inject:
+        return None
+    val = str(src.get("value")).strip()
+    if not val or val not in ctx:
+        return None
+    instr = (
+        f'This page reports a measurement (value "{val}") but does not state its '
+        f'{rules.event_noun}. Add a short phrase next to the value "{val}" giving '
+        f'a plausible {rules.event_noun} for this measurement, and report that '
+        f'{rules.event_noun} alone as "replacement". Change nothing else.'
+    )
+    return "", instr, _draw_alt(rules.event_pool, None, rng, ctx), field, {}
+
+
+_AXIS_BUILDERS = {
+    "pos_entity": _axis_entity,
+    "pos_value": _axis_value,
+    "pos_event": _axis_event,
+}
+
+# Known skip reasons, collapsed for the per-split tally (drops the row-specific
+# quoted value from the message so counts aggregate).
+_SKIP_CATEGORIES = (
+    "axis not applicable to this row", "no pool alternative",
+    "wrong entity type", "edit not applicable", "did not introduce the replacement",
+    "left the original", "already on the page", "not valid JSON",
+)
+
+
+def _skip_category(reason: str) -> str:
+    for pat in _SKIP_CATEGORIES:
+        if pat in reason:
+            return pat
+    return (reason.split(":", 1)[0].strip() or "infeasible")[:48]
+
+
 def make_axis2_positive(
     src: dict, sub_axis: str, rules: DatasetAugmentRules,
-    client: AugmentClient, rng: random.Random,
+    client: AugmentClient, rng: random.Random, *, attempt: int = 0,
+    skips: "Counter | None" = None,
 ) -> dict | None:
-    """Attempt one equivalent (context, measurement) edit → a new valid row.
+    """One equivalence-preserving (context, measurement) edit → a new valid row,
+    or ``None`` when the edit is infeasible (skip, don't force). When ``skips``
+    is given, the reason for a skip is tallied into it.
 
-    Returns ``None`` when the edit is infeasible (skip, don't force).  On success
-    the row carries ``_context_override`` (the locally-patched page) and the
-    updated measurement field(s); ``label='valid'``.
+    RNG is consumed only in the axis builder (the ``stub_replacement`` hint / the
+    event-pool draw), never after the client call — so a ``record`` dry pass and
+    the real pass consume identical RNG here regardless of what the client
+    returns.
     """
-    ctx = src[_CTX_ORIG_KEY]
+    if sub_axis not in _AXIS_BUILDERS:
+        raise ValueError(f"unknown sub_axis {sub_axis!r}")
 
-    def _finish(axis: str, expected: list[tuple[str, str]], instr: str,
-                field_updates: dict) -> dict | None:
-        ok, new_ctx, _edits, _reason = client.rewrite_context(
-            context=ctx, instruction=instr, expected=expected,
-        )
-        if not ok:
-            return None
-        row = _new_derived_row(src, label="valid", mod_type=None, axis=axis)
-        row.update(field_updates)
-        row[_CTX_EDIT_KEY] = new_ctx
-        return row
+    def _skip(reason: str) -> None:
+        if skips is not None:
+            skips[f"{sub_axis}: {_skip_category(reason)}"] += 1
 
-    if sub_axis == "pos_entity":
-        if rules.entity_field_locked:
-            return None
-        old = src.get(rules.entity_name_field)
-        new = rules.fabricated_name(src, rng)
-        if not old or not new:
-            return None
-        instr = (f'Rewrite this page so that the measurement currently attributed to '
-                 f'"{old}" is instead attributed to "{new}". '
-                 f'{rules.entity_swap_preserve_clause}')
-        updates: dict = {rules.entity_name_field: new}
-        for f in rules.entity_swap_clear_fields:
-            updates[f] = None
-        return _finish("pos_entity", [(old, new)], instr, updates)
-
-    if sub_axis == "pos_attribute":
-        tgt = rules.attribute_swap_target(src.get("attribute"), rng)
-        old_a = src.get("attribute")
-        if tgt is None or not old_a:
-            return None
-        instr = (f'Rewrite this page so that the measurement currently reported as '
-                 f'"{old_a}" is instead a measurement of "{tgt}" (same units, same '
-                 f'entity, same value). Change the attribute name/description wherever '
-                 f'it appears.')
-        return _finish("pos_attribute", [(old_a, tgt)], instr, {"attribute": tgt})
-
-    if sub_axis == "pos_value":
-        old_v = str(src.get("value"))
-        new_v = perturb_value(old_v, rng, lo=0.15, hi=0.6)
-        if new_v is None:
-            return None
-        instr = (f'Rewrite this page so that the measured value {old_v} for this '
-                 f'measurement is instead {new_v}, keeping the same units and entity.')
-        return _finish("pos_value", [(old_v, new_v)], instr, {"value": new_v})
-
-    if sub_axis == "pos_units":
-        old_u = src.get("units")
-        units = rules.attr_units.get(src.get("attribute"), [])
-        new_u = alt_unit(old_u, units, rng, family_bias=0.0)
-        if not old_u or new_u is None:
-            return None
-        instr = (f'Rewrite this page so that the units of this measurement, currently '
-                 f'"{old_u}", are instead "{new_u}" — assume the reported number is '
-                 f'correct in the new units.')
-        return _finish("pos_units", [(old_u, new_u)], instr, {"units": new_u})
-
-    if sub_axis == "pos_event":
-        if rules.event_synth_field is None:
-            return None
-        field_ = rules.event_synth_field
-        cur = src.get(field_)
-        if cur:
-            new_ev = f"{cur} (re-sampled)"
-            instr = (f'Rewrite this page so that the measurement event detail for this '
-                     f'measurement changes from "{cur}" to "{new_ev}".')
-            expected = [(str(cur), new_ev)]
-        else:
-            new_ev = rules.event_synth_value
-            val = str(src.get("value"))
-            if not new_ev or val not in ctx:
-                return None
-            sentence = f"This measurement was taken in {new_ev}."
-            instr = (f'Add the sentence "{sentence}" immediately after the reported '
-                     f'measurement value {val} so that its timing is explicit.')
-            expected = [(val, f"{val} ({sentence})")]
-        return _finish("pos_event", expected, instr, {field_: new_ev})
-
-    raise ValueError(f"unknown sub_axis {sub_axis!r}")
+    spec = _AXIS_BUILDERS[sub_axis](src, rules, rng)
+    if spec is None:
+        _skip("axis not applicable to this row")
+        return None
+    original, instr, stub_replacement, field, extra = spec
+    if stub_replacement is None:
+        _skip("no pool alternative")
+        return None
+    res = client.rewrite_context(
+        context=src[_CTX_ORIG_KEY], instruction=instr, original=original,
+        attempt=attempt, stub_replacement=stub_replacement,
+    )
+    if not res.applied:
+        _skip(res.reason)
+        return None
+    if sub_axis == "pos_entity" and not rules.entity_type_ok(src, res.replacement):
+        _skip("proposed name is the wrong entity type")
+        return None
+    row = _new_derived_row(src, label="valid", mod_type=sub_axis, axis=sub_axis)
+    row[field] = res.replacement
+    for k, v in extra.items():
+        row[k] = v
+    row[_CTX_EDIT_KEY] = res.new_context
+    row["_unverified_span"] = res.unverified_span
+    row["_augment_edits"] = tuple(sorted(res.edits))
+    row["augment_attempt"] = attempt
+    return row
 
 
-def make_hard_negative(
-    src: dict, kind: str, rules: DatasetAugmentRules, rng: random.Random,
-    *, on_edited_context: bool = False,
+# ---------------------------------------------------------------------------
+# Typed hard negatives — one direct measurement swap from a pre-generated pool
+# ---------------------------------------------------------------------------
+
+
+def make_typed_negative(
+    src: dict, err_type: str, rules: DatasetAugmentRules, rng: random.Random,
 ) -> dict | None:
-    """Corrupt only the measurement of ``src`` → a deliberately-hard invalid row.
+    """Corrupt exactly one measurement field of ``src`` with an alternative
+    drawn from the matching pre-generated pool → an invalid row, or ``None`` when
+    no usable alternative exists for this source (skip).
 
-    ``on_edited_context=True`` builds the negative on top of an axis-2 edited
-    context (``src`` is an axis-2 positive); its ``_context_override`` is carried
-    through so edited contexts appear on both labels (leakage control).
-    """
-    if kind == "hard_value":
-        new_v = perturb_value(str(src.get("value")), rng, lo=0.05, hi=0.25)
-        if new_v is None:
+    The context is never edited. A negative built on a synthetic positive keeps
+    that positive's edited page and axis tag, so edited contexts appear on both
+    labels (the diagnostic file's leakage control)."""
+    ctx = src.get(_CTX_EDIT_KEY) or src[_CTX_ORIG_KEY]
+
+    if err_type == "entity":
+        cur = src.get(rules.entity_name_field)
+        if not cur:
+            return None                    # never invent a claim the page omits
+        alt = _draw_alt(rules.entity_candidates(src), cur, rng, ctx)
+        if alt is None:
             return None
-        row = _new_derived_row(src, label="invalid", mod_type="hard_value",
-                               axis=src.get("augment_axis") if on_edited_context else None)
-        row["value"] = new_v
-    elif kind == "hard_units":
-        units = rules.attr_units.get(src.get("attribute"), [])
-        new_u = alt_unit(src.get("units"), units, rng, family_bias=0.7)
-        if new_u is None:
-            return None
-        row = _new_derived_row(src, label="invalid", mod_type="hard_units",
-                               axis=src.get("augment_axis") if on_edited_context else None)
-        row["units"] = new_u
-    elif kind == "hard_entity":
-        if rules.entity_field_locked:
-            return None
-        # A hard negative must corrupt a *stated* claim, not invent one. If the
-        # source row's entity field is empty (e.g. supermat's sample_details is
-        # null for ~82% of GT rows), overwriting it with a fabricated value would
-        # label "the paper says X" invalid on a row where the paper says nothing
-        # — which may actually be true. Skip instead.
-        if not src.get(rules.entity_name_field):
-            return None
-        new_name = rules.fabricated_name(src, rng)
-        if not new_name:
-            return None
-        row = _new_derived_row(src, label="invalid", mod_type="hard_entity",
-                               axis=src.get("augment_axis") if on_edited_context else None)
-        row[rules.entity_name_field] = new_name
-        # Same staleness as a pos_entity rename: a fabricated formula in `name`
-        # leaves supermat's `identifiers` catalogue ("YBCO; Y-123") pointing at
-        # the real compound, which the unedited page still supports — that would
-        # be a valid-looking claim on an invalid-labelled row. Null it.
+        row = _new_derived_row(src, label="invalid", mod_type="bad_entity", axis=None)
+        row[rules.entity_name_field] = alt
         for f in rules.entity_swap_clear_fields:
             row[f] = None
+    elif err_type == "attribute":
+        cur = src.get("attribute")
+        # No context-collision guard here: on a multi-measurement page the other
+        # attribute names are always present, but "entity X's measurement is
+        # attribute A" is still false — attribute alone doesn't define the claim.
+        others = sorted(a for a in rules.attribute_pool if a != cur)
+        if not others:
+            return None
+        alt = rng.choice(others)
+        row = _new_derived_row(src, label="invalid", mod_type="bad_attribute", axis=None)
+        row["attribute"] = alt
+    elif err_type == "value":
+        cur = str(src.get("value"))
+        pool = rules.value_pool_by_attr.get(src.get("attribute"), [])
+        alt = _draw_alt([v for v in pool if v != cur], cur, rng, ctx)
+        if alt is None:
+            return None
+        row = _new_derived_row(src, label="invalid", mod_type="bad_value", axis=None)
+        row["value"] = alt
+    elif err_type == "units":
+        cur = src.get("units")
+        pool = rules.attr_units.get(src.get("attribute"), [])
+        alt = _draw_alt([u for u in pool if not cur or u.lower() != cur.lower()],
+                        cur, rng, ctx)
+        if alt is None:
+            return None
+        row = _new_derived_row(src, label="invalid", mod_type="bad_units", axis=None)
+        row["units"] = alt
+    elif err_type == "event":
+        cur = src.get(rules.event_field)
+        if not cur:
+            return None                    # nothing stated to contradict
+        alt = _draw_alt([e for e in rules.event_pool if e != str(cur)],
+                        str(cur), rng, ctx)
+        if alt is None:
+            return None
+        row = _new_derived_row(src, label="invalid", mod_type="bad_event", axis=None)
+        row[rules.event_field] = alt
     else:
-        raise ValueError(f"unknown hard-negative kind {kind!r}")
+        raise ValueError(f"unknown error type {err_type!r}")
 
-    if on_edited_context and _CTX_EDIT_KEY in src:
+    if _CTX_EDIT_KEY in src:
         row[_CTX_EDIT_KEY] = src[_CTX_EDIT_KEY]
+        row["augment_axis"] = src.get("augment_axis")
     return row
+
+
+# ---------------------------------------------------------------------------
+# Fillers — resample to the positive floor, fill each error type to its quota
+# ---------------------------------------------------------------------------
+
+
+def active_error_types(rules: DatasetAugmentRules, valids: list[dict]) -> list[str]:
+    """The error types constructible for this dataset and this valid pool:
+    ``attribute`` only when the dataset has >1 attribute; ``event`` only when at
+    least one valid in the pool carries a (GT or synthesised) event."""
+    have_attr = len(rules.attribute_pool) >= 2
+    have_event = bool(rules.event_pool) and any(v.get(rules.event_field) for v in valids)
+    return [t for t in ERROR_TYPES
+            if not (t == "attribute" and not have_attr)
+            and not (t == "event" and not have_event)]
+
+
+def fill_positive_target(
+    gt_valids: list[dict], rules: DatasetAugmentRules, client: AugmentClient,
+    rng: random.Random, *, floor: int, axes: tuple[str, ...],
+    prompt_budget_multiple: int, seen_sigs: set, label: str = "",
+    quiet: bool = False,
+) -> list[dict]:
+    """One equivalence-preserving rewrite per (GT valid, axis) in round 0 — every
+    accepted result kept — then resample randomly-ordered (valid, axis) pairs at
+    the raised temperature / nudge until ``floor`` *distinct* synthetic valids
+    are accepted. Every accepted row is distinct (by ``_row_signature``) from
+    every other and from ``seen_sigs`` (the carried GT valids, pre-seeded by the
+    caller; this function mutates it).
+
+    Attempt budget = ``len(gt_valids) * len(axes) * prompt_budget_multiple``;
+    running out before ``floor`` is a hard error. Both the ``record`` dry pass
+    and the real pass iterate the full budget so their RNG stays aligned — the
+    real pass just stops *collecting* resamples once the floor is met (round 0
+    always collects)."""
+    recording = getattr(client, "record", False)
+    per_round = max(1, len(gt_valids) * len(axes))
+    budget = per_round * max(1, prompt_budget_multiple)
+    accepted: list[dict] = []
+    skips: Counter = Counter()
+    attempts = 0
+    round_i = 0
+    while attempts < budget:
+        order = list(itertools.product(range(len(gt_valids)), axes))
+        rng.shuffle(order)
+        for vi, axis in order:
+            if attempts >= budget:
+                break
+            attempts += 1
+            row = make_axis2_positive(gt_valids[vi], axis, rules, client, rng,
+                                      attempt=round_i, skips=skips)
+            if row is None:
+                continue
+            row.pop("_augment_edits", None)
+            # round 0 keeps every result; resample rounds stop at the floor
+            if not recording and round_i > 0 and len(accepted) >= floor:
+                continue                       # RNG already spent; don't collect
+            sig = _row_signature(row, rules.gt_cols)
+            if sig in seen_sigs:
+                skips[f"{axis}: duplicate row"] += 1
+                continue
+            seen_sigs.add(sig)
+            accepted.append(row)
+        round_i += 1
+    if not recording and not quiet:
+        tag = f" [{label}]" if label else ""
+        print(f"  positive fill{tag}: {len(accepted)} distinct synthetic / {attempts} "
+              f"attempts ({round_i} rounds); skips: "
+              f"{dict(sorted(skips.items(), key=lambda kv: -kv[1]))}")
+    if not recording and len(accepted) < floor:
+        raise RuntimeError(
+            f"positive floor not met{f' [{label}]' if label else ''}: "
+            f"{len(accepted)}/{floor} distinct synthetic valids in {attempts} "
+            f"attempts (budget {budget}). Raise prompt_budget_multiple, lower "
+            f"--augment-valid-floor for this dataset, or the model yield / "
+            f"distinct-resample rate is too low."
+        )
+    return accepted
+
+
+def fill_negative_quota(
+    valids: list[dict], rules: DatasetAugmentRules, rng: random.Random, *,
+    quota_by_type: dict[str, int], seen_sigs: set, label: str = "",
+) -> list[dict]:
+    """Fill each error type to its quota by sampling ``valids`` with replacement.
+    Every accepted negative is distinct (by ``_row_signature``) from every other
+    and from ``seen_sigs`` (pre-seed it with the positive-row signatures so a
+    "negative" that coincides with a real valid is dropped, not mislabelled).
+    Fails loud if a type's pool is missing (only misses) or too shallow for its
+    quota (only duplicate draws)."""
+    out: list[dict] = []
+    for err_type, quota in quota_by_type.items():
+        if quota <= 0:
+            continue
+        got: list[dict] = []
+        order = list(range(len(valids)))
+        rng.shuffle(order)
+        cursor = misses = dups = 0
+        cap = max(5000, 50 * len(valids))
+        while len(got) < quota:
+            if cursor >= len(order):
+                rng.shuffle(order)
+                cursor = 0
+            neg = make_typed_negative(valids[order[cursor]], err_type, rules, rng)
+            cursor += 1
+            if neg is None:
+                misses += 1
+                if misses > cap:
+                    raise RuntimeError(
+                        f"negative quota not met{f' [{label}]' if label else ''} "
+                        f"for {err_type!r}: {len(got)}/{quota}; {misses} sources had "
+                        f"no usable {err_type} alternative — the pool is missing."
+                    )
+                continue
+            sig = _row_signature(neg, rules.gt_cols)
+            if sig in seen_sigs:
+                dups += 1
+                if dups > cap:
+                    raise RuntimeError(
+                        f"negative quota not met{f' [{label}]' if label else ''} "
+                        f"for {err_type!r}: {len(got)}/{quota}; {dups} duplicate "
+                        f"draws — too few distinct (source, {err_type}-alternative) "
+                        f"combinations for this quota."
+                    )
+                continue
+            seen_sigs.add(sig)
+            got.append(neg)
+        out.extend(got)
+    return out
 
 
 # ---------------------------------------------------------------------------
 # Three-file orchestration
 # ---------------------------------------------------------------------------
 
-
-@dataclass
-class AugmentFlags:
-    augment_events: bool = False
-    pos_axes: tuple[str, ...] = DEFAULT_POS_AXES
-    hard_negatives: bool = True
-    target_rows: int = 10000
-    floor_rows: int = 5000
-    max_derived_per_source: int = 4
-    diag_pos_event: bool = True   # keep the pos_event slice in the diagnostic file
-
-
-def _prep_base_valid(src: dict, rules: DatasetAugmentRules) -> dict:
-    """A verbatim GT valid, ready as a positive row (train / primary-test)."""
-    row = dict(src)
-    row.pop(_CTX_EDIT_KEY, None)
-    row["label"] = "valid"
-    row["modification_type"] = None
-    row["augment_axis"] = None
-    row["donor_gt_row_index"] = None
-    row["source_group_id"] = src["gt_row_index"]
-    row["_is_base"] = True
-    return row
-
-
-def _axis2_positives(valids: list[dict], rules: DatasetAugmentRules,
-                     client: AugmentClient, rng: random.Random,
-                     axes: tuple[str, ...]) -> list[dict]:
-    out: list[dict] = []
-    for v in valids:
-        for axis in axes:
-            row = make_axis2_positive(v, axis, rules, client, rng)
-            if row is not None:
-                out.append(row)
-    return out
-
-
-def _gt_hard_negatives(valids: list[dict], rules: DatasetAugmentRules,
-                       rng: random.Random) -> list[dict]:
-    out: list[dict] = []
-    for v in valids:
-        for kind in HARD_NEG_KINDS:
-            row = make_hard_negative(v, kind, rules, rng, on_edited_context=False)
-            if row is not None:
-                out.append(row)
-    return out
-
-
-def _matched_hard_negatives(positives: list[dict], rules: DatasetAugmentRules,
-                            rng: random.Random) -> list[dict]:
-    """One hard negative per axis-2 positive, sitting on that positive's edited
-    context (so edited contexts appear on both labels)."""
-    out: list[dict] = []
-    for p in positives:
-        for kind in rng.sample(list(HARD_NEG_KINDS), k=len(HARD_NEG_KINDS)):
-            row = make_hard_negative(p, kind, rules, rng, on_edited_context=True)
-            if row is not None:
-                out.append(row)
-                break
-    return out
+_EXTRA_KEEP = ["label", "modification_type", "gt_row_index", "donor_gt_row_index",
+               "measurement_id", "source_group_id", "augment_axis", "augment_attempt"]
 
 
 def build_augmented_files(
-    *,
-    xv_train: list[dict],
-    xv_test: list[dict],
-    rng: random.Random,
-    client: AugmentClient,
-    rules: DatasetAugmentRules,
-    flags: AugmentFlags,
+    *, xv_train: list[dict], xv_test: list[dict], rng: random.Random,
+    client: AugmentClient, rules: DatasetAugmentRules, flags: AugmentFlags,
     quiet: bool = False,
 ) -> dict[str, tuple[list[dict], list[dict]]]:
-    """Build the three augmented output files.
+    """Build the train / primary-test / diagnostic-test files.
 
-    Each input record must carry ``_context_original`` (the original page text),
-    ``gt_row_index``, the entity / attribute / value / units fields, and any GT
-    event fields.  Returns ``{file: (output_rows, rows_with_contexts)}`` where
-    ``rows_with_contexts`` still has the internal ``_context_*`` fields for the
-    diff report; ``output_rows`` is already projected onto the file schema and
-    carries the public ``context_override`` field on rows whose context was
-    edited (read directly by ``judge_common.prepare_chat_entries`` — no side-car).
+    Each input record must carry ``_context_original`` (the source page text),
+    ``gt_row_index``, the entity / attribute / value / units fields and any GT
+    event field. Returns ``{file: (output_rows, rows_with_contexts)}`` — the
+    second element keeps the internal ``_context_*`` fields for the diff report.
 
-    **Phase ordering.**  Every step that calls the client (event-fill, axis-2
-    rewrites) runs first, contiguously, for all three splits — *before* any
-    hard-negative or balancing work.  ``run_and_write`` relies on this: it runs
-    this function once in a ``record`` dry pass to collect every gpt-oss prompt
-    for one concurrent ``prewarm``, and that pass only makes the same RNG draws
-    as the real pass up to the point where control flow first depends on a
-    client return value (``len(axis_pos)``, which the record pass gets wrong
-    because it can't know which rewrites the model would accept).  Keeping all
-    client calls ahead of that divergence point is what makes the collected
-    prompt set correct.  ``quiet`` silences the per-split progress prints for
-    the record pass (its counts are all zero and would mislead a log reader).
-    """
-    extra_keep = ["label", "modification_type", "gt_row_index", "donor_gt_row_index",
-                  "measurement_id", "source_group_id", "augment_axis"]
+    **Phase ordering.** Both ``fill_positive_target`` calls (the only client-
+    calling code) run first, contiguously; every negative and every assembly
+    step is pure and RNG-deterministic after that. ``run_and_write`` relies on
+    this: it runs this function once in a ``record`` dry pass to collect every
+    gpt-oss prompt for one concurrent ``prewarm``."""
 
     def _say(msg: str) -> None:
         if not quiet:
             print(msg)
 
     def _finalize(rows: list[dict]) -> tuple[list[dict], list[dict]]:
-        assign_measurement_ids(rows)
         inline_context_overrides(rows)
-        clean = strip_internal_fields(rows, rules.gt_cols, extra_keep + [_CTX_PUBLIC_KEY])
+        clean = strip_internal_fields(rows, rules.gt_cols, _EXTRA_KEEP + [_CTX_PUBLIC_KEY])
         return clean, rows
 
-    # ---- client-calling phases (run first, contiguously — see the docstring) --
-    # Three independent shallow-copy passes over the two input lists.  The
-    # primary-test valids MUST NOT share a list with the diagnostic-test valids:
-    # `event_fill_records` mutates rows in place and the primary test split is
-    # exempt from event-fill (its GT event fields are the headline metric's
-    # ground truth).
-    train_valids = [_prep_base_valid(v, rules) for v in xv_train]
-    ptest_valids = [_prep_base_valid(v, rules) for v in xv_test]
-    dtest_valids = [_prep_base_valid(v, rules) for v in xv_test]
+    train_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_train], rules.gt_cols)
+    dtest_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_test], rules.gt_cols)
+    ptest_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_test], rules.gt_cols)
+    _say(f"  GT valids after dedup: train {len(train_gt)}, test {len(dtest_gt)} "
+         f"(from {len(xv_train)} / {len(xv_test)})")
 
-    if flags.augment_events:
-        n = event_fill_records(train_valids, client, rules)
-        _say(f"  [train] event-fill: {n} (record, field) pairs filled")
-        m = event_fill_records(dtest_valids, client, rules)
-        _say(f"  [diagnostic-test] event-fill: {m} (record, field) pairs filled")
+    # ---- client-calling phase (runs first, contiguously) -------------------
+    # `seen_sigs` seeded with the carried GT valids so a synthetic can't reproduce
+    # one; the filler mutates it.
+    train_syn = fill_positive_target(
+        train_gt, rules, client, rng,
+        floor=max(0, flags.valid_floor - len(train_gt)), axes=flags.pos_axes,
+        prompt_budget_multiple=flags.prompt_budget_multiple,
+        seen_sigs={_row_signature(r, rules.gt_cols) for r in train_gt},
+        label="train", quiet=quiet)
+    diag_syn = fill_positive_target(
+        dtest_gt, rules, client, rng,
+        floor=max(0, flags.diag_valid_floor - len(dtest_gt)), axes=flags.pos_axes,
+        prompt_budget_multiple=flags.prompt_budget_multiple,
+        seen_sigs={_row_signature(r, rules.gt_cols) for r in dtest_gt},
+        label="diagnostic", quiet=quiet)
 
-    train_axis_pos = _axis2_positives(train_valids, rules, client, rng, flags.pos_axes)
-    _say(f"  [train] axis-2 positives: {len(train_axis_pos)}")
-    diag_axes = tuple(a for a in flags.pos_axes
-                      if flags.diag_pos_event or a != "pos_event")
-    dtest_axis_pos = _axis2_positives(dtest_valids, rules, client, rng, diag_axes)
-    _say(f"  [diagnostic-test] axis-2 positives: {len(dtest_axis_pos)}")
+    # The record dry pass exists only to collect the gpt-oss prompts above; the
+    # pure assembly below would just operate on empty synthetic sets.
+    if getattr(client, "record", False):
+        return {}
 
-    # ---- assembly (no client calls past this point; a record pass may diverge
-    #      in RNG here and it does not matter — nothing below is collected) -----
-    # TRAIN
-    gt_neg = _gt_hard_negatives(train_valids, rules, rng)
-    edit_neg = _matched_hard_negatives(train_axis_pos, rules, rng)
-    train_rows, train_report = balance_and_cap(
-        train_valids + train_axis_pos, gt_neg + edit_neg,
-        target=flags.target_rows, floor=flags.floor_rows,
-        max_derived_per_source=flags.max_derived_per_source, rng=rng,
-    )
-    _say(f"  [train] {train_report}")
+    # ---- assembly (no client calls past this point). Each file: all its valids
+    #      (GT carried + distinct synthetic) balanced 1:1 with distinct negatives,
+    #      the negative count split evenly across the constructible error types.
+    def _build(pos: list[dict], name: str) -> list[dict]:
+        types = active_error_types(rules, pos)
+        quota = even_quota(len(pos), types)
+        neg = fill_negative_quota(
+            pos, rules, rng, quota_by_type=quota,
+            seen_sigs={_row_signature(r, rules.gt_cols) for r in pos}, label=name)
+        rows = assemble_file(pos, neg, rng)
+        _say(f"  [{name}] {len(pos)} valid + {len(neg)} invalid = {len(rows)} rows; "
+             f"negative types {quota}")
+        return rows
 
-    # PRIMARY TEST (no event-fill, no axis-2, GT-derived negatives)
-    ptest_neg = _gt_hard_negatives(ptest_valids, rules, rng)
-    ptest_rows, ptest_report = balance_and_cap(
-        ptest_valids, ptest_neg, target=0, floor=0,
-        max_derived_per_source=flags.max_derived_per_source, rng=rng,
-    )
-    _say(f"  [primary-test] {ptest_report}")
-
-    # DIAGNOSTIC TEST (axis-2 positives + matched negatives on edited contexts)
-    dtest_neg = _matched_hard_negatives(dtest_axis_pos, rules, rng)
-    dtest_rows, dtest_report = balance_and_cap(
-        dtest_axis_pos, dtest_neg, target=0, floor=0,
-        max_derived_per_source=flags.max_derived_per_source, rng=rng,
-    )
-    _say(f"  [diagnostic-test] {dtest_report}")
+    train_rows = _build(train_gt + train_syn, "train")
+    ptest_rows = _build(ptest_gt, "primary-test")             # zero gpt-oss content
+    diag_rows = _build(dtest_gt + diag_syn, "diagnostic-test")  # built like train
 
     return {
         "train": _finalize(train_rows),
         "primary_test": _finalize(ptest_rows),
-        "diagnostic_test": _finalize(dtest_rows),
+        "diagnostic_test": _finalize(diag_rows),
     }
 
 
@@ -1426,7 +1493,7 @@ def assert_wellformed(key: str, rows: list[dict]) -> None:
     mids = [r["measurement_id"] for r in rows]
     assert mids == list(range(len(rows))), f"[{key}] measurement_id not contiguous 0..N-1"
     for r in rows:
-        assert "source_group_id" in r and r["source_group_id"] is not None, \
+        assert r.get("source_group_id") is not None, \
             f"[{key}] row {r['measurement_id']} missing source_group_id"
         override = r.get(_CTX_PUBLIC_KEY)
         assert override is None or (isinstance(override, str) and override), \
@@ -1434,23 +1501,14 @@ def assert_wellformed(key: str, rows: list[dict]) -> None:
 
 
 def run_and_write(
-    *,
-    base_dir: Path,
-    out_suffix: str,
-    ocr_dir: Path,
-    xv_train: list[dict],
-    xv_test: list[dict],
-    rules: DatasetAugmentRules,
-    flags: AugmentFlags,
-    client: AugmentClient,
-    rng: random.Random,
-    paper_code_key: str = "_paper_code",
-    page_numbers_key: str = "_page_numbers",
+    *, base_dir: Path, out_suffix: str, ocr_dir: Path,
+    xv_train: list[dict], xv_test: list[dict], rules: DatasetAugmentRules,
+    flags: AugmentFlags, client: AugmentClient, rng: random.Random,
+    paper_code_key: str = "_paper_code", page_numbers_key: str = "_page_numbers",
 ) -> dict[str, Path]:
-    """End-to-end: attach original contexts, build the three files, write them
+    """End-to-end: attach source contexts, build the three files, write them
     (+ diff reports for splits with edited rows), assert well-formed. Returns
-    ``{key: data_path}``. Edited-context rows carry their edited text inline as
-    the public ``context_override`` field — no side-car file."""
+    ``{key: data_path}``."""
     base_dir = Path(base_dir)
     ocr_dir = Path(ocr_dir)
 
@@ -1467,26 +1525,20 @@ def run_and_write(
     if isinstance(client, GptOssClient):
         rng_state = rng.getstate()
         client.record = True
-        build_augmented_files(
-            xv_train=xv_train, xv_test=xv_test, rng=rng, client=client,
-            rules=rules, flags=flags, quiet=True,
-        )
+        build_augmented_files(xv_train=xv_train, xv_test=xv_test, rng=rng,
+                              client=client, rules=rules, flags=flags, quiet=True)
         client.record = False
         jobs = list(client._pending.items())
         client._pending.clear()
         rng.setstate(rng_state)
-        print(f"  prewarm: {len(jobs)} gpt-oss call(s) to batch "
-              f"({client.cache.stats})")
+        print(f"  prewarm: {len(jobs)} gpt-oss call(s) to batch ({client.cache.stats})")
         client.prewarm(jobs)
-        # persist the GPU-generated responses before the real pass: it makes no
-        # further model calls (strict_cache), so a later crash must not lose them
-        client.flush()
-        client.strict_cache = True   # a real-pass miss is now a hard error
+        client.flush()          # persist GPU-generated responses before the real pass
+        client.strict_cache = True
         print(f"  prewarm done ({client.cache.stats})")
 
-    bundles = build_augmented_files(
-        xv_train=xv_train, xv_test=xv_test, rng=rng, client=client, rules=rules, flags=flags,
-    )
+    bundles = build_augmented_files(xv_train=xv_train, xv_test=xv_test, rng=rng,
+                                    client=client, rules=rules, flags=flags)
     client.flush()
 
     written: dict[str, Path] = {}
@@ -1498,11 +1550,23 @@ def run_and_write(
             json.dump(rows, f, indent=2, ensure_ascii=False)
         written[key] = data_path
         n_edited = sum(1 for r in rows if r.get(_CTX_PUBLIC_KEY) is not None)
+        n_syn_pos = sum(1 for r in raw_rows
+                        if r["label"] == "valid" and r.get(_CTX_EDIT_KEY))
+        n_unverified = sum(1 for r in raw_rows if r.get("_unverified_span"))
         print(f"  wrote {len(rows):,} rows ({n_edited:,} with an edited context) -> "
               f"{data_path.name}")
-        # Diff report is data-derived, not tied to a fixed set of split names: any
-        # split with edited rows gets one (today that's train + diagnostic_test;
-        # the primary test structurally never has axis-2 edits).
+        if n_syn_pos:
+            print(f"    {n_unverified:,}/{n_syn_pos:,} synthetic positives rest on "
+                  f"the model's self-consistency alone (original surface form not "
+                  f"a verbatim page span)")
+        # Leakage check for the diagnostic file: if edited-context rows cluster on
+        # one label, a probe can score above chance on edited-ness alone.
+        if n_edited and any(r["label"] == "invalid" and r.get(_CTX_EDIT_KEY) for r in raw_rows):
+            for lab in ("valid", "invalid"):
+                lab_rows = [r for r in raw_rows if r["label"] == lab]
+                n_lab_edited = sum(1 for r in lab_rows if r.get(_CTX_EDIT_KEY))
+                print(f"    {lab:>7}: {n_lab_edited}/{len(lab_rows)} on an edited "
+                      f"context ({100 * n_lab_edited / len(lab_rows):.0f}%)")
         if n_edited:
             n_diff = emit_context_diff_report(raw_rows, base_dir / (data_path.name + ".diff.txt"))
             print(f"  wrote diff report for {n_diff} edited row(s) -> {data_path.name}.diff.txt")

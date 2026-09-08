@@ -1,28 +1,33 @@
 id: 2026-09-03-probe-synthetic-augmentation-01
 project: scholarlm
 description: >-
-  Synthetic augmentation of the judge probe-training data via gpt-oss-120b:
-  event-fill on ground-truth-valid rows, axis-2 synthetic positives (context
-  rewrite), and derived hard negatives (hard_value / hard_units / hard_entity),
-  balanced 50/50 and capped, for pond / nfix / supermat. Context-edited rows
-  carry their edited page text inline on the row (context_override field);
-  no side-car file. Output files are additional (_v2 suffix) -- the default,
-  non-augmented probe_dataset{,_test}.json outputs are untouched byte-for-byte.
-  The axis-2 pos_entity sub-axis swaps the entity name for all three datasets:
-  pond/nfix the site/material name, supermat the material formula in `name`
-  (revised 2026-09-08 from the original sample_details edit -- see the build
-  note; supermat pos_entity rows also null the now-stale `identifiers`).
+  Synthetic augmentation of the judge probe train / primary-test / diagnostic
+  datasets via gpt-oss-120b, for pond / nfix / supermat. Every ground-truth
+  valid is carried through, and for each one gpt-oss (protocol 3: it picks the
+  new value AND the minimal page edits) is asked for an equivalence-preserving
+  rewrite along three axes -- entity name, measured value, measurement event
+  (round 0). If the distinct-synthetic count is still below the 5000 floor
+  (train) / 1000 floor (diagnostic) the axes are resampled at a raised
+  temperature. Files usually END UP LARGER than the floor; invalids are then an
+  equal number of direct measurement swaps from pre-generated per-type
+  alternative pools (entity / attribute / value / units / event, evenly split),
+  every valid and invalid row distinct by content. The primary-test file is
+  held-out GT valids only (zero gpt-oss content) + the same typed negatives; the
+  diagnostic file is built exactly like the train file on the held-out valids.
+  Context-edited rows carry their edited page inline as context_override. Output
+  files use the _v2 suffix; the non-augmented probe_dataset{,_test}.json are
+  untouched.
 seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
           # -- this is the actual --seed value every documented step below uses.
 params:
   # No scripts/run_experiment.py adapter covers this workflow (entry_point
   # only supports extraction|ablation). Each dataset's create_probe_dataset.py
-  # --augment is a native script, run directly in-shell (train) or via a
-  # hand-written qsub job that also brings up the gpt-oss-120b vLLM server
-  # (generation). This config documents the run for reproducibility; see
-  # notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md for
-  # the design rationale and the staged-gate history (Rungs 1-3 passed on the
-  # stub client; Rung 4, the real gpt-oss generation below, not yet run).
+  # --augment is a native script, run via a hand-written qsub job that also
+  # brings up the gpt-oss-120b vLLM server. This config documents the run for
+  # reproducibility; see notes/scholarlm/builds/2026-09-03-probe-synthetic-
+  # augmentation-01.md for the design rationale and the staged-gate history
+  # (Rungs 1-2 pass; Rung 3 tiny real-gpt-oss yield check sets the per-dataset
+  # prompt_budget_multiple below; Rung 4 is the full generation).
   entry_point: manual
 
   datasets: [pond, nfix, supermat]
@@ -30,31 +35,19 @@ params:
   # gpt-oss-120b vLLM server, one job per dataset, brought up in-job by
   # inlining experiments/serve_gpt_oss_120b.sh's server invocation verbatim
   # (NOT gen_serve_script.py -- experiments/config.yaml's gpt-oss-120b serve
-  # block has drifted from the working recipe, see the build note's Stage-2
-  # plan notes). Poll /health before sending requests -- the endpoint file
-  # only means the process started, not that weights are loaded.
+  # block has drifted from the working recipe, see the build note). Poll
+  # /health before sending requests -- the endpoint file only means the process
+  # started, not that weights are loaded.
   gpt_oss_api_base: http://localhost:8081/v1
 
-  # SGE resources for the generation job (per dataset, one job), taken from
-  # experiments/serve_gpt_oss_120b.sh's own qsub header (gpu_memory=80G,
-  # gpu_c=9.0, -pe omp 16) except h_rt, raised for the generation work that
-  # follows the serve step in the same job (remaining-work #4): serve
-  # script's own default is 12:00:00, insufficient once generation runs after
-  # the server comes up.
-  #
-  # gpu_c=9.0 is a real requirement, not a stale value: gpt-oss-120b's mxfp4
-  # quantization needs Hopper-class hardware (config.yaml's OWN gpt-oss-120b
-  # serve block asks for gpu_capability: 8.0 and quantization: null -- that's
-  # the stale block the build note flags, not a viable alternative).
-  # SCC's `-l gpu_c=` floor is `<=` (host capability must be >= request), so
-  # gpu_c=9.0 alone does NOT exclude Blackwell nodes (gpu_type=RTXP6000,
-  # sm_120, which satisfies the floor) -- only `-l gpu_type=` (exact match)
-  # can. Blackwell crashes torch built against cu126 mid-forward
-  # ([[env_blackwell_torch_cu126]]), and A100 (sm_80) does NOT satisfy the
-  # gpu_c=9.0 floor at all, so the usual "pin gpu_type=A100" fix is not an
-  # option here. Checked `qhost -F gpu_type` on 2026-09-04: H200 (sm_90) is
-  # the only gpu_type on this cluster that is both >= gpu_c 9.0 and not
-  # Blackwell -- pin that, exact match, instead.
+  # SGE resources for the generation job (per dataset, one job). gpu_c=9.0 is a
+  # real requirement: gpt-oss-120b's mxfp4 quantization needs Hopper-class
+  # hardware. SCC's `-l gpu_c=` floor does NOT exclude Blackwell nodes
+  # (sm_120 satisfies it) and Blackwell crashes torch+cu126 mid-forward
+  # ([[env_blackwell_torch_cu126]]); A100 (sm_80) fails the gpu_c=9.0 floor
+  # outright. H200 (sm_90) is the only gpu_type here that is >= gpu_c 9.0 and
+  # not Blackwell -- pin it by exact `-l gpu_type=`. h_rt raised from the serve
+  # script's 12h for the generation work that follows the serve step.
   job_resources:
     gpu_type: H200
     gpu_memory: 80G
@@ -62,39 +55,62 @@ params:
     pe_omp: 16
     h_rt: "24:00:00"
 
-  # Augmentation knobs (recorded, not tuned -- see the build note's "Knob
-  # defaults" for the reasoning behind each).
-  augment_target_rows: 10000
-  augment_floor_rows: 5000  # waived for nfix (below floor even with real gpt-oss, per resolution B)
-  augment_max_derived_per_source: 4
-  out_suffix: _v2
+  # Augmentation knobs.
+  augment:
+    pos_axes: [pos_entity, pos_value, pos_event]
+    valid_floor: 5000            # MINIMUM train valids (GT carried + distinct synthetic)
+    diag_valid_floor: 1000       # MINIMUM diagnostic valids; built exactly like train
+    rewrite_temperature: 0.7     # one fixed regime; the resample round is in the cache key
+    out_suffix: _v2
+    # Attempt budget = n_gt_valids * n_axes * prompt_budget_multiple. multiple 1 =
+    # round 0 only (one attempt per GT valid per axis, all kept). Falling short of
+    # the floor inside the budget is a HARD ERROR.
+    #
+    # Set from Rung 3 (gen_aug_rung3.o7499062, 2026-09-08): round-0 distinct-yield
+    # on an 80-GT-valid sample x 3 axes was pond 160/240 (67%), nfix 108/240
+    # (45%), supermat 73/231 (32%). pos_event is largely dead for nfix/supermat
+    # (ISO dates / pressures rarely appear verbatim on the page).
+    #   pond    2 : round 0 (~3570 distinct) alone should clear the 3218 needed;
+    #             multiple 2 is headroom against sample noise (retry cheap: cache
+    #             persists, only the shortfall regenerates).
+    #   nfix   10 / supermat 12 : heavy resampling. These may STILL not reach
+    #             5000 distinct -- if a job fails "positive floor not met: X/5000",
+    #             resubmit with --augment-valid-floor <just under X>.
+    prompt_budget_multiple:
+      pond: 2
+      nfix: 10
+      supermat: 12
 
-  # Per-dataset invocation differs -- do not use one template (pond has
-  # judge-visible event fields; nfix's baseline was re-pinned to the current
-  # OCR corpus so --reviewed is required to match; supermat has no
-  # ground_truth_review.json so --reviewed would hard-error there).
+  # Per-dataset invocation differs: nfix's baseline was re-pinned to the current
+  # OCR corpus so --reviewed is required; supermat has no ground_truth_review.json.
+  # supermat has no attribute error type (single measurand tc) and pos_event
+  # never injects a pressure (unstated pressure means "ambient").
+  #
+  # experiments/gen_augment.sh (gitignored scratch, per the repo's *.sh ignore)
+  # is the hand-written qsub job: it serves gpt-oss-120b, polls /health, then
+  # runs the create_probe_dataset.py --augment client(s) in the same allocation.
   steps:
-    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined into the job (h_rt/pe_omp per job_resources above) -> wait for /health -> data/pond/create_probe_dataset.py --augment --augment-events --seed 42 --reviewed"
-    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/nfix/create_probe_dataset.py --augment --seed 42 --reviewed  # NO --augment-events: hard error since commit 4698751"
-    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/supermat/create_probe_dataset.py --augment --seed 42  # NO --reviewed (no ground_truth_review.json), NO --augment-events. axis-2 pos_entity swaps the material formula in `name` (revised 2026-09-08); regenerates probe_augment_cache.json from empty (old sample_details-instruction entries were deleted -- all misses under the new instruction)"
+    # Rung 3 -- per-axis yield read, ~80 sampled GT valids/dataset, all three in
+    # one job. Reads out `positive fill [<split>]: N distinct / M attempts`.
+    - "qsub -N gen_aug_rung3 experiments/gen_augment.sh rung3"
+    # Rung 4 -- full run, one job per dataset (so a floor-not-met failure on one
+    # doesn't block the others). Multiples set from Rung 3 (see above).
+    - "qsub -N gen_aug_pond     experiments/gen_augment.sh pond      # ... --augment --seed 42 --reviewed --augment-prompt-budget-multiple 2"
+    - "qsub -N gen_aug_nfix     experiments/gen_augment.sh nfix      # ... --reviewed --augment-prompt-budget-multiple 10"
+    - "qsub -N gen_aug_supermat experiments/gen_augment.sh supermat  # ... (no --reviewed) --augment-prompt-budget-multiple 12"
   # --augment-cache defaults to data/{ds}/probe_augment_cache.json (on by
-  # default, no flag needed) -- this is what makes the done_when
-  # "byte-identical regeneration" clause hold in practice.
+  # default) -- the determinism artifact, since gpt-oss at temperature>0 with no
+  # seed is not bit-reproducible. Protocol-3 + per-round `attempt` keys mean
+  # every rewrite entry from the old protocol-2 cache is a permanent miss.
 
   # Output (per dataset, additional to the untouched defaults):
-  #   probe_dataset_v2.json (augmented train)
-  #   probe_dataset_test_v2.json (primary test, zero context_override rows by construction)
-  #   probe_dataset_test_v2_diag.json (diagnostic test, fully synthetic)
-  #   probe_augment_cache.json (gpt-oss response cache, content-hash keyed --
-  #     reproducibility artifact; commit-or-not is the user's call, ~10-20MB pond)
-  #   <data file>.diff.txt (unified diff report, one per split where n_edited > 0 --
-  #     i.e. probe_dataset_v2.json.diff.txt / probe_dataset_test_v2_diag.json.diff.txt;
-  #     none for the primary-test file)
+  #   probe_dataset_v2.json           (train: >=5000 valid + equal invalid, 50/50)
+  #   probe_dataset_test_v2.json      (primary test: held-out GT valids + typed negatives)
+  #   probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out valids)
+  #   probe_augment_cache.json        (gpt-oss response cache, content-hash keyed)
+  #   probe_dataset*_v2*.json.diff.txt (unified diff report per split with edited rows)
 
-  # Done = the Rung-4 well-formedness / seed-determinism (x2) / diff-report
-  # spot-check / row-count / prevalence checks all pass on the real gpt-oss
-  # output for all three datasets. (The former "supermat formula never edited"
-  # invariant is retired: as of 2026-09-08 supermat axis-2 deliberately swaps
-  # the formula in `name`; the diff-report spot-check now verifies the rename
-  # is page-consistent and `identifiers` is null on pos_entity rows instead.)
-  # See the build note's Stage-3 done_when table and remaining-work #6.
+  # Done = well-formedness / seed-determinism (x2) / diff-report spot-check /
+  # prevalence / typed-negative-coverage / no-repeat-rows checks all pass on the
+  # real gpt-oss output for all three datasets; the per-split unverified-span
+  # fraction and the diagnostic-file edited-context-per-label split are recorded.

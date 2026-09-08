@@ -567,23 +567,22 @@ def build_probe_output(
 # ---------------------------------------------------------------------------
 
 
-def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
+                 all_records: list[dict], rng) -> None:
     """Augmented-dataset path — see the build note. Consumes RNG only after
     sample_valid_set() so the default (non-augment) path is byte-identical."""
-    rules = _build_augment_rules()
-    if args.augment_events and not rules.event_fields:
-        raise ValueError(
-            "--augment-events was passed but supermat has no judge-visible event "
-            "fields wired for fill (axis #1 event-fill is pond-only). Drop the flag."
-        )
+    rules = _build_augment_rules(all_records)
+    if args.augment_sample_gt:
+        n = args.augment_sample_gt
+        xv_train = rng.sample(xv_train, min(n, len(xv_train)))
+        xv_test = rng.sample(xv_test, min(n, len(xv_test)))
+        print(f"RUNG-3 SAMPLE: {len(xv_train)} train / {len(xv_test)} test "
+              f"GT valids (--augment-sample-gt {n})")
     flags = _aug.AugmentFlags(
-        augment_events=args.augment_events,
         pos_axes=tuple(args.augment_pos_axes),
-        hard_negatives=True,
-        target_rows=args.augment_target_rows,
-        floor_rows=args.augment_floor_rows,
-        max_derived_per_source=args.augment_max_derived_per_source,
-        diag_pos_event=not args.augment_no_diag_pos_event,
+        valid_floor=args.augment_valid_floor,
+        diag_valid_floor=args.augment_diag_valid_floor,
+        prompt_budget_multiple=args.augment_prompt_budget_multiple,
     )
     cache_path = Path(args.augment_cache) if args.augment_cache else None
     cache = _aug.AugmentCache(cache_path)
@@ -591,8 +590,10 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
         print("Augment client: STUB (no LLM)")
     else:
-        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache)
-        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base}")
+        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache,
+                                   temperature=args.augment_rewrite_temperature)
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base} "
+              f"(temperature {args.augment_rewrite_temperature})")
 
     written = _aug.run_and_write(
         base_dir=BASE,
@@ -611,37 +612,53 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         print(f"  {k:16s} {p}")
 
 
-def _build_augment_rules() -> "_aug.DatasetAugmentRules":
-    attr_units = {a: list(info.get("units", []))
-                  for a, info in _ATTR_DICT.items()}
+def _value_pool_by_attr(records: list[dict]) -> dict[str, list[str]]:
+    pool: dict[str, set] = {}
+    for r in records:
+        pool.setdefault(r["attribute"], set()).add(str(r["value"]))
+    return {a: sorted(v) for a, v in pool.items()}
+
+
+# Pressures for a bad_event negative / a pos_event edit. "ambient" plus a ladder
+# of applied pressures, merged with whatever the GT states. pos_event never
+# INJECTS a pressure (unstated pressure means "ambient" per the config prompt),
+# so this only feeds rows where the page already states one.
+_SUPERMAT_PRESSURE_POOL = [
+    "ambient", "1 GPa", "2 GPa", "5 GPa", "10 GPa", "20 GPa", "50 GPa",
+    "100 GPa", "150 GPa", "200 GPa", "250 GPa",
+]
+
+
+def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", [])) for a, info in _ATTR_DICT.items()}
+    gt_pressures = sorted({str(r["pressure"]) for r in all_records if r.get("pressure")})
     return _aug.DatasetAugmentRules(
         name="supermat",
-        # Axis-2 pos_entity swaps the material formula in `name` for a fabricated
-        # one (drawn from _MADE_UP_NAMES, the same fake-formula pool the default
-        # path's noise_entity uses), rewriting the page to match. This reverses
-        # the build note's original "never touch the formula / restrict to
-        # sample_details" call (§ "augment_pos_entity"): the judge only ever sees
-        # the page, the fabricated formulas are not real compounds, so a
-        # page-consistent rename is equivalence-preserving in exactly the sense
-        # pond's entity-name swap is. `identifiers` (non-null on ~4% of GT rows)
-        # is nulled on the positive since the abbreviation catalogue no longer
-        # matches the fabricated formula — see entity_swap_clear_fields.
         entity_name_field="name",
+        entity_noun="material formula",
+        # pos_entity swaps the formula in `name` for a fabricated one (drawn from
+        # _MADE_UP_NAMES, the same fake-formula pool noise_entity uses) and
+        # rewrites the page to match. The judge only ever sees the page and the
+        # fabricated formulas are not real compounds, so a page-consistent rename
+        # is equivalence-preserving in the same sense pond's site-name swap is.
+        # `identifiers` (the abbreviation catalogue) no longer matches and is
+        # nulled — see entity_swap_clear_fields.
         fabricated_names_by_type={},
         fabricated_names_any=list(_MADE_UP_NAMES),
         entity_type_token=lambda r: None,
-        entity_swap_preserve_clause=(
+        name_suffix_to_type={},
+        entity_preserve_clause=(
             "Keep every measured quantity — the critical temperature and the "
             "conditions it was measured under — identical."
         ),
         entity_swap_clear_fields=("identifiers",),
         attr_units=attr_units,
-        shared_unit_groups=[],           # single measurand (tc)
-        entity_field_locked=False,        # pos_entity / hard_entity both live on `name`
-        event_fields=[],                  # axis #1 event-fill is pond-only
-        event_prompt="",
-        event_synth_field=None,           # no date-like field -> pos_event disabled
-        event_synth_value=None,
+        attribute_pool=sorted(_ATTR_DICT.keys()),   # single measurand (tc) -> no attribute error
+        value_pool_by_attr=_value_pool_by_attr(all_records),
+        event_field="pressure",
+        event_noun="applied pressure",
+        event_pool=sorted(set(_SUPERMAT_PRESSURE_POOL) | set(gt_pressures)),
+        event_allow_inject=False,        # unstated pressure means "ambient", not "unknown"
         gt_cols=list(_GT_COLS),
     )
 
@@ -677,19 +694,23 @@ def main(argv: list[str] | None = None) -> None:
                          "material formula in `name` is one only ~28% of the time — "
                          "the augment path is exercised by the real gpt-oss client, "
                          "not this stub.")
-    ag.add_argument("--augment-events", action="store_true",
-                    help="Axis #1: gpt-oss event-fill (pond only; a no-op here).")
-    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.POS_AXES),
                     choices=list(_aug.POS_AXES),
-                    help=f"Axis #2 sub-axes to attempt (default: "
-                         f"{list(_aug.DEFAULT_POS_AXES)}). Only pos_entity "
-                         f"(material-formula `name` swap) is live for supermat; "
-                         f"pos_attribute is inert (single measurand, tc).")
-    ag.add_argument("--augment-target-rows", type=int, default=10000)
-    ag.add_argument("--augment-floor-rows", type=int, default=5000)
-    ag.add_argument("--augment-max-derived-per-source", type=int, default=4)
-    ag.add_argument("--augment-no-diag-pos-event", action="store_true",
-                    help="Drop the pos_event slice from the diagnostic-test file.")
+                    help=f"Positive rewrite axes to attempt (default: {list(_aug.POS_AXES)}). "
+                         f"pos_event fires only where the page states an applied "
+                         f"pressure (~16% of GT rows; it never injects one).")
+    ag.add_argument("--augment-valid-floor", type=int, default=5000,
+                    help="Minimum valids in the train file (GT carried + distinct synthetic). Usually exceeded; negatives balance to whatever it reaches.")
+    ag.add_argument("--augment-diag-valid-floor", type=int, default=1000,
+                    help="Minimum valids in the diagnostic file (built like the train file).")
+    ag.add_argument("--augment-prompt-budget-multiple", type=int, default=1,
+                    help="Attempt budget = n_gt_valids × n_axes × this. 1 = round 0 only. Falling "
+                         "short inside the budget is a hard error — set from the "
+                         "rung-3 measured yield.")
+    ag.add_argument("--augment-rewrite-temperature", type=float, default=0.7)
+    ag.add_argument("--augment-sample-gt", type=int, default=0,
+                    help="Rung 3: randomly sample this many GT valids (train and test each) "
+                         "before augmenting, for a quick per-axis yield read. 0 = all.")
     ag.add_argument("--augment-out-suffix", default="_v2")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
@@ -725,7 +746,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
 
     if args.augment:
-        _run_augment(args, xv_train, xv_test, rng)
+        _run_augment(args, xv_train, xv_test, all_records, rng)
         return
 
     # Build train probe dataset

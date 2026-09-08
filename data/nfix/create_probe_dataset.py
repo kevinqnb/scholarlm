@@ -596,23 +596,22 @@ def build_probe_output(
 # ---------------------------------------------------------------------------
 
 
-def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
+                 all_records: list[dict], rng) -> None:
     """Augmented-dataset path — see the build note. Consumes RNG only after
     sample_valid_set() so the default (non-augment) path is byte-identical."""
-    rules = _build_augment_rules()
-    if args.augment_events and not rules.event_fields:
-        raise ValueError(
-            "--augment-events was passed but nfix has no judge-visible event "
-            "fields (axis #1 event-fill is pond-only). Drop the flag."
-        )
+    rules = _build_augment_rules(all_records)
+    if args.augment_sample_gt:
+        n = args.augment_sample_gt
+        xv_train = rng.sample(xv_train, min(n, len(xv_train)))
+        xv_test = rng.sample(xv_test, min(n, len(xv_test)))
+        print(f"RUNG-3 SAMPLE: {len(xv_train)} train / {len(xv_test)} test "
+              f"GT valids (--augment-sample-gt {n})")
     flags = _aug.AugmentFlags(
-        augment_events=args.augment_events,
         pos_axes=tuple(args.augment_pos_axes),
-        hard_negatives=True,
-        target_rows=args.augment_target_rows,
-        floor_rows=args.augment_floor_rows,
-        max_derived_per_source=args.augment_max_derived_per_source,
-        diag_pos_event=not args.augment_no_diag_pos_event,
+        valid_floor=args.augment_valid_floor,
+        diag_valid_floor=args.augment_diag_valid_floor,
+        prompt_budget_multiple=args.augment_prompt_budget_multiple,
     )
     cache_path = Path(args.augment_cache) if args.augment_cache else None
     cache = _aug.AugmentCache(cache_path)
@@ -620,8 +619,10 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
         print("Augment client: STUB (no LLM)")
     else:
-        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache)
-        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base}")
+        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache,
+                                   temperature=args.augment_rewrite_temperature)
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base} "
+              f"(temperature {args.augment_rewrite_temperature})")
 
     written = _aug.run_and_write(
         base_dir=BASE,
@@ -640,32 +641,40 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
         print(f"  {k:16s} {p}")
 
 
-def _build_augment_rules() -> "_aug.DatasetAugmentRules":
-    attr_units = {a: list(info.get("units", []))
-                  for a, info in _ATTR_DICT.items()}
+def _value_pool_by_attr(records: list[dict]) -> dict[str, list[str]]:
+    pool: dict[str, set] = {}
+    for r in records:
+        pool.setdefault(r["attribute"], set()).add(str(r["value"]))
+    return {a: sorted(v) for a, v in pool.items()}
+
+
+def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", [])) for a, info in _ATTR_DICT.items()}
+    gt_dates = sorted({str(r["date"]) for r in all_records if r.get("date")})
     return _aug.DatasetAugmentRules(
         name="nfix",
         entity_name_field="name",
+        entity_noun="site",
         # nfix's fabricated names don't cleanly map to the site_type catalogue,
-        # so there's no per-type pool — every swap draws from the flat fallback.
+        # so there's no per-type pool and no name→type check — every swap draws
+        # from the flat fallback.
         fabricated_names_by_type={},
         fabricated_names_any=list(_MADE_UP_NAMES),
         entity_type_token=lambda r: None,
-        entity_swap_preserve_clause=(
-            "Keep the ecosystem type and every measured quantity identical."
+        name_suffix_to_type={},
+        entity_preserve_clause=(
+            "Keep the site type and every measured quantity — value, units and "
+            "measurement event — identical."
         ),
         entity_swap_clear_fields=(),   # nfix GT rows carry ~no `identifiers`
         attr_units=attr_units,
-        # mass / areal / volumetric rates have disjoint unit families — a swap
-        # between them is NOT equivalence-preserving, so no shared group.
-        shared_unit_groups=[],
-        entity_field_locked=False,
-        # axis #1 event-fill is pond-only (nfix's date is not judge-visible and
-        # nfix_method / substrate_type are judge-filtered — CONFIG.judge_filter_fields).
-        event_fields=[],
-        event_prompt="",
-        event_synth_field="date",       # drives the off-by-default pos_event sub-axis
-        event_synth_value="Summer 2019",
+        # nfix reports a single measurand (N2-fixation rate) -> no attribute error.
+        attribute_pool=sorted(_ATTR_DICT.keys()),
+        value_pool_by_attr=_value_pool_by_attr(all_records),
+        event_field="date",            # judge-visible; ~96% populated in GT
+        event_noun="measurement date",
+        event_pool=gt_dates,
+        event_allow_inject=True,
         gt_cols=list(_GT_COLS),
     )
 
@@ -698,19 +707,21 @@ def main(argv: list[str] | None = None) -> None:
     ag.add_argument("--augment-stub", action="store_true",
                     help="Use the deterministic stub client (no LLM) — for smoke "
                          "tests only; produces trivially-edited contexts.")
-    ag.add_argument("--augment-events", action="store_true",
-                    help="Axis #1: gpt-oss event-fill (pond only; a no-op here — "
-                         "nfix has no judge-visible event fields).")
-    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.POS_AXES),
                     choices=list(_aug.POS_AXES),
-                    help=f"Axis #2 sub-axes to attempt (default: "
-                         f"{list(_aug.DEFAULT_POS_AXES)}). Note: pos_attribute is "
-                         f"inert for nfix (disjoint unit families).")
-    ag.add_argument("--augment-target-rows", type=int, default=10000)
-    ag.add_argument("--augment-floor-rows", type=int, default=5000)
-    ag.add_argument("--augment-max-derived-per-source", type=int, default=4)
-    ag.add_argument("--augment-no-diag-pos-event", action="store_true",
-                    help="Drop the pos_event slice from the diagnostic-test file.")
+                    help=f"Positive rewrite axes to attempt (default: {list(_aug.POS_AXES)}).")
+    ag.add_argument("--augment-valid-floor", type=int, default=5000,
+                    help="Minimum valids in the train file (GT carried + distinct synthetic). Usually exceeded; negatives balance to whatever it reaches.")
+    ag.add_argument("--augment-diag-valid-floor", type=int, default=1000,
+                    help="Minimum valids in the diagnostic file (built like the train file).")
+    ag.add_argument("--augment-prompt-budget-multiple", type=int, default=1,
+                    help="Attempt budget = n_gt_valids × n_axes × this. 1 = round 0 only. Falling "
+                         "short inside the budget is a hard error — set from the "
+                         "rung-3 measured yield.")
+    ag.add_argument("--augment-rewrite-temperature", type=float, default=0.7)
+    ag.add_argument("--augment-sample-gt", type=int, default=0,
+                    help="Rung 3: randomly sample this many GT valids (train and test each) "
+                         "before augmenting, for a quick per-axis yield read. 0 = all.")
     ag.add_argument("--augment-out-suffix", default="_v2")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
@@ -749,7 +760,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
 
     if args.augment:
-        _run_augment(args, xv_train, xv_test, rng)
+        _run_augment(args, xv_train, xv_test, all_records, rng)
         return
 
     # Build train probe dataset
