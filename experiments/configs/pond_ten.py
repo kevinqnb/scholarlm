@@ -396,7 +396,10 @@ CONFIG = DatasetConfig(
     paper_filter=None,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=["location"], # leaving location out of the judgement fields, since it's often not explicitly stated in the text and can be ambiguous.
+    # Judge sees only: name, ecosystem, date, additional_details (+ attribute, value, units).
+    # identifiers and location are dropped — location is often not explicit in the text and
+    # ambiguous; identifiers is an alias-resolution aid, not something to judge on.
+    judge_filter_fields=["identifiers", "location"],
     ground_truth_file="data/pond_ten/ground_truth_ten_review.json",
     # Note: these unit conversions are not currently in use, since the ground truth file has 
     # been converted back to original units.
