@@ -31,8 +31,9 @@ Subset 3 — OCR-table invalids (~half the valid set):
                       noise_value / noise_entity when no suitable table value is
                       found.
 
-Only judge_entity_fields (name, identifiers, sample_details) are swapped in the
-entity modification.
+Only _JUDGE_ENTITY_FIELDS (name) is swapped in the entity modification — the sole
+judge-visible entity field for supermat (identifiers and sample_details are
+filtered out of the judge prompt; additional_details is always null).
 
 Output
 ------
@@ -70,7 +71,12 @@ from configs.supermat import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
-_JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "sample_details"]
+# Entity fields a synthetic change may touch: the judge-visible entity fields
+# (experiments/configs/supermat.py `judge_filter_fields`) minus `additional_details`.
+# For supermat that leaves only the name — identifiers and sample_details are
+# filtered out of the judge prompt, and additional_details is null throughout the
+# ground truth.
+_JUDGE_ENTITY_FIELDS: list[str] = ["name"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.json"
@@ -619,19 +625,8 @@ def _value_pool_by_attr(records: list[dict]) -> dict[str, list[str]]:
     return {a: sorted(v) for a, v in pool.items()}
 
 
-# Pressures for a bad_event negative / a pos_event edit. "ambient" plus a ladder
-# of applied pressures, merged with whatever the GT states. pos_event never
-# INJECTS a pressure (unstated pressure means "ambient" per the config prompt),
-# so this only feeds rows where the page already states one.
-_SUPERMAT_PRESSURE_POOL = [
-    "ambient", "1 GPa", "2 GPa", "5 GPa", "10 GPa", "20 GPa", "50 GPa",
-    "100 GPa", "150 GPa", "200 GPa", "250 GPa",
-]
-
-
 def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
     attr_units = {a: list(info.get("units", [])) for a, info in _ATTR_DICT.items()}
-    gt_pressures = sorted({str(r["pressure"]) for r in all_records if r.get("pressure")})
     return _aug.DatasetAugmentRules(
         name="supermat",
         entity_name_field="name",
@@ -642,7 +637,9 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         # fabricated formulas are not real compounds, so a page-consistent rename
         # is equivalence-preserving in the same sense pond's site-name swap is.
         # `identifiers` (the abbreviation catalogue) no longer matches and is
-        # nulled — see entity_swap_clear_fields.
+        # nulled — see entity_swap_clear_fields. The judge no longer sees
+        # `identifiers`, so this null is now only for output consistency with the
+        # rest of the row.
         fabricated_names_by_type={},
         fabricated_names_any=list(_MADE_UP_NAMES),
         entity_type_token=lambda r: None,
@@ -655,10 +652,14 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         attr_units=attr_units,
         attribute_pool=sorted(_ATTR_DICT.keys()),   # single measurand (tc) -> no attribute error
         value_pool_by_attr=_value_pool_by_attr(all_records),
-        event_field="pressure",
-        event_noun="applied pressure",
-        event_pool=sorted(set(_SUPERMAT_PRESSURE_POOL) | set(gt_pressures)),
-        event_allow_inject=False,        # unstated pressure means "ambient", not "unknown"
+        # supermat has no judge-visible measurement-event field: `date` is absent
+        # from the schema and `pressure` / `me_method` are filtered out of the
+        # judge prompt (experiments/configs/supermat.py). So no pos_event axis and
+        # no `event` error type — the orchestrator drops both when event_field is None.
+        event_field=None,
+        event_noun="applied pressure",   # unused while event_field is None
+        event_pool=[],
+        event_allow_inject=False,
         gt_cols=list(_GT_COLS),
     )
 
@@ -694,11 +695,14 @@ def main(argv: list[str] | None = None) -> None:
                          "material formula in `name` is one only ~28% of the time — "
                          "the augment path is exercised by the real gpt-oss client, "
                          "not this stub.")
-    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.POS_AXES),
-                    choices=list(_aug.POS_AXES),
-                    help=f"Positive rewrite axes to attempt (default: {list(_aug.POS_AXES)}). "
-                         f"pos_event fires only where the page states an applied "
-                         f"pressure (~16% of GT rows; it never injects one).")
+    # supermat has no judge-visible event field, so pos_event is not offered here
+    # (the orchestrator would drop it anyway — this keeps the CLI honest).
+    _SUPERMAT_POS_AXES = [a for a in _aug.POS_AXES if a != "pos_event"]
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_SUPERMAT_POS_AXES),
+                    choices=list(_SUPERMAT_POS_AXES),
+                    help=f"Positive rewrite axes to attempt (default: {list(_SUPERMAT_POS_AXES)}). "
+                         f"pos_event is unavailable for supermat — no judge-visible "
+                         f"measurement-event field.")
     ag.add_argument("--augment-valid-floor", type=int, default=5000,
                     help="Minimum valids in the train file (GT carried + distinct synthetic). Usually exceeded; negatives balance to whatever it reaches.")
     ag.add_argument("--augment-diag-valid-floor", type=int, default=1000,

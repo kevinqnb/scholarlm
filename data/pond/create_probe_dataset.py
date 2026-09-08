@@ -31,8 +31,8 @@ Subset 3 — OCR-table invalids (~half the valid set):
                       noise_value / noise_entity when no suitable table value is
                       found.
 
-Only judge_entity_fields (name, ecosystem) are swapped in the entity modification
-(identifiers is not present in the ground truth schema).
+Only _JUDGE_ENTITY_FIELDS (name, ecosystem) are swapped in the entity modification
+— the judge-visible entity fields, minus the always-null additional_details.
 
 Output
 ------
@@ -70,7 +70,11 @@ from configs.pond import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
-_JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "ecosystem", "additional_details"]
+# Entity fields a synthetic change may touch: the judge-visible entity fields
+# (experiments/configs/pond.py `judge_filter_fields`) minus `additional_details`
+# — a free-text catch-all that is null throughout the pond ground truth, so it
+# carries no signal to a probe and is kept out of every synthetic edit.
+_JUDGE_ENTITY_FIELDS: list[str] = ["name", "ecosystem"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.json"

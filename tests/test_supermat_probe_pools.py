@@ -1,10 +1,11 @@
 """Model-free unit tests for the supermat augmentation rules (rung 1).
 
 Guards the supermat-specific choices: pos_entity swaps the material formula in
-``name`` (not ``sample_details``) and nulls the stale ``identifiers``
-abbreviation catalogue; there is no attribute error type (single measurand);
-pos_event uses ``pressure`` and never injects one (unstated pressure means
-"ambient").
+``name`` (not ``sample_details``) and nulls the now-non-judge-visible
+``identifiers`` abbreviation catalogue for output consistency; there is no
+attribute error type (single measurand) and no event axis or event error type at
+all — supermat has no judge-visible measurement-event field (``date`` absent,
+``pressure`` / ``me_method`` filtered out of the judge prompt).
 """
 from __future__ import annotations
 
@@ -24,9 +25,9 @@ from scholarlm.utils import probe_augment as pa  # noqa: E402
 
 _GT = [
     {"document_id": "D1", "name": "YBa2Cu3O7", "attribute": "tc", "value": "92",
-     "units": "K", "pressure": None},
+     "units": "K"},
     {"document_id": "D1", "name": "MgB2", "attribute": "tc", "value": "39",
-     "units": "K", "pressure": "2 GPa"},
+     "units": "K"},
 ]
 
 
@@ -44,12 +45,22 @@ def test_augment_rules_target_name_not_sample_details():
     assert not hasattr(cpd, "_SUPERMAT_SAMPLE_DETAILS")
 
 
-def test_no_attribute_error_type_and_pressure_event():
+def test_no_attribute_and_no_event_error_type():
     rules = _rules()
     assert len(rules.attribute_pool) < 2            # single measurand (tc)
-    assert rules.event_field == "pressure"
-    assert rules.event_allow_inject is False
-    assert "2 GPa" in rules.event_pool and "ambient" in rules.event_pool
+    assert rules.event_field is None
+    assert rules.event_pool == [] and rules.event_allow_inject is False
+    # event / attribute both absent from the constructible error types
+    _, src = _stub_src()
+    active = pa.active_error_types(rules, [src])
+    assert set(active) == {"entity", "value", "units"}
+
+
+def test_event_axis_and_negative_are_skips_for_supermat():
+    rules, src = _stub_src()
+    assert pa.make_axis2_positive(src, "pos_event", rules, pa.StubAugmentClient(),
+                                  random.Random(0)) is None
+    assert pa.make_typed_negative(src, "event", rules, random.Random(0)) is None
 
 
 def test_preserve_clause_is_supermat_specific():

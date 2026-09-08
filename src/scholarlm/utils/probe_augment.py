@@ -925,7 +925,12 @@ class DatasetAugmentRules:
     attribute_pool: list[str]                  # every attribute key; < 2 -> no attribute error
     value_pool_by_attr: dict[str, list[str]]   # attribute -> distinct GT value strings
     # --- event ------------------------------------------------------------
-    event_field: str                           # measurement field a pos_event / bad_event writes
+    event_field: str | None                    # measurement field a pos_event / bad_event
+                                               # writes; None = the dataset has no
+                                               # judge-visible event field at all
+                                               # (supermat: date absent, pressure filtered
+                                               # out of the judge prompt) — no pos_event
+                                               # axis, no event error type
     event_noun: str                            # "measurement date", "applied pressure"
     event_pool: list[str]                      # distinct plausible event values
     event_allow_inject: bool                   # pos_event may ADD an event to a page
@@ -934,6 +939,15 @@ class DatasetAugmentRules:
                                                # unstated pressure means "ambient")
     # --- output schema --------------------------------------------------
     gt_cols: list[str]
+
+    def __post_init__(self) -> None:
+        # A dataset with no event field must also carry no event pool and disallow
+        # injection; a half-set trio is a config error, not a silently event-less run.
+        if self.event_field is None:
+            assert not self.event_pool and not self.event_allow_inject, (
+                f"{self.name}: event_field is None but event_pool="
+                f"{self.event_pool!r} / event_allow_inject={self.event_allow_inject!r}"
+            )
 
     def entity_candidates(self, record: dict) -> list[str]:
         tok = self.entity_type_token(record)
@@ -1088,6 +1102,8 @@ def _axis_value(src, rules, rng):
 
 def _axis_event(src, rules, rng):
     field = rules.event_field
+    if field is None:                          # dataset has no judge-visible event
+        return None
     ctx = src[_CTX_ORIG_KEY]
     cur = src.get(field)
     if cur:
@@ -1242,6 +1258,8 @@ def make_typed_negative(
         row = _new_derived_row(src, label="invalid", mod_type="bad_units", axis=None)
         row["units"] = alt
     elif err_type == "event":
+        if rules.event_field is None:
+            return None                    # dataset has no judge-visible event
         cur = src.get(rules.event_field)
         if not cur:
             return None                    # nothing stated to contradict
@@ -1270,7 +1288,8 @@ def active_error_types(rules: DatasetAugmentRules, valids: list[dict]) -> list[s
     ``attribute`` only when the dataset has >1 attribute; ``event`` only when at
     least one valid in the pool carries a (GT or synthesised) event."""
     have_attr = len(rules.attribute_pool) >= 2
-    have_event = bool(rules.event_pool) and any(v.get(rules.event_field) for v in valids)
+    have_event = (rules.event_field is not None and bool(rules.event_pool)
+                  and any(v.get(rules.event_field) for v in valids))
     return [t for t in ERROR_TYPES
             if not (t == "attribute" and not have_attr)
             and not (t == "event" and not have_event)]
@@ -1431,18 +1450,27 @@ def build_augmented_files(
     _say(f"  GT valids after dedup: train {len(train_gt)}, test {len(dtest_gt)} "
          f"(from {len(xv_train)} / {len(xv_test)})")
 
+    # A dataset with no judge-visible event field cannot run pos_event even if the
+    # flag (or the CLI default) still lists it — drop it here so the axis set the
+    # fillers see always matches what the rules can actually build.
+    pos_axes = tuple(a for a in flags.pos_axes
+                     if not (a == "pos_event" and rules.event_field is None))
+    if pos_axes != flags.pos_axes:
+        _say(f"  pos_event dropped ({rules.name} has no judge-visible event field); "
+             f"axes: {list(pos_axes)}")
+
     # ---- client-calling phase (runs first, contiguously) -------------------
     # `seen_sigs` seeded with the carried GT valids so a synthetic can't reproduce
     # one; the filler mutates it.
     train_syn = fill_positive_target(
         train_gt, rules, client, rng,
-        floor=max(0, flags.valid_floor - len(train_gt)), axes=flags.pos_axes,
+        floor=max(0, flags.valid_floor - len(train_gt)), axes=pos_axes,
         prompt_budget_multiple=flags.prompt_budget_multiple,
         seen_sigs={_row_signature(r, rules.gt_cols) for r in train_gt},
         label="train", quiet=quiet)
     diag_syn = fill_positive_target(
         dtest_gt, rules, client, rng,
-        floor=max(0, flags.diag_valid_floor - len(dtest_gt)), axes=flags.pos_axes,
+        floor=max(0, flags.diag_valid_floor - len(dtest_gt)), axes=pos_axes,
         prompt_budget_multiple=flags.prompt_budget_multiple,
         seen_sigs={_row_signature(r, rules.gt_cols) for r in dtest_gt},
         label="diagnostic", quiet=quiet)

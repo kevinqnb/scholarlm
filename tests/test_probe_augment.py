@@ -392,6 +392,59 @@ def _pond_like_rules() -> pa.DatasetAugmentRules:
     return r
 
 
+def _no_event_rules() -> pa.DatasetAugmentRules:
+    """Like ``_rules`` but with no judge-visible event field (supermat shape)."""
+    r = _rules()
+    return pa.DatasetAugmentRules(
+        **{**r.__dict__, "event_field": None, "event_pool": [],
+           "event_allow_inject": False, "event_noun": "n/a"}
+    )
+
+
+# ─── event_field = None (dataset with no judge-visible event) ─────────────────
+
+
+def test_rules_reject_half_configured_event():
+    """event_field None must come with an empty pool and no injection."""
+    r = _rules()
+    for bad in ({"event_field": None, "event_pool": ["x"]},
+                {"event_field": None, "event_pool": [], "event_allow_inject": True}):
+        with pytest.raises(AssertionError):
+            pa.DatasetAugmentRules(**{**r.__dict__, "event_allow_inject": False, **bad})
+
+
+def test_no_event_field_skips_pos_event_and_event_negative():
+    rules, rng = _no_event_rules(), random.Random(0)
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tp", "10.0", "µg/L"), rules)
+    assert pa.make_axis2_positive(src, "pos_event", rules, pa.StubAugmentClient(), rng) is None
+    assert pa.make_typed_negative(src, "event", rules, rng) is None
+    assert "event" not in pa.active_error_types(rules, [src])
+
+
+def test_build_drops_pos_event_when_no_event_field(monkeypatch):
+    """The orchestrator strips pos_event from the axis set for a no-event dataset."""
+    rules = _no_event_rules()
+    seen: list[tuple[str, ...]] = []
+
+    class _Stop(Exception):
+        pass
+
+    def _spy(gt_valids, rules_, client, rng, *, floor, axes, **kw):
+        seen.append(axes)
+        raise _Stop            # only the axis set matters here
+
+    monkeypatch.setattr(pa, "fill_positive_target", _spy)
+    flags = pa.AugmentFlags(pos_axes=("pos_entity", "pos_value", "pos_event"),
+                            valid_floor=0, diag_valid_floor=0)
+    with pytest.raises(_Stop):
+        pa.build_augmented_files(
+            xv_train=[_valid_record(0, "Site 0", "pond", "tp", "10.0", "µg/L")],
+            xv_test=[_valid_record(1, "Site 1", "lake", "tn", "11.0", "µg/L")],
+            rng=random.Random(0), client=pa.StubAugmentClient(), rules=rules,
+            flags=flags, quiet=True)
+    assert seen == [("pos_entity", "pos_value")]
+
+
 def _valid_record(i: int, name, eco: str, attr: str, val: str, units: str) -> dict:
     return {
         "document_id": f"D{i % 3}", "name": name, "ecosystem": eco,

@@ -5,13 +5,17 @@ description: >-
   datasets via gpt-oss-120b, for pond / nfix / supermat. Every ground-truth
   valid is carried through, and for each one gpt-oss (protocol 3: it picks the
   new value AND the minimal page edits) is asked for an equivalence-preserving
-  rewrite along three axes -- entity name, measured value, measurement event
-  (round 0). If the distinct-synthetic count is still below the 5000 floor
-  (train) / 1000 floor (diagnostic) the axes are resampled at a raised
-  temperature. Files usually END UP LARGER than the floor; invalids are then an
-  equal number of direct measurement swaps from pre-generated per-type
-  alternative pools (entity / attribute / value / units / event, evenly split),
-  every valid and invalid row distinct by content. The primary-test file is
+  rewrite along up to three axes -- entity name, measured value, measurement
+  event (round 0). Every axis and every swapped field is restricted to what the
+  judge actually sees (experiments/configs/<ds>.py `judge_filter_fields`), minus
+  the always-null `additional_details`: supermat, whose only event fields are
+  filtered out, runs entity+value only. If the distinct-synthetic count is still
+  below the 5000 floor (train) / 1000 floor (diagnostic) the axes are resampled
+  at a raised temperature. Files usually END UP LARGER than the floor; invalids
+  are then an equal number of direct measurement swaps from pre-generated
+  per-type alternative pools (entity / attribute / value / units / event, evenly
+  split over the types the dataset can build), every valid and invalid row
+  distinct by content. The primary-test file is
   held-out GT valids only (zero gpt-oss content) + the same typed negatives; the
   diagnostic file is built exactly like the train file on the held-out valids.
   Context-edited rows carry their edited page inline as context_override. Output
@@ -57,7 +61,14 @@ params:
 
   # Augmentation knobs.
   augment:
-    pos_axes: [pos_entity, pos_value, pos_event]
+    # Per dataset: supermat has no judge-visible measurement-event field
+    # (date absent from the schema; pressure / me_method filtered out of the judge
+    # prompt), so it runs pos_entity / pos_value only — no pos_event axis and no
+    # `event` error type.
+    pos_axes:
+      pond:     [pos_entity, pos_value, pos_event]
+      nfix:     [pos_entity, pos_value, pos_event]
+      supermat: [pos_entity, pos_value]
     valid_floor: 5000            # MINIMUM train valids (GT carried + distinct synthetic)
     diag_valid_floor: 1000       # MINIMUM diagnostic valids; built exactly like train
     rewrite_temperature: 0.7     # one fixed regime; the resample round is in the cache key
@@ -66,16 +77,17 @@ params:
     # round 0 only (one attempt per GT valid per axis, all kept). Falling short of
     # the floor inside the budget is a HARD ERROR.
     #
-    # Set from Rung 3 (gen_aug_rung3.o7499062, 2026-09-08): round-0 distinct-yield
-    # on an 80-GT-valid sample x 3 axes was pond 160/240 (67%), nfix 108/240
-    # (45%), supermat 73/231 (32%). pos_event is largely dead for nfix/supermat
-    # (ISO dates / pressures rarely appear verbatim on the page).
-    #   pond    2 : round 0 (~3570 distinct) alone should clear the 3218 needed;
-    #             multiple 2 is headroom against sample noise (retry cheap: cache
-    #             persists, only the shortfall regenerates).
-    #   nfix   10 / supermat 12 : heavy resampling. These may STILL not reach
-    #             5000 distinct -- if a job fails "positive floor not met: X/5000",
-    #             resubmit with --augment-valid-floor <just under X>.
+    # STALE — re-run Rung 3 before Rung 4. The values below were set from
+    # gen_aug_rung3.o7499062 (2026-09-08): round-0 distinct-yield on an 80-GT-valid
+    # sample x 3 axes was pond 160/240 (67%), nfix 108/240 (45%), supermat 73/231
+    # (32%). Superseded by the 2026-09-08 judge-field narrowing: supermat now runs
+    # 2 axes (no pos_event) with no `event` error type, and _JUDGE_ENTITY_FIELDS
+    # shrank for all three (pond name+ecosystem, nfix/supermat name only), which
+    # changes the pos_entity / distinct-negative yield. Re-run
+    # `qsub -N gen_aug_rung3 experiments/gen_augment.sh rung3` and re-derive these
+    # from the new round-0 numbers.
+    #   On a "positive floor not met: X/5000" failure, resubmit that dataset with
+    #   --augment-valid-floor <just under X> (the cache persists).
     prompt_budget_multiple:
       pond: 2
       nfix: 10
@@ -83,8 +95,8 @@ params:
 
   # Per-dataset invocation differs: nfix's baseline was re-pinned to the current
   # OCR corpus so --reviewed is required; supermat has no ground_truth_review.json.
-  # supermat has no attribute error type (single measurand tc) and pos_event
-  # never injects a pressure (unstated pressure means "ambient").
+  # supermat has neither an attribute error type (single measurand tc) nor an
+  # event error type / pos_event axis (no judge-visible measurement-event field).
   #
   # experiments/gen_augment.sh (gitignored scratch, per the repo's *.sh ignore)
   # is the hand-written qsub job: it serves gpt-oss-120b, polls /health, then

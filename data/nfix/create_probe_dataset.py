@@ -70,7 +70,12 @@ from configs.nfix import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
-_JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "site_type", "additional_details"]
+# Entity fields a synthetic change may touch: the judge-visible entity fields
+# (experiments/configs/nfix.py `judge_filter_fields`) minus `additional_details`
+# — a free-text catch-all that is null throughout the nfix ground truth, so it
+# carries no signal to a probe and is kept out of every synthetic edit. nfix's
+# only judge-visible entity field is the name.
+_JUDGE_ENTITY_FIELDS: list[str] = ["name"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.json"
