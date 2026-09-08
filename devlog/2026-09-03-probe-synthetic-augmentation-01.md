@@ -256,3 +256,78 @@ The `_v2` datasets and `gpt-oss` caches this session generated were **not**
 committed: the augmentation procedure was reworked in the following session
 (2026-09-08) and every `_v2` output regenerated under the corrected design, so
 the interim blobs would have been superseded on the next commit.
+
+## Session 2026-09-08
+
+### Prompts
+
+> Generation of probe augmented datasets was implemented incorrectly and should
+> now be fixed. Here is the correct procedure: [full spec] Training valids —
+> carry every GT valid; for each, one synthetic per axis: prompt gpt-oss to
+> change the measurement's entity name / value / event in the context, then
+> build a synthetic valid from the edited context + edited measurement. gpt-oss
+> returns (1) a proposed replacement pasteable into the measurement and (2) a
+> list of `{find, replace}` edits (verbatim context strings → new strings).
+> Avoid attribute and unit changes (they'd need a much larger context change).
+> If under 5000 valids, resample GT valids and repeat, possibly at higher
+> temperature. Training invalids — 5000, evenly covering entity / attribute /
+> value / units / event errors (pond 1000 each; nfix/supermat 1250 each of the
+> four non-attribute types); each is a direct swap on a sampled valid's
+> measurement from a pre-generated per-type alternative list. Testing valids —
+> held-out GT valids only, no synthetic. Testing invalids — same construction,
+> from the valid test rows, balanced 50/50. Diagnostic valids — a mix of
+> held-out GT and synthetic, ≥1000. Diagnostic invalids — 1000, from this file's
+> valids.
+
+> [clarifications] Event errors for pond come from synthetic events, train and
+> diagnostic only — redistribute for the primary test. Hard 5000, allow heavy
+> duplication. Overwrite `_v2` in place. Fold event handling into the pos_event
+> axis (drop the separate event-fill step). Commit the previous session's
+> working tree first as a clean baseline.
+
+> I want to push back on one thing. Generating one of each synthetic type per GT
+> valid can leave us with >5000 (or >1000) positives — that's fine, just balance
+> with the same number of negatives. So half-held-out / half-synthetic is NOT
+> right for the diagnostic set; build it the same way as training (one synthetic
+> per axis per held-out valid, then resample to the 1000 floor). Also: we do NOT
+> want repeat valid or invalid entries — guard against duplicates on both sides.
+
+> What can I run for rung 3 and to generate the full sets?
+
+> Are there any parts of `src/scholarlm/utils/probe_augment.py` that we can trim
+> which are not being used anymore?
+
+> Rung 3 — measure per-axis yield finished successfully. Please set the multiple
+> values accordingly.
+
+### Implemented
+
+Replaced the augmentation procedure. Every ground-truth valid is now carried
+through and gets one equivalence-preserving `gpt-oss-120b` rewrite per axis
+(entity name / value / event) under a new protocol where the model returns
+**both** the replacement value and the minimal `{find, replace}` page edits;
+`fill_positive_target` resamples at a fixed raised temperature to a 5000-row
+**floor** (files usually end up larger), and `fill_negative_quota` builds an
+equal number of typed hard negatives — five error types, evenly split — as
+direct measurement swaps from pre-generated per-type alternative pools, with a
+context-collision guard. Every valid and invalid row is distinct by content
+(new `_row_signature`); the primary-test file is held-out GT valids with zero
+`gpt-oss` content, and the diagnostic file is built the same way as train on the
+held-out valids. Touched `src/scholarlm/utils/probe_augment.py` (orchestration
+rewrite — removed the retired `event_fill` / `balance_and_cap` /
+`make_hard_negative` and dead helpers), the three
+`data/*/create_probe_dataset.py` (per-dataset value / event pools + new
+`--augment-valid-floor` / `--augment-prompt-budget-multiple` /
+`--augment-sample-gt` flags), `configs/2026-09-03-probe-synthetic-augmentation-01.yaml`
+(rewritten `params.augment` block; `steps` → `experiments/gen_augment.sh`), and
+the tests (94 in `test_probe_augment.py`, `test_supermat_probe_pools.py`).
+Rungs 1–2 pass (`pytest` 253 passed / 1 skipped; `--augment-stub` end-to-end on
+all three datasets); rung 3 (`experiments/gen_augment.sh rung3`, real
+`gpt-oss-120b`) measured per-axis round-0 yield and set the per-dataset
+`prompt_budget_multiple` (`{pond: 2, nfix: 10, supermat: 12}`); rung 4 — the
+full generation of the `_v2` datasets — is the user's next step and its outputs
++ caches get committed then.
+
+### Commits
+
+- `ab41794` probe augmentation: v2 procedure — protocol-3 rewrite, typed negatives, floors + dedup
