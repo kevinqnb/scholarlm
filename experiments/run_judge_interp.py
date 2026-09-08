@@ -308,7 +308,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.synthetic:
         splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
         for split in splits:
-            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_filename = "probe_dataset_test_v2.json" if split == "test" else "probe_dataset_v2.json"
             probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
             if not probe_file.exists():
                 raise FileNotFoundError(

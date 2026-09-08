@@ -651,6 +651,10 @@ def _build_augment_rules() -> "_aug.DatasetAugmentRules":
         fabricated_names_by_type={},
         fabricated_names_any=list(_MADE_UP_NAMES),
         entity_type_token=lambda r: None,
+        entity_swap_preserve_clause=(
+            "Keep the ecosystem type and every measured quantity identical."
+        ),
+        entity_swap_clear_fields=(),   # nfix GT rows carry ~no `identifiers`
         attr_units=attr_units,
         # mass / areal / volumetric rates have disjoint unit families — a swap
         # between them is NOT equivalence-preserving, so no shared group.

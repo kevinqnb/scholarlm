@@ -8,6 +8,10 @@ description: >-
   carry their edited page text inline on the row (context_override field);
   no side-car file. Output files are additional (_v2 suffix) -- the default,
   non-augmented probe_dataset{,_test}.json outputs are untouched byte-for-byte.
+  The axis-2 pos_entity sub-axis swaps the entity name for all three datasets:
+  pond/nfix the site/material name, supermat the material formula in `name`
+  (revised 2026-09-08 from the original sample_details edit -- see the build
+  note; supermat pos_entity rows also null the now-stale `identifiers`).
 seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
           # -- this is the actual --seed value every documented step below uses.
 params:
@@ -72,7 +76,7 @@ params:
   steps:
     - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined into the job (h_rt/pe_omp per job_resources above) -> wait for /health -> data/pond/create_probe_dataset.py --augment --augment-events --seed 42 --reviewed"
     - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/nfix/create_probe_dataset.py --augment --seed 42 --reviewed  # NO --augment-events: hard error since commit 4698751"
-    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/supermat/create_probe_dataset.py --augment --seed 42  # NO --reviewed (no ground_truth_review.json), NO --augment-events"
+    - "experiments/serve_gpt_oss_120b.sh's server invocation, inlined -> wait for /health -> data/supermat/create_probe_dataset.py --augment --seed 42  # NO --reviewed (no ground_truth_review.json), NO --augment-events. axis-2 pos_entity swaps the material formula in `name` (revised 2026-09-08); regenerates probe_augment_cache.json from empty (old sample_details-instruction entries were deleted -- all misses under the new instruction)"
   # --augment-cache defaults to data/{ds}/probe_augment_cache.json (on by
   # default, no flag needed) -- this is what makes the done_when
   # "byte-identical regeneration" clause hold in practice.
@@ -88,6 +92,9 @@ params:
   #     none for the primary-test file)
 
   # Done = the Rung-4 well-formedness / seed-determinism (x2) / diff-report
-  # spot-check / row-count / prevalence / supermat-formula-invariant checks all
-  # pass on the real gpt-oss output for all three datasets; see the build
-  # note's Stage-3 done_when table and remaining-work #6.
+  # spot-check / row-count / prevalence checks all pass on the real gpt-oss
+  # output for all three datasets. (The former "supermat formula never edited"
+  # invariant is retired: as of 2026-09-08 supermat axis-2 deliberately swaps
+  # the formula in `name`; the diff-report spot-check now verifies the rename
+  # is page-consistent and `identifiers` is null on pos_entity rows instead.)
+  # See the build note's Stage-3 done_when table and remaining-work #6.

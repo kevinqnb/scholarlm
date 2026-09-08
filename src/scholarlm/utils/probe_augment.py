@@ -995,6 +995,16 @@ class DatasetAugmentRules:
     # fabricated name (pond: pond/lake/wetland/pool/reservoir from the messy
     # free-text ``ecosystem`` field; nfix: ``site_type``; supermat: None)
     entity_type_token: Callable[[dict], str | None]
+    # trailing sentence of the pos_entity rewrite instruction — what must stay
+    # fixed while the entity is renamed. Dataset-specific: pond/nfix talk about
+    # "the ecosystem type", supermat about the measured Tc and its conditions.
+    entity_swap_preserve_clause: str
+    # judge-visible entity fields (besides entity_name_field) that go stale after
+    # a pos_entity rename and are nulled on the positive row + any hard negative
+    # derived from it. supermat: ("identifiers",) — the abbreviation catalogue no
+    # longer matches the fabricated formula. pond/nfix: () (identifiers ~always
+    # null on their GT rows).
+    entity_swap_clear_fields: tuple[str, ...]
     # attribute handling
     attr_units: dict[str, list[str]]            # attribute -> canonical units list
     shared_unit_groups: list[list[str]]         # groups of attributes safe to swap between
@@ -1114,9 +1124,12 @@ def make_axis2_positive(
         if not old or not new:
             return None
         instr = (f'Rewrite this page so that the measurement currently attributed to '
-                 f'"{old}" is instead attributed to "{new}". Keep the ecosystem type '
-                 f'and every measured quantity identical.')
-        return _finish("pos_entity", [(old, new)], instr, {rules.entity_name_field: new})
+                 f'"{old}" is instead attributed to "{new}". '
+                 f'{rules.entity_swap_preserve_clause}')
+        updates: dict = {rules.entity_name_field: new}
+        for f in rules.entity_swap_clear_fields:
+            updates[f] = None
+        return _finish("pos_entity", [(old, new)], instr, updates)
 
     if sub_axis == "pos_attribute":
         tgt = rules.attribute_swap_target(src.get("attribute"), rng)
@@ -1214,6 +1227,12 @@ def make_hard_negative(
         row = _new_derived_row(src, label="invalid", mod_type="hard_entity",
                                axis=src.get("augment_axis") if on_edited_context else None)
         row[rules.entity_name_field] = new_name
+        # Same staleness as a pos_entity rename: a fabricated formula in `name`
+        # leaves supermat's `identifiers` catalogue ("YBCO; Y-123") pointing at
+        # the real compound, which the unedited page still supports — that would
+        # be a valid-looking claim on an invalid-labelled row. Null it.
+        for f in rules.entity_swap_clear_fields:
+            row[f] = None
     else:
         raise ValueError(f"unknown hard-negative kind {kind!r}")
 

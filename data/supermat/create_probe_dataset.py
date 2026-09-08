@@ -566,14 +566,6 @@ def build_probe_output(
 # Augmentation (opt-in; see notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md)
 # ---------------------------------------------------------------------------
 
-# Plausible sample_details values — the ONLY entity field the augmenter is
-# allowed to touch for supermat (the formula in `name` is never rewritten).
-_SUPERMAT_SAMPLE_DETAILS = [
-    "doping: x = 0.10", "doping: x = 0.15", "doping: x = 0.20", "doping: x = 0.24",
-    "optimally doped", "underdoped", "overdoped", "single crystal",
-    "polycrystalline", "thin film", "as-grown", "annealed",
-]
-
 
 def _run_augment(args, xv_train: list[dict], xv_test: list[dict], rng) -> None:
     """Augmented-dataset path — see the build note. Consumes RNG only after
@@ -624,17 +616,28 @@ def _build_augment_rules() -> "_aug.DatasetAugmentRules":
                   for a, info in _ATTR_DICT.items()}
     return _aug.DatasetAugmentRules(
         name="supermat",
-        # "never touch the formula" is expressed by pointing the entity edits at
-        # sample_details, not `name`. sample_details is judge-visible
-        # (_JUDGE_ENTITY_FIELDS) and non-null for ~18% of GT rows, which bounds
-        # the axis-2 positive yield — see the build note.
-        entity_name_field="sample_details",
+        # Axis-2 pos_entity swaps the material formula in `name` for a fabricated
+        # one (drawn from _MADE_UP_NAMES, the same fake-formula pool the default
+        # path's noise_entity uses), rewriting the page to match. This reverses
+        # the build note's original "never touch the formula / restrict to
+        # sample_details" call (§ "augment_pos_entity"): the judge only ever sees
+        # the page, the fabricated formulas are not real compounds, so a
+        # page-consistent rename is equivalence-preserving in exactly the sense
+        # pond's entity-name swap is. `identifiers` (non-null on ~4% of GT rows)
+        # is nulled on the positive since the abbreviation catalogue no longer
+        # matches the fabricated formula — see entity_swap_clear_fields.
+        entity_name_field="name",
         fabricated_names_by_type={},
-        fabricated_names_any=list(_SUPERMAT_SAMPLE_DETAILS),
+        fabricated_names_any=list(_MADE_UP_NAMES),
         entity_type_token=lambda r: None,
+        entity_swap_preserve_clause=(
+            "Keep every measured quantity — the critical temperature and the "
+            "conditions it was measured under — identical."
+        ),
+        entity_swap_clear_fields=("identifiers",),
         attr_units=attr_units,
         shared_unit_groups=[],           # single measurand (tc)
-        entity_field_locked=False,        # locking is via the entity_name_field choice
+        entity_field_locked=False,        # pos_entity / hard_entity both live on `name`
         event_fields=[],                  # axis #1 event-fill is pond-only
         event_prompt="",
         event_synth_field=None,           # no date-like field -> pos_event disabled
@@ -670,16 +673,18 @@ def main(argv: list[str] | None = None) -> None:
                          "--augment-stub is set.")
     ag.add_argument("--augment-stub", action="store_true",
                     help="Use the deterministic stub client (no LLM). NOTE: the stub "
-                         "needs the source span verbatim in the OCR page, which "
-                         "supermat's sample_details rarely is — the augment path is "
-                         "exercised by the real gpt-oss client, not this stub.")
+                         "needs the source span verbatim in the OCR page; the GT "
+                         "material formula in `name` is one only ~28% of the time — "
+                         "the augment path is exercised by the real gpt-oss client, "
+                         "not this stub.")
     ag.add_argument("--augment-events", action="store_true",
                     help="Axis #1: gpt-oss event-fill (pond only; a no-op here).")
     ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.DEFAULT_POS_AXES),
                     choices=list(_aug.POS_AXES),
                     help=f"Axis #2 sub-axes to attempt (default: "
                          f"{list(_aug.DEFAULT_POS_AXES)}). Only pos_entity "
-                         f"(sample_details edits) is live for supermat.")
+                         f"(material-formula `name` swap) is live for supermat; "
+                         f"pos_attribute is inert (single measurand, tc).")
     ag.add_argument("--augment-target-rows", type=int, default=10000)
     ag.add_argument("--augment-floor-rows", type=int, default=5000)
     ag.add_argument("--augment-max-derived-per-source", type=int, default=4)

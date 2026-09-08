@@ -92,6 +92,18 @@ _MADE_UP_NAMES: list[str] = [
     "Underhill Lake", "Valerian Pool", "Woodsorrel Pond", "Yarrow Lake",
 ]
 
+# Wetland-type fabricated names, used only by the augmentation path. Axis-2
+# pos_entity swaps must preserve the source ecosystem type, and ~11% of pond
+# GT valids are wetlands, for which _MADE_UP_NAMES has no type match. These are
+# deliberately kept OUT of _MADE_UP_NAMES: that list feeds create_noise_record
+# on the default (non-augment) path, so appending to it would shift the
+# rng.choice draw and break the byte-identical baseline gate.
+_WETLAND_NAMES: list[str] = [
+    "Sedgemoor Marsh", "Reedmere Marsh", "Cranesbill Marsh", "Bittern Marsh",
+    "Tealham Marsh", "Sallowmere Marsh", "Rushford Wetland", "Alderfen Wetland",
+    "Marshwood Wetland", "Curlew Fen",
+]
+
 _GT_COLS = [
     "document_id", "name", "identifiers", "location", "ecosystem",
     "date", "additional_details", "attribute", "value", "units", "page_number",
@@ -580,12 +592,19 @@ def _pond_type_token(record: dict) -> str | None:
     return None
 
 
+_NAME_SUFFIX_TO_TYPE = {
+    "pond": "pond", "lake": "lake", "reservoir": "reservoir", "pool": "pool",
+    "brook": "pond",
+    "marsh": "wetland", "wetland": "wetland", "fen": "wetland", "bog": "wetland",
+    "mire": "wetland",
+}
+
+
 def _fabricated_names_by_type() -> dict[str, list[str]]:
     out: dict[str, list[str]] = {tok: [] for tok in _POND_TYPE_TOKENS}
-    for n in _MADE_UP_NAMES:
+    for n in (*_MADE_UP_NAMES, *_WETLAND_NAMES):
         last = n.rsplit(" ", 1)[-1].lower()
-        key = {"pond": "pond", "lake": "lake", "reservoir": "reservoir",
-               "pool": "pool", "brook": "pond"}.get(last)
+        key = _NAME_SUFFIX_TO_TYPE.get(last)
         if key:
             out[key].append(n)
     return {k: v for k, v in out.items() if v}
@@ -637,8 +656,12 @@ def _build_augment_rules() -> "_aug.DatasetAugmentRules":
         name="pond",
         entity_name_field="name",
         fabricated_names_by_type=_fabricated_names_by_type(),
-        fabricated_names_any=list(_MADE_UP_NAMES),
+        fabricated_names_any=[*_MADE_UP_NAMES, *_WETLAND_NAMES],
         entity_type_token=_pond_type_token,
+        entity_swap_preserve_clause=(
+            "Keep the ecosystem type and every measured quantity identical."
+        ),
+        entity_swap_clear_fields=(),   # pond GT rows carry ~no `identifiers`
         attr_units=attr_units,
         # tn / tp / chla share the same canonical unit list -> safe to swap between
         shared_unit_groups=[["tn", "tp", "chla"]],

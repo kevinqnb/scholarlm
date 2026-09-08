@@ -210,6 +210,12 @@ data/pond/bad_responses/*
 data/nfix/bad_responses/*
 data/supermat/bad_responses/*
 
+# per-split unified-diff spot-check reports emitted alongside the augmented
+# probe datasets; derived from probe_augment_cache.json + the generator code
+# and regenerated on every run, so not committed (the _v2 datasets and the
+# cache are)
+data/*/probe_dataset*.diff.txt
+
 !data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
 !data/experiments/nfix/extraction/gemma-3-27b/2026_05_06/final.json
 

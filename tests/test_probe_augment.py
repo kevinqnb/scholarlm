@@ -451,6 +451,8 @@ def _rules() -> pa.DatasetAugmentRules:
         fabricated_names_any=["Fallback Water"],
         entity_type_token=lambda r: ("lake" if "lake" in (r.get("ecosystem") or "").lower()
                                      else "pond"),
+        entity_swap_preserve_clause="Keep the ecosystem type and every measured quantity identical.",
+        entity_swap_clear_fields=(),
         attr_units={"tn": ["µg/L", "mg/L", "ppb"], "tp": ["µg/L", "mg/L", "ppb"]},
         shared_unit_groups=[["tn", "tp"]],
         entity_field_locked=False,
