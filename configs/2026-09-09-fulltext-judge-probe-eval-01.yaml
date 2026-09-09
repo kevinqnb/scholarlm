@@ -1,0 +1,225 @@
+id: 2026-09-09-fulltext-judge-probe-eval-01
+project: scholarlm
+description: >-
+  Assess three already-committed changes on the pond judge-probe / meta
+  pipeline: (1) the full-paper LLM judge (e7da363), (2) narrowed
+  judge_filter_fields (7746b8b / 9817659), (3) probe training on the larger
+  _v2 synthetic corpus. COLLECT: (A) regenerate the pond _v2 synthetic
+  datasets (train / primary-test / diagnostic) via gpt-oss-120b augmentation;
+  (B) judge all three _v2 files with qwen-2.5-7b through NNsight (activations);
+  (C) re-judge the real pond gemma-3-27b/2026_05_05 extractions with the three
+  voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) under the full-paper
+  judge, then majority-vote combine; (D) re-run the qwen-2.5-7b interp judge over
+  those same real extractions under the full-paper judge to refresh the
+  activations the probe/NTP weighting reads. ANALYSE: retrain the head probe +
+  NTP calibrator on the _v2 train activations; run analysis/calibration_updated.py
+  --syn-source v2_{primary,diag} for probe / NTP SmECE; run analysis/meta_updated.py
+  --probe-source v2 for the 2-Wasserstein distance of the confidence-weighted
+  extracted distribution to ground truth. COMPARE (at /debrief): new vs. old
+  SmECE, new vs. old W2. Every output is additive -- new judge-date dirs, the
+  parallel synthetic_probe_v2* trees, _v2-suffixed CSVs; baseline artifacts and
+  the prior combined.json are snapshotted first (see params.snapshot).
+seed: 342  # repo-global (experiments/config.yaml). run_judge_interp.py /
+           # run_judge_local.py read it via load_config(). The _v2 augmentation
+           # generation deliberately uses --seed 42 (see
+           # configs/2026-09-03-probe-synthetic-augmentation-01.yaml); the
+           # sklearn probe / calibrator fits use a fixed internal random_state=42
+           # (unchanged from baseline -- not a knob of this experiment).
+params:
+  # No scripts/run_experiment.py adapter covers this workflow (entry_point only
+  # handles extraction|ablation, and this needs gpt-oss serving, NNsight, and
+  # three sequential judge servers). Each stage is a native entry point driven
+  # by a hand-written qsub job. This config is the reproducibility record; the
+  # queries + hypothesis are in
+  # notes/scholarlm/experiments/2026-09-09-fulltext-judge-probe-eval-01.md
+  # (written by /explog).
+  entry_point: manual
+
+  dataset: pond                    # pond only this session; nfix / supermat untouched
+  judge_date: "2026_09_10"         # directory label pinned by every new-output stage
+                                   # (a label -- run_metadata.json carries the real ts)
+
+  extraction:
+    model: gemma-3-27b
+    date: "2026_05_05"             # latest committed pond extraction; unchanged (not re-run)
+
+  synthetic:
+    # Stage A -- regenerate the pond _v2 files. Runs from the augmentation build's
+    # config, not this one:
+    #   configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+    #   qsub -N gen_aug_pond experiments/gen_augment.sh pond
+    # (pond: --augment --seed 42 --reviewed --augment-prompt-budget-multiple 3,
+    #  valid_floor 5000 default, diag_valid_floor 1000 default)
+    # Produces data/pond/: probe_dataset_v2.json (train), probe_dataset_test_v2.json
+    # (primary: held-out GT valids + typed negatives, zero gpt-oss on positives),
+    # probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out
+    # valids), + probe_augment_cache.json (extended, content-hash keyed) and the
+    # per-split .diff.txt reports (OVERWRITTEN -- snapshotted).
+    gen_config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+    files:
+      train:   { file: probe_dataset_v2.json,           synthetic_name: v2 }
+      primary: { file: probe_dataset_test_v2.json,      synthetic_name: v2_primary }
+      diag:    { file: probe_dataset_test_v2_diag.json, synthetic_name: v2_diag }
+
+  # ── Stage B — judge the _v2 files with qwen-2.5-7b + activations ────────────
+  #   experiments/run_judge_v2.sh pond train 2026_09_10   (-l h_rt=36:00:00)
+  #   experiments/run_judge_v2.sh pond tests 2026_09_10   (primary + diag)
+  # → data/experiments/pond/synthetic_probe_v2{,_primary,_diag}/qwen-2.5-7b/2026_09_10/
+  #   (responses.json + attention_outputs.npz + layer_outputs.npz). NEW trees.
+  judge_synthetic:
+    model: qwen-2.5-7b
+    entry_point: run_judge_interp.py
+    resources: { gpu_type: L40S, gpu_memory: 40G, gpu_c: 7.0, pe_omp: 8 }  # NOT Blackwell
+
+  # ── Item 3 — three voting judges on the real extractions (full-paper judge) ─
+  # Per model: serve_<model>.sh then experiments/pond/judge/<model_dir>/
+  # pond_judge_gemma_3_27b_<model>.sh (already pinned to --extraction-date
+  # 2026_05_05 and the right judge), submitted with a fresh -hold_jid. Then
+  # experiments/judge_combine_gemma_real_3vote.sh (--judges gpt-oss-120b
+  # qwen-2.5-72b llama-3.3-70b). Every model's serve.port is 8081, so gpt-oss
+  # is chained AFTER gen_aug_pond (which also serves gpt-oss); qwen-2.5-72b and
+  # llama-3.3-70b judges overlap Stage A (different models, accepted small risk
+  # of a same-node port collision -- user read).
+  # → data/experiments/pond/judge/gemma-3-27b/2026_05_05/<judge>/2026_09_10/ and
+  #   .../combined/combined.json (OVERWRITTEN -- prior 6-judge combined snapshotted).
+  judge_real_voting:
+    judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
+    entry_point: run_judge_local.py + run_judge_combine.py
+    voting_threshold: 2            # ceil(3/2), run_judge_combine.py default
+    serve_resources_from: experiments/config.yaml   # per-model serve block, unmodified
+
+  # ── Item 4 — refresh the real-extraction interp activations ────────────────
+  #   experiments/judge_interp_real_fulltext.sh 2026_09_10
+  #   (uv run python experiments/run_judge_interp.py --dataset pond
+  #    --extraction-model gemma-3-27b --judge qwen-2.5-7b
+  #    --extraction-date 2026_05_05 --judge-date 2026_09_10)
+  # → data/experiments/pond/judge/gemma-3-27b/2026_05_05/qwen-2.5-7b/2026_09_10/
+  #   The pre-existing .../2026_05_06/ run (pre-full-paper) is left in place.
+  judge_real_interp:
+    model: qwen-2.5-7b
+    resources: { gpu_type: L40S, gpu_memory: 40G, gpu_c: 7.0, pe_omp: 8 }
+
+  # ── Stage C — retrain probe + NTP calibrator on the _v2 train activations ───
+  #   experiments/run_probe_v2_downstream.sh v2 2026_09_10 pond   (Stage C + D)
+  #   → analysis/synthetic_probe_train.py --datasets pond --judges qwen-2.5-7b
+  #       --judge-date 2026_09_10 --source v2
+  #   writes head_probe.pkl + ntp_calibrator.pkl to
+  #   data/experiments/pond/synthetic_probe_v2/qwen-2.5-7b/trained_probe/
+  #   (parallel to baseline trained_probe/ -- never overwritten).
+  probe_train:
+    source: v2
+    probe_type: head              # calibration headline; layer probe not trained
+    platt_scaling: true           # USE_PLATT_SCALING default, unchanged
+
+  # ── Stage D — calibration on the _v2 test sets (part of run_probe_v2_downstream.sh) ─
+  #   analysis/calibration_updated.py --syn-source v2_primary --syn-judge-date 2026_09_10
+  #   analysis/calibration_updated.py --syn-source v2_diag    --syn-judge-date 2026_09_10
+  #   (CALIBRATION_DATASETS=pond CALIBRATION_JUDGE_MODELS=qwen-2.5-7b)
+  #   'real' dtype is skipped for a non-baseline syn source.
+  #   → results/metrics_gemma-3-27b_head_v2_{primary,diag}_pooled.csv + figures.
+  calibration:
+    syn_sources: [v2_primary, v2_diag]
+    headline_metric: SmECE        # relplot smooth ECE
+    headline_settings:
+      - "Probe, in-domain (pond/pond), syn source v2_primary"
+      - "NTP, in-domain (pond/pond), syn source v2_primary"
+
+  # ── meta / 2-Wasserstein (analysis) ───────────────────────────────────────
+  #   experiments/meta_v2.sh 2026_09_10
+  #   → uv run python analysis/meta_updated.py --probe-source v2 --judge-date 2026_09_10
+  # CODE CHANGE (separate standalone commit, additive -- default args reproduce
+  # prior behaviour byte-for-byte, so prior W2 numbers stay valid):
+  #   analysis/meta_updated.py gains --probe-source (source= on load_trained_probe
+  #   / load_trained_ntp_calibrator) and --judge-date (load_activations), plus a
+  #   _<source> suffix on the output CSVs and figures/meta/<source>/ routing.
+  meta:
+    probe_source: v2
+    headline_metric: W2           # quantile-approximated 2-Wasserstein to ground truth
+    outputs:
+      - results/meta_pond_gemma-3-27b_2026_05_05_v2.csv
+      - results/wasserstein_pond_gemma-3-27b_2026_05_05_v2.csv
+
+  # ── Comparison (done at /debrief -- the read is the user's) ────────────────
+  compare:
+    smece:
+      new: "results/metrics_gemma-3-27b_head_v2_{primary,diag}_pooled.csv (this run)"
+      old: "snapshot/metrics_gemma-3-27b_head_pooled.csv (baseline syn source, pre-_v2)"
+    wasserstein:
+      new: "results/wasserstein_pond_gemma-3-27b_2026_05_05_v2.csv (this run)"
+      old: "snapshot/wasserstein_pond_gemma-3-27b_2026_05_05.csv (baseline probe, 2026-09-09)"
+
+  # ── Non-destructive snapshot (taken before any job) ───────────────────────
+  snapshot:
+    dir: /projectnb/mcnet/kevin/tmp/scholarlm_baseline_snapshot_2026_09_09
+    contents:
+      - results/metrics_gemma-3-27b_head_pooled.csv
+      - results/metrics_gemma-3-27b_head.csv
+      - results/metrics_gemma-3-27b_head_noplatt_pooled.csv
+      - results/wasserstein_pond_gemma-3-27b_2026_05_05.csv
+      - results/meta_pond_gemma-3-27b_2026_05_05.csv
+      - data/pond/probe_dataset_v2.json.diff.txt
+      - data/pond/probe_dataset_test_v2_diag.json.diff.txt
+      - data/pond/probe_augment_cache.json
+      - data/experiments/pond/judge/gemma-3-27b/2026_05_05/combined/combined.json
+      - "experiments/ scratch scripts touched this session (scripts/ subdir)"
+
+  # ── Staged-gate ladder ───────────────────────────────────────────────────
+  ladder:
+    rung_1_unit_tests: "uv run --extra dev pytest (full suite; incl. test_judge_common, test_probe_augment, synthetic-probe v2 wiring)"
+    rung_2_smoke: "qsub experiments/gen_augment.sh pond_rung3 -- 80-GT-valid sample. Exercises the gen path (gpt-oss serve + augment client) end to end and reads the round-0 distinct yield under the prewarm retry/drop behaviour (58c8844); confirms the multiple-3 / floor-5000 budget still closes before the 24h full gen. No separate judge smoke -- rung 3 exercises that path on the (already tiny) rung-3 files, and test_judge_common covers the full-paper judge at rung 1."
+    rung_3_tiny_e2e: >-
+      the rung-2 output judged + probe-trained + calibrated via the existing
+      rung3-suffix path:
+        run_judge_v2.sh pond all 2026_09_10 rung3
+        run_probe_v2_downstream.sh rung3 2026_09_10 pond
+      Predicted in advance: probe AUROC > 0.5 on the 50/50 synthetic set;
+      shuffled-label control ≈ 0.5; v2_diag edited-vs-unedited AUROC ≈ 0.5
+      (leakage). Stop and diagnose if any misses before the full run.
+    rung_4_full: "the full job graph below"
+
+  # ── Sanity controls (results into the note) ──────────────────────────────
+  sanity_controls:
+    shuffled_label:
+      check: "permute _v2 train labels within document_id groups, retrain Stage C, recompute Stage D"
+      expected: "probe AUROC ≈ 0.5 on v2_primary; SmECE no better than the prevalence constant"
+      status: DEFERRED   # no tooling in synthetic_probe_train.py; run as a separate
+                         # small follow-up experiment (user call, 2026-09-09). KNOWN GAP
+                         # in this run's controls -- the probe signal is not verified
+                         # against a label-permutation null here.
+    leakage:
+      check: "probe AUROC on v2_diag for the edited-vs-unedited (gpt-oss page) split"
+      expected: "≈ 0.5 -- positives and negatives sit on the same edited pages"
+    seed_determinism:
+      check: "re-judge the rung-3 primary file a second time (judge_date 2026_09_11) and
+              diff responses.json against the 2026_09_10 run -- byte-identical"
+      expected: "byte-identical"
+      job: judge_v2_pond_rung3_seedcheck   # wired at rung 3 (see jobs)
+    known_answer:
+      check: "rung-3 tiny e2e SmECE prediction stated before the run"
+      expected: "matches within the tiny-sample noise band; mismatch => stop"
+
+  # ── SGE job graph (ids filled in as submitted; -hold_jid chains) ──────────
+  jobs:
+    gen_aug_pond_rung3:   # rung 2
+    judge_v2_pond_rung3:  # rung 3  hold gen_aug_pond_rung3  (run_judge_v2.sh pond all 2026_09_10 rung3)
+    judge_v2_pond_rung3_seedcheck:  # rung 3  hold gen_aug_pond_rung3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
+    probe_rung3_downstream:  # rung 3  hold judge_v2_pond_rung3
+    gen_aug_pond:         # A   (H200, serves gpt-oss-120b)
+    judge_v2_pond_train:  # B1  hold gen_aug_pond,  -l h_rt=36:00:00
+    judge_v2_pond_tests:  # B2  hold gen_aug_pond
+    probe_v2_downstream:  # C+D hold B1,B2
+    judge_interp_real:    # I   hold gen_aug_pond   (L40S; no data dep, staggered for GPU)
+    serve_qwen72:         # S1  overlaps A
+    judge_real_qwen72:    # J1  hold S1
+    serve_llama70:        # S2  hold J1
+    judge_real_llama70:   # J2  hold S2
+    serve_gptoss:         # S3  hold gen_aug_pond, J2
+    judge_real_gptoss:    # J3  hold S3
+    judge_combine_real:   # K   hold J1,J2,J3
+    meta_v2:              # hold C, I, K
+
+  code:
+    # this session, branch diff-experiments
+    - "analysis/meta_updated.py: --probe-source / --judge-date (additive; standalone commit)"
+    - "experiments/gen_augment.sh: pond_rung3 case (gitignored scratch)"
+    - "experiments/judge_interp_real_fulltext.sh, judge_combine_gemma_real_3vote.sh, meta_v2.sh (gitignored scratch)"
