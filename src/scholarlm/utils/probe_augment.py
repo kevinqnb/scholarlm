@@ -489,7 +489,9 @@ class GptOssClient:
         a well-formed object with a bad ``edits`` array (not a list, an element
         missing ``find``/``replace``) or a missing ``replacement`` string still
         gets cached and then raises in ``rewrite_context`` on the real pass.
-        Known residual; ``rewrite_context`` fails loud on all of them.
+        Known residual; ``rewrite_context`` fails loud on those. (A
+        ``feasible: true`` object with an *empty* ``edits`` list is not in that
+        set — it is a model decline and ``rewrite_context`` skips it.)
         """
         from openai import AsyncOpenAI
 
@@ -600,10 +602,10 @@ class GptOssClient:
 
     @staticmethod
     def _parse_edits(obj: dict, raw: str) -> list[tuple[str, str]]:
-        """Validate the ``edits`` array; hard error on any schema violation."""
+        """Validate a non-empty ``edits`` array; hard error on any schema
+        violation. A missing or empty ``edits`` list is the caller's to handle
+        (``rewrite_context`` treats it as a model decline, not a schema error)."""
         edits_raw = obj.get("edits")
-        if edits_raw is None or (isinstance(edits_raw, list) and not edits_raw):
-            raise ValueError(f"gpt-oss rewrite feasible but proposed no edits: {raw[:400]!r}")
         if not isinstance(edits_raw, list):
             raise ValueError(f"gpt-oss rewrite feasible but 'edits' is not a list: {raw[:400]!r}")
         edits: list[tuple[str, str]] = []
@@ -652,9 +654,12 @@ class GptOssClient:
         """Protocol-3 context edit: the model picks the new value AND the edits.
 
         Returns a ``RewriteResult``. ``applied=False`` is a clean skip (model
-        declined, a ``find`` span did not apply, or ``verify_rewrite`` failed).
-        Fails loud (``ValueError``) only on a schema violation: ``feasible: true``
-        with no ``replacement`` string or no usable ``edits`` list.
+        declined outright, declared the edit feasible but proposed no edits, a
+        ``find`` span did not apply, or ``verify_rewrite`` failed). Fails loud
+        (``ValueError``) only on a genuine schema violation: ``feasible: true``
+        with no ``replacement`` string, or an ``edits`` value that is present
+        but malformed (not a list, or an element that is not
+        ``{find: str, replace: str}``).
         ``stub_replacement`` is ignored here — it only steers ``StubAugmentClient``.
         """
         payload = {"context": context, "instruction": instruction,
@@ -671,6 +676,14 @@ class GptOssClient:
                 f"gpt-oss rewrite feasible but 'replacement' is missing/empty: {raw[:400]!r}"
             )
         replacement = replacement.strip()
+        edits_raw = obj.get("edits")
+        if edits_raw is None or (isinstance(edits_raw, list) and not edits_raw):
+            # feasible + a replacement but zero edits: the model claims the
+            # change is possible yet supplies no way to make it. In practice the
+            # GT surface form just isn't a verbatim span of the paper, so this is
+            # functionally a decline — a clean skip, like `feasible: false`, not
+            # a schema error. (Rare: 1/359 on nfix rung 3, 0/415 on pond.)
+            return RewriteResult(False, context, "", [], "feasible but proposed no edits")
         edits = self._parse_edits(obj, raw)
         try:
             new_ctx = apply_verified_edit(context, edits)
@@ -1141,6 +1154,7 @@ _SKIP_CATEGORIES = (
     "axis not applicable to this row", "no pool alternative",
     "wrong entity type", "edit not applicable", "did not introduce the replacement",
     "left the original", "already in the paper", "not valid JSON",
+    "feasible but proposed no edits",
 )
 
 
