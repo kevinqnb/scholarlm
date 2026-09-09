@@ -210,6 +210,11 @@ data/pond/bad_responses/*
 data/nfix/bad_responses/*
 data/supermat/bad_responses/*
 
+# dropped_prewarm.json (calls dropped after the retry budget) is deliberately
+# NOT ignored: like probe_augment_cache.json it is a determinant of the
+# committed _v2 datasets — regenerating without it would silently recover the
+# dropped rows — so it is committed alongside the cache.
+
 # per-split unified-diff spot-check reports emitted alongside the augmented
 # probe datasets; derived from probe_augment_cache.json + the generator code
 # and regenerated on every run, so not committed (the _v2 datasets and the

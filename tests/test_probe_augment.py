@@ -209,12 +209,17 @@ def test_rewrite_repairs_unescaped_latex_in_find_then_applies(monkeypatch):
     assert res.applied and res.new_context == "the ratio \\( r = 0.9 \\) was noted"
 
 
-def test_rewrite_fresh_miss_malformed_json_stays_out_of_cache(monkeypatch, tmp_path):
+def test_rewrite_fresh_miss_malformed_json_is_dropped_not_cached(monkeypatch, tmp_path, capsys):
+    # A response that never parses (here, every retry returns the same truncated
+    # body) is dropped after the retry budget, not cached, and surfaces as a
+    # clean skip — one bad case must not abort the run.
     raw = '{"feasible": true, "replacement": "b", "edits": [{"find": "a", "replace": "b"}, {"find": "c"'
     c = _rewrite_client(raw, monkeypatch, cache_path=tmp_path / "cache.json")
-    with pytest.raises(RuntimeError, match=r"1/1 gpt-oss call\(s\) failed"):
-        c.rewrite_context(context="a c", instruction="i", original="a")
+    res = c.rewrite_context(context="a c", instruction="i", original="a")
+    assert res.applied is False and res.reason.startswith("dropped:")
     assert c.cache._store == {}
+    assert c._dropped_detail                        # the key was recorded as dropped
+    assert "dropped" in capsys.readouterr().out.lower()
 
 
 def test_rewrite_cache_key_carries_protocol_and_attempt(monkeypatch):
@@ -342,7 +347,10 @@ def test_extract_json_object_comment_strip_does_not_rescue_repetition_loop(tmp_p
     assert len(list(dump_dir.glob("bad_response_rewrite_*.txt"))) == 1
 
 
-def test_run_batch_keeps_unparseable_response_out_of_the_cache(tmp_path, monkeypatch):
+def test_run_batch_retries_then_drops_unparseable_response(tmp_path, monkeypatch):
+    # `k_loop` never parses (same truncated body every retry) -> dropped, kept out
+    # of the cache, no raise (one drop is under the ceiling). `k_commented` parses
+    # after a last-resort repair and is cached as before.
     async def _one(self, client, messages):
         tag = messages[0]["content"]
         if tag == "loop":
@@ -357,9 +365,10 @@ def test_run_batch_keeps_unparseable_response_out_of_the_cache(tmp_path, monkeyp
     jobs = [("k_ok", [{"role": "user", "content": "ok"}]),
             ("k_loop", [{"role": "user", "content": "loop"}]),
             ("k_commented", [{"role": "user", "content": "commented"}])]
-    with pytest.raises(RuntimeError, match=r"1/3 gpt-oss call\(s\) failed"):
-        asyncio.run(client._run_batch(jobs))
+    results = asyncio.run(client._run_batch(jobs))
+    assert set(results) == {"k_ok", "k_commented"}
     assert set(client.cache._store) == {"k_ok", "k_commented"}
+    assert set(client._dropped_detail) == {"k_loop"}
     assert json.loads(cache_path.read_text()) == client.cache._store
 
 
@@ -943,7 +952,7 @@ def test_one_raises_on_length_finish_with_nonempty_content():
         asyncio.run(client._one(fake, [{"role": "user", "content": "hi"}]))
 
 
-def test_run_batch_partial_failure_caches_successes_before_raising(tmp_path, monkeypatch):
+def test_run_batch_caches_successes_and_drops_the_one_persistent_failure(tmp_path, monkeypatch):
     async def _one(self, client, messages):
         if messages[0]["content"] == "fail":
             raise ValueError("simulated gpt-oss failure")
@@ -953,9 +962,10 @@ def test_run_batch_partial_failure_caches_successes_before_raising(tmp_path, mon
     client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
     jobs = [(f"k{i}", [{"role": "user", "content": "fail" if i == 1 else "ok"}])
             for i in range(4)]
-    with pytest.raises(RuntimeError, match=r"1/4 gpt-oss call\(s\) failed"):
-        asyncio.run(client._run_batch(jobs))
+    results = asyncio.run(client._run_batch(jobs))
+    assert set(results) == {"k0", "k2", "k3"}
     assert set(client.cache._store) == {"k0", "k2", "k3"}
+    assert set(client._dropped_detail) == {"k1"}
     assert json.loads(cache_path.read_text()) == client.cache._store
 
 
@@ -1034,6 +1044,202 @@ def test_record_then_real_pass_makes_zero_model_calls(monkeypatch, resumed):
     assert client.cache._misses == misses_after_prewarm      # strict_cache never fell through
     for key in ("train", "primary_test", "diagnostic_test"):
         pa.assert_wellformed(key, out[key][0])
+
+
+# ─── prewarm retry + drop-with-warning ───────────────────────────────────────
+#
+# A gpt-oss call that comes back truncated / empty / unparseable is resampled up
+# to `prewarm_max_retries` times (temperature > 0, so a resample can land
+# differently); a call still failing after that is DROPPED — a loud warning, not
+# a crash — and flows through the real pass as a clean skip. A drop rate over
+# `prewarm_drop_ceiling` (a fraction of the batch) trips a circuit breaker that
+# stops the batch and raises, so a wedged server still fails fast.
+
+
+def _counting_one(script):
+    """`_one` stand-in driven by ``script``: ``{tag: [outcome, ...]}`` where each
+    outcome is an Exception instance (raised) or a str (returned). The list is
+    consumed left to right; once exhausted the last outcome repeats. ``calls`` on
+    the returned function counts invocations."""
+    async def _one(self, client, messages):
+        _one.calls += 1
+        tag = messages[0]["content"]
+        seq = script[tag]
+        outcome = seq.pop(0) if len(seq) > 1 else seq[0]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+    _one.calls = 0
+    return _one
+
+
+_OK_RESPONSE = json.dumps({"feasible": True, "replacement": "x",
+                           "edits": [{"find": "a", "replace": "x"}]})
+
+
+def test_run_batch_retries_transient_failure_then_succeeds(monkeypatch):
+    script = {"flaky": [ValueError("boom"), ValueError("boom"), _OK_RESPONSE]}
+    one = _counting_one(script)
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None),
+                             prewarm_max_retries=2)
+    results = asyncio.run(client._run_batch([("k", [{"role": "user", "content": "flaky"}])]))
+    assert results == {"k": _OK_RESPONSE}
+    assert client.cache._store == {"k": _OK_RESPONSE}
+    assert not client._dropped_detail
+    assert one.calls == 3                        # two failures + the success
+
+
+def test_run_batch_drops_after_the_retry_budget_is_exhausted(monkeypatch, capsys):
+    one = _counting_one({"bad": [ValueError("always")], "good": [_OK_RESPONSE]})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None),
+                             prewarm_max_retries=2)
+    jobs = [("k_bad", [{"role": "user", "content": "bad"}]),
+            ("k_good", [{"role": "user", "content": "good"}])]
+    results = asyncio.run(client._run_batch(jobs))
+    assert results == {"k_good": _OK_RESPONSE}
+    assert set(client._dropped_detail) == {"k_bad"}
+    assert one.calls == 1 + 3                    # good once, bad 1 + 2 retries
+    assert "drop" in capsys.readouterr().out.lower()     # loud warning on stdout
+
+
+def test_run_batch_does_not_retry_a_well_formed_schema_violation(monkeypatch):
+    # `{"feasible": true, "edits": "oops"}` is a JSON object, so it passes the
+    # admission gate and is cached on the first try — the schema violation is
+    # still a hard error later in `rewrite_context`, not a retry/drop case.
+    bad = json.dumps({"feasible": True, "replacement": "z", "edits": "not a list"})
+    one = _counting_one({"schema": [bad]})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    results = asyncio.run(client._run_batch([("k", [{"role": "user", "content": "schema"}])]))
+    assert results == {"k": bad} and one.calls == 1
+    assert not client._dropped_detail
+
+
+def test_run_batch_raises_when_drops_exceed_the_ceiling(tmp_path, monkeypatch):
+    one = _counting_one({f"j{i}": [ValueError("down")] for i in range(20)})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    cache_path = tmp_path / "cache.json"
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path),
+                             prewarm_max_retries=0, prewarm_drop_ceiling=0.25,
+                             max_concurrent=2)
+    jobs = [(f"j{i}", [{"role": "user", "content": f"j{i}"}]) for i in range(20)]
+    # ceiling = ceil(0.25 * 20) = 5; the batch aborts once a 6th call is dropped.
+    with pytest.raises(RuntimeError, match=r"ceiling|abort"):
+        asyncio.run(client._run_batch(jobs))
+    assert cache_path.exists()                              # cache saved before raising
+
+
+def test_run_batch_circuit_breaker_stops_calling_the_model_once_tripped(monkeypatch):
+    one = _counting_one({f"j{i}": [ValueError("down")] for i in range(20)})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None),
+                             prewarm_max_retries=1, prewarm_drop_ceiling=0.1,
+                             max_concurrent=2)
+    jobs = [(f"j{i}", [{"role": "user", "content": f"j{i}"}]) for i in range(20)]
+    with pytest.raises(RuntimeError):
+        asyncio.run(client._run_batch(jobs))
+    # ceiling = ceil(0.1 * 20) = 2; the breaker trips once a 3rd call is dropped.
+    # Each drop is 1 + 1 retry = 2 calls, so it stops after ~6 — far short of the
+    # 20 jobs × 2 attempts an un-broken batch would make.
+    assert one.calls < 20
+
+
+def test_dropped_key_on_the_real_pass_is_a_clean_skip(monkeypatch):
+    # Fix the cache key so the drop recorded here is the one the real pass asks
+    # for. First call (non-strict) drops it; the strict-cache call then declines
+    # cleanly instead of raising on the miss.
+    monkeypatch.setattr(pa, "_cache_key", lambda op, payload: "K")
+    c = _rewrite_client('not json at all', monkeypatch)
+    res = c.rewrite_context(context="a c", instruction="i", original="a")
+    assert res.applied is False and pa._skip_category(res.reason) == "dropped"
+
+    c.strict_cache = True
+    res2 = c.rewrite_context(context="a c", instruction="i", original="a")
+    assert res2.applied is False and res2.reason.startswith("dropped:")
+
+
+def test_skip_category_does_not_confuse_a_model_decline_with_an_infra_drop():
+    # gpt-oss's own free-text reason can contain the word "dropped"; only the
+    # exact drop sentinel is bucketed as an infrastructure drop.
+    assert pa._skip_category(pa._DROP_REASON) == "dropped"
+    assert pa._skip_category("the measurement was dropped from Table 2") != "dropped"
+
+
+def test_resolve_still_raises_on_a_cache_miss_that_was_not_dropped(monkeypatch):
+    c = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None), strict_cache=True)
+    c._dropped_detail["K"] = "ValueError('x')"
+    # a dropped key -> decline sentinel
+    out = c._resolve("K", "rewrite", [{"role": "user", "content": "x"}])
+    assert json.loads(out)["feasible"] is False
+    # any other missing key under strict_cache still fails loud
+    with pytest.raises(RuntimeError, match="cache miss"):
+        c._resolve("OTHER", "rewrite", [{"role": "user", "content": "x"}])
+
+
+def _canned_one(fail_anchor=None):
+    """`_one` stand-in matching ``_canned_run_batch``'s protocol-3 logic (anchor
+    on the first quoted token present in the paper), but raising unconditionally
+    for one chosen anchor — the persistently-failing case."""
+    async def _one(self, client, messages):
+        instr, paper = messages[-1]["content"].split("## PAPER TEXT\n", 1)
+        anchor = next((q for q in re.findall(r'"([^"]+)"', instr) if q in paper), None)
+        if anchor is not None and anchor == fail_anchor:
+            raise ValueError(f"simulated persistent failure for {anchor!r}")
+        if anchor is None:
+            return json.dumps({"feasible": False, "reason": "canned: no anchor"})
+        if "does not state" in instr:
+            return json.dumps({"feasible": True, "replacement": "Summer 2019",
+                "edits": [{"find": anchor, "replace": f"{anchor} (Summer 2019)"}]})
+        repl = anchor[::-1] + "x"
+        return json.dumps({"feasible": True, "replacement": repl,
+            "edits": [{"find": anchor, "replace": repl}]})
+    return _one
+
+
+def _write_fixture_ocr(ocr_dir, valids):
+    ocr_dir.mkdir()
+    by_code: dict[str, list[dict]] = {}
+    for v in valids:
+        by_code.setdefault(v["_paper_code"], []).append(v)
+    for code, vs in by_code.items():
+        body = " ".join(f'The site "{v["name"]}" reported {v["attribute"]} of '
+                        f'"{v["value"]}" {v["units"]}.' for v in vs)
+        (ocr_dir / f"{code}.txt").write_text(f'<page number="1">{body}</page>')
+
+
+def test_run_and_write_drops_a_persistently_failing_call_and_still_writes(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(pa.GptOssClient, "_one", _canned_one(fail_anchor="Site 0"))
+    _, _, rules, flags = _augment_fixture()
+    valids = _fixture_valids(30)
+    ocr_dir = tmp_path / "ocr"
+    _write_fixture_ocr(ocr_dir, valids)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(tmp_path / "cache.json"),
+                             prewarm_max_retries=1, prewarm_drop_ceiling=0.9)
+    written = pa.run_and_write(
+        base_dir=tmp_path, out_suffix="_v2", ocr_dir=ocr_dir,
+        xv_train=[dict(v) for v in valids[:20]], xv_test=[dict(v) for v in valids[20:]],
+        rules=rules, flags=flags, client=client, rng=random.Random(42),
+    )
+    assert client._dropped_detail                            # "Site 0" rewrites dropped
+    out = capsys.readouterr().out
+    assert "DROPPED" in out                                  # _run_batch warning
+    assert re.search(r"positive fill.*\bdropped\b", out)     # tallied in the skip summary
+    for k in ("train", "primary_test", "diagnostic_test"):
+        rows = json.loads(written[k].read_text())
+        pa.assert_wellformed(k, rows)                        # balanced, contiguous, all context-stamped
+
+
+def test_dropped_prewarm_keys_are_written_beside_the_cache(tmp_path, monkeypatch):
+    one = _counting_one({"bad": [ValueError("always")]})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    cache_path = tmp_path / "sub" / "cache.json"
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path),
+                             prewarm_max_retries=0)
+    asyncio.run(client._run_batch([("k_bad", [{"role": "user", "content": "bad"}])]))
+    record = json.loads((cache_path.parent / "dropped_prewarm.json").read_text())
+    assert "k_bad" in record
 
 
 # ─── judge_common.prepare_chat_entries context-override plumbing ──────────────

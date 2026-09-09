@@ -624,8 +624,12 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
         client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
         print("Augment client: STUB (no LLM)")
     else:
-        client = _aug.GptOssClient(api_base=args.gpt_oss_api_base, cache=cache,
-                                   temperature=args.augment_rewrite_temperature)
+        client = _aug.GptOssClient(
+            api_base=args.gpt_oss_api_base, cache=cache,
+            temperature=args.augment_rewrite_temperature,
+            prewarm_max_retries=args.augment_prewarm_max_retries,
+            prewarm_drop_ceiling=args.augment_prewarm_drop_ceiling,
+        )
         print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base} "
               f"(temperature {args.augment_rewrite_temperature})")
 
@@ -724,6 +728,14 @@ def main(argv: list[str] | None = None) -> None:
                          "short inside the budget is a hard error — set from the "
                          "rung-3 measured yield.")
     ag.add_argument("--augment-rewrite-temperature", type=float, default=0.7)
+    ag.add_argument("--augment-prewarm-max-retries", type=int, default=2,
+                    help="Resample a truncated / empty / unparseable gpt-oss "
+                         "prewarm call up to this many times before dropping it "
+                         "(with a warning) instead of aborting the run.")
+    ag.add_argument("--augment-prewarm-drop-ceiling", type=float, default=0.02,
+                    help="Circuit breaker: abort if dropped prewarm calls exceed "
+                         "this fraction of the batch (a wedged server still fails "
+                         "fast). A single call can always be dropped.")
     ag.add_argument("--augment-sample-gt", type=int, default=0,
                     help="Rung 3: randomly sample this many GT valids (train and test each) "
                          "before augmenting, for a quick per-axis yield read. 0 = all.")
