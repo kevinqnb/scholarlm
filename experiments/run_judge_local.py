@@ -79,7 +79,14 @@ async def _judge_one(
     idx: int,
     sem: asyncio.Semaphore,
 ) -> dict:
-    """Send a single judge request and return judgement based on text response."""
+    """Send a single judge request and return its true/false judgement.
+
+    Fails loud: a request that errors, comes back with no content, or whose
+    text yields neither ``true`` nor ``false`` raises. It must not resolve to a
+    null judgement — ``run_judge_combine`` counts anything that is not ``True``
+    as a non-affirmative vote, so a silently-dropped request would bias the
+    majority-vote ground truth without leaving a trace.
+    """
     async with sem:
         try:
             response = await client.chat.completions.create(
@@ -92,25 +99,28 @@ async def _judge_one(
                 temperature=0.0,
             )
         except Exception as e:
-            print(f"  [idx={idx}] API error: {e}")
-            return {
-                "judgement": None,
-                "judgement_model": model_id,
-            }
+            raise RuntimeError(
+                f"[idx={idx}] judge API call failed: {type(e).__name__}: {e}"
+            ) from e
 
     choice = response.choices[0]
-    response_text = choice.message.content or ""
+    response_text = (choice.message.content or "").strip()
 
     print(f"  [idx={idx}] Response: {response_text}")
 
-    # Derive judgement from the response text
-    judgement: bool | None = None
-    if response_text:
-        t = response_text.strip().lower()
-        if "true" in t:
-            judgement = True
-        elif "false" in t:
-            judgement = False
+    # Derive judgement from the response text. Parse semantics are unchanged
+    # from the original ("true" wins if both appear); only the no-verdict case,
+    # which used to fall through to None, now raises.
+    t = response_text.lower()
+    if "true" in t:
+        judgement = True
+    elif "false" in t:
+        judgement = False
+    else:
+        raise ValueError(
+            f"[idx={idx}] judge response has no true/false verdict "
+            f"(finish_reason={choice.finish_reason!r}): {response_text!r}"
+        )
 
     return {
         "judgement": judgement,
@@ -139,9 +149,10 @@ def run_local_vllm_judge(
 ) -> None:
     """Run a local vLLM judge and save responses.
 
-    A row carrying a ``context_override`` field (set by the synthetic-probe
-    augmentation pipeline) uses that text verbatim in place of the OCR page
-    lookup — see ``judge_common.prepare_chat_entries``.
+    The judge sees the full OCR paper as ``## CONTEXT``. A row carrying a
+    ``context_override`` field (set by the synthetic-probe augmentation
+    pipeline) uses that text verbatim instead — see
+    ``judge_common.prepare_chat_entries``.
 
     Args:
         dataset_config: Dataset configuration.
@@ -187,14 +198,29 @@ def run_local_vllm_judge(
     client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
     sem = asyncio.Semaphore(max_concurrent)
 
-    async def _run_all() -> list[dict]:
+    async def _run_all() -> list[dict | BaseException]:
         tasks = [
             _judge_one(client, model_id, entry, int(entry["custom_id"]), sem)
             for entry in chat_entries
         ]
-        return await asyncio.gather(*tasks)
+        return await asyncio.gather(*tasks, return_exceptions=True)
 
     raw_results = asyncio.run(_run_all())
+
+    # Any failed request aborts the run before responses.json is written — a
+    # partial file would feed a biased vote into run_judge_combine unnoticed.
+    failures = [
+        (int(entry["custom_id"]), res)
+        for entry, res in zip(chat_entries, raw_results)
+        if isinstance(res, BaseException)
+    ]
+    if failures:
+        preview = "\n".join(f"    idx={i}: {res}" for i, res in failures[:10])
+        more = "" if len(failures) <= 10 else f"\n    ... and {len(failures) - 10} more"
+        raise RuntimeError(
+            f"{len(failures)}/{len(chat_entries)} judge requests failed; "
+            f"responses.json NOT written.\n{preview}{more}"
+        )
 
     max_pt = max((r.get("_prompt_tokens", 0) or 0) for r in raw_results)
 
@@ -274,7 +300,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Judge an arbitrary probe file (e.g. an augmentation-pipeline output). "
             "Requires --synthetic-name. Rows carrying a context_override field "
-            "use that text verbatim in place of the OCR page lookup."
+            "use that text verbatim instead of the full-paper context."
         ),
     )
     p.add_argument(
