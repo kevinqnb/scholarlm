@@ -100,8 +100,12 @@ DATASET = 'pond'
 EXT_MODEL = 'gemma-3-27b'
 EXT_DATE = '2026_05_05'
 JUDGE_MODEL = 'qwen-2.5-7b'
-JUDGE_DATE = '2026_05_06'
+JUDGE_DATE = '2026_05_06'          # default; --judge-date overrides (interp judge run
+                                  # supplying the real-extraction activations)
 PROBE_TYPE = 'head'
+PROBE_SOURCE = None               # default (baseline trained_probe/); --probe-source
+                                  # selects a parallel synthetic_probe_<source>/ tree
+                                  # (e.g. 'v2') for the probe + NTP calibrator.
 
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
@@ -369,8 +373,8 @@ def load_data():
     ext_df['judgement_combined'] = judged_df['judgement_combined'].to_numpy()
     ext_df[f'judgement_p_true_{JUDGE_MODEL}'] = judged_df[f'judgement_p_true_{JUDGE_MODEL}'].to_numpy()
 
-    pd_data = load_trained_probe(DATASET, JUDGE_MODEL, ptype=PROBE_TYPE)
-    ntp_cal_data = load_trained_ntp_calibrator(DATASET, JUDGE_MODEL)
+    pd_data = load_trained_probe(DATASET, JUDGE_MODEL, ptype=PROBE_TYPE, source=PROBE_SOURCE)
+    ntp_cal_data = load_trained_ntp_calibrator(DATASET, JUDGE_MODEL, source=PROBE_SOURCE)
     syn_docs = set(pd_data['syn_document_ids'])
 
     shared_docs = set(gt_df['document_id']) & set(ext_df['document_id'])
@@ -1109,24 +1113,42 @@ def plot_qq_legend_poster_smooth(out_path: Path):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    global PROBE_SOURCE, JUDGE_DATE, FIGURES_DIR
+    _judge_date_default = JUDGE_DATE
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--attributes', nargs='+', default=QQ_ATTRIBUTES,
                          choices=ATTRIBUTES, help='Attribute subset (one subplot column each) for the Q-Q figures.')
     parser.add_argument('--n-boot', type=int, default=N_BOOT,
                          help='Bootstrap resamples for the ground-truth quantile uncertainty band.')
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--probe-source', default=None,
+                         help="Synthetic training corpus for the probe + NTP calibrator "
+                              "(default: baseline trained_probe/). E.g. 'v2' reads the "
+                              "parallel synthetic_probe_<source>/ tree. Also suffixes the "
+                              "output CSVs and routes figures under figures/meta/<source>/ "
+                              "so baseline artifacts are never overwritten.")
+    parser.add_argument('--judge-date', default=_judge_date_default,
+                         help=f"Date tag of the qwen-2.5-7b interp judge run supplying the "
+                              f"real-extraction activations (default: {_judge_date_default}).")
     args = parser.parse_args()
+
+    PROBE_SOURCE = args.probe_source
+    JUDGE_DATE = args.judge_date
+    _suffix = f'_{PROBE_SOURCE}' if PROBE_SOURCE else ''
+    if PROBE_SOURCE:
+        FIGURES_DIR = FIGURES_DIR / PROBE_SOURCE
+        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     gt_df, ext_df = load_data()
 
     stats_df = build_stats_table(gt_df, ext_df)
-    csv_path = RESULTS_DIR / f'meta_{DATASET}_{EXT_MODEL}_{EXT_DATE}.csv'
+    csv_path = RESULTS_DIR / f'meta_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
     stats_df.to_csv(csv_path, index=False)
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
 
     w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=args.seed, n_boot=args.n_boot)
-    w2_path = RESULTS_DIR / f'wasserstein_{DATASET}_{EXT_MODEL}_{EXT_DATE}.csv'
+    w2_path = RESULTS_DIR / f'wasserstein_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
     w2_df.to_csv(w2_path, index=False)
     print(f"[meta] wrote {w2_path}")
     print(w2_df.to_string(index=False, float_format='{:.3g}'.format))
