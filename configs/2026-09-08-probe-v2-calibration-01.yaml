@@ -1,0 +1,126 @@
+id: 2026-09-08-probe-v2-calibration-01
+project: scholarlm
+description: >-
+  End-to-end run of the augmented (_v2) judge-probe pipeline for pond / nfix /
+  supermat: (A) generate the _v2 synthetic datasets (rung 4 of the augmentation
+  build), (B) judge all three _v2 files per dataset with qwen-2.5-7b through
+  NNsight, collecting per-head attention + per-layer residual activations, (C)
+  retrain the head probe + NTP calibrator on the _v2 train activations, (D)
+  recompute calibration (analysis/calibration_updated.py) on the _v2 primary and
+  diagnostic test sets. Every stage is additive: baseline synthetic_probe[_test]/
+  trees, trained_probe/ pickles, and all prior calibration numbers are untouched;
+  _v2 lives in parallel synthetic_probe_v2{,_primary,_diag}/ trees +
+  trained_probe_v2/ + _v2-suffixed calibration outputs.
+seed: 342  # repo-global (experiments/config.yaml). run_judge_interp.py reads it
+           # via load_config(); synthetic_probe_train.py / calibration_updated.py
+           # use a fixed internal random_state=42 for the sklearn probe fits
+           # (unchanged from baseline — not a knob of this experiment).
+params:
+  # No scripts/run_experiment.py adapter covers this workflow (entry_point only
+  # handles extraction|ablation). Each stage is a native script driven by a
+  # hand-written qsub job (experiments/*.sh, gitignored per the repo *.sh
+  # ignore). This config is the reproducibility record. See
+  # notes/scholarlm/experiments/2026-09-08-probe-v2-calibration-01.md (written by
+  # /explog) for the queries + hypothesis.
+  entry_point: manual
+
+  datasets: [pond, nfix, supermat]
+  judge_model: qwen-2.5-7b
+  judge_date: "2026_09_08"        # the YYYY_mm_dd tag every stage-B/C/D command pins
+
+  # ── Stage A — generate the _v2 datasets (rung 4 of the augmentation build) ──
+  # Runs from the *augmentation* build's config, not this one:
+  #   configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+  #   qsub -N gen_aug_<ds> experiments/gen_augment.sh <ds>   (one job per dataset)
+  # Produces per dataset: probe_dataset_v2.json (train, >=5000 valid + equal
+  # invalid), probe_dataset_test_v2.json (primary: held-out GT valids + typed
+  # negatives, zero gpt-oss content on the positive side), and
+  # probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out
+  # valids). prompt_budget_multiple in that config was STALE at session start and
+  # must be re-derived from rung 3 (job 7501531, completed 2026-09-08 23:26,
+  # exit 0) round-0 distinct yield before submitting:
+  #   pond 137/240 (3 axes)  nfix 80/240 (3 axes)  supermat 74/154 (2 axes)
+  stage_a_config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+
+  # ── Stage B — judge the _v2 files with qwen-2.5-7b + activations ────────────
+  # experiments/run_judge_v2.sh <ds> <which> <judge_date>  — one qsub per (ds,
+  # which), 9 total. Wraps:
+  #   run_judge_interp.py --dataset <ds> --judge qwen-2.5-7b
+  #       --synthetic-file data/<ds>/<file> --synthetic-name <name>
+  #       --judge-date 2026_09_08
+  # Output tree data/experiments/<ds>/synthetic_probe_<name>/qwen-2.5-7b/2026_09_08/
+  # (responses.json + attention_outputs.npz + layer_outputs.npz). NEW trees — no
+  # baseline path is written.
+  judge_files:
+    train:   { file: probe_dataset_v2.json,           synthetic_name: v2 }
+    primary: { file: probe_dataset_test_v2.json,      synthetic_name: v2_primary }
+    diag:    { file: probe_dataset_test_v2_diag.json, synthetic_name: v2_diag }
+  judge_job_resources:   # copied verbatim from the committed
+                         # experiments/<ds>/judge_interp/qwen_2_5_7b/*_synthetic_*.sh
+    gpu_type: L40S       # NOT Blackwell — torch 2.7.1+cu126 crashes on sm_120
+    gpu_memory: 40G
+    gpu_c: 7.0
+    pe_omp: 8
+    h_rt: "24:00:00"
+
+  # ── Stage C — retrain probe + NTP calibrator on the _v2 train activations ───
+  #   SYNTHETIC_PROBE_SOURCE=v2 \
+  #   uv run python analysis/synthetic_probe_train.py \
+  #       --datasets pond nfix supermat --judges qwen-2.5-7b \
+  #       --judge-date 2026_09_08 --source v2
+  # Writes head_probe.pkl + ntp_calibrator.pkl to
+  #   data/experiments/<ds>/synthetic_probe_v2/qwen-2.5-7b/trained_probe/
+  # (parallel to baseline trained_probe/ — never overwritten). USE_PLATT_SCALING
+  # / TRAIN_LAYER_PROBE / TOP_K / N_FOLDS keep their committed defaults
+  # (True / False / 10 / 5).
+  probe_train:
+    source: v2
+    probe_type: head       # calibration headline; layer probe not trained
+    platt_scaling: true
+
+  # ── Stage D — calibration on the _v2 test sets ─────────────────────────────
+  # analysis/calibration_updated.py, run once per test set:
+  #   uv run python analysis/calibration_updated.py \
+  #       --syn-source v2_primary --syn-judge-date 2026_09_08
+  #   uv run python analysis/calibration_updated.py \
+  #       --syn-source v2_diag    --syn-judge-date 2026_09_08
+  # extraction-model defaults to gemma-3-27b (its EXTRACTION_SETTINGS entry has
+  # qwen-2.5-7b covering all three datasets; the syn dtype does not read
+  # extraction outputs). Outputs: results/metrics_gemma-3-27b_head_v2_{primary,
+  # diag}_pooled.csv + figures/calibration/qwen-2.5-7b/gemma-3-27b/head_v2_*/.
+  # 'real' dtype is skipped for a v2 source. HEADLINE metric: SmECE (relplot
+  # smooth ECE) for the Probe, in-domain (train_ds == test_ds), on
+  # v2_primary — three cells: pond, nfix, supermat.
+  calibration:
+    syn_sources: [v2_primary, v2_diag]
+    headline_metric: SmECE
+    headline_setting: "Probe, in-domain, syn source v2_primary"
+
+  # ── Sanity controls (run as part of Stage C/D, results into the note) ──────
+  sanity_controls:
+    leakage:
+      # v2_diag positives AND negatives sit on the same gpt-oss-edited pages, so
+      # a probe keying on "this page was edited" cannot separate them.
+      check: "probe AUROC on v2_diag ≈ 0.5 for the edited-vs-unedited split"
+      expected: chance
+    seed_determinism:
+      check: "re-judge one dataset's primary file with the same seed; responses.json identical"
+      expected: byte-identical
+    shuffled_label:
+      # permute syn train labels within document_id groups, retrain Stage C,
+      # recompute Stage D — supervised signal must collapse.
+      check: "probe AUROC / SmECE on v2_primary after within-group label shuffle"
+      expected: "AUROC ≈ 0.5, calibration no better than the prevalence constant"
+
+  # ── Staged-gate ladder ────────────────────────────────────────────────────
+  ladder:
+    rung_1_unit_tests: "tests/test_synthetic_probe_v2_wiring.py — 11 tests; full suite 284 passed / 1 skipped (commits 5479ee0, 869ec7c)"
+    rung_2_smoke: "qsub judge_v2_pond_smoke (job 7501716) — 12-row pond fixture through run_judge_v2.sh smoke → synthetic_probe_smoke_v2/. Plumbing only."
+    rung_3_tiny_e2e: "nfix (smallest) A→D end to end, SmECE predicted in advance; stop if it misses"
+    rung_4_full: "all three datasets, Stages A–D"
+
+  code:
+    # commits on branch naacl this session
+    - "5479ee0 probe pipeline: --source v2 (paths.trained_probe_dir, loaders, synthetic_probe_train.py)"
+    - "869ec7c calibration_updated: --syn-source {v2_primary,v2_diag}"
+    - "experiments/run_judge_v2.sh — hand-written Stage-B qsub job (gitignored)"
