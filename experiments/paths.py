@@ -404,9 +404,26 @@ def synthetic_probe_named(
     return synthetic_probe(dataset, judge_model, judge_date, name=name)
 
 
-def trained_probe_dir(dataset: str, judge_model: str) -> Path:
-    """data/experiments/{dataset}/synthetic_probe/{judge_model}/trained_probe/"""
-    return EXPERIMENTS_ROOT / dataset / "synthetic_probe" / judge_model / "trained_probe"
+def trained_probe_dir(dataset: str, judge_model: str, source: str | None = None) -> Path:
+    """data/experiments/{dataset}/synthetic_probe[_<source>]/{judge_model}/trained_probe/
+
+    ``source`` names the synthetic training corpus the probe / NTP calibrator
+    under this directory was fit on. ``None`` (default) is the original baseline
+    path, byte-for-byte unchanged — the artifacts every committed calibration
+    number depends on. A non-``None`` ``source`` (e.g. ``"v2"``) routes to the
+    parallel ``synthetic_probe_<source>`` tree (same one the matching
+    ``--synthetic-name`` judge run writes to), so a probe retrained on an
+    augmented corpus never overwrites the baseline pickles.
+    """
+    if source is None:
+        subdir = "synthetic_probe"
+    else:
+        if not _SYNTHETIC_NAME_RE.match(source):
+            raise ValueError(
+                f"trained_probe_dir source must match [a-z0-9][a-z0-9_]*, got {source!r}"
+            )
+        subdir = f"synthetic_probe_{source}"
+    return EXPERIMENTS_ROOT / dataset / subdir / judge_model / "trained_probe"
 
 
 def _find_synthetic(
