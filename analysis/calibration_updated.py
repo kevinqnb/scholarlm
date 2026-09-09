@@ -266,6 +266,9 @@ def _select_settings():
     parser.add_argument('--probe-variant', default=None, choices=['platt', 'noplatt'])
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--judge-models', nargs='+', default=None)
+    parser.add_argument('--syn-source', default=None,
+                        choices=['baseline', 'v2_primary', 'v2_diag'])
+    parser.add_argument('--syn-judge-date', default=None)
     args, _ = parser.parse_known_args()
 
     model = (args.extraction_model
@@ -287,6 +290,28 @@ def _select_settings():
                       or DEFAULT_PROBE_VARIANT)
     if probe_variant not in ('platt', 'noplatt'):
         raise ValueError(f"Unknown probe variant {probe_variant!r}; expected 'platt' or 'noplatt'")
+
+    # 'baseline' (default) reads the untouched synthetic_probe[_test]/ trees and
+    # trained_probe/ pickles, and every output path below stays byte-for-byte
+    # identical -- so prior numbers are NOT invalidated. 'v2_primary' / 'v2_diag'
+    # are additive: they read the parallel synthetic_probe_v2{,_primary,_diag}/
+    # trees + trained_probe_v2/, and suffix all outputs. See
+    # 2026-09-08-probe-v2-calibration-01.
+    syn_source = (args.syn_source
+                  or os.environ.get('CALIBRATION_SYN_SOURCE')
+                  or 'baseline')
+    if syn_source not in ('baseline', 'v2_primary', 'v2_diag'):
+        raise ValueError(
+            f"Unknown syn source {syn_source!r}; "
+            f"expected 'baseline', 'v2_primary' or 'v2_diag'"
+        )
+    syn_judge_date = args.syn_judge_date or os.environ.get('CALIBRATION_SYN_JUDGE_DATE') or None
+    if syn_source != 'baseline' and not syn_judge_date:
+        raise ValueError(
+            "--syn-judge-date (or CALIBRATION_SYN_JUDGE_DATE) is required with "
+            f"--syn-source {syn_source} -- no default date (a wrong one silently "
+            "evaluates the wrong judge run)"
+        )
 
     def _subset(selected, available, what):
         unknown = [x for x in selected if x not in available]
@@ -314,10 +339,10 @@ def _select_settings():
         for jm, dss in settings['judge_datasets'].items()
         if jm in settings['judge_models']
     }
-    return model, probe_type, probe_variant, settings
+    return model, probe_type, probe_variant, syn_source, syn_judge_date, settings
 
 
-EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT, _SETTINGS = _select_settings()
+EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT, SYN_SOURCE, _SYN_JUDGE_DATE_RAW, _SETTINGS = _select_settings()
 
 # None reproduces load_trained_probe/load_trained_ntp_calibrator's original
 # default filenames exactly; only 'noplatt' picks the suffixed variant.
@@ -325,6 +350,22 @@ _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
 # '' for the default 'platt' variant keeps every output path below byte-for-byte
 # identical to the pre-variant behavior; only 'noplatt' gets a distinct suffix.
 _PROBE_VARIANT_SUFFIX = '' if PROBE_VARIANT == 'platt' else f'_{PROBE_VARIANT}'
+
+# Synthetic corpus selectors. 'baseline' → None/None/'' → every path and load
+# below is byte-for-byte the pre-v2 behavior. 'v2_primary'/'v2_diag' route the
+# probe/calibrator to trained_probe_v2/ (source='v2') and the synthetic *test*
+# responses+activations to the synthetic_probe_<name>/ tree written by
+# run_judge_interp.py --synthetic-name, all at _SYN_JUDGE_DATE.
+_SYN_PROBE_SOURCE = None if SYN_SOURCE == 'baseline' else 'v2'
+_SYN_TEST_NAME    = None if SYN_SOURCE == 'baseline' else SYN_SOURCE
+_SYN_SUFFIX       = '' if SYN_SOURCE == 'baseline' else f'_{SYN_SOURCE}'
+_SYN_JUDGE_DATE   = None if SYN_SOURCE == 'baseline' else _SYN_JUDGE_DATE_RAW
+# Output-path suffix: variant first, then syn source. Empty for the full default.
+_OUT_SUFFIX       = f'{_PROBE_VARIANT_SUFFIX}{_SYN_SUFFIX}'
+# 'real' calibration needs the v2 probe against real-extraction judge runs that
+# may not be present locally, and adds nothing to the synthetic-calibration
+# question. Baseline keeps both dtypes; v2 runs synthetic only.
+_DTYPES = ['syn', 'real'] if SYN_SOURCE == 'baseline' else ['syn']
 
 DATASETS         = _SETTINGS['datasets']
 JUDGE_MODELS     = _SETTINGS['judge_models']
@@ -335,7 +376,8 @@ JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
 PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
 
 print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
-      f'| probe variant: {PROBE_VARIANT} | datasets: {DATASETS} | judges: {JUDGE_MODELS}')
+      f'| probe variant: {PROBE_VARIANT} | syn source: {SYN_SOURCE} '
+      f'(judge date {_SYN_JUDGE_DATE}) | datasets: {DATASETS} | judges: {JUDGE_MODELS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
@@ -370,7 +412,8 @@ for ds in DATASETS:
     for jm in JUDGE_MODELS:
         if ds not in JUDGE_DATASETS[jm]:
             continue
-        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm, variant=_PROBE_VARIANT_KW)
+        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(
+            ds, jm, variant=_PROBE_VARIANT_KW, source=_SYN_PROBE_SOURCE)
 
 
 probe_cache = {}
@@ -379,7 +422,8 @@ for ds in DATASETS:
     for jm in JUDGE_MODELS:
         if ds not in JUDGE_DATASETS[jm]:
             continue
-        probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE, variant=_PROBE_VARIANT_KW)
+        probe_cache[ds][jm] = load_trained_probe(
+            ds, jm, ptype=PROBE_TYPE, variant=_PROBE_VARIANT_KW, source=_SYN_PROBE_SOURCE)
 
 
 def get_matching_config(dataset):
@@ -456,7 +500,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
     # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs: x, ntp_probs: y, labels: z}}}}}
     
     # Define cache file path
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_PROBE_VARIANT_SUFFIX}.pkl'
+    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_OUT_SUFFIX}.pkl'
     
     # Try to load from precomputed cache if requested
     if load_from_precomputed and cache_file.exists():
@@ -466,7 +510,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
     
     setting_results = {}
 
-    for dataset_type in ['syn', 'real']:
+    for dataset_type in _DTYPES:
         setting_results[dataset_type] = {}
         for judge_model in judge_models:
             setting_results[dataset_type][judge_model] = {}
@@ -485,8 +529,8 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                     if test_ds not in JUDGE_DATASETS[judge_model]:
                         continue
                     if dataset_type == 'syn':
-                        jdate    = JUDGE_DATES_SYN[test_ds][judge_model]
-                        syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test')
+                        jdate    = _SYN_JUDGE_DATE or JUDGE_DATES_SYN[test_ds][judge_model]
+                        syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
                         syn_df_s = pd.DataFrame(syn_resp)
                         mids     = syn_df_s['measurement_id'].tolist()
                         labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
@@ -496,7 +540,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                         )[:, 1]
 
                         if probe_type == "layer":
-                            syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test')
+                            syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
                             X = np.stack([
                                 np.array(syn_lo[str(mid)], dtype=np.float32)[top]
                                 for mid in mids
@@ -504,7 +548,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                             probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
                         else:
-                            syn_act  = load_synthetic_activations(test_ds, judge_model, jdate, split='test')
+                            syn_act  = load_synthetic_activations(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
                             X = np.concatenate([
                                 np.stack([
                                     np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
@@ -592,7 +636,7 @@ def compute_predictions(judge_models, datasets, probe_type, load_from_precompute
                     }
 
     # Save to cache for future use
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_PROBE_VARIANT_SUFFIX}.pkl'
+    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_OUT_SUFFIX}.pkl'
     print(f'Saving predictions to {cache_file}...')
     with open(cache_file, 'wb') as f:
         pickle.dump(setting_results, f)
@@ -727,7 +771,7 @@ def plot_calibration_curves(
         if not train_datasets:
             continue
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for ctype in ['in-domain', 'cross-domain']:
@@ -913,7 +957,7 @@ def plot_pr_curves(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -975,7 +1019,7 @@ def plot_validity_recovery(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -1079,17 +1123,17 @@ if __name__ == "__main__":
     load_from_precomputed = False
     
     setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
-    plot_calibration_curves(setting_results, dtype='syn')
-    plot_calibration_curves(setting_results, dtype='real')
+    for _dt in _DTYPES:
+        plot_calibration_curves(setting_results, dtype=_dt)
     metrics_df = compute_metrics(setting_results)
     print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))
-    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}{_PROBE_VARIANT_SUFFIX}_pooled.csv', index=False)
+    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}{_OUT_SUFFIX}_pooled.csv', index=False)
 
     #plot_pr_curves(setting_results, dtype='syn')
     #plot_pr_curves(setting_results, dtype='real')
 
-    plot_validity_recovery(setting_results, dtype='syn')
-    plot_validity_recovery(setting_results, dtype='real')
+    for _dt in _DTYPES:
+        plot_validity_recovery(setting_results, dtype=_dt)
 
     # ── Standalone calibration legend ─────────────────────────────────────────────
     _legend_handles = [
