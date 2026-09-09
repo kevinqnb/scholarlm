@@ -26,7 +26,28 @@ params:
 
   datasets: [pond, nfix, supermat]
   judge_model: qwen-2.5-7b
-  judge_date: "2026_09_08"        # the YYYY_mm_dd tag every stage-B/C/D command pins
+  judge_date: "2026_09_09"        # the YYYY_mm_dd tag every stage-B/C/D command pins
+                                  # (a directory label — Stage B may actually run a
+                                  # day later; run_metadata.json carries the real ts)
+
+  # SGE job graph (submitted 2026-09-09 00:0x). -hold_jid chains each stage on the
+  # prior; a predecessor FAILURE still releases the successor (it then fails fast
+  # on the missing input file).
+  jobs:
+    stage_a:                       # gen_augment.sh, H200, one per dataset
+      pond:     7501840
+      nfix:     7501841
+      supermat: 7501842
+    stage_b:                       # run_judge_v2.sh, L40S, hold on stage_a
+      pond_train: 7501844          # hold 7501840, h_rt 36h  (~10k rows @ ~4.75s)
+      pond_tests: 7501845          # hold 7501840, h_rt 18h  (primary + diag)
+      nfix:       7501846          # hold 7501841 (train+primary+diag in one job)
+      supermat:   7501847          # hold 7501842 (train+primary+diag in one job)
+    stage_cd:
+      v2: 7501853                  # run_probe_v2_downstream.sh v2, hold 7501844-47
+    rung3:                         # tiny e2e on the _rung3 files (job 7501531 output)
+      judge:      7501848          # run_judge_v2.sh nfix all <date> rung3 (no hold)
+      downstream: 7501854          # run_probe_v2_downstream.sh rung3, hold 7501848
 
   # ── Stage A — generate the _v2 datasets (rung 4 of the augmentation build) ──
   # Runs from the *augmentation* build's config, not this one:
@@ -52,8 +73,8 @@ params:
   # which), 9 total. Wraps:
   #   run_judge_interp.py --dataset <ds> --judge qwen-2.5-7b
   #       --synthetic-file data/<ds>/<file> --synthetic-name <name>
-  #       --judge-date 2026_09_08
-  # Output tree data/experiments/<ds>/synthetic_probe_<name>/qwen-2.5-7b/2026_09_08/
+  #       --judge-date 2026_09_09
+  # Output tree data/experiments/<ds>/synthetic_probe_<name>/qwen-2.5-7b/2026_09_09/
   # (responses.json + attention_outputs.npz + layer_outputs.npz). NEW trees — no
   # baseline path is written.
   judge_files:
@@ -72,7 +93,7 @@ params:
   #   SYNTHETIC_PROBE_SOURCE=v2 \
   #   uv run python analysis/synthetic_probe_train.py \
   #       --datasets pond nfix supermat --judges qwen-2.5-7b \
-  #       --judge-date 2026_09_08 --source v2
+  #       --judge-date 2026_09_09 --source v2
   # Writes head_probe.pkl + ntp_calibrator.pkl to
   #   data/experiments/<ds>/synthetic_probe_v2/qwen-2.5-7b/trained_probe/
   # (parallel to baseline trained_probe/ — never overwritten). USE_PLATT_SCALING
@@ -86,9 +107,9 @@ params:
   # ── Stage D — calibration on the _v2 test sets ─────────────────────────────
   # analysis/calibration_updated.py, run once per test set:
   #   uv run python analysis/calibration_updated.py \
-  #       --syn-source v2_primary --syn-judge-date 2026_09_08
+  #       --syn-source v2_primary --syn-judge-date 2026_09_09
   #   uv run python analysis/calibration_updated.py \
-  #       --syn-source v2_diag    --syn-judge-date 2026_09_08
+  #       --syn-source v2_diag    --syn-judge-date 2026_09_09
   # extraction-model defaults to gemma-3-27b (its EXTRACTION_SETTINGS entry has
   # qwen-2.5-7b covering all three datasets; the syn dtype does not read
   # extraction outputs). Outputs: results/metrics_gemma-3-27b_head_v2_{primary,
