@@ -153,7 +153,7 @@ def run_jacobian_lens(
     data, chat_entries = _load_chat_entries(dataset_config, input_file, ocr_dir, limit)
 
     messages: list[tuple[str, str, str]] = [
-        (entry["system"], entry["page_text"], entry["user_query"])
+        (entry["system"], entry["context_text"], entry["user_query"])
         for entry in chat_entries
     ]
 

@@ -220,7 +220,7 @@ def attribute_dataset(
         )
 
         instructions = entry["system"]
-        context = entry["page_text"]
+        context = entry["context_text"]
         query = entry["user_query"]
 
         res = method.attribute(instructions, context, query)

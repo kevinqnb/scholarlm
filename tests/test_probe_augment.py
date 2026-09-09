@@ -824,7 +824,7 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
         entries = judge_common.prepare_chat_entries(data, documents, cfg)
         for entry in entries:
             row = data[int(entry["custom_id"])]
-            assert entry["page_text"] == row["context_override"]
+            assert entry["context_text"] == row["context_override"]
 
 
 # ─── GptOssClient prewarm / record-pass plumbing ─────────────────────────────
@@ -1034,14 +1034,16 @@ def _dcfg():
     return load_dataset_config("pond")
 
 
-def test_prepare_chat_entries_no_override_field_is_unaffected():
+def test_prepare_chat_entries_no_override_field_gets_full_document():
     import judge_common
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 0, "name": "L", "page_number": [1]}]
-    docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
+    docs = {"X": '<page number="0">intro</page>\n\n'
+                 '<page number="1">total phosphorus 5 µg/L</page>'}
     entries = judge_common.prepare_chat_entries(data, docs, cfg)
-    assert entries[0]["page_text"] == judge_common.extract_page_text(docs["X"], [1])
+    # The whole paper is the context — page_number is not consulted.
+    assert entries[0]["context_text"] == docs["X"]
 
 
 def test_prepare_chat_entries_null_override_is_inert():
@@ -1063,7 +1065,7 @@ def test_prepare_chat_entries_applies_row_override():
              "context_override": "REWRITTEN CONTEXT for the probe"}]
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
     entries = judge_common.prepare_chat_entries(data, docs, cfg)
-    assert entries[0]["page_text"] == "REWRITTEN CONTEXT for the probe"
+    assert entries[0]["context_text"] == "REWRITTEN CONTEXT for the probe"
     assert "REWRITTEN CONTEXT" in entries[0]["user"]
 
 
@@ -1076,11 +1078,12 @@ def test_prepare_chat_entries_override_is_per_row():
         {"document_id": "X", "attribute": "tp", "value": "6", "units": "µg/L",
          "measurement_id": 1, "name": "M", "page_number": [1]},
     ]
-    docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
+    docs = {"X": '<page number="0">intro</page>\n\n'
+                 '<page number="1">total phosphorus 5 µg/L</page>'}
     entries = judge_common.prepare_chat_entries(data, docs, cfg)
     by_mid = {int(e["custom_id"]): e for e in entries}
-    assert by_mid[0]["page_text"] == "EDITED"
-    assert by_mid[1]["page_text"] == judge_common.extract_page_text(docs["X"], [1])
+    assert by_mid[0]["context_text"] == "EDITED"          # override row
+    assert by_mid[1]["context_text"] == docs["X"]         # non-override row → full paper
 
 
 # ─── --synthetic-name path routing (experiments/paths.py) ─────────────────────

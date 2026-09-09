@@ -309,7 +309,7 @@ Guidelines:
 JUDGE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
 
 You will be given:
-1) In ## CONTEXT: A text document representing a page from a research paper.
+1) In ## CONTEXT: The full text of a research paper.
 2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, information about its measurement event, and the corresponding extracted value with its units.
 
 Your task: decide whether this extraction is correct — that is, whether the extracted value (with its units) is actually reported in the document for the specified entity, attribute, and (if applicable) measurement event.

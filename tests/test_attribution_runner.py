@@ -55,8 +55,8 @@ def _data():
 
 def _chat_entries():
     return [
-        {"custom_id": "0", "document_id": "docA", "system": "S", "page_text": "ctxA", "user_query": "Q0"},
-        {"custom_id": "1", "document_id": "docB", "system": "S", "page_text": "ctxB", "user_query": "Q1"},
+        {"custom_id": "0", "document_id": "docA", "system": "S", "context_text": "ctxA", "user_query": "Q0"},
+        {"custom_id": "1", "document_id": "docB", "system": "S", "context_text": "ctxB", "user_query": "Q1"},
     ]
 
 
@@ -275,4 +275,4 @@ def test_load_inputs_real_pond_extraction():
     assert 0 < len(chat_entries) <= 3
     for e in chat_entries:
         assert int(e["custom_id"]) < 3
-        assert {"system", "page_text", "user_query", "document_id"} <= set(e)
+        assert {"system", "context_text", "user_query", "document_id"} <= set(e)

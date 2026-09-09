@@ -91,9 +91,9 @@ def run_interp_judge(
     description, attribute description, value/units, closing question) is
     identical across all judge backends.  JudgementLM receives
     the three parts separately as (instructions, context, query), which it
-    wraps into a single user message internally.  A row carrying a
-    ``context_override`` field (set by the synthetic-probe augmentation
-    pipeline) uses that text verbatim in place of the OCR page lookup.
+    wraps into a single user message internally.  The context is the full OCR
+    paper text; a row carrying a ``context_override`` field (set by the
+    synthetic-probe augmentation pipeline) uses that text verbatim instead.
 
     Args:
         dataset_config: Dataset configuration.
@@ -128,9 +128,9 @@ def run_interp_judge(
     chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
-    # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
+    # instructions = system prompt, context = full paper text, query = ## QUERY content.
     messages: list[tuple[str, str, str]] = [
-        (entry["system"], entry["page_text"], entry["user_query"])
+        (entry["system"], entry["context_text"], entry["user_query"])
         for entry in chat_entries
     ]
 
@@ -258,7 +258,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "Judge an arbitrary probe file (e.g. an augmentation-pipeline output "
             "like data/pond/probe_dataset_test_v2_diag.json). Requires "
             "--synthetic-name. Rows carrying a context_override field use that "
-            "text verbatim in place of the OCR page lookup."
+            "text verbatim instead of the full-paper context."
         ),
     )
     p.add_argument(
