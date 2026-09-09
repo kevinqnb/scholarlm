@@ -32,14 +32,19 @@ params:
   # Runs from the *augmentation* build's config, not this one:
   #   configs/2026-09-03-probe-synthetic-augmentation-01.yaml
   #   qsub -N gen_aug_<ds> experiments/gen_augment.sh <ds>   (one job per dataset)
-  # Produces per dataset: probe_dataset_v2.json (train, >=5000 valid + equal
-  # invalid), probe_dataset_test_v2.json (primary: held-out GT valids + typed
-  # negatives, zero gpt-oss content on the positive side), and
-  # probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out
-  # valids). prompt_budget_multiple in that config was STALE at session start and
-  # must be re-derived from rung 3 (job 7501531, completed 2026-09-08 23:26,
-  # exit 0) round-0 distinct yield before submitting:
-  #   pond 137/240 (3 axes)  nfix 80/240 (3 axes)  supermat 74/154 (2 axes)
+  # Produces per dataset: probe_dataset_v2.json (train), probe_dataset_test_v2.json
+  # (primary: held-out GT valids + typed negatives, zero gpt-oss content on the
+  # positive side), probe_dataset_test_v2_diag.json (diagnostic: built like train
+  # on held-out valids). Floors + multiples were re-derived from rung 3 (job
+  # 7501531, 2026-09-08 23:26, exit 0; round-0 yield pond 137/240, nfix 80/240,
+  # supermat 74/154 on an 80-GT-valid sample) and committed in 0fbe0b1:
+  #   pond     multiple 3, valid_floor 5000 (default)     → ~5-6k train valids
+  #   nfix     multiple 10, valid_floor 1200, diag 650    → ~1.2k train valids
+  #   supermat multiple 12, valid_floor 1200              → ~1.2k train valids
+  # nfix/supermat floors are lowered because only ~552/~585 reviewed GT valids
+  # exist and fill_positive_target hard-errors on a missed 5000 floor. The
+  # pond↔nfix/supermat size asymmetry is accepted (per-dataset probes; user read
+  # at /debrief).
   stage_a_config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
 
   # ── Stage B — judge the _v2 files with qwen-2.5-7b + activations ────────────
