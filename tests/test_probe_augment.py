@@ -135,10 +135,18 @@ def test_rewrite_feasible_but_no_replacement_is_a_hard_error(monkeypatch):
         c.rewrite_context(context="a", instruction="i", original="a")
 
 
-def test_rewrite_feasible_but_no_edits_is_a_hard_error(monkeypatch):
-    c = _rewrite_client(json.dumps({"feasible": True, "replacement": "b"}), monkeypatch)
-    with pytest.raises(ValueError, match="proposed no edits"):
-        c.rewrite_context(context="ctx", instruction="i", original="c")
+@pytest.mark.parametrize("obj", [
+    {"feasible": True, "replacement": "b"},              # no `edits` key at all
+    {"feasible": True, "replacement": "b", "edits": []},  # empty `edits` list
+])
+def test_rewrite_feasible_but_no_edits_is_a_clean_skip(monkeypatch, obj):
+    # `feasible: true` + a replacement but zero edits is a model decline (the GT
+    # surface form usually isn't a verbatim span of the paper), not a schema
+    # violation — skip it like `feasible: false`, don't crash the run.
+    c = _rewrite_client(json.dumps(obj), monkeypatch)
+    res = c.rewrite_context(context="ctx", instruction="i", original="c")
+    assert res.applied is False and res.new_context == "ctx"
+    assert res.reason == "feasible but proposed no edits"
 
 
 @pytest.mark.parametrize("bad_edits", [
@@ -211,10 +219,12 @@ def test_rewrite_fresh_miss_malformed_json_stays_out_of_cache(monkeypatch, tmp_p
 
 def test_rewrite_cache_key_carries_protocol_and_attempt(monkeypatch):
     c = _rewrite_client(json.dumps({"feasible": True, "replacement": "b"}), monkeypatch)
+    # a stale protocol-2 entry (feasible + no replacement → would raise if read)
+    # must never be served to the protocol-3 parser
     old_key = pa._cache_key("rewrite", {"context": "ctx", "instruction": "i", "protocol": 2})
     c.cache._store[old_key] = json.dumps({"feasible": True, "context": "<whole page>"})
-    with pytest.raises(ValueError, match="proposed no edits"):
-        c.rewrite_context(context="ctx", instruction="i", original="c", attempt=0)
+    res = c.rewrite_context(context="ctx", instruction="i", original="c", attempt=0)
+    assert res.reason == "feasible but proposed no edits"   # the fresh stub, not the stale entry
     k0 = pa._cache_key("rewrite", {"context": "c", "instruction": "i", "protocol": 3, "attempt": 0})
     k1 = pa._cache_key("rewrite", {"context": "c", "instruction": "i", "protocol": 3, "attempt": 1})
     assert k0 != k1
