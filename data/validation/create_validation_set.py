@@ -12,7 +12,9 @@ restricted to the probe-dataset *test* split, then writes a self-contained
   sampled rows' ``page_number`` sets (``sampled: false``) -- so any page shown to
   a validator carries its complete extraction set;
 * the full verbatim page text (``<page number="N">...</page>`` body from the OCR
-  the run consumed) for every page any included row touches.
+  the run consumed) for every page any included row touches;
+* ``documents[doc]["full_text"]``: the entire OCR document verbatim (all
+  ``<page number="N">`` blocks), i.e. what the judge now sees as ``## CONTEXT``.
 
 The per-measurement ``context`` retrieval chunk is deliberately NOT stored: when
 it is prose it equals the page text verbatim, when it is a table it is one
@@ -186,6 +188,13 @@ def build(
         text = _get_page_text(doc_text_cache[doc], p)
         assert text, f"empty page text: {doc} page {p}"
         documents.setdefault(doc, {"pages": {}})["pages"][str(p)] = text
+
+    # Whole OCR document, verbatim -- the <page number="N">...</page> stream
+    # the judge now consumes (judge_common.prepare_chat_entries no longer
+    # slices to the extracted page). The validation site renders this and
+    # tints the extracted page(s); `pages` above stays for the per-page view.
+    for doc in documents:
+        documents[doc]["full_text"] = doc_text_cache[doc]
 
     # ---- measurements list -----------------------------------------
     measurements = []

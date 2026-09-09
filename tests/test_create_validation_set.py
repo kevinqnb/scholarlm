@@ -151,6 +151,12 @@ def test_known_answer_seed0(tmp_path):
     assert payload["documents"]["A"]["pages"] == {"1": "beta page one", "2": "gamma page two"}
     assert payload["documents"]["C"]["pages"] == {"0": "gamma cee zero"}
 
+    # full_text is the whole OCR document verbatim (every page, including
+    # ones no included measurement touches -- e.g. A/0)
+    assert payload["documents"]["A"]["full_text"] == OCR_TEXT["A"]
+    assert payload["documents"]["C"]["full_text"] == OCR_TEXT["C"]
+    assert "B" not in payload["documents"]  # train doc, still absent
+
 
 def test_no_context_key_in_output(tmp_path):
     payload, _ = _build(_make_repo(tmp_path))
