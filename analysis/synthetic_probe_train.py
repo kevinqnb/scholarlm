@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 import argparse
 import os
+import re
 
 REPO_ROOT = Path.cwd()
 sys.path.insert(0, str(REPO_ROOT / 'src'))
@@ -75,16 +76,17 @@ def _select_run_config():
       * ``baseline`` (default) — the ``synthetic_probe/`` judge tree + the
         ``trained_probe/`` output dir. syn_name and probe_source are both
         ``None`` → byte-for-byte the script's prior behavior.
-      * ``v2`` — the augmented ``synthetic_probe_v2/`` judge tree (written by
-        ``run_judge_interp.py --synthetic-name v2``) + a parallel
-        ``synthetic_probe_v2/.../trained_probe/`` output dir, so the baseline
+      * any ``[a-z0-9_]`` name (e.g. ``v2``, ``rung3``) — the augmented
+        ``synthetic_probe_<name>/`` judge tree (written by
+        ``run_judge_interp.py --synthetic-name <name>``) + a parallel
+        ``synthetic_probe_<name>/.../trained_probe/`` output dir, so the baseline
         probe / NTP-calibrator pickles are never overwritten.
     """
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--judges', nargs='+', default=None)
     parser.add_argument('--judge-date', default=None)
-    parser.add_argument('--source', choices=['baseline', 'v2'], default=None)
+    parser.add_argument('--source', default=None)
     args, _ = parser.parse_known_args()
 
     datasets   = args.datasets or _env_list('SYNTHETIC_PROBE_DATASETS')
@@ -100,11 +102,14 @@ def _select_run_config():
             "--datasets / --judges / --judge-date (or SYNTHETIC_PROBE_DATASETS / "
             "SYNTHETIC_PROBE_JUDGES / SYNTHETIC_PROBE_JUDGE_DATE). No defaults."
         )
-    if source not in ('baseline', 'v2'):
-        raise ValueError(f"Unknown --source {source!r}; expected 'baseline' or 'v2'")
-
-    syn_name     = None if source == 'baseline' else 'v2'
-    probe_source = None if source == 'baseline' else source
+    if source == 'baseline':
+        syn_name = probe_source = None
+    elif re.fullmatch(r'[a-z0-9][a-z0-9_]*', source):
+        syn_name = probe_source = source
+    else:
+        raise ValueError(
+            f"Unknown --source {source!r}; expected 'baseline' or a [a-z0-9_] name"
+        )
     return datasets, judges, judge_date, syn_name, probe_source
 
 

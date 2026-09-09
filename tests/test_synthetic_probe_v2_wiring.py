@@ -119,6 +119,13 @@ def test_select_v2_flips_both_selectors(monkeypatch):
     assert syn_name == "v2" and probe_source == "v2"
 
 
+def test_select_arbitrary_source_name(monkeypatch):
+    _set_required(monkeypatch)
+    monkeypatch.setenv("SYNTHETIC_PROBE_SOURCE", "rung3")
+    *_, syn_name, probe_source = spt._select_run_config()
+    assert syn_name == "rung3" and probe_source == "rung3"
+
+
 def test_select_missing_config_is_hard_error(monkeypatch):
     monkeypatch.setenv("SYNTHETIC_PROBE_JUDGES", "qwen-2.5-7b")
     monkeypatch.setenv("SYNTHETIC_PROBE_JUDGE_DATE", "2026_09_08")

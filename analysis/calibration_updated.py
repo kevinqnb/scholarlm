@@ -266,8 +266,7 @@ def _select_settings():
     parser.add_argument('--probe-variant', default=None, choices=['platt', 'noplatt'])
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--judge-models', nargs='+', default=None)
-    parser.add_argument('--syn-source', default=None,
-                        choices=['baseline', 'v2_primary', 'v2_diag'])
+    parser.add_argument('--syn-source', default=None)
     parser.add_argument('--syn-judge-date', default=None)
     args, _ = parser.parse_known_args()
 
@@ -293,25 +292,32 @@ def _select_settings():
 
     # 'baseline' (default) reads the untouched synthetic_probe[_test]/ trees and
     # trained_probe/ pickles, and every output path below stays byte-for-byte
-    # identical -- so prior numbers are NOT invalidated. 'v2_primary' / 'v2_diag'
-    # are additive: they read the parallel synthetic_probe_v2{,_primary,_diag}/
-    # trees + trained_probe_v2/, and suffix all outputs. See
-    # 2026-09-08-probe-v2-calibration-01.
+    # identical -- so prior numbers are NOT invalidated. Any other value is
+    # '<probe>_<split>' with <split> in {primary, diag}: it reads the probe /
+    # calibrator from trained_probe under the synthetic_probe_<probe>/ tree and
+    # the synthetic test responses+activations from synthetic_probe_<probe>_<split>/,
+    # all at --syn-judge-date, and suffixes every output _<probe>_<split>.
+    # e.g. v2_primary / v2_diag, rung3_primary. See 2026-09-08-probe-v2-calibration-01.
     syn_source = (args.syn_source
                   or os.environ.get('CALIBRATION_SYN_SOURCE')
                   or 'baseline')
-    if syn_source not in ('baseline', 'v2_primary', 'v2_diag'):
-        raise ValueError(
-            f"Unknown syn source {syn_source!r}; "
-            f"expected 'baseline', 'v2_primary' or 'v2_diag'"
-        )
     syn_judge_date = args.syn_judge_date or os.environ.get('CALIBRATION_SYN_JUDGE_DATE') or None
-    if syn_source != 'baseline' and not syn_judge_date:
-        raise ValueError(
-            "--syn-judge-date (or CALIBRATION_SYN_JUDGE_DATE) is required with "
-            f"--syn-source {syn_source} -- no default date (a wrong one silently "
-            "evaluates the wrong judge run)"
-        )
+    if syn_source == 'baseline':
+        _syn_probe, _syn_split = None, None
+    else:
+        m = re.fullmatch(r'([a-z0-9][a-z0-9_]*)_(primary|diag)', syn_source)
+        if not m:
+            raise ValueError(
+                f"Unknown --syn-source {syn_source!r}; expected 'baseline' or "
+                f"'<probe>_<primary|diag>' (e.g. 'v2_primary', 'v2_diag')"
+            )
+        _syn_probe, _syn_split = m.group(1), m.group(2)
+        if not syn_judge_date:
+            raise ValueError(
+                "--syn-judge-date (or CALIBRATION_SYN_JUDGE_DATE) is required with "
+                f"--syn-source {syn_source} -- no default date (a wrong one silently "
+                "evaluates the wrong judge run)"
+            )
 
     def _subset(selected, available, what):
         unknown = [x for x in selected if x not in available]
@@ -339,10 +345,12 @@ def _select_settings():
         for jm, dss in settings['judge_datasets'].items()
         if jm in settings['judge_models']
     }
-    return model, probe_type, probe_variant, syn_source, syn_judge_date, settings
+    return (model, probe_type, probe_variant,
+            syn_source, _syn_probe, _syn_split, syn_judge_date, settings)
 
 
-EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT, SYN_SOURCE, _SYN_JUDGE_DATE_RAW, _SETTINGS = _select_settings()
+(EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT,
+ SYN_SOURCE, _SYN_PROBE, _SYN_SPLIT, _SYN_JUDGE_DATE_RAW, _SETTINGS) = _select_settings()
 
 # None reproduces load_trained_probe/load_trained_ntp_calibrator's original
 # default filenames exactly; only 'noplatt' picks the suffixed variant.
@@ -351,21 +359,22 @@ _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
 # identical to the pre-variant behavior; only 'noplatt' gets a distinct suffix.
 _PROBE_VARIANT_SUFFIX = '' if PROBE_VARIANT == 'platt' else f'_{PROBE_VARIANT}'
 
-# Synthetic corpus selectors. 'baseline' → None/None/'' → every path and load
-# below is byte-for-byte the pre-v2 behavior. 'v2_primary'/'v2_diag' route the
-# probe/calibrator to trained_probe_v2/ (source='v2') and the synthetic *test*
-# responses+activations to the synthetic_probe_<name>/ tree written by
-# run_judge_interp.py --synthetic-name, all at _SYN_JUDGE_DATE.
-_SYN_PROBE_SOURCE = None if SYN_SOURCE == 'baseline' else 'v2'
-_SYN_TEST_NAME    = None if SYN_SOURCE == 'baseline' else SYN_SOURCE
-_SYN_SUFFIX       = '' if SYN_SOURCE == 'baseline' else f'_{SYN_SOURCE}'
-_SYN_JUDGE_DATE   = None if SYN_SOURCE == 'baseline' else _SYN_JUDGE_DATE_RAW
+# Synthetic corpus selectors, all derived in _select_settings from --syn-source.
+# baseline → all None/'' → every path and load below is byte-for-byte the pre-v2
+# behavior. '<probe>_<split>' (e.g. v2_primary): probe/calibrator from
+# trained_probe under synthetic_probe_<probe>/ (source=<probe>), synthetic test
+# responses+activations from synthetic_probe_<probe>_<split>/ (name=SYN_SOURCE),
+# both at _SYN_JUDGE_DATE; all outputs suffixed _<probe>_<split>.
+_SYN_PROBE_SOURCE = _SYN_PROBE                                   # None for baseline
+_SYN_TEST_NAME    = None if _SYN_PROBE is None else SYN_SOURCE
+_SYN_SUFFIX       = '' if _SYN_PROBE is None else f'_{SYN_SOURCE}'
+_SYN_JUDGE_DATE   = None if _SYN_PROBE is None else _SYN_JUDGE_DATE_RAW
 # Output-path suffix: variant first, then syn source. Empty for the full default.
 _OUT_SUFFIX       = f'{_PROBE_VARIANT_SUFFIX}{_SYN_SUFFIX}'
-# 'real' calibration needs the v2 probe against real-extraction judge runs that
-# may not be present locally, and adds nothing to the synthetic-calibration
-# question. Baseline keeps both dtypes; v2 runs synthetic only.
-_DTYPES = ['syn', 'real'] if SYN_SOURCE == 'baseline' else ['syn']
+# 'real' calibration needs the probe against real-extraction judge runs that may
+# not be present locally, and adds nothing to the synthetic-calibration question.
+# Baseline keeps both dtypes; a non-baseline syn source runs synthetic only.
+_DTYPES = ['syn', 'real'] if _SYN_PROBE is None else ['syn']
 
 DATASETS         = _SETTINGS['datasets']
 JUDGE_MODELS     = _SETTINGS['judge_models']
