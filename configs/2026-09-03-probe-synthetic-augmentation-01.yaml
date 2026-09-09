@@ -4,12 +4,14 @@ description: >-
   Synthetic augmentation of the judge probe train / primary-test / diagnostic
   datasets via gpt-oss-120b, for pond / nfix / supermat. Every ground-truth
   valid is carried through, and for each one gpt-oss (protocol 3: it picks the
-  new value AND the minimal page edits) is asked for an equivalence-preserving
+  new value AND the minimal edits) is asked for an equivalence-preserving
   rewrite along up to three axes -- entity name, measured value, measurement
-  event (round 0). Every axis and every swapped field is restricted to what the
-  judge actually sees (experiments/configs/<ds>.py `judge_filter_fields`), minus
-  the always-null `additional_details`: supermat, whose only event fields are
-  filtered out, runs entity+value only. If the distinct-synthetic count is still
+  event (round 0). gpt-oss edits the FULL paper text, not the measurement's
+  page (context_scope: full). Every axis and every swapped field is restricted
+  to what the judge actually sees (experiments/configs/<ds>.py
+  `judge_filter_fields`), minus the always-null `additional_details`: supermat,
+  whose only event fields are filtered out, runs entity+value only. If the
+  distinct-synthetic count is still
   below the 5000 floor (train) / 1000 floor (diagnostic) the axes are resampled
   at a raised temperature. Files usually END UP LARGER than the floor; invalids
   are then an equal number of direct measurement swaps from pre-generated
@@ -18,9 +20,11 @@ description: >-
   distinct by content. The primary-test file is
   held-out GT valids only (zero gpt-oss content) + the same typed negatives; the
   diagnostic file is built exactly like the train file on the held-out valids.
-  Context-edited rows carry their edited page inline as context_override. Output
-  files use the _v2 suffix; the non-augmented probe_dataset{,_test}.json are
-  untouched.
+  EVERY output row carries the full paper inline as context_override -- edited
+  rows their edited variant, unedited rows verbatim -- so the judge reads one
+  consistent context scope (never a page slice) across valid/invalid and
+  edited/unedited. Output files use the _v2 suffix; the non-augmented
+  probe_dataset{,_test}.json are untouched.
 seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
           # -- this is the actual --seed value every documented step below uses.
 params:
@@ -73,6 +77,13 @@ params:
     diag_valid_floor: 1000       # MINIMUM diagnostic valids; built exactly like train
     rewrite_temperature: 0.7     # one fixed regime; the resample round is in the cache key
     out_suffix: _v2
+    # gpt-oss edits, and every output row stores, the FULL paper text -- not the
+    # measurement's OCR page. Recorded in the rewrite cache key (probe_augment
+    # `_CONTEXT_SCOPE`), so the protocol-3 cache from the page-scoped runs is a
+    # permanent miss. Largest OCR file is supermat ~52k tok; + the 20k-token
+    # rewrite output cap that leaves headroom under the server's 90k
+    # max_model_len, but confirm at the smoke rung per dataset.
+    context_scope: full
     # Attempt budget = n_gt_valids * n_axes * prompt_budget_multiple. multiple 1 =
     # round 0 only (one attempt per GT valid per axis, all kept). Falling short of
     # the floor inside the budget is a HARD ERROR.
@@ -80,12 +91,19 @@ params:
     # STALE — re-run Rung 3 before Rung 4. The values below were set from
     # gen_aug_rung3.o7499062 (2026-09-08): round-0 distinct-yield on an 80-GT-valid
     # sample x 3 axes was pond 160/240 (67%), nfix 108/240 (45%), supermat 73/231
-    # (32%). Superseded by the 2026-09-08 judge-field narrowing: supermat now runs
-    # 2 axes (no pos_event) with no `event` error type, and _JUDGE_ENTITY_FIELDS
-    # shrank for all three (pond name+ecosystem, nfix/supermat name only), which
-    # changes the pos_entity / distinct-negative yield. Re-run
+    # (32%). Superseded twice since:
+    #   (a) 2026-09-08 judge-field narrowing: supermat now runs 2 axes (no
+    #       pos_event) with no `event` error type, and _JUDGE_ENTITY_FIELDS shrank
+    #       for all three (pond name+ecosystem, nfix/supermat name only).
+    #   (b) 2026-09-08 context_scope: full — gpt-oss now edits the whole paper, so
+    #       a claim recurs far more often (every occurrence must be hit → lower
+    #       positive yield) and the negative pools tighten (a full paper states
+    #       more years / numbers verbatim → _draw_alt rejects more, fill_negative_
+    #       quota closer to its miss/dup caps).
+    # Both push prompt_budget_multiple UP and may make the negative quotas
+    # unreachable at the current floors. Re-run
     # `qsub -N gen_aug_rung3 experiments/gen_augment.sh rung3` and re-derive these
-    # from the new round-0 numbers.
+    # from the new round-0 numbers (and watch the fill_negative_quota tallies).
     #   On a "positive floor not met: X/5000" failure, resubmit that dataset with
     #   --augment-valid-floor <just under X> (the cache persists).
     prompt_budget_multiple:
@@ -112,8 +130,10 @@ params:
     - "qsub -N gen_aug_supermat experiments/gen_augment.sh supermat  # ... (no --reviewed) --augment-prompt-budget-multiple 12"
   # --augment-cache defaults to data/{ds}/probe_augment_cache.json (on by
   # default) -- the determinism artifact, since gpt-oss at temperature>0 with no
-  # seed is not bit-reproducible. Protocol-3 + per-round `attempt` keys mean
-  # every rewrite entry from the old protocol-2 cache is a permanent miss.
+  # seed is not bit-reproducible. The rewrite cache key carries protocol (3),
+  # per-round `attempt`, AND context_scope ("full"), so every rewrite entry from
+  # a page-scoped or protocol-2 run is a permanent miss -- the committed
+  # probe_augment_cache.json files must be regenerated from scratch at Rung 4.
 
   # Output (per dataset, additional to the untouched defaults):
   #   probe_dataset_v2.json           (train: >=5000 valid + equal invalid, 50/50)

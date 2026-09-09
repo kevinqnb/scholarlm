@@ -178,7 +178,7 @@ def test_rewrite_inject_case_requires_a_new_span(monkeypatch):
     res = c.rewrite_context(context="value 5 here", instruction="i", original="")
     assert res.applied is True and res.unverified_span is True
     res2 = c.rewrite_context(context="value 5 here Summer 2019", instruction="i", original="")
-    assert res2.applied is False and "already on the page" in res2.reason
+    assert res2.applied is False and "already in the paper" in res2.reason
 
 
 def test_rewrite_repairs_commented_edits_then_applies(monkeypatch, capsys):
@@ -218,6 +218,23 @@ def test_rewrite_cache_key_carries_protocol_and_attempt(monkeypatch):
     k0 = pa._cache_key("rewrite", {"context": "c", "instruction": "i", "protocol": 3, "attempt": 0})
     k1 = pa._cache_key("rewrite", {"context": "c", "instruction": "i", "protocol": 3, "attempt": 1})
     assert k0 != k1
+
+
+def test_rewrite_cache_key_carries_context_scope(monkeypatch):
+    """A cached page-scoped response can never satisfy a full-paper request:
+    the scope is in the payload, so the prompt reword cannot be silently
+    absorbed by a warm cache from an earlier scope."""
+    seen: dict = {}
+    orig = pa._cache_key
+    monkeypatch.setattr(pa, "_cache_key",
+                        lambda op, payload: seen.update(payload) or orig(op, payload))
+    c = _rewrite_client(json.dumps({"feasible": True, "replacement": "b",
+                                    "edits": [{"find": "c", "replace": "b"}]}), monkeypatch)
+    c.rewrite_context(context="a c", instruction="i", original="c")
+    assert seen["context_scope"] == "full"
+    full = orig("rewrite", dict(seen))
+    page = orig("rewrite", {**seen, "context_scope": "page"})
+    assert full != page
 
 
 # ─── _extract_json_object: malformed gpt-oss responses ────────────────────────
@@ -682,15 +699,21 @@ def test_fill_positive_target_fails_loud_when_floor_unreachable():
 # ─── context-override inlining + full pipeline determinism ───────────────────
 
 
-def test_inline_context_overrides_only_edited_rows():
+def test_inline_context_overrides_stamps_every_row():
     rows = [
-        {"measurement_id": 0, pa._CTX_ORIG_KEY: "a", pa._CTX_EDIT_KEY: "A"},
-        {"measurement_id": 1, pa._CTX_ORIG_KEY: "b"},
-        {"measurement_id": 2, pa._CTX_ORIG_KEY: "c", pa._CTX_EDIT_KEY: "c"},
+        {"measurement_id": 0, pa._CTX_ORIG_KEY: "a", pa._CTX_EDIT_KEY: "A"},  # genuine edit
+        {"measurement_id": 1, pa._CTX_ORIG_KEY: "b"},                         # unedited
+        {"measurement_id": 2, pa._CTX_ORIG_KEY: "c", pa._CTX_EDIT_KEY: "c"},  # no-op edit
     ]
-    assert pa.inline_context_overrides(rows) == 1
-    assert rows[0]["context_override"] == "A"
-    assert "context_override" not in rows[1] and "context_override" not in rows[2]
+    assert pa.inline_context_overrides(rows) == 1          # only row 0 is a genuine edit
+    assert rows[0]["context_override"] == "A"              # edited paper
+    assert rows[1]["context_override"] == "b"              # verbatim source paper
+    assert rows[2]["context_override"] == "c"              # no-op edit falls back to source
+
+
+def test_inline_context_overrides_requires_a_source_context():
+    with pytest.raises(AssertionError, match="no source context"):
+        pa.inline_context_overrides([{"measurement_id": 9}])
 
 
 def _run_pipeline(seed: int):
@@ -722,11 +745,22 @@ def test_pipeline_files_are_wellformed():
         assert len(sigs) == len(set(sigs)), f"{key} has repeat entries"
     train_rows, _ = out["train"]
     assert len(train_rows) >= 52                       # floor 26 × 2, usually more
-    d_rows, _ = out["diagnostic_test"]
-    assert any(r.get("context_override") for r in d_rows)       # synthetic positives
-    assert any(not r.get("context_override") for r in d_rows)   # carried GT valids
-    p_rows, _ = out["primary_test"]
-    assert not any(r.get("context_override") for r in p_rows)   # zero gpt-oss content
+    # Every row carries the full-paper context_override, valid and invalid,
+    # edited and unedited, in every file — including the zero-gpt-oss primary test.
+    for key in ("train", "primary_test", "diagnostic_test"):
+        rows, raw = out[key]
+        assert all(r["context_override"] for r in rows), key
+    d_rows, d_raw = out["diagnostic_test"]
+    assert any(r.get(pa._CTX_EDIT_KEY) for r in d_raw)          # some synthetic positives (edited paper)
+    assert any(not r.get(pa._CTX_EDIT_KEY) for r in d_raw)      # some carried GT valids (verbatim paper)
+
+
+def test_assert_wellformed_rejects_a_row_without_a_context_override():
+    rows, _ = _run_pipeline(42)["train"]
+    pa.assert_wellformed("train", rows)                         # baseline: passes
+    rows[3] = {k: v for k, v in rows[3].items() if k != "context_override"}
+    with pytest.raises(AssertionError, match="full-paper context"):
+        pa.assert_wellformed("train", rows)
 
 
 def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
@@ -740,10 +774,14 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
     by_code: dict[str, list[dict]] = {}
     for v in valids:
         by_code.setdefault(v["_paper_code"], []).append(v)
+    # Two pages per paper: the row's page_number is [1], page 2 carries a marker
+    # that appears nowhere on page 1 — so a page-sliced context would drop it.
+    marker = "ZZ_PAGE_TWO_ONLY_MARKER"
     for code, vs in by_code.items():
         body = " ".join(f'The site "{v["name"]}" reported {v["attribute"]} of '
                         f'"{v["value"]}" {v["units"]}.' for v in vs)
-        (ocr_dir / f"{code}.txt").write_text(f'<page number="1">{body}</page>')
+        (ocr_dir / f"{code}.txt").write_text(
+            f'<page number="1">{body}</page>\n<page number="2">{marker}</page>')
 
     written = pa.run_and_write(
         base_dir=tmp_path, out_suffix="_v2", ocr_dir=ocr_dir,
@@ -760,26 +798,33 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
     train_data = json.loads(train_p.read_text())
     diag_data = json.loads(diag_p.read_text())
     primary_data = json.loads(primary_p.read_text())
-    assert 0 < sum(1 for r in train_data if r.get("context_override")) < len(train_data)
-    assert any(r.get("context_override") for r in diag_data)
-    assert not any(r.get("context_override") for r in primary_data)
-
-    cfg = _dcfg()
     documents = {v["_paper_code"]: (ocr_dir / f"{v['_paper_code']}.txt").read_text()
                 for v in valids}
+
+    # Every row in every file carries the full paper as context_override —
+    # unedited rows verbatim, edited rows a variant that still contains the
+    # untouched page-2 marker. No row is page-sliced.
+    for data in (train_data, diag_data, primary_data):
+        assert data
+        for r in data:
+            override = r["context_override"]
+            assert marker in override, r["measurement_id"]
+            if r.get("modification_type") is None and r.get("augment_axis") is None:
+                assert override == documents[str(r["document_id"])]   # carried GT valid, verbatim
+
+    # The real invariant: an edit changes the paper without truncating it to a
+    # page. Some train rows differ from their source document, and every such row
+    # still carries the full paper — the page-2 marker included.
+    edited = [r for r in train_data
+              if r["context_override"] != documents[str(r["document_id"])]]
+    assert edited and all(marker in r["context_override"] for r in edited)
+
+    cfg = _dcfg()
     for data in (train_data, diag_data, primary_data):
         entries = judge_common.prepare_chat_entries(data, documents, cfg)
         for entry in entries:
             row = data[int(entry["custom_id"])]
-            override = row.get("context_override")
-            if override is not None:
-                assert entry["page_text"] == override
-            else:
-                pn = row.get("page_number")
-                page_numbers = ([p for p in pn if p is not None] if isinstance(pn, list)
-                                else ([pn] if pn is not None else []))
-                assert entry["page_text"] == judge_common.extract_page_text(
-                    documents[str(row["document_id"])], page_numbers)
+            assert entry["page_text"] == row["context_override"]
 
 
 # ─── GptOssClient prewarm / record-pass plumbing ─────────────────────────────
@@ -787,14 +832,14 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
 
 def _canned_run_batch():
     """An async `_run_batch` stand-in (no server). Protocol-3 responses: anchor
-    on the first double-quoted token that occurs verbatim in the page; a
+    on the first double-quoted token that occurs verbatim in the paper text; a
     'does not state' instruction is the pos_event inject case."""
 
     async def _run_batch(self, jobs):
         out: dict[str, str] = {}
         for key, messages in jobs:
-            instr, page = messages[-1]["content"].split("## PAGE TEXT\n", 1)
-            anchor = next((q for q in re.findall(r'"([^"]+)"', instr) if q in page), None)
+            instr, paper = messages[-1]["content"].split("## PAPER TEXT\n", 1)
+            anchor = next((q for q in re.findall(r'"([^"]+)"', instr) if q in paper), None)
             if anchor is None:
                 out[key] = json.dumps({"feasible": False, "reason": "canned: no anchor"})
             elif "does not state" in instr:

@@ -12,8 +12,9 @@ datasets:
                              (the LLM is only ever called on a cache miss).
   * ``GptOssClient``        — batched async OpenAI-compatible client for a locally
                              served ``openai/gpt-oss-120b``.  Protocol 3: the
-                             model picks BOTH the new property value and the
-                             minimal ``{find, replace}`` page edits.
+                             model is given the full paper and picks BOTH the new
+                             property value and the minimal ``{find, replace}``
+                             edits that make the whole paper consistent with it.
   * ``StubAugmentClient``   — deterministic canned edits, for unit tests and the
                              no-server smoke rung.
   * ``make_axis2_positive`` — one equivalence-preserving rewrite (entity name,
@@ -43,31 +44,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
-# ---------------------------------------------------------------------------
-# Page extraction (kept byte-identical to experiments/judge_common.extract_page_text
-# — copied here to avoid pulling judge_common's import chain into the generators)
-# ---------------------------------------------------------------------------
-
-_PAGE_BLOCK_RE = re.compile(r'<page number="(\d+)">.*?</page>', re.DOTALL)
-
-
-def extract_page_text(document: str, page_numbers: list[int]) -> str:
-    """Extract ``<page number="N">…</page>`` blocks for ``page_numbers``.
-
-    Falls back to the full document when there are no page numbers, none are
-    non-None, or no matching page block is found — identical to
-    ``judge_common.extract_page_text`` so the augmentation pipeline sees exactly
-    the context the judge would.
-    """
-    if not page_numbers:
-        return document
-    target = {pn for pn in page_numbers if pn is not None}
-    if not target:
-        return document
-    parts = [m.group(0) for m in _PAGE_BLOCK_RE.finditer(document)
-             if int(m.group(1)) in target]
-    return "\n\n".join(parts) if parts else document
-
+# The augmentation edits and stores the FULL paper text (not the measurement's
+# page) — gpt-oss sees the whole document, and every output row carries it as
+# ``context_override`` so the judge reads one consistent context scope for valid
+# and invalid, edited and unedited rows alike (see ``run_and_write``). Recorded
+# in the rewrite cache key so a later scope change can never be served a
+# page-scoped cache entry.
+_CONTEXT_SCOPE = "full"
 
 # ---------------------------------------------------------------------------
 # gpt-oss response cache (reproducibility)
@@ -83,10 +66,11 @@ def _cache_key(op: str, payload: dict) -> str:
 
     The payload must carry everything that changes the model's expected output.
     ``rewrite`` payloads carry ``protocol: 3`` (the model picks the replacement
-    value AND the edits) plus ``attempt`` (the resample round): an entry from an
-    earlier protocol, or from a different resample round, has a different key and
-    is a permanent miss, so a stale response can never be read back by the
-    current parser.
+    value AND the edits), ``context_scope`` (``"full"`` — the prompt and the
+    text to edit are the whole paper, not one page), plus ``attempt`` (the
+    resample round): an entry from an earlier protocol, a different scope, or a
+    different resample round has a different key and is a permanent miss, so a
+    stale response can never be read back by the current parser.
     """
     blob = json.dumps({"op": op, "payload": payload}, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
@@ -138,32 +122,33 @@ class AugmentCache:
 # ---------------------------------------------------------------------------
 
 _REWRITE_SYS = (
-    "You are a careful scientific text editor. You are given a page of text from "
-    "a scientific paper and asked to change one specific property of one "
+    "You are a careful scientific text editor. You are given the full text of a "
+    "scientific paper and asked to change one specific property of one "
     "measurement it reports, while changing as little else as possible. You do "
-    "NOT rewrite or re-emit the page. You choose a concrete new value for the "
+    "NOT rewrite or re-emit the paper. You choose a concrete new value for the "
     "property and return the minimal list of exact-text edits that make the "
-    "whole page consistent with it. Respond with a single JSON object and "
+    "whole paper consistent with it. Respond with a single JSON object and "
     "nothing else.\n"
     "If the change can be made, respond with:\n"
     '{\"feasible\": true, \"replacement\": \"<the new value, ready to paste into '
     'the measurement record verbatim>\", \"edits\": [{\"find\": \"<verbatim '
-    'substring of the page>\", \"replace\": \"<what it becomes>\"}, ...]}\n'
+    'substring of the paper>\", \"replace\": \"<what it becomes>\"}, ...]}\n'
     "Rules:\n"
     "- \"replacement\" is the new property value on its own (e.g. a site name, a "
     "number, a date) — not a sentence, and not the old value.\n"
-    "- Every \"find\" MUST be copied character-for-character from the PAGE TEXT "
+    "- Every \"find\" MUST be copied character-for-character from the PAPER TEXT "
     "below (same whitespace, casing, LaTeX and markdown) so it can be located by "
     "an exact string search.\n"
     "- \"find\" SHOULD carry enough surrounding words to be unambiguous (e.g. "
     "\"a critical temperature of 5.2 K\", not \"5.2\"), so applying the edit "
     "cannot corrupt an unrelated occurrence (a year, a different measurement, a "
     "substring of a larger number).\n"
-    "- Return one edit per site. If the edited claim appears in the running "
-    "text, a table cell and a figure caption, that is three edits. Change every "
-    "place the edited claim appears and nothing else.\n"
+    "- Return one edit per site, and cover EVERY site. The edited claim may "
+    "recur many times across a full paper — the abstract, the results text, one "
+    "or more table cells, a figure caption, the discussion. Find every "
+    "occurrence and emit one edit for each; change nothing else.\n"
     "If making the change consistently would require rewriting large parts of "
-    "the page, or would contradict other statements or tables on the page, "
+    "the paper, or would contradict other statements or tables in it, "
     'respond with {\"feasible\": false, \"reason\": \"...\"} instead.'
 )
 
@@ -407,9 +392,14 @@ class GptOssClient:
     temperature: float = 0.7
     max_concurrent: int = 32
     # The rewrite response is a small JSON object (a `replacement` string + a
-    # ~100-token `edits` list), so this cap is generous headroom, not a real
-    # constraint -- truncation at the cap is exactly what the diff protocol set
-    # out to eliminate.
+    # ~100-token `edits` list) — truncation at the cap is what the diff protocol
+    # set out to eliminate. Since context_scope: full, this reservation is now
+    # load-bearing: vLLM rejects at admission on `prompt + max_tokens >
+    # max_model_len`, so the binding constraint is `largest_paper_tokens +
+    # max_tokens < serve max_model_len` (supermat's ~52k-token paper + 20k =
+    # 72k, under the 90k served). Raising this back toward "generous" would
+    # start 400-ing the largest papers — leave it unless rung 3 shows real
+    # truncation.
     max_tokens: int = 20000
     # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/high,
     # default "medium" if omitted); it has no `enable_thinking` variable at all,
@@ -590,7 +580,7 @@ class GptOssClient:
     # -- public ops --------------------------------------------------------
 
     _RESAMPLE_NUDGE = (
-        "\n\nThis is an ALTERNATIVE rewrite of the same page. Choose a "
+        "\n\nThis is an ALTERNATIVE rewrite of the same paper. Choose a "
         "noticeably different, less obvious replacement value than the first "
         "one that comes to mind, while still keeping it plausible for this "
         "measurement."
@@ -603,7 +593,7 @@ class GptOssClient:
             f"Return the new value and only the minimal exact-text edits needed. "
             f"Do not alter any other fact, number, unit, name, table cell, or "
             f"sentence.\n\n"
-            f"## PAGE TEXT\n{context}"
+            f"## PAPER TEXT\n{context}"
         )
         return [{"role": "system", "content": _REWRITE_SYS},
                 {"role": "user", "content": user}]
@@ -634,7 +624,7 @@ class GptOssClient:
         """Local, model-independent check that the rewrite did what was asked.
 
         ``original`` is the property's old surface value (a name, a number, a
-        date), or ``""`` for the pos_event *inject* case where the source page
+        date), or ``""`` for the pos_event *inject* case where the source paper
         stated no event. Shared by ``GptOssClient`` and ``StubAugmentClient`` so
         both admit exactly the same rows.
         """
@@ -645,16 +635,16 @@ class GptOssClient:
         if not original:                       # inject case (pos_event, no prior event)
             if replacement in orig_ctx:
                 return RewriteResult(False, orig_ctx, "", [],
-                                     f"replacement {replacement!r} was already on the page")
-            # the added event is not grounded in the source page by construction
+                                     f"replacement {replacement!r} was already in the paper")
+            # the added event is not grounded in the source paper by construction
             return RewriteResult(True, new_ctx, replacement, edits, "", unverified_span=True)
         if orig_ctx.count(original) == 0:
-            # `original` is not a verbatim page span, so "old value is gone" can't
+            # `original` is not a verbatim paper span, so "old value is gone" can't
             # be checked -- the row rests on the model's self-consistency alone.
             return RewriteResult(True, new_ctx, replacement, edits, "", unverified_span=True)
         if new_ctx.count(original) and original != replacement:
             return RewriteResult(False, orig_ctx, "", [],
-                                 f"rewrite left the original {original!r} on the page")
+                                 f"rewrite left the original {original!r} in the paper")
         return RewriteResult(True, new_ctx, replacement, edits, "")
 
     def rewrite_context(self, *, context, instruction, original, attempt=0,
@@ -668,7 +658,7 @@ class GptOssClient:
         ``stub_replacement`` is ignored here — it only steers ``StubAugmentClient``.
         """
         payload = {"context": context, "instruction": instruction,
-                   "protocol": 3, "attempt": attempt}
+                   "protocol": 3, "context_scope": _CONTEXT_SCOPE, "attempt": attempt}
         key = _cache_key("rewrite", payload)
         raw = self._resolve(key, "rewrite",
                             self._rewrite_messages(context, instruction, attempt))
@@ -840,21 +830,27 @@ _CTX_PUBLIC_KEY = "context_override"   # kept on the output row (see strip_inter
 
 
 def inline_context_overrides(rows: list[dict]) -> int:
-    """Stamp the public ``context_override`` field onto rows whose context was
-    genuinely edited (in place). Returns the count stamped.
+    """Stamp the public ``context_override`` field onto *every* row (in place):
+    the edited paper where the augmentation edited it, the verbatim source paper
+    otherwise. Returns the count of rows whose stamped context is a genuine edit.
 
     ``judge_common.prepare_chat_entries`` reads this field directly off the row
-    — no side-car, no measurement_id-keyed lookup. A no-op edit (edited text
-    identical to the original) is not stamped, same filter the retired
-    side-car builder used.
+    — no side-car, no measurement_id-keyed lookup. Because every augmented row
+    carries it, the judge reads one consistent context scope (the full paper)
+    for valid and invalid, edited and unedited rows alike — the within-file and
+    train/primary-test comparability the leakage controls depend on.
     """
-    n = 0
+    n_edited = 0
     for r in rows:
+        orig = r.get(_CTX_ORIG_KEY)
+        assert orig, f"row {r.get('measurement_id')} carries no source context to stamp"
         edited = r.get(_CTX_EDIT_KEY)
-        if edited is not None and edited != r.get(_CTX_ORIG_KEY):
+        if edited is not None and edited != orig:
             r[_CTX_PUBLIC_KEY] = edited
-            n += 1
-    return n
+            n_edited += 1
+        else:
+            r[_CTX_PUBLIC_KEY] = orig
+    return n_edited
 
 
 def emit_context_diff_report(rows: list[dict], path: Path) -> int:
@@ -1032,9 +1028,10 @@ def _new_derived_row(src: dict, *, label: str, mod_type: str | None,
 
 def _row_signature(row: dict, gt_cols: list[str]) -> tuple:
     """Content identity of a row, for de-duplication: every GT-schema field the
-    probe sees plus the edited page text (``None`` when unedited). Works before
-    and after ``strip_internal_fields`` — the edited page lives on
-    ``_context_override`` until finalize, then on the public ``context_override``.
+    probe sees plus the edited paper text (``None`` when the augmentation did
+    not edit this row). Only ever called during assembly, before ``_finalize``
+    stamps the verbatim full paper onto every row's ``context_override`` — so an
+    unedited row still signs as ``None`` here regardless of that later stamp.
     Two rows with the same signature are the same example regardless of
     provenance; only the first is kept."""
     ctx = row.get(_CTX_EDIT_KEY) if _CTX_EDIT_KEY in row else row.get(_CTX_PUBLIC_KEY)
@@ -1074,10 +1071,11 @@ def _axis_entity(src, rules, rng):
     examples = ", ".join(f'"{n}"' for n in sorted(rules.entity_candidates(src))[:3])
     type_hint = f" of the same kind ({tok})" if tok else ""
     instr = (
-        f'This page reports a measurement attributed to the {rules.entity_noun} '
-        f'"{old}". Rewrite the page so the identical measurement is attributed to '
+        f'This paper reports a measurement attributed to the {rules.entity_noun} '
+        f'"{old}". Rewrite the paper so the identical measurement is attributed to '
         f'a different, made-up {rules.entity_noun}{type_hint} that is not a real '
         f'place' + (f' — for example {examples}' if examples else '') + '. '
+        f'Replace the name everywhere it appears in the paper. '
         f'{rules.entity_preserve_clause} Report the new name alone as "replacement".'
     )
     updates = {f: None for f in rules.entity_swap_clear_fields}
@@ -1091,11 +1089,12 @@ def _axis_value(src, rules, rng):
     attr = src.get("attribute")
     units = src.get("units") or ""
     instr = (
-        f'This page reports a {attr} measurement of "{old_v}" {units} for '
-        f'"{src.get(rules.entity_name_field)}". Rewrite the page so the identical '
+        f'This paper reports a {attr} measurement of "{old_v}" {units} for '
+        f'"{src.get(rules.entity_name_field)}". Rewrite the paper so the identical '
         f'measurement instead reads a different, plausible {attr} value — same '
         f'units, same entity, same measurement event — changing the number every '
-        f'place it appears. Report the new number alone as "replacement".'
+        f'place it appears in the paper (running text, tables, abstract). Report '
+        f'the new number alone as "replacement".'
     )
     return old_v, instr, perturb_value(old_v, rng, lo=0.15, hi=0.6), "value", {}
 
@@ -1108,8 +1107,8 @@ def _axis_event(src, rules, rng):
     cur = src.get(field)
     if cur:
         instr = (
-            f'This page states the {rules.event_noun} for this measurement is '
-            f'"{cur}". Rewrite the page so it instead states a different but '
+            f'This paper states the {rules.event_noun} for this measurement is '
+            f'"{cur}". Rewrite the paper so it instead states a different but '
             f'plausible {rules.event_noun} for the same measurement (same entity, '
             f'value and units), everywhere it appears. Report the new '
             f'{rules.event_noun} alone as "replacement".'
@@ -1121,10 +1120,11 @@ def _axis_event(src, rules, rng):
     if not val or val not in ctx:
         return None
     instr = (
-        f'This page reports a measurement (value "{val}") but does not state its '
-        f'{rules.event_noun}. Add a short phrase next to the value "{val}" giving '
-        f'a plausible {rules.event_noun} for this measurement, and report that '
-        f'{rules.event_noun} alone as "replacement". Change nothing else.'
+        f'This paper reports a measurement (value "{val}") but does not state its '
+        f'{rules.event_noun}. Add a short phrase, next to where the paper reports '
+        f'the value "{val}", giving a plausible {rules.event_noun} for this '
+        f'measurement, and report that {rules.event_noun} alone as "replacement". '
+        f'Change nothing else.'
     )
     return "", instr, _draw_alt(rules.event_pool, None, rng, ctx), field, {}
 
@@ -1140,7 +1140,7 @@ _AXIS_BUILDERS = {
 _SKIP_CATEGORIES = (
     "axis not applicable to this row", "no pool alternative",
     "wrong entity type", "edit not applicable", "did not introduce the replacement",
-    "left the original", "already on the page", "not valid JSON",
+    "left the original", "already in the paper", "not valid JSON",
 )
 
 
@@ -1214,8 +1214,10 @@ def make_typed_negative(
     no usable alternative exists for this source (skip).
 
     The context is never edited. A negative built on a synthetic positive keeps
-    that positive's edited page and axis tag, so edited contexts appear on both
-    labels (the diagnostic file's leakage control)."""
+    that positive's edited paper and axis tag, so edited contexts appear on both
+    labels (the diagnostic file's leakage control). ``ctx`` here (the collision
+    guard for ``_draw_alt``) is the full paper — a pool alternative already
+    stated anywhere in it is rejected."""
     ctx = src.get(_CTX_EDIT_KEY) or src[_CTX_ORIG_KEY]
 
     if err_type == "entity":
@@ -1424,10 +1426,11 @@ def build_augmented_files(
 ) -> dict[str, tuple[list[dict], list[dict]]]:
     """Build the train / primary-test / diagnostic-test files.
 
-    Each input record must carry ``_context_original`` (the source page text),
-    ``gt_row_index``, the entity / attribute / value / units fields and any GT
-    event field. Returns ``{file: (output_rows, rows_with_contexts)}`` — the
-    second element keeps the internal ``_context_*`` fields for the diff report.
+    Each input record must carry ``_context_original`` (the full source paper
+    text), ``gt_row_index``, the entity / attribute / value / units fields and
+    any GT event field. Returns ``{file: (output_rows, rows_with_contexts)}`` —
+    the second element keeps the internal ``_context_*`` fields for the diff
+    report.
 
     **Phase ordering.** Both ``fill_positive_target`` calls (the only client-
     calling code) run first, contiguously; every negative and every assembly
@@ -1524,19 +1527,20 @@ def assert_wellformed(key: str, rows: list[dict]) -> None:
         assert r.get("source_group_id") is not None, \
             f"[{key}] row {r['measurement_id']} missing source_group_id"
         override = r.get(_CTX_PUBLIC_KEY)
-        assert override is None or (isinstance(override, str) and override), \
-            f"[{key}] row {r['measurement_id']} has a non-string/empty {_CTX_PUBLIC_KEY}"
+        assert isinstance(override, str) and override, \
+            f"[{key}] row {r['measurement_id']} missing/empty {_CTX_PUBLIC_KEY} " \
+            f"— every augmented row must carry the full-paper context"
 
 
 def run_and_write(
     *, base_dir: Path, out_suffix: str, ocr_dir: Path,
     xv_train: list[dict], xv_test: list[dict], rules: DatasetAugmentRules,
     flags: AugmentFlags, client: AugmentClient, rng: random.Random,
-    paper_code_key: str = "_paper_code", page_numbers_key: str = "_page_numbers",
+    paper_code_key: str = "_paper_code",
 ) -> dict[str, Path]:
-    """End-to-end: attach source contexts, build the three files, write them
-    (+ diff reports for splits with edited rows), assert well-formed. Returns
-    ``{key: data_path}``."""
+    """End-to-end: attach the full source paper as each record's context, build
+    the three files, write them (+ diff reports for splits with edited rows),
+    assert well-formed. Returns ``{key: data_path}``."""
     base_dir = Path(base_dir)
     ocr_dir = Path(ocr_dir)
 
@@ -1544,8 +1548,11 @@ def run_and_write(
     for v in (*xv_train, *xv_test):
         code = v[paper_code_key]
         if code not in doc_cache:
-            doc_cache[code] = (ocr_dir / f"{code}.txt").read_text(encoding="utf-8")
-        v[_CTX_ORIG_KEY] = extract_page_text(doc_cache[code], v.get(page_numbers_key) or [])
+            path = ocr_dir / f"{code}.txt"
+            text = path.read_text(encoding="utf-8")
+            assert text.strip(), f"OCR file is empty: {path}"
+            doc_cache[code] = text
+        v[_CTX_ORIG_KEY] = doc_cache[code]
 
     # gpt-oss: gather every prompt in an RNG-matched dry pass, then fill the cache
     # in one concurrent batch. Without this the real pass hits the model serially
@@ -1569,6 +1576,12 @@ def run_and_write(
                                     client=client, rules=rules, flags=flags)
     client.flush()
 
+    # Every output row now carries `context_override` (the full paper); a row is
+    # "edited" only when the augmentation actually changed that paper.
+    def _is_edited(r: dict) -> bool:
+        e = r.get(_CTX_EDIT_KEY)
+        return e is not None and e != r.get(_CTX_ORIG_KEY)
+
     written: dict[str, Path] = {}
     for key, data_fmt in _OUT_NAMES.items():
         rows, raw_rows = bundles[key]
@@ -1577,24 +1590,24 @@ def run_and_write(
         with open(data_path, "w") as f:
             json.dump(rows, f, indent=2, ensure_ascii=False)
         written[key] = data_path
-        n_edited = sum(1 for r in rows if r.get(_CTX_PUBLIC_KEY) is not None)
+        n_edited = sum(1 for r in raw_rows if _is_edited(r))
         n_syn_pos = sum(1 for r in raw_rows
                         if r["label"] == "valid" and r.get(_CTX_EDIT_KEY))
         n_unverified = sum(1 for r in raw_rows if r.get("_unverified_span"))
-        print(f"  wrote {len(rows):,} rows ({n_edited:,} with an edited context) -> "
+        print(f"  wrote {len(rows):,} rows ({n_edited:,} with an edited paper) -> "
               f"{data_path.name}")
         if n_syn_pos:
             print(f"    {n_unverified:,}/{n_syn_pos:,} synthetic positives rest on "
                   f"the model's self-consistency alone (original surface form not "
-                  f"a verbatim page span)")
+                  f"a verbatim paper span)")
         # Leakage check for the diagnostic file: if edited-context rows cluster on
         # one label, a probe can score above chance on edited-ness alone.
-        if n_edited and any(r["label"] == "invalid" and r.get(_CTX_EDIT_KEY) for r in raw_rows):
+        if n_edited and any(r["label"] == "invalid" and _is_edited(r) for r in raw_rows):
             for lab in ("valid", "invalid"):
                 lab_rows = [r for r in raw_rows if r["label"] == lab]
-                n_lab_edited = sum(1 for r in lab_rows if r.get(_CTX_EDIT_KEY))
+                n_lab_edited = sum(1 for r in lab_rows if _is_edited(r))
                 print(f"    {lab:>7}: {n_lab_edited}/{len(lab_rows)} on an edited "
-                      f"context ({100 * n_lab_edited / len(lab_rows):.0f}%)")
+                      f"paper ({100 * n_lab_edited / len(lab_rows):.0f}%)")
         if n_edited:
             n_diff = emit_context_diff_report(raw_rows, base_dir / (data_path.name + ".diff.txt"))
             print(f"  wrote diff report for {n_diff} edited row(s) -> {data_path.name}.diff.txt")
