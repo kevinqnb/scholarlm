@@ -75,6 +75,19 @@ params:
       supermat: [pos_entity, pos_value]
     valid_floor: 5000            # MINIMUM train valids (GT carried + distinct synthetic)
     diag_valid_floor: 1000       # MINIMUM diagnostic valids; built exactly like train
+    # Per-dataset floor overrides (--augment-valid-floor / --augment-diag-valid-floor).
+    # nfix / supermat are material-limited: only ~552 / ~585 reviewed GT valids
+    # in the train split and per-attempt yield is low (see the Rung-3 note below),
+    # so the synthetic-positive count physically cannot reach 5000 - GT ≈ 4.4k and
+    # `fill_positive_target` would HARD-ERROR. Floored at achievable levels
+    # instead; the asymmetry with pond (~5-6k valids) is accepted
+    # (2026-09-08-probe-v2-calibration-01). pond keeps the 5000 default (Rung-3
+    # round-0 ≈ 3071 vs. its 3207 synthetic need — a small resample round closes it).
+    valid_floor_override:
+      nfix:     1200
+      supermat: 1200
+    diag_valid_floor_override:
+      nfix:     650             # diag synthetic need 1000-368=632 vs round-0 ≈ 312
     rewrite_temperature: 0.7     # one fixed regime; the resample round is in the cache key
     out_suffix: _v2
     # gpt-oss edits, and every output row stores, the FULL paper text -- not the
@@ -88,26 +101,20 @@ params:
     # round 0 only (one attempt per GT valid per axis, all kept). Falling short of
     # the floor inside the budget is a HARD ERROR.
     #
-    # STALE — re-run Rung 3 before Rung 4. The values below were set from
-    # gen_aug_rung3.o7499062 (2026-09-08): round-0 distinct-yield on an 80-GT-valid
-    # sample x 3 axes was pond 160/240 (67%), nfix 108/240 (45%), supermat 73/231
-    # (32%). Superseded twice since:
-    #   (a) 2026-09-08 judge-field narrowing: supermat now runs 2 axes (no
-    #       pos_event) with no `event` error type, and _JUDGE_ENTITY_FIELDS shrank
-    #       for all three (pond name+ecosystem, nfix/supermat name only).
-    #   (b) 2026-09-08 context_scope: full — gpt-oss now edits the whole paper, so
-    #       a claim recurs far more often (every occurrence must be hit → lower
-    #       positive yield) and the negative pools tighten (a full paper states
-    #       more years / numbers verbatim → _draw_alt rejects more, fill_negative_
-    #       quota closer to its miss/dup caps).
-    # Both push prompt_budget_multiple UP and may make the negative quotas
-    # unreachable at the current floors. Re-run
-    # `qsub -N gen_aug_rung3 experiments/gen_augment.sh rung3` and re-derive these
-    # from the new round-0 numbers (and watch the fill_negative_quota tallies).
-    #   On a "positive floor not met: X/5000" failure, resubmit that dataset with
-    #   --augment-valid-floor <just under X> (the cache persists).
+    # Set from gen_aug_rung3.o7501531 (2026-09-08 23:26, exit 0) — round-0
+    # distinct-yield under the CURRENT regime (2 axes for supermat, full context,
+    # narrowed judge fields), on an 80-GT-valid sample:
+    #   pond     train 137/240 (57%)   diag 140/240
+    #   nfix     train  80/240 (33%)   diag  68/240
+    #   supermat train  74/154 (48%)   diag  82/154
+    # Projected full-run round-0 (rate x GT-valids x axes): pond ≈ 3071 (vs 3207
+    # synthetic need → reachable with a resample round), nfix ≈ 551 and supermat
+    # ≈ 541 (vs ~4.4k at the 5000 floor → NOT reachable; hence valid_floor_
+    # override above). Multiples give resampling headroom toward each floor.
+    #   On a "positive floor not met: X/<floor>" failure, resubmit that dataset
+    #   with --augment-valid-floor <just under X> (the cache persists).
     prompt_budget_multiple:
-      pond: 2
+      pond: 3
       nfix: 10
       supermat: 12
 
@@ -124,10 +131,10 @@ params:
     # one job. Reads out `positive fill [<split>]: N distinct / M attempts`.
     - "qsub -N gen_aug_rung3 experiments/gen_augment.sh rung3"
     # Rung 4 -- full run, one job per dataset (so a floor-not-met failure on one
-    # doesn't block the others). Multiples set from Rung 3 (see above).
-    - "qsub -N gen_aug_pond     experiments/gen_augment.sh pond      # ... --augment --seed 42 --reviewed --augment-prompt-budget-multiple 2"
-    - "qsub -N gen_aug_nfix     experiments/gen_augment.sh nfix      # ... --reviewed --augment-prompt-budget-multiple 10"
-    - "qsub -N gen_aug_supermat experiments/gen_augment.sh supermat  # ... (no --reviewed) --augment-prompt-budget-multiple 12"
+    # doesn't block the others). Multiples + floors set from Rung 3 (see above).
+    - "qsub -N gen_aug_pond     experiments/gen_augment.sh pond      # --augment --seed 42 --reviewed --augment-prompt-budget-multiple 3"
+    - "qsub -N gen_aug_nfix     experiments/gen_augment.sh nfix      # --reviewed --augment-prompt-budget-multiple 10 --augment-valid-floor 1200 --augment-diag-valid-floor 650"
+    - "qsub -N gen_aug_supermat experiments/gen_augment.sh supermat  # (no --reviewed) --augment-prompt-budget-multiple 12 --augment-valid-floor 1200"
   # --augment-cache defaults to data/{ds}/probe_augment_cache.json (on by
   # default) -- the determinism artifact, since gpt-oss at temperature>0 with no
   # seed is not bit-reproducible. The rewrite cache key carries protocol (3),
@@ -136,7 +143,8 @@ params:
   # probe_augment_cache.json files must be regenerated from scratch at Rung 4.
 
   # Output (per dataset, additional to the untouched defaults):
-  #   probe_dataset_v2.json           (train: >=5000 valid + equal invalid, 50/50)
+  #   probe_dataset_v2.json           (train: >= per-dataset floor valid + equal
+  #                                    invalid, 50/50 — pond ~5-6k, nfix/supermat ~1.2k)
   #   probe_dataset_test_v2.json      (primary test: held-out GT valids + typed negatives)
   #   probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out valids)
   #   probe_augment_cache.json        (gpt-oss response cache, content-hash keyed)
