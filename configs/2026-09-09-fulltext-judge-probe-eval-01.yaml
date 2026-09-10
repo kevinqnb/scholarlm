@@ -217,16 +217,17 @@ params:
     judge_v2_pond_rung3:  7513138   # rung 3  (run_judge_v2.sh pond all 2026_09_10 rung3)
     judge_v2_pond_rung3_seedcheck:  7513139   # rung 3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
     probe_rung3_downstream:  7513160   # rung 3  hold 7513138  (run_probe_v2_downstream.sh rung3 2026_09_10 pond)
-    gen_aug_pond:         # A   H200, serves gpt-oss-120b   (gen_augment.sh pond)
-    judge_v2_pond_train:  # B1  hold A,  -l h_rt=36:00:00   (run_judge_v2.sh pond train 2026_09_10)
-    judge_v2_pond_tests:  # B2  hold A                       (run_judge_v2.sh pond tests 2026_09_10)
-    probe_v2_downstream:  # C   hold B1,B2                   (run_probe_v2_downstream.sh v2 2026_09_10 pond)
-    judge_interp_real:    # I   hold A, L40S                 (judge_interp_real_fulltext.sh 2026_09_10)
-    judge_real_qwen72:    # J1  concurrent with A            (judge_real_voting.sh qwen-2.5-72b 2026_09_10)
-    judge_real_llama70:   # J2  concurrent with A            (judge_real_voting.sh llama-3.3-70b 2026_09_10)
-    judge_real_gptoss:    # J3  hold A                       (judge_real_voting.sh gpt-oss-120b 2026_09_10)
-    judge_combine_real:   # K   hold J1,J2,J3,I              (judge_combine_gemma_real_3vote.sh)
-    meta_v2:              # M   hold C,I,K                   (meta_v2.sh 2026_09_10)
+    # rung 4, all submitted 2026-09-09 22:38
+    gen_aug_pond:         7514202   # A   H200, serves gpt-oss-120b   (gen_augment.sh pond)
+    judge_real_qwen72:    7514203   # J1  concurrent with A            (judge_real_voting.sh qwen-2.5-72b 2026_09_10)
+    judge_real_llama70:   7514204   # J2  concurrent with A            (judge_real_voting.sh llama-3.3-70b 2026_09_10)
+    judge_v2_pond_train:  7514205   # B1  hold 7514202,  -l h_rt=36:00:00   (run_judge_v2.sh pond train 2026_09_10)
+    judge_v2_pond_tests:  7514206   # B2  hold 7514202                 (run_judge_v2.sh pond tests 2026_09_10)
+    judge_interp_real:    7514207   # I   hold 7514202, L40S           (judge_interp_real_fulltext.sh 2026_09_10)
+    judge_real_gptoss:    7514208   # J3  hold 7514202                 (judge_real_voting.sh gpt-oss-120b 2026_09_10)
+    probe_v2_downstream:  7514210   # C   hold 7514205,7514206         (run_probe_v2_downstream.sh v2 2026_09_10 pond)
+    judge_combine_real:   7514211   # K   hold 7514203,7514204,7514208,7514207   (judge_combine_gemma_real_3vote.sh)
+    meta_v2:              7514212   # M   hold 7514210,7514207,7514211  (meta_v2.sh 2026_09_10)
 
   code:
     # this session, branch diff-experiments
