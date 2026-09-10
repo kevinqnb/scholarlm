@@ -200,10 +200,10 @@ params:
 
   # ── SGE job graph (ids filled in as submitted; -hold_jid chains) ──────────
   jobs:
-    gen_aug_pond_rung3:   # rung 2
-    judge_v2_pond_rung3:  # rung 3  hold gen_aug_pond_rung3  (run_judge_v2.sh pond all 2026_09_10 rung3)
-    judge_v2_pond_rung3_seedcheck:  # rung 3  hold gen_aug_pond_rung3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
-    probe_rung3_downstream:  # rung 3  hold judge_v2_pond_rung3
+    gen_aug_pond_rung3:   7510183   # rung 2  (2026-09-09 17:56; exit 0, 137/240 train yield, 100% cache-served)
+    judge_v2_pond_rung3:  7513138   # rung 3  (run_judge_v2.sh pond all 2026_09_10 rung3)
+    judge_v2_pond_rung3_seedcheck:  7513139   # rung 3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
+    probe_rung3_downstream:  7513160   # rung 3  hold 7513138  (run_probe_v2_downstream.sh rung3 2026_09_10 pond)
     gen_aug_pond:         # A   (H200, serves gpt-oss-120b)
     judge_v2_pond_train:  # B1  hold gen_aug_pond,  -l h_rt=36:00:00
     judge_v2_pond_tests:  # B2  hold gen_aug_pond
