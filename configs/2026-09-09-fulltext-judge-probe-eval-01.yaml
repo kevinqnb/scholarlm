@@ -71,22 +71,35 @@ params:
     entry_point: run_judge_interp.py
     resources: { gpu_type: L40S, gpu_memory: 40G, gpu_c: 7.0, pe_omp: 8 }  # NOT Blackwell
 
-  # ── Item 3 — three voting judges on the real extractions (full-paper judge) ─
-  # Per model: serve_<model>.sh then experiments/pond/judge/<model_dir>/
-  # pond_judge_gemma_3_27b_<model>.sh (already pinned to --extraction-date
-  # 2026_05_05 and the right judge), submitted with a fresh -hold_jid. Then
-  # experiments/judge_combine_gemma_real_3vote.sh (--judges gpt-oss-120b
-  # qwen-2.5-72b llama-3.3-70b). Every model's serve.port is 8081, so gpt-oss
-  # is chained AFTER gen_aug_pond (which also serves gpt-oss); qwen-2.5-72b and
-  # llama-3.3-70b judges overlap Stage A (different models, accepted small risk
-  # of a same-node port collision -- user read).
+  # ── Item 3 — voting judges on the real extractions (full-paper judge) ──────
+  # experiments/judge_real_voting.sh <model> 2026_09_10 -- one self-contained
+  # qsub per model (serves the model in-allocation, polls /health, runs
+  # run_judge_local.py against localhost, exits). Structured like
+  # gen_augment.sh, NOT the legacy serve_<m>.sh + pond_judge_*.sh split (whose
+  # -hold_jid semantics would make the judge wait for the 12h serve to finish).
+  # Each job owns its node -> localhost:8081 private, no cross-job collision;
+  # qwen-2.5-72b + llama-3.3-70b run concurrently with Stage A, gpt-oss-120b
+  # -hold_jid gen_aug_pond (courtesy: don't double-queue gpt-oss).
+  # qwen-2.5-72b --max-model-len bumped 32000 -> 90000 (largest pond OCR paper
+  # ~33k tok; the legacy 32k limit predates the page->full-paper judge).
+  # gpu_type pinned H200 (gpu_c>=9.0 also matches Blackwell; awq_marlin/mxfp4
+  # kernels unverified there -- 09-03 precedent).
+  #
+  # Then experiments/judge_combine_gemma_real_3vote.sh combines FOUR judges:
+  #   gpt-oss-120b + qwen-2.5-72b + llama-3.3-70b  -> voters (VOTING_JUDGE_KEYS,
+  #       hardcoded); judgement_combined = majority, threshold 2/3.
+  #   qwen-2.5-7b  -> non-voter, included ONLY for judgement_p_true_qwen-2.5-7b,
+  #       which meta_updated.py reads for NTP weighting. From judge_interp_real
+  #       (item 4). So judge_combine_real -hold_jid also on judge_interp_real.
   # → data/experiments/pond/judge/gemma-3-27b/2026_05_05/<judge>/2026_09_10/ and
   #   .../combined/combined.json (OVERWRITTEN -- prior 6-judge combined snapshotted).
   judge_real_voting:
-    judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
-    entry_point: run_judge_local.py + run_judge_combine.py
-    voting_threshold: 2            # ceil(3/2), run_judge_combine.py default
-    serve_resources_from: experiments/config.yaml   # per-model serve block, unmodified
+    voters: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
+    combine_judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b, qwen-2.5-7b]
+    entry_point: judge_real_voting.sh + run_judge_combine.py
+    voting_threshold: 2            # ceil(3/2)
+    qwen_2_5_72b_max_model_len: 90000
+    serve_gpu_type: H200
 
   # ── Item 4 — refresh the real-extraction interp activations ────────────────
   #   experiments/judge_interp_real_fulltext.sh 2026_09_10
@@ -204,19 +217,16 @@ params:
     judge_v2_pond_rung3:  7513138   # rung 3  (run_judge_v2.sh pond all 2026_09_10 rung3)
     judge_v2_pond_rung3_seedcheck:  7513139   # rung 3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
     probe_rung3_downstream:  7513160   # rung 3  hold 7513138  (run_probe_v2_downstream.sh rung3 2026_09_10 pond)
-    gen_aug_pond:         # A   (H200, serves gpt-oss-120b)
-    judge_v2_pond_train:  # B1  hold gen_aug_pond,  -l h_rt=36:00:00
-    judge_v2_pond_tests:  # B2  hold gen_aug_pond
-    probe_v2_downstream:  # C+D hold B1,B2
-    judge_interp_real:    # I   hold gen_aug_pond   (L40S; no data dep, staggered for GPU)
-    serve_qwen72:         # S1  overlaps A
-    judge_real_qwen72:    # J1  hold S1
-    serve_llama70:        # S2  hold J1
-    judge_real_llama70:   # J2  hold S2
-    serve_gptoss:         # S3  hold gen_aug_pond, J2
-    judge_real_gptoss:    # J3  hold S3
-    judge_combine_real:   # K   hold J1,J2,J3
-    meta_v2:              # hold C, I, K
+    gen_aug_pond:         # A   H200, serves gpt-oss-120b   (gen_augment.sh pond)
+    judge_v2_pond_train:  # B1  hold A,  -l h_rt=36:00:00   (run_judge_v2.sh pond train 2026_09_10)
+    judge_v2_pond_tests:  # B2  hold A                       (run_judge_v2.sh pond tests 2026_09_10)
+    probe_v2_downstream:  # C   hold B1,B2                   (run_probe_v2_downstream.sh v2 2026_09_10 pond)
+    judge_interp_real:    # I   hold A, L40S                 (judge_interp_real_fulltext.sh 2026_09_10)
+    judge_real_qwen72:    # J1  concurrent with A            (judge_real_voting.sh qwen-2.5-72b 2026_09_10)
+    judge_real_llama70:   # J2  concurrent with A            (judge_real_voting.sh llama-3.3-70b 2026_09_10)
+    judge_real_gptoss:    # J3  hold A                       (judge_real_voting.sh gpt-oss-120b 2026_09_10)
+    judge_combine_real:   # K   hold J1,J2,J3,I              (judge_combine_gemma_real_3vote.sh)
+    meta_v2:              # M   hold C,I,K                   (meta_v2.sh 2026_09_10)
 
   code:
     # this session, branch diff-experiments
