@@ -95,7 +95,13 @@ async def _judge_one(
                     {"role": "system", "content": entry["system"]},
                     {"role": "user", "content": entry["user"]},
                 ],
-                max_tokens=2048,
+                # 8192 (was 2048): reasoning models (gpt-oss-120b) emit a long
+                # analysis channel before the verdict; under the full-paper judge
+                # (~30k-token prompts) 2048 truncated it on ~0.5% of rows, which
+                # this function then fails loud on. 8192 matches config.yaml's
+                # gpt-oss-120b sampling_params. Non-reasoning judges are
+                # unaffected (they stop far short of either cap).
+                max_tokens=8192,
                 temperature=0.0,
             )
         except Exception as e:
