@@ -98,8 +98,18 @@ params:
     combine_judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b, qwen-2.5-7b]
     entry_point: judge_real_voting.sh + run_judge_combine.py
     voting_threshold: 2            # ceil(3/2)
-    qwen_2_5_72b_max_model_len: 90000
     serve_gpu_type: H200
+    qwen_2_5_72b_context: |
+      Qwen2.5-72B is 32768-native; measured pond full-paper judge prompts reach
+      ~47k tok on 6/128 papers and run_judge_local aborts the whole run on one
+      over-length request. First attempt (job 7514203, --max-model-len 90000)
+      failed at server start. Fix (7514777): static YaRN
+      rope_scaling {type: yarn, factor: 2.0, orig_max_pos: 32768} -> max-model-len
+      65536. DEVIATION (record at /debrief): YaRN is applied to EVERY qwen-2.5-72b
+      prompt, not just the 6 long ones; Qwen docs note a mild short-context
+      quality cost. llama-3.3-70b / gpt-oss-120b are 128k-native, unscaled, 90k.
+      A cleaner OCR source is not available (ocr_output_cleaned_* is 15/128 files;
+      ocr_output is larger than ocr_output_raw).
 
   # ── Item 4 — refresh the real-extraction interp activations ────────────────
   #   experiments/judge_interp_real_fulltext.sh 2026_09_10
@@ -218,9 +228,11 @@ params:
     judge_v2_pond_rung3_seedcheck:  7513139   # rung 3  (run_judge_v2.sh pond primary 2026_09_11 rung3) -> diff responses.json
     probe_rung3_downstream:  7513160   # rung 3  hold 7513138  (run_probe_v2_downstream.sh rung3 2026_09_10 pond)
     # rung 4, all submitted 2026-09-09 22:38
-    gen_aug_pond:         7514202   # A   H200, serves gpt-oss-120b   (gen_augment.sh pond)
-    judge_real_qwen72:    7514203   # J1  concurrent with A            (judge_real_voting.sh qwen-2.5-72b 2026_09_10)
-    judge_real_llama70:   7514204   # J2  concurrent with A            (judge_real_voting.sh llama-3.3-70b 2026_09_10)
+    gen_aug_pond:         7514202   # A   exit 0. H200, serves gpt-oss-120b   (gen_augment.sh pond)
+    judge_real_qwen72:    7514777   # J1  RESUBMIT of 7514203 (exit 1: --max-model-len 90000 >
+                                    #     Qwen2.5-72B native 32768). 7514777 adds static YaRN
+                                    #     (factor 2 -> 65536) -- see judge_real_voting note. concurrent with A.
+    judge_real_llama70:   7514204   # J2  concurrent with A, running   (judge_real_voting.sh llama-3.3-70b 2026_09_10)
     judge_v2_pond_train:  7514205   # B1  hold 7514202,  -l h_rt=36:00:00   (run_judge_v2.sh pond train 2026_09_10)
     judge_v2_pond_tests:  7514206   # B2  hold 7514202                 (run_judge_v2.sh pond tests 2026_09_10)
     judge_interp_real:    7514207   # I   hold 7514202, L40S           (judge_interp_real_fulltext.sh 2026_09_10)
