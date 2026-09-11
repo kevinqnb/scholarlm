@@ -106,13 +106,24 @@ async def _judge_one(
                     {"role": "system", "content": entry["system"]},
                     {"role": "user", "content": entry["user"]},
                 ],
-                # 8192 (was 2048): reasoning models (gpt-oss-120b) emit a long
-                # analysis channel before the verdict; under the full-paper judge
-                # (~30k-token prompts) 2048 truncated it on ~0.5% of rows, which
-                # this function then fails loud on. 8192 matches config.yaml's
-                # gpt-oss-120b sampling_params. Non-reasoning judges are
-                # unaffected (they stop far short of either cap).
-                max_tokens=8192,
+                # 16384 (was 8192, was 2048): reasoning models (gpt-oss-120b)
+                # emit a long analysis channel before the verdict. 2048
+                # truncated it on ~0.5% of pond rows (fixed by the 8192 bump,
+                # commit 7fcf19d). Under the supermat full-paper judge, 8192
+                # still truncated it (finish_reason='length', empty
+                # completion) even after pinning reasoning_effort="low"
+                # above (job 7527735: 3/3882 rows at the "medium" default;
+                # job 7530223: 2/3882 *different* rows at "low", one from a
+                # comparatively short paper -- not purely a document-length
+                # effect, and the shifted row set across runs is consistent
+                # with vLLM continuous-batching introducing small run-to-run
+                # nondeterminism at temperature=0). "low" reasoning_effort
+                # cuts typical reasoning length but doesn't cap it, so a thin
+                # tail of unusually hard rows can still exceed 8192; 16384
+                # gives that tail headroom without relying on effort alone.
+                # Non-reasoning judges are unaffected (they stop far short of
+                # either cap).
+                max_tokens=16384,
                 temperature=0.0,
                 extra_body=extra_body,
             )
