@@ -87,6 +87,17 @@ async def _judge_one(
     as a non-affirmative vote, so a silently-dropped request would bias the
     majority-vote ground truth without leaving a trace.
     """
+    # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/
+    # high, default "medium" if omitted). Pinned to "low" here, matching the
+    # precedent in src/scholarlm/utils/probe_augment.py (same model, same
+    # symptom): at the default effort, the analysis channel can exhaust
+    # max_tokens before the model reaches a verdict -- finish_reason='length'
+    # with an empty message, which this function then fails loud on (e.g.
+    # 3/3882 supermat rows, all from one long review paper, under the
+    # full-paper judge -- run_judge_local job 7527735, 2026-09-11). Other
+    # judges have no such template variable and are unaffected.
+    extra_body = {"chat_template_kwargs": {"reasoning_effort": "low"}} if "gpt-oss" in model_id else None
+
     async with sem:
         try:
             response = await client.chat.completions.create(
@@ -103,6 +114,7 @@ async def _judge_one(
                 # unaffected (they stop far short of either cap).
                 max_tokens=8192,
                 temperature=0.0,
+                extra_body=extra_body,
             )
         except Exception as e:
             raise RuntimeError(
