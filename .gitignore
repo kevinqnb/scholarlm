@@ -217,9 +217,19 @@ data/supermat/bad_responses/*
 
 # per-split unified-diff spot-check reports emitted alongside the augmented
 # probe datasets; derived from probe_augment_cache.json + the generator code
-# and regenerated on every run, so not committed (the _v2 datasets and the
-# cache are)
+# and regenerated on every run, so not committed
 data/*/probe_dataset*.diff.txt
+
+# _v2 (and later _vN / _rungN) probe-dataset files embed full-paper context per
+# row (context_scope: full, 2026-09-08) and now run 100s of MB each -- too
+# large for this repo (no git-lfs configured; see /debrief,
+# 2026-09-09-fulltext-judge-probe-eval-01). Deliberately NOT committed, unlike
+# the original probe_dataset.json / probe_dataset_test.json (pre-context_scope:
+# full, small, already tracked). Reproducibility relies on
+# probe_augment_cache.json (committed) + the generator code + the committed
+# seed/config, not the raw dataset file.
+data/*/probe_dataset*_v[0-9]*.json
+data/*/probe_dataset*_rung[0-9]*.json
 
 !data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
 !data/experiments/nfix/extraction/gemma-3-27b/2026_05_06/final.json
