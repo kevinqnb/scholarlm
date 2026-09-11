@@ -140,8 +140,21 @@ params:
     judge_real_qwen72: 7527736
     judge_real_llama70: 7527737
     judge_combine_supermat_attempt1: 7527738   # DELETED before running (qdel) -- would have silently used gpt-oss's stale pre-full-paper dir
-    judge_real_gptoss: 7529635   # retry under reasoning_effort="low"
-    judge_combine_supermat: 7529636   # -hold_jid 7529635 only
+    judge_real_gptoss_attempt2: 7529635   # FAILED exit 141, ~1s runtime, EMPTY stdout/stderr -- not the
+                                           # reasoning_effort bug; landed on same node (scc-705) as attempt1
+    judge_combine_supermat_attempt2: 7529636   # fired anyway once 7529635 "finished" (by failing) --
+                                                # -hold_jid releases on completion, not success, same as
+                                                # attempt1's near-miss. This time it actually ran (exit 0)
+                                                # and silently pulled gpt-oss from the STALE 2026_07_09 dir.
+                                                # Caught by reading its log (not its exit status); restored
+                                                # the pre-session combined.json snapshot to remove it from
+                                                # disk. LESSON: do not pre-queue the combine job with
+                                                # -hold_jid on a judge that has already failed once --
+                                                # verify success manually (exit_status + row count) before
+                                                # submitting combine, rather than trusting SGE's hold.
+    judge_real_gptoss: 7530223   # retry, no changes (user's explicit call, given no diagnosable cause --
+                                  # both prior gpt-oss attempts landed on scc-705; this one is unpinned)
+    judge_combine_supermat: null   # submitted manually only after 7530223 is confirmed exit 0 + 3882 rows
 
   code:
     # this session, branch diff-experiments
