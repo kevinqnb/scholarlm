@@ -152,9 +152,13 @@ params:
                                                 # -hold_jid on a judge that has already failed once --
                                                 # verify success manually (exit_status + row count) before
                                                 # submitting combine, rather than trusting SGE's hold.
-    judge_real_gptoss: 7530223   # retry, no changes (user's explicit call, given no diagnosable cause --
-                                  # both prior gpt-oss attempts landed on scc-705; this one is unpinned)
-    judge_combine_supermat: null   # submitted manually only after 7530223 is confirmed exit 0 + 3882 rows
+    judge_real_gptoss_attempt3: 7530223   # ran on scc-a03 (not scc-705 -- rules out the node theory),
+                                           # FAILED exit 1: 2/3882 rows truncated, DIFFERENT rows than
+                                           # attempt1 (chu2009high-CC + ivanovskii2008newHigh), one from a
+                                           # short paper -- reasoning_effort=low helped (3->2) but didn't
+                                           # eliminate it; see run_judge_local.py's updated comment
+    judge_real_gptoss: 7531883   # retry under reasoning_effort="low" + max_tokens=16384 (commit b2a1b0f)
+    judge_combine_supermat: null   # submitted manually only after 7531883 is confirmed exit 0 + 3882 rows
 
   code:
     # this session, branch diff-experiments
