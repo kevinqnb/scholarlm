@@ -107,19 +107,46 @@ params:
         AskUserQuestion response, 2026-09-11. Known gap, same as pond's
         deferred shuffled-label control.
 
+  # ── Mid-session deviation: gpt-oss-120b reasoning_effort ──────────────────
+  # judge_real_gptoss (7527735) ran the full 3882-row supermat set, succeeded
+  # on 3879, then failed loud (by design) on 3: finish_reason='length', empty
+  # completion, all three from ivanovskii2008newHigh (a long, entity-dense
+  # review paper) under the full-paper judge. Root cause: run_judge_local.py
+  # never set gpt-oss's `reasoning_effort` chat-template kwarg, so it ran at
+  # harmony's default ("medium"); the analysis channel exhausted
+  # max_tokens=8192 before reaching a verdict on these 3 rows. Diagnosed
+  # (job 7529316) by calling the actual _judge_one against just these 3 rows
+  # with reasoning_effort="low" -- all three then returned a verdict at
+  # ~56k prompt tokens. Fixed by pinning reasoning_effort="low" for
+  # gpt-oss-120b in run_judge_local.py (commit 23c111c), matching the
+  # identical fix already applied for the same model/symptom in
+  # src/scholarlm/utils/probe_augment.py. Standalone eval-logic commit per
+  # this repo's rules -- invalidates every prior gpt-oss-120b judge number,
+  # including 2026-09-09-fulltext-judge-probe-eval-01's pond results (which
+  # didn't hit the truncation failure but still ran under the undocumented
+  # "medium" default). That note is left as-is; not in this session's scope.
+  # judge_real_gptoss resubmitted (7529635) as a fresh full run under the fix;
+  # judge_combine_supermat resubmitted (7529636), held on 7529635 only (qwen
+  # and llama already succeeded as 7527736 / 7527737, exit 0, 3882/3882 rows
+  # each -- no need to re-hold on completed jobs).
+
   # ── SGE job graph (ids filled in as submitted) ────────────────────────
   jobs:
     smoke_gpt_oss_120b: 7525830
     smoke_qwen_2_5_72b: 7525831
     smoke_llama_3_3_70b: 7525832
-    judge_real_gptoss: 7527735
+    diag_reasoning_effort: 7529316   # gpt-oss reasoning_effort=low diagnostic, 3/3 succeeded
+    judge_real_gptoss_attempt1: 7527735   # FAILED exit 1: 3/3882 truncated (see deviation note above)
     judge_real_qwen72: 7527736
     judge_real_llama70: 7527737
-    judge_combine_supermat: 7527738   # -hold_jid on the three above
+    judge_combine_supermat_attempt1: 7527738   # DELETED before running (qdel) -- would have silently used gpt-oss's stale pre-full-paper dir
+    judge_real_gptoss: 7529635   # retry under reasoning_effort="low"
+    judge_combine_supermat: 7529636   # -hold_jid 7529635 only
 
   code:
-    # this session, branch diff-experiments -- all gitignored scratch, no
-    # committed-code changes (no eval/metric logic touched)
-    - "experiments/judge_smoke_check.sh + scratchpad judge_smoke_check.py (rung 2/3)"
-    - "experiments/judge_real_voting_v2.sh (generalizes judge_real_voting.sh with <dataset>/<extraction_date> args + supermat-conditioned qwen YaRN factor)"
-    - "experiments/judge_combine_supermat_3vote.sh"
+    # this session, branch diff-experiments
+    - "experiments/judge_smoke_check.sh + scratchpad judge_smoke_check.py (rung 2/3, gitignored scratch)"
+    - "experiments/judge_real_voting_v2.sh (generalizes judge_real_voting.sh with <dataset>/<extraction_date> args + supermat-conditioned qwen YaRN factor; gitignored scratch)"
+    - "experiments/judge_combine_supermat_3vote.sh (gitignored scratch)"
+    - "experiments/judge_reasoning_effort_diag.sh + scratchpad judge_reasoning_effort_diag.py (gitignored scratch)"
+    - "experiments/run_judge_local.py: pin gpt-oss-120b reasoning_effort=low (commit 23c111c, COMMITTED -- standalone eval-logic change, see deviation note above)"
