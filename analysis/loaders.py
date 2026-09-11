@@ -182,17 +182,19 @@ def load_ground_truth(config) -> "pd.DataFrame":
 
 
 def load_activations(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
     """Load attention_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model, judge_date)
+    path = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
     return np.load(path)
 
 def load_layer_outputs(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
     """Load layer_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_layer_outputs(dataset, extraction_model, extraction_date, judge_model, judge_date)
+    path = _paths.find_layer_outputs(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
     return np.load(path)
 
 
