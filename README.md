@@ -1,5 +1,7 @@
 # ScholarlM :microscope: :books:
 
+[![attested by humans](https://github.com/kevinqnb/scholarlm/actions/workflows/signoff.yml/badge.svg)](https://github.com/kevinqnb/scholarlm/actions/workflows/signoff.yml)
+
 Extract structured measurements from scientific PDFs using large language models.
 Supports local open-weight models via vLLM.
 
