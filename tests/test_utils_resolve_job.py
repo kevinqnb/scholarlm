@@ -193,3 +193,23 @@ def test_resolve_job_missing_resources_propagates_from_classify(fixture_roots):
     })
     with pytest.raises(ValueError, match="cannot determine"):
         utils.resolve_job(exp_id)
+
+
+# ---------------------------------------------------------------------------
+# require_params -- used by every run_{type}.py runner's main() now that
+# individual CLI flags are gone and params come only from a config file.
+# ---------------------------------------------------------------------------
+
+
+def test_require_params_all_present_is_noop():
+    utils.require_params({"dataset": "pond", "model": "x"}, "dataset", "model")
+
+
+def test_require_params_missing_raises_with_names():
+    with pytest.raises(ValueError, match=r"\['model', 'date'\]"):
+        utils.require_params({"dataset": "pond"}, "dataset", "model", "date")
+
+
+def test_require_params_includes_config_path_in_message():
+    with pytest.raises(ValueError, match="myconfig.yaml"):
+        utils.require_params({}, "dataset", config_path="myconfig.yaml")

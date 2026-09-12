@@ -11,25 +11,11 @@ Output path:
 
 Usage
 -----
-    # Auto-discover all judge results under the extraction date directory:
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01
+    python experiments/run_judge_combine.py experiments/experiment-configs/pond/judge_combine/<id>/<id>.yaml
 
-    # Specify judge model names explicitly (useful when multiple date dirs exist):
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01 \\
-        --judges llama-3.1-8b llama-3.3-70b qwen-2.5-72b
-
-    # Override the voting threshold (default: majority of voting judges):
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01 \\
-        --voting-threshold 2
+Required params: dataset, extraction_model, extraction_date.
+Optional params: ablation, judges (list; default: auto-discover), voting_threshold
+(default: majority of voting judges).
 
 The combined JSON has one record per measurement with all individual judge
 fields merged in (``judgement_{judge_key}``, ``judgement_prob_{judge_key}``,
@@ -264,33 +250,24 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
-    p.add_argument("--extraction-model", required=True, help="Extraction model short name.")
-    p.add_argument("--extraction-date", required=True, help="Date tag YYYY_mm_dd of the extraction run.")
-    p.add_argument(
-        "--ablation", default=None, metavar="N",
-        help="Ablation number (e.g. 2). If set, reads from and writes to ablations/ablation{N}/.",
-    )
-    p.add_argument(
-        "--judges", nargs="+", default=None,
-        help="Judge keys to combine. Default: auto-discover from directory.",
-    )
-    p.add_argument(
-        "--voting-threshold", type=int, default=None,
-        help="Min votes for a positive label. Default: majority of voting judges.",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "extraction_model", "extraction_date", config_path=config_path)
+
     run_combine(
-        dataset_name=args.dataset,
-        extraction_model=args.extraction_model,
-        extraction_date=args.extraction_date,
-        judge_keys=args.judges,
-        voting_threshold=args.voting_threshold,
-        ablation=args.ablation,
+        dataset_name=params["dataset"],
+        extraction_model=params["extraction_model"],
+        extraction_date=params["extraction_date"],
+        judge_keys=params.get("judges"),
+        voting_threshold=params.get("voting_threshold"),
+        ablation=params.get("ablation"),
     )
 
 

@@ -17,10 +17,10 @@ Each ``.b64`` file contains a single base64-encoded PNG string for that page.
 
 Usage
 -----
-    python experiments/process_pdfs.py --dataset pond
-    python experiments/process_pdfs.py --dataset nfix --resume
-    python experiments/process_pdfs.py --dataset pond \\
-        --paper-subset physical_and_chemical_limnological prairie_wetland
+    python experiments/process_pdfs.py experiments/experiment-configs/pond/process_pdfs/<id>/<id>.yaml
+
+Required params: dataset.
+Optional params: paper_subset (list), target_longest_dim (default 1536), resume (bool).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
@@ -37,9 +37,15 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).parent.parent
 _CONFIGS_DIR = Path(__file__).parent / "dataset-configs"
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory, process_pdf
+
+# utils.py's own dependencies (yaml, stdlib only) are as lightweight as this
+# script's -- safe to import here despite this script's separate-environment
+# note, which is about Pillow/pypdf vs. vLLM/torch, not this.
+import utils
 
 
 # ---------------------------------------------------------------------------
@@ -147,41 +153,23 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Process only these paper codes (default: all PDFs in the dataset).",
-    )
-    p.add_argument(
-        "--target-longest-dim",
-        type=int,
-        default=1536,
-        metavar="PIXELS",
-        help="Max pixels on the longest edge when rendering pages (default: 1536).",
-    )
-    p.add_argument(
-        "--resume",
-        action="store_true",
-        help="Skip papers whose output directory already exists.",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
-    dataset_config = load_dataset_config(args.dataset)
+    config_path = Path(args.config)
+    cfg = utils.load_experiment_config(config_path)
+    params = cfg["params"]
+    utils.require_params(params, "dataset", config_path=config_path)
+
+    dataset_config = load_dataset_config(params["dataset"])
     process_dataset_pdfs(
         dataset_config=dataset_config,
-        paper_subset_override=args.paper_subset,
-        target_longest_dim=args.target_longest_dim,
-        resume=args.resume,
+        paper_subset_override=params.get("paper_subset"),
+        target_longest_dim=params.get("target_longest_dim", 1536),
+        resume=params.get("resume", False),
     )
 
 

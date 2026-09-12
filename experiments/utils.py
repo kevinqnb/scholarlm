@@ -1175,3 +1175,26 @@ def resolve_job(experiment_id: str) -> dict:
     result["model_config"] = model_config
     result["gpu_need"] = gpu_need
     return result
+
+
+def require_params(params: dict, *keys: str, config_path: Path | str | None = None) -> None:
+    """Raise a clear error if any of ``keys`` is missing from ``params``.
+
+    Every run_{type}.py runner now takes a config path instead of individual
+    CLI flags, so a missing required param no longer surfaces as argparse's
+    own "the following arguments are required" -- this is that check's
+    replacement, called at the top of each runner's main() before touching
+    any of params' values.
+
+    Args:
+        params: The experiment config's ``params`` mapping.
+        *keys: Required key names.
+        config_path: Optional, included in the error message.
+
+    Raises:
+        ValueError: If any key in ``keys`` is missing from ``params``.
+    """
+    missing = [k for k in keys if k not in params]
+    if missing:
+        where = f"{config_path}: " if config_path is not None else ""
+        raise ValueError(f"{where}missing required params key(s): {missing}")
