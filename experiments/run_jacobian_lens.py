@@ -12,8 +12,8 @@ Deliberately separate from run_judge_interp.py / JudgementLM: see the design
 note for this build for why (prompt ordering and trace shape both diverge
 from JudgementLM.generate()).
 
-Standard output path:
-    data/experiments/{dataset}/jacobian_lens/{extraction_model}/{extraction_date}/{lens_model}/{lens_date}/
+Output path (id-addressed, like every other Tier-1 type):
+    experiments/results/{dataset}/jacobian_lens/{experiment_id}/
 
 Saves:
   - ``jacobian_scores.npz`` — per-example S matrices (keyed by measurement_id)
@@ -23,13 +23,12 @@ Saves:
 
 Usage
 -----
-    python experiments/run_jacobian_lens.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --model llama-3.1-8b-base \\
-        --jacobian-lens-path "neuronpedia/jacobian-lens:llama3.1-8b/jlens/Salesforce-wikitext/Llama-3.1-8B_jacobian_lens.pt" \\
-        --extraction-date 2026_04_01 \\
-        --limit 5
+    python experiments/run_jacobian_lens.py experiments/experiment-configs/pond/jacobian_lens/<id>/<id>.yaml
+
+Required params: dataset, extraction_id (an extraction or ablation experiment
+id, resolved via utils.find_result_dir), model (JACOBIAN_LENS_REGISTRY key),
+jacobian_lens_path.
+Optional params: ocr_dir, limit.
 
 Available models: llama-3.1-8b-base (see JACOBIAN_LENS_REGISTRY in code for details).
 """
@@ -111,14 +110,13 @@ def _load_chat_entries(
 
 def run_jacobian_lens(
     dataset_config: DatasetConfig,
-    extraction_model: str,
     model_key: str,
     jacobian_lens_path: str,
     output_dir: Path,
-    extraction_date: str | None = None,
+    input_file: Path,
     ocr_dir: str | None = None,
-    ablation: str | None = None,
     limit: int | None = None,
+    extraction_id: str | None = None,
 ) -> None:
     """Run JacobianLensLM over a dataset and save j-score matrices.
 
@@ -131,15 +129,15 @@ def run_jacobian_lens(
 
     Args:
         dataset_config: Dataset configuration.
-        extraction_model: Short name of the extraction model whose results to score.
         model_key: Key in ``JACOBIAN_LENS_REGISTRY``.
         jacobian_lens_path: Local path or ``repo_id:filename`` HuggingFace Hub
             spec for the pretrained Jacobian-lens checkpoint.
         output_dir: Directory to write ``jacobian_scores.npz`` and ``run_metadata.json``.
-        extraction_date: Optional date tag for locating extraction results.
+        input_file: Path to the ``final.json``-shaped extraction/ablation output to score.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
-        ablation: Optional ablation number.
         limit: If given, only score the first ``limit`` records.
+        extraction_id: The upstream extraction/ablation experiment id being
+            scored, recorded in run_metadata.json.
     """
     if model_key not in JACOBIAN_LENS_REGISTRY:
         raise KeyError(
@@ -147,7 +145,6 @@ def run_jacobian_lens(
         )
     model_cfg = JACOBIAN_LENS_REGISTRY[model_key]
 
-    input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     data, chat_entries = _load_chat_entries(dataset_config, input_file, ocr_dir, limit)
@@ -187,7 +184,7 @@ def run_jacobian_lens(
         output_dir,
         start_time=start_time,
         dataset=dataset_config.name,
-        extraction_model=extraction_model,
+        extraction_id=extraction_id,
         lens_model=model_key,
         lens_model_id=model_cfg["model_id"],
         jacobian_lens_path=jacobian_lens_path,
@@ -207,81 +204,57 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
-    p.add_argument(
-        "--extraction-model", required=True,
-        help="Short name of the extraction model whose results to score.",
-    )
-    p.add_argument(
-        "--model", required=True,
-        choices=sorted(JACOBIAN_LENS_REGISTRY.keys()),
-        help=f"Jacobian-lens model key. Available: {sorted(JACOBIAN_LENS_REGISTRY.keys())}",
-    )
-    p.add_argument(
-        "--jacobian-lens-path", required=True,
-        help=(
-            "Local filesystem path to a Jacobian-lens .pt checkpoint, or a "
-            "'repo_id:filename' HuggingFace Hub spec, e.g. "
-            "'neuronpedia/jacobian-lens:llama3.1-8b/jlens/Salesforce-wikitext/Llama-3.1-8B_jacobian_lens.pt'."
-        ),
-    )
-    p.add_argument("--extraction-date", default=None, help="Date tag YYYY_mm_dd of extraction run.")
-    p.add_argument("--lens-date", default=None, help="Date tag for output directory (default: today).")
-    p.add_argument(
-        "--ablation", default=None, metavar="N",
-        help="Ablation number (e.g. 2). If set, reads from ablations/ablation{N}/.",
-    )
-    p.add_argument(
-        "--ocr-dir", default=None, metavar="DIR",
-        help=(
-            "Directory of OCR .txt files to use as document context. "
-            "Defaults to {data_dir}/ocr_output_raw/."
-        ),
-    )
-    p.add_argument(
-        "--limit", type=int, default=None, metavar="N",
-        help="Only score the first N records (for small-subset spot checks).",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
-
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
-
-    dataset_config = load_dataset_config(args.dataset)
-
-    input_file = paths.find_extraction_final(
-        args.dataset, args.extraction_model, args.extraction_date, args.ablation
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(
+        params, "dataset", "extraction_id", "model", "jacobian_lens_path", config_path=config_path
     )
-    extraction_date_resolved = input_file.parent.name
-    output_dir = paths.jacobian_lens(
-        args.dataset, args.extraction_model, extraction_date_resolved, args.model, args.lens_date,
-    )
-    print(f"\nDataset          : {args.dataset}")
-    print(f"Extraction model : {args.extraction_model}")
-    print(f"Extraction date  : {extraction_date_resolved}")
-    if args.ablation:
-        print(f"Ablation         : {args.ablation}")
-    print(f"Model            : {args.model}")
-    print(f"Jacobian lens    : {args.jacobian_lens_path}")
-    if args.limit:
-        print(f"Limit            : {args.limit}")
+
+    set_seeds(cfg["seed"])
+
+    dataset = params["dataset"]
+    model_key = params["model"]
+    if model_key not in JACOBIAN_LENS_REGISTRY:
+        raise ValueError(
+            f"{config_path}: params.model {model_key!r} not in JACOBIAN_LENS_REGISTRY "
+            f"(choices: {sorted(JACOBIAN_LENS_REGISTRY.keys())})"
+        )
+    dataset_config = load_dataset_config(dataset)
+
+    extraction_id = params["extraction_id"]
+    extraction_dir = paths.find_result_dir(extraction_id)
+    resolved_dataset = extraction_dir.parts[-3]
+    if resolved_dataset != dataset:
+        raise ValueError(
+            f"{config_path}: params.dataset {dataset!r} does not match the dataset "
+            f"of params.extraction_id {extraction_id!r} ({resolved_dataset!r})"
+        )
+    input_file = extraction_dir / "final.json"
+    output_dir = paths.result_dir(dataset, "jacobian_lens", cfg["id"])
+
+    print(f"\nDataset          : {dataset}")
+    print(f"Extraction id    : {extraction_id}")
+    print(f"Model            : {model_key}")
+    print(f"Jacobian lens    : {params['jacobian_lens_path']}")
+    if params.get("limit"):
+        print(f"Limit            : {params['limit']}")
     print(f"Output           : {output_dir}\n")
     run_jacobian_lens(
         dataset_config=dataset_config,
-        extraction_model=args.extraction_model,
-        model_key=args.model,
-        jacobian_lens_path=args.jacobian_lens_path,
+        model_key=model_key,
+        jacobian_lens_path=params["jacobian_lens_path"],
         output_dir=output_dir,
-        extraction_date=extraction_date_resolved,
-        ocr_dir=args.ocr_dir,
-        ablation=args.ablation,
-        limit=args.limit,
+        input_file=input_file,
+        ocr_dir=params.get("ocr_dir"),
+        limit=params.get("limit"),
+        extraction_id=extraction_id,
     )
 
 

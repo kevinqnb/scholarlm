@@ -13,12 +13,17 @@ It calls ``AttributionMethod.attribute()`` (its own single ``llm.trace()``,
 never ``generate()``); it does not touch ``attribution.py``'s internals.
 
 The paired interp-judge run is a HARD PREREQUISITE, not produced here — the
-runner fails loud if it is missing (see ``--judge-date`` / ``paths.find_judge_responses``).
+runner fails loud if it is missing, and (standard mode) if its own
+run_metadata.json doesn't record the same extraction_id this run was given
+(catches attributing against a judge run that judged a *different*
+extraction -- responses.json would silently not be row-aligned).
 
-Standard output path (real-extraction mode):
-    data/experiments/{dataset}/attribution/{extraction_model}/{extraction_date}/{judge_model}/{method}/{date}/
+Standard mode output path (id-addressed, like every other Tier-1 type):
+    experiments/results/{dataset}/attribution/{experiment_id}/
 
-Synthetic probe output path (--synthetic):
+Synthetic probe mode output path (params.synthetic) is deliberately UNCHANGED
+-- still the old date-addressed tree, since analysis/*.py's probe-calibration
+pipeline (explicitly out of scope for this restructure) reads it directly:
     data/experiments/{dataset}/attribution_synthetic[_test]/{judge_model}/{method}/{date}/
 
 Saves:
@@ -28,28 +33,21 @@ Saves:
     the full tokenized prompt), plus a ``measurement_ids`` string array.
   - ``attribution.json`` — per-measurement sidecar: method scalar
     (``target`` / ``probe_output``), joined judgement fields, ``n_context_tokens``.
-  - ``run_metadata.json`` — adds resolved judge date, context-token-count stats,
-    and peak GPU memory (the 2026-08-18 build's "measure, don't assume" item).
+  - ``run_metadata.json`` — adds context-token-count stats and peak GPU memory
+    (the 2026-08-18 build's "measure, don't assume" item).
 
 Usage
 -----
-    # Real extraction run
-    python experiments/run_attribution.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_05_05 \\
-        --judge qwen-2.5-7b \\
-        --method probe
+    python experiments/run_attribution.py experiments/experiment-configs/pond/attribution/<id>/<id>.yaml
 
-    # Synthetic probe dataset (train split)
-    python experiments/run_attribution.py \\
-        --dataset pond --synthetic \\
-        --judge llama-3.1-8b --method contrastive_gradient
-
-NOTE: ``scripts/submit.sh <id>`` cannot run this — the contract adapter only
-covers entry_point extraction|ablation, and the interp-judge models are not in
-the extraction MODEL_REGISTRY. Full runs are hand-authored single-GPU qsub jobs
-(see the build note).
+Required params: dataset, method, judge.
+Standard mode requires params.extraction_id (an extraction or ablation
+experiment id) and params.judge_id (the paired run_judge_interp.py experiment
+id -- must have judged that same extraction_id).
+Synthetic mode (params.synthetic: true) ignores extraction_id/judge_id; uses
+params.synthetic_split ('train' default | 'test'), params.judge_date, and
+params.date instead, unchanged from before this restructure.
+Optional params: ocr_dir, limit.
 """
 from __future__ import annotations
 
@@ -335,12 +333,11 @@ def run_attribution(
     judge_key: str,
     input_file: Path,
     responses_path: Path,
-    resolved_judge_date: str,
     output_dir: Path,
     seed: int,
     *,
-    extraction_model: str | None,
-    extraction_date: str | None,
+    extraction_id: str | None,
+    judge_id: str | None,
     ocr_dir: str | None,
     limit: int | None,
 ) -> None:
@@ -395,13 +392,12 @@ def run_attribution(
         output_dir,
         start_time=start_time,
         dataset=dataset_config.name,
-        extraction_model=extraction_model,
-        extraction_date=extraction_date,
+        extraction_id=extraction_id,
+        judge_id=judge_id,
         judge_model=judge_key,
         judge_model_id=judge_cfg["model_id"],
         method=method_name,
         scalar_name=SCALAR_KEYS[method_name],
-        resolved_judge_date=resolved_judge_date,
         seed=seed,
         **summary,
     )
@@ -422,116 +418,110 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix', 'supermat').")
-    p.add_argument(
-        "--method", required=True, choices=sorted(ATTRIBUTION_REGISTRY),
-        help=f"Attribution method. Available: {sorted(ATTRIBUTION_REGISTRY)}",
-    )
-    p.add_argument(
-        "--judge", required=True, choices=sorted(JUDGE_REGISTRY),
-        help=f"Interp-judge model key. Available: {sorted(JUDGE_REGISTRY)}",
-    )
-    p.add_argument(
-        "--extraction-model", default=None,
-        help="Extraction model whose results were judged. Required unless --synthetic.",
-    )
-    p.add_argument("--extraction-date", default=None, help="Date tag YYYY_mm_dd of the extraction run.")
-    p.add_argument(
-        "--judge-date", default=None,
-        help="Date tag of the paired interp-judge run (default: latest with a responses.json).",
-    )
-    p.add_argument(
-        "--synthetic", action="store_true", default=False,
-        help="Attribute over the synthetic probe dataset instead of an extraction run.",
-    )
-    p.add_argument(
-        "--synthetic-split", choices=["train", "test"], default="train",
-        help="Which synthetic split (only with --synthetic). Default: train.",
-    )
-    p.add_argument(
-        "--ocr-dir", default=None, metavar="DIR",
-        help="OCR .txt directory for document context. Default: {data_dir}/ocr_output_raw.",
-    )
-    p.add_argument("--date", default=None, help="Output date tag YYYY_mm_dd (default: today).")
-    p.add_argument(
-        "--limit", type=int, default=None, metavar="N",
-        help="Only attribute the first N records (smoke / tiny-e2e).",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = _build_parser()
-    args = parser.parse_args(argv)
+    args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "method", "judge", config_path=config_path)
 
     # DatasetConfig paths (metadata_file, data_dir, ...) are repo-root-relative.
     os.chdir(_REPO_ROOT)
 
-    cfg = load_config()
-    seed = cfg["defaults"]["seed"]  # no fallback — CLAUDE.md's no-magic-number rule
+    repo_seed = load_config()["defaults"]["seed"]  # no fallback -- CLAUDE.md's no-magic-number rule
+    if cfg["seed"] != repo_seed:
+        raise ValueError(
+            f"{config_path}: seed ({cfg['seed']}) does not match experiments/config.yaml "
+            f"defaults.seed ({repo_seed}) -- the repo's seed is a fixed, repo-wide value, "
+            "not a per-run knob."
+        )
+    seed = cfg["seed"]
     set_seeds(seed)
 
-    dataset_config = load_dataset_config(args.dataset)
+    dataset = params["dataset"]
+    method = params["method"]
+    judge = params["judge"]
+    if method not in ATTRIBUTION_REGISTRY:
+        raise ValueError(
+            f"{config_path}: params.method {method!r} not in ATTRIBUTION_REGISTRY "
+            f"(choices: {sorted(ATTRIBUTION_REGISTRY)})"
+        )
+    if judge not in JUDGE_REGISTRY:
+        raise ValueError(
+            f"{config_path}: params.judge {judge!r} not in JUDGE_REGISTRY "
+            f"(choices: {sorted(JUDGE_REGISTRY)})"
+        )
+    dataset_config = load_dataset_config(dataset)
 
-    if args.synthetic:
-        split = args.synthetic_split
+    if params.get("synthetic", False):
+        split = params.get("synthetic_split", "train")
         probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
-        input_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+        input_file = _REPO_ROOT / "data" / dataset / probe_filename
         if not input_file.exists():
             raise FileNotFoundError(
                 f"Synthetic probe dataset not found: {input_file}. "
-                f"Run data/{args.dataset}/create_probe_dataset.py first."
+                f"Run data/{dataset}/create_probe_dataset.py first."
             )
-        responses_path = paths.find_synthetic_responses(
-            args.dataset, args.judge, args.judge_date, split
-        )
-        resolved_judge_date = responses_path.parent.name
-        output_dir = paths.attribution_synthetic(
-            args.dataset, args.judge, args.method, args.date, split
-        )
-        extraction_model = None
-        extraction_date = None
-        print(f"\nDataset            : {args.dataset}")
+        responses_path = paths.find_synthetic_responses(dataset, judge, params.get("judge_date"), split)
+        output_dir = paths.attribution_synthetic(dataset, judge, method, params.get("date"), split)
+        extraction_id = None
+        judge_id = None
+        print(f"\nDataset            : {dataset}")
         print(f"Mode               : synthetic probe ({split})")
     else:
-        if args.extraction_model is None:
-            parser.error("--extraction-model is required unless --synthetic is used.")
-        input_file = paths.find_extraction_final(
-            args.dataset, args.extraction_model, args.extraction_date
-        )
-        extraction_model = args.extraction_model
-        extraction_date = input_file.parent.name
-        responses_path, resolved_judge_date = paths.find_judge_responses(
-            args.dataset, extraction_model, extraction_date, args.judge, args.judge_date
-        )
-        output_dir = paths.attribution(
-            args.dataset, extraction_model, extraction_date, args.judge, args.method, args.date
-        )
-        print(f"\nDataset            : {args.dataset}")
-        print(f"Extraction model   : {extraction_model}")
-        print(f"Extraction date    : {extraction_date}")
+        paths.require_params(params, "extraction_id", "judge_id", config_path=config_path)
+        extraction_id = params["extraction_id"]
+        judge_id = params["judge_id"]
 
-    print(f"Judge              : {args.judge}")
-    print(f"Method             : {args.method}")
-    print(f"Judge date         : {resolved_judge_date}")
+        extraction_dir = paths.find_result_dir(extraction_id)
+        resolved_dataset = extraction_dir.parts[-3]
+        if resolved_dataset != dataset:
+            raise ValueError(
+                f"{config_path}: params.dataset {dataset!r} does not match the dataset "
+                f"of params.extraction_id {extraction_id!r} ({resolved_dataset!r})"
+            )
+        input_file = extraction_dir / "final.json"
+
+        judge_dir = paths.find_result_dir(judge_id)
+        judge_meta = paths.load_run_metadata(judge_dir)
+        if judge_meta is None or judge_meta.get("extraction_id") != extraction_id:
+            raise ValueError(
+                f"{config_path}: judge_id {judge_id!r}'s own run_metadata.json records "
+                f"extraction_id={judge_meta.get('extraction_id') if judge_meta else None!r}, "
+                f"which does not match this attribution's params.extraction_id "
+                f"{extraction_id!r} -- responses.json would not be row-aligned with the "
+                "attributed extraction."
+            )
+        responses_path = judge_dir / "responses.json"
+
+        output_dir = paths.result_dir(dataset, "attribution", cfg["id"])
+        print(f"\nDataset            : {dataset}")
+        print(f"Extraction id      : {extraction_id}")
+        print(f"Judge id           : {judge_id}")
+
+    print(f"Judge              : {judge}")
+    print(f"Method             : {method}")
     print(f"Seed               : {seed}")
-    if args.limit:
-        print(f"Limit              : {args.limit}")
+    if params.get("limit"):
+        print(f"Limit              : {params['limit']}")
     print(f"Output             : {output_dir}\n")
 
     run_attribution(
         dataset_config=dataset_config,
-        method_name=args.method,
-        judge_key=args.judge,
+        method_name=method,
+        judge_key=judge,
         input_file=input_file,
         responses_path=responses_path,
-        resolved_judge_date=resolved_judge_date,
         output_dir=output_dir,
         seed=seed,
-        extraction_model=extraction_model,
-        extraction_date=extraction_date,
-        ocr_dir=args.ocr_dir,
-        limit=args.limit,
+        extraction_id=extraction_id,
+        judge_id=judge_id,
+        ocr_dir=params.get("ocr_dir"),
+        limit=params.get("limit"),
     )
 
 
