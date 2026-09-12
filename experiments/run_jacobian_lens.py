@@ -93,7 +93,7 @@ def _load_chat_entries(
 
     Returns:
         (data, chat_entries) — the (possibly truncated) raw records and the
-        chat entries built from them via ``judge_common.prepare_chat_entries``.
+        chat entries built from them via ``judge_prompts.prepare_chat_entries``.
     """
     with open(input_file) as f:
         data: list[dict] = json.load(f)
@@ -102,10 +102,10 @@ def _load_chat_entries(
         data = data[:limit]
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    import judge_common
-    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    from scholarlm.utils import judge_prompts
+    documents = judge_prompts.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
-    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = judge_prompts.prepare_chat_entries(data, documents, dataset_config)
     return data, chat_entries
 
 
@@ -122,7 +122,7 @@ def run_jacobian_lens(
 ) -> None:
     """Run JacobianLensLM over a dataset and save j-score matrices.
 
-    Prompts are built via ``judge_common.prepare_chat_entries`` — the same
+    Prompts are built via ``judge_prompts.prepare_chat_entries`` — the same
     function used by all judge runners — so the query content (entity
     description, attribute description, value/units, closing question) is
     identical across all judge/lens backends. ``JacobianLensLM`` receives the

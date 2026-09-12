@@ -86,7 +86,7 @@ def run_interp_judge(
 ) -> None:
     """Run a local NNsight judge and save responses + attention activations.
 
-    Prompts are built via ``judge_common.prepare_chat_entries`` — the same
+    Prompts are built via ``judge_prompts.prepare_chat_entries`` — the same
     function used by all judge runners — so the query content (entity
     description, attribute description, value/units, closing question) is
     identical across all judge backends.  JudgementLM receives
@@ -120,12 +120,12 @@ def run_interp_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    import judge_common
-    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    from scholarlm.utils import judge_prompts
+    documents = judge_prompts.load_documents_for_dataset(dataset_config, effective_ocr_dir)
 
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = judge_prompts.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
     # instructions = system prompt, context = full paper text, query = ## QUERY content.

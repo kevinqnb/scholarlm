@@ -50,7 +50,8 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
 # Voting judge keys — only these votes count toward ground truth.
-# "human" is included so human-validation runs produced by validation.py
+# "human" is included so human-validation responses.json files (produced
+# historically by experiments/validation.py, a Streamlit app, since removed)
 # can participate in majority voting (use --voting-threshold 1 for standalone use).
 # ---------------------------------------------------------------------------
 

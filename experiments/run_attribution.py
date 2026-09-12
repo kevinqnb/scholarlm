@@ -124,7 +124,7 @@ def _load_inputs(
 
     Returns:
         (data, chat_entries) — the (possibly truncated) raw records and the chat
-        entries built via ``judge_common.prepare_chat_entries``. ``chat_entries``
+        entries built via ``judge_prompts.prepare_chat_entries``. ``chat_entries``
         may be shorter than ``data`` (prepare_chat_entries skips records with an
         unknown document_id or attribute).
     """
@@ -135,9 +135,9 @@ def _load_inputs(
         data = data[:limit]
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    import judge_common
-    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
-    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
+    from scholarlm.utils import judge_prompts
+    documents = judge_prompts.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    chat_entries = judge_prompts.prepare_chat_entries(data, documents, dataset_config)
     return data, chat_entries
 
 
@@ -187,7 +187,7 @@ def attribute_dataset(
         method_name: Key in ``ATTRIBUTION_REGISTRY`` (selects the scalar key).
         data: Raw records; ``data[int(entry["custom_id"])]["measurement_id"]`` is
             the join key.
-        chat_entries: Entries from ``judge_common.prepare_chat_entries``.
+        chat_entries: Entries from ``judge_prompts.prepare_chat_entries``.
         responses_by_mid: ``str(measurement_id) -> interp-judge responses.json record``.
         output_dir: Written to (created if absent).
         empty_cache_every: Call ``torch.cuda.empty_cache()`` / ``gc.collect()``
@@ -254,7 +254,7 @@ def attribute_dataset(
             f"measurement_id {mid}: paired judge record has judgement_p_true=None "
             f"(skipped judge row?) — join would silently pair to a non-judgement"
         )
-        # prepare_chat_entries stringifies document_id (judge_common.py:194);
+        # prepare_chat_entries stringifies document_id (judge_prompts.py);
         # match that normalization so a real int-vs-str schema quirk isn't a
         # false positive, but a genuine cross-document join still fails loud.
         jr_doc = str(jr.get("document_id"))

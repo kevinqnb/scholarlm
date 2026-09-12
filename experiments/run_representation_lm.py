@@ -76,7 +76,7 @@ def _load_documents(dataset_config, limit: int | None) -> dict[str, str]:
     """OCR text for every non-excluded paper, via run_extraction.load_papers.
 
     load_papers applies paper_filter -> paper_exclude -> paper_subset (unlike
-    judge_common.load_documents_for_dataset, which skips paper_exclude).
+    judge_prompts.load_documents_for_dataset, which skips paper_exclude).
     """
     ocr_dir = str(Path(dataset_config.data_dir) / "ocr_output_raw")
     text, text_info = load_papers(dataset_config, ocr_dir)

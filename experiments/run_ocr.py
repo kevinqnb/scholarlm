@@ -72,8 +72,8 @@ from utils import load_config, set_seeds, write_run_metadata
 # olmOCR's output_dir is "ocr_output_raw" and must never change: it's read by
 # that literal name from run_extraction.py, run_ablation.py, run_table_cleaning.py,
 # run_judge_local.py, run_judge_interp.py, both baseline runners,
-# analysis/ablation.py, experiments/validation.py, and several datasets'
-# preprocessing.py / create_probe_dataset.py.
+# analysis/ablation.py, and several datasets' preprocessing.py /
+# create_probe_dataset.py.
 # ---------------------------------------------------------------------------
 
 OCR_MODEL_REGISTRY: dict[str, dict] = {

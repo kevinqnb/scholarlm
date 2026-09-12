@@ -89,7 +89,7 @@ needed.
 | `split` | `"train"`, `"trial"`, or `"eval"` — `"eval"` is the official held-out test set, see above |
 | `quantity` | `Quantity.text` — the raw quantity span, units included as written (`"54.8 years"`, `"5318"`). Gold counterpart of the extraction side's entity field under the quantity-first design (see below); carried for traceability, not used by matching, which keys on the parsed `value`/`units` |
 | `name` | `MeasuredEntity.text`, or `None` if the Quantity attaches to no entity |
-| `attribute` | constant `"measurement"` for every row — matches the single abstract attribute bucket in `experiments/configs/measeval.py`'s `attribute_info_dict`, so ground truth and extraction output strict-match trivially on this field (see below) |
+| `attribute` | constant `"measurement"` for every row — matches the single abstract attribute bucket in `experiments/dataset-configs/measeval.py`'s `attribute_info_dict`, so ground truth and extraction output strict-match trivially on this field (see below) |
 | `property` | `MeasuredProperty.text`, or `None` if the Quantity attaches directly to an entity with no property span — the actual open-vocabulary property name, intended for fuzzy rather than exact matching |
 | `value` | numeric value parsed from `Quantity.text` |
 | `units` | `Quantity.other["unit"]`, or `None` |
@@ -105,7 +105,7 @@ pond (7 attributes) and supermat (1 attribute) both use a small, closed
 (`"mean (pressure averaged) temperature"`, `"paleolatitude"`, `"grew"`, ...), so they
 can't be mapped onto a fixed set the way pond/supermat's attributes are.
 
-`experiments/configs/measeval.py` resolves this by collapsing extraction to a single
+`experiments/dataset-configs/measeval.py` resolves this by collapsing extraction to a single
 abstract `attribute_info_dict` bucket, `"measurement"` — used only as a coarse
 per-document gate — while the real property name is resolved per measurement, as
 `MeasurementEventSchema.property`.
@@ -147,7 +147,7 @@ Note: `analysis/calibration.py` is a different, judge/probe-specific file (it ea
 loads trained probes and combined judge outputs at import time) — it is **not** the
 place for a measeval branch, since this dataset has no judge pipeline (see "No judge
 pipeline" below). Don't be misled by the module docstring in
-`experiments/configs/measeval.py`, which still names it as the "known follow-up";
+`experiments/dataset-configs/measeval.py`, which still names it as the "known follow-up";
 `get_matching_rules` in `analysis/ablation.py` is the actual, working integration point.
 
 Two matching caveats worth knowing before reading the first results table:
@@ -191,7 +191,7 @@ Running `preprocessing.py` prints the drop counts for both categories on every r
 
 ## Running experiments
 
-`experiments/configs/measeval.py` exists, and `analysis/ablation.py`'s `get_matching_rules`
+`experiments/dataset-configs/measeval.py` exists, and `analysis/ablation.py`'s `get_matching_rules`
 has a `measeval` branch (see "Attribute is free text, not a closed catalog" above), so the
 same core workflow used for pond/nfix/supermat runs here too:
 
@@ -203,7 +203,7 @@ python experiments/run_extraction.py --dataset measeval --model gemma-3-27b \
     --ocr-dir data/measeval/ocr_output_raw
 
 # Ablations 1, 3-6 (same --ocr-dir requirement). Ablation 2 is intentionally
-# disabled for measeval -- see experiments/configs/measeval.py's comment next
+# disabled for measeval -- see experiments/dataset-configs/measeval.py's comment next
 # to ablation2_entity_schema=None -- there is no interesting closed-attribute
 # choice to ablate with a single "measurement" bucket.
 python experiments/run_ablation.py --dataset measeval --model gemma-3-27b --ablation 1 \

@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for ``experiments/judge_common.prepare_chat_entries``.
+"""Rung-1 unit tests for ``scholarlm.utils.judge_prompts.prepare_chat_entries``.
 
 Hand-built fixture, model-free.  The invariant under test: the judge's
 ``## CONTEXT`` is always the whole OCR paper — never a page slice — unless the
@@ -14,7 +14,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
-import judge_common
+from scholarlm.utils import judge_prompts
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ def _row(**over):
 
 
 def test_context_is_the_whole_paper():
-    entries = judge_common.prepare_chat_entries([_row()], {"X": _DOC}, _cfg())
+    entries = judge_prompts.prepare_chat_entries([_row()], {"X": _DOC}, _cfg())
     assert len(entries) == 1
     e = entries[0]
     assert e["context_text"] == _DOC
@@ -71,14 +71,14 @@ def test_context_is_the_whole_paper():
 def test_page_number_is_not_consulted():
     """A row whose page_number points nowhere (or is absent) still gets the
     full paper, byte-identical to a row with a valid page_number."""
-    good = judge_common.prepare_chat_entries([_row(page_number=[1])], {"X": _DOC}, _cfg())
-    bogus = judge_common.prepare_chat_entries([_row(page_number=[99])], {"X": _DOC}, _cfg())
-    missing = judge_common.prepare_chat_entries([_row(page_number=None)], {"X": _DOC}, _cfg())
+    good = judge_prompts.prepare_chat_entries([_row(page_number=[1])], {"X": _DOC}, _cfg())
+    bogus = judge_prompts.prepare_chat_entries([_row(page_number=[99])], {"X": _DOC}, _cfg())
+    missing = judge_prompts.prepare_chat_entries([_row(page_number=None)], {"X": _DOC}, _cfg())
     assert good[0]["context_text"] == bogus[0]["context_text"] == missing[0]["context_text"] == _DOC
 
 
 def test_context_override_wins():
-    entries = judge_common.prepare_chat_entries(
+    entries = judge_prompts.prepare_chat_entries(
         [_row(context_override="EDITED PAPER")], {"X": _DOC}, _cfg()
     )
     assert entries[0]["context_text"] == "EDITED PAPER"
@@ -86,7 +86,7 @@ def test_context_override_wins():
 
 
 def test_null_override_falls_back_to_full_paper():
-    entries = judge_common.prepare_chat_entries(
+    entries = judge_prompts.prepare_chat_entries(
         [_row(context_override=None)], {"X": _DOC}, _cfg()
     )
     assert entries[0]["context_text"] == _DOC

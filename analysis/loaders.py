@@ -121,7 +121,11 @@ def load_human_judgements(
     judge_date: str | None = None,
     drop_skipped: bool = True,
 ) -> tuple[list[dict], str]:
-    """Load responses.json from a human validation run (``experiments/validation.py``).
+    """Load responses.json from a human validation run.
+
+    Produced historically by ``experiments/validation.py`` (a Streamlit app,
+    since removed) -- this reads whatever responses.json files already exist
+    on disk; nothing currently generates new ones.
 
     Args:
         dataset: Dataset identifier.

@@ -193,7 +193,7 @@ def run_local_vllm_judge(
     The judge sees the full OCR paper as ``## CONTEXT``. A row carrying a
     ``context_override`` field (set by the synthetic-probe augmentation
     pipeline) uses that text verbatim instead — see
-    ``judge_common.prepare_chat_entries``.
+    ``judge_prompts.prepare_chat_entries``.
 
     Args:
         dataset_config: Dataset configuration.
@@ -222,11 +222,11 @@ def run_local_vllm_judge(
         data: list[dict] = json.load(f)
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    import judge_common
-    documents = judge_common.load_documents_for_dataset(dataset_config, effective_ocr_dir)
+    from scholarlm.utils import judge_prompts
+    documents = judge_prompts.load_documents_for_dataset(dataset_config, effective_ocr_dir)
     print(f"Documents: {len(documents)} loaded from {effective_ocr_dir}")
 
-    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
+    chat_entries = judge_prompts.prepare_chat_entries(data, documents, dataset_config)
 
     # chat_entries are sorted by document_id for cache locality; we need to
     # track the original indices to merge results back in order.

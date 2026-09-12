@@ -25,7 +25,7 @@ datasets:
                              floor; fill each error type to its quota, no repeats.
   * ``inline_context_overrides`` / ``emit_context_diff_report`` — stamp the public
                              ``context_override`` field onto edited rows (read by
-                             ``judge_common.prepare_chat_entries``) and the
+                             ``judge_prompts.prepare_chat_entries``) and the
                              spot-check diff report.
 
 Nothing here reads a config or a path by itself — every input is passed in.
@@ -944,7 +944,7 @@ def inline_context_overrides(rows: list[dict]) -> int:
     the edited paper where the augmentation edited it, the verbatim source paper
     otherwise. Returns the count of rows whose stamped context is a genuine edit.
 
-    ``judge_common.prepare_chat_entries`` reads this field directly off the row
+    ``judge_prompts.prepare_chat_entries`` reads this field directly off the row
     — no side-car, no measurement_id-keyed lookup. Because every augmented row
     carries it, the judge reads one consistent context scope (the full paper)
     for valid and invalid, edited and unedited rows alike — the within-file and

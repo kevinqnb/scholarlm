@@ -1,5 +1,5 @@
 """Rung-1 (model-free) unit tests for ``scholarlm.utils.probe_augment`` and the
-``judge_common.prepare_chat_entries`` context-override plumbing.
+``judge_prompts.prepare_chat_entries`` context-override plumbing.
 
 Build note: ``notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md``.
 Everything here runs against a hand-built fixture with the ``StubAugmentClient``
@@ -783,7 +783,7 @@ def test_assert_wellformed_rejects_a_row_without_a_context_override():
 
 
 def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
-    import judge_common
+    from scholarlm.utils import judge_prompts
     rules = _rules()
     flags = pa.AugmentFlags(pos_axes=pa.POS_AXES, valid_floor=26,
                             diag_valid_floor=8, prompt_budget_multiple=1)
@@ -840,7 +840,7 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
 
     cfg = _dcfg()
     for data in (train_data, diag_data, primary_data):
-        entries = judge_common.prepare_chat_entries(data, documents, cfg)
+        entries = judge_prompts.prepare_chat_entries(data, documents, cfg)
         for entry in entries:
             row = data[int(entry["custom_id"])]
             assert entry["context_text"] == row["context_override"]
@@ -1242,7 +1242,7 @@ def test_dropped_prewarm_keys_are_written_beside_the_cache(tmp_path, monkeypatch
     assert "k_bad" in record
 
 
-# ─── judge_common.prepare_chat_entries context-override plumbing ──────────────
+# ─── judge_prompts.prepare_chat_entries context-override plumbing ──────────────
 
 
 def _dcfg():
@@ -1251,42 +1251,42 @@ def _dcfg():
 
 
 def test_prepare_chat_entries_no_override_field_gets_full_document():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 0, "name": "L", "page_number": [1]}]
     docs = {"X": '<page number="0">intro</page>\n\n'
                  '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     # The whole paper is the context — page_number is not consulted.
     assert entries[0]["context_text"] == docs["X"]
 
 
 def test_prepare_chat_entries_null_override_is_inert():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     base = {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
             "measurement_id": 0, "name": "L", "page_number": [1]}
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    a = judge_common.prepare_chat_entries([dict(base)], docs, cfg)
-    b = judge_common.prepare_chat_entries([dict(base, context_override=None)], docs, cfg)
+    a = judge_prompts.prepare_chat_entries([dict(base)], docs, cfg)
+    b = judge_prompts.prepare_chat_entries([dict(base, context_override=None)], docs, cfg)
     assert a == b
 
 
 def test_prepare_chat_entries_applies_row_override():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 7, "name": "L", "page_number": [1],
              "context_override": "REWRITTEN CONTEXT for the probe"}]
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     assert entries[0]["context_text"] == "REWRITTEN CONTEXT for the probe"
     assert "REWRITTEN CONTEXT" in entries[0]["user"]
 
 
 def test_prepare_chat_entries_override_is_per_row():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [
         {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
@@ -1296,7 +1296,7 @@ def test_prepare_chat_entries_override_is_per_row():
     ]
     docs = {"X": '<page number="0">intro</page>\n\n'
                  '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     by_mid = {int(e["custom_id"]): e for e in entries}
     assert by_mid[0]["context_text"] == "EDITED"          # override row
     assert by_mid[1]["context_text"] == docs["X"]         # non-override row → full paper

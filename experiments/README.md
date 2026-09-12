@@ -1,7 +1,8 @@
 # Experiments
 
 All scripts are run from the **repository root**. Per-dataset configs live in
-`experiments/configs/`; model keys are defined in `experiments/model_registry.py`.
+`experiments/dataset-configs/`; model keys are defined in
+`experiments/model_registry.py`.
 
 ## Scripts
 
@@ -15,7 +16,11 @@ All scripts are run from the **repository root**. Per-dataset configs live in
 | `run_judge_combine.py` | Majority-vote combination of judge outputs → `combined.json` |
 | `run_ocr.py` | Run OLMo-OCR on PDFs |
 | `process_pdfs.py` | Pre-process PDFs (requires separate environment) |
-| `validation.py` | Streamlit app for human validation of extraction results |
+
+There is no script left that produces human-validation `responses.json` files
+(`validation.py`, a Streamlit app, was removed) — `analysis/loaders.py`'s
+`load_human_judgements` and `experiments/paths.py`'s `find_human_responses`
+still read any that already exist on disk.
 
 ## Serving a model
 

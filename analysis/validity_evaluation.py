@@ -2,7 +2,9 @@
 Evaluate validity assessment methods for ScholarlM extractions.
 
 Arm 1 (--synthetic): judge models vs known labels in probe_dataset_test.json.
-Arm 2 (--human):     match / voted-judge / combined vs human labels from validation.py.
+Arm 2 (--human):     match / voted-judge / combined vs human labels (from
+                     responses.json files produced historically by
+                     experiments/validation.py, a Streamlit app, since removed).
 Threshold sweep (--plot): accuracy/precision/recall/F1 vs fuzzy threshold for match only.
 
 Both evaluation arms run by default; pass --synthetic or --human to run only one.
