@@ -7,29 +7,28 @@ not load the model locally — it sends async HTTP requests to a running vLLM
 server, making it practical for large models that would otherwise require
 NNsight's full GPU memory.
 
-Output path:
-    data/experiments/{dataset}/judge/{extraction_model}/{judge_model}/{YYYY_mm_dd}/
+Standard mode output path (id-addressed, like every other Tier-1 type):
+    experiments/results/{dataset}/judge_local/{experiment_id}/
+
+Synthetic probe mode output path (params.synthetic) is deliberately UNCHANGED
+-- still the old date-addressed tree, since analysis/*.py's probe-calibration
+pipeline (explicitly out of scope for this restructure) reads it directly.
 
 Saves:
   - ``responses.json`` — per-measurement judgement (true/false from text response)
 
 Usage
 -----
-    # Start a vLLM server first, e.g.:
-    #   vllm serve meta-llama/Llama-3.1-8B-Instruct --port 8081
+    python experiments/run_judge_local.py experiments/experiment-configs/pond/judge_local/<id>/<id>.yaml
 
-    python experiments/run_judge_local.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --judge llama-3.1-8b \\
-        --extraction-date 2026_04_01
-
-    # Use a different server or larger model:
-    python experiments/run_judge_local.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --judge qwen-2.5-72b \\
-        --api-base http://localhost:8082/v1
+Required params: dataset, judge.
+Standard mode requires params.extraction_id (an extraction or ablation
+experiment id, resolved via utils.find_result_dir -- its final.json is judged).
+Synthetic mode (params.synthetic: true, or params.synthetic_file) ignores
+extraction_id; see below for its params (unchanged from before this restructure).
+Optional params: extraction_id, judge_date, ocr_dir, api_base, api_key,
+max_concurrent (default 64), synthetic (bool), synthetic_split ('train'|'test'),
+synthetic_file, synthetic_name.
 
 Available judge models: see JUDGE_REGISTRY below.
 """
@@ -48,7 +47,6 @@ from pathlib import Path
 # Path setup
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
 _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
@@ -177,16 +175,14 @@ async def _judge_one(
 
 def run_local_vllm_judge(
     dataset_config: DatasetConfig,
-    extraction_model: str | None,
     judge_key: str,
     output_dir: Path,
-    extraction_date: str | None = None,
+    input_file: Path,
     ocr_dir: str | None = None,
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     max_concurrent: int = 64,
-    ablation: str | None = None,
-    input_file: Path | None = None,
+    extraction_id: str | None = None,
 ) -> None:
     """Run a local vLLM judge and save responses.
 
@@ -197,15 +193,16 @@ def run_local_vllm_judge(
 
     Args:
         dataset_config: Dataset configuration.
-        extraction_model: Short name of the extraction model whose results to judge.
         judge_key: Key in ``JUDGE_REGISTRY``.
         output_dir: Directory to write ``responses.json``.
-        extraction_date: Optional date tag for locating extraction results.
+        input_file: Path to the ``final.json``-shaped file to judge (an
+            extraction/ablation run's output, or a synthetic probe file).
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server.
         max_concurrent: Maximum concurrent requests to the server.
-        input_file: If provided, load data from this path instead of looking up the extraction run.
+        extraction_id: The upstream extraction/ablation experiment id being
+            judged, recorded in run_metadata.json. ``None`` for synthetic mode.
     """
     if judge_key not in JUDGE_REGISTRY:
         raise KeyError(
@@ -214,8 +211,6 @@ def run_local_vllm_judge(
     judge_cfg = JUDGE_REGISTRY[judge_key]
     model_id = judge_cfg["model_id"]
 
-    if input_file is None:
-        input_file = paths.find_extraction_final(dataset_config.name, extraction_model, extraction_date, ablation)
     print(f"Input   : {input_file}")
 
     with open(input_file) as f:
@@ -286,7 +281,7 @@ def run_local_vllm_judge(
         output_dir,
         start_time=start_time,
         dataset=dataset_config.name,
-        extraction_model=extraction_model,
+        extraction_id=extraction_id,
         judge_model=judge_key,
         judge_model_id=model_id,
         max_prompt_tokens=max_pt,
@@ -304,179 +299,124 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--extraction-model", default=None,
-        help="Short name of the extraction model whose results to judge. Required unless --synthetic is used.",
-    )
-    p.add_argument(
-        "--judge", required=True,
-        choices=sorted(JUDGE_REGISTRY.keys()),
-        help=f"Judge model key. Available: {sorted(JUDGE_REGISTRY.keys())}",
-    )
-    p.add_argument("--extraction-date", default=None, help="Date tag YYYY_mm_dd of extraction run.")
-    p.add_argument("--judge-date", default=None, help="Date tag for output directory (default: today).")
-    p.add_argument(
-        "--ablation", default=None, metavar="N",
-        help="Ablation number (e.g. 2). If set, reads from ablations/ablation{N}/ and writes judge output there.",
-    )
-    p.add_argument(
-        "--synthetic", action="store_true", default=False,
-        help=(
-            "Run on the synthetic probe dataset instead of an extraction run. "
-            "--extraction-model and --ablation are ignored."
-        ),
-    )
-    p.add_argument(
-        "--synthetic-split", choices=["train", "test"], default=None,
-        help=(
-            "Which synthetic split to run (only relevant with --synthetic). "
-            "'train' → probe_dataset.json → synthetic_probe/; "
-            "'test'  → probe_dataset_test.json → synthetic_probe_test/. "
-            "If omitted, both splits are run in sequence."
-        ),
-    )
-    p.add_argument(
-        "--synthetic-file", default=None, metavar="PATH",
-        help=(
-            "Judge an arbitrary probe file (e.g. an augmentation-pipeline output). "
-            "Requires --synthetic-name. Rows carrying a context_override field "
-            "use that text verbatim instead of the full-paper context."
-        ),
-    )
-    p.add_argument(
-        "--synthetic-name", default=None, metavar="NAME",
-        help=(
-            "Output tree label for --synthetic-file: results go to "
-            "synthetic_probe_<NAME>/{judge}/{judge_date}/. [a-z0-9_]."
-        ),
-    )
-    p.add_argument(
-        "--ocr-dir", default=None, metavar="DIR",
-        help="Directory of OCR .txt files. Defaults to {data_dir}/ocr_output_raw/.",
-    )
-    p.add_argument(
-        "--api-base", default="http://localhost:8081/v1", metavar="URL",
-        help="Base URL of the vLLM OpenAI-compatible server (default: http://localhost:8081/v1).",
-    )
-    p.add_argument(
-        "--api-key", default="EMPTY", metavar="KEY",
-        help="API key for the vLLM server (default: EMPTY).",
-    )
-    p.add_argument(
-        "--max-concurrent", type=int, default=64,
-        help="Maximum concurrent requests to the vLLM server (default: 64).",
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "judge", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-
-    if args.synthetic_file:
-        if not args.synthetic_name:
-            _build_parser().error("--synthetic-name is required with --synthetic-file.")
-        probe_file = Path(args.synthetic_file)
-        if not probe_file.exists():
-            raise FileNotFoundError(f"--synthetic-file not found: {probe_file}")
-        output_dir = paths.synthetic_probe_named(
-            args.dataset, args.synthetic_name, args.judge, args.judge_date
+    dataset = params["dataset"]
+    judge = params["judge"]
+    if judge not in JUDGE_REGISTRY:
+        raise ValueError(
+            f"{config_path}: params.judge {judge!r} not in JUDGE_REGISTRY "
+            f"(choices: {sorted(JUDGE_REGISTRY.keys())})"
         )
-        print(f"\nDataset          : {args.dataset}")
-        print(f"Mode             : synthetic probe (named: {args.synthetic_name})")
+    dataset_config = load_dataset_config(dataset)
+    api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"
+    api_key = params.get("api_key", "EMPTY")
+    max_concurrent = params.get("max_concurrent", 64)
+
+    synthetic_file = params.get("synthetic_file")
+    synthetic = params.get("synthetic", False)
+
+    if synthetic_file:
+        synthetic_name = params.get("synthetic_name")
+        if not synthetic_name:
+            raise ValueError(f"{config_path}: params.synthetic_name is required with params.synthetic_file.")
+        probe_file = Path(synthetic_file)
+        if not probe_file.exists():
+            raise FileNotFoundError(f"params.synthetic_file not found: {probe_file}")
+        output_dir = paths.synthetic_probe_named(dataset, synthetic_name, judge, params.get("judge_date"))
+        print(f"\nDataset          : {dataset}")
+        print(f"Mode             : synthetic probe (named: {synthetic_name})")
         print(f"Input            : {probe_file}")
-        print(f"Judge            : {args.judge}")
-        print(f"API base         : {args.api_base}")
+        print(f"Judge            : {judge}")
+        print(f"API base         : {api_base}")
         print(f"Output           : {output_dir}\n")
         run_local_vllm_judge(
             dataset_config=dataset_config,
-            extraction_model=None,
-            judge_key=args.judge,
+            judge_key=judge,
             output_dir=output_dir,
-            extraction_date=None,
-            ocr_dir=args.ocr_dir,
-            api_base=args.api_base,
-            api_key=args.api_key,
-            max_concurrent=args.max_concurrent,
-            ablation=None,
             input_file=probe_file,
+            ocr_dir=params.get("ocr_dir"),
+            api_base=api_base,
+            api_key=api_key,
+            max_concurrent=max_concurrent,
         )
         return
 
-    if args.synthetic:
-        splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
+    if synthetic:
+        splits = [params["synthetic_split"]] if params.get("synthetic_split") else ["train", "test"]
         for split in splits:
             probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
-            probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
+            probe_file = _REPO_ROOT / "data" / dataset / probe_filename
             if not probe_file.exists():
                 raise FileNotFoundError(
                     f"Probe dataset not found: {probe_file}. "
-                    f"Run data/{args.dataset}/create_probe_dataset.py first."
+                    f"Run data/{dataset}/create_probe_dataset.py first."
                 )
-            input_file = probe_file
             output_dir = (
-                paths.synthetic_probe_test(args.dataset, args.judge, args.judge_date)
+                paths.synthetic_probe_test(dataset, judge, params.get("judge_date"))
                 if split == "test"
-                else paths.synthetic_probe(args.dataset, args.judge, args.judge_date)
+                else paths.synthetic_probe(dataset, judge, params.get("judge_date"))
             )
-            print(f"\nDataset          : {args.dataset}")
+            print(f"\nDataset          : {dataset}")
             print(f"Mode             : synthetic probe ({split})")
-            print(f"Input            : {input_file}")
-            print(f"Judge            : {args.judge}")
-            print(f"API base         : {args.api_base}")
+            print(f"Input            : {probe_file}")
+            print(f"Judge            : {judge}")
+            print(f"API base         : {api_base}")
             print(f"Output           : {output_dir}\n")
             run_local_vllm_judge(
                 dataset_config=dataset_config,
-                extraction_model=None,
-                judge_key=args.judge,
+                judge_key=judge,
                 output_dir=output_dir,
-                extraction_date=None,
-                ocr_dir=args.ocr_dir,
-                api_base=args.api_base,
-                api_key=args.api_key,
-                max_concurrent=args.max_concurrent,
-                ablation=None,
-                input_file=input_file,
+                input_file=probe_file,
+                ocr_dir=params.get("ocr_dir"),
+                api_base=api_base,
+                api_key=api_key,
+                max_concurrent=max_concurrent,
             )
         return
-    else:
-        if args.extraction_model is None:
-            _build_parser().error("--extraction-model is required unless --synthetic is used.")
-        resolved = paths.find_extraction_final(args.dataset, args.extraction_model, args.extraction_date, args.ablation)
-        input_file = resolved
-        extraction_date_resolved = resolved.parent.name
-        output_dir = paths.judge(
-            args.dataset, args.extraction_model, extraction_date_resolved, args.judge, args.judge_date,
-            ablation=args.ablation,
-        )
-        print(f"\nDataset          : {args.dataset}")
-        print(f"Extraction model : {args.extraction_model}")
-        print(f"Extraction date  : {extraction_date_resolved}")
-        if args.ablation:
-            print(f"Ablation         : {args.ablation}")
-        print(f"Judge            : {args.judge}")
-        print(f"API base         : {args.api_base}")
-        print(f"Output           : {output_dir}\n")
 
+    paths.require_params(params, "extraction_id", config_path=config_path)
+    extraction_id = params["extraction_id"]
+    extraction_dir = paths.find_result_dir(extraction_id)
+    resolved_dataset = extraction_dir.parts[-3]
+    if resolved_dataset != dataset:
+        raise ValueError(
+            f"{config_path}: params.dataset {dataset!r} does not match the dataset "
+            f"of params.extraction_id {extraction_id!r} ({resolved_dataset!r})"
+        )
+    input_file = extraction_dir / "final.json"
+    output_dir = paths.result_dir(dataset, "judge_local", cfg["id"])
+
+    print(f"\nDataset          : {dataset}")
+    print(f"Extraction id    : {extraction_id}")
+    print(f"Judge            : {judge}")
+    print(f"API base         : {api_base}")
+    print(f"Output           : {output_dir}\n")
     run_local_vllm_judge(
         dataset_config=dataset_config,
-        extraction_model=args.extraction_model,
-        judge_key=args.judge,
+        judge_key=judge,
         output_dir=output_dir,
-        extraction_date=extraction_date_resolved,
-        ocr_dir=args.ocr_dir,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        max_concurrent=args.max_concurrent,
-        ablation=args.ablation if not args.synthetic else None,
         input_file=input_file,
+        ocr_dir=params.get("ocr_dir"),
+        api_base=api_base,
+        api_key=api_key,
+        max_concurrent=max_concurrent,
+        extraction_id=extraction_id,
     )
 
 
