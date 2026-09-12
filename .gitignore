@@ -169,12 +169,22 @@ experiments/out/*
 experiments/*/out/*
 experiments/*/*/out/*
 experiments/*/*/*/out/*
+# experiment-configs/{dataset}/{experiment-type}/{id}/out/ -- one level deeper
+# than the patterns above (SGE -o/-e stdout+stderr only, per-experiment-id).
+experiments/experiment-configs/*/*/*/out/*
 *.sh
 
 analysis/*.npy
 analysis/ablation2.py
 
 data/experiments/*/*
+
+# experiments/results/ is the new-framework counterpart of data/experiments/
+# above -- same rule: heavy pipeline output (checkpoints, final.json,
+# responses.json, activations.npz, ...), never committed. Add `!`-exceptions
+# here the same way data/experiments/ does below, on a case-by-case basis,
+# and only after checking with the user first.
+experiments/results/*/*
 
 data/pond/pdfs/*.pdf
 data/pond/raw_data/*
