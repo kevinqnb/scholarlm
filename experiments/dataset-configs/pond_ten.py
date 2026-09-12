@@ -7,7 +7,7 @@ runners (run_extraction, run_judge, run_analysis) load this via importlib; the
 existing experiments/pond/ scripts are unchanged and continue to import their
 own copies of the prompts from extract_prompts.py.
 
-NOTE: This file is currently a copy of experiments/configs/pond.py, 
+NOTE: This file is currently a copy of experiments/dataset-configs/pond.py, 
 which only limits the subsets of papers included in the run (for testing purposes).
 """
 from __future__ import annotations

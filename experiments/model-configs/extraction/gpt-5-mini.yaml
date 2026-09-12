@@ -1,0 +1,4 @@
+model_id: gpt-5-mini
+sampling_params:
+  max_completion_tokens: 8192
+api_base: https://api.openai.com/v1

@@ -1,0 +1,19 @@
+model_id: meta-llama/Llama-3.1-8B-Instruct
+sampling_params:
+  temperature: 0.6
+  top_p: 0.95
+  top_k: 20
+  max_tokens: 8192
+  seed: 342
+  enable_thinking: false
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  dtype: bfloat16
+  sif_image: vllm-openai_v0.19.0.sif
+resources:
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  walltime: '48:00:00'
+  omp: 8

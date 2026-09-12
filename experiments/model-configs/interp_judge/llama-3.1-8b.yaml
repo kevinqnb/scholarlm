@@ -1,0 +1,6 @@
+model_id: meta-llama/Llama-3.1-8B-Instruct
+nnsight_kwargs:
+  torch_dtype: bfloat16
+sampling_params:
+  do_sample: false
+  max_new_tokens: 1
