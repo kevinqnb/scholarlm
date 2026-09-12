@@ -1,7 +1,11 @@
 """Shared prompt builders and document-loading utilities for judge runners.
 
-All judge runner scripts (run_judge_interp.py, run_judge_local.py,
-validation.py) import from here so prompts are identical across backends.
+Every judge/interp-style runner (run_judge_interp.py, run_judge_local.py,
+run_jacobian_lens.py, run_attribution.py) imports from here so prompts are
+identical across backends. Relocated from experiments/judge_common.py: this
+is pipeline/prompt logic with no argparse, no experiments/paths.py, no
+run-metadata plumbing -- it belongs alongside the rest of scholarlm's core
+library, not the experiment-orchestration layer.
 
 Public API:
 
