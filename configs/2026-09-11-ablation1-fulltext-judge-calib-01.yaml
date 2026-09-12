@@ -1,0 +1,298 @@
+id: 2026-09-11-ablation1-fulltext-judge-calib-01
+project: scholarlm
+description: >-
+  Re-judge the pond ablation1 gpt-oss-120b extractions
+  (data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/) with
+  the three voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) under
+  the full-paper judge (e7da363) -- the existing judge dirs there
+  (2026_05_09/2026_05_10) predate it -- then majority-vote combine. Also run
+  the qwen-2.5-7b interp judge (NNsight) to collect attention activations +
+  NTP (judgement_p_true). Score both with the pre-trained, cached v2 pond
+  probe/NTP-calibrator (data/experiments/pond/synthetic_probe_v2/qwen-2.5-7b/
+  trained_probe/), excluding its 48 training documents from scoring. Compute
+  SmECE against the voted judgements at two assumed test prevalences
+  (pi_te = 0.5 default, 0.85 alternate -- matching
+  EXTRACTION_SETTINGS['gpt-oss-120b']['pi_te_estimate'] already committed in
+  analysis/calibration_updated.py for gpt-oss-120b's non-ablation pond run).
+  No probe/calibrator retraining, no synthetic data regeneration -- scoring
+  only. calibration_updated.py itself is NOT touched (protected eval code,
+  no ablation-aware path); a new, separate driver script calls the same
+  underlying primitives (load_trained_probe, load_trained_ntp_calibrator,
+  intercept_adjustment, relplot.prepare_rel_diagram with the same
+  ECE_N_BOOT/ECE_CI/ECE_SEED) against the ablation1 data instead.
+seed: 342  # repo-global (experiments/config.yaml)
+params:
+  entry_point: manual
+  # No scripts/run_experiment.py adapter covers this (entry_point only
+  # handles extraction|ablation, and this needs three sequential vLLM judge
+  # servers + NNsight). Each stage is a native entry point driven by a
+  # hand-written qsub job, same pattern as
+  # configs/2026-09-09-fulltext-judge-probe-eval-01.yaml and
+  # configs/2026-09-11-supermat-fulltext-judge-01.yaml. Queries + hypothesis
+  # are in notes/scholarlm/experiments/2026-09-11-ablation1-fulltext-judge-calib-01.md
+  # (written by /explog).
+
+  dataset: pond
+  judge_date: "2026_09_11"
+
+  extraction:
+    model: gpt-oss-120b
+    ablation: "1"
+    date: "2026_05_03"   # latest clean ablation1 run (commit 35e420a, not dirty); unchanged (not re-run)
+
+  # ── Voting judges + interp judge on the ablation1 extractions ────────────
+  # experiments/judge_real_voting_ablation1.sh <model> 2026_09_11 -- one
+  # self-contained qsub per voting model (serves in-allocation, polls
+  # /health, runs run_judge_local.py --ablation 1 against localhost, exits).
+  # Generalizes judge_real_voting_v2.sh (hardcoded --extraction-model
+  # gemma-3-27b, no --ablation) rather than editing it -- same pattern as v2
+  # itself was kept side by side with the original pond-only
+  # judge_real_voting.sh.
+  # experiments/judge_interp_ablation1_pond.sh 2026_09_11 -- qwen-2.5-7b
+  # interp judge (NNsight), --ablation 1.
+  judge_real_voting:
+    voters: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
+    interp_judge: qwen-2.5-7b
+    combine_judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b, qwen-2.5-7b]
+    entry_point: judge_real_voting_ablation1.sh + judge_interp_ablation1_pond.sh + run_judge_combine.py
+    voting_threshold: 2   # ceil(3/2), run_judge_combine.py default
+    serve_gpu_type_voters: H200
+    serve_gpu_type_interp: L40S   # not Blackwell -- torch 2.7.1+cu126 crash, see notes memory
+    pond_yarn_context: |
+      Ablation1 shares pond's OCR corpus with the gemma-3-27b real run
+      already re-judged in 2026-09-09-fulltext-judge-probe-eval-01, so
+      qwen-2.5-72b's YaRN factor 2.0 / max-model-len 65536 setting (measured
+      against pond's longest full-paper judge prompt, ~47k tok) is unchanged
+      here -- verified by prompt-building (not re-measuring token counts)
+      during the rung 2/3 smoke check, which uses judge_common's real
+      production prepare_chat_entries path against these exact documents.
+
+  # ── Combine (3-way vote; qwen-2.5-7b along for its NTP column only) ──────
+  # experiments/judge_combine_ablation1_pond.sh -- explicit --judges (not
+  # auto-discover), so the stale 2026_05_09/2026_05_10 dirs are not swept in
+  # by name and the picked judge_key set is always exactly these four; latest
+  # date per judge is picked automatically by run_judge_combine.py's
+  # _find_judge_result (sorted reverse), so today's runs win over the stale
+  # ones without needing --judge-date pins.
+  #
+  # The existing combined.json (pre-full-paper) IS overwritten -- snapshotted
+  # first (see params.snapshot).
+  combine:
+    entry_point: judge_combine_ablation1_pond.sh
+    output: data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/combined/combined.json
+
+  # ── Probe/NTP scoring + SmECE (analysis, no retraining) ──────────────────
+  # <scratchpad>/calibration_ablation1_pond.py 2026_09_11 -- loads the cached
+  # v2 probe (head_probe.pkl) + NTP calibrator (ntp_calibrator.pkl) from
+  # data/experiments/pond/synthetic_probe_v2/qwen-2.5-7b/trained_probe/,
+  # scores the ablation1 combined.json + qwen-2.5-7b interp activations,
+  # excluding the probe's 48 training documents (train/test leakage guard,
+  # mirroring calibration_updated.py's compute_predictions real-dtype
+  # branch), applies intercept_adjustment at pi_te in {0.5, 0.85}, computes
+  # SmECE (relplot, ECE_N_BOOT=2000/ECE_CI=0.95/ECE_SEED=0, copied verbatim
+  # from analysis/calibration_updated.py) plus a shuffled-label control per
+  # (source, pi_te).
+  calibration:
+    probe_source: v2
+    probe_type: head
+    pi_te_values: [0.5, 0.85]
+    pi_te_note: >-
+      pi_te=0.5 is close to a no-op: the v2 probe/calibrator's own
+      train_prevalence is 0.4996. pi_te=0.85 matches
+      EXTRACTION_SETTINGS['gpt-oss-120b']['pi_te_estimate'] already committed
+      for gpt-oss-120b's non-ablation pond calibration -- not a fresh
+      arbitrary choice, extending existing precedent to ablation1.
+    headline_metric: SmECE
+    output: results/calibration_pond_ablation1_gpt-oss-120b_2026_05_03_v2.csv
+    entry_point: <scratchpad>/calibration_ablation1_pond.py (session-local; not committed -- see devlog if promoted)
+    results:
+      # 4285 total rows; 2255 dropped (47 of the probe's 48 train docs
+      # present in ablation1); 2030 held-out rows scored. PROVISIONAL --
+      # see caveats.gptoss_judge_settings above.
+      n_kept: 2030
+      docs_dropped: 47
+      observed_prevalence_judgement_combined: 0.9645
+      probe:
+        train_prevalence: 0.4996
+        auroc: 0.8193                              # unaffected by pi_te (monotonic rescale)
+        auroc_shuffled: 0.5309
+        pi_te_0.5:  { smece: 0.2020, ci: [0.1904, 0.2136], smece_shuffled: 0.2019 }
+        pi_te_0.85: { smece: 0.0358, ci: [0.0278, 0.0439], smece_shuffled: 0.0448 }
+      ntp:
+        train_prevalence: 0.4996
+        auroc: 0.8056
+        auroc_shuffled: 0.4887
+        pi_te_0.5:  { smece: 0.1909, ci: [0.1781, 0.2038], smece_shuffled: 0.1947 }
+        pi_te_0.85: { smece: 0.0430, ci: [0.0359, 0.0501], smece_shuffled: 0.0677 }
+      hypothesis_note: >-
+        Hypothesis was SmECE <= 0.10. FAILS at pi_te=0.5 for both probe and
+        NTP (~0.19-0.20, ~2x threshold) -- unsurprising since pi_te=0.5 is
+        close to a no-op relative to the calibrator's own train_prevalence
+        (0.4996) while the observed validity rate on ablation1 is 0.9645, a
+        large label-shift the raw calibrated output doesn't account for.
+        HOLDS at pi_te=0.85 for both (0.036, 0.043) -- intercept-adjusting
+        toward the higher assumed prevalence closes most, but consistent
+        with 0.85 still undershooting the true 0.9645 rate, not all, of the
+        gap.
+      shuffled_label_caveat: >-
+        AUROC on shuffled labels collapses to ~chance as expected (0.53,
+        0.49), confirming the permutation destroyed the real discriminative
+        signal. SmECE on shuffled labels does NOT collapse comparably at
+        pi_te=0.5 (0.2019 vs 0.2020 unshuffled for probe -- effectively
+        identical) and only partially at pi_te=0.85 (probe: 0.0448 vs
+        0.0358; NTP: 0.0677 vs 0.0430). This is an expected property of
+        marginal-calibration metrics under extreme class imbalance (96.45%
+        positive): a predictor with zero ranking information can still look
+        "calibrated" if its output density sits near the base rate, since
+        almost any random label ordering has a similar local positive rate
+        almost everywhere. AUROC, not SmECE, is the discriminating signal in
+        this shuffled-label control at this prevalence -- worth keeping in
+        mind before reading SmECE alone as evidence against leakage.
+
+  # ── Non-destructive snapshot (taken before the combine job runs) ─────────
+  snapshot:
+    dir: /projectnb/mcnet/kevin/tmp/scholarlm_baseline_snapshot_2026_09_11_ablation1
+    contents:
+      - data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/combined/combined.json (as combined.json.pre_fulltext)
+
+  # ── Staged-gate ladder ───────────────────────────────────────────────────
+  ladder:
+    rung_1_unit_tests: "uv run --extra dev pytest -- 314 passed / 1 skipped (307/1 baseline + 7 new tests/test_paths.py cases for the ablation-aware find_* readers)"
+    rung_2_3_smoke_and_known_answer: >-
+      experiments/judge_smoke_check_ablation1.sh <model>, one per voting
+      judge (jobs 7530165/7530167/7530168, all finished 2026-09-11
+      15:42-15:48). Serves the model with the exact rung-4 settings, then
+      sends 2 requests built via judge_common.prepare_chat_entries against
+      real ablation1 rows (not a hand-built fixture):
+        measurement_id 0  (agricultural pond, surface_area, 0.26 ha) --
+          PREDICTED VALID: source text states verbatim "...a temperate
+          freshwater agricultural pond in central Maryland, United States
+          (maximum depth of ca. 3.35 meters and a surface area of ca. 0.26
+          ha)." CONFIRMED: all 3 judges (gpt-oss-120b, qwen-2.5-72b,
+          llama-3.3-70b) returned true.
+        measurement_id 30 (Lake Grosse Fuchskuhle, surface_area, 15000 m^2)
+          -- PREDICTED INVALID by a substring/regex search of the 86k-char
+          context that missed a comma-formatted table cell ("15,000" in a
+          table with columns Original lake/NE/SW). PREDICTION WAS WRONG:
+          the value is directly stated (Original lake column), so this row
+          is actually a defensible VALID case with a genuine entity-scope
+          question (whole lake vs. the NE/SW sub-basins the paper studies
+          post-1986-division). qwen-2.5-72b returned true (matches the
+          corrected reading); gpt-oss-120b and llama-3.3-70b both returned
+          false -- llama's stated reasoning explicitly cites the NE/SW
+          table values and argues for the sub-basin reading, a defensible
+          disagreement, not a garbled/broken response. Two more
+          "value not in context" candidates (measurement_id 4133, and the
+          original 18-candidate list) were checked by hand and turned out
+          to be the same false-positive pattern (comma-formatted table
+          values missed by substring search) -- hand-verifying a clean
+          INVALID known-answer case this way is not reliable enough to
+          produce a replacement quickly.
+      Plumbing/prompt-construction confirmed: all 3 servers came up clean,
+      prepare_chat_entries built valid full-paper prompts (no context
+      overflow), all 3 judges returned parseable true/false verdicts (no
+      empty completions, no fail-loud). User decision 2026-09-11 (asked via
+      AskUserQuestion): proceed to rung 4 with the known-answer control
+      recorded PARTIAL (see sanity_controls.known_answer) rather than spend
+      further session time manufacturing a replacement invalid case.
+    rung_4_full: "the full job graph below"
+
+  # ── Sanity controls ───────────────────────────────────────────────────
+  sanity_controls:
+    known_answer:
+      check: "rung 2/3 smoke prediction on measurement_id 0 vs 30 (see above)"
+      expected: "0 -> valid, 30 -> invalid"
+      status: PARTIAL
+      note: >-
+        measurement_id 0 (valid) confirmed 3/3 judges. measurement_id 30's
+        predicted-invalid label was wrong (my substring search missed a
+        comma-formatted table value that makes it a defensible valid case
+        with a genuine entity-scope ambiguity -- see rung_2_3 note above);
+        no replacement invalid case was found by hand in the time available.
+        User decision 2026-09-11: proceed to rung 4 anyway -- plumbing is
+        confirmed (clean servers, valid parseable verdicts, no context
+        overflow), and the open question is judge disagreement on a
+        genuinely hard case, not broken plumbing. Recorded here as a known
+        gap, same spirit as the shuffled-label deferrals in the two prior
+        full-paper-judge sessions.
+    seed_determinism:
+      status: DEFERRED
+      note: >-
+        Not re-run this session (temperature=0.0, fixed seed=342 in every
+        judge call, same as the 2026-09-09/2026-09-11 precedent sessions,
+        which verified this for the same judge models/settings and did not
+        re-verify per-session either). Known, low-risk gap: settings are
+        identical to precedent, not new code.
+    shuffled_label:
+      check: >-
+        permute judgement_combined labels (fixed seed 342) against the
+        already-computed probe/NTP probs, no retrain -- computed inline in
+        calibration_ablation1_pond.py for every (source, pi_te) cell.
+      expected: "AUROC -> ~0.5; SmECE rises relative to the unshuffled value"
+      status: RUN (see results CSV's smece_shuffled/auroc_shuffled columns)
+    ablation_direction:
+      status: N/A
+      note: >-
+        This session doesn't compare ablation1 against baseline extraction
+        (ablation1 was already run in a prior session) -- it re-judges and
+        re-scores calibration for the fixed ablation1 run. No ablation
+        direction to check here.
+
+  # ── SGE job graph (ids filled in as submitted; -hold_jid chains) ──────────
+  jobs:
+    smoke_abl1_gptoss: 7530165
+    smoke_abl1_qwen72: 7530167
+    smoke_abl1_llama70: 7530168
+    # rung 4, submitted 2026-09-11 16:52-16:53, all exit_status 0
+    judge_abl1_gptoss:  7532056   # ran 16:55:58-17:15:16 -- see caveats.gptoss_judge_settings below
+    judge_abl1_qwen72:  7532057   # ran 17:16:11-17:32:20
+    judge_abl1_llama70: 7532058   # ran 17:32:34-17:47:01
+    judge_interp_abl1:  7532059   # ran 16:53:58-20:22:35
+    judge_combine_abl1: 7532064   # hold_jid 7532056,7532057,7532058,7532059; ran 20:23:09-20:23:33
+                                   # combined 4285 records (4048 valid, 237 invalid)
+
+  # ── Caveat: gpt-oss-120b judge settings superseded mid-run ───────────────
+  # A PARALLEL session (2026-09-11-supermat-fulltext-judge-01) committed
+  # 30f8e79 (2026-09-11 20:05:44) while judge_abl1_gptoss (7532056) was
+  # already running/finished: reasoning_effort "low"->"medium",
+  # max_tokens 16384->8192, temperature 0.0->0.2, +seed=342, for gpt-oss-120b
+  # specifically. Root cause there: greedy decoding (temp=0.0) occasionally
+  # entered a degenerate repetition loop under the full-paper judge, causing
+  # a thin, run-to-run-shifting tail of truncated/empty completions that
+  # neither of two earlier token-budget-side fixes (23c111c, b2a1b0f)
+  # eliminated. That commit's message states explicitly: "invalidates every
+  # prior gpt-oss-120b judge number, superseding both 23c111c and b2a1b0f
+  # from earlier today."
+  #
+  # job_abl1_gptoss (7532056) ran 16:55:58-17:15:16, AFTER b2a1b0f
+  # (16:34:32, max_tokens->16384) but BEFORE 30f8e79 (20:05:44) -- i.e. under
+  # the second, still-superseded fix (reasoning_effort=low, max_tokens=16384,
+  # temperature=0.0), not the current settings. Verified against qacct
+  # start/end times and `git log --format=%ad` for run_judge_local.py, not
+  # assumed.
+  #
+  # It did NOT crash (exit_status 0, all 4285 pond rows judged) -- _judge_one
+  # fails loud on exactly the truncation failure mode described in 30f8e79,
+  # so this run did not hit it. But per this repo's own eval-change rule
+  # ("invalidates every prior number computed with the old version"), the
+  # gpt-oss-120b vote here was computed under now-superseded settings.
+  #
+  # User decision 2026-09-12 (asked via AskUserQuestion): KEEP the current
+  # numbers, flagged PROVISIONAL rather than re-run. judgement_combined (and
+  # therefore every calibration number below) inherits this caveat. If this
+  # result is used past /debrief, re-run judge_abl1_gptoss under current
+  # run_judge_local.py settings, re-combine, and re-run the calibration
+  # script before treating the numbers as final.
+  caveats:
+    gptoss_judge_settings:
+      status: PROVISIONAL
+      affects: [judgement_combined, all calibration.smece/auroc numbers below]
+      resolution: "re-run judge_abl1_gptoss under current run_judge_local.py + re-combine + re-run calibration, if promoted past /debrief"
+
+  code:
+    # this session, branch diff-experiments
+    - "experiments/paths.py: ablation param on find_activations/find_layer_outputs/find_judge_responses (standalone commit 8372c49; additive, invalidates nothing)"
+    - "analysis/loaders.py: pass-through ablation param on load_activations/load_layer_outputs (same commit)"
+    - "tests/test_paths.py: new (same commit)"
+    - "experiments/judge_real_voting_ablation1.sh, judge_interp_ablation1_pond.sh, judge_combine_ablation1_pond.sh, judge_smoke_check_ablation1.sh (gitignored scratch)"
+    - "<scratchpad>/judge_smoke_check_ablation1.py, calibration_ablation1_pond.py (session-local scratch, not committed)"

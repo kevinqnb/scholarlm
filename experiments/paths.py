@@ -248,15 +248,18 @@ def find_activations(
     extraction_date: str,
     judge_model: str,
     judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> Path:
     """Return path to the most-recent attention_outputs.npz for the given extraction date.
+
+    ``ablation`` mirrors ``judge()``/``judge_base()``: when set, reads from
+    ``ablations/ablation{N}/{extraction_model}/{extraction_date}/judge/{judge_model}/``
+    instead of ``judge/{extraction_model}/{extraction_date}/{judge_model}/``.
 
     Raises:
         FileNotFoundError: If no attention_outputs.npz exists.
     """
-    judge_dir = (
-        EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / extraction_date / judge_model
-    )
+    judge_dir = judge_base(dataset, extraction_model, extraction_date, ablation) / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory: {judge_dir}")
     if judge_date is None:
@@ -268,11 +271,11 @@ def find_activations(
         candidate = judge_dir / judge_date / "attention_outputs.npz"
         if candidate.exists():
             return candidate
-    
+
     raise FileNotFoundError(
         f"No attention_outputs.npz for dataset='{dataset}' "
         f"extraction_model='{extraction_model}' extraction_date='{extraction_date}' "
-        f"judge='{judge_model}' under {judge_dir}"
+        f"judge='{judge_model}' ablation={ablation!r} under {judge_dir}"
     )
 
 
@@ -282,21 +285,21 @@ def find_judge_responses(
     extraction_date: str,
     judge_model: str,
     judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> tuple[Path, str]:
     """Return (path to responses.json, resolved judge_date) for an interp-judge run.
 
     Mirrors ``find_activations``: with ``judge_date=None`` it returns the
     most-recent judge run under
-    ``judge/{extraction_model}/{extraction_date}/{judge_model}/`` that has a
+    ``judge/{extraction_model}/{extraction_date}/{judge_model}/`` (or the
+    ablation-tree equivalent when ``ablation`` is set) that has a
     ``responses.json``; with ``judge_date`` set it pins that exact directory.
 
     Raises:
         FileNotFoundError: If the judge directory or a matching responses.json
             does not exist.
     """
-    judge_dir = (
-        EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / extraction_date / judge_model
-    )
+    judge_dir = judge_base(dataset, extraction_model, extraction_date, ablation) / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory: {judge_dir}")
     if judge_date is not None:
@@ -310,7 +313,7 @@ def find_judge_responses(
             return candidate, date_dir.name
     raise FileNotFoundError(
         f"No responses.json for dataset='{dataset}' extraction_model='{extraction_model}' "
-        f"extraction_date='{extraction_date}' judge='{judge_model}' under {judge_dir}"
+        f"extraction_date='{extraction_date}' judge='{judge_model}' ablation={ablation!r} under {judge_dir}"
     )
 
 
@@ -320,15 +323,16 @@ def find_layer_outputs(
     extraction_date: str,
     judge_model: str,
     judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> Path:
     """Return path to the most-recent layer_outputs.npz for the given extraction date.
+
+    ``ablation`` mirrors ``find_activations``.
 
     Raises:
         FileNotFoundError: If no layer_outputs.npz exists.
     """
-    judge_dir = (
-        EXPERIMENTS_ROOT / dataset / "judge" / extraction_model / extraction_date / judge_model
-    )
+    judge_dir = judge_base(dataset, extraction_model, extraction_date, ablation) / judge_model
     if not judge_dir.exists():
         raise FileNotFoundError(f"No judge directory: {judge_dir}")
     if judge_date is None:
@@ -340,11 +344,11 @@ def find_layer_outputs(
         candidate = judge_dir / judge_date / "layer_outputs.npz"
         if candidate.exists():
             return candidate
-    
+
     raise FileNotFoundError(
         f"No layer_outputs.npz for dataset='{dataset}' "
         f"extraction_model='{extraction_model}' extraction_date='{extraction_date}' "
-        f"judge='{judge_model}' under {judge_dir}"
+        f"judge='{judge_model}' ablation={ablation!r} under {judge_dir}"
     )
 
 

@@ -37,6 +37,7 @@ import difflib
 import hashlib
 import itertools
 import json
+import math
 import random
 import re
 from collections import Counter
@@ -368,6 +369,19 @@ def _extract_json_object(text: str, *, op: str, dump_dir: Path | None) -> dict:
     ) from e
 
 
+# `_run_batch` outcome markers (never a valid `_one` return, which is always a
+# `str`): a call dropped after the retry budget, and one abandoned unrun because
+# the circuit breaker had already tripped.
+_DROPPED = object()
+_NEVER_RAN = object()
+
+# Served by `_resolve` for a dropped key. Parses as a model decline, so
+# `rewrite_context` -> `make_axis2_positive` skips the row; `_skip_category` maps
+# this exact reason to the "dropped" bucket in the per-split skip tally.
+_DROP_REASON = "dropped: gpt-oss prewarm generation failed after retries"
+_DROP_DECLINE = f'{{"feasible": false, "reason": "{_DROP_REASON}"}}'
+
+
 @dataclass
 class GptOssClient:
     """Batched async client for a locally served ``openai/gpt-oss-120b``.
@@ -418,9 +432,27 @@ class GptOssClient:
     record: bool = False
     # Set True after `prewarm`: a cache miss on the real pass is then a hard
     # error rather than a silent fall-through to the serial one-shot path (which
-    # would surface only as a blown job walltime).
+    # would surface only as a blown job walltime). A key in `_dropped_detail` is
+    # the one exception — see `_resolve`.
     strict_cache: bool = False
+    # A prewarm call that comes back truncated / empty / unparseable is resampled
+    # up to this many times before it is dropped. temperature > 0, so a resample
+    # of the same prompt can land differently.
+    prewarm_max_retries: int = 2
+    # Circuit breaker: if the number of dropped calls exceeds this fraction of the
+    # batch, `_run_batch` stops the batch and raises instead of finishing with a
+    # gutted corpus (a wedged server would otherwise grind through every retry
+    # before failing). A single opportunistic call can always be dropped.
+    # Residual: a server that accepts and hangs still costs up to
+    # ceiling x (1 + retries) x request-timeout / max_concurrent before the
+    # breaker fires (vs one timeout for connection-refused) — lower this to abort
+    # such a run sooner.
+    prewarm_drop_ceiling: float = 0.02
     _pending: dict[str, list[dict]] = field(default_factory=dict, repr=False)
+    # {cache_key: repr(last error)} for calls dropped in prewarm after the retry
+    # budget. `_resolve` serves these a `feasible: false` decline so the real pass
+    # skips them cleanly; also written to `dropped_prewarm.json` beside the cache.
+    _dropped_detail: dict[str, str] = field(default_factory=dict, repr=False)
 
     @property
     def _bad_response_dir(self) -> Path | None:
@@ -442,10 +474,11 @@ class GptOssClient:
         choice = resp.choices[0]
         content = choice.message.content
         if not content:
-            # Diagnostic, not a fallback: still raises. `finish_reason="length"`
-            # plus a non-trivial `reasoning_content` would confirm the
-            # reasoning-exhausted-the-budget hypothesis (see `reasoning_effort`);
-            # nothing upstream logs either field otherwise.
+            # Empty message, usually `finish_reason="length"` with the whole
+            # budget spent on reasoning (see `reasoning_effort`). `_run_batch`
+            # retries this a few times and drops the call if it keeps happening;
+            # the diagnostic fields are attached here because nothing upstream
+            # logs them.
             reasoning = getattr(choice.message, "reasoning_content", None)
             raise ValueError(
                 f"gpt-oss returned an empty message (finish_reason="
@@ -454,12 +487,12 @@ class GptOssClient:
             )
         if choice.finish_reason == "length":
             # Non-empty but truncated at `max_tokens`: the tail of the JSON is
-            # gone, so a downstream parse failure is guaranteed. Catch it here,
-            # at the call site, with the diagnostic fields attached -- rather
-            # than two layers down as an opaque `not valid JSON`. Still a hard
-            # error, never a fallback. Under the diff protocol the output is
-            # tiny, so this should never fire; if it does, something is wrong
-            # upstream (a runaway repetition loop, a bad `max_tokens`).
+            # gone, so a downstream parse failure is guaranteed. Raised here, with
+            # the diagnostic fields attached, rather than surfacing two layers
+            # down as an opaque `not valid JSON`. `_run_batch` retries then drops
+            # (temperature > 0, so a resample can come back whole). Under the diff
+            # protocol the output is tiny, so a persistent truncation points at
+            # something upstream — a runaway repetition loop, a bad `max_tokens`.
             reasoning = getattr(choice.message, "reasoning_content", None)
             raise ValueError(
                 f"gpt-oss response was truncated at max_tokens={self.max_tokens} "
@@ -468,65 +501,121 @@ class GptOssClient:
             )
         return content
 
+    def _write_dropped_detail(self) -> None:
+        """Persist ``_dropped_detail`` (dropped cache key -> last error repr) next
+        to the cache, so a post-mortem can see which rewrites were dropped and
+        why. No-op when the cache is path-less (unit tests)."""
+        if self.cache.path is None:
+            return
+        path = self.cache.path.parent / "dropped_prewarm.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(self._dropped_detail, f, indent=2, sort_keys=True)
+
     async def _run_batch(self, jobs: list[tuple[str, list[dict]]]) -> dict[str, str]:
-        """Run ``jobs`` concurrently, caching each success as it lands.
+        """Run ``jobs`` concurrently, caching each success as it lands; return
+        ``{key: response}`` for the successes.
 
-        ``asyncio.gather`` without ``return_exceptions=True`` would propagate
-        the first failure and discard every sibling response already computed
-        in the same batch -- for a ``prewarm`` batch, potentially thousands of
-        GPU calls lost because one came back malformed. Every success is cached,
-        and the cache saved if any job failed, before this still fails loud on
-        the failures.
+        ``asyncio.gather`` without ``return_exceptions=True`` would propagate the
+        first failure and discard every sibling response already computed in the
+        same batch. Instead a failed call -- ``_one`` raised (truncated / empty
+        response, transport error), or the body does not parse as a JSON object
+        even after ``_JSON_LAST_RESORT_REPAIRS`` -- is resampled up to
+        ``prewarm_max_retries`` times (temperature > 0, so a resample of the same
+        prompt can land differently).
 
-        A response that ``_one`` returns but that does not parse as a JSON
-        object (even after ``_JSON_LAST_RESORT_REPAIRS``) is treated as a
-        failure here and kept OUT of the cache: otherwise it is flushed as a
-        "success" and only detonates hours later in the strict-cache real pass,
-        with no way to regenerate just that key without a manual cache edit
-        (nfix Rung-4; pond incident #3).
+        A call still failing after that is DROPPED: recorded in
+        ``_dropped_detail`` (and ``dropped_prewarm.json``), kept OUT of the cache,
+        and served a ``feasible: false`` decline by ``_resolve`` on the real pass.
+        One persistently bad case is then a skipped row, not an aborted run; a
+        resubmit re-attempts only the drops (the cache persists). Downstream, the
+        valid / negative floors still enforce a hard minimum.
 
-        The gate only checks JSON-*object*-ness, not the ``rewrite`` schema, so
-        a well-formed object with a bad ``edits`` array (not a list, an element
-        missing ``find``/``replace``) or a missing ``replacement`` string still
-        gets cached and then raises in ``rewrite_context`` on the real pass.
-        Known residual; ``rewrite_context`` fails loud on those. (A
-        ``feasible: true`` object with an *empty* ``edits`` list is not in that
-        set — it is a model decline and ``rewrite_context`` skips it.)
+        Circuit breaker: once the drop count exceeds ``prewarm_drop_ceiling`` x
+        the batch size, the remaining jobs are abandoned without touching the
+        model and this raises -- a wedged or mis-served model still fails fast
+        instead of burning the whole walltime on retries.
+
+        The JSON gate checks object-ness, not the ``rewrite`` schema: a
+        well-formed object with a bad ``edits`` array or a missing ``replacement``
+        is cached here and ``rewrite_context`` fails loud on it on the real pass,
+        unchanged. (A ``feasible: true`` object with an *empty* ``edits`` list is
+        a model decline, not an error.)
         """
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key="EMPTY", base_url=self.api_base, timeout=600.0)
         sem = asyncio.Semaphore(self.max_concurrent)
+        drop_ceiling = max(1, math.ceil(self.prewarm_drop_ceiling * len(jobs)))
+        tripped = asyncio.Event()
+        dropped: dict[str, BaseException] = {}
 
-        async def _guarded(key: str, messages: list[dict]) -> tuple[str, str | BaseException]:
-            async with sem:
-                try:
-                    return key, await self._one(client, messages)
-                except Exception as e:
-                    return key, e
+        async def _guarded(key: str, messages: list[dict]):
+            # The failure is retried, never swallowed: after the budget it is
+            # recorded in `dropped` (surfaced in the warning, the drop file, and
+            # the circuit-breaker raise) and the row is skipped downstream.
+            last_exc: BaseException | None = None
+            for _ in range(1 + self.prewarm_max_retries):
+                if tripped.is_set():
+                    return key, _NEVER_RAN
+                async with sem:
+                    if tripped.is_set():
+                        return key, _NEVER_RAN
+                    try:
+                        text = await self._one(client, messages)
+                    except Exception as e:
+                        last_exc = e
+                        continue
+                if _looks_like_json_object(text):
+                    return key, text
+                _dump_bad_response(text, "prewarm", self._bad_response_dir)
+                last_exc = ValueError(
+                    "gpt-oss response is not a JSON object even after last-resort "
+                    f"repairs: {text.strip()[:200]!r}")
+            assert last_exc is not None
+            # mutation + check is synchronous, so atomic under asyncio — no lock
+            dropped[key] = last_exc
+            if len(dropped) > drop_ceiling:
+                tripped.set()
+            return key, _DROPPED
 
         pairs = await asyncio.gather(*(_guarded(k, m) for k, m in jobs))
         results: dict[str, str] = {}
-        failures: list[tuple[str, BaseException]] = []
+        n_never_ran = 0
         for key, value in pairs:
-            if isinstance(value, BaseException):
-                failures.append((key, value))
-            elif not _looks_like_json_object(value):
-                _dump_bad_response(value, "prewarm", self._bad_response_dir)
-                failures.append((key, ValueError(
-                    "gpt-oss response is not a JSON object even after last-resort "
-                    f"repairs: {value.strip()[:200]!r}"
-                )))
-            else:
-                results[key] = value
-                self.cache.put(key, value)
-        if failures:
+            if value is _DROPPED:
+                continue
+            if value is _NEVER_RAN:
+                n_never_ran += 1
+                continue
+            results[key] = value
+            self.cache.put(key, value)
+
+        if dropped:
+            self._dropped_detail.update({k: repr(e) for k, e in dropped.items()})
             self.cache.save()
+            self._write_dropped_detail()
+            first_k, first_e = next(iter(dropped.items()))
+            print(
+                f"\n  probe_augment: WARNING -- {len(dropped)}/{len(jobs)} gpt-oss "
+                f"prewarm call(s) still failed after {self.prewarm_max_retries} "
+                f"retries and were DROPPED ({len(results)} cached). The affected "
+                f"rewrites become skipped rows (skip bucket 'dropped'); the "
+                f"valid / negative floors still enforce a hard minimum. First "
+                f"drop (key {first_k[:12]}...): {first_e!r}"
+            )
+        if tripped.is_set():
+            self.cache.save()
+            first_k, first_e = next(iter(dropped.items()))
             raise RuntimeError(
-                f"{len(failures)}/{len(jobs)} gpt-oss call(s) failed in this "
-                f"batch; {len(results)} succeeded and are already cached. "
-                f"First failure (key {failures[0][0][:12]}...): {failures[0][1]!r}"
-            ) from failures[0][1]
+                f"gpt-oss prewarm aborted by the drop circuit breaker: "
+                f"{len(dropped)} dropped call(s) over the ceiling of {drop_ceiling} "
+                f"({self.prewarm_drop_ceiling:.0%} of {len(jobs)}); {n_never_ran} "
+                f"call(s) abandoned when the breaker tripped, {len(results)} "
+                f"cached. Fix the server and resubmit -- the cache persists (the "
+                f"abandoned calls are not recorded as drops, so they re-run). "
+                f"First drop (key {first_k[:12]}...): {first_e!r}"
+            ) from first_e
         return results
 
     # Canned response returned during a record pass — parseable by the caller so
@@ -553,6 +642,10 @@ class GptOssClient:
             if op not in self._RECORD_RESPONSES:
                 raise ValueError(f"no canned record-pass response for op {op!r}")
             return self._RECORD_RESPONSES[op]
+        if key in self._dropped_detail:
+            # Dropped in prewarm after the retry budget — a clean skip on the
+            # real pass, not a crash (`_run_batch` already warned).
+            return _DROP_DECLINE
         if self.strict_cache:
             raise RuntimeError(
                 f"gpt-oss cache miss for op {op!r} on the real pass, after "
@@ -563,13 +656,17 @@ class GptOssClient:
                 f"record dry pass and the real pass diverged in their RNG-driven "
                 f"(source, axis, attempt) enumeration."
             )
-        return asyncio.run(self._run_batch([(key, messages)]))[key]
+        batch = asyncio.run(self._run_batch([(key, messages)]))
+        return batch.get(key, _DROP_DECLINE)
 
     def prewarm(self, jobs: list[tuple[str, list[dict]]]) -> None:
         """Fill the cache for a list of ``(cache_key, messages)`` in one batch.
 
-        ``_run_batch`` caches each success itself, so nothing further to do
-        here on the happy path.
+        ``_run_batch`` caches each success itself and records the drops (calls
+        still failing after the retry budget) in ``_dropped_detail`` for
+        ``_resolve`` to skip on the real pass — so on the happy path, and on a
+        few-drops path, there is nothing further to do here. It still raises if
+        the drop circuit breaker tripped.
         """
         misses = [(k, m) for k, m in jobs if self.cache.get(k) is None]
         if not misses:
@@ -1159,6 +1256,11 @@ _SKIP_CATEGORIES = (
 
 
 def _skip_category(reason: str) -> str:
+    # Match the drop sentinel exactly, not the bare word: gpt-oss's own free-text
+    # `feasible: false` reason can legitimately contain "dropped" ("dropped from
+    # Table 2") and must not be miscounted as an infrastructure drop.
+    if reason == _DROP_REASON:
+        return "dropped"
     for pat in _SKIP_CATEGORIES:
         if pat in reason:
             return pat
@@ -1584,7 +1686,9 @@ def run_and_write(
         client.prewarm(jobs)
         client.flush()          # persist GPU-generated responses before the real pass
         client.strict_cache = True
-        print(f"  prewarm done ({client.cache.stats})")
+        n_dropped = len(client._dropped_detail)
+        drop_note = f", {n_dropped} dropped after retries" if n_dropped else ""
+        print(f"  prewarm done ({client.cache.stats}{drop_note})")
 
     bundles = build_augmented_files(xv_train=xv_train, xv_test=xv_test, rng=rng,
                                     client=client, rules=rules, flags=flags)
