@@ -17,7 +17,7 @@ Usage
     # Resume from a specific step (skips steps whose output files already exist):
     python experiments/run_extraction.py --dataset pond --model gemma-3-27b --resume
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   keys of MODEL_REGISTRY in this file.
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 # Path setup — make scholarlm importable when run directly from the repo root
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
+_CONFIGS_DIR = Path(__file__).parent / "dataset-configs"
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from scholarlm import MeasurementLM
@@ -54,13 +54,13 @@ from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 
 def load_dataset_config(name: str) -> DatasetConfig:
-    """Load a DatasetConfig by name from experiments/configs/<name>.py.
+    """Load a DatasetConfig by name from experiments/dataset-configs/<name>.py.
 
     The config file must define a module-level ``CONFIG`` variable of type
     ``DatasetConfig``.
 
     Args:
-        name: Dataset identifier matching a file in ``experiments/configs/``.
+        name: Dataset identifier matching a file in ``experiments/dataset-configs/``.
 
     Returns:
         The ``DatasetConfig`` instance exported by the config file.
@@ -545,7 +545,7 @@ def run_pipeline(
     to ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
         model_config: Model configuration from ``MODEL_REGISTRY``.
         output_dir: Directory for output files (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
@@ -670,7 +670,7 @@ def run_direct(
     ``run_ablation.py``'s ablation-1 path reads).
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
         model_config: Model configuration from ``MODEL_REGISTRY``.
         output_dir: Directory for the output file (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
@@ -897,7 +897,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

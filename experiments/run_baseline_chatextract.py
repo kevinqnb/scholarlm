@@ -30,7 +30,7 @@ Usage
     python experiments/run_baseline_chatextract.py --dataset nfix --model gemma-3-27b \\
         --ocr-dir data/nfix/ocr_output_cleaned_qwen-3.5-27b --no-tables --single-verification
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models: any entry in MODEL_REGISTRY (experiments/model_registry.py).
 """
 from __future__ import annotations
@@ -181,7 +181,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

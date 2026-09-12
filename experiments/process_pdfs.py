@@ -22,7 +22,7 @@ Usage
     python experiments/process_pdfs.py --dataset pond \\
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from pathlib import Path
 # Path setup
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
+_CONFIGS_DIR = Path(__file__).parent / "dataset-configs"
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from scholarlm.config import DatasetConfig
@@ -48,7 +48,7 @@ from scholarlm.utils import get_filenames_in_directory, process_pdf
 
 
 def load_dataset_config(name: str) -> DatasetConfig:
-    """Load a DatasetConfig by name from experiments/configs/<name>.py."""
+    """Load a DatasetConfig by name from experiments/dataset-configs/<name>.py."""
     config_path = _CONFIGS_DIR / f"{name}.py"
     if not config_path.exists():
         available = sorted(p.stem for p in _CONFIGS_DIR.glob("*.py") if p.stem != "__init__")
@@ -150,7 +150,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--paper-subset",

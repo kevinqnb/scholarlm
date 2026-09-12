@@ -306,7 +306,7 @@ def main():
         # text-only dataset with no PDFs to render (see data/measeval/README.md)
         # -- there is no input run_baseline_nuextract.py could ever consume
         # here. All arms below are 2026_08_01 runs made under the
-        # quantity-first design (see experiments/configs/measeval.py's module
+        # quantity-first design (see experiments/dataset-configs/measeval.py's module
         # docstring), so the comparison is apples-to-apples.
         'measeval': {
             'gemma-3-27b': '2026_08_01',

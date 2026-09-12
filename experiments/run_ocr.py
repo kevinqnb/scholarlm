@@ -33,7 +33,7 @@ Usage
     # Fast mode (lower-resolution pages, no retry loop -- trades quality for speed):
     python experiments/run_ocr.py --dataset pond --fast
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   keys of OCR_MODEL_REGISTRY in this file (each must also have a
                      matching block under ``models.<key>`` in experiments/config.yaml).
 """
@@ -113,7 +113,7 @@ def run_ocr(
     """Run an OCR model on all PDFs for a dataset via a vLLM server.
 
     Args:
-        dataset_config: Dataset configuration loaded from experiments/configs/.
+        dataset_config: Dataset configuration loaded from experiments/dataset-configs/.
         model_id: HuggingFace model ID string (must match what the server is serving).
         sampling_params: Sampling parameters forwarded to DocumentLM.
         ocr_prompt: System prompt for the OCR task. ``None`` uses DocumentLM's
@@ -204,7 +204,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

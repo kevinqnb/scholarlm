@@ -49,7 +49,7 @@ Usage
         --dataset pond --model gemma-3-27b \\
         --paper-subset paper_a paper_b
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   keys of MODEL_REGISTRY in experiments/run_extraction.py.
 """
 from __future__ import annotations
@@ -96,7 +96,7 @@ def run_vllm_table_cleaning(
     ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
         model_config: Model configuration from ``MODEL_REGISTRY``.
         ocr_dir: Input directory of ``.txt`` OCR files.  Defaults to
             ``{data_dir}/ocr_output_raw/``.
@@ -182,7 +182,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

@@ -15,7 +15,7 @@ data/experiments/... tree — never copied).
 Supported `params` keys
 ------------------------
     entry_point   "extraction" (default) | "ablation"
-    dataset       required — experiments/configs/<dataset>.py must define CONFIG
+    dataset       required — experiments/dataset-configs/<dataset>.py must define CONFIG
     model         required — key in experiments/model_registry.py MODEL_REGISTRY
     date          optional — YYYY_mm_dd output date tag. Defaults to the date
                   encoded in the experiment id itself (YYYY-MM-DD-slug-NN), so

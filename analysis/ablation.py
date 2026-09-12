@@ -37,7 +37,7 @@ def get_matching_rules(dataset):
         )
     elif 'measeval' in dataset:
         # attribute strict-matches trivially: both sides carry the constant
-        # "measurement" (see experiments/configs/measeval.py). The real open-
+        # "measurement" (see experiments/dataset-configs/measeval.py). The real open-
         # vocabulary property name lives in `property`, fuzzy-matched alongside
         # `name`. Both are measurement-event fields under the quantity-first
         # design (the entity is the quantity itself -- see the config's module

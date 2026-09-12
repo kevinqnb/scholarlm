@@ -28,7 +28,7 @@ Usage
 Requires the optional `gliner2[local]` dependency (installed via the `gpu` extra:
 `uv sync --extra gpu`, or `pip install "gliner2[local]"`).
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models: gliner-large-v1 (default), gliner-base-v1.
 """
 from __future__ import annotations
@@ -152,7 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

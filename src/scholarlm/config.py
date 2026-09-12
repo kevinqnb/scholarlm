@@ -129,7 +129,7 @@ class DatasetConfig:
             ("The name or identifier of ``<DESC>`` for which the {property} is
             reported").  Needed only when a dataset's entity is not the measurement
             subject: measeval enumerates *quantities* as entities (see
-            ``experiments/configs/measeval.py``), which would otherwise ask GLiNER
+            ``experiments/dataset-configs/measeval.py``), which would otherwise ask GLiNER
             for "the name or identifier of a numerical quantity".  GLiNER is a flat
             span tagger with no pipeline structure to invert, so it stays
             subject-centric and reads this instead.  Falls back to

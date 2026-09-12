@@ -14,7 +14,7 @@ Usage
     python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2 \\
         --paper-subset physical_and_chemical_limnological prairie_wetland
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   keys of MODEL_REGISTRY in run_extraction.py.
 Available ablations: 1–6 (see ABLATION_REGISTRY below).
 
@@ -131,7 +131,7 @@ def run_ablation(
     Writes a single ``final.json`` to ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
         model_config: Model configuration from ``MODEL_REGISTRY``.
         ablation: Ablation key string (``"1"`` … ``"6"``).
         output_dir: Directory for the output file (created if needed).
@@ -292,7 +292,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--model",

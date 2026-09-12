@@ -35,7 +35,7 @@ Usage
     #       --chat-template-content-format openai --limit-mm-per-prompt '{"image": 1}'
     python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8081/v1
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ def run_baseline_nuextract(
     so it can be loaded via `analysis.loaders.load_extraction` unmodified.
 
     Args:
-        dataset_config: Dataset configuration loaded from `experiments/configs/`.
+        dataset_config: Dataset configuration loaded from `experiments/dataset-configs/`.
         output_dir: Directory for the output file (created if needed).
         paper_subset_override: If provided, overrides `dataset_config.paper_subset`.
         api_base: Base URL of the vLLM OpenAI-compatible server hosting NuExtract.
@@ -181,7 +181,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dataset",
         required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
+        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
     )
     p.add_argument(
         "--date",
