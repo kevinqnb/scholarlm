@@ -4,18 +4,17 @@ Ablation experiment runner for MeasurementLM.
 Runs a named ablation variant of the MeasurementLM extraction pipeline for any
 registered dataset and model, writing results to a structured output directory:
 
-    data/experiments/{dataset}/ablations/ablation{N}/{model}/{YYYY_mm_dd}/
+    experiments/results/{dataset}/ablation/{experiment_id}/
 
 Usage
 -----
-    # From the repo root:
-    python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 1
-    python experiments/run_ablation.py --dataset nfix --model qwen-2.5-72b --ablation 3
-    python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2 \\
-        --paper-subset physical_and_chemical_limnological prairie_wetland
+    python experiments/run_ablation.py experiments/experiment-configs/pond/ablation/<id>/<id>.yaml
+
+Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"6").
+Optional params: ocr_dir, paper_subset (list), api_base, api_key.
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
-Available models:   keys of MODEL_REGISTRY in run_extraction.py.
+Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
 Available ablations: 1–6 (see ABLATION_REGISTRY below).
 
 Notes
@@ -53,9 +52,8 @@ from scholarlm.measurementlm_ablation4 import MeasurementLMAblation4
 from scholarlm.measurementlm_ablation5 import MeasurementLMAblation5
 from scholarlm.measurementlm_ablation6 import MeasurementLMAblation6
 
-# Reuse shared utilities from run_extraction (model registry, config loading, etc.)
+# Reuse shared utilities from run_extraction (config loading, etc.)
 from run_extraction import (
-    MODEL_REGISTRY,
     load_dataset_config,
     get_model_config,
     load_papers,
@@ -289,85 +287,51 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        required=True,
-        choices=sorted(MODEL_REGISTRY.keys()),
-        help="Extraction model key from MODEL_REGISTRY.",
-    )
-    p.add_argument(
-        "--ablation",
-        required=True,
-        choices=sorted(ABLATION_REGISTRY.keys()),
-        metavar="N",
-        help=f"Ablation to run. Choices: {{{', '.join(sorted(ABLATION_REGISTRY.keys()))}}}.",
-    )
-    p.add_argument(
-        "--date",
-        default=None,
-        help="Output date tag YYYY_mm_dd (default: today).",
-    )
-    p.add_argument(
-        "--ocr-dir",
-        default=None,
-        metavar="DIR",
-        help=(
-            "Directory of pre-cleaned OCR .txt files to use as extraction input. "
-            "If omitted, raw OCR is loaded from {data_dir}/ocr_output_raw/ and "
-            "table cleaning is performed automatically using the extraction model."
-        ),
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Override dataset paper_subset with an explicit list of paper codes.",
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8081/v1",
-        metavar="URL",
-        help=(
-            "Base URL of the vLLM OpenAI-compatible server "
-            "(default: http://localhost:8081/v1)."
-        ),
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "model", "ablation", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    ablation = str(params["ablation"])
+    if ablation not in ABLATION_REGISTRY:
+        raise ValueError(
+            f"{config_path}: params.ablation {ablation!r} not in ABLATION_REGISTRY "
+            f"(choices: {sorted(ABLATION_REGISTRY.keys())})"
+        )
 
-    dataset_config = load_dataset_config(args.dataset)
-    model_config = get_model_config(args.model)
-    output_dir = paths.ablation(args.dataset, args.ablation, args.model, args.date)
+    exp_defaults = paths.load_config().get("defaults", {})
+    repo_seed = exp_defaults.get("seed")
+    if repo_seed is not None and cfg["seed"] != repo_seed:
+        raise ValueError(
+            f"{config_path}: seed ({cfg['seed']}) does not match experiments/config.yaml "
+            f"defaults.seed ({repo_seed}) -- the repo's seed is a fixed, repo-wide value, "
+            "not a per-run knob."
+        )
+    set_seeds(cfg["seed"])
+
+    dataset_config = load_dataset_config(params["dataset"])
+    model_config = get_model_config(params["model"])
+    output_dir = paths.result_dir(params["dataset"], "ablation", cfg["id"])
 
     run_ablation(
         dataset_config=dataset_config,
         model_config=model_config,
-        ablation=args.ablation,
+        ablation=ablation,
         output_dir=output_dir,
-        ocr_dir=args.ocr_dir,
-        paper_subset_override=args.paper_subset,
-        api_base=args.api_base,
-        api_key=args.api_key,
+        ocr_dir=params.get("ocr_dir"),
+        paper_subset_override=params.get("paper_subset"),
+        api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
+        api_key=params.get("api_key", "EMPTY"),
     )
 
 
