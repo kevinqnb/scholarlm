@@ -181,9 +181,12 @@ data/experiments/*/*
 
 # experiments/results/ is the new-framework counterpart of data/experiments/
 # above -- same rule: heavy pipeline output (checkpoints, final.json,
-# responses.json, activations.npz, ...), never committed. Add `!`-exceptions
-# here the same way data/experiments/ does below, on a case-by-case basis,
-# and only after checking with the user first.
+# responses.json, activations.npz, ...), never committed. Unlike
+# data/experiments/ (whose two `!`-exceptions below predate this tree and are
+# left as-is, untouched), NO exceptions are carved out here -- confirmed with
+# the user 2026-09-12: even the results this migration backfills from those
+# same two exception paths stay ignored in their new experiments/results/
+# location.
 experiments/results/*/*
 
 data/pond/pdfs/*.pdf
