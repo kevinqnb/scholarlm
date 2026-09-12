@@ -105,6 +105,49 @@ params:
     headline_metric: SmECE
     output: results/calibration_pond_ablation1_gpt-oss-120b_2026_05_03_v2.csv
     entry_point: <scratchpad>/calibration_ablation1_pond.py (session-local; not committed -- see devlog if promoted)
+    results:
+      # 4285 total rows; 2255 dropped (47 of the probe's 48 train docs
+      # present in ablation1); 2030 held-out rows scored. PROVISIONAL --
+      # see caveats.gptoss_judge_settings above.
+      n_kept: 2030
+      docs_dropped: 47
+      observed_prevalence_judgement_combined: 0.9645
+      probe:
+        train_prevalence: 0.4996
+        auroc: 0.8193                              # unaffected by pi_te (monotonic rescale)
+        auroc_shuffled: 0.5309
+        pi_te_0.5:  { smece: 0.2020, ci: [0.1904, 0.2136], smece_shuffled: 0.2019 }
+        pi_te_0.85: { smece: 0.0358, ci: [0.0278, 0.0439], smece_shuffled: 0.0448 }
+      ntp:
+        train_prevalence: 0.4996
+        auroc: 0.8056
+        auroc_shuffled: 0.4887
+        pi_te_0.5:  { smece: 0.1909, ci: [0.1781, 0.2038], smece_shuffled: 0.1947 }
+        pi_te_0.85: { smece: 0.0430, ci: [0.0359, 0.0501], smece_shuffled: 0.0677 }
+      hypothesis_note: >-
+        Hypothesis was SmECE <= 0.10. FAILS at pi_te=0.5 for both probe and
+        NTP (~0.19-0.20, ~2x threshold) -- unsurprising since pi_te=0.5 is
+        close to a no-op relative to the calibrator's own train_prevalence
+        (0.4996) while the observed validity rate on ablation1 is 0.9645, a
+        large label-shift the raw calibrated output doesn't account for.
+        HOLDS at pi_te=0.85 for both (0.036, 0.043) -- intercept-adjusting
+        toward the higher assumed prevalence closes most, but consistent
+        with 0.85 still undershooting the true 0.9645 rate, not all, of the
+        gap.
+      shuffled_label_caveat: >-
+        AUROC on shuffled labels collapses to ~chance as expected (0.53,
+        0.49), confirming the permutation destroyed the real discriminative
+        signal. SmECE on shuffled labels does NOT collapse comparably at
+        pi_te=0.5 (0.2019 vs 0.2020 unshuffled for probe -- effectively
+        identical) and only partially at pi_te=0.85 (probe: 0.0448 vs
+        0.0358; NTP: 0.0677 vs 0.0430). This is an expected property of
+        marginal-calibration metrics under extreme class imbalance (96.45%
+        positive): a predictor with zero ranking information can still look
+        "calibrated" if its output density sits near the base rate, since
+        almost any random label ordering has a similar local positive rate
+        almost everywhere. AUROC, not SmECE, is the discriminating signal in
+        this shuffled-label control at this prevalence -- worth keeping in
+        mind before reading SmECE alone as evidence against leakage.
 
   # ── Non-destructive snapshot (taken before the combine job runs) ─────────
   snapshot:
@@ -200,12 +243,51 @@ params:
     smoke_abl1_gptoss: 7530165
     smoke_abl1_qwen72: 7530167
     smoke_abl1_llama70: 7530168
-    # rung 4, submitted 2026-09-11 16:52-16:53
-    judge_abl1_gptoss:  7532056
-    judge_abl1_qwen72:  7532057
-    judge_abl1_llama70: 7532058
-    judge_interp_abl1:  7532059
-    judge_combine_abl1: 7532064   # hold_jid 7532056,7532057,7532058,7532059
+    # rung 4, submitted 2026-09-11 16:52-16:53, all exit_status 0
+    judge_abl1_gptoss:  7532056   # ran 16:55:58-17:15:16 -- see caveats.gptoss_judge_settings below
+    judge_abl1_qwen72:  7532057   # ran 17:16:11-17:32:20
+    judge_abl1_llama70: 7532058   # ran 17:32:34-17:47:01
+    judge_interp_abl1:  7532059   # ran 16:53:58-20:22:35
+    judge_combine_abl1: 7532064   # hold_jid 7532056,7532057,7532058,7532059; ran 20:23:09-20:23:33
+                                   # combined 4285 records (4048 valid, 237 invalid)
+
+  # ── Caveat: gpt-oss-120b judge settings superseded mid-run ───────────────
+  # A PARALLEL session (2026-09-11-supermat-fulltext-judge-01) committed
+  # 30f8e79 (2026-09-11 20:05:44) while judge_abl1_gptoss (7532056) was
+  # already running/finished: reasoning_effort "low"->"medium",
+  # max_tokens 16384->8192, temperature 0.0->0.2, +seed=342, for gpt-oss-120b
+  # specifically. Root cause there: greedy decoding (temp=0.0) occasionally
+  # entered a degenerate repetition loop under the full-paper judge, causing
+  # a thin, run-to-run-shifting tail of truncated/empty completions that
+  # neither of two earlier token-budget-side fixes (23c111c, b2a1b0f)
+  # eliminated. That commit's message states explicitly: "invalidates every
+  # prior gpt-oss-120b judge number, superseding both 23c111c and b2a1b0f
+  # from earlier today."
+  #
+  # job_abl1_gptoss (7532056) ran 16:55:58-17:15:16, AFTER b2a1b0f
+  # (16:34:32, max_tokens->16384) but BEFORE 30f8e79 (20:05:44) -- i.e. under
+  # the second, still-superseded fix (reasoning_effort=low, max_tokens=16384,
+  # temperature=0.0), not the current settings. Verified against qacct
+  # start/end times and `git log --format=%ad` for run_judge_local.py, not
+  # assumed.
+  #
+  # It did NOT crash (exit_status 0, all 4285 pond rows judged) -- _judge_one
+  # fails loud on exactly the truncation failure mode described in 30f8e79,
+  # so this run did not hit it. But per this repo's own eval-change rule
+  # ("invalidates every prior number computed with the old version"), the
+  # gpt-oss-120b vote here was computed under now-superseded settings.
+  #
+  # User decision 2026-09-12 (asked via AskUserQuestion): KEEP the current
+  # numbers, flagged PROVISIONAL rather than re-run. judgement_combined (and
+  # therefore every calibration number below) inherits this caveat. If this
+  # result is used past /debrief, re-run judge_abl1_gptoss under current
+  # run_judge_local.py settings, re-combine, and re-run the calibration
+  # script before treating the numbers as final.
+  caveats:
+    gptoss_judge_settings:
+      status: PROVISIONAL
+      affects: [judgement_combined, all calibration.smece/auroc numbers below]
+      resolution: "re-run judge_abl1_gptoss under current run_judge_local.py + re-combine + re-run calibration, if promoted past /debrief"
 
   code:
     # this session, branch diff-experiments
