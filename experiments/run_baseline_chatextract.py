@@ -3,11 +3,11 @@ ChatExtract baseline runner.
 
 Runs the ChatExtract extraction baseline (Polak & Morgan, Nat. Commun. 2024;
 arXiv:2303.05352) for any registered dataset, on any registered backbone model,
-writing results to the *standard extraction path* so it can be loaded and
-compared against MeasurementLM using the existing analysis code with no
-modification:
+writing to:
 
-    data/experiments/{dataset}/extraction/chatextract-{model}/{YYYY_mm_dd}/final.json
+    experiments/results/{dataset}/baseline_chatextract/{experiment_id}/final.json
+
+(id-addressed, like every other Tier-1 type.)
 
 Unlike the NuExtract baseline, ChatExtract is a *text-based* method: it reads the
 OCR'd `<page>/<table>` tagged text (same input as MeasurementLM / run_extraction),
@@ -15,23 +15,21 @@ so it does NOT require `experiments/process_pdfs.py`. It is a multi-turn
 conversational method — classify each sentence, gate single vs. multiple values,
 extract Material/Value/Unit, then verify each field with redundant strict yes/no
 questions — run once per dataset attribute (see `measurementlm_chatextract.py`).
-Because it wraps an ordinary chat model, `--model` selects any entry from the
-standard `MODEL_REGISTRY`, so ChatExtract can be run on the same backbones as
-MeasurementLM for a fair same-model comparison.
+Because it wraps an ordinary chat model, `model` selects any entry under
+experiments/model-configs/extraction/, so ChatExtract can be run on the same
+backbones as MeasurementLM for a fair same-model comparison.
 
 Usage
 -----
-    # From the repo root, against a vLLM server hosting the chosen model:
-    python experiments/run_baseline_chatextract.py --dataset pond --model gemma-3-27b
-    python experiments/run_baseline_chatextract.py --dataset pond --model gemma-3-27b \\
-        --paper-subset agricultural_freshwater --api-base http://localhost:8000/v1
+    python experiments/run_baseline_chatextract.py experiments/experiment-configs/pond/baseline_chatextract/<id>/<id>.yaml
 
-    # Feed pre-cleaned OCR (captioned tables), and toggle the workflows if desired:
-    python experiments/run_baseline_chatextract.py --dataset nfix --model gemma-3-27b \\
-        --ocr-dir data/nfix/ocr_output_cleaned_qwen-3.5-27b --no-tables --single-verification
+Required params: dataset.
+Optional params: model (default: gemma-3-27b), paper_subset (list), ocr_dir,
+api_base, api_key, max_concurrent (default 32), extract_tables (default true),
+single_verification (default false).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
-Available models: any entry in MODEL_REGISTRY (experiments/model_registry.py).
+Available models: any file in experiments/model-configs/extraction/<name>.yaml.
 """
 from __future__ import annotations
 
@@ -178,104 +176,39 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        default="gemma-3-27b",
-        help="Backbone model name (must match an entry in MODEL_REGISTRY). Default: gemma-3-27b.",
-    )
-    p.add_argument(
-        "--date",
-        default=None,
-        help="Output date tag YYYY_mm_dd (default: today).",
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Override dataset paper_subset with an explicit list of paper codes.",
-    )
-    p.add_argument(
-        "--ocr-dir",
-        default=None,
-        metavar="DIR",
-        help=(
-            "Directory of OCR .txt files to use as input (e.g. a pre-cleaned "
-            "ocr_output_cleaned_{model} directory). If omitted, raw OCR is loaded "
-            "from {data_dir}/ocr_output_raw/. ChatExtract does no table cleaning of "
-            "its own, so pass this to feed it the same cleaned tables MeasurementLM uses."
-        ),
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8000/v1",
-        metavar="URL",
-        help=(
-            "Base URL of the vLLM OpenAI-compatible server hosting the backbone model "
-            "(default: http://localhost:8000/v1). Ignored for frontier models, which "
-            "use their registered api_base."
-        ),
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key (any non-empty string for vLLM; resolved from env for frontier).",
-    )
-    p.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=32,
-        help=(
-            "Maximum concurrent in-flight conversations (default: 32). Each conversation "
-            "is a whole sentence/table dialogue, so most turns after classification are skipped."
-        ),
-    )
-    p.add_argument(
-        "--no-tables",
-        action="store_true",
-        help="Disable the real-document-table extraction workflow (sentences only).",
-    )
-    p.add_argument(
-        "--single-verification",
-        action="store_true",
-        help=(
-            "Enable strict yes/no verification of the single-valued branch. OFF by "
-            "default to match the reference script, which verifies only the "
-            "multi-valued branch; this is a non-faithful ablation."
-        ),
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-    model_config = get_model_config(args.model)
-    output_dir = paths.extraction(args.dataset, f"chatextract-{args.model}", args.date)
+    model_name = params.get("model", "gemma-3-27b")
+    dataset_config = load_dataset_config(params["dataset"])
+    model_config = get_model_config(model_name)
+    output_dir = paths.result_dir(params["dataset"], "baseline_chatextract", cfg["id"])
 
     run_baseline_chatextract(
         dataset_config=dataset_config,
         model_config=model_config,
         output_dir=output_dir,
-        paper_subset_override=args.paper_subset,
-        ocr_dir=args.ocr_dir,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        max_concurrent=args.max_concurrent,
-        extract_tables=not args.no_tables,
-        include_single_verification=args.single_verification,
+        paper_subset_override=params.get("paper_subset"),
+        ocr_dir=params.get("ocr_dir"),
+        api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
+        api_key=params.get("api_key", "EMPTY"),
+        max_concurrent=params.get("max_concurrent", 32),
+        extract_tables=params.get("extract_tables", True),
+        include_single_verification=params.get("single_verification", False),
     )
 
 

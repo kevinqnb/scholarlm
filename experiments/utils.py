@@ -24,6 +24,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +33,8 @@ from typing import Any, Literal
 import yaml
 
 _REPO_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+from scholarlm.config import ModelConfig
 _CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
 # ---------------------------------------------------------------------------
@@ -960,6 +963,34 @@ def load_model_config(kind: str, model_name: str) -> dict:
         )
     with open(path) as f:
         return yaml.safe_load(f)
+
+
+def get_model_config(kind: str, model_name: str) -> ModelConfig:
+    """Load a model-config and wrap it as a ``scholarlm.config.ModelConfig``.
+
+    Every extraction-shaped runner (extraction, ablation, table_cleaning,
+    the baseline runners) works in terms of this dataclass
+    (``.model_id``, ``.sampling_params``, ``.api_base``, ...) rather than a
+    raw dict -- this is the one place that bridges the two, so the internal
+    pipeline code (MeasurementLM(...) and friends) never needed to change
+    when model sourcing moved from model_registry.py's Python dict to
+    experiments/model-configs/ yaml files.
+
+    Args:
+        kind: model-configs subdirectory (extraction, baseline, ...).
+        model_name: The model's key (matches the yaml filename stem).
+
+    Raises:
+        FileNotFoundError: If no such model-config file exists.
+    """
+    d = load_model_config(kind, model_name)
+    return ModelConfig(
+        name=model_name,
+        model_id=d["model_id"],
+        hf_revision=d.get("hf_revision"),
+        sampling_params=d.get("sampling_params", {}),
+        api_base=d.get("api_base"),
+    )
 
 
 def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -> GpuNeed:

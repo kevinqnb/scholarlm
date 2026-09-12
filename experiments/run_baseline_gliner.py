@@ -2,34 +2,39 @@
 GLiNER2 baseline runner.
 
 Runs the GLiNER2 structured-extraction baseline (Fastino AI, EMNLP 2025;
-``fastino/gliner2-{base,large}-v1``) for any registered dataset, writing results
-to the *standard extraction path* so it can be loaded and compared against
-MeasurementLM using the existing analysis code with no modification:
+``fastino/gliner2-{base,large}-v1``) for any registered dataset, writing to:
 
-    data/experiments/{dataset}/extraction/{gliner-model}/{YYYY_mm_dd}/final.json
+    experiments/results/{dataset}/baseline_gliner/{experiment_id}/final.json
+
+(id-addressed, like every other Tier-1 type -- not the old
+data/experiments/{dataset}/extraction/{gliner-model}/{date}/ convention this
+runner previously wrote to specifically so analysis code could load it
+unmodified; that tradeoff now applies uniformly across every runner, not
+just this one, see the run_ablation.py/run_table_cleaning.py commits.)
 
 Like the ChatExtract baseline (and unlike NuExtract), GLiNER2 is a *text-based*
 method: it reads the OCR'd `<page>/<table>` tagged text (same input as
 MeasurementLM / run_extraction), so it does NOT require `experiments/process_pdfs.py`.
 Unlike every other runner, GLiNER2 is a small local encoder model loaded directly
 via `GLiNER2.from_pretrained(...)` — there is **no vLLM / OpenAI-compatible
-server**, so this runner takes no `--api-base`/`--api-key`. It runs one structured
+server**, so this runner takes no api_base/api_key params. It runs one structured
 schema per dataset attribute (see `measurementlm_gliner.py`), tuned by
-`--threshold` (precision/recall) rather than a generation temperature.
+`threshold` (precision/recall) rather than a generation temperature.
 
 Usage
 -----
-    # From the repo root (first run downloads the model from HuggingFace):
-    python experiments/run_baseline_gliner.py --dataset pond
-    python experiments/run_baseline_gliner.py --dataset pond --model gliner-base-v1
-    python experiments/run_baseline_gliner.py --dataset nfix \\
-        --paper-subset physical_and_chemical_limnological --threshold 0.4
+    python experiments/run_baseline_gliner.py experiments/experiment-configs/pond/baseline_gliner/<id>/<id>.yaml
+
+Required params: dataset.
+Optional params: model (default: gliner-large-v1; also: gliner-base-v1),
+paper_subset (list), threshold (default 0.5), batch_size (default 8), device.
 
 Requires the optional `gliner2[local]` dependency (installed via the `gpu` extra:
 `uv sync --extra gpu`, or `pip install "gliner2[local]"`).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
-Available models: gliner-large-v1 (default), gliner-base-v1.
+Available models: any file in experiments/model-configs/baseline/<name>.yaml
+(gliner-large-v1, gliner-base-v1).
 """
 from __future__ import annotations
 
@@ -51,7 +56,6 @@ from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.measurementlm_gliner import MeasurementLMGliner
 
 from run_extraction import load_dataset_config, load_papers
-from model_registry import BASELINE_MODEL_REGISTRY
 import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
@@ -149,70 +153,32 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        default="gliner-large-v1",
-        choices=["gliner-large-v1", "gliner-base-v1"],
-        help="GLiNER model (must match a BASELINE_MODEL_REGISTRY entry). Default: gliner-large-v1.",
-    )
-    p.add_argument(
-        "--date",
-        default=None,
-        help="Output date tag YYYY_mm_dd (default: today).",
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Override dataset paper_subset with an explicit list of paper codes.",
-    )
-    p.add_argument(
-        "--threshold",
-        type=float,
-        default=0.5,
-        help="GLiNER confidence threshold in [0, 1] (default: 0.5). Lower = higher recall.",
-    )
-    p.add_argument(
-        "--batch-size",
-        type=int,
-        default=8,
-        help="GLiNER chunk batch size (default: 8).",
-    )
-    p.add_argument(
-        "--device",
-        default=None,
-        metavar="DEVICE",
-        help="Torch device / map_location for GLiNER (e.g. 'cuda', 'cpu'). Default: auto.",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-    model_config = BASELINE_MODEL_REGISTRY[args.model]
-    output_dir = paths.extraction(args.dataset, args.model, args.date)
+    model_name = params.get("model", "gliner-large-v1")
+    dataset_config = load_dataset_config(params["dataset"])
+    model_config = paths.get_model_config("baseline", model_name)
+    output_dir = paths.result_dir(params["dataset"], "baseline_gliner", cfg["id"])
 
     run_baseline_gliner(
         dataset_config=dataset_config,
         model_config=model_config,
         output_dir=output_dir,
-        paper_subset_override=args.paper_subset,
-        threshold=args.threshold,
-        batch_size=args.batch_size,
-        device=args.device,
+        paper_subset_override=params.get("paper_subset"),
+        threshold=params.get("threshold", 0.5),
+        batch_size=params.get("batch_size", 8),
+        device=params.get("device"),
     )
 
 

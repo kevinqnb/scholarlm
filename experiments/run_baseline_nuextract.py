@@ -2,11 +2,11 @@
 NuExtract-2.0-8B baseline runner.
 
 Runs the NuExtract-2.0-8B extraction baseline for any registered dataset,
-writing results to the *standard extraction path* so it can be loaded and
-compared against MeasurementLM using the existing analysis code with no
-modification:
+writing to:
 
-    data/experiments/{dataset}/extraction/nuextract-2.0-8b/{YYYY_mm_dd}/final.json
+    experiments/results/{dataset}/baseline_nuextract/{experiment_id}/final.json
+
+(id-addressed, like every other Tier-1 type.)
 
 Unlike run_extraction.py / run_ablation.py, this runner does not consume OCR
 text — NuExtract-2.0-8B is a vision-language model that reads rendered page
@@ -23,17 +23,10 @@ one call per document — expect one API call per page, not per paper.
 
 Usage
 -----
-    # From the repo root:
-    python experiments/run_baseline_nuextract.py --dataset pond
-    python experiments/run_baseline_nuextract.py --dataset nfix \\
-        --paper-subset physical_and_chemical_limnological
+    python experiments/run_baseline_nuextract.py experiments/experiment-configs/pond/baseline_nuextract/<id>/<id>.yaml
 
-    # Point at a vLLM server hosting NuExtract-2.0-8B (see experiments/config.yaml's
-    # nuextract-2.0-8b entry and experiments/serve_nuextract_2_0_8b.sh, generated via
-    # `python experiments/gen_serve_script.py nuextract-2.0-8b`):
-    #   vllm serve numind/NuExtract-2.0-8B --trust-remote-code \\
-    #       --chat-template-content-format openai --limit-mm-per-prompt '{"image": 1}'
-    python experiments/run_baseline_nuextract.py --dataset pond --api-base http://localhost:8081/v1
+Required params: dataset.
+Optional params: paper_subset (list), api_base, api_key, max_concurrent (default 16).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
@@ -57,7 +50,6 @@ from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.measurementlm_nuextract import MeasurementLMNuExtract
 
 from run_extraction import load_dataset_config, load_papers
-from model_registry import BASELINE_MODEL_REGISTRY
 import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
@@ -92,7 +84,7 @@ def run_baseline_nuextract(
         api_key: API key for the vLLM server (any non-empty string works).
         max_concurrent: Maximum concurrent in-flight requests.
     """
-    model_config = BASELINE_MODEL_REGISTRY["nuextract-2.0-8b"]
+    model_config = paths.get_model_config("baseline", "nuextract-2.0-8b")
     data_dir = Path(dataset_config.data_dir)
 
     if dataset_config.direct_extraction_schema is None:
@@ -178,69 +170,33 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/dataset-configs/<name>.py).",
-    )
-    p.add_argument(
-        "--date",
-        default=None,
-        help="Output date tag YYYY_mm_dd (default: today).",
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Override dataset paper_subset with an explicit list of paper codes.",
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8081/v1",
-        metavar="URL",
-        help=(
-            "Base URL of the vLLM OpenAI-compatible server hosting NuExtract-2.0-8B "
-            "(default: http://localhost:8081/v1)."
-        ),
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
-    )
-    p.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=16,
-        help=(
-            "Maximum concurrent in-flight requests (default: 16). Each request is now "
-            "a single page image, not a whole document, so this can run higher than "
-            "a typical whole-document baseline."
-        ),
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-    output_dir = paths.extraction(args.dataset, "nuextract-2.0-8b", args.date)
+    dataset_config = load_dataset_config(params["dataset"])
+    output_dir = paths.result_dir(params["dataset"], "baseline_nuextract", cfg["id"])
 
     run_baseline_nuextract(
         dataset_config=dataset_config,
         output_dir=output_dir,
-        paper_subset_override=args.paper_subset,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        max_concurrent=args.max_concurrent,
+        paper_subset_override=params.get("paper_subset"),
+        api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
+        api_key=params.get("api_key", "EMPTY"),
+        max_concurrent=params.get("max_concurrent", 16),
     )
 
 
