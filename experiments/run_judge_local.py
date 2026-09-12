@@ -87,46 +87,58 @@ async def _judge_one(
     as a non-affirmative vote, so a silently-dropped request would bias the
     majority-vote ground truth without leaving a trace.
     """
-    # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/
-    # high, default "medium" if omitted). Pinned to "low" here, matching the
-    # precedent in src/scholarlm/utils/probe_augment.py (same model, same
-    # symptom): at the default effort, the analysis channel can exhaust
-    # max_tokens before the model reaches a verdict -- finish_reason='length'
-    # with an empty message, which this function then fails loud on (e.g.
-    # 3/3882 supermat rows, all from one long review paper, under the
-    # full-paper judge -- run_judge_local job 7527735, 2026-09-11). Other
-    # judges have no such template variable and are unaffected.
-    extra_body = {"chat_template_kwargs": {"reasoning_effort": "low"}} if "gpt-oss" in model_id else None
+    # gpt-oss-120b history this session (2026-09-11,
+    # 2026-09-11-supermat-fulltext-judge-01): under the supermat full-paper
+    # judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING
+    # tail of rows (finish_reason='length', empty completion) no matter how
+    # the token budget was adjusted -- 3/3882 rows at the harmony chat
+    # template's "medium" reasoning_effort default (job 7527735); 2/3882
+    # *different* rows (one from a comparatively short paper, ruling out a
+    # pure document-length effect) after pinning reasoning_effort="low"
+    # (job 7530223); 1/3882 yet another row after also raising max_tokens
+    # 8192->16384 (job 7531883). Two token-budget-side fixes each reduced
+    # but never eliminated the failure, and a different specific row failed
+    # each time under otherwise-identical settings -- symptoms of greedy
+    # decoding occasionally entering a degenerate repetition loop (a known
+    # reasoning-model failure mode), not a genuine token shortage.
+    # Moving temperature to 0.2 (with reasoning_effort back at "medium" and
+    # max_tokens back at 8192 -- neither budget-side fix was doing the real
+    # work) resolved every one of the 6 rows that had failed across all
+    # three prior attempts, each well under the 8192 cap (diagnostic job
+    # 7532192). `seed=342` is set for reproducibility, but that has NOT yet
+    # been empirically re-verified the way pond's temperature=0.0
+    # seed-determinism control was -- deliberately deferred to a separate
+    # /develop session per an explicit user decision, not blocking this
+    # run. Other judges have no `reasoning_effort` template variable, stay
+    # at temperature=0.0, and are unaffected.
+    is_gpt_oss = "gpt-oss" in model_id
+    extra_body = {"chat_template_kwargs": {"reasoning_effort": "medium"}} if is_gpt_oss else None
+    temperature = 0.2 if is_gpt_oss else 0.0
+    seed = 342 if is_gpt_oss else None
 
     async with sem:
         try:
-            response = await client.chat.completions.create(
+            kwargs: dict = dict(
                 model=model_id,
                 messages=[
                     {"role": "system", "content": entry["system"]},
                     {"role": "user", "content": entry["user"]},
                 ],
-                # 16384 (was 8192, was 2048): reasoning models (gpt-oss-120b)
-                # emit a long analysis channel before the verdict. 2048
-                # truncated it on ~0.5% of pond rows (fixed by the 8192 bump,
-                # commit 7fcf19d). Under the supermat full-paper judge, 8192
-                # still truncated it (finish_reason='length', empty
-                # completion) even after pinning reasoning_effort="low"
-                # above (job 7527735: 3/3882 rows at the "medium" default;
-                # job 7530223: 2/3882 *different* rows at "low", one from a
-                # comparatively short paper -- not purely a document-length
-                # effect, and the shifted row set across runs is consistent
-                # with vLLM continuous-batching introducing small run-to-run
-                # nondeterminism at temperature=0). "low" reasoning_effort
-                # cuts typical reasoning length but doesn't cap it, so a thin
-                # tail of unusually hard rows can still exceed 8192; 16384
-                # gives that tail headroom without relying on effort alone.
+                # 8192: reasoning models (gpt-oss-120b) emit a long analysis
+                # channel before the verdict; 2048 truncated it on ~0.5% of
+                # pond rows (fixed by the 8192 bump, commit 7fcf19d). See the
+                # comment above `is_gpt_oss` for why gpt-oss-120b's remaining
+                # supermat truncations were a temperature issue, not a
+                # max_tokens issue -- this cap is unchanged from 7fcf19d.
                 # Non-reasoning judges are unaffected (they stop far short of
-                # either cap).
-                max_tokens=16384,
-                temperature=0.0,
+                # this cap).
+                max_tokens=8192,
+                temperature=temperature,
                 extra_body=extra_body,
             )
+            if seed is not None:
+                kwargs["seed"] = seed
+            response = await client.chat.completions.create(**kwargs)
         except Exception as e:
             raise RuntimeError(
                 f"[idx={idx}] judge API call failed: {type(e).__name__}: {e}"
