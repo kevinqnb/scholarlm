@@ -96,8 +96,15 @@ params:
       check: "rung 2/3 smoke prediction on measurement_id 26 vs 3363 (see above)"
       expected: "26 -> valid, 3363 -> invalid"
     seed_determinism:
+      status: DEFERRED (gpt-oss-120b only; qwen-2.5-72b and llama-3.3-70b stayed at temperature=0.0, unaffected)
       check: "re-run judge_smoke_check.sh for one model a second time (same 3 requests) and diff responses text"
-      expected: "byte-identical model responses (temperature=0.0, fixed seed=342)"
+      expected: "byte-identical model responses (temperature=0.0, fixed seed=342) -- true as originally
+        written for qwen-2.5-72b / llama-3.3-70b. NOT re-verified for gpt-oss-120b after commit 30f8e79
+        moved it to temperature=0.2 + seed=342 -- explicit `seed` gives sampling reproducibility for an
+        isolated request, but continuous-batching floating-point nondeterminism (the same effect
+        implicated in the temperature=0.0 truncation failures) could still perturb results run-to-run.
+        Per explicit user direction (2026-09-11): re-verification deferred to a separate /develop
+        session, not blocking this run. Known gap for the read at /debrief."
     shuffled_label_document_swap:
       status: DEFERRED
       note: >-
@@ -157,8 +164,18 @@ params:
                                            # attempt1 (chu2009high-CC + ivanovskii2008newHigh), one from a
                                            # short paper -- reasoning_effort=low helped (3->2) but didn't
                                            # eliminate it; see run_judge_local.py's updated comment
-    judge_real_gptoss: 7531883   # retry under reasoning_effort="low" + max_tokens=16384 (commit b2a1b0f)
-    judge_combine_supermat: null   # submitted manually only after 7531883 is confirmed exit 0 + 3882 rows
+    judge_real_gptoss_attempt4: 7531883   # reasoning_effort="low" + max_tokens=16384 (b2a1b0f) --
+                                           # FAILED exit 1: 1/3882 rows (ivanovskii2008newHigh, yet
+                                           # another row). Root cause identified as temperature=0.0
+                                           # greedy decoding occasionally looping, not token budget --
+                                           # see run_judge_local.py's updated comment and commit 30f8e79.
+                                           # Diagnostic (7532192) confirmed temp=0.2 + reasoning_effort
+                                           # back at "medium" + max_tokens back at 8192 resolves all 6
+                                           # rows that had failed across attempts 1/3/4.
+    judge_real_gptoss: 7533858   # retry under temperature=0.2 + seed=342 (commit 30f8e79). Per explicit
+                                  # user direction: reproducibility at temp>0 is NOT re-verified here --
+                                  # deferred to a separate /develop session, not blocking this run.
+    judge_combine_supermat: null   # submitted manually only after 7533858 is confirmed exit 0 + 3882 rows
 
   code:
     # this session, branch diff-experiments
