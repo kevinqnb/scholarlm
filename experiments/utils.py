@@ -1013,3 +1013,165 @@ def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -
         "NNsight or encoder model, add a `resources:` block "
         "(gpu_memory/gpu_capability/walltime/omp) before submitting it."
     )
+
+
+# ===========================================================================
+# Experiment-config loading + job resolution
+#
+# Used by experiments/submit.sh (via the thin experiments/_resolve_job.py CLI
+# shim) and by experiments/run_{type}.py runners once they take a config path
+# directly. Ties together dataset-configs/model-configs/experiment-configs
+# addressing into one "given an experiment id, what do I run and how do I
+# resource it" answer.
+# ===========================================================================
+
+# Tier-1 experiment types: each maps 1:1 to a run_{type}.py runner and gets
+# full submit.sh automation. `model_kind` names the model-configs/
+# subdirectory that type's `params.model` is looked up in; None means the
+# runner takes no model-config at all (run_judge_combine.py is pure JSON
+# voting, process_pdfs.py is pure PDF rendering -- neither loads a model).
+#
+# Composite/manual experiment types (probe_calibration, validation_set, ...)
+# are NOT listed here -- they still get an experiment-configs/ directory for
+# the reproducibility record, but no runner/submit.sh automation. See the
+# restructure plan's two-tier taxonomy.
+EXPERIMENT_TYPES: dict[str, dict[str, str | None]] = {
+    "extraction":           {"runner": "run_extraction.py",          "model_kind": "extraction"},
+    "ablation":              {"runner": "run_ablation.py",            "model_kind": "extraction"},
+    "table_cleaning":        {"runner": "run_table_cleaning.py",       "model_kind": "extraction"},
+    "baseline_chatextract":  {"runner": "run_baseline_chatextract.py", "model_kind": "extraction"},
+    "probe_augment":         {"runner": "run_probe_augment.py",        "model_kind": "extraction"},
+    "baseline_gliner":       {"runner": "run_baseline_gliner.py",      "model_kind": "baseline"},
+    "baseline_nuextract":    {"runner": "run_baseline_nuextract.py",   "model_kind": "baseline"},
+    "judge_interp":          {"runner": "run_judge_interp.py",         "model_kind": "interp_judge"},
+    "attribution":           {"runner": "run_attribution.py",          "model_kind": "interp_judge"},
+    "judge_local":           {"runner": "run_judge_local.py",          "model_kind": "vllm_judge"},
+    "jacobian_lens":         {"runner": "run_jacobian_lens.py",        "model_kind": "jacobian_lens"},
+    "representation_lm":     {"runner": "run_representation_lm.py",    "model_kind": "representation_lm"},
+    "ocr":                   {"runner": "run_ocr.py",                  "model_kind": "ocr"},
+    "judge_combine":         {"runner": "run_judge_combine.py",        "model_kind": None},
+    "process_pdfs":          {"runner": "process_pdfs.py",             "model_kind": None},
+}
+
+
+def find_experiment_config(experiment_id: str) -> Path:
+    """Locate experiments/experiment-configs/{dataset}/{type}/{id}/{id}.yaml
+    by id alone.
+
+    Raises:
+        FileNotFoundError: If no matching config exists.
+        ValueError: If more than one matches (an id collision).
+    """
+    if not _EXPERIMENT_ID_RE.match(experiment_id):
+        raise ValueError(
+            f"experiment_id must match YYYY-MM-DD-slug-NN, got {experiment_id!r}"
+        )
+    matches = sorted(
+        EXPERIMENT_CONFIGS_ROOT.glob(f"*/*/{experiment_id}/{experiment_id}.yaml")
+    )
+    if not matches:
+        raise FileNotFoundError(
+            f"No experiment-config found for experiment_id={experiment_id!r} "
+            f"under {EXPERIMENT_CONFIGS_ROOT}"
+        )
+    if len(matches) > 1:
+        raise ValueError(
+            f"experiment_id={experiment_id!r} matches more than one experiment-config "
+            f"(should be globally unique): {matches}"
+        )
+    return matches[0]
+
+
+def load_experiment_config(path: Path) -> dict:
+    """Load and validate an experiment-configs/.../{id}.yaml envelope.
+
+    Enforces the harness contract's standardized envelope (see
+    notes/hub/conventions.md): only ``id``, ``project``, ``description``,
+    ``seed``, and ``params`` are required, ``params`` is a free-form mapping,
+    and ``id`` must match the filename stem.
+
+    Raises:
+        ValueError: If the envelope is malformed.
+    """
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+
+    missing = [k for k in ("id", "project", "description", "seed", "params") if k not in cfg]
+    if missing:
+        raise ValueError(f"{path}: missing required key(s): {missing}")
+    if cfg["id"] != path.stem:
+        raise ValueError(
+            f"{path}: id {cfg['id']!r} does not match filename stem {path.stem!r}"
+        )
+    if not isinstance(cfg["params"], dict):
+        raise ValueError(f"{path}: params must be a mapping")
+    return cfg
+
+
+def resolve_job(experiment_id: str) -> dict:
+    """Resolve everything needed to submit + run one experiment.
+
+    Locates the experiment's config by id, determines its dataset and
+    experiment-type from the config's own path (not a redundant field inside
+    the yaml -- the directory placement already encodes it), and -- for
+    experiment-types that use a model -- loads and classifies that model's
+    config too.
+
+    Args:
+        experiment_id: An experiment id (``YYYY-MM-DD-slug-NN``).
+
+    Returns:
+        Dict with keys: ``id``, ``dataset``, ``experiment_type``, ``runner``
+        (script filename), ``config_path``, ``params`` (the config's own
+        params mapping), ``gpu_need`` (``"vllm_server"`` | ``"direct_gpu"`` |
+        ``"none"``), ``model`` (model name, or absent if ``gpu_need`` is
+        ``"none"`` with no model at all), and ``model_config`` (the loaded
+        model-config dict, or ``None``).
+
+    Raises:
+        FileNotFoundError: If no config exists for this id.
+        ValueError: If the config, its experiment-type, or its model-config
+            is malformed or missing required fields.
+    """
+    config_path = find_experiment_config(experiment_id)
+    dataset, experiment_type = config_path.parts[-4], config_path.parts[-3]
+
+    if experiment_type not in EXPERIMENT_TYPES:
+        raise ValueError(
+            f"{config_path}: experiment-type {experiment_type!r} (from its own "
+            f"directory path) has no run_{{type}}.py automation -- known "
+            f"automated types: {sorted(EXPERIMENT_TYPES)}. Composite/manual "
+            "experiment-types are not runnable through submit.sh."
+        )
+    type_info = EXPERIMENT_TYPES[experiment_type]
+    cfg = load_experiment_config(config_path)
+    params = cfg["params"]
+
+    result: dict[str, Any] = {
+        "id": experiment_id,
+        "dataset": dataset,
+        "experiment_type": experiment_type,
+        "runner": type_info["runner"],
+        "config_path": config_path,
+        "params": params,
+    }
+
+    model_kind = type_info["model_kind"]
+    if model_kind is None:
+        result["gpu_need"] = "none"
+        result["model_config"] = None
+        return result
+
+    if "model" not in params:
+        raise ValueError(
+            f"{config_path}: params.model is required for experiment-type "
+            f"{experiment_type!r}"
+        )
+    model_name = params["model"]
+    model_config = load_model_config(model_kind, model_name)
+    gpu_need = classify_gpu_need(model_config, source=f"{model_kind}/{model_name}.yaml")
+
+    result["model"] = model_name
+    result["model_config"] = model_config
+    result["gpu_need"] = gpu_need
+    return result
