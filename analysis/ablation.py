@@ -13,7 +13,7 @@ from analysis.loaders import load_extraction, load_ablation, load_combined_judge
 from analysis.metrics import recovery_rate, validity_rate
 from experiments.run_extraction import load_dataset_config
 from scholarlm.utils.unit_conversion import apply_unit_conversion
-import paths
+import utils as paths
 
 def get_matching_rules(dataset):
     """Get strict matching, fuzzy matching, and fuzzy threshold based on dataset type."""

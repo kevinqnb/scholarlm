@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "experiments"))
-import paths
+import utils as paths
 
 # Categorical palette — dataviz skill reference palette, first 3 slots
 # (pre-validated all-pairs, light mode). Fixed order, not cycled.

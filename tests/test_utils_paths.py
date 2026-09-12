@@ -1,4 +1,4 @@
-"""Unit tests for experiments/paths.py's ablation-aware judge-output readers.
+"""Unit tests for experiments/utils.py's ablation-aware judge-output readers.
 
 find_activations / find_layer_outputs / find_judge_responses previously lacked
 the `ablation` parameter that judge()/judge_base() (and find_extraction_final/
@@ -17,7 +17,7 @@ import pytest
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 
-import paths
+import utils as paths
 
 
 @pytest.fixture

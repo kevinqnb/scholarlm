@@ -28,7 +28,7 @@ _REPO = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
-import paths  # noqa: E402
+import utils as paths  # noqa: E402
 from analysis import loaders  # noqa: E402
 from analysis import synthetic_probe_train as spt  # noqa: E402
 

@@ -62,7 +62,7 @@ from scholarlm.config import DatasetConfig
 
 from model_registry import JACOBIAN_LENS_REGISTRY
 from run_extraction import load_dataset_config
-import paths
+import utils as paths
 from utils import set_seeds, write_run_metadata
 
 

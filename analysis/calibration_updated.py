@@ -33,7 +33,7 @@ from scholarlm.utils.calibration import (
 )
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
-import paths
+import utils as paths
 
 mpl.rcParams.update({
     "font.family": "serif",

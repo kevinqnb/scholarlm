@@ -1302,31 +1302,31 @@ def test_prepare_chat_entries_override_is_per_row():
     assert by_mid[1]["context_text"] == docs["X"]         # non-override row → full paper
 
 
-# ─── --synthetic-name path routing (experiments/paths.py) ─────────────────────
+# ─── --synthetic-name path routing (experiments/utils.py) ─────────────────────
 
 
 def test_synthetic_probe_named_routes_to_dedicated_tree():
-    import paths
+    import utils as paths
     p = paths.synthetic_probe_named("pond", "v2_diag", "mistral-7b", "2026_09_10")
     assert p.parts[-3:] == ("synthetic_probe_v2_diag", "mistral-7b", "2026_09_10")
 
 
 def test_synthetic_probe_split_vs_name_precedence():
-    import paths
+    import utils as paths
     assert paths.synthetic_probe("pond", "m").parts[-3] == "synthetic_probe"
     assert paths.synthetic_probe_test("pond", "m").parts[-3] == "synthetic_probe_test"
     assert paths.synthetic_probe("pond", "m", name="foo").parts[-3] == "synthetic_probe_foo"
 
 
 def test_synthetic_name_rejects_bad_chars():
-    import paths
+    import utils as paths
     for bad in ("Bad-Name", "has space", "UPPER", "trailing/slash", ""):
         with pytest.raises(ValueError):
             paths.synthetic_probe_named("pond", bad, "m")
 
 
 def test_find_synthetic_carries_name_through(tmp_path, monkeypatch):
-    import paths
+    import utils as paths
     monkeypatch.setattr(paths, "EXPERIMENTS_ROOT", tmp_path)
     run = tmp_path / "pond" / "synthetic_probe_v2_diag" / "mistral-7b" / "2026_09_10"
     run.mkdir(parents=True)

@@ -87,7 +87,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "experiments"))
-import paths
+import utils as paths
 
 
 def _load_unembedding_and_norm(

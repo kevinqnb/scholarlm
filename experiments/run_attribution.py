@@ -83,7 +83,7 @@ import torch
 from scholarlm.attribution import ATTRIBUTION_REGISTRY
 from scholarlm.config import DatasetConfig
 
-import paths
+import utils as paths
 from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 from utils import load_config, set_seeds, write_run_metadata

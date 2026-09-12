@@ -54,7 +54,7 @@ from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.measurementlm_chatextract import MeasurementLMChatExtract
 
 from run_extraction import load_dataset_config, load_papers, get_model_config
-import paths
+import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 

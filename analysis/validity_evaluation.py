@@ -34,7 +34,7 @@ os.chdir(_REPO_ROOT)
 import numpy as np
 import pandas as pd
 
-import paths
+import utils as paths
 from run_extraction import load_dataset_config
 from analysis.loaders import load_ground_truth, cached_match
 from analysis.ablation import get_matching_rules, process_extraction_df

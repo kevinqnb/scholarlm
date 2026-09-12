@@ -412,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
     base_run_json.update(status=status, finished_at=finished_at)
     _write_run_json(run_dir, base_run_json)
 
-    import paths as _paths
+    import utils as _paths
 
     if entry_point == "ablation":
         output_dir = _paths.ablation(params["dataset"], ablation, params["model"], date)

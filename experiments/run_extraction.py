@@ -45,7 +45,7 @@ from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
 from model_registry import MODEL_REGISTRY
-import paths
+import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------

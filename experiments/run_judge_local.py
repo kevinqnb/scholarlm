@@ -63,7 +63,7 @@ from scholarlm.utils import get_filenames_in_directory
 
 from model_registry import VLLM_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
-import paths
+import utils as paths
 from utils import set_seeds, write_run_metadata
 
 

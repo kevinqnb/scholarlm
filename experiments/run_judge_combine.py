@@ -57,7 +57,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 VOTING_JUDGE_KEYS = {"gpt-oss-120b", "llama-3.3-70b", "qwen-2.5-72b"}
 
-import paths
+import utils as paths
 
 
 def _find_judge_result(

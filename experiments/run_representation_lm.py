@@ -66,7 +66,7 @@ import numpy as np
 from scholarlm import RepresentationLM
 from scholarlm.representationlm import find_key_term_occurrences
 
-import paths
+import utils as paths
 from model_registry import REPRESENTATION_LM_REGISTRY
 from run_extraction import load_dataset_config, load_papers
 from utils import load_config, set_seeds, write_run_metadata

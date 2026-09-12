@@ -58,7 +58,7 @@ import matplotlib.pyplot as plt
 from transformers import AutoTokenizer
 from IPython.display import HTML, display
 
-import paths
+import utils as paths
 from scholarlm.utils import judge_prompts
 from run_extraction import load_dataset_config
 from model_registry import JACOBIAN_LENS_REGISTRY

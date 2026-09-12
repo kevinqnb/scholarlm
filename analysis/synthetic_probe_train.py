@@ -29,7 +29,7 @@ from analysis.loaders import (
 )
 from scholarlm.utils.probe import grouped_kfold_split, grouped_holdout_split
 from scholarlm.utils.calibration import compute_ece
-import paths
+import utils as paths
 
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)

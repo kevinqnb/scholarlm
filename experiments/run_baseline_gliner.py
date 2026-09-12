@@ -52,7 +52,7 @@ from scholarlm.measurementlm_gliner import MeasurementLMGliner
 
 from run_extraction import load_dataset_config, load_papers
 from model_registry import BASELINE_MODEL_REGISTRY
-import paths
+import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 
