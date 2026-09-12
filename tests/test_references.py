@@ -99,3 +99,94 @@ def test_bare_uppercase_heading_without_number_prefix_matches():
     doc = 'Body text.\nBIBLIOGRAPHY\nCitation one.\n'
     dropped = drop_references_section(doc)
     assert dropped == 'Body text.\n'
+
+
+# ---------------------------------------------------------------------------
+# chandra div-encoded reference headings the two heading-text regexes miss
+# (see 2026-09-01-chandra-unknown-label-fallback-01.md).
+# ---------------------------------------------------------------------------
+
+BIBLIO_DIV_DOC = (
+    '<page number="0">\n\n'
+    '<div data-bbox="0 0 100 20" data-label="Text"><p>Body of the paper.</p></div>\n\n'
+    '</page>\n\n'
+    '<page number="1">\n\n'
+    '<div data-bbox="0 0 100 40" data-label="Bibliography">'
+    'Smith, J. (2020). A citation. Jones, A. (2021). Another citation.</div>\n\n'
+    '</page>\n\n'
+)
+
+
+def test_bibliography_div_truncates_the_document():
+    dropped = drop_references_section(BIBLIO_DIV_DOC)
+
+    assert "Body of the paper." in dropped
+    assert 'data-label="Bibliography"' not in dropped  # open tag itself is gone
+    assert "Smith, J." not in dropped
+    assert "Another citation" not in dropped
+
+
+def test_bibliography_div_content_before_cut_is_byte_identical():
+    dropped = drop_references_section(BIBLIO_DIV_DOC)
+    cut = BIBLIO_DIV_DOC.index('<div data-bbox="0 0 100 40" data-label="Bibliography"')
+    assert dropped[:cut] == BIBLIO_DIV_DOC[:cut]
+
+
+def test_bibliography_div_dangling_page_tag_is_closed():
+    dropped = drop_references_section(BIBLIO_DIV_DOC)
+    n_open = dropped.count('<page number="0">') + dropped.count('<page number="1">')
+    assert n_open == dropped.count("</page>")
+
+
+def test_bibliography_div_pooled_wins_over_a_later_heading_match():
+    # A bibliography-labelled div sits *before* a later bare-line heading that
+    # _LINE_HEADING_RE also matches. Pooling (min of all candidates) must cut at
+    # the earlier div; a fallback-only design would skip it and cut later.
+    doc = (
+        '<page number="0">\n\nIntro.\n'
+        '<div data-label="Bibliography">Ref list here.</div>\n'
+        'trailing body\nREFERENCES\nmore\n\n</page>\n\n'
+    )
+    dropped = drop_references_section(doc)
+    assert "Intro." in dropped
+    assert "Ref list here." not in dropped
+    assert "trailing body" not in dropped
+
+
+def test_section_header_div_with_heading_text_the_regex_misses_truncates():
+    # ">References Cited<" is not ">\s*references\s*<" -- existing _TAG_HEADING_RE
+    # misses it; the Section-Header fallback catches it.
+    doc = (
+        '<page number="0">\n\nMain text.\n'
+        '<div data-bbox="0 0 1 1" data-label="Section-Header"><h2>References Cited</h2></div>\n'
+        '<div data-bbox="0 0 1 1" data-label="List-Group">A citation line.</div>\n\n</page>\n\n'
+    )
+    dropped = drop_references_section(doc)
+
+    assert "Main text." in dropped
+    assert "References Cited" not in dropped
+    assert "A citation line." not in dropped
+
+
+def test_section_header_div_heading_between_tags_still_handled_by_existing_regex():
+    # The spec's literal shape: ">References<" -- already caught by _TAG_HEADING_RE,
+    # asserted here so the behavior is pinned regardless of which detector fires.
+    doc = (
+        '<page number="0">\n\nMain text.\n'
+        '<div data-bbox="0 0 1 1" data-label="Section-Header">References</div>\n'
+        '<div data-bbox="0 0 1 1" data-label="List-Group">A citation line.</div>\n\n</page>\n\n'
+    )
+    dropped = drop_references_section(doc)
+
+    assert "Main text." in dropped
+    assert "References" not in dropped
+    assert "A citation line." not in dropped
+
+
+def test_non_reference_section_header_div_is_left_alone():
+    doc = (
+        '<page number="0">\n\n'
+        '<div data-bbox="0 0 1 1" data-label="Section-Header"><h2>3. Methods</h2></div>\n'
+        '<div data-bbox="0 0 1 1" data-label="Text">Methods body.</div>\n\n</page>\n\n'
+    )
+    assert drop_references_section(doc) == doc

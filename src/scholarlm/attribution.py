@@ -61,6 +61,166 @@ def _logsumexp_true_false(logits_last: "torch.Tensor", binary_token_ids: dict[st
     return log_p_true, log_p_false
 
 
+def freeze_model_except_input_embeddings(judge: JudgementLM) -> None:
+    """Set ``requires_grad=False`` on every judge-model parameter *except* the
+    input-embedding matrix.
+
+    Input×Gradient attribution only needs ``d(target)/d(input embeddings)``.
+    ``attribute()`` runs ``target.backward()`` with no ``torch.no_grad()``; if
+    every weight still has ``requires_grad=True`` (the HF default), autograd
+    allocates a ``.grad`` buffer for all ~8B parameters — a second full copy of
+    the model — which OOMs an 80 GB GPU on the larger judges (see build note
+    ``2026-08-31-attribution-runner-01``, rung-4 first qsub: llama-3.1-8b OOM at
+    a 1.6k-token context where qwen-2.5-7b peaked at 32.8 GB).
+
+    This is mathematically inert for the score. The embedding matrix stays
+    ``requires_grad=True`` so ``embed_tokens.output`` remains a non-leaf that
+    participates in autograd (freezing it too would break the graph and make
+    ``embed_out.grad`` ``None``). Every downstream op still enters the graph
+    because it depends on ``embed_out``, so ``grad_{embed_out} target`` is
+    unchanged — the transformer-block weight grads that we no longer store were
+    never read (the scores are ``<grad_{embed_out}, embed_out>``). Verified
+    byte-identical frozen-vs-unfrozen in ``attribution_smoke.sh`` check 0.
+    """
+    # Underlying HF nn.Module. `device_map="auto"` (nnterp's default) keeps the
+    # whole model on one GPU when it fits — no accelerate offload swapping the
+    # parameter tensors out from under these flags — which is the only regime
+    # this attribution runs in. requires_grad_ is a flag flip, not a data copy,
+    # so it is safe even on a meta/offloaded parameter.
+    raw = judge.llm._model
+    raw.requires_grad_(False)
+    emb = raw.get_input_embeddings()
+    assert emb is not None, (
+        "judge model get_input_embeddings() is None — cannot attribute to "
+        "input-token embeddings"
+    )
+    emb.weight.requires_grad_(True)
+
+
+def enable_decoder_gradient_checkpointing(
+    judge: JudgementLM, *, skip_layers: "frozenset[int] | set[int]" = frozenset()
+) -> None:
+    """Turn on activation (gradient) checkpointing for the judge's decoder stack.
+
+    ``ContrastiveGradientAttribution`` runs the full forward with a live autograd
+    graph and backpropagates from the final logits, so every decoder layer's
+    activations (residual stream, attention projections, MLP intermediates) are
+    retained for the whole context. At pond/supermat context lengths (up to
+    ~7.6k tokens) that is ~55–60 GB on the 32-layer judges (llama-3.1-8b,
+    mistral-7b) and OOMs an 80 GB GPU *even after* the input-embedding freeze
+    (build note ``2026-08-31-attribution-runner-01``, rung-4 second qsub — the
+    28-layer qwen-2.5-7b peaked at 76 GiB, a 3.6% margin; the 32-layer judges go
+    over). Checkpointing recomputes each layer during the backward pass instead
+    of storing it — ~35% more walltime for an ~5–8× cut to that term.
+
+    Mathematically inert for the score: checkpointing only recomputes forward
+    activations, it does not change ``d(target)/d(embed_out)``. Verified
+    bitwise on CPU float32 in ``tests/test_attribution_checkpoint.py`` and by a
+    peak-memory-drop assertion on a real judge at a >7.6k-token context in
+    ``attribution_smoke.sh`` check 0.
+
+    Two silent-failure modes this guards against explicitly (both are the
+    CLAUDE.md "runs clean, number quietly wrong" trap):
+
+    - HF gates the checkpoint call on ``module.training``
+      (``transformers.modeling_layers.GradientCheckpointingLayer.__call__``:
+      ``if self.gradient_checkpointing and self.training``). nnsight loads the
+      judge in eval mode, so ``gradient_checkpointing_enable()`` alone is a
+      no-op. We set ``.training = True`` on the decoder-layer objects only (not
+      recursively) to engage the gate while leaving ``self_attn.training``
+      ``False``.
+    - ``.training = True`` would also activate any dropout. We assert every
+      ``*dropout`` / ``*pdrop`` probability in the model config is ``0.0`` (or
+      ``None``) first — a nonzero one would make the attribution scores
+      stochastic in a way that still looks plausible.
+
+    ``skip_layers`` — decoder-layer indices left *un*-checkpointed (they run
+    normally and store their activations). ``ProbeAttribution`` reads
+    ``o_proj.input`` at its ``top_k_heads`` layers mid-stack; a non-reentrant
+    recompute of those layers in the backward pass would re-run the region and
+    re-fire nnsight's hooks on the read, so those layers must not be
+    checkpointed. Every *other* layer still is — ``top_k_heads`` spans only
+    ~2–6 of the 28 layers for every trained probe, so this keeps most of the
+    activation-scaling saving. Empty (default) = checkpoint the whole stack,
+    which is what ``ContrastiveGradientAttribution`` uses.
+    """
+    raw = judge.llm._model
+    if not raw.supports_gradient_checkpointing:
+        raise ValueError(
+            f"{type(raw).__name__} does not support gradient checkpointing"
+        )
+
+    cfg = raw.config
+    dropout_keys = [
+        k for k in vars(cfg) if k.endswith("dropout") or k.endswith("pdrop")
+    ]
+    assert dropout_keys, (
+        f"{type(cfg).__name__} exposes no *dropout / *pdrop keys — cannot verify "
+        "that train() mode adds no stochasticity; refusing to enable checkpointing"
+    )
+    nonzero = {k: getattr(cfg, k) for k in dropout_keys if getattr(cfg, k)}
+    assert not nonzero, (
+        f"judge model config has nonzero dropout {nonzero} — setting decoder "
+        "layers to train() mode for gradient checkpointing would make the "
+        "attribution scores stochastic"
+    )
+
+    raw.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
+
+    layers = raw.model.layers
+    n_layers = raw.config.num_hidden_layers
+    assert len(layers) == n_layers, (
+        f"raw.model.layers has {len(layers)} entries, config num_hidden_layers "
+        f"is {n_layers}"
+    )
+    bad = {i for i in skip_layers if not 0 <= i < n_layers}
+    assert not bad, f"skip_layers {sorted(bad)} out of range [0, {n_layers})"
+    n_ckpt = 0
+    for i, layer in enumerate(layers):
+        assert getattr(layer, "gradient_checkpointing", False), (
+            f"{type(layer).__name__}.gradient_checkpointing is False after "
+            "gradient_checkpointing_enable() — the checkpoint wrapper will not run"
+        )
+        if i in skip_layers:
+            layer.gradient_checkpointing = False   # runs normally: stores its
+            layer.training = False                 # activations, so a mid-stack
+            #                                        .input read is not re-fired
+            #                                        by a backward recompute
+        else:
+            layer.training = True
+            n_ckpt += 1
+    assert n_ckpt == n_layers - len(set(skip_layers)), (
+        f"checkpointed {n_ckpt} layers, expected {n_layers - len(set(skip_layers))}"
+    )
+
+
+def _reassert_decoder_checkpointing(
+    judge: JudgementLM, *, skip_layers: "frozenset[int] | set[int]" = frozenset()
+) -> None:
+    """Re-run ``enable_decoder_gradient_checkpointing`` before every trace.
+
+    ``ContrastiveGradientAttribution.__init__`` enables checkpointing once, but
+    the first ``attribute()`` trace clears it: ``attribution_smoke.sh`` check 0
+    [B] saw the *2nd* consecutive checkpointed call fall back to the
+    non-checkpointed peak (49 GiB vs 34) and runtime (0.9 s vs 4.3 s) — the
+    forward still ran (valid ``target``, baseline cost), it just wasn't
+    checkpointed. Re-setting ``.training`` alone did not fix it, so the
+    ``gradient_checkpointing`` flag and/or ``_gradient_checkpointing_func`` are
+    cleared too; this re-runs the full enable (idempotent — its asserts are
+    microseconds against a ~2.5 s forward). nnsight / nnterp / accelerate contain
+    no ``.train()`` / ``.eval()`` and no write to ``gradient_checkpointing``; the
+    trigger is unidentified but the full re-enable is trigger-independent. The
+    dataset runner does one ``__init__`` + N ``attribute()`` calls with no
+    re-enable, so without this calls 2..N run un-checkpointed and OOM the long
+    pond/supermat contexts. Persistence is asserted across consecutive calls in
+    ``attribution_smoke.sh`` check 0 [B]. ``skip_layers`` is forwarded so probe's
+    partial-checkpointing layout is preserved on every call.
+    """
+    enable_decoder_gradient_checkpointing(judge, skip_layers=skip_layers)
+
+
 class AttributionMethod(ABC):
     """
     Base interface for input-token attribution methods against a loaded
@@ -96,9 +256,16 @@ class ContrastiveGradientAttribution(AttributionMethod):
 
     def __init__(self, judge: JudgementLM):
         self.judge = judge
+        self._ckpt_skip_layers: frozenset[int] = frozenset()  # checkpoint the whole stack
+        freeze_model_except_input_embeddings(judge)
+        enable_decoder_gradient_checkpointing(judge)
 
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
+        # The prior trace clears the checkpointing state; re-establish it (unless
+        # a smoke test is deliberately measuring the un-checkpointed baseline).
+        if not getattr(self, "_skip_ckpt_reassert", False):
+            _reassert_decoder_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
         (
             tokenized_prompt,
             instruction_token_indices,
@@ -140,6 +307,11 @@ class ProbeAttribution(AttributionMethod):
     sklearn artifact (``head_probe_noplatt.pkl`` — a bare
     ``Pipeline(StandardScaler, LogisticRegression)``, no Platt/
     CalibratedClassifierCV wrapper).
+
+    Uses *partial* gradient checkpointing: every decoder layer is checkpointed
+    except the ``top_k_heads`` layers, whose ``o_proj.input`` this reads
+    mid-trace (a backward recompute of those would re-fire nnsight's read
+    hooks). See ``enable_decoder_gradient_checkpointing(skip_layers=...)``.
     """
 
     def __init__(self, judge: JudgementLM, probe_data: dict):
@@ -175,8 +347,21 @@ class ProbeAttribution(AttributionMethod):
         self.clf_coef = torch.tensor(clf.coef_[0], dtype=torch.float32)
         self.clf_intercept = torch.tensor(clf.intercept_[0], dtype=torch.float32)
 
+        # Layers whose `o_proj.input` attribute() reads mid-stack — must NOT be
+        # checkpointed (a backward recompute of those layers would re-fire
+        # nnsight's read hooks). Every other layer is, keeping most of the
+        # activation-memory saving: top_k_heads spans only ~2–6 of 28 layers.
+        self._ckpt_skip_layers: frozenset[int] = frozenset(l for l, _ in self.top_k_heads)
+
+        freeze_model_except_input_embeddings(judge)
+        enable_decoder_gradient_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
+
     def attribute(self, instructions: str, context: str, query: str) -> dict[str, Any]:
         judge = self.judge
+        # The prior trace clears the checkpointing state; re-establish the
+        # partial layout (skip the top_k_heads layers) before every trace.
+        if not getattr(self, "_skip_ckpt_reassert", False):
+            _reassert_decoder_checkpointing(judge, skip_layers=self._ckpt_skip_layers)
         (
             tokenized_prompt,
             instruction_token_indices,

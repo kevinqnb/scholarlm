@@ -493,7 +493,14 @@ CONFIG = DatasetConfig(
     paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=["location", "nfix_method", "substrate_type"], # leaving location, method, and substrate out of the judgement fields, since these seem to throw off the judgement when included -- possibly due to how the ground truth data formats / defines them. 
+    # Judge sees only: name, date, additional_details (+ attribute, value, units).
+    # location / nfix_method / substrate_type throw off the judgement (ground-truth
+    # formatting mismatch); identifiers, site_type and sample_depth are dropped too so
+    # the judge evaluates the minimal entity/event context.
+    judge_filter_fields=[
+        "identifiers", "site_type", "location",
+        "nfix_method", "substrate_type", "sample_depth",
+    ],
     judge_instructions=JUDGE_INSTRUCTIONS,
     ground_truth_file="data/nfix/ground_truth_review.json",
 )

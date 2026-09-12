@@ -28,6 +28,11 @@ from analysis.meta_updated import (
     kish_n_eff,
     kish_gate_levels,
     weighted_stats,
+    wasserstein2_quantile,
+    _bootstrap_w2_ci,
+    _boot_rng,
+    W2_QGRID,
+    W2_MIN_GT_N,
 )
 
 
@@ -266,3 +271,138 @@ def test_weighted_stats_all_weight_on_one_point_std_is_nan():
 def test_weighted_stats_no_positive_weight_raises():
     with pytest.raises(ValueError):
         weighted_stats(np.array([1.0, 2.0]), np.array([0.0, 0.0]))
+
+
+# ── wasserstein2_quantile ───────────────────────────────────────────────────
+
+def test_wasserstein2_location_shift_is_exact():
+    # Known-answer case (CLAUDE.md): ext = gt + c makes the two quantile functions
+    # exactly offset by c at every grid point, so the quadrature is exact and
+    # W_2 == |c| regardless of the grid. This is also what catches an
+    # integrate-and-keep-the-width bug in the estimator (that would give
+    # |c| * sqrt(W2_QHI - W2_QLO) instead).
+    rng = np.random.default_rng(0)
+    gt = rng.uniform(1.0, 100.0, 500)
+    c = 7.3
+    res = wasserstein2_quantile(gt, gt + c, np.ones(gt.size))
+    assert res['w2'] == pytest.approx(abs(c))
+
+
+def test_wasserstein2_negative_shift_is_exact():
+    rng = np.random.default_rng(7)
+    gt = rng.uniform(1.0, 100.0, 400)
+    res = wasserstein2_quantile(gt, gt - 4.0, np.ones(gt.size))
+    assert res['w2'] == pytest.approx(4.0)
+
+
+def test_wasserstein2_unit_weight_matches_plain_quantile_grid():
+    # Weighted path at w=1 must equal the plain unweighted Hazen-quantile-grid
+    # computation -- mirrors claim #1 of the weighted-Hazen suite for W_2.
+    rng = np.random.default_rng(1)
+    gt = rng.uniform(0.0, 50.0, 300)
+    ext = rng.uniform(5.0, 60.0, 400)
+    res = wasserstein2_quantile(gt, ext, np.ones(ext.size))
+    gt_q = np.quantile(gt, W2_QGRID, method='hazen')
+    ext_q = np.quantile(ext, W2_QGRID, method='hazen')
+    expected = float(np.sqrt(np.mean((ext_q - gt_q) ** 2)))
+    assert res['w2'] == pytest.approx(expected)
+    assert res['w2_skip'] == ''
+
+
+def test_wasserstein2_identical_samples_is_zero():
+    rng = np.random.default_rng(2)
+    x = rng.uniform(1.0, 20.0, 200)
+    res = wasserstein2_quantile(x, x.copy(), np.ones(x.size))
+    assert res['w2'] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_wasserstein2_undersupported_gt_returns_nan():
+    rng = np.random.default_rng(3)
+    ext = rng.uniform(0.0, 10.0, 100)
+    res = wasserstein2_quantile(rng.uniform(0.0, 10.0, W2_MIN_GT_N - 1), ext, np.ones(ext.size))
+    assert np.isnan(res['w2'])
+    assert res['w2_skip'] == 'gt_undersupported'
+
+
+def test_wasserstein2_ext_clamped_returns_nan():
+    # A dominating weight on the sample max pushes weighted_valid_range's upper
+    # bound below W2_QHI -- the honest outcome is NaN, not a clamped quantile.
+    rng = np.random.default_rng(4)
+    gt = rng.uniform(0.0, 10.0, 100)
+    ext = np.append(rng.uniform(0.0, 10.0, 40), 1e6)
+    w = np.append(np.full(40, 0.001), 100.0)
+    res = wasserstein2_quantile(gt, ext, w)
+    assert np.isnan(res['w2'])
+    assert res['w2_skip'] == 'ext_clamped'
+
+
+def test_wasserstein2_all_zero_weight_returns_nan():
+    rng = np.random.default_rng(5)
+    gt = rng.uniform(0.0, 10.0, 100)
+    res = wasserstein2_quantile(gt, np.arange(10.0), np.zeros(10))
+    assert np.isnan(res['w2'])
+    assert res['w2_skip'] == 'ext_no_weight'
+
+
+def test_wasserstein2_confidence_weighting_can_beat_unweighted():
+    # Sanity: GT ~ U(0,1); extracted is GT-like rows plus a block of contaminating
+    # 10.0 outliers. Weights that downweight the outliers must bring W_2 below the
+    # unweighted (all-ones) value.
+    rng = np.random.default_rng(6)
+    gt = rng.uniform(0.0, 1.0, 400)
+    clean = rng.uniform(0.0, 1.0, 400)
+    ext = np.concatenate([clean, np.full(100, 10.0)])
+    w_conf = np.concatenate([np.ones(400), np.full(100, 0.01)])
+    w2_weighted = wasserstein2_quantile(gt, ext, w_conf)['w2']
+    w2_flat = wasserstein2_quantile(gt, ext, np.ones(ext.size))['w2']
+    assert w2_weighted < w2_flat
+
+
+# ── _boot_rng / _bootstrap_w2_ci ────────────────────────────────────────────
+
+def test_boot_rng_order_independent_and_stream_separated():
+    a = _boot_rng(0, 'pond', 'tn', 2).integers(0, 1_000_000, 5)
+    _ = _boot_rng(0, 'lake', 'tn', 2).integers(0, 1_000_000, 5)   # a different cell in between
+    a_again = _boot_rng(0, 'pond', 'tn', 2).integers(0, 1_000_000, 5)
+    np.testing.assert_array_equal(a, a_again)  # draw does not depend on iteration order
+
+    other_cell = _boot_rng(0, 'lake', 'tn', 2).integers(0, 1_000_000, 5)
+    other_stream = _boot_rng(0, 'pond', 'tn', 0).integers(0, 1_000_000, 5)
+    assert not np.array_equal(a, other_cell)
+    assert not np.array_equal(a, other_stream)
+
+
+def test_bootstrap_w2_ci_is_deterministic():
+    rng = np.random.default_rng(0)
+    gt = rng.uniform(0.0, 100.0, 300)
+    ext = rng.uniform(10.0, 120.0, 400)
+    w = rng.uniform(0.2, 1.0, 400)
+    kw = dict(n_boot=200)
+    out1 = _bootstrap_w2_ci(gt, ext, w, np.random.default_rng([1, 0]), np.random.default_rng([1, 2]), **kw)
+    out2 = _bootstrap_w2_ci(gt, ext, w, np.random.default_rng([1, 0]), np.random.default_rng([1, 2]), **kw)
+    assert out1 == out2
+
+
+def test_bootstrap_w2_ci_clean_cell_loses_no_replicates():
+    rng = np.random.default_rng(1)
+    gt = rng.uniform(0.0, 100.0, 400)
+    ext = rng.uniform(0.0, 100.0, 500)
+    lo, hi, n_ok = _bootstrap_w2_ci(gt, ext, np.ones(ext.size),
+                                    np.random.default_rng(0), np.random.default_rng(1), n_boot=300)
+    assert n_ok == 300
+    assert 0.0 <= lo <= hi
+
+
+def test_bootstrap_w2_ci_location_shift_ci_sits_near_c():
+    # ext = gt + c: every replicate's W_2 is c plus a small two-resample noise
+    # term, so the CI should be a tight band in the neighbourhood of c. (It sits
+    # slightly ABOVE c, not centred on it -- the plug-in W_2 is biased up -- so
+    # this asserts proximity, not bracketing.)
+    rng = np.random.default_rng(2)
+    gt = rng.uniform(1.0, 200.0, 800)
+    c = 50.0
+    lo, hi, n_ok = _bootstrap_w2_ci(gt, gt + c, np.ones(gt.size),
+                                    np.random.default_rng(0), np.random.default_rng(1), n_boot=400)
+    assert n_ok == 400
+    assert lo <= hi
+    assert 0.8 * c < 0.5 * (lo + hi) < 1.3 * c

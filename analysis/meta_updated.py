@@ -28,10 +28,13 @@ observation reaches.
 The gray band around the diagonal is the ground truth's own bootstrap
 sampling uncertainty, not a statement about the extracted lines.
 
-Outputs: 6 Q-Q figures (3 ecosystems x 2 methods) plus one poster figure, and
-a stats CSV (ground_truth, extracted, judge_filtered, ntp_weighted,
+Outputs: 6 Q-Q figures (3 ecosystems x 2 methods) plus one poster figure, a
+stats CSV (ground_truth, extracted, judge_filtered, ntp_weighted,
 probe_weighted) via weighted_stats() -- weighted mean/std/n_eff/Hazen
-median/Q1/Q3, computed on raw non-log values. Every setting is restricted to
+median/Q1/Q3, computed on raw non-log values -- and a 2-Wasserstein CSV
+(build_wasserstein_table) giving the quantile-approximated W_2 distance from
+each extracted setting's per-(ecosystem, attribute) distribution to ground
+truth, with a two-sample percentile bootstrap CI. Every setting is restricted to
 documents shared between GT and extraction, minus the probe/NTP calibrator's
 training documents, so the weighted settings are honest out-of-sample
 estimates. See notes/scholarlm/builds/2026-08-21-weighted-hazen-meta-01.md
@@ -97,8 +100,12 @@ DATASET = 'pond'
 EXT_MODEL = 'gemma-3-27b'
 EXT_DATE = '2026_05_05'
 JUDGE_MODEL = 'qwen-2.5-7b'
-JUDGE_DATE = '2026_05_06'
+JUDGE_DATE = '2026_05_06'          # default; --judge-date overrides (interp judge run
+                                  # supplying the real-extraction activations)
 PROBE_TYPE = 'head'
+PROBE_SOURCE = None               # default (baseline trained_probe/); --probe-source
+                                  # selects a parallel synthetic_probe_<source>/ tree
+                                  # (e.g. 'v2') for the probe + NTP calibrator.
 
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
@@ -195,6 +202,28 @@ QLEVELS = np.linspace(0.025, 0.975, 100)
 
 # Bootstrap resamples for the ground-truth quantile uncertainty band.
 N_BOOT = 2000
+
+# ── 2-Wasserstein quantile grid ─────────────────────────────────────────────
+# W_2(F_ext, F_gt) = ( int_0^1 (F_ext^{-1}(u) - F_gt^{-1}(u))^2 du )^{1/2}. The
+# distributions are not assumed normal, so the integral is approximated straight
+# from quantile differences (midpoint rule on W2_QGRID), never a closed-form
+# Gaussian expression. Domain is the fixed trim [W2_QLO, W2_QHI] -- the same as
+# QLEVELS' cap, so the score summarizes the Q-Q panel beside it, and identical for
+# every cell so W_2 values are comparable across cells (an intersect-per-cell
+# domain would not be). GT needs 0.5/n <= W2_QLO for its Hazen plotting positions
+# to span the grid without np.interp clamping (n >= 20 at this trim); widen the
+# trim here to relax that.
+W2_QLO, W2_QHI = 0.025, 0.975
+W2_NGRID = 999
+W2_QGRID = W2_QLO + (np.arange(W2_NGRID) + 0.5) * (W2_QHI - W2_QLO) / W2_NGRID
+W2_MIN_GT_N = int(np.ceil(0.5 / W2_QLO))
+
+# Bootstrap replicates for the W_2 CI reuse N_BOOT. A replicate that trips
+# wasserstein2_quantile's skip guards is a genuine wide-tail draw, not noise to
+# discard -- dropping it biases the CI down (see _bootstrap_w2_ci). The CI is
+# emitted only when at least this fraction of replicates survived; below it the
+# interval was never meaningful and the cell gets a NaN CI instead.
+W2_BOOT_MIN_OK_FRAC = 0.99
 
 # Temperature grid for the Q-Q weight sweep: each extracted row is weighted by
 # confidence(x)^(1/gamma) (see module docstring). gamma=1.0 (required -- recovers the
@@ -344,8 +373,8 @@ def load_data():
     ext_df['judgement_combined'] = judged_df['judgement_combined'].to_numpy()
     ext_df[f'judgement_p_true_{JUDGE_MODEL}'] = judged_df[f'judgement_p_true_{JUDGE_MODEL}'].to_numpy()
 
-    pd_data = load_trained_probe(DATASET, JUDGE_MODEL, ptype=PROBE_TYPE)
-    ntp_cal_data = load_trained_ntp_calibrator(DATASET, JUDGE_MODEL)
+    pd_data = load_trained_probe(DATASET, JUDGE_MODEL, ptype=PROBE_TYPE, source=PROBE_SOURCE)
+    ntp_cal_data = load_trained_ntp_calibrator(DATASET, JUDGE_MODEL, source=PROBE_SOURCE)
     syn_docs = set(pd_data['syn_document_ids'])
 
     shared_docs = set(gt_df['document_id']) & set(ext_df['document_id'])
@@ -624,6 +653,211 @@ def _axis_limits(values: np.ndarray, log: bool) -> tuple[float, float]:
     return vmin - pad, vmax + pad
 
 
+# ── 2-Wasserstein distance (quantile approximation) ─────────────────────────
+# See W2_QGRID's block comment above for the estimator and the domain choice.
+# Both sides use the same Hazen estimator as the Q-Q figures:
+# weighted_hazen_quantile for the confidence-weighted extracted side (reduces
+# exactly to np.quantile(method='hazen') at unit weight), _hazen_quantiles for
+# the unweighted ground-truth side -- same estimator family on both axes, no
+# mismatch. The score is in the raw value units, and additionally in log10 units
+# for LOG_SCALE_ATTRIBUTES so the table reads across attributes that span orders
+# of magnitude (a raw W_2 in m^2 and one in pH units are not comparable).
+
+W2_SETTINGS = ['extracted', 'judge_filtered'] + [f'{m}_weighted' for m in METHODS]
+
+
+def wasserstein2_quantile(gt_x: np.ndarray, ext_x: np.ndarray, ext_w: np.ndarray) -> dict:
+    """Quantile-approximated 2-Wasserstein distance from the confidence-weighted
+    extracted sample (ext_x, ext_w) to the unweighted ground-truth sample (gt_x),
+    in the units of the inputs.
+
+    W_2 ~= sqrt( mean_i (q_ext(u_i) - q_gt(u_i))^2 ) over the midpoint grid
+    W2_QGRID on [W2_QLO, W2_QHI]. The mean (not the width-scaled integral) keeps
+    the statistic in data units, so a pure location shift ext = gt + c gives
+    W_2 = |c| exactly.
+
+    Returns dict(w2, w2_skip, ext_qlo, ext_qhi). w2 is NaN, with a non-empty
+    w2_skip, when a sample cannot support W2_QGRID without np.interp clamping into
+    an unobserved probability range (a clamped quantile reads as a flat artifact,
+    not a measurement):
+      - 'gt_undersupported' : gt_x has fewer than W2_MIN_GT_N points
+      - 'ext_no_weight'     : ext_x empty, or every weight is zero
+      - 'ext_clamped'       : weighted_valid_range(ext_x, ext_w) does not cover
+                              [W2_QLO, W2_QHI] -- e.g. a heavy-weight row at the
+                              sample max
+    """
+    gt_x = np.asarray(gt_x, dtype=float)
+    ext_x = np.asarray(ext_x, dtype=float)
+    ext_w = np.asarray(ext_w, dtype=float)
+
+    if gt_x.size < W2_MIN_GT_N:
+        return dict(w2=np.nan, w2_skip='gt_undersupported', ext_qlo=np.nan, ext_qhi=np.nan)
+    if ext_x.size == 0 or not np.any(ext_w > 0):
+        return dict(w2=np.nan, w2_skip='ext_no_weight', ext_qlo=np.nan, ext_qhi=np.nan)
+
+    ext_qlo, ext_qhi = weighted_valid_range(ext_x, ext_w, lo_cap=0.0, hi_cap=1.0)
+    if ext_qlo > W2_QLO or ext_qhi < W2_QHI:
+        return dict(w2=np.nan, w2_skip='ext_clamped', ext_qlo=ext_qlo, ext_qhi=ext_qhi)
+
+    gt_q = _hazen_quantiles(gt_x, W2_QGRID)
+    ext_q = weighted_hazen_quantile(ext_x, ext_w, W2_QGRID)
+    w2 = float(np.sqrt(np.mean((ext_q - gt_q) ** 2)))
+    return dict(w2=w2, w2_skip='', ext_qlo=float(ext_qlo), ext_qhi=float(ext_qhi))
+
+
+def _boot_rng(boot_seed: int, ecosystem: str, attribute: str, stream: int) -> np.random.Generator:
+    """Deterministic per-(cell, stream) RNG, so a cell's bootstrap CI does not
+    depend on the order cells are iterated in (seed-determinism control,
+    CLAUDE.md). `stream` separates the independent resampling streams inside one
+    (ecosystem, attribute):
+      0 = GT rows, raw            2 = extracted rows, raw  (all-rows settings)
+      1 = GT rows, log10-positive 3 = extracted rows, raw  (judge_filtered)
+                                  4 = extracted rows, log  (all-rows settings)
+                                  5 = extracted rows, log  (judge_filtered)
+    extracted / ntp_weighted / probe_weighted draw from the identical row set, so
+    sharing a stream across them makes their replicates paired -- the right basis
+    for the within-cell 'does weighting beat unweighted' comparison these numbers
+    exist for (a paired-difference CI is a later, separate addition).
+    """
+    return np.random.default_rng(
+        [int(boot_seed), ECOSYSTEMS.index(ecosystem), ATTRIBUTES.index(attribute), int(stream)]
+    )
+
+
+def _bootstrap_w2_ci(gt_x, ext_x, ext_w, gt_rng, ext_rng, n_boot: int, ci: float = 0.95):
+    """Percentile bootstrap CI for wasserstein2_quantile(gt_x, ext_x, ext_w).
+
+    Resamples BOTH samples with replacement. This differs on purpose from
+    _bootstrap_gt_band, which resamples GT alone: there the extracted line is the
+    estimand and only GT's sampling noise is in question; here W_2 is a two-sample
+    statistic and both samples contribute to its sampling distribution.
+
+    Each drawn extracted row keeps its ORIGINAL weight -- NOT a multinomial count
+    applied to the weight vector, which is not exact for Hazen plotting positions
+    (the position depends on the weight, not just the resulting rank; see
+    tests/test_meta_weighted_stats.py's module docstring).
+
+    Replicates that trip wasserstein2_quantile's skip guards (a resampled
+    heavy-weight row landing at the sample extreme -> 'ext_clamped', etc.) are the
+    widest-tailed, largest-W_2 draws in the set. Dropping them and renormalizing
+    would pull the CI down and narrow it in exactly the borderline cells where the
+    CI matters most, so they are NOT dropped silently: n_ok counts the survivors
+    and the caller emits a NaN CI when n_ok / n_boot < W2_BOOT_MIN_OK_FRAC.
+
+    NOTE ON INTERPRETATION: the plug-in W_2 is biased upward -- two samples drawn
+    from the *same* distribution still give W_2 > 0 -- so this percentile CI will
+    essentially never contain 0. It is the spread of the W_2 estimate, NOT a test
+    of "is the extracted distribution different from GT".
+
+    Returns (lo, hi, n_ok).
+    """
+    gt_x = np.asarray(gt_x, dtype=float)
+    ext_x = np.asarray(ext_x, dtype=float)
+    ext_w = np.asarray(ext_w, dtype=float)
+    G, E = gt_x.size, ext_x.size
+
+    gt_idx = gt_rng.integers(0, G, size=(n_boot, G))
+    ext_idx = ext_rng.integers(0, E, size=(n_boot, E))
+
+    vals = np.full(n_boot, np.nan)
+    for b in range(n_boot):
+        res = wasserstein2_quantile(gt_x[gt_idx[b]], ext_x[ext_idx[b]], ext_w[ext_idx[b]])
+        vals[b] = res['w2']
+
+    ok = np.isfinite(vals)
+    n_ok = int(ok.sum())
+    if n_ok == 0:
+        return np.nan, np.nan, 0
+    alpha = (1.0 - ci) / 2.0
+    lo, hi = np.quantile(vals[ok], [alpha, 1.0 - alpha])
+    return float(lo), float(hi), n_ok
+
+
+def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_seed: int,
+                            n_boot: int = N_BOOT) -> pd.DataFrame:
+    """One row per (ecosystem, attribute, setting): the quantile-approximated
+    2-Wasserstein distance from that extracted setting's distribution to ground
+    truth, raw units and (for LOG_SCALE_ATTRIBUTES) log10 units.
+
+    `extracted` / `judge_filtered` are the unweighted baselines the two
+    confidence-weighted settings are read against -- a probe/NTP-weighted W_2 is
+    uninterpretable alone; the claim it supports is "confidence weighting moves
+    the extracted distribution toward GT", i.e. {ntp,probe}_weighted W_2 below
+    `extracted`. `w2_shuffled` is the permutation control: ext weights shuffled
+    within the cell (seed `shuffle_seed`), which should regress W_2 back toward
+    the `extracted` baseline -- if it does not, the weights carry no
+    distributional signal.
+
+    `w2_lo` / `w2_hi` (and `w2_log_lo` / `w2_log_hi`) are the percentile bootstrap
+    CI from _bootstrap_w2_ci -- both samples resampled, `n_boot` replicates,
+    `shuffle_seed` reused as the bootstrap seed. `w2_n_boot_ok` is the surviving
+    replicate count; the CI is NaN when it drops below W2_BOOT_MIN_OK_FRAC * n_boot
+    (see _bootstrap_w2_ci -- the CI is a spread, never a test against 0).
+    """
+    rng = np.random.default_rng(shuffle_seed)
+    min_ok = int(np.ceil(W2_BOOT_MIN_OK_FRAC * n_boot))
+    rows = []
+    for ecosystem in ECOSYSTEMS:
+        for attribute in ATTRIBUTES:
+            log_scale = attribute in LOG_SCALE_ATTRIBUTES
+            gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
+            gt_x = gt_data[0] if gt_data is not None else np.array([])
+            gt_pos = gt_x[gt_x > 0] if log_scale else np.array([])
+            for setting in W2_SETTINGS:
+                row = dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute,
+                           setting=setting, unit=STANDARD_UNITS[attribute],
+                           n_gt=int(gt_x.size), n_ext=0, n_eff=0.0,
+                           ext_qlo=np.nan, ext_qhi=np.nan,
+                           w2=np.nan, w2_skip='no_data',
+                           w2_lo=np.nan, w2_hi=np.nan, w2_n_boot_ok=0,
+                           w2_log=np.nan, w2_log_skip='no_data',
+                           w2_log_lo=np.nan, w2_log_hi=np.nan, w2_log_n_boot_ok=0,
+                           w2_shuffled=np.nan)
+                ext_data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
+                all_rows = setting != 'judge_filtered'  # shared ext resample stream
+                if ext_data is not None:
+                    ext_x, ext_w = ext_data
+                    row['n_ext'] = int(ext_x.size)
+                    row['n_eff'] = kish_n_eff(ext_w) if np.any(ext_w > 0) else 0.0
+
+                    raw = wasserstein2_quantile(gt_x, ext_x, ext_w)
+                    row.update(w2=raw['w2'], w2_skip=raw['w2_skip'],
+                               ext_qlo=raw['ext_qlo'], ext_qhi=raw['ext_qhi'])
+                    if np.isfinite(raw['w2']):
+                        lo, hi, n_ok = _bootstrap_w2_ci(
+                            gt_x, ext_x, ext_w,
+                            _boot_rng(shuffle_seed, ecosystem, attribute, 0),
+                            _boot_rng(shuffle_seed, ecosystem, attribute, 2 if all_rows else 3),
+                            n_boot=n_boot)
+                        row['w2_n_boot_ok'] = n_ok
+                        if n_ok >= min_ok:
+                            row['w2_lo'], row['w2_hi'] = lo, hi
+
+                    if log_scale:
+                        ext_pos = ext_x > 0
+                        lgx, lgw = np.log10(ext_x[ext_pos]), ext_w[ext_pos]
+                        gt_logx = np.log10(gt_pos)
+                        lg = wasserstein2_quantile(gt_logx, lgx, lgw)
+                        row.update(w2_log=lg['w2'], w2_log_skip=lg['w2_skip'])
+                        if np.isfinite(lg['w2']):
+                            lo, hi, n_ok = _bootstrap_w2_ci(
+                                gt_logx, lgx, lgw,
+                                _boot_rng(shuffle_seed, ecosystem, attribute, 1),
+                                _boot_rng(shuffle_seed, ecosystem, attribute, 4 if all_rows else 5),
+                                n_boot=n_boot)
+                            row['w2_log_n_boot_ok'] = n_ok
+                            if n_ok >= min_ok:
+                                row['w2_log_lo'], row['w2_log_hi'] = lo, hi
+                    else:
+                        row['w2_log'], row['w2_log_skip'] = np.nan, 'n/a'
+
+                    if np.any(ext_w > 0):
+                        shuf = wasserstein2_quantile(gt_x, ext_x, rng.permutation(ext_w))
+                        row['w2_shuffled'] = shuf['w2']
+                rows.append(row)
+    return pd.DataFrame(rows)
+
+
 # ── Visualization ─────────────────────────────────────────────────────────────
 
 def plot_qq_smooth(
@@ -879,21 +1113,45 @@ def plot_qq_legend_poster_smooth(out_path: Path):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    global PROBE_SOURCE, JUDGE_DATE, FIGURES_DIR
+    _judge_date_default = JUDGE_DATE
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--attributes', nargs='+', default=QQ_ATTRIBUTES,
                          choices=ATTRIBUTES, help='Attribute subset (one subplot column each) for the Q-Q figures.')
     parser.add_argument('--n-boot', type=int, default=N_BOOT,
                          help='Bootstrap resamples for the ground-truth quantile uncertainty band.')
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--probe-source', default=None,
+                         help="Synthetic training corpus for the probe + NTP calibrator "
+                              "(default: baseline trained_probe/). E.g. 'v2' reads the "
+                              "parallel synthetic_probe_<source>/ tree. Also suffixes the "
+                              "output CSVs and routes figures under figures/meta/<source>/ "
+                              "so baseline artifacts are never overwritten.")
+    parser.add_argument('--judge-date', default=_judge_date_default,
+                         help=f"Date tag of the qwen-2.5-7b interp judge run supplying the "
+                              f"real-extraction activations (default: {_judge_date_default}).")
     args = parser.parse_args()
+
+    PROBE_SOURCE = args.probe_source
+    JUDGE_DATE = args.judge_date
+    _suffix = f'_{PROBE_SOURCE}' if PROBE_SOURCE else ''
+    if PROBE_SOURCE:
+        FIGURES_DIR = FIGURES_DIR / PROBE_SOURCE
+        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
     gt_df, ext_df = load_data()
 
     stats_df = build_stats_table(gt_df, ext_df)
-    csv_path = RESULTS_DIR / f'meta_{DATASET}_{EXT_MODEL}_{EXT_DATE}.csv'
+    csv_path = RESULTS_DIR / f'meta_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
     stats_df.to_csv(csv_path, index=False)
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
+
+    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=args.seed, n_boot=args.n_boot)
+    w2_path = RESULTS_DIR / f'wasserstein_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
+    w2_df.to_csv(w2_path, index=False)
+    print(f"[meta] wrote {w2_path}")
+    print(w2_df.to_string(index=False, float_format='{:.3g}'.format))
 
     for method in METHODS:
         for ecosystem in ECOSYSTEMS:

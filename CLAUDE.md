@@ -50,17 +50,37 @@ via vLLM or frontier APIs (OpenAI / Gemini), and is evaluated against manually
 reviewed ground truth using a separate LLM-judge pipeline for hallucination/validity
 scoring.
 
-## Experiment contract
+## The harness
 
-This repo conforms to the experiment contract. When implementing an experiment, read
-`notes/hub/conventions.md` first.
+This repo is developed through the harness. Read `notes/hub/conventions.md` first —
+it is the source of truth for the config standard, the experiment-ID scheme, what a
+run writes, and the working loop: `/develop` then `/devlog` for building code,
+`/experiment` then `/explog` then `/debrief` for running experiments.
+
+This is a repo where the config standard is retrofitted, not native: keep a
+`configs/<id>.yaml` for every experiment so runs stay reproducible, but the layout
+doesn't have to match the reference repo (`coastal-crawler`).
 
 **No magic numbers.** Every value that would change between runs — dataset, model,
-paper subset, sampling parameters that vary per-experiment, etc. — belongs in a
-`configs/<id>.yaml` file's `params` block, not hardcoded in runner code. Fixed,
-repo-wide values (the global seed, per-model default sampling params, SGE serve
-resources) stay in `experiments/config.yaml`, which is the single source of truth for
-those and is itself committed and git-tracked for reproducibility.
+paper subset, per-experiment sampling parameters — belongs in a `configs/<id>.yaml`
+`params` block, not hardcoded in runner code. Fixed, repo-wide values (the global
+seed, per-model default sampling params, SGE serve resources) stay in
+`experiments/config.yaml`, the committed single source of truth for those.
+
+## Development log
+
+`devlog/<id>.md` is the public, curated record of AI-assisted work on a build or
+experiment — my prompts + a short summary + commit hashes. `<id>` is the same
+contract id as `configs/<id>.yaml` and the private note; a `devlog/` file exists only
+for an `<id>` that also has a build or experiment note. Plain refactors and bug fixes
+do not get one — their commit message and `Claude-Session:` trailer cover them.
+
+`/devlog <id>` writes it at the end of a `/develop` session: a `## Session <date>`
+block with that session's prompts, a 3–5 sentence summary naming the configs, and the
+session's commit hashes. `/devlog` also commits the implementation code this session
+produced. The `devlog/` entry itself is a trailing commit — every hash it lists
+already exists and it does not list itself. Public file: same review bar as a commit
+message, not a second copy of the private note. See `devlog/README.md`.
 
 ## Entry points
 

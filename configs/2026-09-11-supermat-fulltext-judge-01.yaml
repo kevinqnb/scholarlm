@@ -1,0 +1,186 @@
+id: 2026-09-11-supermat-fulltext-judge-01
+project: scholarlm
+description: >-
+  Re-judge the existing supermat gemma-3-27b/2026_07_09 extractions with the
+  three voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) under the
+  full-paper judge (e7da363), then majority-vote combine. supermat was left
+  untouched by 2026-09-09-fulltext-judge-probe-eval-01 (pond only); this
+  session applies the same full-paper-judge collection step to supermat.
+  No probe/meta/synthetic work in scope -- collect + combine only. Motivated
+  by a manual read of the existing (pre-full-paper) supermat combined.json
+  for document 1802.03907-CC: table-4 rows there validate under several
+  different entity names sharing the same table row, which looked like
+  either a real multi-entity table or a duplication artifact -- full-paper
+  context should let the judge tell those apart.
+seed: 342  # repo-global (experiments/config.yaml), read via load_config()
+params:
+  entry_point: manual
+  # No scripts/run_experiment.py adapter covers this (entry_point only
+  # handles extraction|ablation, and this needs three sequential vLLM judge
+  # servers). Each stage is a native entry point driven by a hand-written
+  # qsub job. This config is the reproducibility record; queries + hypothesis
+  # are in notes/scholarlm/experiments/2026-09-11-supermat-fulltext-judge-01.md
+  # (written by /explog).
+
+  dataset: supermat
+  judge_date: "2026_09_11"   # label pinned by every new-output stage
+
+  extraction:
+    model: gemma-3-27b
+    date: "2026_07_09"       # only committed supermat extraction; unchanged (not re-run)
+
+  # ── Voting judges on the real extractions (full-paper judge) ─────────────
+  # experiments/judge_real_voting_v2.sh <model> supermat 2026_07_09 2026_09_11
+  # -- one self-contained qsub per model (serves in-allocation, polls
+  # /health, runs run_judge_local.py against localhost, exits). Generalizes
+  # experiments/judge_real_voting.sh (pond-only, 2026-09-09) to take
+  # <dataset>/<extraction_date> explicitly rather than editing that script
+  # in place (its own note/config already record the exact pond invocation).
+  #
+  # Then experiments/judge_combine_supermat_3vote.sh combines exactly the
+  # three voters (explicit --judges, NOT auto-discover -- supermat already
+  # has pre-full-paper judge dirs for llama-3.1-8b, mistral-7b, qwen-2.5-7b(-
+  # base(-cued)) that auto-discover would otherwise sweep in).
+  judge_real_voting:
+    voters: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
+    combine_judges: [gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b]
+    entry_point: judge_real_voting_v2.sh + run_judge_combine.py
+    voting_threshold: 2   # ceil(3/2), run_judge_combine.py default
+    serve_gpu_type: H200
+    qwen_2_5_72b_context: |
+      DEVIATION from the pond config (2026-09-09-fulltext-judge-probe-eval-01),
+      which used YaRN factor 2.0 (max_position_embeddings 65536): measured
+      (real tokenizer, offline, this session) supermat's longest OCR file
+      (hott2013review-CC, 209082 chars) at 68242 Qwen tok / 62763 Llama tok /
+      61831 gpt-oss tok. Judge system+query overhead measured at ~830 tok
+      (698 system + ~130 query) -- confirmed against judge_common.py's actual
+      JUDGE_INSTRUCTIONS + build_judge_query, not assumed. 68242 + 830 + 8192
+      (max_tokens) = 77264 > 65536 -> pond's setting would abort the run on
+      this one paper (same failure mode pond hit before its own YaRN fix).
+      Fix: factor 2.0 -> 3.0 (max_position_embeddings 98304, --max-model-len
+      98304), dataset-conditioned in judge_real_voting_v2.sh so pond's
+      recorded config/numbers are untouched.
+      Checked against vLLM's actual measured KV-cache pool for this exact
+      model/GPU/quant (pond job 7515830 log: "GPU KV cache size: 273,296
+      tokens" at max_model_len=65536) -- 98304 leaves room for ~2.8
+      concurrent full-length sequences, not just one; not a guess.
+      llama-3.3-70b / gpt-oss-120b: 128k-native, unscaled, max-model-len
+      90000 unchanged -- supermat's longest file is 62763 / 61831 tok on
+      their tokenizers, comfortably under with the same overhead + budget.
+      This is a serve config change, not a change to judge/metric logic.
+
+  # ── Non-destructive snapshot (taken before the combine job runs) ─────────
+  snapshot:
+    dir: /projectnb/mcnet/kevin/tmp/scholarlm_baseline_snapshot_2026_09_11
+    contents:
+      - data/experiments/supermat/judge/gemma-3-27b/2026_07_09/combined/combined.json
+
+  # ── Staged-gate ladder ─────────────────────────────────────────────────
+  ladder:
+    rung_1_unit_tests: "uv run --extra dev pytest -- 307 passed / 1 skipped, no code changes in scope"
+    rung_2_3_smoke_and_known_answer: >-
+      experiments/judge_smoke_check.sh <model>, one per voting judge. Serves
+      the model with the exact rung-4 settings, then sends 3 requests built
+      via judge_common.prepare_chat_entries against real rows (not a
+      hand-built fixture): (a) a hott2013review-CC row -- catches context
+      overflow; (b) measurement_id 26 (Sr2VFeAsO3-delta, 1802.03907-CC table
+      4, tc onset 34.9K) -- PREDICTED VALID; (c) measurement_id 3363
+      (Sr2ScFeAsO3, same table row/value) -- PREDICTED INVALID. Stated in
+      advance, per the hypothesis below. Mismatch on (b)/(c) stops the
+      session before rung 4; failure on (a) means the context fix is wrong.
+    rung_4_full: "the full job graph below"
+
+  # ── Sanity controls ───────────────────────────────────────────────────
+  sanity_controls:
+    known_answer:
+      check: "rung 2/3 smoke prediction on measurement_id 26 vs 3363 (see above)"
+      expected: "26 -> valid, 3363 -> invalid"
+    seed_determinism:
+      status: DEFERRED (gpt-oss-120b only; qwen-2.5-72b and llama-3.3-70b stayed at temperature=0.0, unaffected)
+      check: "re-run judge_smoke_check.sh for one model a second time (same 3 requests) and diff responses text"
+      expected: "byte-identical model responses (temperature=0.0, fixed seed=342) -- true as originally
+        written for qwen-2.5-72b / llama-3.3-70b. NOT re-verified for gpt-oss-120b after commit 30f8e79
+        moved it to temperature=0.2 + seed=342 -- explicit `seed` gives sampling reproducibility for an
+        isolated request, but continuous-batching floating-point nondeterminism (the same effect
+        implicated in the temperature=0.0 truncation failures) could still perturb results run-to-run.
+        Per explicit user direction (2026-09-11): re-verification deferred to a separate /develop
+        session, not blocking this run. Known gap for the read at /debrief."
+    shuffled_label_document_swap:
+      status: DEFERRED
+      note: >-
+        Document-shuffle control (pair 1802.03907-CC's rows with a different
+        paper's text; validity should collapse) proposed and explicitly
+        declined for this session's scope -- see the /experiment
+        AskUserQuestion response, 2026-09-11. Known gap, same as pond's
+        deferred shuffled-label control.
+
+  # ── Mid-session deviation: gpt-oss-120b reasoning_effort ──────────────────
+  # judge_real_gptoss (7527735) ran the full 3882-row supermat set, succeeded
+  # on 3879, then failed loud (by design) on 3: finish_reason='length', empty
+  # completion, all three from ivanovskii2008newHigh (a long, entity-dense
+  # review paper) under the full-paper judge. Root cause: run_judge_local.py
+  # never set gpt-oss's `reasoning_effort` chat-template kwarg, so it ran at
+  # harmony's default ("medium"); the analysis channel exhausted
+  # max_tokens=8192 before reaching a verdict on these 3 rows. Diagnosed
+  # (job 7529316) by calling the actual _judge_one against just these 3 rows
+  # with reasoning_effort="low" -- all three then returned a verdict at
+  # ~56k prompt tokens. Fixed by pinning reasoning_effort="low" for
+  # gpt-oss-120b in run_judge_local.py (commit 23c111c), matching the
+  # identical fix already applied for the same model/symptom in
+  # src/scholarlm/utils/probe_augment.py. Standalone eval-logic commit per
+  # this repo's rules -- invalidates every prior gpt-oss-120b judge number,
+  # including 2026-09-09-fulltext-judge-probe-eval-01's pond results (which
+  # didn't hit the truncation failure but still ran under the undocumented
+  # "medium" default). That note is left as-is; not in this session's scope.
+  # judge_real_gptoss resubmitted (7529635) as a fresh full run under the fix;
+  # judge_combine_supermat resubmitted (7529636), held on 7529635 only (qwen
+  # and llama already succeeded as 7527736 / 7527737, exit 0, 3882/3882 rows
+  # each -- no need to re-hold on completed jobs).
+
+  # ── SGE job graph (ids filled in as submitted) ────────────────────────
+  jobs:
+    smoke_gpt_oss_120b: 7525830
+    smoke_qwen_2_5_72b: 7525831
+    smoke_llama_3_3_70b: 7525832
+    diag_reasoning_effort: 7529316   # gpt-oss reasoning_effort=low diagnostic, 3/3 succeeded
+    judge_real_gptoss_attempt1: 7527735   # FAILED exit 1: 3/3882 truncated (see deviation note above)
+    judge_real_qwen72: 7527736
+    judge_real_llama70: 7527737
+    judge_combine_supermat_attempt1: 7527738   # DELETED before running (qdel) -- would have silently used gpt-oss's stale pre-full-paper dir
+    judge_real_gptoss_attempt2: 7529635   # FAILED exit 141, ~1s runtime, EMPTY stdout/stderr -- not the
+                                           # reasoning_effort bug; landed on same node (scc-705) as attempt1
+    judge_combine_supermat_attempt2: 7529636   # fired anyway once 7529635 "finished" (by failing) --
+                                                # -hold_jid releases on completion, not success, same as
+                                                # attempt1's near-miss. This time it actually ran (exit 0)
+                                                # and silently pulled gpt-oss from the STALE 2026_07_09 dir.
+                                                # Caught by reading its log (not its exit status); restored
+                                                # the pre-session combined.json snapshot to remove it from
+                                                # disk. LESSON: do not pre-queue the combine job with
+                                                # -hold_jid on a judge that has already failed once --
+                                                # verify success manually (exit_status + row count) before
+                                                # submitting combine, rather than trusting SGE's hold.
+    judge_real_gptoss_attempt3: 7530223   # ran on scc-a03 (not scc-705 -- rules out the node theory),
+                                           # FAILED exit 1: 2/3882 rows truncated, DIFFERENT rows than
+                                           # attempt1 (chu2009high-CC + ivanovskii2008newHigh), one from a
+                                           # short paper -- reasoning_effort=low helped (3->2) but didn't
+                                           # eliminate it; see run_judge_local.py's updated comment
+    judge_real_gptoss_attempt4: 7531883   # reasoning_effort="low" + max_tokens=16384 (b2a1b0f) --
+                                           # FAILED exit 1: 1/3882 rows (ivanovskii2008newHigh, yet
+                                           # another row). Root cause identified as temperature=0.0
+                                           # greedy decoding occasionally looping, not token budget --
+                                           # see run_judge_local.py's updated comment and commit 30f8e79.
+                                           # Diagnostic (7532192) confirmed temp=0.2 + reasoning_effort
+                                           # back at "medium" + max_tokens back at 8192 resolves all 6
+                                           # rows that had failed across attempts 1/3/4.
+    judge_real_gptoss: 7533858   # retry under temperature=0.2 + seed=342 (commit 30f8e79). Per explicit
+                                  # user direction: reproducibility at temp>0 is NOT re-verified here --
+                                  # deferred to a separate /develop session, not blocking this run.
+    judge_combine_supermat: null   # submitted manually only after 7533858 is confirmed exit 0 + 3882 rows
+
+  code:
+    # this session, branch diff-experiments
+    - "experiments/judge_smoke_check.sh + scratchpad judge_smoke_check.py (rung 2/3, gitignored scratch)"
+    - "experiments/judge_real_voting_v2.sh (generalizes judge_real_voting.sh with <dataset>/<extraction_date> args + supermat-conditioned qwen YaRN factor; gitignored scratch)"
+    - "experiments/judge_combine_supermat_3vote.sh (gitignored scratch)"
+    - "experiments/judge_reasoning_effort_diag.sh + scratchpad judge_reasoning_effort_diag.py (gitignored scratch)"
+    - "experiments/run_judge_local.py: pin gpt-oss-120b reasoning_effort=low (commit 23c111c, COMMITTED -- standalone eval-logic change, see deviation note above)"

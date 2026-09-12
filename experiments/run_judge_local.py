@@ -79,38 +79,89 @@ async def _judge_one(
     idx: int,
     sem: asyncio.Semaphore,
 ) -> dict:
-    """Send a single judge request and return judgement based on text response."""
+    """Send a single judge request and return its true/false judgement.
+
+    Fails loud: a request that errors, comes back with no content, or whose
+    text yields neither ``true`` nor ``false`` raises. It must not resolve to a
+    null judgement — ``run_judge_combine`` counts anything that is not ``True``
+    as a non-affirmative vote, so a silently-dropped request would bias the
+    majority-vote ground truth without leaving a trace.
+    """
+    # gpt-oss-120b history this session (2026-09-11,
+    # 2026-09-11-supermat-fulltext-judge-01): under the supermat full-paper
+    # judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING
+    # tail of rows (finish_reason='length', empty completion) no matter how
+    # the token budget was adjusted -- 3/3882 rows at the harmony chat
+    # template's "medium" reasoning_effort default (job 7527735); 2/3882
+    # *different* rows (one from a comparatively short paper, ruling out a
+    # pure document-length effect) after pinning reasoning_effort="low"
+    # (job 7530223); 1/3882 yet another row after also raising max_tokens
+    # 8192->16384 (job 7531883). Two token-budget-side fixes each reduced
+    # but never eliminated the failure, and a different specific row failed
+    # each time under otherwise-identical settings -- symptoms of greedy
+    # decoding occasionally entering a degenerate repetition loop (a known
+    # reasoning-model failure mode), not a genuine token shortage.
+    # Moving temperature to 0.2 (with reasoning_effort back at "medium" and
+    # max_tokens back at 8192 -- neither budget-side fix was doing the real
+    # work) resolved every one of the 6 rows that had failed across all
+    # three prior attempts, each well under the 8192 cap (diagnostic job
+    # 7532192). `seed=342` is set for reproducibility, but that has NOT yet
+    # been empirically re-verified the way pond's temperature=0.0
+    # seed-determinism control was -- deliberately deferred to a separate
+    # /develop session per an explicit user decision, not blocking this
+    # run. Other judges have no `reasoning_effort` template variable, stay
+    # at temperature=0.0, and are unaffected.
+    is_gpt_oss = "gpt-oss" in model_id
+    extra_body = {"chat_template_kwargs": {"reasoning_effort": "medium"}} if is_gpt_oss else None
+    temperature = 0.2 if is_gpt_oss else 0.0
+    seed = 342 if is_gpt_oss else None
+
     async with sem:
         try:
-            response = await client.chat.completions.create(
+            kwargs: dict = dict(
                 model=model_id,
                 messages=[
                     {"role": "system", "content": entry["system"]},
                     {"role": "user", "content": entry["user"]},
                 ],
-                max_tokens=2048,
-                temperature=0.0,
+                # 8192: reasoning models (gpt-oss-120b) emit a long analysis
+                # channel before the verdict; 2048 truncated it on ~0.5% of
+                # pond rows (fixed by the 8192 bump, commit 7fcf19d). See the
+                # comment above `is_gpt_oss` for why gpt-oss-120b's remaining
+                # supermat truncations were a temperature issue, not a
+                # max_tokens issue -- this cap is unchanged from 7fcf19d.
+                # Non-reasoning judges are unaffected (they stop far short of
+                # this cap).
+                max_tokens=8192,
+                temperature=temperature,
+                extra_body=extra_body,
             )
+            if seed is not None:
+                kwargs["seed"] = seed
+            response = await client.chat.completions.create(**kwargs)
         except Exception as e:
-            print(f"  [idx={idx}] API error: {e}")
-            return {
-                "judgement": None,
-                "judgement_model": model_id,
-            }
+            raise RuntimeError(
+                f"[idx={idx}] judge API call failed: {type(e).__name__}: {e}"
+            ) from e
 
     choice = response.choices[0]
-    response_text = choice.message.content or ""
+    response_text = (choice.message.content or "").strip()
 
     print(f"  [idx={idx}] Response: {response_text}")
 
-    # Derive judgement from the response text
-    judgement: bool | None = None
-    if response_text:
-        t = response_text.strip().lower()
-        if "true" in t:
-            judgement = True
-        elif "false" in t:
-            judgement = False
+    # Derive judgement from the response text. Parse semantics are unchanged
+    # from the original ("true" wins if both appear); only the no-verdict case,
+    # which used to fall through to None, now raises.
+    t = response_text.lower()
+    if "true" in t:
+        judgement = True
+    elif "false" in t:
+        judgement = False
+    else:
+        raise ValueError(
+            f"[idx={idx}] judge response has no true/false verdict "
+            f"(finish_reason={choice.finish_reason!r}): {response_text!r}"
+        )
 
     return {
         "judgement": judgement,
@@ -138,6 +189,11 @@ def run_local_vllm_judge(
     input_file: Path | None = None,
 ) -> None:
     """Run a local vLLM judge and save responses.
+
+    The judge sees the full OCR paper as ``## CONTEXT``. A row carrying a
+    ``context_override`` field (set by the synthetic-probe augmentation
+    pipeline) uses that text verbatim instead — see
+    ``judge_common.prepare_chat_entries``.
 
     Args:
         dataset_config: Dataset configuration.
@@ -183,14 +239,29 @@ def run_local_vllm_judge(
     client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
     sem = asyncio.Semaphore(max_concurrent)
 
-    async def _run_all() -> list[dict]:
+    async def _run_all() -> list[dict | BaseException]:
         tasks = [
             _judge_one(client, model_id, entry, int(entry["custom_id"]), sem)
             for entry in chat_entries
         ]
-        return await asyncio.gather(*tasks)
+        return await asyncio.gather(*tasks, return_exceptions=True)
 
     raw_results = asyncio.run(_run_all())
+
+    # Any failed request aborts the run before responses.json is written — a
+    # partial file would feed a biased vote into run_judge_combine unnoticed.
+    failures = [
+        (int(entry["custom_id"]), res)
+        for entry, res in zip(chat_entries, raw_results)
+        if isinstance(res, BaseException)
+    ]
+    if failures:
+        preview = "\n".join(f"    idx={i}: {res}" for i, res in failures[:10])
+        more = "" if len(failures) <= 10 else f"\n    ... and {len(failures) - 10} more"
+        raise RuntimeError(
+            f"{len(failures)}/{len(chat_entries)} judge requests failed; "
+            f"responses.json NOT written.\n{preview}{more}"
+        )
 
     max_pt = max((r.get("_prompt_tokens", 0) or 0) for r in raw_results)
 
@@ -266,6 +337,21 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--synthetic-file", default=None, metavar="PATH",
+        help=(
+            "Judge an arbitrary probe file (e.g. an augmentation-pipeline output). "
+            "Requires --synthetic-name. Rows carrying a context_override field "
+            "use that text verbatim instead of the full-paper context."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-name", default=None, metavar="NAME",
+        help=(
+            "Output tree label for --synthetic-file: results go to "
+            "synthetic_probe_<NAME>/{judge}/{judge_date}/. [a-z0-9_]."
+        ),
+    )
+    p.add_argument(
         "--ocr-dir", default=None, metavar="DIR",
         help="Directory of OCR .txt files. Defaults to {data_dir}/ocr_output_raw/.",
     )
@@ -293,6 +379,36 @@ def main(argv: list[str] | None = None) -> None:
     set_seeds(seed)
 
     dataset_config = load_dataset_config(args.dataset)
+
+    if args.synthetic_file:
+        if not args.synthetic_name:
+            _build_parser().error("--synthetic-name is required with --synthetic-file.")
+        probe_file = Path(args.synthetic_file)
+        if not probe_file.exists():
+            raise FileNotFoundError(f"--synthetic-file not found: {probe_file}")
+        output_dir = paths.synthetic_probe_named(
+            args.dataset, args.synthetic_name, args.judge, args.judge_date
+        )
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Mode             : synthetic probe (named: {args.synthetic_name})")
+        print(f"Input            : {probe_file}")
+        print(f"Judge            : {args.judge}")
+        print(f"API base         : {args.api_base}")
+        print(f"Output           : {output_dir}\n")
+        run_local_vllm_judge(
+            dataset_config=dataset_config,
+            extraction_model=None,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            extraction_date=None,
+            ocr_dir=args.ocr_dir,
+            api_base=args.api_base,
+            api_key=args.api_key,
+            max_concurrent=args.max_concurrent,
+            ablation=None,
+            input_file=probe_file,
+        )
+        return
 
     if args.synthetic:
         splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]

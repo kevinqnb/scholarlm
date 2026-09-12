@@ -376,6 +376,9 @@ CONFIG = DatasetConfig(
     paper_exclude=None,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=None,
+    # Judge sees only: name, additional_details (+ attribute, value, units).
+    # identifiers (alias-resolution aid), sample_details, pressure and me_method are
+    # dropped so the judge evaluates the minimal entity/event context.
+    judge_filter_fields=["identifiers", "sample_details", "pressure", "me_method"],
     ground_truth_file="data/supermat/ground_truth.json",
 )

@@ -91,7 +91,9 @@ def run_interp_judge(
     description, attribute description, value/units, closing question) is
     identical across all judge backends.  JudgementLM receives
     the three parts separately as (instructions, context, query), which it
-    wraps into a single user message internally.
+    wraps into a single user message internally.  The context is the full OCR
+    paper text; a row carrying a ``context_override`` field (set by the
+    synthetic-probe augmentation pipeline) uses that text verbatim instead.
 
     Args:
         dataset_config: Dataset configuration.
@@ -123,14 +125,12 @@ def run_interp_judge(
 
     # prepare_chat_entries sorts by document_id for cache locality; custom_id
     # preserves the original index so results can be merged back in order.
-    chat_entries = judge_common.prepare_chat_entries(
-        data, documents, dataset_config,
-    )
+    chat_entries = judge_common.prepare_chat_entries(data, documents, dataset_config)
 
     # JudgementLM takes (instructions, context, query) triples separately.
-    # instructions = system prompt, context = extracted page(s), query = ## QUERY content.
+    # instructions = system prompt, context = full paper text, query = ## QUERY content.
     messages: list[tuple[str, str, str]] = [
-        (entry["system"], entry["page_text"], entry["user_query"])
+        (entry["system"], entry["context_text"], entry["user_query"])
         for entry in chat_entries
     ]
 
@@ -252,6 +252,22 @@ def _build_parser() -> argparse.ArgumentParser:
             "If omitted, both splits are run in sequence."
         ),
     )
+    p.add_argument(
+        "--synthetic-file", default=None, metavar="PATH",
+        help=(
+            "Judge an arbitrary probe file (e.g. an augmentation-pipeline output "
+            "like data/pond/probe_dataset_test_v2_diag.json). Requires "
+            "--synthetic-name. Rows carrying a context_override field use that "
+            "text verbatim instead of the full-paper context."
+        ),
+    )
+    p.add_argument(
+        "--synthetic-name", default=None, metavar="NAME",
+        help=(
+            "Output tree label for --synthetic-file: results go to "
+            "synthetic_probe_<NAME>/{judge}/{judge_date}/. [a-z0-9_]."
+        ),
+    )
     return p
 
 
@@ -265,10 +281,34 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset_config = load_dataset_config(args.dataset)
 
+    if args.synthetic_file:
+        if not args.synthetic_name:
+            _build_parser().error("--synthetic-name is required with --synthetic-file.")
+        probe_file = Path(args.synthetic_file)
+        if not probe_file.exists():
+            raise FileNotFoundError(f"--synthetic-file not found: {probe_file}")
+        output_dir = paths.synthetic_probe_named(
+            args.dataset, args.synthetic_name, args.judge, args.judge_date
+        )
+        print(f"\nDataset          : {args.dataset}")
+        print(f"Mode             : synthetic probe (named: {args.synthetic_name})")
+        print(f"Input            : {probe_file}")
+        print(f"Judge            : {args.judge}")
+        print(f"Output           : {output_dir}\n")
+        run_interp_judge(
+            dataset_config=dataset_config,
+            extraction_model=None,
+            judge_key=args.judge,
+            output_dir=output_dir,
+            ocr_dir=args.ocr_dir,
+            input_file=probe_file,
+        )
+        return
+
     if args.synthetic:
         splits = [args.synthetic_split] if args.synthetic_split else ["train", "test"]
         for split in splits:
-            probe_filename = "probe_dataset_test.json" if split == "test" else "probe_dataset.json"
+            probe_filename = "probe_dataset_test_v2.json" if split == "test" else "probe_dataset_v2.json"
             probe_file = _REPO_ROOT / "data" / args.dataset / probe_filename
             if not probe_file.exists():
                 raise FileNotFoundError(

@@ -182,46 +182,57 @@ def load_ground_truth(config) -> "pd.DataFrame":
 
 
 def load_activations(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
     """Load attention_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model, judge_date)
+    path = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
     return np.load(path)
 
 def load_layer_outputs(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None
+    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
+    ablation: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
     """Load layer_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_layer_outputs(dataset, extraction_model, extraction_date, judge_model, judge_date)
+    path = _paths.find_layer_outputs(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
     return np.load(path)
 
 
 def load_synthetic_responses(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> list[dict]:
-    """Load responses.json from a synthetic probe run."""
-    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split)
+    """Load responses.json from a synthetic probe run.
+
+    ``name`` (a ``--synthetic-name`` label, e.g. ``v2_diag``) selects a
+    ``synthetic_probe_<name>`` tree and takes precedence over ``split``.
+    """
+    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split, name)
     with open(path) as f:
         return json.load(f)
 
 
 def load_synthetic_activations(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
-    """Load attention_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split)
+    """Load attention_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
+    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split, name)
     return np.load(path)
 
 
 def load_synthetic_layer_outputs(
-    dataset: str, judge_model: str, judge_date: str | None = None, split: str = "train"
+    dataset: str, judge_model: str, judge_date: str | None = None,
+    split: str = "train", name: str | None = None,
 ) -> "np.lib.npyio.NpzFile":
-    """Load layer_outputs.npz from a synthetic probe run."""
-    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split)
+    """Load layer_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
+    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split, name)
     return np.load(path)
 
 
-def load_trained_ntp_calibrator(dataset: str, judge_model: str, variant: str | None = None) -> dict:
+def load_trained_ntp_calibrator(
+    dataset: str, judge_model: str, variant: str | None = None, source: str | None = None
+) -> dict:
     """Load the NTP Platt calibrator saved by synthetic_probe_train.py.
 
     Args:
@@ -230,6 +241,10 @@ def load_trained_ntp_calibrator(dataset: str, judge_model: str, variant: str | N
             CalibratedClassifierCV-free variant (``ntp_calibrator_noplatt.pkl``)
             saved when ``synthetic_probe_train.py``'s ``USE_PLATT_SCALING`` is
             set to ``False``.
+        source: synthetic training corpus the calibrator was fit on. ``None``
+            (default) is the baseline ``trained_probe/`` directory, unchanged.
+            A non-``None`` value (e.g. ``"v2"``) reads from the parallel
+            ``synthetic_probe_<source>/`` tree. See ``paths.trained_probe_dir``.
 
     Returns a dict with keys:
         ``calibrator``       — fitted calibrator (CalibratedClassifierCV, or the
@@ -248,18 +263,21 @@ def load_trained_ntp_calibrator(dataset: str, judge_model: str, variant: str | N
     if variant not in (None, "noplatt"):
         raise ValueError(f"Unknown variant {variant!r}; expected None or 'noplatt'")
     filename = "ntp_calibrator.pkl" if variant is None else "ntp_calibrator_noplatt.pkl"
-    path = _paths.trained_probe_dir(dataset, judge_model) / filename
+    path = _paths.trained_probe_dir(dataset, judge_model, source=source) / filename
     if not path.exists():
         raise FileNotFoundError(
             f"NTP calibrator not found: {path}. "
             f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' "
-            f"variant={variant!r} first."
+            f"variant={variant!r} source={source!r} first."
         )
     return joblib.load(path)
 
 
-def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head", variant: str | None = None) -> dict:
-    """Load a trained head probe saved by synthetic_probe_analysis.ipynb.
+def load_trained_probe(
+    dataset: str, judge_model: str, ptype: str = "head",
+    variant: str | None = None, source: str | None = None,
+) -> dict:
+    """Load a trained head probe saved by synthetic_probe_train.py.
 
     Args:
         variant: ``None`` (default) loads the Platt-scaled baseline
@@ -269,6 +287,10 @@ def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head", vari
             set to ``False``. Only defined for ``ptype="head"`` — the layer
             probe has no no-Platt variant (out of scope for
             2026-08-10-no-platt-scaling-01).
+        source: synthetic training corpus the probe was fit on. ``None``
+            (default) is the baseline ``trained_probe/`` directory, unchanged.
+            A non-``None`` value (e.g. ``"v2"``) reads from the parallel
+            ``synthetic_probe_<source>/`` tree. See ``paths.trained_probe_dir``.
 
     Returns a dict with keys:
         ``probe``            — fitted sklearn Pipeline (StandardScaler + LogisticRegression),
@@ -297,12 +319,12 @@ def load_trained_probe(dataset: str, judge_model: str, ptype: str = "head", vari
         filename = "layer_probe.pkl"
     else:
         filename = "head_probe.pkl" if variant is None else "head_probe_noplatt.pkl"
-    path = _paths.trained_probe_dir(dataset, judge_model) / filename
+    path = _paths.trained_probe_dir(dataset, judge_model, source=source) / filename
     if not path.exists():
         raise FileNotFoundError(
             f"Trained probe not found: {path}. "
-            f"Run synthetic_probe_analysis.ipynb for dataset='{dataset}' judge='{judge_model}' "
-            f"ptype={ptype!r} variant={variant!r} first."
+            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' "
+            f"ptype={ptype!r} variant={variant!r} source={source!r} first."
         )
     return joblib.load(path)
 

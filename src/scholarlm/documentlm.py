@@ -46,6 +46,15 @@ class DocumentLM:
             chandra/olmOCR-specific formatting -- applied once, generically,
             to both formats. Default False; leaves pond-papers (scholarlm's
             other consumer) unaffected unless it opts in.
+        unknown_label_policy (str): How the chandra-ocr-2 formatter handles a
+            ``<div>`` whose ``data-label`` is outside its audited recognized
+            set. ``"raise"`` (default -- today's behavior) raises ``ValueError``,
+            which ``fit()`` isolates to that one document via ``format_errors``.
+            ``"coerce"`` re-tags the div by its HTML shape (top-level
+            ``<table>`` -> table; else non-decorative ``<img>`` -> figure;
+            else -> body text) and records the coercion in
+            ``self.coerced_labels``. Ignored for olmOCR. Any other value raises
+            ``ValueError`` at construction.
     """
     def __init__(
         self,
@@ -57,6 +66,7 @@ class DocumentLM:
         max_concurrent: int = 32,
         fast: bool = False,
         drop_references: bool = False,
+        unknown_label_policy: str = "raise",
     ):
         if model_name not in SUPPORTED_MODELS:
             raise ValueError(
@@ -73,7 +83,17 @@ class DocumentLM:
         self.max_concurrent = max_concurrent
         self.fast = fast
         self.drop_references = drop_references
+        if unknown_label_policy not in ("raise", "coerce"):
+            raise ValueError(
+                "unknown_label_policy must be 'raise' or 'coerce', got "
+                f"{unknown_label_policy!r}."
+            )
+        self.unknown_label_policy = unknown_label_policy
         self.format_errors: dict[int, str] = {}
+        # doc_idx -> {original_label: count} for chandra divs re-tagged by HTML
+        # shape under unknown_label_policy="coerce". Reset per fit() call, like
+        # format_errors. A div with no data-label is keyed "<no-data-label>".
+        self.coerced_labels: dict[int, dict[str, int]] = {}
 
         if ocr_prompt is None:
             self.ocr_prompt = (
@@ -264,6 +284,7 @@ class DocumentLM:
 
         self.text = []
         self.format_errors = {}
+        self.coerced_labels = {}
         for doc_idx, document in enumerate(documents):
             doc_chunks = document
             doc_text = ""
@@ -278,7 +299,17 @@ class DocumentLM:
                     doc_text = drop_references_section(doc_text)
 
                 if self._output_format == "chandra-ocr-2":
-                    doc_text = format_chandra_output(doc_text)
+                    coercion_log: list[tuple[str, str]] = []
+                    doc_text = format_chandra_output(
+                        doc_text,
+                        unknown_label_policy=self.unknown_label_policy,
+                        coercion_log=coercion_log,
+                    )
+                    if coercion_log:
+                        counts: dict[str, int] = {}
+                        for original_label, _kind in coercion_log:
+                            counts[original_label] = counts.get(original_label, 0) + 1
+                        self.coerced_labels[doc_idx] = counts
                 else:
                     counter = count()
                     doc_text = re.sub(

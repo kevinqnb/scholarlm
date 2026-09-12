@@ -68,8 +68,14 @@ sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from configs.nfix import CONFIG
 from scholarlm.utils.page_attribution import parse_ocr
+from scholarlm.utils import probe_augment as _aug
 
-_JUDGE_ENTITY_FIELDS: list[str] = ["name", "identifiers", "site_type", "additional_details"]
+# Entity fields a synthetic change may touch: the judge-visible entity fields
+# (experiments/configs/nfix.py `judge_filter_fields`) minus `additional_details`
+# — a free-text catch-all that is null throughout the nfix ground truth, so it
+# carries no signal to a probe and is kept out of every synthetic edit. nfix's
+# only judge-visible entity field is the name.
+_JUDGE_ENTITY_FIELDS: list[str] = ["name"]
 _ATTR_DICT: dict = CONFIG.attribute_info_dict
 _OCR_DIR = BASE / "ocr_output_raw"
 _GT_FILE = BASE / "ground_truth.json"
@@ -591,6 +597,98 @@ def build_probe_output(
 
 
 # ---------------------------------------------------------------------------
+# Augmentation (opt-in; see notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md)
+# ---------------------------------------------------------------------------
+
+
+def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
+                 all_records: list[dict], rng) -> None:
+    """Augmented-dataset path — see the build note. Consumes RNG only after
+    sample_valid_set() so the default (non-augment) path is byte-identical."""
+    rules = _build_augment_rules(all_records)
+    if args.augment_sample_gt:
+        n = args.augment_sample_gt
+        xv_train = rng.sample(xv_train, min(n, len(xv_train)))
+        xv_test = rng.sample(xv_test, min(n, len(xv_test)))
+        print(f"RUNG-3 SAMPLE: {len(xv_train)} train / {len(xv_test)} test "
+              f"GT valids (--augment-sample-gt {n})")
+    flags = _aug.AugmentFlags(
+        pos_axes=tuple(args.augment_pos_axes),
+        valid_floor=args.augment_valid_floor,
+        diag_valid_floor=args.augment_diag_valid_floor,
+        prompt_budget_multiple=args.augment_prompt_budget_multiple,
+    )
+    cache_path = Path(args.augment_cache) if args.augment_cache else None
+    cache = _aug.AugmentCache(cache_path)
+    if args.augment_stub:
+        client: _aug.AugmentClient = _aug.StubAugmentClient(cache)
+        print("Augment client: STUB (no LLM)")
+    else:
+        client = _aug.GptOssClient(
+            api_base=args.gpt_oss_api_base, cache=cache,
+            temperature=args.augment_rewrite_temperature,
+            prewarm_max_retries=args.augment_prewarm_max_retries,
+            prewarm_drop_ceiling=args.augment_prewarm_drop_ceiling,
+        )
+        print(f"Augment client: gpt-oss-120b @ {args.gpt_oss_api_base} "
+              f"(temperature {args.augment_rewrite_temperature})")
+
+    written = _aug.run_and_write(
+        base_dir=BASE,
+        out_suffix=args.augment_out_suffix,
+        ocr_dir=_OCR_DIR,
+        xv_train=xv_train,
+        xv_test=xv_test,
+        rules=rules,
+        flags=flags,
+        client=client,
+        rng=rng,
+    )
+    print(f"\n{cache.stats}")
+    print("Augmented outputs:")
+    for k, p in written.items():
+        print(f"  {k:16s} {p}")
+
+
+def _value_pool_by_attr(records: list[dict]) -> dict[str, list[str]]:
+    pool: dict[str, set] = {}
+    for r in records:
+        pool.setdefault(r["attribute"], set()).add(str(r["value"]))
+    return {a: sorted(v) for a, v in pool.items()}
+
+
+def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
+    attr_units = {a: list(info.get("units", [])) for a, info in _ATTR_DICT.items()}
+    gt_dates = sorted({str(r["date"]) for r in all_records if r.get("date")})
+    return _aug.DatasetAugmentRules(
+        name="nfix",
+        entity_name_field="name",
+        entity_noun="site",
+        # nfix's fabricated names don't cleanly map to the site_type catalogue,
+        # so there's no per-type pool and no name→type check — every swap draws
+        # from the flat fallback.
+        fabricated_names_by_type={},
+        fabricated_names_any=list(_MADE_UP_NAMES),
+        entity_type_token=lambda r: None,
+        name_suffix_to_type={},
+        entity_preserve_clause=(
+            "Keep the site type and every measured quantity — value, units and "
+            "measurement event — identical."
+        ),
+        entity_swap_clear_fields=(),   # nfix GT rows carry ~no `identifiers`
+        attr_units=attr_units,
+        # nfix reports a single measurand (N2-fixation rate) -> no attribute error.
+        attribute_pool=sorted(_ATTR_DICT.keys()),
+        value_pool_by_attr=_value_pool_by_attr(all_records),
+        event_field="date",            # judge-visible; ~96% populated in GT
+        event_noun="measurement date",
+        event_pool=gt_dates,
+        event_allow_inject=True,
+        gt_cols=list(_GT_COLS),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -608,6 +706,44 @@ def main(argv: list[str] | None = None) -> None:
         "--reviewed", action="store_true",
         help="Use ground_truth_review.json instead of ground_truth.json.",
     )
+    ag = parser.add_argument_group("augmentation (opt-in; default OFF reproduces "
+                                   "the current probe_dataset{,_test}.json byte-for-byte)")
+    ag.add_argument("--augment", action="store_true",
+                    help="Build the augmented train + primary-test + diagnostic-test "
+                         "files (probe_dataset<suffix>.json etc.) instead of the "
+                         "current two files. Needs a served gpt-oss-120b unless "
+                         "--augment-stub is set.")
+    ag.add_argument("--augment-stub", action="store_true",
+                    help="Use the deterministic stub client (no LLM) — for smoke "
+                         "tests only; produces trivially-edited contexts.")
+    ag.add_argument("--augment-pos-axes", nargs="*", default=list(_aug.POS_AXES),
+                    choices=list(_aug.POS_AXES),
+                    help=f"Positive rewrite axes to attempt (default: {list(_aug.POS_AXES)}).")
+    ag.add_argument("--augment-valid-floor", type=int, default=5000,
+                    help="Minimum valids in the train file (GT carried + distinct synthetic). Usually exceeded; negatives balance to whatever it reaches.")
+    ag.add_argument("--augment-diag-valid-floor", type=int, default=1000,
+                    help="Minimum valids in the diagnostic file (built like the train file).")
+    ag.add_argument("--augment-prompt-budget-multiple", type=int, default=1,
+                    help="Attempt budget = n_gt_valids × n_axes × this. 1 = round 0 only. Falling "
+                         "short inside the budget is a hard error — set from the "
+                         "rung-3 measured yield.")
+    ag.add_argument("--augment-rewrite-temperature", type=float, default=0.7)
+    ag.add_argument("--augment-prewarm-max-retries", type=int, default=2,
+                    help="Resample a truncated / empty / unparseable gpt-oss "
+                         "prewarm call up to this many times before dropping it "
+                         "(with a warning) instead of aborting the run.")
+    ag.add_argument("--augment-prewarm-drop-ceiling", type=float, default=0.02,
+                    help="Circuit breaker: abort if dropped prewarm calls exceed "
+                         "this fraction of the batch (a wedged server still fails "
+                         "fast). A single call can always be dropped.")
+    ag.add_argument("--augment-sample-gt", type=int, default=0,
+                    help="Rung 3: randomly sample this many GT valids (train and test each) "
+                         "before augmenting, for a quick per-axis yield read. 0 = all.")
+    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
+    ag.add_argument("--augment-cache",
+                    default=str(BASE / "probe_augment_cache.json"),
+                    help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
 
     gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
@@ -639,6 +775,10 @@ def main(argv: list[str] | None = None) -> None:
     xv_train, xv_test = sample_valid_set(all_records, rng)
     print(f"\nTrain valid: {len(xv_train):,} records ({len(xv_train) / len(all_records) * 100:.1f}% of total)")
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
+
+    if args.augment:
+        _run_augment(args, xv_train, xv_test, all_records, rng)
+        return
 
     # Build train probe dataset
     print("\nBuilding train probe dataset ...")

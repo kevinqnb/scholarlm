@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -149,15 +148,28 @@ def prepare_chat_entries(
         custom_id     – str(original index in data), used to map results back
         document_id   – string paper code identifying the source document
         system        – system prompt string (JUDGE_INSTRUCTIONS)
-        user          – full user prompt string (## CONTEXT page text + ## QUERY)
+        user          – full user prompt string (## CONTEXT full paper + ## QUERY)
         user_query    – the ## QUERY content only (for JudgementLM interp runner)
         user_document – ## CONTEXT prefix only (for prompt caching)
-        page_text     – extracted page(s) text (for JudgementLM interp runner)
+        context_text  – the ## CONTEXT body: the full OCR document text, or the
+                        row's ``context_override`` verbatim when it carries one
+                        (consumed directly by the NNsight-based runners:
+                        interp judge, jacobian-lens, attribution)
 
-    Provenance fields (``source``, ``page_number``, ``table_number``) are stored
-    as lists in ``final.json`` because deduplication merges multiple source
-    occurrences.  This function unwraps them to the appropriate scalar or list
-    types before building prompts.
+    The judge always sees the full paper: ``## CONTEXT`` is the entire OCR
+    document, never a page slice. Provenance fields (``page_number`` etc.) on
+    the extraction record are not consulted here — narrowing the judge's
+    context to the extracted page(s) was retired in favour of always judging
+    against the full paper.
+
+    Context override: when a row carries a non-null ``context_override`` field,
+    its ``## CONTEXT`` is that text verbatim instead of the full OCR document
+    (the synthetic-probe augmentation pipeline sets this on rows whose context
+    was edited alongside the measurement — see ``probe_augment.py``). A row
+    with no such field, or ``context_override: null``, gets the full OCR
+    document. Because the override travels *on* the row, it cannot be "for" the
+    wrong row or the wrong file by construction — it either is that row's own
+    field or it doesn't exist.
 
     Args:
         data: List of extraction records from a ``final.json`` file.
@@ -189,7 +201,6 @@ def prepare_chat_entries(
 
     entries: list[dict[str, Any]] = []
     papers_printed: int = 0
-    fulldoc_fallbacks: int = 0
     for _i_sorted, (orig_idx, entry) in enumerate(data_with_idx):
         document_id = str(entry["document_id"])
         document = documents.get(document_id)
@@ -212,21 +223,13 @@ def prepare_chat_entries(
         units = entry.get("units")
         measurement_val = entry.get("value")
 
-        # Provenance fields are stored as lists in final.json — one element per
-        # source occurrence (a value may appear in both prose and a table).
-        pn_raw = entry.get("page_number")
-        page_numbers: list[int] = (
-            [pn for pn in pn_raw if pn is not None]
-            if isinstance(pn_raw, list)
-            else ([pn_raw] if pn_raw is not None else [])
-        )
-
-        page_text = extract_page_text(document, page_numbers)
-        # extract_page_text returns the `document` object itself on every
-        # fallback path (no page_number, all-None, or no matching page block),
-        # so an identity check reliably flags a full-document context.
-        if not page_numbers or page_text is document:
-            fulldoc_fallbacks += 1
+        override_text = entry.get("context_override")
+        if override_text is not None:
+            # Context was edited by the augmentation pipeline; use it verbatim.
+            context_text = override_text
+        else:
+            # The judge always sees the whole paper, never a page slice.
+            context_text = document
 
         system = dataset_config.judge_instructions or JUDGE_INSTRUCTIONS
 
@@ -240,12 +243,16 @@ def prepare_chat_entries(
             event_description=event_description,
         )
 
-        user = f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-        user_document = f"## CONTEXT:\n{page_text}\n\n"
+        user = f"## CONTEXT:\n{context_text}\n\n## QUERY:\n{query}"
+        user_document = f"## CONTEXT:\n{context_text}\n\n"
 
         if _DEBUG_PAPERS_LIMIT is None or papers_printed < _DEBUG_PAPERS_LIMIT:
-            print(f"DEBUG: User message for document_id={document_id}, orig_idx={orig_idx}:\n{user}\n")
-            print()
+            # The context is a whole paper now; print head+tail, not the lot.
+            if len(user) > 2400:
+                preview = f"{user[:1200]}\n...[{len(user) - 2400} chars elided]...\n{user[-1200:]}"
+            else:
+                preview = user
+            print(f"DEBUG: User message for document_id={document_id}, orig_idx={orig_idx}:\n{preview}\n")
             papers_printed += 1
 
         entries.append({
@@ -255,14 +262,8 @@ def prepare_chat_entries(
             "user": user,
             "user_query": query,
             "user_document": user_document,
-            "page_text": page_text,
+            "context_text": context_text,
         })
-
-    if entries and fulldoc_fallbacks:
-        print(
-            f"WARN: {fulldoc_fallbacks}/{len(entries)} measurements had no matched "
-            f"page -> full-document context (judge context not page-limited for these)."
-        )
 
     return entries
 
