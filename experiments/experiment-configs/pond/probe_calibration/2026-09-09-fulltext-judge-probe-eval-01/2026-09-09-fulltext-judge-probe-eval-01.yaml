@@ -22,7 +22,7 @@ description: >-
 seed: 342  # repo-global (experiments/config.yaml). run_judge_interp.py /
            # run_judge_local.py read it via load_config(). The _v2 augmentation
            # generation deliberately uses --seed 42 (see
-           # configs/2026-09-03-probe-synthetic-augmentation-01.yaml); the
+           # experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml); the
            # sklearn probe / calibrator fits use a fixed internal random_state=42
            # (unchanged from baseline -- not a knob of this experiment).
 params:
@@ -46,7 +46,7 @@ params:
   synthetic:
     # Stage A -- regenerate the pond _v2 files. Runs from the augmentation build's
     # config, not this one:
-    #   configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+    #   experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml
     #   qsub -N gen_aug_pond experiments/gen_augment.sh pond
     # (pond: --augment --seed 42 --reviewed --augment-prompt-budget-multiple 3,
     #  valid_floor 5000 default, diag_valid_floor 1000 default)
@@ -55,7 +55,7 @@ params:
     # probe_dataset_test_v2_diag.json (diagnostic: built like train on held-out
     # valids), + probe_augment_cache.json (extended, content-hash keyed) and the
     # per-split .diff.txt reports (OVERWRITTEN -- snapshotted).
-    gen_config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+    gen_config: experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml
     files:
       train:   { file: probe_dataset_v2.json,           synthetic_name: v2 }
       primary: { file: probe_dataset_test_v2.json,      synthetic_name: v2_primary }

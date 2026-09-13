@@ -51,7 +51,7 @@ params:
 
   # ── Stage A — generate the _v2 datasets (rung 4 of the augmentation build) ──
   # Runs from the *augmentation* build's config, not this one:
-  #   configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+  #   experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml
   #   qsub -N gen_aug_<ds> experiments/gen_augment.sh <ds>   (one job per dataset)
   # Produces per dataset: probe_dataset_v2.json (train), probe_dataset_test_v2.json
   # (primary: held-out GT valids + typed negatives, zero gpt-oss content on the
@@ -66,7 +66,7 @@ params:
   # exist and fill_positive_target hard-errors on a missed 5000 floor. The
   # pond↔nfix/supermat size asymmetry is accepted (per-dataset probes; user read
   # at /debrief).
-  stage_a_config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+  stage_a_config: experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml
 
   # ── Stage B — judge the _v2 files with qwen-2.5-7b + activations ────────────
   # experiments/run_judge_v2.sh <ds> <which> <judge_date>  — one qsub per (ds,
