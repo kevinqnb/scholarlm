@@ -1,0 +1,23 @@
+id: 2026-09-13-pond-ablation1-judge-combine-01
+project: scholarlm
+description: >-
+  Phase C acceptance gate (restructure plan). Majority-vote combine of the
+  four pond ablation1/gpt-oss-120b judge runs (3 voting: gpt-oss-120b,
+  qwen-2.5-72b, llama-3.3-70b; 1 non-voting NTP-only: qwen-2.5-7b interp) via
+  run_judge_combine.py's new id-based judge_ids addressing. voting_threshold
+  left unset -- defaults to ceil(3/2)=2, matching the historical combine.
+  Diffed against the combined/combined.json already sitting under
+  data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/.
+  No serve/resources section for this type (model_kind: None,
+  gpu_need="none") -- params.walltime is required explicitly per the
+  contract's no-magic-numbers rule; pure JSON merge over ~4285 records needs
+  minutes, not hours.
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+    - 2026-09-13-pond-ablation1-gptoss120b-judge-local-01
+    - 2026-09-13-pond-ablation1-qwen72b-judge-local-01
+    - 2026-09-13-pond-ablation1-llama70b-judge-local-01
+    - 2026-09-13-pond-ablation1-qwen7b-judge-interp-01
+  walltime: "00:30:00"

@@ -1,0 +1,17 @@
+id: 2026-09-13-pond-ablation1-qwen7b-judge-interp-01
+project: scholarlm
+description: >-
+  Phase C acceptance gate (restructure plan). NNsight interp judge
+  (qwen-2.5-7b) over the pond ablation1/gpt-oss-120b extraction, migrated in
+  Phase B as 2026-05-03-pond-gpt-oss-120b-ablation1-01. Exercises
+  run_judge_interp.py's new config-path CLI + id-based extraction_id
+  resolution end to end. Its responses.json is diffed against the qwen-2.5-7b
+  subdir already sitting under
+  data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/
+  (do_sample: false, max_new_tokens: 1 -- deterministic, no code changes to
+  run_judge_interp.py since that baseline run per git log).
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
