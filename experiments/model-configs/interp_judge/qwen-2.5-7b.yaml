@@ -4,3 +4,19 @@ nnsight_kwargs:
 sampling_params:
   do_sample: false
   max_new_tokens: 1
+resources:
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # Pinned explicitly, not just a capability floor: this cluster's installed
+  # torch build (2.7.1+cu126) stops at sm_90, and a gpu_c floor alone let
+  # similar 7-8B NNsight jobs land on newer incompatible GPU types (see
+  # notes/scholarlm/experiments/2026-08-11-llama-base-answer-cue-01.md).
+  # Two real qwen-2.5-7b interp-judge runs (judge_run_metadata/qwen-2.5-7b.json
+  # under 2026-09-09-fulltext-judge-probe-eval-01 and
+  # 2026-09-11-ablation1-fulltext-judge-calib-01) both completed successfully
+  # on an NVIDIA L40S, 44.4 GiB. gpu_memory below is a 32G floor, not that
+  # observed figure -- harmless only because gpu_type pins the card outright;
+  # if the pin is ever removed, raise gpu_memory to match first.
+  gpu_type: L40S
+  walltime: "24:00:00"
+  omp: 8

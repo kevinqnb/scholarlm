@@ -1066,20 +1066,38 @@ def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -
 # are NOT listed here -- they still get an experiment-configs/ directory for
 # the reproducibility record, but no runner/submit.sh automation. See the
 # restructure plan's two-tier taxonomy.
-EXPERIMENT_TYPES: dict[str, dict[str, str | None]] = {
+EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     "extraction":           {"runner": "run_extraction.py",          "model_kind": "extraction"},
     "ablation":              {"runner": "run_ablation.py",            "model_kind": "extraction"},
     "table_cleaning":        {"runner": "run_table_cleaning.py",       "model_kind": "extraction"},
-    "baseline_chatextract":  {"runner": "run_baseline_chatextract.py", "model_kind": "extraction"},
+    # model_default: the runner's own params.get("model", <default>) fallback
+    # when params.model is omitted -- resolve_job must match it exactly, or a
+    # config that relies on the runner's default would resolve the wrong
+    # model-config (or none at all) at submission time.
+    "baseline_chatextract":  {"runner": "run_baseline_chatextract.py", "model_kind": "extraction",
+                              "model_default": "gemma-3-27b"},
     "probe_augment":         {"runner": "run_probe_augment.py",        "model_kind": "extraction"},
-    "baseline_gliner":       {"runner": "run_baseline_gliner.py",      "model_kind": "baseline"},
-    "baseline_nuextract":    {"runner": "run_baseline_nuextract.py",   "model_kind": "baseline"},
-    "judge_interp":          {"runner": "run_judge_interp.py",         "model_kind": "interp_judge"},
-    "attribution":           {"runner": "run_attribution.py",          "model_kind": "interp_judge"},
-    "judge_local":           {"runner": "run_judge_local.py",          "model_kind": "vllm_judge"},
+    "baseline_gliner":       {"runner": "run_baseline_gliner.py",      "model_kind": "baseline",
+                              "model_default": "gliner-large-v1"},
+    # No model_param at all: run_baseline_nuextract.py always uses
+    # nuextract-2.0-8b, hardcoded inside the function itself, not read from
+    # params -- there is no params key to look up.
+    "baseline_nuextract":    {"runner": "run_baseline_nuextract.py",   "model_kind": "baseline",
+                              "fixed_model": "nuextract-2.0-8b"},
+    # These three runners name their model params.judge, not params.model
+    # (matching their own --judge CLI flag before this restructure) --
+    # resolve_job must key off the right params field per experiment-type,
+    # not assume "model" universally.
+    "judge_interp":          {"runner": "run_judge_interp.py",         "model_kind": "interp_judge",
+                              "model_param": "judge"},
+    "attribution":           {"runner": "run_attribution.py",          "model_kind": "interp_judge",
+                              "model_param": "judge"},
+    "judge_local":           {"runner": "run_judge_local.py",          "model_kind": "vllm_judge",
+                              "model_param": "judge"},
     "jacobian_lens":         {"runner": "run_jacobian_lens.py",        "model_kind": "jacobian_lens"},
     "representation_lm":     {"runner": "run_representation_lm.py",    "model_kind": "representation_lm"},
-    "ocr":                   {"runner": "run_ocr.py",                  "model_kind": "ocr"},
+    "ocr":                   {"runner": "run_ocr.py",                  "model_kind": "ocr",
+                              "model_default": "olmocr"},
     "judge_combine":         {"runner": "run_judge_combine.py",        "model_kind": None},
     "process_pdfs":          {"runner": "process_pdfs.py",             "model_kind": None},
 }
@@ -1193,12 +1211,30 @@ def resolve_job(experiment_id: str) -> dict:
         result["model_config"] = None
         return result
 
-    if "model" not in params:
-        raise ValueError(
-            f"{config_path}: params.model is required for experiment-type "
-            f"{experiment_type!r}"
-        )
-    model_name = params["model"]
+    if "fixed_model" in type_info:
+        # No params key to look up at all -- the runner always uses this
+        # exact model (e.g. run_baseline_nuextract.py always uses
+        # nuextract-2.0-8b, hardcoded inside the function itself). If a
+        # config sets params.model anyway, the runner would silently ignore
+        # it -- raise here instead so that mistake surfaces before qsub.
+        if "model" in params:
+            raise ValueError(
+                f"{config_path}: experiment-type {experiment_type!r} always uses "
+                f"{type_info['fixed_model']!r} -- it has no model param, so "
+                f"params.model={params['model']!r} would be silently ignored by the runner"
+            )
+        model_name = type_info["fixed_model"]
+    else:
+        model_param = type_info.get("model_param", "model")
+        if model_param in params:
+            model_name = params[model_param]
+        elif "model_default" in type_info:
+            model_name = type_info["model_default"]
+        else:
+            raise ValueError(
+                f"{config_path}: params.{model_param} is required for experiment-type "
+                f"{experiment_type!r}"
+            )
     model_config = load_model_config(model_kind, model_name)
     gpu_need = classify_gpu_need(model_config, source=f"{model_kind}/{model_name}.yaml")
 

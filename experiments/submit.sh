@@ -56,6 +56,11 @@ if [ "$GPU_NEED" = "vllm_server" ] || [ "$GPU_NEED" = "direct_gpu" ]; then
         -l "gpu_memory=${GPU_MEMORY}"
         -l "gpu_c=${GPU_C}"
     )
+    # GPU_TYPE is only emitted when the model-config's resources: block sets
+    # gpu_type -- most models don't need to pin one, a gpu_c floor is enough.
+    if [ -n "${GPU_TYPE:-}" ]; then
+        QSUB_ARGS+=(-l "gpu_type=${GPU_TYPE}")
+    fi
 else
     # Frontier model, or no model at all: no GPU request. There is no
     # serve/resources section to default a walltime from, so

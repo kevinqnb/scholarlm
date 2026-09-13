@@ -127,7 +127,7 @@ def test_resolve_job_vllm_server_type(fixture_roots):
 def test_resolve_job_direct_gpu_type(fixture_roots):
     exp_root, model_root = fixture_roots
     exp_id = "2026-09-12-test-judgeinterp-01"
-    _write_experiment_config(exp_root, "pond", "judge_interp", exp_id, {"model": "qwen-2.5-7b"})
+    _write_experiment_config(exp_root, "pond", "judge_interp", exp_id, {"judge": "qwen-2.5-7b"})
     _write_yaml(model_root / "interp_judge" / "qwen-2.5-7b.yaml", {
         "model_id": "Qwen/Qwen2.5-7B-Instruct",
         "nnsight_kwargs": {"torch_dtype": "bfloat16"},
@@ -182,10 +182,54 @@ def test_resolve_job_missing_model_param_raises(fixture_roots):
         utils.resolve_job(exp_id)
 
 
+def test_resolve_job_fixed_model_type_ignores_params(fixture_roots):
+    exp_root, model_root = fixture_roots
+    exp_id = "2026-09-12-test-nuextract-01"
+    _write_experiment_config(exp_root, "pond", "baseline_nuextract", exp_id, {"dataset": "pond"})
+    _write_yaml(model_root / "baseline" / "nuextract-2.0-8b.yaml", {
+        "model_id": "numind/NuExtract-2.0-8B",
+        "serve": {"port": 8081, "sif_image": "x.sif"},
+        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "walltime": "12:00:00", "omp": 4},
+    })
+
+    job = utils.resolve_job(exp_id)
+    assert job["model"] == "nuextract-2.0-8b"
+    assert job["gpu_need"] == "vllm_server"
+
+
+def test_resolve_job_model_default_used_when_param_absent(fixture_roots):
+    exp_root, model_root = fixture_roots
+    exp_id = "2026-09-12-test-ocr-01"
+    _write_experiment_config(exp_root, "pond", "ocr", exp_id, {"dataset": "pond"})  # no model
+    _write_yaml(model_root / "ocr" / "olmocr.yaml", {
+        "model_id": "allenai/olmOCR-7B-0225-preview",
+        "prompt_source": "olmocr_no_anchoring_v4",
+        "serve": {"port": 8081, "sif_image": "x.sif"},
+        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "walltime": "12:00:00", "omp": 4},
+    })
+
+    job = utils.resolve_job(exp_id)
+    assert job["model"] == "olmocr"
+
+
+def test_resolve_job_model_default_overridden_by_explicit_param(fixture_roots):
+    exp_root, model_root = fixture_roots
+    exp_id = "2026-09-12-test-chatextract-01"
+    _write_experiment_config(exp_root, "pond", "baseline_chatextract", exp_id,
+                              {"dataset": "pond", "model": "gpt-5-mini"})
+    _write_yaml(model_root / "extraction" / "gpt-5-mini.yaml", {
+        "model_id": "gpt-5-mini", "api_base": "https://api.openai.com/v1",
+    })
+
+    job = utils.resolve_job(exp_id)
+    assert job["model"] == "gpt-5-mini"
+    assert job["gpu_need"] == "none"
+
+
 def test_resolve_job_missing_resources_propagates_from_classify(fixture_roots):
     exp_root, model_root = fixture_roots
     exp_id = "2026-09-12-test-judgeinterp-01"
-    _write_experiment_config(exp_root, "pond", "judge_interp", exp_id, {"model": "qwen-2.5-7b"})
+    _write_experiment_config(exp_root, "pond", "judge_interp", exp_id, {"judge": "qwen-2.5-7b"})
     _write_yaml(model_root / "interp_judge" / "qwen-2.5-7b.yaml", {
         "model_id": "Qwen/Qwen2.5-7B-Instruct",
         "nnsight_kwargs": {"torch_dtype": "bfloat16"},
@@ -193,6 +237,34 @@ def test_resolve_job_missing_resources_propagates_from_classify(fixture_roots):
     })
     with pytest.raises(ValueError, match="cannot determine"):
         utils.resolve_job(exp_id)
+
+
+# ---------------------------------------------------------------------------
+# Mirror check against the real, committed experiment-configs/ tree -- catches
+# a runner/resolve_job model-param mismatch (like the params.judge vs
+# params.model bug this file's fixture tests were built to reproduce) on
+# every config actually checked into the repo, not just hand-built fixtures.
+# ---------------------------------------------------------------------------
+
+
+def test_all_committed_runnable_experiment_configs_resolve():
+    real_root = Path(__file__).parent.parent / "experiments" / "experiment-configs"
+    checked = 0
+    for cfg_path in sorted(real_root.glob("*/*/*/*.yaml")):
+        experiment_type = cfg_path.parts[-3]
+        if experiment_type not in utils.EXPERIMENT_TYPES:
+            continue  # Tier-2 composite/manual type name, no run_{type}.py at all
+        cfg = yaml.safe_load(cfg_path.read_text())
+        if cfg.get("params", {}).get("entry_point") == "manual":
+            # A Tier-2 composite record filed under a Tier-1 type-name
+            # directory (e.g. representation_lm/, attribution/) -- documents
+            # a hand-orchestrated multi-run workflow, not a single
+            # submit.sh-resolvable job. Not runnable through resolve_job by
+            # design; params shape deliberately doesn't match the runner's.
+            continue
+        utils.resolve_job(cfg_path.stem)
+        checked += 1
+    assert checked >= 1, "expected at least one real Tier-1 experiment-config to check"
 
 
 # ---------------------------------------------------------------------------

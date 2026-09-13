@@ -134,11 +134,17 @@ def test_classify_all_real_model_configs_are_resolvable_or_flagged():
     history documents (interp_judge/*, jacobian_lens/*, representation_lm/*,
     baseline/gliner-*). Catches an accidental new unresolvable model-config
     slipping in silently.
+
+    interp_judge/qwen-2.5-7b is deliberately NOT in this set anymore: its
+    resources: block (including a pinned gpu_type=L40S) was filled in from
+    two real historical run_metadata.json records plus a documented
+    gpu_c-floor-alone failure mode for this model class (see the model-config
+    file's own comments) as part of unblocking the Phase C acceptance gate.
     """
     known_missing = {
         ("baseline", "gliner-large-v1"), ("baseline", "gliner-base-v1"),
         ("interp_judge", "llama-3.1-8b"), ("interp_judge", "mistral-7b"),
-        ("interp_judge", "qwen-2.5-7b"), ("interp_judge", "qwen-2.5-7b-base"),
+        ("interp_judge", "qwen-2.5-7b-base"),
         ("interp_judge", "qwen-2.5-7b-base-cued"), ("interp_judge", "llama-3.1-8b-base-cued"),
         ("jacobian_lens", "llama-3.1-8b-base"),
         ("representation_lm", "llama-3.1-8b-base"),
