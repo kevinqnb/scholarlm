@@ -42,7 +42,11 @@ eval "$("$PY" "$REPO_ROOT/experiments/_resolve_job.py" "$ID")"
 OUT_DIR="$REPO_ROOT/experiments/experiment-configs/$DATASET/$EXPERIMENT_TYPE/$ID/out"
 mkdir -p "$OUT_DIR"
 JOB_NAME="x${ID}"
-QSUB_ARGS=(-N "$JOB_NAME" -P "$SGE_PROJECT" -j y -o "$OUT_DIR/${ID}.log" -m e)
+# -v REPO_ROOT=...: SGE copies the job script to /var/spool/sge/<node>/job_scripts/
+# before executing it, so _submit_job.sh cannot self-locate the repo via
+# ${BASH_SOURCE[0]} the way this script does -- that would resolve to the
+# spool path instead. Pass it explicitly instead of re-deriving it wrong.
+QSUB_ARGS=(-N "$JOB_NAME" -P "$SGE_PROJECT" -v "REPO_ROOT=$REPO_ROOT" -j y -o "$OUT_DIR/${ID}.log" -m e)
 
 if [ "$GPU_NEED" = "vllm_server" ] || [ "$GPU_NEED" = "direct_gpu" ]; then
     # Local model (vLLM-served or NNsight-direct): resource request comes

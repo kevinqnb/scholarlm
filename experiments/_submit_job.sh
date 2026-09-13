@@ -25,11 +25,25 @@ fi
 ID="$1"
 DRY_RUN="${SUBMIT_JOB_DRY_RUN:-0}"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# REPO_ROOT comes from experiments/submit.sh's `qsub -v REPO_ROOT=...`, not
+# self-located via ${BASH_SOURCE[0]} -- SGE copies this script to
+# /var/spool/sge/<node>/job_scripts/<jobid> before executing it, so
+# BASH_SOURCE would resolve to the spool path, not the repo checkout.
+: "${REPO_ROOT:?REPO_ROOT is not set -- run this via experiments/submit.sh, not qsub directly}"
 cd "$REPO_ROOT"
 
 PY="$REPO_ROOT/.venv/bin/python"
 [ -x "$PY" ] || PY=python3
+
+# HuggingFace weights cache must never land in $HOME (CLAUDE.local.md storage
+# discipline) -- HF_CACHE is exported repo-wide via the user's shell profile,
+# but HF_HOME (the var transformers/huggingface_hub actually reads) is only
+# set interactively via the `hfhome` alias, which a non-interactive qsub job
+# never runs. Previously only exported inside the vLLM singularity launch
+# string below, so any direct_gpu (NNsight) or no-model job silently fell
+# back to ~/.cache/huggingface -- discovered when the interp-judge job hit
+# $HOME's quota downloading qwen-2.5-7b. Set it for every job type here.
+export HF_HOME="${HF_CACHE:?HF_CACHE is not set -- export it in your cluster profile}"
 
 eval "$("$PY" "$REPO_ROOT/experiments/_resolve_job.py" "$ID")"
 
