@@ -1,0 +1,21 @@
+id: 2026-09-14-qwen7b-interp-judge-seed-determinism-02
+project: scholarlm
+description: >-
+  Second of two identical reruns -- see
+  2026-09-14-qwen7b-interp-judge-seed-determinism-01 for the full
+  rationale (known-answer validation for qwen-2.5-7b.yaml's unvalidated
+  YaRN override, plus seed-determinism). fixture_pond_ablation1_first100.json
+  here is byte-identical to the copy in -01's directory (same recipe: first
+  100 rows, original order, of the 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  extraction's final.json). synthetic_name differs from -01
+  ("seed_determinism_rerun_b" vs "_rerun_a") so the two runs land in
+  separate output directories instead of colliding on the
+  judge_date-keyed synthetic-probe path. Compare against -01's
+  responses.json/attention_outputs.npz/layer_outputs.npz.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  synthetic_file: experiments/experiment-configs/pond/judge_interp/2026-09-14-qwen7b-interp-judge-seed-determinism-02/fixture_pond_ablation1_first100.json
+  synthetic_name: seed_determinism_rerun_b
+  walltime: "2:00:00"

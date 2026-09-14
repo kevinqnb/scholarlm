@@ -3,8 +3,8 @@
 Resolves everything experiments/submit.sh and experiments/_submit_job.sh need
 to submit and run one experiment: which runner script, what SGE resource
 request (if any), and -- for vLLM-served models -- the full server launch
-parameters. Prints shell `KEY=VALUE` (and `KEY=(array)` for extra_vllm_args)
-lines meant to be `eval`'d by the caller.
+parameters. Prints shell `KEY=VALUE` (and `KEY=(array)` for extra_vllm_args
+and extra_env) lines meant to be `eval`'d by the caller.
 
 Every value is passed through shlex.quote(), so this is safe against
 embedded quotes/spaces -- e.g. nuextract-2.0-8b's extra_vllm_args entry
@@ -96,6 +96,10 @@ def main(argv: list[str] | None = None) -> int:
         _emit("SIF_IMAGE", mc["serve"]["sif_image"])
         extra_args = mc["serve"].get("extra_vllm_args", [])
         print("EXTRA_VLLM_ARGS=(" + " ".join(shlex.quote(a) for a in extra_args) + ")")
+        extra_env = mc["serve"].get("extra_env", {})
+        print(
+            "EXTRA_ENV=(" + " ".join(shlex.quote(f"{k}={v}") for k, v in extra_env.items()) + ")"
+        )
     elif gpu_need == "direct_gpu":
         _emit("MODEL_ID", job["model_config"]["model_id"])
     elif "model" in job:

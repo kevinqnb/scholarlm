@@ -30,8 +30,34 @@ serve:
   max_model_len: 90000
   gpu_memory_utilization: 0.9
   dtype: auto
-  sif_image: vllm-openai_v0.19.0.sif
+  sif_image: vllm-openai_v0.24.0.sif
+  # 2026-09-14: under v0.19.0, default (auto) mxfp4 MoE backend selection
+  # fell back to the Triton kernel path (vllm/model_executor/layers/
+  # fused_moe/gpt_oss_triton_kernels_moe.py) on H200 and crashed at server
+  # startup -- AssertionError: hidden_states.shape[-1] == w1.shape[-2] --
+  # reproduced twice, identically, on two different H200 nodes (jobs
+  # 7568854, 7569233). Bumping sif_image to v0.24.0 (no other change)
+  # fixed it: job 7571062 completed cleanly on H200 NVL, all 4285 rows.
+  # The identical assertion text still exists in v0.24.0's equivalent file
+  # (fused_moe/experts/gpt_oss_triton_kernels_moe.py:879) so this wasn't a
+  # guaranteed fix going in -- whatever changed is upstream of that line
+  # (weight-padding or backend-priority order), not inspected further since
+  # the empirical result was clean.
+  #
+  # Separately, gpu_type is pinned below because the gpu_capability/
+  # gpu_memory floor also admits an A100, which is a real capacity
+  # mismatch, not a kernel bug: job 7571332 (v0.24.0, same config, no other
+  # change) landed on an a100 node and failed at startup with "3.17 GiB KV
+  # cache is needed ... larger than the available KV cache memory (3.01
+  # GiB)" -- gpt-oss-120b's mxfp4 weights at max_model_len 90000 don't
+  # leave room for a KV cache on an 80G A100 the way they do on H200's
+  # 139.8 GiB. H200 is the only card this config has actually completed a
+  # full run on since the v0.24.0 bump; the prior working card under
+  # v0.19.0 (RTX PRO 6000 Blackwell, run 2026-09-13-pond-ablation1-
+  # gptoss120b-judge-local-01) has not been re-verified under v0.24.0, so
+  # it is deliberately not included in the pin.
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0
+  gpu_type: H200
   omp: 8

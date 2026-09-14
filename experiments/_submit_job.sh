@@ -104,7 +104,16 @@ if [ "$GPU_NEED" = "vllm_server" ]; then
             VLLM_CMD="$VLLM_CMD $arg"
         done
 
-        LAUNCH_CMD="export TMPDIR=${TMPDIR:-/tmp} && export HF_HOME=${HF_CACHE_DIR} && $VLLM_CMD"
+        # extra_env: model-config-driven env vars exported before the vLLM
+        # launch itself (e.g. gpt-oss-120b's VLLM_USE_FLASHINFER_MOE_MXFP4_BF16
+        # workaround) -- same source-of-truth rule as extra_vllm_args above,
+        # just for the process environment instead of CLI flags.
+        EXTRA_ENV_EXPORTS=""
+        for kv in "${EXTRA_ENV[@]}"; do
+            EXTRA_ENV_EXPORTS="${EXTRA_ENV_EXPORTS}export ${kv} && "
+        done
+
+        LAUNCH_CMD="export TMPDIR=${TMPDIR:-/tmp} && export HF_HOME=${HF_CACHE_DIR} && ${EXTRA_ENV_EXPORTS}$VLLM_CMD"
 
         if [ "$DRY_RUN" = "1" ]; then
             echo "[dry-run] would run: singularity exec --nv --bind \$SINGULARITY_BIND $SIF_PATH bash -c \"$LAUNCH_CMD\""

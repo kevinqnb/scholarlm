@@ -6,7 +6,29 @@ serve:
   quantization: awq_marlin
   dtype: bfloat16
   sif_image: vllm-openai_v0.19.0.sif
+  # 2026-09-14: this model's AWQ quantization goes through
+  # choose_mp_linear_kernel, which tries MacheteLinearKernel before
+  # MarlinLinearKernel. On an RTX PRO 6000 Blackwell node (job 7569337),
+  # Machete's can_implement() incorrectly reported support for this AWQ
+  # checkpoint's raw-integer zero-point format, got selected and compiled
+  # into the CUDA graph, then failed once actually invoked: NotImplementedError:
+  # machete_mm(..) is not implemented for ... with_group_zeropoint_type=Int
+  # (not in Machete's supported-type table). The same run succeeded
+  # cleanly on H200 (job 7568910/run -01), where Machete's capability gate
+  # or can_implement() apparently takes a different path -- not
+  # investigated further since the fix below sidesteps it entirely.
+  # VLLM_DISABLED_KERNELS drops a kernel class from consideration before
+  # can_implement() is even checked, falling through straight to Marlin --
+  # the kernel awq_marlin quantization is actually built around. Retried
+  # with this fix + the gpu_type: H200 pin below (job 7572218): succeeded,
+  # 4285/4285 rows. Since the pin alone keeps this off Blackwell (where the
+  # bug was observed), this run doesn't distinguish "the fix worked" from
+  # "the pin alone avoided the bug" -- kept anyway as a low-cost second
+  # line of defense in case Marlin's own priority ever changes upstream.
+  extra_env:
+    VLLM_DISABLED_KERNELS: "MacheteLinearKernel"
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0
+  gpu_type: H200
   omp: 8
