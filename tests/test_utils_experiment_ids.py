@@ -140,14 +140,22 @@ def test_classify_all_real_model_configs_are_resolvable_or_flagged():
     two real historical run_metadata.json records plus a documented
     gpu_c-floor-alone failure mode for this model class (see the model-config
     file's own comments) as part of unblocking the Phase C acceptance gate.
+
+    interp_judge/llama-3.1-8b and representation_lm/llama-3.1-8b-base are also
+    no longer in this set (2026-09-14): both were blocking real committed
+    experiment-configs (24 and 2 respectively) from resolving through
+    submit.sh. Filled in from the actual llama-3.1-8b judge_interp qsub
+    scripts' resource request, recorded verbatim in
+    notes/scholarlm/experiments/2026-08-11-llama-base-answer-cue-01.md (see
+    each model-config file's own comments for the full evidence and its
+    limits).
     """
     known_missing = {
         ("baseline", "gliner-large-v1"), ("baseline", "gliner-base-v1"),
-        ("interp_judge", "llama-3.1-8b"), ("interp_judge", "mistral-7b"),
+        ("interp_judge", "mistral-7b"),
         ("interp_judge", "qwen-2.5-7b-base"),
         ("interp_judge", "qwen-2.5-7b-base-cued"), ("interp_judge", "llama-3.1-8b-base-cued"),
         ("jacobian_lens", "llama-3.1-8b-base"),
-        ("representation_lm", "llama-3.1-8b-base"),
     }
     for kind_dir in sorted(utils.MODEL_CONFIGS_ROOT.iterdir()):
         if not kind_dir.is_dir():
