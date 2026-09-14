@@ -1,13 +1,12 @@
 # ScholarlM experiment configuration
 #
-# This file is the single source of truth for stable experiment parameters:
-# seeds, per-model sampling params, HuggingFace revision SHAs, serve
-# settings, and cluster scheduler settings.  It is committed to the repo so
-# any result is traceable to the exact parameters in effect at the time of
-# the run (via git history).
-#
-# Run `python experiments/gen_serve_script.py` to regenerate serve scripts
-# from this file whenever the serve section of any model changes.
+# Only `defaults.seed` is read by anything as of the 2026-09 experiment-config
+# restructure (checked at run time against every experiment config's own
+# `seed` field). The `models`/`interp_judges`/`cluster` blocks below predate
+# the per-model-config split (experiments/model-configs/{kind}/<model>.yaml)
+# and experiments/model_registry.py's *_REGISTRY dicts, and nothing reads
+# them anymore -- left in place pending a decision on whether to delete them
+# outright; do not add to them or treat them as live.
 #
 # Personal paths are NOT stored here.  Set the following environment
 # variables in your cluster profile or a local .env file:

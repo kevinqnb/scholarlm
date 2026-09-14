@@ -1,7 +1,7 @@
 ---
 id: 2026-08-03-qwen-ladder-01
 kind: experiment          # experiment | build
-config: configs/2026-08-03-qwen-ladder-01.yaml   # omit this line if the work has no config
+config: experiments/experiment-configs/pond/extraction/2026-08-03-qwen-ladder-01/2026-08-03-qwen-ladder-01.yaml   # omit this line if the work has no config
 ---
 
 # Does extraction F1 degrade monotonically down the model-size ladder?
@@ -33,11 +33,12 @@ specifics you would not put in a commit message.
 
 ### Implemented
 
-Added `configs/2026-08-03-qwen-ladder-01.yaml` with the three model ids and
-`dataset: pond` in `params`. `scripts/run_experiment.py` already covers the
-`entry_point: extraction` shape, so no runner code changed. Rung 1 (config
-parses, params map to `run_extraction` flags) and Rung 2 (one-doc smoke on the
-smallest model) passed in-shell; full run submitted via `scripts/submit.sh`.
+Added `experiment-configs/pond/extraction/2026-08-03-qwen-ladder-01/2026-08-03-qwen-ladder-01.yaml`
+with the three model ids and `dataset: pond` in `params`. `run_extraction.py`
+already covers the `extraction` experiment-type, so no runner code changed.
+Rung 1 (config parses, params resolve to a valid model-config) and Rung 2
+(one-doc smoke on the smallest model) passed in-shell; full run submitted via
+`experiments/submit.sh 2026-08-03-qwen-ladder-01`.
 
 ### Commits
 

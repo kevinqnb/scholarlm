@@ -46,7 +46,7 @@ In addition, we share pre-processed reviewed datasets for [PLW](data/pond/ground
 are used for comparison against our extracted data. In addition, we share a sample [extracted dataset](data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json) from `gemma-3-27b`. 
 
 ## Prompts, Schemas, and Configs
-The core set of [prompts](src/scholarlm/instruction_prompts.py) for all experiments is shared, as well as complete schemas for both [PLW](experiments/configs/pond.py) and [NF](experiments/configs/nfix.py)
+The core set of [prompts](src/scholarlm/instruction_prompts.py) for all experiments is shared, as well as complete schemas for both [PLW](experiments/dataset-configs/pond.py) and [NF](experiments/dataset-configs/nfix.py)
 
 In addition all LLM model information (including parameters and source repository names) are shared [here](experiments/model_registry.py). 
 
@@ -55,24 +55,23 @@ Please see the [experiments](experiments/README.md) directory for the full workf
 
 ```bash
 # Extract
-python experiments/run_extraction.py --dataset pond --model gemma-3-27b
+python experiments/run_extraction.py experiments/experiment-configs/pond/extraction/<id>/<id>.yaml
 
 # Judge with a local model
-python experiments/run_judge_local.py \
-        --dataset pond  --extraction-model gemma-3-27b \
-        --judge gpt-oss-120b --api-base http://localhost:{PORT}/v1
+python experiments/run_judge_local.py experiments/experiment-configs/pond/judge_local/<id>/<id>.yaml
 
-# Judge and collect model activations (attention head & layer output) 
-python experiments/run_judge_interp.py \
-    --dataset pond --extraction-model gemma-3-27b \
-    --judge llama-3.1-8b --extraction-date 2026_04_01
+# Judge and collect model activations (attention head & layer output)
+python experiments/run_judge_interp.py experiments/experiment-configs/pond/judge_interp/<id>/<id>.yaml
+
+# Or submit any of the above to SGE
+bash experiments/submit.sh <id>
 ```
 
 ## Development log
 
 Much of the experiment and build work in this repo is done with AI coding
 assistance. [`devlog/`](devlog/) records it: one file per experiment/build id
-(`YYYY-MM-DD-slug-NN`, the same id as `configs/<id>.yaml`), pairing the
+(`YYYY-MM-DD-slug-NN`, the same id as the experiment's config), pairing the
 human-written prompts that drove the work with a short summary of what landed and
 the commits that carry it. Individual commits also carry a `Claude-Session:`
 trailer. See [`devlog/README.md`](devlog/README.md) for the format.
