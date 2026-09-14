@@ -170,3 +170,54 @@ real prior runs, not inventing.
 9a91280 Gut experiments/config.yaml to just defaults.seed
 1249633 CLAUDE.md: update config.yaml description now that the dead blocks are gone
 cbb152e Finish the judge/interpretability family's migration onto model-configs/
+
+## Session 2026-09-14 (Phase F, new session)
+
+### Prompts
+
+"Right now all the wall times for experiments exist within the model
+config files. To me it makes more sense to have wall times and omp's
+within the experiment-configs themselves (but keep the GPU arguments with
+the models). What do you think? Would this be a pain to change?" After a
+walltime/omp split was proposed (walltime varies by model x dataset size x
+experiment type and should move; omp feeds `-pe omp` in `submit.sh`, a
+hardware-shaped request, and should stay with the model) and the exact
+migration scope was priced (136 of 177 committed configs): "yes, and scope
+it under as Phase F." Then, once the plan (tests first, code change,
+scripted migration, docs) was laid out: "Go ahead, no comment needed" (no
+marker comment needed in the model-configs `walltime` was removed from).
+
+### Implemented
+
+Moved `walltime` out of model-configs' `resources:` block into each
+GPU-needing experiment-config's own `params.walltime`; `omp`/
+`gpu_memory`/`gpu_capability`/`gpu_type` stay in `resources:`.
+`_resolve_job.py`'s two-branch walltime logic (GPU-fallback vs.
+frontier-required) collapsed into one unconditional `params.walltime`
+read, required for every experiment type. A `resolve_job()` sweep
+computed exact scope before any edit: 136/177 committed experiment-configs
+needed `params.walltime` added (each set to the value already in effect
+via its model-config, zero pre-existing overrides -- a mechanical
+migration, not a judgment call), 28 already had it (frontier/
+`judge_combine`), 13 stayed out of scope (`entry_point: manual` /
+non-runnable Tier-2 types). Test-first: updated
+`tests/test_resolve_job_cli.py` and `tests/test_utils_resolve_job.py`
+fixtures, added `test_walltime_required_for_vllm_server_job` (new
+coverage for a fail-loud path that was previously only exercised for
+frontier configs) and `test_walltime_required_for_frontier_job`. The
+136+15-file migration itself ran as one scratch script doing a
+text-append (not a `yaml.safe_dump` round-trip), to preserve the
+extensive `resources:` comments in `interp_judge/llama-3.1-8b.yaml` and
+`representation_lm/llama-3.1-8b-base.yaml`. Also corrected a stale
+CLAUDE.md claim (that those same two model-configs still lacked
+`resources:` blocks -- fixed by commit 859647e before this session).
+Full suite green (365 passed, 1 skipped, same pre-existing unrelated
+skip); smoke-checked `_resolve_job.py` and `submit.sh --dry-run` directly
+against real committed configs (one `vllm_server`, one `direct_gpu`, the
+existing frontier-path config), each matching the predicted
+`WALLTIME=`/`OMP=`/`h_rt=` output exactly. No cluster job needed --
+infra change, not an experiment.
+
+### Commits
+
+1e5b6e1 Phase F: move walltime from model-configs into experiment-configs' params
