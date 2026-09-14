@@ -30,7 +30,7 @@ extraction_id; see below for its params (unchanged from before this restructure)
 Optional params: extraction_id, judge_date, ocr_dir, synthetic (bool),
 synthetic_split ('train'|'test'), synthetic_file, synthetic_name.
 
-Available judge models: llama-3.1-8b, gemma-2-9b, mistral-7b (see JUDGE_REGISTRY in code for details).
+Available judge models: the YAML files in experiments/model-configs/interp_judge/.
 """
 from __future__ import annotations
 
@@ -61,7 +61,6 @@ from scholarlm import JudgementLM
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 
-from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 import utils as paths
 from utils import set_seeds, write_run_metadata
@@ -93,7 +92,7 @@ def run_interp_judge(
 
     Args:
         dataset_config: Dataset configuration.
-        judge_key: Key in ``JUDGE_REGISTRY``.
+        judge_key: Key in ``experiments/model-configs/interp_judge/``.
         output_dir: Directory to write ``responses.json``, ``attention_outputs.npz``, and ``layer_outputs.npz``.
         input_file: Path to the ``final.json``-shaped file to judge (an
             extraction/ablation run's output, or a synthetic probe file).
@@ -102,11 +101,7 @@ def run_interp_judge(
             judged, recorded in run_metadata.json. ``None`` for synthetic mode
             (there is no upstream extraction run).
     """
-    if judge_key not in JUDGE_REGISTRY:
-        raise KeyError(
-            f"Unknown judge '{judge_key}'. Available: {sorted(JUDGE_REGISTRY.keys())}"
-        )
-    judge_cfg = JUDGE_REGISTRY[judge_key]
+    judge_cfg = paths.load_model_config("interp_judge", judge_key)
 
     print(f"Input   : {input_file}")
 
@@ -222,11 +217,7 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset = params["dataset"]
     judge = params["judge"]
-    if judge not in JUDGE_REGISTRY:
-        raise ValueError(
-            f"{config_path}: params.judge {judge!r} not in JUDGE_REGISTRY "
-            f"(choices: {sorted(JUDGE_REGISTRY.keys())})"
-        )
+    paths.load_model_config("interp_judge", judge)  # fail loud on an unknown judge before any work starts
     dataset_config = load_dataset_config(dataset)
 
     synthetic_file = params.get("synthetic_file")

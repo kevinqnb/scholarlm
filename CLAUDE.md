@@ -254,17 +254,23 @@ data/experiments/
 
 ## Adding a new model
 
-For extraction, ablation, table-cleaning, the baseline runners, and OCR: add
-`experiments/model-configs/{kind}/<model>.yaml` (`kind` matches the runner's own
+Add `experiments/model-configs/{kind}/<model>.yaml` (`kind` matches the runner's own
 model-configs subdirectory — see `utils.load_model_config`'s docstring for the full
-list). For the judge/interpretability family — `run_judge_local.py`,
-`run_judge_interp.py`, `run_jacobian_lens.py`, `run_representation_lm.py`,
-`run_attribution.py` — add an entry to the matching registry dict
-(`VLLM_JUDGE_REGISTRY`, `INTERP_JUDGE_REGISTRY`, `JACOBIAN_LENS_REGISTRY`,
-`REPRESENTATION_LM_REGISTRY`) in `experiments/model_registry.py`; these five runners
-still read model params (not just SGE resourcing) from that file directly — the
-`experiments/model-configs/{vllm_judge,interp_judge,jacobian_lens,representation_lm}/`
-YAML files exist alongside them but only feed `_resolve_job.py`'s resource request,
-not runtime model params, for these kinds. (`model_registry.py`'s plain
-`MODEL_REGISTRY`/`BASELINE_MODEL_REGISTRY` dicts are unused leftovers from before the
-extraction/baseline split to model-configs/ — don't add to those two.)
+list: `extraction`, `baseline`, `ocr`, `vllm_judge`, `interp_judge`, `jacobian_lens`,
+`representation_lm`). There is no separate registry file anymore — every runner
+(extraction/ablation/table-cleaning/baseline/ocr and the judge/interpretability
+family: `run_judge_local.py`, `run_judge_interp.py`, `run_jacobian_lens.py`,
+`run_representation_lm.py`, `run_attribution.py`) reads model params from these YAML
+files via `utils.load_model_config`/`get_model_config`, and fails loud (a
+`FileNotFoundError` naming the available models for that kind) on an unknown key.
+
+A `vllm_server`- or `direct_gpu`-need model-config also needs a `resources:` block
+(`gpu_memory`/`gpu_capability`/`walltime`/`omp`) for `experiments/submit.sh` to
+resolve an SGE request for it — `utils.classify_gpu_need` raises rather than
+guessing if one's missing. Several `interp_judge`/`jacobian_lens`/
+`representation_lm` model-configs (all but `interp_judge/qwen-2.5-7b.yaml`) don't
+have one yet, a real gap for models with a committed experiment-config pointing at
+them (`interp_judge/llama-3.1-8b.yaml` and `representation_lm/llama-3.1-8b-base.yaml`
+each have committed configs depending on them right now); don't invent GPU numbers
+to close it — infer them from prior real runs the way `interp_judge/qwen-2.5-7b.yaml`'s
+own `resources:` comment does, or ask.

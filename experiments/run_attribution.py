@@ -82,7 +82,6 @@ from scholarlm.attribution import ATTRIBUTION_REGISTRY
 from scholarlm.config import DatasetConfig
 
 import utils as paths
-from model_registry import INTERP_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 from utils import load_config, set_seeds, write_run_metadata
 
@@ -341,15 +340,11 @@ def run_attribution(
     ocr_dir: str | None,
     limit: int | None,
 ) -> None:
-    if judge_key not in JUDGE_REGISTRY:
-        raise KeyError(
-            f"Unknown judge {judge_key!r}. Available: {sorted(JUDGE_REGISTRY)}"
-        )
     if method_name not in ATTRIBUTION_REGISTRY:
         raise KeyError(
             f"Unknown method {method_name!r}. Available: {sorted(ATTRIBUTION_REGISTRY)}"
         )
-    judge_cfg = JUDGE_REGISTRY[judge_key]
+    judge_cfg = paths.load_model_config("interp_judge", judge_key)
 
     print(f"Input              : {input_file}")
     print(f"Paired judge run   : {responses_path}")
@@ -450,11 +445,7 @@ def main(argv: list[str] | None = None) -> None:
             f"{config_path}: params.method {method!r} not in ATTRIBUTION_REGISTRY "
             f"(choices: {sorted(ATTRIBUTION_REGISTRY)})"
         )
-    if judge not in JUDGE_REGISTRY:
-        raise ValueError(
-            f"{config_path}: params.judge {judge!r} not in JUDGE_REGISTRY "
-            f"(choices: {sorted(JUDGE_REGISTRY)})"
-        )
+    paths.load_model_config("interp_judge", judge)  # fail loud on an unknown judge before any work starts
     dataset_config = load_dataset_config(dataset)
 
     if params.get("synthetic", False):

@@ -1,6 +1,25 @@
 model_id: Qwen/Qwen2.5-7B-Instruct
+# Qwen2.5-7B-Instruct's native max_position_embeddings is 32768. Under
+# full-paper judge context (judge_prompts.prepare_chat_entries), measured
+# prompt lengths on this model's tokenizer reach 68242 tokens (supermat,
+# 2026-09-13 measurement against ocr_output_raw/) -- comfortably past the
+# native window. Unlike vLLM, NNsight/nnterp has no admission check: without
+# this override it would not error, it would silently run RoPE past the
+# trained window and still emit a plausible-looking p_true/p_false.
+# rope_scaling is forwarded via **nnsight_kwargs -> nnterp.StandardizedTransformer
+# -> transformers' AutoModelForCausalLM.from_pretrained, which accepts it as
+# a config override the same way torch_dtype above is already forwarded.
+# Same YaRN factor as qwen-2.5-72b's vLLM --hf-overrides
+# (model-configs/vllm_judge/qwen-2.5-72b.yaml), chosen for the same measured
+# max document length (68242 tok, same tokenizer family). UNVALIDATED on this
+# 7B checkpoint as of 2026-09-13 -- no GPU-loaded smoke/known-answer check
+# has been run yet; do not trust judge output from this entry until one has.
 nnsight_kwargs:
   torch_dtype: bfloat16
+  rope_scaling:
+    rope_type: yarn
+    factor: 3.0
+    original_max_position_embeddings: 32768
 sampling_params:
   do_sample: false
   max_new_tokens: 1

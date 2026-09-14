@@ -48,7 +48,7 @@ are used for comparison against our extracted data. In addition, we share a samp
 ## Prompts, Schemas, and Configs
 The core set of [prompts](src/scholarlm/instruction_prompts.py) for all experiments is shared, as well as complete schemas for both [PLW](experiments/dataset-configs/pond.py) and [NF](experiments/dataset-configs/nfix.py)
 
-In addition all LLM model information (including parameters and source repository names) are shared [here](experiments/model_registry.py). 
+In addition all LLM model information (including parameters and source repository names) are shared, one YAML file per model, under [experiments/model-configs/](experiments/model-configs/). 
 
 ## Experiments
 Please see the [experiments](experiments/README.md) directory for the full workflow guide. The following are some quick examples.

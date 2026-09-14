@@ -130,7 +130,7 @@ def run_ablation(
 
     Args:
         dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         ablation: Ablation key string (``"1"`` … ``"6"``).
         output_dir: Directory for the output file (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR

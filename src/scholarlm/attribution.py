@@ -15,7 +15,7 @@ Both wrap an already-loaded ``JudgementLM`` instance (reusing its model,
 tokenizer, and binary-token-id lookup) but run their own single-pass
 ``llm.trace()`` rather than calling ``JudgementLM.generate()`` — ``generate()``
 detaches every tensor it saves, which is incompatible with the live autograd
-graph attribution needs. Every ``INTERP_JUDGE_REGISTRY`` model (including
+graph attribution needs. Every ``experiments/model-configs/interp_judge/`` model (including
 ``qwen-2.5-7b-base``, the only judge model with a saved
 ``head_probe_noplatt.pkl``) uses ``max_new_tokens=1``, so ``generate()``'s
 single generation step is itself the prefill forward pass — both methods only

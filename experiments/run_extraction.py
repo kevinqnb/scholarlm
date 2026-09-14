@@ -545,7 +545,7 @@ def run_pipeline(
 
     Args:
         dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory for output files (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
             is used and table cleaning is performed automatically.
@@ -670,7 +670,7 @@ def run_direct(
 
     Args:
         dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory for the output file (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
             is used and table cleaning is performed automatically.
@@ -800,7 +800,7 @@ def run_single_step(
 
     Args:
         dataset_config: Dataset configuration.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory containing prior step outputs and receiving this step's output.
         step: One of ``entities``, ``attributes``, ``entity_prov``, ``attribute_prov``,
               ``values``, ``final``.

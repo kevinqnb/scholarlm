@@ -38,7 +38,7 @@ default -- CLAUDE.md's no-magic-numbers rule; the module's own default is
 [0, 8, 16, 24, 32]).
 Optional params: limit, verify_read_point (bool).
 
-Available models: the keys of REPRESENTATION_LM_REGISTRY.
+Available models: the YAML files in experiments/model-configs/representation_lm/.
 """
 from __future__ import annotations
 
@@ -62,7 +62,6 @@ from scholarlm import RepresentationLM
 from scholarlm.representationlm import find_key_term_occurrences
 
 import utils as paths
-from model_registry import REPRESENTATION_LM_REGISTRY
 from run_extraction import load_dataset_config, load_papers
 from utils import load_config, set_seeds, write_run_metadata
 
@@ -104,11 +103,7 @@ def run_representation_lm(
     limit: int | None = None,
     verify_read_point: bool = False,
 ) -> None:
-    if model_key not in REPRESENTATION_LM_REGISTRY:
-        raise KeyError(
-            f"Unknown model {model_key!r}. Available: {sorted(REPRESENTATION_LM_REGISTRY)}"
-        )
-    model_cfg = REPRESENTATION_LM_REGISTRY[model_key]
+    model_cfg = paths.load_model_config("representation_lm", model_key)
 
     dataset_config = load_dataset_config(dataset)
     documents = _load_documents(dataset_config, limit)
@@ -240,11 +235,7 @@ def main(argv: list[str] | None = None) -> None:
     paths.require_params(params, "dataset", "model", "key_terms", "layers", config_path=config_path)
 
     model_key = params["model"]
-    if model_key not in REPRESENTATION_LM_REGISTRY:
-        raise ValueError(
-            f"{config_path}: params.model {model_key!r} not in REPRESENTATION_LM_REGISTRY "
-            f"(choices: {sorted(REPRESENTATION_LM_REGISTRY)})"
-        )
+    paths.load_model_config("representation_lm", model_key)  # fail loud on an unknown model before any work starts
 
     # DatasetConfig paths (metadata_file, data_dir, ...) are repo-root-relative.
     os.chdir(_REPO_ROOT)

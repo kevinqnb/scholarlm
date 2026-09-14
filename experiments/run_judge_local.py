@@ -30,7 +30,7 @@ Optional params: extraction_id, judge_date, ocr_dir, api_base, api_key,
 max_concurrent (default 64), synthetic (bool), synthetic_split ('train'|'test'),
 synthetic_file, synthetic_name.
 
-Available judge models: see JUDGE_REGISTRY below.
+Available judge models: the YAML files in experiments/model-configs/vllm_judge/.
 """
 from __future__ import annotations
 
@@ -59,7 +59,6 @@ from openai import AsyncOpenAI
 from scholarlm.config import DatasetConfig
 from scholarlm.utils import get_filenames_in_directory
 
-from model_registry import VLLM_JUDGE_REGISTRY as JUDGE_REGISTRY
 from run_extraction import load_dataset_config
 import utils as paths
 from utils import set_seeds, write_run_metadata
@@ -193,7 +192,7 @@ def run_local_vllm_judge(
 
     Args:
         dataset_config: Dataset configuration.
-        judge_key: Key in ``JUDGE_REGISTRY``.
+        judge_key: Key in ``experiments/model-configs/vllm_judge/``.
         output_dir: Directory to write ``responses.json``.
         input_file: Path to the ``final.json``-shaped file to judge (an
             extraction/ablation run's output, or a synthetic probe file).
@@ -204,11 +203,7 @@ def run_local_vllm_judge(
         extraction_id: The upstream extraction/ablation experiment id being
             judged, recorded in run_metadata.json. ``None`` for synthetic mode.
     """
-    if judge_key not in JUDGE_REGISTRY:
-        raise KeyError(
-            f"Unknown judge '{judge_key}'. Available: {sorted(JUDGE_REGISTRY.keys())}"
-        )
-    judge_cfg = JUDGE_REGISTRY[judge_key]
+    judge_cfg = paths.load_model_config("vllm_judge", judge_key)
     model_id = judge_cfg["model_id"]
 
     print(f"Input   : {input_file}")
@@ -318,11 +313,7 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset = params["dataset"]
     judge = params["judge"]
-    if judge not in JUDGE_REGISTRY:
-        raise ValueError(
-            f"{config_path}: params.judge {judge!r} not in JUDGE_REGISTRY "
-            f"(choices: {sorted(JUDGE_REGISTRY.keys())})"
-        )
+    paths.load_model_config("vllm_judge", judge)  # fail loud on an unknown judge before any work starts
     dataset_config = load_dataset_config(dataset)
     api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"
     api_key = params.get("api_key", "EMPTY")

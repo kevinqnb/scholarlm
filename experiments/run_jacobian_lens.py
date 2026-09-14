@@ -26,11 +26,11 @@ Usage
     python experiments/run_jacobian_lens.py experiments/experiment-configs/pond/jacobian_lens/<id>/<id>.yaml
 
 Required params: dataset, extraction_id (an extraction or ablation experiment
-id, resolved via utils.find_result_dir), model (JACOBIAN_LENS_REGISTRY key),
-jacobian_lens_path.
+id, resolved via utils.find_result_dir), model (a key in
+experiments/model-configs/jacobian_lens/), jacobian_lens_path.
 Optional params: ocr_dir, limit.
 
-Available models: llama-3.1-8b-base (see JACOBIAN_LENS_REGISTRY in code for details).
+Available models: the YAML files in experiments/model-configs/jacobian_lens/.
 """
 from __future__ import annotations
 
@@ -59,7 +59,6 @@ import numpy as np
 from scholarlm import JacobianLensLM
 from scholarlm.config import DatasetConfig
 
-from model_registry import JACOBIAN_LENS_REGISTRY
 from run_extraction import load_dataset_config
 import utils as paths
 from utils import set_seeds, write_run_metadata
@@ -129,7 +128,7 @@ def run_jacobian_lens(
 
     Args:
         dataset_config: Dataset configuration.
-        model_key: Key in ``JACOBIAN_LENS_REGISTRY``.
+        model_key: Key in ``experiments/model-configs/jacobian_lens/``.
         jacobian_lens_path: Local path or ``repo_id:filename`` HuggingFace Hub
             spec for the pretrained Jacobian-lens checkpoint.
         output_dir: Directory to write ``jacobian_scores.npz`` and ``run_metadata.json``.
@@ -139,11 +138,7 @@ def run_jacobian_lens(
         extraction_id: The upstream extraction/ablation experiment id being
             scored, recorded in run_metadata.json.
     """
-    if model_key not in JACOBIAN_LENS_REGISTRY:
-        raise KeyError(
-            f"Unknown model '{model_key}'. Available: {sorted(JACOBIAN_LENS_REGISTRY.keys())}"
-        )
-    model_cfg = JACOBIAN_LENS_REGISTRY[model_key]
+    model_cfg = paths.load_model_config("jacobian_lens", model_key)
 
     print(f"Input   : {input_file}")
 
@@ -221,11 +216,7 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset = params["dataset"]
     model_key = params["model"]
-    if model_key not in JACOBIAN_LENS_REGISTRY:
-        raise ValueError(
-            f"{config_path}: params.model {model_key!r} not in JACOBIAN_LENS_REGISTRY "
-            f"(choices: {sorted(JACOBIAN_LENS_REGISTRY.keys())})"
-        )
+    paths.load_model_config("jacobian_lens", model_key)  # fail loud on an unknown model before any work starts
     dataset_config = load_dataset_config(dataset)
 
     extraction_id = params["extraction_id"]
