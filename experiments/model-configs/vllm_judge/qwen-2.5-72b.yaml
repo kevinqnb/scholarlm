@@ -1,34 +1,33 @@
 model_id: Qwen/Qwen2.5-72B-Instruct-AWQ
 serve:
   port: 8081
-  # qwen-2.5-72b's native context is 32768; 6/128 pond papers exceed it under
-  # the full-paper judge. max_model_len=90000 (this file's value before this
-  # fix, copied uniformly across all 3 vllm_judge models) is NOT valid here --
-  # vLLM refuses to start (ValidationError: user-specified max_model_len
-  # greater than the model's derived max_model_len) unless the context is
-  # actually extended via RoPE scaling below. gpt-oss-120b/llama-3.3-70b are
-  # 128k-native and need no such override (see their own model-configs).
-  max_model_len: 65536
-  gpu_memory_utilization: 0.9
+  # Qwen2.5-72B-Instruct-AWQ's native max_position_embeddings is 32768 --
+  # unreachable at the max_model_len below without the YaRN override in
+  # extra_vllm_args (a max_model_len this large with no rope_scaling aborts
+  # vLLM startup: ValidationError, user-specified max_model_len greater than
+  # the model's derived max_model_len). The older --rope-scaling CLI flag is
+  # gone from the vLLM images used here, hence --hf-overrides.
+  # gpt-oss-120b/llama-3.3-70b are 128k-native and need no such override (see
+  # their own model-configs).
+  #
+  # Factor 3.0 -> 98304 ctx supersedes an earlier factor-2.0/65536 value
+  # here (sized for "6/128 pond papers exceed 32768" under the pre-full-paper
+  # judge, and itself never verified against the original hand-written qsub
+  # script). 98304 is validated end to end: job 7527736, full 3882-row
+  # supermat judge run (see
+  # notes/scholarlm/experiments/2026-09-11-supermat-fulltext-judge-01.md).
+  # Binding constraint: max_prompt_tokens + max_tokens(8192) < max_model_len.
+  # Fresh per-dataset measurement against data/{pond,nfix,supermat}/
+  # ocr_output_raw/ with this model's tokenizer (2026-09-13): pond 47170,
+  # nfix 52849, supermat 68242 -- supermat is the max across all three
+  # datasets, needing >= ~77264; 98304 leaves ~21k headroom.
+  max_model_len: 98304
+  gpu_memory_utilization: 0.90
   quantization: awq_marlin
   dtype: bfloat16
   sif_image: vllm-openai_v0.19.0.sif
-  # Static YaRN, required to reach 65536 -- the older --rope-scaling CLI flag
-  # is gone from the vLLM images used here (see
-  # notes/scholarlm/experiments/2026-09-10-fulltext-judge-probe-eval-01.md,
-  # and this repo's own commit history: experiments/config.yaml briefly
-  # carried max_model_len 32768->65536 for this model in the pre-restructure
-  # era). Applies YaRN to every request (mild short-context cost per Qwen's
-  # own docs), not just the 6 over-length papers -- same deviation the prior
-  # session accepted. NOT verified against the exact original hand-written
-  # qsub script (gitignored scratch, no longer on disk) -- reconstructed from
-  # a session memory note plus git history's independent confirmation of the
-  # 65536 max_model_len value. Confirm via the Phase C byte-diff: if
-  # responses.json doesn't match data/experiments/pond/ablations/ablation1/
-  # gpt-oss-120b/2026_05_03/judge/qwen-2.5-72b/, this override is the first
-  # thing to re-check.
   extra_vllm_args:
-  - '--hf-overrides ''{"rope_scaling":{"rope_type":"yarn","factor":2.0,"original_max_position_embeddings":32768},"max_position_embeddings":65536}'''
+  - '--hf-overrides ''{"rope_scaling":{"rope_type":"yarn","factor":3.0,"original_max_position_embeddings":32768}}'''
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0
