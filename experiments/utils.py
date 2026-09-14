@@ -868,7 +868,16 @@ def find_combined(
 RESULTS_ROOT = _REPO_ROOT / "experiments" / "results"
 EXPERIMENT_CONFIGS_ROOT = _REPO_ROOT / "experiments" / "experiment-configs"
 
-_EXPERIMENT_ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+-\d{2}$")
+#  Model-name segments already minted into ids (llama-3.1-8b, qwen-2.5-72b,
+#  gpt-oss-120b, ...) contain periods, even though conventions.md's id format
+#  says "lowercase, hyphens only" -- e.g. experiments/results/pond/extraction/
+#  2026-05-04-pond-llama-3.1-8b-extraction-01/ already exists on disk with a
+#  period in it (Phase B migration). Without "." here, find_result_dir()
+#  rejects that id outright (ValueError) before ever globbing for it -- found
+#  2026-09-13 while wiring up judge configs against it. "." is permitted
+#  purely to match ids the repo already mints; it does not relax any other
+#  character.
+_EXPERIMENT_ID_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9.-]+-\d{2}$")
 
 
 def result_dir(dataset: str, experiment_type: str, experiment_id: str) -> Path:
