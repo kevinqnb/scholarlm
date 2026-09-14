@@ -66,10 +66,11 @@ reference repo (`coastal-crawler`).
 paper subset, per-experiment sampling parameters — belongs in an experiment config's
 `params` block, not hardcoded in runner code. Fixed, repo-wide values (per-model
 sampling defaults, SGE serve/resource requests) live one YAML per model under
-`experiments/model-configs/{kind}/<model>.yaml`; `experiments/config.yaml` now holds
-only the global seed (`defaults.seed`, checked against every experiment config's own
-`seed` at run time) — its `models`/`interp_judges`/`cluster` blocks predate that split
-and are no longer read by anything.
+`experiments/model-configs/{kind}/<model>.yaml`; `experiments/config.yaml` holds only
+the global seed (`defaults.seed`) — every experiment config's own `seed` is checked
+against it at run time, with no fallback. It used to also carry per-model sampling/
+serve params and SGE cluster settings; that dead content was removed 2026-09-14 (see
+`notes/scholarlm/builds/2026-09-13-experiment-config-restructure-01.md`).
 
 ## Development log
 
