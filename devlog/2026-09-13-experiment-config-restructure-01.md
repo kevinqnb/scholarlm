@@ -98,3 +98,38 @@ fd34d89 Convert run_ocr.py to config-path CLI -- last of the 14 runners
 097e517 Fix resolve_job() model-param mismatch across experiment types
 680b45f Fix submit.sh/_submit_job.sh path + env bugs hit by first real GPU job
 c678d73 Add Phase C acceptance-gate configs: pond ablation1/gpt-oss-120b judges
+
+## Session 2026-09-14
+
+### Prompts
+
+Kickoff: "Phase D of
+devlog/2026-09-13-experiment-config-restructure-01.md was never completed.
+Thus, we still have a lot of leftover junk that we should clean up. Please
+help me work through this." Two scoping decisions along the way: update
+`CLAUDE.md` and the other stale docs as part of the cleanup ("Yes, update
+CLAUDE.md + README.md + experiments/README.md + devlog/_TEMPLATE.md"), and
+leave `demo.ipynb`'s now-broken `serve_olmocr.sh` cell alone for now. On an
+unprompted finding (an in-flight config edit was landing in a dead file):
+"Port fix to the live file now."
+
+### Implemented
+
+Deleted the confirmed-dead pre-restructure scaffolding -- `scripts/` in
+full, `experiments/gen_serve_script.py`, all `experiments/serve_*.sh`,
+`experiments/gen_augment.sh`, the empty `configs/` -- after confirming no
+live imports anywhere. Rewrote `CLAUDE.md`'s Entry points, Repo layout, Key
+concepts, Output directory schema, and Adding a new dataset/model sections,
+plus `README.md`, `experiments/README.md`, and `devlog/_TEMPLATE.md`, to
+match the contract Phases A-C actually built rather than the one that
+predated them. Fixed a live bug found along the way: qwen-2.5-72b's judge
+YaRN override was being edited in `experiments/config.yaml`, which nothing
+reads anymore -- ported the validated fix into
+`experiments/model-configs/vllm_judge/qwen-2.5-72b.yaml`, the file the real
+serving path actually resolves. Full suite green except one pre-existing,
+unrelated failure.
+
+### Commits
+
+898d43b Phase D: delete dead pre-restructure scaffolding, catch docs up to the new contract
+276ee4f Fix qwen-2.5-72b judge YaRN override: factor 2.0/65536 -> factor 3.0/98304
