@@ -179,7 +179,9 @@ class ModelConfig:
             ``None`` means the default branch HEAD was used (less reproducible).
         sampling_params: Generation parameters forwarded to the API.
             Supported keys: ``temperature``, ``top_p``, ``top_k``,
-            ``max_tokens``, ``repetition_penalty``, ``seed``.
+            ``max_tokens``, ``repetition_penalty``, ``seed``, ``enable_thinking``
+            (Qwen3-style chat-template kwarg), ``reasoning_effort`` (gpt-oss's
+            harmony chat-template kwarg: low/medium/high).
         api_base: API base URL for frontier models (e.g.
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``

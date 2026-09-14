@@ -252,9 +252,18 @@ class MeasurementLM:
                 extra["top_k"] = self.sampling_params["top_k"]
             if "repetition_penalty" in self.sampling_params:
                 extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+            chat_template_kwargs = {}
             if "enable_thinking" in self.sampling_params:
                 # Disable thinking by default for extraction tasks
-                extra["chat_template_kwargs"] = {"enable_thinking": self.sampling_params['enable_thinking']}
+                chat_template_kwargs["enable_thinking"] = self.sampling_params["enable_thinking"]
+            if "reasoning_effort" in self.sampling_params:
+                # gpt-oss's harmony chat template kwarg (low/medium/high). See
+                # experiments/model-configs/extraction/gpt-oss-120b.yaml's own
+                # comment for why this is pinned rather than left at the
+                # template's implicit default.
+                chat_template_kwargs["reasoning_effort"] = self.sampling_params["reasoning_effort"]
+            if chat_template_kwargs:
+                extra["chat_template_kwargs"] = chat_template_kwargs
             if extra_body:
                 for key, value in extra_body.items():
                     if key == "chat_template_kwargs" and isinstance(value, dict) and isinstance(extra.get(key), dict):
