@@ -133,3 +133,40 @@ unrelated failure.
 
 898d43b Phase D: delete dead pre-restructure scaffolding, catch docs up to the new contract
 276ee4f Fix qwen-2.5-72b judge YaRN override: factor 2.0/65536 -> factor 3.0/98304
+
+### Prompts (continued, same session)
+
+"What about the .vllm_endpoint files that are still hanging? Do we need
+these now that models and experiments are run within the same job?" ->
+"Yes, delete them." "Why do we still need @experiments/config.yaml?", then
+"instead of comments saying what this file used to do, explain what that
+seed is used for!!" on a first draft, then "Do it now." Then: "Keep going
+on the Phase E list" -- covering both remaining items in one pass, with no
+further direction given.
+
+### Implemented (continued)
+
+Deleted 21 leftover `.vllm_endpoint_*.txt` files (gitignored, unread by
+anything since `serve_*.sh`/`gen_serve_script.py` were removed). Gutted
+`experiments/config.yaml` to just `defaults.seed` after confirming every
+`load_config()` call site only reads that one field -- the file's
+`interp_judges` block turned out to be a stale, incomplete third copy of
+`model_registry.py`'s live registry, not a duplicate of it. Finished
+migrating the judge/interpretability runner family (`run_judge_local.py`,
+`run_judge_interp.py`, `run_jacobian_lens.py`, `run_representation_lm.py`,
+`run_attribution.py`) onto `experiments/model-configs/`, after verifying
+field-for-field that the YAML files already matched their registry
+counterparts and confirming (by reading the installed transformers source)
+that the `nnsight_kwargs.torch_dtype` string-vs-object type change this
+causes is handled safely. Deleted `experiments/model_registry.py` outright.
+A `utils.resolve_job()` sweep across every committed experiment-config
+surfaced the real scope of a pre-existing gap -- two model-configs missing
+`resources:` blocks, blocking 26 committed configs combined -- which this
+session flagged rather than fixed, since the values need inferring from
+real prior runs, not inventing.
+
+### Commits (continued)
+
+9a91280 Gut experiments/config.yaml to just defaults.seed
+1249633 CLAUDE.md: update config.yaml description now that the dead blocks are gone
+cbb152e Finish the judge/interpretability family's migration onto model-configs/
