@@ -1,0 +1,19 @@
+id: 2026-09-13-nfix-baseline-nuextract-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over nfix baseline (nuextract) (2026-07-11-nfix-baseline-nuextract-01): 3 voting
+  judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) + 2 non-voting NTP
+  interp judges (qwen-2.5-7b, llama-3.1-8b). voting_threshold pinned
+  explicitly (VOTING_JUDGE_KEYS ignores the two interp entries regardless of
+  threshold, but this repo avoids inferred defaults).
+seed: 342
+params:
+  dataset: nfix
+  judge_ids:
+    - 2026-09-13-nfix-baseline-nuextract-gptoss120b-judge-local-01
+    - 2026-09-13-nfix-baseline-nuextract-qwen72b-judge-local-01
+    - 2026-09-13-nfix-baseline-nuextract-llama70b-judge-local-01
+    - 2026-09-13-nfix-baseline-nuextract-qwen7b-judge-interp-01
+    - 2026-09-13-nfix-baseline-nuextract-llama8b-judge-interp-01
+  voting_threshold: 2
+  walltime: "00:30:00"

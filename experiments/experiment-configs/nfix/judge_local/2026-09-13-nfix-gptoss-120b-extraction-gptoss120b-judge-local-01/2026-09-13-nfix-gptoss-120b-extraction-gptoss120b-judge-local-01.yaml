@@ -1,0 +1,12 @@
+id: 2026-09-13-nfix-gptoss-120b-extraction-gptoss120b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (gpt-oss-120b) over nfix MeasurementLM extraction (gptoss-120b) (2026-05-03-nfix-gpt-oss-120b-extraction-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: nfix
+  judge: gpt-oss-120b
+  extraction_id: 2026-05-03-nfix-gpt-oss-120b-extraction-01
+  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01

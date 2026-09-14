@@ -1,0 +1,12 @@
+id: 2026-09-13-pond-baseline-chatextract-llama70b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (llama-3.3-70b) over pond baseline (chatextract) (2026-07-11-pond-baseline-chatextract-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.3-70b
+  extraction_id: 2026-07-11-pond-baseline-chatextract-01
+  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01

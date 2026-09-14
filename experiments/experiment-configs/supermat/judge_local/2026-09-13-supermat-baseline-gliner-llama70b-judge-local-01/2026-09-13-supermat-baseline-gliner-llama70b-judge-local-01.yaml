@@ -1,0 +1,12 @@
+id: 2026-09-13-supermat-baseline-gliner-llama70b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (llama-3.3-70b) over supermat baseline (gliner) (2026-07-13-supermat-baseline-gliner-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: supermat
+  judge: llama-3.3-70b
+  extraction_id: 2026-07-13-supermat-baseline-gliner-01
+  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-01

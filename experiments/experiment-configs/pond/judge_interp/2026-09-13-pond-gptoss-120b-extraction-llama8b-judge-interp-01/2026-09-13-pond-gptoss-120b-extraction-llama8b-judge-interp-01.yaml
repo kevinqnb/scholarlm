@@ -1,0 +1,12 @@
+id: 2026-09-13-pond-gptoss-120b-extraction-llama8b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (llama-3.1-8b) over pond MeasurementLM extraction (gptoss-120b) (2026-05-02-pond-gpt-oss-120b-extraction-01),
+  collecting attention/layer activations. Full raw-OCR paper context
+  (pre-table-cleaning); ocr_dir pinned explicitly.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.1-8b
+  extraction_id: 2026-05-02-pond-gpt-oss-120b-extraction-01
+  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01

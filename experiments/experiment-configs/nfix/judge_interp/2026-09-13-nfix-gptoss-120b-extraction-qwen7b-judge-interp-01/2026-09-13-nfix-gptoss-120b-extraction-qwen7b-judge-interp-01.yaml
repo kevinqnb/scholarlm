@@ -1,0 +1,12 @@
+id: 2026-09-13-nfix-gptoss-120b-extraction-qwen7b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (qwen-2.5-7b) over nfix MeasurementLM extraction (gptoss-120b) (2026-05-03-nfix-gpt-oss-120b-extraction-01),
+  collecting attention/layer activations. Full raw-OCR paper context
+  (pre-table-cleaning); ocr_dir pinned explicitly. qwen-2.5-7b's YaRN rope_scaling override (model_registry.py, 2026-09-13) is UNVALIDATED -- no GPU smoke/known-answer check has been run yet. Do not submit this config until that check has passed.
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-7b
+  extraction_id: 2026-05-03-nfix-gpt-oss-120b-extraction-01
+  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01

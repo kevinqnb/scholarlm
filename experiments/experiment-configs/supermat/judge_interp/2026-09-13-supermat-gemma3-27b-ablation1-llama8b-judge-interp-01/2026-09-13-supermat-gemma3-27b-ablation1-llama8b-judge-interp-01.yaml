@@ -1,0 +1,12 @@
+id: 2026-09-13-supermat-gemma3-27b-ablation1-llama8b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (llama-3.1-8b) over supermat Ablation1 (gemma3-27b) (2026-08-13-supermat-gemma-3-27b-ablation1-01),
+  collecting attention/layer activations. Full raw-OCR paper context
+  (pre-table-cleaning); ocr_dir pinned explicitly.
+seed: 342
+params:
+  dataset: supermat
+  judge: llama-3.1-8b
+  extraction_id: 2026-08-13-supermat-gemma-3-27b-ablation1-01
+  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-01
