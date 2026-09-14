@@ -75,6 +75,7 @@ async def _judge_one(
     entry: dict,
     idx: int,
     sem: asyncio.Semaphore,
+    sampling_params: dict | None = None,
 ) -> dict:
     """Send a single judge request and return its true/false judgement.
 
@@ -84,34 +85,20 @@ async def _judge_one(
     as a non-affirmative vote, so a silently-dropped request would bias the
     majority-vote ground truth without leaving a trace.
     """
-    # gpt-oss-120b history this session (2026-09-11,
-    # 2026-09-11-supermat-fulltext-judge-01): under the supermat full-paper
-    # judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING
-    # tail of rows (finish_reason='length', empty completion) no matter how
-    # the token budget was adjusted -- 3/3882 rows at the harmony chat
-    # template's "medium" reasoning_effort default (job 7527735); 2/3882
-    # *different* rows (one from a comparatively short paper, ruling out a
-    # pure document-length effect) after pinning reasoning_effort="low"
-    # (job 7530223); 1/3882 yet another row after also raising max_tokens
-    # 8192->16384 (job 7531883). Two token-budget-side fixes each reduced
-    # but never eliminated the failure, and a different specific row failed
-    # each time under otherwise-identical settings -- symptoms of greedy
-    # decoding occasionally entering a degenerate repetition loop (a known
-    # reasoning-model failure mode), not a genuine token shortage.
-    # Moving temperature to 0.2 (with reasoning_effort back at "medium" and
-    # max_tokens back at 8192 -- neither budget-side fix was doing the real
-    # work) resolved every one of the 6 rows that had failed across all
-    # three prior attempts, each well under the 8192 cap (diagnostic job
-    # 7532192). `seed=342` is set for reproducibility, but that has NOT yet
-    # been empirically re-verified the way pond's temperature=0.0
-    # seed-determinism control was -- deliberately deferred to a separate
-    # /develop session per an explicit user decision, not blocking this
-    # run. Other judges have no `reasoning_effort` template variable, stay
-    # at temperature=0.0, and are unaffected.
-    is_gpt_oss = "gpt-oss" in model_id
-    extra_body = {"chat_template_kwargs": {"reasoning_effort": "medium"}} if is_gpt_oss else None
-    temperature = 0.2 if is_gpt_oss else 0.0
-    seed = 342 if is_gpt_oss else None
+    # Per-judge sampling overrides (temperature/seed/reasoning_effort) come
+    # from the judge's own model-config now -- see
+    # experiments/model-configs/vllm_judge/gpt-oss-120b.yaml's sampling_params
+    # comment for the debugging history behind its specific values. A judge
+    # with no sampling_params block (every one except gpt-oss-120b today)
+    # falls back to the defaults below, unchanged from before this was
+    # config-driven.
+    sp = sampling_params or {}
+    temperature = sp.get("temperature", 0.0)
+    seed = sp.get("seed")
+    extra_body = (
+        {"chat_template_kwargs": {"reasoning_effort": sp["reasoning_effort"]}}
+        if "reasoning_effort" in sp else None
+    )
 
     async with sem:
         try:
@@ -123,8 +110,9 @@ async def _judge_one(
                 ],
                 # 8192: reasoning models (gpt-oss-120b) emit a long analysis
                 # channel before the verdict; 2048 truncated it on ~0.5% of
-                # pond rows (fixed by the 8192 bump, commit 7fcf19d). See the
-                # comment above `is_gpt_oss` for why gpt-oss-120b's remaining
+                # pond rows (fixed by the 8192 bump, commit 7fcf19d). See
+                # experiments/model-configs/vllm_judge/gpt-oss-120b.yaml's
+                # sampling_params comment for why gpt-oss-120b's remaining
                 # supermat truncations were a temperature issue, not a
                 # max_tokens issue -- this cap is unchanged from 7fcf19d.
                 # Non-reasoning judges are unaffected (they stop far short of
@@ -229,9 +217,11 @@ def run_local_vllm_judge(
     client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
     sem = asyncio.Semaphore(max_concurrent)
 
+    judge_sampling_params = judge_cfg.get("sampling_params")
+
     async def _run_all() -> list[dict | BaseException]:
         tasks = [
-            _judge_one(client, model_id, entry, int(entry["custom_id"]), sem)
+            _judge_one(client, model_id, entry, int(entry["custom_id"]), sem, judge_sampling_params)
             for entry in chat_entries
         ]
         return await asyncio.gather(*tasks, return_exceptions=True)
