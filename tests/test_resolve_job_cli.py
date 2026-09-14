@@ -53,23 +53,47 @@ def test_gpu_type_emitted_when_present(fixture_roots):
     _write_yaml(
         exp_root / "pond" / "judge_interp" / exp_id / f"{exp_id}.yaml",
         {"id": exp_id, "project": "scholarlm", "description": "test", "seed": 342,
-         "params": {"dataset": "pond", "judge": "qwen-2.5-7b", "extraction_id": "x"}},
+         "params": {"dataset": "pond", "judge": "qwen-2.5-7b", "extraction_id": "x",
+                     "walltime": "24:00:00"}},
     )
     _write_yaml(model_root / "interp_judge" / "qwen-2.5-7b.yaml", {
         "model_id": "Qwen/Qwen2.5-7B-Instruct",
         "nnsight_kwargs": {"torch_dtype": "bfloat16"},
-        "resources": {"gpu_memory": "32G", "gpu_capability": 7.0, "gpu_type": "L40S",
-                      "walltime": "24:00:00", "omp": 8},
+        "resources": {"gpu_memory": "32G", "gpu_capability": 7.0, "gpu_type": "L40S", "omp": 8},
     })
     rc, out = _run_and_capture([exp_id])
     assert rc == 0
     assert "GPU_TYPE=L40S" in out
     assert "GPU_C=7.0" in out
+    assert "WALLTIME=24:00:00" in out
 
 
 def test_gpu_type_omitted_when_absent(fixture_roots):
     exp_root, model_root = fixture_roots
     exp_id = "2026-09-13-test-nogputype-01"
+    _write_yaml(
+        exp_root / "pond" / "extraction" / exp_id / f"{exp_id}.yaml",
+        {"id": exp_id, "project": "scholarlm", "description": "test", "seed": 342,
+         "params": {"dataset": "pond", "model": "gemma-3-27b", "walltime": "48:00:00"}},
+    )
+    _write_yaml(model_root / "extraction" / "gemma-3-27b.yaml", {
+        "model_id": "gaunernst/gemma-3-27b-it-int4-awq",
+        "serve": {"port": 8081, "max_model_len": 90000, "gpu_memory_utilization": 0.9,
+                  "quantization": "awq_marlin", "dtype": "bfloat16", "sif_image": "x.sif"},
+        "resources": {"gpu_memory": "48G", "gpu_capability": "8.9", "omp": 8},
+    })
+    rc, out = _run_and_capture([exp_id])
+    assert rc == 0
+    assert "GPU_TYPE" not in out
+
+
+def test_walltime_required_for_vllm_server_job(fixture_roots):
+    # walltime used to fall back to the model-config's resources.walltime for
+    # GPU jobs -- now it's required in params, same as the frontier path,
+    # since it's a function of (model x dataset size x experiment type), not
+    # just the model.
+    exp_root, model_root = fixture_roots
+    exp_id = "2026-09-13-test-missing-walltime-01"
     _write_yaml(
         exp_root / "pond" / "extraction" / exp_id / f"{exp_id}.yaml",
         {"id": exp_id, "project": "scholarlm", "description": "test", "seed": 342,
@@ -79,11 +103,27 @@ def test_gpu_type_omitted_when_absent(fixture_roots):
         "model_id": "gaunernst/gemma-3-27b-it-int4-awq",
         "serve": {"port": 8081, "max_model_len": 90000, "gpu_memory_utilization": 0.9,
                   "quantization": "awq_marlin", "dtype": "bfloat16", "sif_image": "x.sif"},
-        "resources": {"gpu_memory": "48G", "gpu_capability": "8.9", "walltime": "48:00:00", "omp": 8},
+        "resources": {"gpu_memory": "48G", "gpu_capability": "8.9", "omp": 8},
+    })
+    rc, out = _run_and_capture([exp_id])
+    assert rc == 0  # _fail prints an `exit 1` eval line rather than raising, see _resolve_job.py
+    assert "params.walltime is required" in out
+
+
+def test_walltime_required_for_frontier_job(fixture_roots):
+    exp_root, model_root = fixture_roots
+    exp_id = "2026-09-13-test-missing-walltime-frontier-01"
+    _write_yaml(
+        exp_root / "pond" / "extraction" / exp_id / f"{exp_id}.yaml",
+        {"id": exp_id, "project": "scholarlm", "description": "test", "seed": 342,
+         "params": {"dataset": "pond", "model": "gpt-5-mini"}},
+    )
+    _write_yaml(model_root / "extraction" / "gpt-5-mini.yaml", {
+        "model_id": "gpt-5-mini", "api_base": "https://api.openai.com/v1",
     })
     rc, out = _run_and_capture([exp_id])
     assert rc == 0
-    assert "GPU_TYPE" not in out
+    assert "params.walltime is required" in out
 
 
 def test_real_qwen_2_5_7b_model_config_emits_l40s():

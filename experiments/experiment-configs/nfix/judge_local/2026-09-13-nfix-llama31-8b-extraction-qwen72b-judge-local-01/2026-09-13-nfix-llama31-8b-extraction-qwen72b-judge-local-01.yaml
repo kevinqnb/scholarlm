@@ -10,3 +10,4 @@ params:
   judge: qwen-2.5-72b
   extraction_id: 2026-05-05-nfix-llama-3.1-8b-extraction-01
   ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01
+  walltime: "48:00:00"

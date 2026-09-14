@@ -58,14 +58,24 @@ def main(argv: list[str] | None = None) -> int:
     _emit("GPU_NEED", job["gpu_need"])
 
     gpu_need = job["gpu_need"]
+
+    # Walltime is a function of (model x dataset size x experiment type), not
+    # just the model, so it always comes from the experiment's own config --
+    # never a model-config fallback. Required unconditionally, per the
+    # contract's "no magic numbers" rule.
     walltime = job["params"].get("walltime")
+    if not walltime:
+        return _fail(
+            f"{job['config_path']}: params.walltime is required for "
+            f"experiment-type {job['experiment_type']!r}"
+        )
+    _emit("WALLTIME", walltime)
 
     if gpu_need in ("vllm_server", "direct_gpu"):
         resources = job["model_config"]["resources"]
         _emit("GPU_MEMORY", resources["gpu_memory"])
         _emit("GPU_C", resources["gpu_capability"])
         _emit("OMP", resources["omp"])
-        _emit("WALLTIME", walltime or resources["walltime"])
         # Optional: pin a specific GPU type rather than just a capability
         # floor. Needed for some NNsight jobs on this cluster -- a gpu_c
         # floor alone let SGE schedule onto newer GPU types the installed
@@ -74,18 +84,6 @@ def main(argv: list[str] | None = None) -> int:
         # case this was added for). Most model-configs don't need this.
         if "gpu_type" in resources:
             _emit("GPU_TYPE", resources["gpu_type"])
-    else:
-        # Frontier model, or no model at all: no serve/resources section to
-        # default a walltime from -- params.walltime is required, per the
-        # contract's "no magic numbers" rule (matches today's
-        # scripts/submit.sh behavior for frontier-model configs).
-        if not walltime:
-            return _fail(
-                f"{job['config_path']}: params.walltime is required for "
-                f"experiment-type {job['experiment_type']!r} (no serve/resources "
-                "section to default from)"
-            )
-        _emit("WALLTIME", walltime)
 
     if gpu_need == "vllm_server":
         mc = job["model_config"]

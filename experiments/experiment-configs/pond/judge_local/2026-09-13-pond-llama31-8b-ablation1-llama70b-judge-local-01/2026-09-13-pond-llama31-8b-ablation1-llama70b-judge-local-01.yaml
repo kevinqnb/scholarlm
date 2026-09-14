@@ -10,3 +10,4 @@ params:
   judge: llama-3.3-70b
   extraction_id: 2026-05-04-pond-llama-3.1-8b-ablation1-01
   ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01
+  walltime: "48:00:00"

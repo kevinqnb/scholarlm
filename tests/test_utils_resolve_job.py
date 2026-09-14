@@ -112,7 +112,7 @@ def test_resolve_job_vllm_server_type(fixture_roots):
         "model_id": "gaunernst/gemma-3-27b-it-int4-awq",
         "serve": {"port": 8081, "max_model_len": 90000, "gpu_memory_utilization": 0.9,
                   "quantization": "awq_marlin", "dtype": "bfloat16", "sif_image": "x.sif"},
-        "resources": {"gpu_memory": "48G", "gpu_capability": "8.9", "walltime": "48:00:00", "omp": 8},
+        "resources": {"gpu_memory": "48G", "gpu_capability": "8.9", "omp": 8},
     })
 
     job = utils.resolve_job(exp_id)
@@ -131,7 +131,7 @@ def test_resolve_job_direct_gpu_type(fixture_roots):
     _write_yaml(model_root / "interp_judge" / "qwen-2.5-7b.yaml", {
         "model_id": "Qwen/Qwen2.5-7B-Instruct",
         "nnsight_kwargs": {"torch_dtype": "bfloat16"},
-        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "walltime": "12:00:00", "omp": 4},
+        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "omp": 4},
     })
 
     job = utils.resolve_job(exp_id)
@@ -189,7 +189,7 @@ def test_resolve_job_fixed_model_type_ignores_params(fixture_roots):
     _write_yaml(model_root / "baseline" / "nuextract-2.0-8b.yaml", {
         "model_id": "numind/NuExtract-2.0-8B",
         "serve": {"port": 8081, "sif_image": "x.sif"},
-        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "walltime": "12:00:00", "omp": 4},
+        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "omp": 4},
     })
 
     job = utils.resolve_job(exp_id)
@@ -205,7 +205,7 @@ def test_resolve_job_model_default_used_when_param_absent(fixture_roots):
         "model_id": "allenai/olmOCR-7B-0225-preview",
         "prompt_source": "olmocr_no_anchoring_v4",
         "serve": {"port": 8081, "sif_image": "x.sif"},
-        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "walltime": "12:00:00", "omp": 4},
+        "resources": {"gpu_memory": "24G", "gpu_capability": "8.0", "omp": 4},
     })
 
     job = utils.resolve_job(exp_id)

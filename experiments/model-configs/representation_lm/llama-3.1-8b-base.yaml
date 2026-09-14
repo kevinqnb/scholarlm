@@ -18,5 +18,4 @@ resources:
   # interp_judge/llama-3.1-8b.yaml's comment for what full-paper-length
   # evidence does and doesn't exist. Re-check first if a real run here runs
   # OOM.
-  walltime: "24:00:00"
   omp: 8

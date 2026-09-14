@@ -1051,7 +1051,7 @@ def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -
         f"model-config{where} has no `api_base`, `serve`, or `resources` -- "
         "cannot determine whether this model needs a GPU. If it's a local "
         "NNsight or encoder model, add a `resources:` block "
-        "(gpu_memory/gpu_capability/walltime/omp) before submitting it."
+        "(gpu_memory/gpu_capability/omp) before submitting it."
     )
 
 

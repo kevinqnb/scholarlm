@@ -16,3 +16,4 @@ params:
   dataset: pond
   judge: qwen-2.5-72b
   extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"

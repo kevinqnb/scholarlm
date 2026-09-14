@@ -8,3 +8,4 @@ params:
   date: "2026_08_01"
   ocr_dir: data/measeval/ocr_output_raw
   resume: true
+  walltime: "48:00:00"

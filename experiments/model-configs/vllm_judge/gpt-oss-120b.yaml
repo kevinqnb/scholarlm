@@ -34,5 +34,4 @@ serve:
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0
-  walltime: '24:00:00'
   omp: 8

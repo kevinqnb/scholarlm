@@ -63,13 +63,18 @@ experiment so runs stay reproducible, but the layout doesn't have to match the
 reference repo (`coastal-crawler`).
 
 **No magic numbers.** Every value that would change between runs — dataset, model,
-paper subset, per-experiment sampling parameters — belongs in an experiment config's
-`params` block, not hardcoded in runner code. Fixed, repo-wide values (per-model
-sampling defaults, SGE serve/resource requests) live one YAML per model under
-`experiments/model-configs/{kind}/<model>.yaml`; `experiments/config.yaml` holds only
-the global seed (`defaults.seed`) — every experiment config's own `seed` is checked
-against it at run time, with no fallback. It used to also carry per-model sampling/
-serve params and SGE cluster settings; that dead content was removed 2026-09-14 (see
+paper subset, per-experiment sampling parameters, and (since 2026-09-14, Phase F of
+the restructure) walltime — belongs in an experiment config's `params` block, not
+hardcoded in runner code: `params.walltime` is required on every experiment config
+that resolves to a GPU job, no model-config fallback, since walltime is a function of
+model x dataset size x experiment type, not the model alone. Fixed, repo-wide values
+that genuinely don't vary per run (per-model sampling defaults, SGE serve params, the
+`omp`/`gpu_memory`/`gpu_capability`/`gpu_type` resource request) live one YAML per
+model under `experiments/model-configs/{kind}/<model>.yaml`; `experiments/config.yaml`
+holds only the global seed (`defaults.seed`) — every experiment config's own `seed` is
+checked against it at run time, with no fallback. It used to also carry per-model
+sampling/serve params and SGE cluster settings; that dead content was removed
+2026-09-14 (see
 `notes/scholarlm/builds/2026-09-13-experiment-config-restructure-01.md`).
 
 ## Development log
@@ -265,12 +270,12 @@ files via `utils.load_model_config`/`get_model_config`, and fails loud (a
 `FileNotFoundError` naming the available models for that kind) on an unknown key.
 
 A `vllm_server`- or `direct_gpu`-need model-config also needs a `resources:` block
-(`gpu_memory`/`gpu_capability`/`walltime`/`omp`) for `experiments/submit.sh` to
-resolve an SGE request for it — `utils.classify_gpu_need` raises rather than
-guessing if one's missing. Several `interp_judge`/`jacobian_lens`/
-`representation_lm` model-configs (all but `interp_judge/qwen-2.5-7b.yaml`) don't
-have one yet, a real gap for models with a committed experiment-config pointing at
-them (`interp_judge/llama-3.1-8b.yaml` and `representation_lm/llama-3.1-8b-base.yaml`
-each have committed configs depending on them right now); don't invent GPU numbers
-to close it — infer them from prior real runs the way `interp_judge/qwen-2.5-7b.yaml`'s
-own `resources:` comment does, or ask.
+(`gpu_memory`/`gpu_capability`/`omp`, optionally `gpu_type`) for `experiments/submit.sh`
+to resolve an SGE request for it — `utils.classify_gpu_need` raises rather than
+guessing if one's missing. `walltime` does **not** go here (moved out 2026-09-14,
+Phase F of the restructure): it's required in the experiment config's own
+`params.walltime` instead, since it varies by dataset size and experiment type, not
+just model — `_resolve_job.py` fails loud if it's absent, for every experiment type.
+Don't invent GPU resource numbers to close a missing `resources:` block — infer them
+from prior real runs the way `interp_judge/qwen-2.5-7b.yaml`'s own `resources:`
+comment does, or ask.

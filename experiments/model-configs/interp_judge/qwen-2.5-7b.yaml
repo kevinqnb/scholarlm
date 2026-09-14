@@ -37,5 +37,4 @@ resources:
   # observed figure -- harmless only because gpu_type pins the card outright;
   # if the pin is ever removed, raise gpu_memory to match first.
   gpu_type: L40S
-  walltime: "24:00:00"
   omp: 8

@@ -27,5 +27,4 @@ resources:
   # Llama-3.1's native 128k context -- the template is expected to hold, but
   # that specific combination (this model x full-paper length) is inference,
   # not a direct observation. Re-check first if a real run here runs OOM.
-  walltime: "24:00:00"
   omp: 8
