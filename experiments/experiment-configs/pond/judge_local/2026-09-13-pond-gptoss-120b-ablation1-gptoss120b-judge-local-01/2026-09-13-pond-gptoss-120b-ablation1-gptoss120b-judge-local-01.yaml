@@ -1,0 +1,13 @@
+id: 2026-09-13-pond-gptoss-120b-ablation1-gptoss120b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (gpt-oss-120b) over pond Ablation1 (gptoss-120b) (2026-08-13-pond-gpt-oss-120b-ablation1-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: pond
+  judge: gpt-oss-120b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01
+  walltime: "24:00:00"

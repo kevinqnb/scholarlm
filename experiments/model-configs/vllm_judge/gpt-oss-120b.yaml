@@ -4,8 +4,8 @@ model_id: openai/gpt-oss-120b
 # model-config (see llama-3.3-70b.yaml and qwen-2.5-72b.yaml, which have
 # actually-measured values), so these two carry forward the values this
 # runner previously hardcoded as its own fallback defaults, unchanged.
-max_concurrent: 64
-request_timeout: 300
+max_concurrent: 32
+request_timeout: 600
 # gpt-oss-120b history (2026-09-11, notes/scholarlm/experiments/
 # 2026-09-11-supermat-fulltext-judge-01.md): under the supermat full-paper
 # judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING tail
