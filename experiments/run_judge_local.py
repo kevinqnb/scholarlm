@@ -27,9 +27,14 @@ experiment id, resolved via utils.find_result_dir -- its final.json is judged).
 Synthetic mode (params.synthetic: true, or params.synthetic_file) ignores
 extraction_id; see below for its params (unchanged from before this restructure).
 Optional params: extraction_id, judge_date, ocr_dir, api_base, api_key,
-max_concurrent (default 64), request_timeout (default 300.0, seconds),
 synthetic (bool), synthetic_split ('train'|'test'),
 synthetic_file, synthetic_name.
+
+max_concurrent and request_timeout are NOT experiment params (2026-09-14) --
+they come from the judge's own model-config
+(experiments/model-configs/vllm_judge/<judge>.yaml), since they're serving
+characteristics of a given judge model under this stack, not something that
+varies per experiment. Setting either in params.* is a hard error.
 
 Available judge models: the YAML files in experiments/model-configs/vllm_judge/.
 """
@@ -166,12 +171,12 @@ def run_local_vllm_judge(
     judge_key: str,
     output_dir: Path,
     input_file: Path,
+    max_concurrent: int,
+    request_timeout: float,
     ocr_dir: str | None = None,
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
-    max_concurrent: int = 64,
     extraction_id: str | None = None,
-    request_timeout: float = 300.0,
 ) -> None:
     """Run a local vLLM judge and save responses.
 
@@ -186,15 +191,16 @@ def run_local_vllm_judge(
         output_dir: Directory to write ``responses.json``.
         input_file: Path to the ``final.json``-shaped file to judge (an
             extraction/ablation run's output, or a synthetic probe file).
+        max_concurrent: Maximum concurrent requests to the server. Comes from
+            the judge's model-config (experiments/model-configs/vllm_judge/),
+            not from experiment params -- see module docstring.
+        request_timeout: Per-request client timeout (seconds) for the
+            OpenAI-compatible HTTP client. Same source as max_concurrent.
         ocr_dir: Directory of OCR ``.txt`` files. Defaults to ``{data_dir}/ocr_output_raw/``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server.
-        max_concurrent: Maximum concurrent requests to the server.
         extraction_id: The upstream extraction/ablation experiment id being
             judged, recorded in run_metadata.json. ``None`` for synthetic mode.
-        request_timeout: Per-request client timeout (seconds) for the
-            OpenAI-compatible HTTP client. Default matches the value this
-            was previously hardcoded to.
     """
     judge_cfg = paths.load_model_config("vllm_judge", judge_key)
     model_id = judge_cfg["model_id"]
@@ -308,12 +314,19 @@ def main(argv: list[str] | None = None) -> None:
 
     dataset = params["dataset"]
     judge = params["judge"]
-    paths.load_model_config("vllm_judge", judge)  # fail loud on an unknown judge before any work starts
+    judge_cfg = paths.load_model_config("vllm_judge", judge)  # fail loud on an unknown judge before any work starts
+    if "max_concurrent" in params or "request_timeout" in params:
+        raise ValueError(
+            f"{config_path}: params.max_concurrent/params.request_timeout are no "
+            f"longer read from experiment params (2026-09-14) -- they come from "
+            f"experiments/model-configs/vllm_judge/{judge}.yaml instead. Remove "
+            f"them from this config's params."
+        )
     dataset_config = load_dataset_config(dataset)
     api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"
     api_key = params.get("api_key", "EMPTY")
-    max_concurrent = params.get("max_concurrent", 64)
-    request_timeout = params.get("request_timeout", 300.0)
+    max_concurrent = judge_cfg["max_concurrent"]
+    request_timeout = judge_cfg["request_timeout"]
 
     synthetic_file = params.get("synthetic_file")
     synthetic = params.get("synthetic", False)

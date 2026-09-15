@@ -1,4 +1,18 @@
 model_id: Qwen/Qwen2.5-72B-Instruct-AWQ
+# 2026-09-14: moved here from per-experiment params (originally set on
+# 2026-09-14-qwen72b-judge-seed-determinism-01/-02) -- see llama-3.3-70b.yaml's
+# identical comment for why these belong in the model-config now.
+# max_concurrent: lowered from run_judge_local.py's 64 default after two
+# seed-determinism attempts each hit ~2/4285 APITimeoutError (300s client
+# timeout) under the default, with idx=68 (biodiversity_of_constructed, ~28k
+# tokens) timing out both times -- long-context requests occasionally
+# queueing behind others past the timeout under high concurrency.
+# request_timeout: not independently measured for this model -- applied from
+# llama-3.3-70b's precedent (same AWQ/H200 serving stack) rather than from a
+# qwen-specific timeout failure, since max_concurrent=32 alone resolved the
+# APITimeoutError seen on this model's own seed-determinism runs.
+max_concurrent: 32
+request_timeout: 600
 serve:
   port: 8081
   # Qwen2.5-72B-Instruct-AWQ's native max_position_embeddings is 32768 --

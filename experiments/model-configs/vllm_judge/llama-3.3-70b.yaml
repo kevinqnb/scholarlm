@@ -1,4 +1,21 @@
 model_id: ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+# 2026-09-14: moved here from per-experiment params (originally set on
+# 2026-09-14-llama70b-judge-seed-determinism-01/-02) -- these are serving
+# characteristics of this model under this stack, not something that varies
+# by experiment, so they belong here rather than being copy-pasted into every
+# future llama-3.3-70b judge_local config.
+# max_concurrent: lowered from run_judge_local.py's 64 default after an
+# APITimeoutError (300s client timeout) on the seed-determinism full run,
+# same contention pattern seen on qwen-2.5-72b the same session.
+# request_timeout: idx=1007 (document dry_habitats_sustain, ~17.4k tokens --
+# not unusually long) timed out 3x in a row regardless of max_concurrent (64
+# and 32), on two separate job attempts. Not contention -- this row is
+# consistently slow to generate for this model at temperature=0.0 (no
+# sampling_params block below, so run_judge_local.py's _judge_one falls back
+# to temperature=0.0, no seed). Raised to see whether it's slow-but-finishes
+# vs. actually hung; confirmed slow-but-finishes.
+max_concurrent: 32
+request_timeout: 600
 serve:
   port: 8081
   max_model_len: 90000

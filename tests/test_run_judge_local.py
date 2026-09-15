@@ -94,3 +94,42 @@ def test_no_verdict_does_not_resolve_to_none():
     except ValueError:
         return
     pytest.fail("expected _judge_one to raise, not return")
+
+
+# ---------------------------------------------------------------------------
+# max_concurrent / request_timeout resolution (2026-09-14: moved from
+# experiment params to the judge's model-config)
+# ---------------------------------------------------------------------------
+
+
+def _write_config(tmp_path, config_id, extra_params: dict) -> Path:
+    cfg_path = tmp_path / f"{config_id}.yaml"
+    cfg_path.write_text(
+        "id: " + config_id + "\n"
+        "project: scholarlm\n"
+        "description: test fixture\n"
+        "seed: 342\n"
+        "params:\n"
+        "  dataset: pond\n"
+        "  judge: llama-3.3-70b\n"
+        "  extraction_id: does-not-matter\n"
+        + "".join(f"  {k}: {v}\n" for k, v in extra_params.items())
+    )
+    return cfg_path
+
+
+@pytest.mark.parametrize("stale_key", ["max_concurrent", "request_timeout"])
+def test_main_rejects_stale_param_key(tmp_path, stale_key):
+    """A config still setting max_concurrent/request_timeout in params must
+    raise, not silently ignore the value and fall back to the model-config."""
+    cfg_path = _write_config(tmp_path, "test-stale-param", {stale_key: 32})
+    with pytest.raises(ValueError, match=r"no longer read from experiment params"):
+        rjl.main([str(cfg_path)])
+
+
+def test_llama_model_config_supplies_max_concurrent_and_request_timeout():
+    """The values main() now resolves to must actually be present (required,
+    not defaulted) on the real llama-3.3-70b model-config."""
+    judge_cfg = rjl.paths.load_model_config("vllm_judge", "llama-3.3-70b")
+    assert judge_cfg["max_concurrent"] == 32
+    assert judge_cfg["request_timeout"] == 600

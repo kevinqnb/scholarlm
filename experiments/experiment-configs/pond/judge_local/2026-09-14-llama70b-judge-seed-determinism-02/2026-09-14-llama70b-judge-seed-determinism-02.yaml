@@ -13,11 +13,6 @@ params:
   judge: llama-3.3-70b
   extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
   walltime: "48:00:00"
-  # 2026-09-14: see -01's identical comment (max_concurrent lowering after
-  # APITimeoutError). If -02 already started before this edit landed, it
-  # ran under the old default and this had no effect on that attempt.
-  max_concurrent: 32
-  # See -01's identical comment: idx=1007 timed out on this job's earlier
-  # attempt too, consistently, regardless of concurrency. Same
-  # request_timeout raise applied here for consistency with -01.
-  request_timeout: 600
+  # max_concurrent/request_timeout moved to this judge's model-config
+  # (experiments/model-configs/vllm_judge/llama-3.3-70b.yaml) on 2026-09-14 --
+  # the diagnostic history behind the 32/600 values lives there now.

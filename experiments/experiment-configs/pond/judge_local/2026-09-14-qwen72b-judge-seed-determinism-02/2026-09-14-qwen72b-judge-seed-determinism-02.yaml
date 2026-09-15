@@ -10,6 +10,6 @@ params:
   judge: qwen-2.5-72b
   extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
   walltime: "48:00:00"
-  # 2026-09-14: see -01's identical comment -- same max_concurrent lowering
-  # after repeated APITimeoutError on long-context requests.
-  max_concurrent: 32
+  # max_concurrent/request_timeout moved to this judge's model-config
+  # (experiments/model-configs/vllm_judge/qwen-2.5-72b.yaml) on 2026-09-14 --
+  # the diagnostic history behind the 32/600 values lives there now.

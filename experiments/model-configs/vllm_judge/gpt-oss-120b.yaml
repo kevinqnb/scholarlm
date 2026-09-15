@@ -1,4 +1,11 @@
 model_id: openai/gpt-oss-120b
+# 2026-09-14: max_concurrent/request_timeout made explicit here, not tuned
+# for this model -- run_judge_local.py now requires both from the judge's
+# model-config (see llama-3.3-70b.yaml and qwen-2.5-72b.yaml, which have
+# actually-measured values), so these two carry forward the values this
+# runner previously hardcoded as its own fallback defaults, unchanged.
+max_concurrent: 64
+request_timeout: 300
 # gpt-oss-120b history (2026-09-11, notes/scholarlm/experiments/
 # 2026-09-11-supermat-fulltext-judge-01.md): under the supermat full-paper
 # judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING tail

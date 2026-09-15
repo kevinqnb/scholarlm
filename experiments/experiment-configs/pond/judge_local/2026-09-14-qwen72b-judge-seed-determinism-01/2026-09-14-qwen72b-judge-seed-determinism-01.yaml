@@ -19,11 +19,6 @@ params:
   judge: qwen-2.5-72b
   extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
   walltime: "48:00:00"
-  # 2026-09-14: added after two attempts each hit ~2/4285 APITimeoutError
-  # (300s client timeout in run_judge_local.py) under the default
-  # max_concurrent=64, with idx=68 (biodiversity_of_constructed, ~28k
-  # tokens) timing out both times -- looks like long-context requests
-  # occasionally queueing behind others past the timeout under high
-  # concurrency, not a deterministic bug. Lowering concurrency to reduce
-  # contention rather than just retrying blind a third time.
-  max_concurrent: 32
+  # max_concurrent/request_timeout moved to this judge's model-config
+  # (experiments/model-configs/vllm_judge/qwen-2.5-72b.yaml) on 2026-09-14 --
+  # the diagnostic history behind the 32/600 values lives there now.
