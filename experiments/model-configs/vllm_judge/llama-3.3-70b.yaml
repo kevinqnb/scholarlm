@@ -16,6 +16,16 @@ model_id: ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
 # vs. actually hung; confirmed slow-but-finishes.
 max_concurrent: 32
 request_timeout: 600
+# 2026-09-15: run_judge_local.py's length-truncation retry/flag path (added
+# for gpt-oss-120b's reasoning-budget failure, see its model-config) is
+# explicit-opt-in per judge. This model has never shown that failure --
+# max_retries: 0 reproduces the original raise-on-first-failure behavior
+# exactly (no retry, no judgement:null flagging). drop_ceiling is unused at
+# max_retries: 0 (nothing is ever flagged to count) but required (no default
+# config keys) -- 0 documents that no rate of this failure is expected or
+# tolerated here.
+max_retries: 0
+drop_ceiling: 0
 serve:
   port: 8081
   max_model_len: 90000

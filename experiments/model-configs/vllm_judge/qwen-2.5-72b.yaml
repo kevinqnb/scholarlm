@@ -13,6 +13,12 @@ model_id: Qwen/Qwen2.5-72B-Instruct-AWQ
 # APITimeoutError seen on this model's own seed-determinism runs.
 max_concurrent: 32
 request_timeout: 600
+# 2026-09-15: see llama-3.3-70b.yaml's identical comment -- this model has
+# never shown gpt-oss-120b's length-truncation failure, so max_retries: 0
+# keeps run_judge_local.py's original raise-on-first-failure behavior
+# unchanged for this judge.
+max_retries: 0
+drop_ceiling: 0
 serve:
   port: 8081
   # Qwen2.5-72B-Instruct-AWQ's native max_position_embeddings is 32768 --

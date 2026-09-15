@@ -15,7 +15,12 @@ Synthetic probe mode output path (params.synthetic) is deliberately UNCHANGED
 pipeline (explicitly out of scope for this restructure) reads it directly.
 
 Saves:
-  - ``responses.json`` — per-measurement judgement (true/false from text response)
+  - ``responses.json`` — per-measurement judgement (true/false from text response;
+    ``judgement: null`` + ``judgement_truncated: true`` for a row whose response
+    stayed empty at ``finish_reason='length'`` through the judge's configured
+    retry budget -- see ``_judge_one``)
+  - ``truncated_verdicts.json`` — only written if any row resolved that way;
+    ``{idx: reason}`` for post-mortem
 
 Usage
 -----
@@ -82,14 +87,40 @@ async def _judge_one(
     idx: int,
     sem: asyncio.Semaphore,
     sampling_params: dict | None = None,
+    max_retries: int = 0,
 ) -> dict:
     """Send a single judge request and return its true/false judgement.
 
-    Fails loud: a request that errors, comes back with no content, or whose
-    text yields neither ``true`` nor ``false`` raises. It must not resolve to a
-    null judgement — ``run_judge_combine`` counts anything that is not ``True``
-    as a non-affirmative vote, so a silently-dropped request would bias the
-    majority-vote ground truth without leaving a trace.
+    Fails loud: an API error, or a response whose text yields neither
+    ``true`` nor ``false``, raises -- with one narrow, explicit exception.
+    A response that comes back EMPTY with ``finish_reason='length'`` means
+    the reasoning channel ate the whole token budget before the model wrote
+    a verdict (see gpt-oss-120b.yaml's sampling_params comment: resampling
+    the same prompt can land differently, since temperature > 0 there). If
+    ``max_retries`` > 0 (only set for judges with an observed, accepted rate
+    of this specific failure -- see model-config), that exact case is
+    resampled up to ``max_retries`` times; if it is still empty afterward,
+    this returns ``judgement: None`` with ``judgement_truncated: True``
+    instead of raising, rather than fabricating a true/false verdict the
+    model never gave.
+
+    This is NOT a silent drop: the caller (``run_local_vllm_judge``) writes
+    every ``judgement_truncated`` row into ``responses.json`` and a
+    ``truncated_verdicts.json`` manifest, and enforces
+    ``judge_cfg['drop_ceiling']`` (an absolute row count, not a fraction --
+    the observed rate is 1-2 rows per several-thousand-row run) as a hard cap
+    on how many rows may resolve this way before the whole run aborts -- so a
+    wedged server still fails loud instead of quietly producing a gutted run. Any other no-verdict
+    case (non-empty text, or empty text with a different finish_reason) is
+    unaffected and still raises immediately, unretried -- ``max_retries`` is
+    for gpt-oss-120b's documented reasoning-budget failure only, not license
+    to swallow other parse failures. Downstream, ``judgement: None`` is
+    already an expected/filtered value (see ``analysis/loaders.py`` and
+    ``analysis/validity_evaluation.py``'s ``r.get("judgement") is not None``),
+    and ``run_judge_combine``'s majority vote treats ``None`` exactly like an
+    explicit ``False`` or an absent vote (``is True`` check), so this changes
+    nothing about ``judgement_combined`` -- it only lets the run finish
+    instead of discarding every other row over a handful of truncations.
     """
     # Per-judge sampling overrides (temperature/seed/reasoning_effort) come
     # from the judge's own model-config now -- see
@@ -106,59 +137,87 @@ async def _judge_one(
         if "reasoning_effort" in sp else None
     )
 
-    async with sem:
-        try:
-            kwargs: dict = dict(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": entry["system"]},
-                    {"role": "user", "content": entry["user"]},
-                ],
-                # 8192: reasoning models (gpt-oss-120b) emit a long analysis
-                # channel before the verdict; 2048 truncated it on ~0.5% of
-                # pond rows (fixed by the 8192 bump, commit 7fcf19d). See
-                # experiments/model-configs/vllm_judge/gpt-oss-120b.yaml's
-                # sampling_params comment for why gpt-oss-120b's remaining
-                # supermat truncations were a temperature issue, not a
-                # max_tokens issue -- this cap is unchanged from 7fcf19d.
-                # Non-reasoning judges are unaffected (they stop far short of
-                # this cap).
-                max_tokens=8192,
-                temperature=temperature,
-                extra_body=extra_body,
+    for attempt in range(1 + max_retries):
+        async with sem:
+            try:
+                kwargs: dict = dict(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": entry["system"]},
+                        {"role": "user", "content": entry["user"]},
+                    ],
+                    # 8192: reasoning models (gpt-oss-120b) emit a long analysis
+                    # channel before the verdict; 2048 truncated it on ~0.5% of
+                    # pond rows (fixed by the 8192 bump, commit 7fcf19d). See
+                    # experiments/model-configs/vllm_judge/gpt-oss-120b.yaml's
+                    # sampling_params comment for why gpt-oss-120b's remaining
+                    # supermat truncations were a temperature issue, not a
+                    # max_tokens issue -- this cap is unchanged from 7fcf19d.
+                    # Non-reasoning judges are unaffected (they stop far short of
+                    # this cap).
+                    max_tokens=8192,
+                    temperature=temperature,
+                    extra_body=extra_body,
+                )
+                if seed is not None:
+                    kwargs["seed"] = seed
+                response = await client.chat.completions.create(**kwargs)
+            except Exception as e:
+                raise RuntimeError(
+                    f"[idx={idx}] judge API call failed: {type(e).__name__}: {e}"
+                ) from e
+
+        choice = response.choices[0]
+        response_text = (choice.message.content or "").strip()
+
+        print(f"  [idx={idx}] Response: {response_text}")
+
+        # Derive judgement from the response text. Parse semantics are
+        # unchanged from the original ("true" wins if both appear).
+        t = response_text.lower()
+        if "true" in t:
+            judgement = True
+        elif "false" in t:
+            judgement = False
+        else:
+            # No verdict. The one retriable/flaggable case: empty content
+            # with finish_reason='length' -- the reasoning channel spent the
+            # whole budget (see docstring). Any other no-verdict case (e.g.
+            # non-empty text that just doesn't say true/false, or empty text
+            # for a different reason) is a genuine parse failure and still
+            # raises immediately, unretried, regardless of max_retries.
+            retriable = choice.finish_reason == "length" and not response_text
+            if retriable and max_retries > 0 and attempt < max_retries:
+                print(
+                    f"  [idx={idx}] truncated with no verdict "
+                    f"(finish_reason='length'), retrying "
+                    f"({attempt + 1}/{max_retries})..."
+                )
+                continue
+            if retriable and max_retries > 0:
+                print(
+                    f"  [idx={idx}] still truncated after {max_retries} "
+                    f"retries; recording judgement=None (not a fabricated "
+                    f"verdict)."
+                )
+                return {
+                    "judgement": None,
+                    "judgement_truncated": True,
+                    "judgement_model": response.model,
+                    "_prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                }
+            raise ValueError(
+                f"[idx={idx}] judge response has no true/false verdict "
+                f"(finish_reason={choice.finish_reason!r}): {response_text!r}"
             )
-            if seed is not None:
-                kwargs["seed"] = seed
-            response = await client.chat.completions.create(**kwargs)
-        except Exception as e:
-            raise RuntimeError(
-                f"[idx={idx}] judge API call failed: {type(e).__name__}: {e}"
-            ) from e
 
-    choice = response.choices[0]
-    response_text = (choice.message.content or "").strip()
+        return {
+            "judgement": judgement,
+            "judgement_model": response.model,
+            "_prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+        }
 
-    print(f"  [idx={idx}] Response: {response_text}")
-
-    # Derive judgement from the response text. Parse semantics are unchanged
-    # from the original ("true" wins if both appear); only the no-verdict case,
-    # which used to fall through to None, now raises.
-    t = response_text.lower()
-    if "true" in t:
-        judgement = True
-    elif "false" in t:
-        judgement = False
-    else:
-        raise ValueError(
-            f"[idx={idx}] judge response has no true/false verdict "
-            f"(finish_reason={choice.finish_reason!r}): {response_text!r}"
-        )
-
-    return {
-        "judgement": judgement,
-        "judgement_model": response.model,
-        "_prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
-    }
+    raise AssertionError("unreachable: retry loop must return or raise")
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +263,16 @@ def run_local_vllm_judge(
     """
     judge_cfg = paths.load_model_config("vllm_judge", judge_key)
     model_id = judge_cfg["model_id"]
+    # Required, no fallback (CLAUDE.md: no default values for a missing
+    # config key) -- max_retries=0/drop_ceiling=0 for a judge that has never
+    # shown the length-truncation failure (llama-3.3-70b, qwen-2.5-72b)
+    # reproduces today's raise-on-first-failure behavior exactly;
+    # gpt-oss-120b sets max_retries=2 (matching the prewarm-retry precedent,
+    # commit 58c8844) since it's the one judge with a documented, accepted
+    # rate of this exact failure -- see its model-config. drop_ceiling is an
+    # absolute row count, not a fraction.
+    judge_max_retries = judge_cfg["max_retries"]
+    judge_drop_ceiling = judge_cfg["drop_ceiling"]
 
     print(f"Input   : {input_file}")
 
@@ -232,7 +301,10 @@ def run_local_vllm_judge(
 
     async def _run_all() -> list[dict | BaseException]:
         tasks = [
-            _judge_one(client, model_id, entry, int(entry["custom_id"]), sem, judge_sampling_params)
+            _judge_one(
+                client, model_id, entry, int(entry["custom_id"]), sem,
+                judge_sampling_params, max_retries=judge_max_retries,
+            )
             for entry in chat_entries
         ]
         return await asyncio.gather(*tasks, return_exceptions=True)
@@ -254,6 +326,38 @@ def run_local_vllm_judge(
             f"responses.json NOT written.\n{preview}{more}"
         )
 
+    # Rows _judge_one flagged instead of raising (empty content,
+    # finish_reason='length', still unresolved after judge_max_retries
+    # resamples -- see its docstring). Not a silent drop: recorded per-row
+    # in responses.json (judgement: None, judgement_truncated: True) and in
+    # this separate manifest, and capped by judge_drop_ceiling (an absolute
+    # row COUNT, not a fraction -- the observed rate is 1-2 rows per
+    # several-thousand-row run, so a percentage ceiling would never trip)
+    # so a wedged server still aborts the run rather than quietly producing
+    # a gutted one.
+    truncated = [
+        (int(entry["custom_id"]), res)
+        for entry, res in zip(chat_entries, raw_results)
+        if isinstance(res, dict) and res.get("judgement_truncated")
+    ]
+    if truncated:
+        print(
+            f"\n{len(truncated)}/{len(chat_entries)} rows never produced a "
+            f"verdict after {judge_max_retries} retries each -- recorded as "
+            f"judgement=None: {[i for i, _ in truncated]}"
+        )
+        if len(truncated) > judge_drop_ceiling:
+            raise RuntimeError(
+                f"{len(truncated)} rows never produced a verdict after "
+                f"{judge_max_retries} retries each -- exceeds "
+                f"judge_drop_ceiling ({judge_drop_ceiling}) for "
+                f"{judge_key!r}; responses.json NOT written. This is far "
+                f"above the documented accepted rate for this judge (1-2 "
+                f"rows per several-thousand-row run) -- investigate the "
+                f"server before resubmitting, do not raise the ceiling to "
+                f"get past this."
+            )
+
     max_pt = max((r.get("_prompt_tokens", 0) or 0) for r in raw_results)
 
     # Map results back to the original data order using custom_id
@@ -273,6 +377,21 @@ def run_local_vllm_judge(
         json.dump(judged_data, f, indent=4, ensure_ascii=False)
     print(f"Responses saved to {responses_file}")
 
+    if truncated:
+        truncated_file = output_dir / "truncated_verdicts.json"
+        with open(truncated_file, "w") as f:
+            json.dump(
+                {
+                    str(i): (
+                        f"empty content, finish_reason='length', unresolved "
+                        f"after {judge_max_retries} retries"
+                    )
+                    for i, _ in truncated
+                },
+                f, indent=2, sort_keys=True,
+            )
+        print(f"Truncated-verdict manifest saved to {truncated_file}")
+
     write_run_metadata(
         output_dir,
         start_time=start_time,
@@ -281,6 +400,10 @@ def run_local_vllm_judge(
         judge_model=judge_key,
         judge_model_id=model_id,
         max_prompt_tokens=max_pt,
+        judge_max_retries=judge_max_retries,
+        judge_drop_ceiling=judge_drop_ceiling,
+        truncated_verdict_count=len(truncated),
+        truncated_verdict_indices=[i for i, _ in truncated],
     )
 
 

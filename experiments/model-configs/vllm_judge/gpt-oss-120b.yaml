@@ -52,6 +52,31 @@ sampling_params:
   temperature: 0.2
   seed: 342
   reasoning_effort: medium
+# 2026-09-15 (notes/scholarlm/builds/2026-09-15-judge-length-truncation-
+# retry-01.md): finish_reason='length' with EMPTY content (reasoning channel
+# spent the whole max_tokens=8192 budget before a verdict) recurs at a low,
+# stable rate even after temperature=0.2 -- 2/10953 (pond, extraction
+# 2026-09-13-pond-gemma3-27b-extraction-01), 2/5834 (nfix, equivalent run),
+# 1/4285 (2026-09-14-gptoss120b-judge-seed-determinism-02, where a bare
+# resubmit alone happened to resolve the same row on the second attempt,
+# since seed=342 does not make this judge reproducible -- see above). Prior
+# to this, run_judge_local.py raised on the first such row and discarded the
+# whole run's other 4000-10000+ good rows. max_retries resamples that exact
+# case (empty content + finish_reason='length' only -- every other no-verdict
+# case still raises unretried, see run_judge_local._judge_one); a row still
+# empty after the budget is recorded as judgement: null + judgement_truncated:
+# true (not fabricated true/false) rather than aborting the run. Value
+# matches the prewarm-retry precedent for the same gpt-oss finish_reason=
+# 'length' failure mode (probe_augment.py, commit 58c8844).
+max_retries: 2
+# Circuit breaker: an absolute row COUNT, not a fraction -- the observed
+# rate above is 1-2 rows per several-thousand-row run, so a percentage
+# ceiling (e.g. the prewarm precedent's 2%) would never trip and wouldn't be
+# a circuit breaker at all. 10 gives headroom over the observed max (2) for
+# ordinary run-to-run variance while still catching a genuinely wedged
+# server (which would produce far more than 10 truncations) well before it
+# silently guts the run.
+drop_ceiling: 10
 serve:
   port: 8081
   max_model_len: 90000
