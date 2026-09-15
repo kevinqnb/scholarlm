@@ -5,7 +5,14 @@ serve:
   gpu_memory_utilization: 0.9
   quantization: awq_marlin
   dtype: bfloat16
-  sif_image: vllm-openai_v0.19.0.sif
+  # 2026-09-14: bumped from vllm-openai_v0.19.0.sif to match gpt-oss-120b and
+  # qwen-2.5-72b's model-configs, now that both have their own validated
+  # reasons to be on v0.24.0 (see their comments) -- this model doesn't need
+  # a rope-scaling override (128k-native), so the specific bug found on
+  # qwen-2.5-72b doesn't apply here, but re-running seed-determinism fresh
+  # under the same version as the other two voting judges rather than
+  # assuming v0.19.0's already-recorded numbers still apply.
+  sif_image: vllm-openai_v0.24.0.sif
   # 2026-09-14: this model's AWQ quantization goes through
   # choose_mp_linear_kernel, which tries MacheteLinearKernel before
   # MarlinLinearKernel. On an RTX PRO 6000 Blackwell node (job 7569337),

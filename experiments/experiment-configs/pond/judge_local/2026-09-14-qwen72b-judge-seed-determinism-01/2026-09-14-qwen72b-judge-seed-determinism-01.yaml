@@ -1,0 +1,29 @@
+id: 2026-09-14-qwen72b-judge-seed-determinism-01
+project: scholarlm
+description: >-
+  Seed-determinism sanity control (first of two identical reruns; compare
+  against -02), extending [[2026-09-14-judge-seed-determinism-01]] to the
+  third voting judge (qwen-2.5-72b) not covered in that session. Same
+  temperature=0.0/no-seed situation as llama-3.3-70b (no sampling_params
+  block for this judge in vllm_judge/qwen-2.5-72b.yaml). Full scale (4285
+  rows) against the same extraction, for the same statistical-power reason
+  as the other two vllm arms (a rare batching/floating-point event needs a
+  large N to be observable). gpu_type: H200 and
+  extra_env.VLLM_DISABLED_KERNELS are already pinned/set in this judge's
+  model-config (applied proactively from llama-3.3-70b's precedent, same
+  AWQ/Machete code path) -- no hardware-confound check needed here the way
+  it was for the other two arms.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-72b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"
+  # 2026-09-14: added after two attempts each hit ~2/4285 APITimeoutError
+  # (300s client timeout in run_judge_local.py) under the default
+  # max_concurrent=64, with idx=68 (biodiversity_of_constructed, ~28k
+  # tokens) timing out both times -- looks like long-context requests
+  # occasionally queueing behind others past the timeout under high
+  # concurrency, not a deterministic bug. Lowering concurrency to reduce
+  # contention rather than just retrying blind a third time.
+  max_concurrent: 32

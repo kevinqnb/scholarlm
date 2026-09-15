@@ -23,3 +23,19 @@ params:
   judge: llama-3.3-70b
   extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
   walltime: "48:00:00"
+  # 2026-09-14: same APITimeoutError pattern seen on qwen-2.5-72b's configs
+  # this session (1/4285 requests exceeding the 300s client timeout under
+  # the default max_concurrent=64, likely load contention from several
+  # concurrent H200 jobs today) -- lowering concurrency for the same reason.
+  max_concurrent: 32
+  # idx=1007 (document dry_habitats_sustain, only ~17.4k tokens -- not
+  # unusually long) timed out 3x in a row regardless of max_concurrent
+  # (64 and 32), on two different job attempts (-01 and this job's -02
+  # sibling both hit it). Not contention -- this specific row is
+  # consistently slow to generate for llama-3.3-70b at temperature=0.0,
+  # plausibly the same degenerate-greedy-decoding risk flagged in this
+  # config's own description when it was first written. Raising the
+  # client timeout (run_judge_local.py's new params.request_timeout,
+  # default 300.0) to see whether it's slow-but-finishes vs. actually
+  # hung.
+  request_timeout: 600

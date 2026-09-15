@@ -27,7 +27,8 @@ experiment id, resolved via utils.find_result_dir -- its final.json is judged).
 Synthetic mode (params.synthetic: true, or params.synthetic_file) ignores
 extraction_id; see below for its params (unchanged from before this restructure).
 Optional params: extraction_id, judge_date, ocr_dir, api_base, api_key,
-max_concurrent (default 64), synthetic (bool), synthetic_split ('train'|'test'),
+max_concurrent (default 64), request_timeout (default 300.0, seconds),
+synthetic (bool), synthetic_split ('train'|'test'),
 synthetic_file, synthetic_name.
 
 Available judge models: the YAML files in experiments/model-configs/vllm_judge/.
@@ -170,6 +171,7 @@ def run_local_vllm_judge(
     api_key: str = "EMPTY",
     max_concurrent: int = 64,
     extraction_id: str | None = None,
+    request_timeout: float = 300.0,
 ) -> None:
     """Run a local vLLM judge and save responses.
 
@@ -190,6 +192,9 @@ def run_local_vllm_judge(
         max_concurrent: Maximum concurrent requests to the server.
         extraction_id: The upstream extraction/ablation experiment id being
             judged, recorded in run_metadata.json. ``None`` for synthetic mode.
+        request_timeout: Per-request client timeout (seconds) for the
+            OpenAI-compatible HTTP client. Default matches the value this
+            was previously hardcoded to.
     """
     judge_cfg = paths.load_model_config("vllm_judge", judge_key)
     model_id = judge_cfg["model_id"]
@@ -214,7 +219,7 @@ def run_local_vllm_judge(
     print(f"max_concurrent={max_concurrent}\n")
 
     start_time = time.time()
-    client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=300.0)
+    client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=request_timeout)
     sem = asyncio.Semaphore(max_concurrent)
 
     judge_sampling_params = judge_cfg.get("sampling_params")
@@ -308,6 +313,7 @@ def main(argv: list[str] | None = None) -> None:
     api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"
     api_key = params.get("api_key", "EMPTY")
     max_concurrent = params.get("max_concurrent", 64)
+    request_timeout = params.get("request_timeout", 300.0)
 
     synthetic_file = params.get("synthetic_file")
     synthetic = params.get("synthetic", False)
@@ -335,6 +341,7 @@ def main(argv: list[str] | None = None) -> None:
             api_base=api_base,
             api_key=api_key,
             max_concurrent=max_concurrent,
+            request_timeout=request_timeout,
         )
         return
 
@@ -368,6 +375,7 @@ def main(argv: list[str] | None = None) -> None:
                 api_base=api_base,
                 api_key=api_key,
                 max_concurrent=max_concurrent,
+                request_timeout=request_timeout,
             )
         return
 
@@ -398,6 +406,7 @@ def main(argv: list[str] | None = None) -> None:
         api_key=api_key,
         max_concurrent=max_concurrent,
         extraction_id=extraction_id,
+        request_timeout=request_timeout,
     )
 
 

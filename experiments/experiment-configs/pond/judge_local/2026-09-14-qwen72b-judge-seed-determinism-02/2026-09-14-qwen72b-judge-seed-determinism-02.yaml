@@ -1,0 +1,15 @@
+id: 2026-09-14-qwen72b-judge-seed-determinism-02
+project: scholarlm
+description: >-
+  Second of two identical reruns -- see
+  2026-09-14-qwen72b-judge-seed-determinism-01 for the full rationale.
+  Byte-identical to -01 apart from id.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-72b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"
+  # 2026-09-14: see -01's identical comment -- same max_concurrent lowering
+  # after repeated APITimeoutError on long-context requests.
+  max_concurrent: 32

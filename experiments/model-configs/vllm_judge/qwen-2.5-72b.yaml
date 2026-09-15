@@ -25,10 +25,49 @@ serve:
   gpu_memory_utilization: 0.90
   quantization: awq_marlin
   dtype: bfloat16
-  sif_image: vllm-openai_v0.19.0.sif
+  # 2026-09-14: bumped from vllm-openai_v0.19.0.sif -- under that image, this
+  # exact --hf-overrides rope_scaling value fails at startup with the same
+  # ValidationError described above ("derived max_model_len ... 32768"),
+  # NOT because the override is malformed but because vLLM's own
+  # _get_and_verify_max_len (vllm/config/model.py) reads
+  # hf_config.rope_parameters, while the bundled transformers (4.57.6 in
+  # v0.19.0) has no such attribute on Qwen2Config at all -- only the legacy
+  # rope_scaling name, which the override sets but vLLM's length-check no
+  # longer reads. Checked directly (CPU-only, ModelConfig construction, no
+  # GPU needed) across every sif image in $VLLM_SIF_DIR: v0.10.1 and
+  # v0.12.0 (transformers 4.55.2/4.57.3) both lack rope_parameters on
+  # Qwen2Config like v0.19.0 does -- v0.10.1's vLLM code still reads
+  # rope_scaling directly (works); v0.12.0's vLLM code has already
+  # switched to rope_parameters like v0.19.0 (fails identically). v0.22.0
+  # and v0.24.0 (transformers 5.9.0/5.12.1) have migrated rope_parameters
+  # into a real, populated attribute, and the override correctly lands on
+  # it: verified `mc.hf_config.rope_parameters ==
+  # {'rope_type': 'yarn', 'factor': 3.0, 'original_max_position_embeddings':
+  # 32768}` after construction under v0.24.0 -- not just the length gate
+  # passing, the actual RoPE config the model will run with. v0.24.0 is
+  # already this repo's validated choice for gpt-oss-120b (see that
+  # model-config), so reusing it here rather than the untested v0.22.0/
+  # v0.10.1 alternatives. This was a pre-existing bug, not something this
+  # session's changes caused -- the "validated end to end: job 7527736"
+  # claim below refers to a since-removed, gitignored hand-written script
+  # predating this config-driven pipeline, evidently under a different
+  # vllm/transformers combination; nothing had re-verified this override
+  # against the currently committed sif_image until now.
+  sif_image: vllm-openai_v0.24.0.sif
   extra_vllm_args:
   - '--hf-overrides ''{"rope_scaling":{"rope_type":"yarn","factor":3.0,"original_max_position_embeddings":32768}}'''
+  # 2026-09-14: applied proactively, not rediscovered here -- this model uses
+  # the same quantization: awq_marlin path as llama-3.3-70b.yaml, which hit
+  # a real bug in that exact path on an RTX PRO 6000 Blackwell node (job
+  # 7569337): choose_mp_linear_kernel's MacheteLinearKernel incorrectly
+  # reports support for this AWQ zero-point format, then fails at actual
+  # kernel invocation (NotImplementedError: machete_mm(..)). Same mechanism
+  # applies here since it's the same AWQ code path, not model-specific.
+  # See llama-3.3-70b.yaml's own comment for the full diagnosis.
+  extra_env:
+    VLLM_DISABLED_KERNELS: "MacheteLinearKernel"
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0
+  gpu_type: H200
   omp: 8

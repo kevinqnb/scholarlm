@@ -21,6 +21,26 @@ model_id: openai/gpt-oss-120b
 # Every other vllm_judge model has no sampling_params block and stays at
 # run_judge_local.py's fallback (temperature=0.0, no seed, no
 # reasoning_effort) -- unaffected by this.
+#
+# KNOWN, ACCEPTED ISSUE (2026-09-14, notes/scholarlm/experiments/
+# 2026-09-14-judge-seed-determinism-01.md): seed=342 does NOT make this
+# judge reproducible in practice. Two identical full-scale reruns (same
+# seed, same extraction_id, matched H200 hardware) disagreed on 241/4285
+# rows (5.62%) -- an order of magnitude above the ~1-3/3882 truncation rate
+# above, and this time genuine true/false flips (confirmed by hand: same
+# entity/attribute/value/document_id, opposite verdict), not empty
+# completions. llama-3.3-70b and qwen-2.5-72b are far more stable under the
+# same test (0.40% and 0.21% respectively). Decision: not chasing a fix on
+# gpt-oss-120b's sampling/serving stack itself (candidates considered but
+# not tried: max_concurrent=1 to remove cross-request batching interference,
+# enforce_eager to rule out CUDA-graph effects, forcing the FlashInfer mxfp4
+# backend instead of Triton -- see session notes). Instead: majority-vote
+# combination across all three voting judges (run_judge_combine.py) damps
+# this down to 55/4285 (1.28%) disagreement in judgement_combined between
+# the same two reruns -- close enough to the sub-1% target to accept.
+# Downstream users of the COMBINED ground truth are fine; anyone using
+# gpt-oss-120b's raw judgement in isolation should expect ~5-6% noise
+# per run.
 sampling_params:
   temperature: 0.2
   seed: 342

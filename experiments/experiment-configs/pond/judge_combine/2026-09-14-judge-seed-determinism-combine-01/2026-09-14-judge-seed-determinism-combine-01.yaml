@@ -1,0 +1,18 @@
+id: 2026-09-14-judge-seed-determinism-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine of the three "rerun A" voting-judge runs from
+  [[2026-09-14-judge-seed-determinism-01]] (gpt-oss-120b, llama-3.3-70b,
+  qwen-2.5-72b, each at 5.62%/0.40%/TBD individual seed-determinism flip
+  rates). voting_threshold left unset -- defaults to ceil(3/2)=2. Paired
+  with -combine-02 (the "rerun B" equivalent) to test whether majority
+  voting across judges damps the individual per-judge disagreement down to
+  a much smaller combined-judgement disagreement rate, per hypothesis below.
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+    - 2026-09-14-gptoss120b-judge-seed-determinism-01
+    - 2026-09-14-llama70b-judge-seed-determinism-01
+    - 2026-09-14-qwen72b-judge-seed-determinism-01
+  walltime: "00:30:00"
