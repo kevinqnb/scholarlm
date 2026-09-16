@@ -171,5 +171,15 @@ def test_registry_entry_covers_every_dataset(setting_name):
         )
 
 
-def test_syn_test_ids_cover_primary_and_diag():
-    assert set(cids.SYN_TEST_IDS) == {"primary", "diag"}
+def test_train_datasets_registry_shape():
+    """TRAIN_DATASETS/SYN_TRAIN_IDS/SYN_TEST_IDS must all agree on which
+    datasets have a migrated synthetic probe -- a dataset added to one but
+    not the others would KeyError deep inside compute_predictions rather
+    than at settings-resolution time."""
+    assert set(cids.SYN_TRAIN_IDS) == set(cids.TRAIN_DATASETS)
+    assert set(cids.SYN_TEST_IDS) == set(cids.TRAIN_DATASETS)
+
+
+@pytest.mark.parametrize("train_ds", cids.TRAIN_DATASETS)
+def test_syn_test_ids_cover_primary_and_diag(train_ds):
+    assert set(cids.SYN_TEST_IDS[train_ds]) == set(cids.SYN_SPLITS) == {"primary", "diag"}

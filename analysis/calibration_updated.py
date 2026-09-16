@@ -86,6 +86,12 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 # across all three -- qwen-2.5-7b is the only judge with an id-addressed
 # trained probe today (llama-3.1-8b's old-tree probe predates the
 # full-paper-judge rewrite and isn't comparable -- see calibration_ids.py).
+# TRAIN_DATASETS (below) loops over every dataset with a migrated synthetic
+# probe -- currently just pond, but the plotting/metrics code was always
+# generic over multiple train datasets (that's inherited unchanged from the
+# pre-migration design), so adding a second entry to
+# calibration_ids.TRAIN_DATASETS/SYN_TRAIN_IDS/SYN_TEST_IDS is the only
+# change needed once that dataset has its own trained probe.
 DEFAULT_PROBE_TYPE = 'head'
 DEFAULT_PROBE_VARIANT = 'platt'
 DEFAULT_SYN_SPLIT = 'primary'
@@ -108,7 +114,7 @@ def _select_settings():
     parser.add_argument('--setting', default=None, choices=list(cids.SETTINGS))
     parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
     parser.add_argument('--probe-variant', default=None, choices=['platt', 'noplatt'])
-    parser.add_argument('--syn-split', default=None, choices=['primary', 'diag'])
+    parser.add_argument('--syn-split', default=None, choices=list(cids.SYN_SPLITS))
     parser.add_argument('--datasets', nargs='+', default=None)
     args, _ = parser.parse_known_args()
 
@@ -130,8 +136,8 @@ def _select_settings():
         raise ValueError(f"Unknown probe variant {probe_variant!r}; expected 'platt' or 'noplatt'")
 
     syn_split = args.syn_split or os.environ.get('CALIBRATION_SYN_SPLIT') or DEFAULT_SYN_SPLIT
-    if syn_split not in cids.SYN_TEST_IDS:
-        raise ValueError(f"Unknown --syn-split {syn_split!r}; expected one of {sorted(cids.SYN_TEST_IDS)}")
+    if syn_split not in cids.SYN_SPLITS:
+        raise ValueError(f"Unknown --syn-split {syn_split!r}; expected one of {cids.SYN_SPLITS}")
 
     datasets = args.datasets or _env_list('CALIBRATION_DATASETS')
     setting, entry, datasets = cids.select_setting(setting_name, datasets)
@@ -149,18 +155,17 @@ PI_TE_ESTIMATE   = _ENTRY['pi_te_estimate']  # test prevalence for label-shift r
 
 JUDGE_MODEL  = cids.JUDGE_MODEL
 JUDGE_MODELS = [JUDGE_MODEL]  # kept as a list: every plot/metrics loop below is judge_model-indexed
-TRAIN_DATASET = cids.TRAIN_DATASET
-SYN_TRAIN_ID = cids.SYN_TRAIN_ID
-SYN_TEST_ID = cids.SYN_TEST_IDS[SYN_SPLIT]
+TRAIN_DATASETS = cids.TRAIN_DATASETS
 
 # None reproduces the Platt-scaled baseline filenames; only 'noplatt' picks the suffixed variant.
 _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
 _OUT_SUFFIX = f'_{PROBE_VARIANT}_{SYN_SPLIT}' if PROBE_VARIANT != 'platt' else f'_{SYN_SPLIT}'
 
-_DTYPES = ['syn', 'real']  # both always available: TRAIN_DATASET has a synthetic probe, every setting has real judge_interp data
+_DTYPES = ['syn', 'real']  # both always available: every TRAIN_DATASETS entry has a synthetic probe, every setting has real judge_interp data
 
 print(f'[calibration] setting: {SETTING} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
-      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | judge: {JUDGE_MODEL}')
+      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | judge: {JUDGE_MODEL} '
+      f'| train datasets: {TRAIN_DATASETS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
@@ -187,26 +192,30 @@ def get_matching_config(dataset):
     return strict, fuzzy
 
 
-# ── Trained probe / NTP calibrator (id-addressed, TRAIN_DATASET only) ──────
-def _load_trained_artifact(filename):
-    probe_dir = cids.pinned_run_dir(SYN_TRAIN_ID, TRAIN_DATASET, 'judge_interp') / 'trained_probe'
+# ── Trained probe / NTP calibrator (id-addressed, one per TRAIN_DATASETS entry) ──
+def _load_trained_artifact(train_ds, filename):
+    syn_train_id = cids.SYN_TRAIN_IDS[train_ds]
+    probe_dir = cids.pinned_run_dir(syn_train_id, train_ds, 'judge_interp') / 'trained_probe'
     path = probe_dir / filename
     if not path.exists():
         raise FileNotFoundError(
             f'{path} does not exist. Run analysis/synthetic_probe_train.py '
-            f'--judge-run-ids {SYN_TRAIN_ID} first.'
+            f'--judge-run-ids {syn_train_id} first.'
         )
     return joblib.load(path)
 
 
-print(f'Loading trained probe/NTP calibrator ({TRAIN_DATASET}, {JUDGE_MODEL}) from {SYN_TRAIN_ID}...')
 _ntp_cal_filename = 'ntp_calibrator.pkl' if _PROBE_VARIANT_KW is None else 'ntp_calibrator_noplatt.pkl'
 _probe_filename = (
     'layer_probe.pkl' if PROBE_TYPE == 'layer'
     else ('head_probe.pkl' if _PROBE_VARIANT_KW is None else 'head_probe_noplatt.pkl')
 )
-ntp_cal_cache = {TRAIN_DATASET: {JUDGE_MODEL: _load_trained_artifact(_ntp_cal_filename)}}
-probe_cache   = {TRAIN_DATASET: {JUDGE_MODEL: _load_trained_artifact(_probe_filename)}}
+ntp_cal_cache, probe_cache = {}, {}
+for _train_ds in TRAIN_DATASETS:
+    print(f'Loading trained probe/NTP calibrator ({_train_ds}, {JUDGE_MODEL}) '
+          f'from {cids.SYN_TRAIN_IDS[_train_ds]}...')
+    ntp_cal_cache[_train_ds] = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _ntp_cal_filename)}
+    probe_cache[_train_ds]   = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _probe_filename)}
 
 
 # Pre-load all test data, including matching results, to avoid redundant loading and matching within the loop
@@ -270,7 +279,7 @@ for ds in DATASETS:
 def compute_predictions(load_from_precomputed=False):
     # ── Collect data for each test setting ────────────────────────────────
     # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs: x, ntp_probs: y, labels: z}}}}}
-    # train_ds is always TRAIN_DATASET -- the one dataset with a migrated
+    # train_ds ranges over TRAIN_DATASETS -- every dataset with a migrated
     # synthetic-probe train run (see calibration_ids.py).
 
     cache_file = Path(RESULTS_DIR) / f'predictions_{SETTING}_{PROBE_TYPE}{_OUT_SUFFIX}.pkl'
@@ -280,127 +289,129 @@ def compute_predictions(load_from_precomputed=False):
         with open(cache_file, 'rb') as f:
             return pickle.load(f)
 
-    train_ds = TRAIN_DATASET
     judge_model = JUDGE_MODEL
-    setting_results = {}
+    setting_results = {dtype: {judge_model: {}} for dtype in _DTYPES}
 
-    for dataset_type in _DTYPES:
-        setting_results[dataset_type] = {judge_model: {train_ds: {}}}
+    for train_ds in TRAIN_DATASETS:
         pd_data = probe_cache[train_ds][judge_model]
         ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
         top = pd_data['top_layer'] if PROBE_TYPE == 'layer' else pd_data['top_k_heads']
 
-        # 'syn' only ever has TRAIN_DATASET itself (the migrated synthetic
-        # test set doesn't exist for any other dataset); 'real' covers every
-        # dataset DATASETS was narrowed to.
-        test_datasets = [train_ds] if dataset_type == 'syn' else DATASETS
+        for dataset_type in _DTYPES:
+            setting_results[dataset_type][judge_model][train_ds] = {}
 
-        for test_ds in test_datasets:
-            if dataset_type == 'syn':
-                syn_dir = cids.pinned_run_dir(SYN_TEST_ID, TRAIN_DATASET, 'judge_interp')
-                with open(syn_dir / 'responses.json') as f:
-                    syn_resp = json.load(f)
-                syn_df_s = pd.DataFrame(syn_resp)
-                mids     = syn_df_s['measurement_id'].tolist()
-                labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
-                raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
-                ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                    raw_ntp_probs.reshape(-1, 1)
-                )[:, 1]
+            # 'syn' only ever has train_ds itself (each train dataset's own
+            # synthetic test set, when it exists); 'real' covers every
+            # dataset DATASETS was narrowed to.
+            test_datasets = [train_ds] if dataset_type == 'syn' else DATASETS
 
-                if PROBE_TYPE == "layer":
-                    syn_lo  = np.load(syn_dir / 'layer_outputs.npz')
-                    X = np.stack([
-                        np.array(syn_lo[str(mid)], dtype=np.float32)[top]
-                        for mid in mids
-                    ], axis=0)
-                    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+            for test_ds in test_datasets:
+                if dataset_type == 'syn':
+                    syn_test_id = cids.SYN_TEST_IDS[train_ds][SYN_SPLIT]
+                    syn_dir = cids.pinned_run_dir(syn_test_id, train_ds, 'judge_interp')
+                    with open(syn_dir / 'responses.json') as f:
+                        syn_resp = json.load(f)
+                    syn_df_s = pd.DataFrame(syn_resp)
+                    mids     = syn_df_s['measurement_id'].tolist()
+                    labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
+                    raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
 
-                else:
-                    syn_act  = np.load(syn_dir / 'attention_outputs.npz')
-                    X = np.concatenate([
-                        np.stack([
-                            np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
+                    if PROBE_TYPE == "layer":
+                        syn_lo  = np.load(syn_dir / 'layer_outputs.npz')
+                        X = np.stack([
+                            np.array(syn_lo[str(mid)], dtype=np.float32)[top]
                             for mid in mids
                         ], axis=0)
-                        for l, h in top
-                    ], axis=1)
-                    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-                # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
-                # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
-                # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
-                pos_idx = np.where(labels)[0]
-                test_edges = list(enumerate(pos_idx.tolist()))
-                n_ground_truth = len(pos_idx)
+                    else:
+                        syn_act  = np.load(syn_dir / 'attention_outputs.npz')
+                        X = np.concatenate([
+                            np.stack([
+                                np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
+                                for mid in mids
+                            ], axis=0)
+                            for l, h in top
+                        ], axis=1)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-            else:  # real
-                td       = test_data[test_ds]
-                real_df  = td['real_df']
-                gt_df    = td['gt_df']
-                syn_docs = set(pd_data['syn_document_ids'])
+                    # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
+                    # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
+                    # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
+                    pos_idx = np.where(labels)[0]
+                    test_edges = list(enumerate(pos_idx.tolist()))
+                    n_ground_truth = len(pos_idx)
 
-                # Filter extractions to test documents (those not used in probe training).
-                # idx: positional indices into real_df/ext_df for the test split.
-                mask     = ~real_df['document_id'].isin(syn_docs)
-                idx      = np.where(mask.to_numpy())[0]
-                idx_set  = set(idx.tolist())
+                else:  # real
+                    td       = test_data[test_ds]
+                    real_df  = td['real_df']
+                    gt_df    = td['gt_df']
+                    syn_docs = set(pd_data['syn_document_ids'])
 
-                # Filter GT to test documents and build reindex maps so that
-                # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
-                gt_mask    = ~gt_df['document_id'].isin(syn_docs)
-                gt_idx_arr = np.where(gt_mask.to_numpy())[0]
-                gt_idx_set = set(gt_idx_arr.tolist())
-                old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
-                old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
-                test_edges = [
-                    (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
-                    for gt_i, ex_i in td['filtered_edges']
-                    if ex_i in idx_set and gt_i in gt_idx_set
-                ]
-                n_ground_truth = len(gt_idx_arr)
+                    # Filter extractions to test documents (those not used in probe training).
+                    # idx: positional indices into real_df/ext_df for the test split.
+                    mask     = ~real_df['document_id'].isin(syn_docs)
+                    idx      = np.where(mask.to_numpy())[0]
+                    idx_set  = set(idx.tolist())
 
-                mids     = real_df['measurement_id'].iloc[idx].tolist()
-                labels   = td['labels'][idx]
+                    # Filter GT to test documents and build reindex maps so that
+                    # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
+                    gt_mask    = ~gt_df['document_id'].isin(syn_docs)
+                    gt_idx_arr = np.where(gt_mask.to_numpy())[0]
+                    gt_idx_set = set(gt_idx_arr.tolist())
+                    old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
+                    old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
+                    test_edges = [
+                        (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
+                        for gt_i, ex_i in td['filtered_edges']
+                        if ex_i in idx_set and gt_i in gt_idx_set
+                    ]
+                    n_ground_truth = len(gt_idx_arr)
 
-                raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
-                ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                    raw_ntp_probs.reshape(-1, 1)
-                )[:, 1]
+                    mids     = real_df['measurement_id'].iloc[idx].tolist()
+                    labels   = td['labels'][idx]
 
-                judge_dir = cids.pinned_run_dir(JUDGE_INTERP_ID[test_ds], test_ds, 'judge_interp')
-                if PROBE_TYPE == "layer":
-                    real_lo  = np.load(judge_dir / 'layer_outputs.npz')
-                    X = np.stack([
-                        np.array(real_lo[str(mid)], dtype=np.float32)[top]
-                        for mid in mids
-                    ], axis=0)
-                    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
-                else:
-                    real_act = np.load(judge_dir / 'attention_outputs.npz')
-                    X = np.concatenate([
-                        np.stack([
-                            np.array(real_act[str(mid)], dtype=np.float32)[l, h, :]
+                    raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
+
+                    judge_dir = cids.pinned_run_dir(JUDGE_INTERP_ID[test_ds], test_ds, 'judge_interp')
+                    if PROBE_TYPE == "layer":
+                        real_lo  = np.load(judge_dir / 'layer_outputs.npz')
+                        X = np.stack([
+                            np.array(real_lo[str(mid)], dtype=np.float32)[top]
                             for mid in mids
                         ], axis=0)
-                        for l, h in top
-                    ], axis=1)
-                    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                    else:
+                        real_act = np.load(judge_dir / 'attention_outputs.npz')
+                        X = np.concatenate([
+                            np.stack([
+                                np.array(real_act[str(mid)], dtype=np.float32)[l, h, :]
+                                for mid in mids
+                            ], axis=0)
+                            for l, h in top
+                        ], axis=1)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-            # Real extractions have a different positive rate than the synthetic
-            # training set; rescale to the assumed test prevalence when one is set.
-            if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
-                probe_probs = intercept_adjustment(
-                    probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                )
-                ntp_probs = intercept_adjustment(
-                    ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                )
+                # Real extractions have a different positive rate than the synthetic
+                # training set; rescale to the assumed test prevalence when one is set.
+                if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
+                    probe_probs = intercept_adjustment(
+                        probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                    )
+                    ntp_probs = intercept_adjustment(
+                        ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                    )
 
-            setting_results[dataset_type][judge_model][train_ds][test_ds] = {
-                'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
-                'edges': test_edges, 'n_ground_truth': n_ground_truth,
-            }
+                setting_results[dataset_type][judge_model][train_ds][test_ds] = {
+                    'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
+                    'edges': test_edges, 'n_ground_truth': n_ground_truth,
+                }
 
     # Save to cache for future use
     print(f'Saving predictions to {cache_file}...')
@@ -419,7 +430,9 @@ def _pool_cross_domain(train_dict, train_ds):
     subsequent test_ds's ``gt_idx``/``ex_idx`` by the running totals of prior
     ``n_ground_truth``/array length, so the pooled edges index correctly into the
     pooled arrays. Returns None when train_ds has no other dataset to pool against
-    (e.g. 'syn' dtype, which only ever has TRAIN_DATASET itself).
+    (e.g. 'syn' dtype, which only ever has train_ds itself, never a second
+    dataset to pool against, since each TRAIN_DATASETS entry's synthetic
+    test set belongs to that one dataset).
     """
     other_test_ds = [ds for ds in DATASETS if ds != train_ds and ds in train_dict]
     if not other_test_ds:
@@ -526,8 +539,8 @@ def plot_calibration_curves(
     # has activations for (see _pool_cross_domain).
     for judge_model in JUDGE_MODELS:
         # train_datasets is derived from setting_results itself (not just
-        # DATASETS): 'syn' dtype only ever has TRAIN_DATASET as a key, while
-        # 'real' dtype has every dataset DATASETS was narrowed to.
+        # DATASETS): 'syn' dtype only ever has TRAIN_DATASETS entries as keys,
+        # while 'real' dtype has every dataset DATASETS was narrowed to.
         train_datasets = [ds for ds in DATASETS if ds in setting_results[dtype][judge_model]]
         if not train_datasets:
             continue

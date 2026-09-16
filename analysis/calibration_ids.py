@@ -28,16 +28,34 @@ ALL_DATASETS = ['pond', 'nfix', 'supermat']
 # synthetic-judge train run + retrain before it can be added back.
 JUDGE_MODEL = 'qwen-2.5-7b'
 
-# The one dataset with a migrated synthetic-probe train run. The probe it
-# produces is applied to every dataset's real extractions below -- it isn't
-# per-setting, since the judge/probe is independent of which extraction
-# pipeline is being scored.
-TRAIN_DATASET = 'pond'
-SYN_TRAIN_ID = '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01'
-SYN_TEST_IDS = {
-    'primary': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01',
-    'diag': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-diag-01',
+# Datasets with a migrated synthetic-probe train run -- each produces its own
+# trained probe, applied to every dataset's real extractions below (not
+# per-setting, since the judge/probe side is independent of which extraction
+# pipeline is being scored). Currently pond only; add an entry to each of the
+# three maps below (train id, and both test splits) once a dataset's
+# synthetic judge_interp runs exist under the id-addressed contract -- see
+# notes/scholarlm/builds/2026-09-16-calibration-id-migration-01.md's second
+# 2026-09-16 session for what that requires (nfix/supermat currently have no
+# synthetic judge run at all under the post-e7da363 full-paper judge, old
+# tree or new -- this isn't just a backfill like pond's was).
+TRAIN_DATASETS = ['pond']
+
+SYN_TRAIN_IDS = {
+    'pond': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01',
 }
+SYN_TEST_IDS = {
+    'pond': {
+        'primary': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01',
+        'diag': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-diag-01',
+    },
+}
+
+# The two synthetic-test splits every TRAIN_DATASETS entry's SYN_TEST_IDS
+# must provide (see test_syn_test_ids_cover_primary_and_diag) -- fixed by the
+# split *naming* convention, independent of which/how many datasets have a
+# trained probe, so --syn-split is validated against this, not against
+# SYN_TEST_IDS's keys directly.
+SYN_SPLITS = ('primary', 'diag')
 
 # One entry per judged pipeline-variant. `result_type` names the
 # experiments/results/{dataset}/{result_type}/ subtree the extraction output
