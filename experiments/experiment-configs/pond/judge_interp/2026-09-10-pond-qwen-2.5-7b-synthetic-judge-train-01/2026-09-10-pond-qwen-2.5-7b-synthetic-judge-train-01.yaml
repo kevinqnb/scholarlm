@@ -1,0 +1,27 @@
+id: 2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01
+project: scholarlm
+description: >-
+  Backfilled record (2026-09-16). NNsight interp-judge pass (qwen-2.5-7b) over
+  the augmented synthetic-probe training corpus (data/pond/probe_dataset_v2.json)
+  -- the protocol-3 / typed-negative rewrite narrowed to judge-visible fields,
+  judged under the full-paper judge (see notes/scholarlm/experiments/
+  2026-09-09-fulltext-judge-probe-eval-01.md, Stage B). Ad hoc-labeled "v2" in
+  pre-restructure notes/paths, back when (dataset, judge_model, judge_date)
+  plus a free-text source label was the only way to distinguish runs; dataset
+  + judge + this id's own date now do that job, so the id carries no source
+  label. This run's activations are what analysis/synthetic_probe_train.py's
+  head probe + NTP calibrator (this id's trained_probe/) were fit on.
+
+  Originally run 2026-09-10 via experiments/run_judge_v2.sh pond train 2026_09_10
+  (predates the experiment-id contract for synthetic_file mode entirely --
+  see run_judge_interp.py's module docstring). Output copied unchanged from
+  data/experiments/pond/synthetic_probe_v2/qwen-2.5-7b/2026_09_10/ (+
+  trained_probe/); the old-tree copy is left in place, since
+  analysis/calibration_updated.py still reads it directly and was not
+  migrated this session.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  synthetic_file: data/pond/probe_dataset_v2.json
+  walltime: "10:00:00"  # actual runtime 8.6h (run_metadata.json runtime_seconds=31104.3)

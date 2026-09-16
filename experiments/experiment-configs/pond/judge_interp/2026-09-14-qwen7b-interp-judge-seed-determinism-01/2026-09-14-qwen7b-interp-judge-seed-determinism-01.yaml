@@ -34,5 +34,11 @@ params:
   dataset: pond
   judge: qwen-2.5-7b
   synthetic_file: experiments/experiment-configs/pond/judge_interp/2026-09-14-qwen7b-interp-judge-seed-determinism-01/fixture_pond_ablation1_first100.json
-  synthetic_name: seed_determinism_rerun_a
+  # synthetic_name retired 2026-09-16: run_judge_interp.py now addresses
+  # synthetic_file output by this config's own id, so a separate label is a
+  # second name for the same fact. This run's original 2026-09-14 output
+  # still lives on the pre-migration tree at
+  # data/experiments/pond/synthetic_probe_seed_determinism_rerun_a/qwen-2.5-7b/2026_09_14/
+  # (untouched); a rerun of this exact config now lands under
+  # experiments/results/pond/judge_interp/2026-09-14-qwen7b-interp-judge-seed-determinism-01/
   walltime: "2:00:00"

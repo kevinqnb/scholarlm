@@ -5,13 +5,23 @@ Runs judge validation for a given (dataset, extraction_model, judge_model) tripl
 using a local model loaded through NNsight, collecting per-layer, per-head
 attention output activations alongside binary judgement probabilities.
 
-Standard mode output path (id-addressed, like every other Tier-1 type):
+Every mode's output is id-addressed, like every other Tier-1 type:
     experiments/results/{dataset}/judge_interp/{experiment_id}/
 
-Synthetic probe mode output path (params.synthetic) is deliberately UNCHANGED
--- still the old date-addressed tree, since analysis/*.py's probe-calibration
-pipeline (explicitly out of scope for this restructure) reads it directly:
-    data/experiments/{dataset}/synthetic_probe/{judge_model}/{judge_date}/
+This includes params.synthetic_file mode (2026-09-16 migration): it used to be
+deliberately excluded from id-addressing because analysis/*.py's probe-calibration
+pipeline read the old date-addressed tree directly. That pipeline still reads the
+old tree for runs already there (untouched, not migrated) -- but any *new*
+synthetic_file run now lands under experiments/results/ like everything else, and
+params.synthetic_name is retired: the experiment id's own slug carries that label,
+so keeping a second field for it would just be two names for one fact, free to
+disagree. A config that still sets synthetic_name is a hard error, not a silent
+no-op.
+
+params.synthetic: true (the plain train/test-split mode reading fixed filenames
+data/{dataset}/probe_dataset_v2.json / probe_dataset_test_v2.json) is unchanged --
+still the old date-addressed tree. No committed config uses it; left alone rather
+than migrated speculatively.
 
 Saves:
   - ``responses.json``        — per-measurement judgement + probability scores
@@ -26,9 +36,9 @@ Required params: dataset, judge.
 Standard mode requires params.extraction_id (an extraction or ablation
 experiment id, resolved via utils.find_result_dir -- its final.json is judged).
 Synthetic mode (params.synthetic: true, or params.synthetic_file) ignores
-extraction_id; see below for its params (unchanged from before this restructure).
-Optional params: extraction_id, judge_date, ocr_dir, synthetic (bool),
-synthetic_split ('train'|'test'), synthetic_file, synthetic_name.
+extraction_id; see above for how each synthetic variant resolves its output path.
+Optional params: extraction_id, ocr_dir, synthetic (bool),
+synthetic_split ('train'|'test'), synthetic_file.
 
 Available judge models: the YAML files in experiments/model-configs/interp_judge/.
 """
@@ -224,15 +234,18 @@ def main(argv: list[str] | None = None) -> None:
     synthetic = params.get("synthetic", False)
 
     if synthetic_file:
-        synthetic_name = params.get("synthetic_name")
-        if not synthetic_name:
-            raise ValueError(f"{config_path}: params.synthetic_name is required with params.synthetic_file.")
+        if "synthetic_name" in params:
+            raise ValueError(
+                f"{config_path}: params.synthetic_name is retired -- the experiment "
+                f"id ({cfg['id']!r}) is the only name for this run now. Fold the label "
+                "into the id's own slug instead (e.g. '...-synthetic-v2-train-01')."
+            )
         probe_file = Path(synthetic_file)
         if not probe_file.exists():
             raise FileNotFoundError(f"params.synthetic_file not found: {probe_file}")
-        output_dir = paths.synthetic_probe_named(dataset, synthetic_name, judge, params.get("judge_date"))
+        output_dir = paths.result_dir(dataset, "judge_interp", cfg["id"])
         print(f"\nDataset          : {dataset}")
-        print(f"Mode             : synthetic probe (named: {synthetic_name})")
+        print(f"Mode             : synthetic probe (file)")
         print(f"Input            : {probe_file}")
         print(f"Judge            : {judge}")
         print(f"Output           : {output_dir}\n")
