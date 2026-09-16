@@ -51,3 +51,29 @@ verified metrics tables and figure PDFs for each.
 ### Commits
 
 - `7f3492a` calibration: migrate calibration_updated.py to id-addressed experiment contract
+
+## Session 2026-09-16 (2)
+
+### Prompts
+
+- Asked what's needed to get nfix/supermat-trained probes into the figures.
+- "Yes why don't you do the code-side generalization now and then add it
+  retroactively to the devlog. This is the way the script was intended to
+  be." — generalize ahead of nfix/supermat having their own trained probes.
+
+### Implemented
+
+`analysis/calibration_ids.py`'s single-train-dataset scalars
+(`TRAIN_DATASET`/`SYN_TRAIN_ID`/`SYN_TEST_IDS`, pond-only) became
+dataset-keyed collections (`TRAIN_DATASETS`/`SYN_TRAIN_IDS`/`SYN_TEST_IDS`),
+plus a `SYN_SPLITS` constant. `calibration_updated.py`'s probe/NTP-calibrator
+loading and `compute_predictions` now loop over `TRAIN_DATASETS` instead of
+assuming exactly one; the plotting/metrics functions needed no changes —
+they were already generic over multiple train datasets. Adding nfix/supermat
+once their own synthetic judge_interp runs exist is now a registry edit
+only. Extended `tests/test_calibration_ids.py` to 19 tests and re-verified
+the known-answer check reproduces identical numbers.
+
+### Commits
+
+- `3aca8ba` calibration: generalize calibration_ids/calibration_updated to multiple train datasets
