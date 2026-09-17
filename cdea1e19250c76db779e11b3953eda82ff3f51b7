@@ -1,0 +1,19 @@
+[SIGNOFF 0c410f1]: human comprehension and risk attestation
+
+Signoff-Spec-Version: 1.0
+Signoff-Status: VERIFIED_BY_HUMAN
+Signoff-Timestamp: 2026-09-17T20:59:32Z
+Signoff-Base-SHA: dfdcbe5a5ffdb11530cb56a76aa82d8848d40af3
+Signoff-Reviewed-Commit-SHA: 0c410f14991a2f85d612060ec18d1d870c7d604b
+Signoff-Reviewed-Tree-SHA: cdea1e19250c76db779e11b3953eda82ff3f51b7
+Signoff-Harness-ID: claude-code
+Signoff-Conversation-ID: 6fe1ed5d-d993-4aa6-876d-a921568728e1
+Signoff-Transcript-Digest: sha256:1ed4095f8e3549ace40ce774991dedd133b77ee9e5a3f28f0f191b9b7daa519b
+Signoff-Transcript-Bytes: 836057
+Signoff-Tradeoff: probe_augment prewarm rows that fail rewrite-schema validation after retry are silently dropped (not raised) below a 2% per-batch drop_ceiling; dropped_prewarm.json is the only audit trail
+Signoff-Risk: 2026-09-13-pond-ablation1-qwen72b-judge-local-01 predates the YaRN context-scaling fix and is indistinguishable from a silently-truncated run; excluded from downstream analysis
+Signoff-Risk: gpt-oss-120b individual judge non-determinism (~5.6% flip rate) is damped to ~1.3% by majority-vote combine, not eliminated; documented as an accepted known limitation
+Signoff-Verified-By: quinnk@bu.edu
+Signoff-Agent: harness=claude-code/N/A model=claude-sonnet-5 reasoning=high interview=skeptical/domain-science/sha256:f8508fa3740f
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
