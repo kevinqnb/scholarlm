@@ -11,9 +11,25 @@ model_id: Qwen/Qwen2.5-7B-Instruct
 # a config override the same way torch_dtype above is already forwarded.
 # Same YaRN factor as qwen-2.5-72b's vLLM --hf-overrides
 # (model-configs/vllm_judge/qwen-2.5-72b.yaml), chosen for the same measured
-# max document length (68242 tok, same tokenizer family). UNVALIDATED on this
-# 7B checkpoint as of 2026-09-13 -- no GPU-loaded smoke/known-answer check
-# has been run yet; do not trust judge output from this entry until one has.
+# max document length (68242 tok, same tokenizer family).
+#
+# 2026-09-16: the retrieval mechanism itself is now VALIDATED --
+# experiments/yarn_needle_test.py planted a unique passphrase at the tail of
+# supermat's longest real document (hott2013review-CC, 68298 prompt tokens
+# with this exact rope_scaling config) and the model retrieved it correctly,
+# same as a short-context control (14903 tokens). This override is NOT the
+# cause of a long-range attention failure.
+#
+# Judge-TASK correctness on real content is still open, though: the same-day
+# smoke test (2026-09-16-supermat-qwen-2.5-7b-yarn-smoke-test-01) judged a
+# real GT-valid measurement on this same document as invalid (high
+# confidence, p_true~4.5e-5) -- wrong, but for a reason other than RoPE/
+# attention range (leading guess: the GT row sits in a large comparison
+# table that OCR/text linearization may render awkwardly for verbatim
+# grounding, unverified). Don't trust real judge_interp output from this
+# entry on long documents until that's separately understood -- the needle
+# test only clears the rope_scaling override specifically, not the judge
+# pipeline as a whole.
 nnsight_kwargs:
   torch_dtype: bfloat16
   rope_scaling:

@@ -87,11 +87,11 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 # trained probe today (llama-3.1-8b's old-tree probe predates the
 # full-paper-judge rewrite and isn't comparable -- see calibration_ids.py).
 # TRAIN_DATASETS (below) loops over every dataset with a migrated synthetic
-# probe -- currently just pond, but the plotting/metrics code was always
-# generic over multiple train datasets (that's inherited unchanged from the
-# pre-migration design), so adding a second entry to
-# calibration_ids.TRAIN_DATASETS/SYN_TRAIN_IDS/SYN_TEST_IDS is the only
-# change needed once that dataset has its own trained probe.
+# probe -- pond, nfix, supermat as of 2026-09-16/17. The plotting/metrics
+# code (and, as of 2026-09-17, compute_predictions's 'syn' branch too) is
+# generic over multiple train datasets; adding a further dataset only needs
+# a new entry in calibration_ids.TRAIN_DATASETS/SYN_TRAIN_IDS/SYN_TEST_IDS
+# once it has its own trained probe.
 DEFAULT_PROBE_TYPE = 'head'
 DEFAULT_PROBE_VARIANT = 'platt'
 DEFAULT_SYN_SPLIT = 'primary'
@@ -300,15 +300,29 @@ def compute_predictions(load_from_precomputed=False):
         for dataset_type in _DTYPES:
             setting_results[dataset_type][judge_model][train_ds] = {}
 
-            # 'syn' only ever has train_ds itself (each train dataset's own
-            # synthetic test set, when it exists); 'real' covers every
-            # dataset DATASETS was narrowed to.
-            test_datasets = [train_ds] if dataset_type == 'syn' else DATASETS
+            # 'real' covers every dataset DATASETS was narrowed to, same as
+            # always. 'syn' now does too (restored 2026-09-17 -- collapsed to
+            # [train_ds] by the 7f3492a id-addressed-contract migration,
+            # which made sense in the moment since pond was the only dataset
+            # with a migrated synthetic probe/test set, but silently dropped
+            # cross-domain synthetic evaluation as a capability once nfix/
+            # supermat got their own): restricted to TRAIN_DATASETS since
+            # only those have a synthetic test set to evaluate against at
+            # all -- train_ds's own entry is always included, since train_ds
+            # is itself drawn from TRAIN_DATASETS.
+            test_datasets = (
+                DATASETS if dataset_type == 'real'
+                else [ds for ds in DATASETS if ds in TRAIN_DATASETS]
+            )
 
             for test_ds in test_datasets:
                 if dataset_type == 'syn':
-                    syn_test_id = cids.SYN_TEST_IDS[train_ds][SYN_SPLIT]
-                    syn_dir = cids.pinned_run_dir(syn_test_id, train_ds, 'judge_interp')
+                    # test_ds's own synthetic test set, scored with train_ds's
+                    # trained probe/calibrator (pd_data/ntp_cal_data below) --
+                    # this is what makes the cross-domain case meaningful when
+                    # test_ds != train_ds.
+                    syn_test_id = cids.SYN_TEST_IDS[test_ds][SYN_SPLIT]
+                    syn_dir = cids.pinned_run_dir(syn_test_id, test_ds, 'judge_interp')
                     with open(syn_dir / 'responses.json') as f:
                         syn_resp = json.load(f)
                     syn_df_s = pd.DataFrame(syn_resp)
@@ -429,10 +443,13 @@ def _pool_cross_domain(train_dict, train_ds):
     across the other test_ds's, and merges their ``edges`` by offsetting each
     subsequent test_ds's ``gt_idx``/``ex_idx`` by the running totals of prior
     ``n_ground_truth``/array length, so the pooled edges index correctly into the
-    pooled arrays. Returns None when train_ds has no other dataset to pool against
-    (e.g. 'syn' dtype, which only ever has train_ds itself, never a second
-    dataset to pool against, since each TRAIN_DATASETS entry's synthetic
-    test set belongs to that one dataset).
+    pooled arrays. Returns None when train_ds has no other dataset to pool
+    against -- for 'syn' dtype, that only happens when TRAIN_DATASETS (via
+    DATASETS) covers just train_ds itself, e.g. a single dataset has a
+    migrated synthetic probe/test set (was the case for every dataset but
+    pond before 2026-09-16). With multiple TRAIN_DATASETS entries, 'syn'
+    pools the same way 'real' always has: test_ds's own synthetic test set
+    scored with train_ds's trained probe (see compute_predictions).
     """
     other_test_ds = [ds for ds in DATASETS if ds != train_ds and ds in train_dict]
     if not other_test_ds:
