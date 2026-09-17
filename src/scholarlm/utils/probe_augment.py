@@ -326,17 +326,64 @@ def _try_json_object(text: str):
         return None, None, first
 
 
-def _looks_like_json_object(text: str) -> bool:
-    """True if ``text`` yields a JSON object as-is or after a last-resort repair.
+def _rewrite_schema_error(obj: dict) -> str | None:
+    """``None`` if ``obj`` satisfies the ``rewrite`` response schema
+    (``feasible``/``replacement``/``edits: [{find, replace}]``); otherwise a
+    short description of the violation.
 
-    The admission gate in ``GptOssClient._run_batch`` uses this to keep a
-    malformed response out of the cache, where it would otherwise be flushed as
-    a "success" and only detonate hours later in the strict-cache real pass
-    (nfix Rung-4, and pond incident #3 before it). Same parse ladder as
-    ``_extract_json_object`` -- ``_try_json_object`` is the shared core.
+    Shared, non-raising core for both the places that used to check this
+    inline: ``rewrite_context`` (which raises ``ValueError`` on a non-``None``
+    result, same as before) and the prewarm admission gate in
+    ``GptOssClient._run_batch`` (via ``_prewarm_admission_error``, which treats
+    a non-``None`` result as a resample-then-drop failure, same as invalid
+    JSON). Closes the gap behind the supermat rung-4 incident (job 7600542,
+    2026-09-17; see ISSUE-supermat-prewarm-schema-gate.md while it exists): one
+    ``edits`` entry in a gpt-oss response used the key ``"replace:"``
+    (trailing-colon typo) instead of ``"replace"`` -- syntactically valid JSON,
+    so it passed the old JSON-object-only gate, got cached as a "success", and
+    only detonated hours later when ``rewrite_context`` hit it on the strict
+    real pass (12/16,524 cached entries had this exact typo). This closes that
+    gap by requiring the same schema at both admission time and raise time.
+
+    ``feasible: false`` carries no ``replacement``/``edits`` and is always
+    valid on its own. On ``feasible: true``, a missing or empty ``edits`` is a
+    model decline (see ``rewrite_context``), not a schema violation -- only a
+    *non-empty* ``edits`` value that fails the ``{find: str, replace: str}``
+    shape counts as one here.
+    """
+    if not obj.get("feasible", False):
+        return None
+    replacement = obj.get("replacement")
+    if not (isinstance(replacement, str) and replacement.strip()):
+        return "feasible but 'replacement' is missing/empty"
+    edits_raw = obj.get("edits")
+    if edits_raw is None or (isinstance(edits_raw, list) and not edits_raw):
+        return None
+    if not isinstance(edits_raw, list):
+        return "feasible but 'edits' is not a list"
+    for e in edits_raw:
+        if not (isinstance(e, dict) and isinstance(e.get("find"), str)
+                and isinstance(e.get("replace"), str)):
+            return f"edit is not a {{'find': str, 'replace': str}} object: {e!r}"
+    return None
+
+
+def _prewarm_admission_error(text: str) -> str | None:
+    """``None`` if ``text`` should be admitted to the cache from the prewarm
+    pass; otherwise a short description of why it was rejected.
+
+    Two independent rejection modes, both resampled by ``GptOssClient._run_batch``'s
+    retry loop the same way: ``text`` doesn't parse as a JSON object at all, or
+    it parses fine but violates the ``rewrite`` schema (``_rewrite_schema_error``
+    -- see its docstring for the incident that made the second check necessary).
     """
     obj, _note, _detail = _try_json_object(text)
-    return obj is not None
+    if obj is None:
+        return "not a JSON object even after last-resort repairs"
+    schema_err = _rewrite_schema_error(obj)
+    if schema_err is not None:
+        return f"valid JSON but fails the rewrite schema ({schema_err})"
+    return None
 
 
 def _extract_json_object(text: str, *, op: str, dump_dir: Path | None) -> dict:
@@ -536,11 +583,14 @@ class GptOssClient:
         model and this raises -- a wedged or mis-served model still fails fast
         instead of burning the whole walltime on retries.
 
-        The JSON gate checks object-ness, not the ``rewrite`` schema: a
-        well-formed object with a bad ``edits`` array or a missing ``replacement``
-        is cached here and ``rewrite_context`` fails loud on it on the real pass,
-        unchanged. (A ``feasible: true`` object with an *empty* ``edits`` list is
-        a model decline, not an error.)
+        The admission gate (``_prewarm_admission_error``) checks both
+        object-ness AND the ``rewrite`` schema: a well-formed object with a bad
+        ``edits`` array or a missing ``replacement`` is now resampled and, if it
+        still doesn't validate, dropped here -- the same as invalid JSON -- so
+        it never reaches the cache for ``rewrite_context`` to detonate on hours
+        later (ISSUE-supermat-prewarm-schema-gate.md). (A ``feasible: true``
+        object with an *empty* ``edits`` list is still a model decline, not an
+        error -- ``_rewrite_schema_error`` treats it as valid.)
         """
         from openai import AsyncOpenAI
 
@@ -566,12 +616,13 @@ class GptOssClient:
                     except Exception as e:
                         last_exc = e
                         continue
-                if _looks_like_json_object(text):
+                admission_err = _prewarm_admission_error(text)
+                if admission_err is None:
                     return key, text
                 _dump_bad_response(text, "prewarm", self._bad_response_dir)
                 last_exc = ValueError(
-                    "gpt-oss response is not a JSON object even after last-resort "
-                    f"repairs: {text.strip()[:200]!r}")
+                    f"gpt-oss prewarm response rejected at admission -- "
+                    f"{admission_err}: {text.strip()[:200]!r}")
             assert last_exc is not None
             # mutation + check is synchronous, so atomic under asyncio — no lock
             dropped[key] = last_exc
@@ -698,26 +749,6 @@ class GptOssClient:
                 {"role": "user", "content": user}]
 
     @staticmethod
-    def _parse_edits(obj: dict, raw: str) -> list[tuple[str, str]]:
-        """Validate a non-empty ``edits`` array; hard error on any schema
-        violation. A missing or empty ``edits`` list is the caller's to handle
-        (``rewrite_context`` treats it as a model decline, not a schema error)."""
-        edits_raw = obj.get("edits")
-        if not isinstance(edits_raw, list):
-            raise ValueError(f"gpt-oss rewrite feasible but 'edits' is not a list: {raw[:400]!r}")
-        edits: list[tuple[str, str]] = []
-        for e in edits_raw:
-            if not (isinstance(e, dict)
-                    and isinstance(e.get("find"), str)
-                    and isinstance(e.get("replace"), str)):
-                raise ValueError(
-                    f"gpt-oss rewrite edit is not a {{'find': str, 'replace': str}} "
-                    f"object: {e!r}"
-                )
-            edits.append((e["find"], e["replace"]))
-        return edits
-
-    @staticmethod
     def verify_rewrite(orig_ctx: str, new_ctx: str, original: str, replacement: str,
                        edits: list[tuple[str, str]]) -> RewriteResult:
         """Local, model-independent check that the rewrite did what was asked.
@@ -767,12 +798,10 @@ class GptOssClient:
         obj = _extract_json_object(raw, op="rewrite", dump_dir=self._bad_response_dir)
         if not obj.get("feasible", False):
             return RewriteResult(False, context, "", [], str(obj.get("reason", "infeasible")))
-        replacement = obj.get("replacement")
-        if not (isinstance(replacement, str) and replacement.strip()):
-            raise ValueError(
-                f"gpt-oss rewrite feasible but 'replacement' is missing/empty: {raw[:400]!r}"
-            )
-        replacement = replacement.strip()
+        schema_err = _rewrite_schema_error(obj)
+        if schema_err is not None:
+            raise ValueError(f"gpt-oss rewrite {schema_err}: {raw[:400]!r}")
+        replacement = obj["replacement"].strip()
         edits_raw = obj.get("edits")
         if edits_raw is None or (isinstance(edits_raw, list) and not edits_raw):
             # feasible + a replacement but zero edits: the model claims the
@@ -781,7 +810,7 @@ class GptOssClient:
             # functionally a decline — a clean skip, like `feasible: false`, not
             # a schema error. (Rare: 1/359 on nfix rung 3, 0/415 on pond.)
             return RewriteResult(False, context, "", [], "feasible but proposed no edits")
-        edits = self._parse_edits(obj, raw)
+        edits = [(e["find"], e["replace"]) for e in edits_raw]
         try:
             new_ctx = apply_verified_edit(context, edits)
         except ValueError as exc:
