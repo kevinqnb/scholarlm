@@ -21,8 +21,24 @@ serve:
   max_model_len: 90000
   gpu_memory_utilization: 0.9
   dtype: auto
-  sif_image: vllm-openai_v0.19.0.sif
+  sif_image: vllm-openai_v0.24.0.sif
 resources:
   gpu_memory: 80G
-  gpu_capability: 8.0
+  # gpt-oss-120b's mxfp4 quantization needs Hopper-class hardware. A bare
+  # `gpu_c=8.0` floor doesn't exclude either failure mode: A100 (sm_80) sits
+  # exactly at 8.0 and would pass it, and Blackwell (sm_120) passes any
+  # floor at all and then crashes torch 2.7.1+cu126 mid-forward
+  # (env_blackwell_torch_cu126). H200 (sm_90) is the only gpu_type on this
+  # cluster that clears a real 9.0 floor without being Blackwell -- pinned
+  # explicitly, matching the hand-picked resources the pre-restructure
+  # gen_augment.sh used for this same model (see
+  # experiments/experiment-configs/cross_dataset/probe_augment/
+  # 2026-09-03-probe-synthetic-augmentation-01/). Added 2026-09-16 when
+  # run_probe_augment.py (which reads this same resources: block, unlike
+  # gen_augment.sh's own hand-picked job_resources) started resolving GPU
+  # requests for probe_augment runs too -- prior extraction/ablation runs of
+  # this model apparently never landed on A100/Blackwell, but nothing here
+  # was actually excluding it.
+  gpu_capability: 9.0
+  gpu_type: H200
   omp: 8

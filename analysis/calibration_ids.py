@@ -31,22 +31,38 @@ JUDGE_MODEL = 'qwen-2.5-7b'
 # Datasets with a migrated synthetic-probe train run -- each produces its own
 # trained probe, applied to every dataset's real extractions below (not
 # per-setting, since the judge/probe side is independent of which extraction
-# pipeline is being scored). Currently pond only; add an entry to each of the
-# three maps below (train id, and both test splits) once a dataset's
-# synthetic judge_interp runs exist under the id-addressed contract -- see
-# notes/scholarlm/builds/2026-09-16-calibration-id-migration-01.md's second
-# 2026-09-16 session for what that requires (nfix/supermat currently have no
-# synthetic judge run at all under the post-e7da363 full-paper judge, old
-# tree or new -- this isn't just a backfill like pond's was).
-TRAIN_DATASETS = ['pond']
+# pipeline is being scored).
+#
+# nfix/supermat entries added 2026-09-16 pointing at newly-minted
+# judge_interp configs -- committed, but NOT YET RUN as of this edit (rung 4
+# augmentation was mid-flight; see notes/scholarlm/builds/
+# 2026-09-16-calibration-id-migration-01.md's second session for the prior
+# state). This is intentionally safe to commit ahead of the data: every
+# lookup below goes through pinned_run_dir/resolve_run, which fails loud
+# (FileNotFoundError) against a run id whose experiments/results/ dir has no
+# output yet, rather than silently reading nothing or someone else's run.
+# Don't treat calibration_updated.py succeeding against these ids as
+# evidence the underlying judge_interp runs exist -- confirm each run
+# actually completed first.
+TRAIN_DATASETS = ['pond', 'nfix', 'supermat']
 
 SYN_TRAIN_IDS = {
     'pond': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01',
+    'nfix': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-train-01',
+    'supermat': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-train-01',
 }
 SYN_TEST_IDS = {
     'pond': {
         'primary': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01',
         'diag': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-diag-01',
+    },
+    'nfix': {
+        'primary': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-test-primary-01',
+        'diag': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-test-diag-01',
+    },
+    'supermat': {
+        'primary': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-test-primary-01',
+        'diag': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-test-diag-01',
     },
 }
 
@@ -79,7 +95,7 @@ SETTINGS = {
             'nfix': '2026-09-13-nfix-gemma3-27b-extraction-judge-combine-01',
             'supermat': '2026-09-13-supermat-gemma3-27b-extraction-judge-combine-01',
         },
-        'pi_te_estimate': None,
+        'pi_te_estimate': 0.5,
     },
     'gpt-oss-120b-ablation1': {
         'result_type': 'ablation',
@@ -98,7 +114,7 @@ SETTINGS = {
             'nfix': '2026-09-13-nfix-gptoss-120b-ablation1-judge-combine-01',
             'supermat': '2026-09-13-supermat-gptoss-120b-ablation1-judge-combine-01',
         },
-        'pi_te_estimate': 0.85,  # carried over from the pre-migration gpt-oss-120b entry
+        'pi_te_estimate': 0.90,  # carried over from the pre-migration gpt-oss-120b entry
     },
     'baseline-nuextract': {
         'result_type': 'baseline_nuextract',
@@ -117,7 +133,7 @@ SETTINGS = {
             'nfix': '2026-09-13-nfix-baseline-nuextract-judge-combine-01',
             'supermat': '2026-09-13-supermat-baseline-nuextract-judge-combine-01',
         },
-        'pi_te_estimate': None,
+        'pi_te_estimate': 0.5,
     },
 }
 

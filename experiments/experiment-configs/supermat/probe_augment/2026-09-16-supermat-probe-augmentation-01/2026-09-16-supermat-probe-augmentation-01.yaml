@@ -1,0 +1,38 @@
+id: 2026-09-16-supermat-probe-augmentation-01
+project: scholarlm
+description: >-
+  Rung 4 (full generation) of supermat's probe-dataset augmentation, via
+  run_probe_augment.py -- the config-driven runner that replaced the
+  hand-written experiments/gen_augment.sh (2026-09-13, commit 8a38d75).
+  Produces probe_dataset_v2.json / probe_dataset_test_v2.json /
+  probe_dataset_test_v2_diag.json under data/supermat/, matching pond's
+  already-completed rung 4. Params (prompt_budget_multiple, valid_floor) are
+  carried over unchanged from the committed manual record at
+  experiments/experiment-configs/cross_dataset/probe_augment/
+  2026-09-03-probe-synthetic-augmentation-01/, whose rung-3 sample yield
+  (job o7501531, 2026-09-08 23:26 -- postdates the full-paper-context rework
+  commit 5daefe8, so it's the current-regime measurement, not stale) was
+  supermat 74/154 distinct (48%). pos_axes is left unset --
+  data/supermat/create_probe_dataset.py's own --augment-pos-axes default is
+  already the 2-axis (pos_entity, pos_value) set (supermat has no
+  judge-visible measurement-event field, so no pos_event axis and no event
+  error type), matching what that config specified -- passing it here would
+  just duplicate a default already declared elsewhere. diag_valid_floor is
+  also left unset: the manual record only overrode it for nfix, so supermat
+  keeps the script's own 1000 default. --reviewed is explicitly false:
+  supermat has no ground_truth_review.json, unlike nfix.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  reviewed: false
+  prompt_budget_multiple: 12
+  valid_floor: 1200         # train floor; supermat is material-limited (~585 GT
+                             # valids in the train split) -- can't reach the
+                             # script's own 5000 default with distinct rows.
+  # walltime: gen_augment.sh's job_resources used a shared 24h ceiling across
+  # all three datasets for this generation step; reused as-is here since
+  # there's no observed supermat-specific rung-4 runtime yet to size it
+  # tighter, and supermat's lower floor (1200 vs pond's 5000) argues for less
+  # time needed, not more.
+  walltime: "24:00:00"

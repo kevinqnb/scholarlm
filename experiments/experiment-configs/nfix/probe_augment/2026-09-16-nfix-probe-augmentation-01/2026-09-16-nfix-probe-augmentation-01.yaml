@@ -1,0 +1,37 @@
+id: 2026-09-16-nfix-probe-augmentation-01
+project: scholarlm
+description: >-
+  Rung 4 (full generation) of nfix's probe-dataset augmentation, via
+  run_probe_augment.py -- the config-driven runner that replaced the
+  hand-written experiments/gen_augment.sh (2026-09-13, commit 8a38d75).
+  Produces probe_dataset_v2.json / probe_dataset_test_v2.json /
+  probe_dataset_test_v2_diag.json under data/nfix/, matching pond's already-
+  completed rung 4. Params (prompt_budget_multiple, valid_floor,
+  diag_valid_floor) are carried over unchanged from the committed manual
+  record at experiments/experiment-configs/cross_dataset/probe_augment/
+  2026-09-03-probe-synthetic-augmentation-01/, whose rung-3 sample yield
+  (job o7501531, 2026-09-08 23:26 -- postdates the full-paper-context rework
+  commit 5daefe8, so it's the current-regime measurement, not stale) was
+  nfix 80/240 distinct (33%). pos_axes and rewrite_temperature are left
+  unset -- data/nfix/create_probe_dataset.py's own --augment-pos-axes /
+  --augment-rewrite-temperature defaults already match what that config
+  specified (3-axis, 0.7), so passing them here would just duplicate a
+  default already declared elsewhere. --reviewed is required: nfix has a
+  ground_truth_review.json, unlike supermat.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml)
+params:
+  dataset: nfix
+  model: gpt-oss-120b
+  reviewed: true
+  prompt_budget_multiple: 10
+  valid_floor: 1200         # train floor; nfix is material-limited (~552 reviewed
+                             # GT valids in the train split) -- can't reach the
+                             # script's own 5000 default with distinct rows.
+  diag_valid_floor: 650     # diag synthetic need 1000-368=632 at the default floor;
+                             # same material-limit reasoning as valid_floor.
+  # walltime: gen_augment.sh's job_resources used a shared 24h ceiling across
+  # all three datasets for this generation step; reused as-is here since
+  # there's no observed nfix-specific rung-4 runtime yet to size it tighter,
+  # and nfix's lower floor (1200 vs pond's 5000) argues for less time needed,
+  # not more.
+  walltime: "24:00:00"

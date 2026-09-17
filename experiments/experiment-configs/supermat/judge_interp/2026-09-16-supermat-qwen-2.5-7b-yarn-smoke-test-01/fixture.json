@@ -1,0 +1,38 @@
+[
+  {
+    "document_id": "hott2013review-CC",
+    "name": "Mercury",
+    "identifiers": null,
+    "sample_details": null,
+    "pressure": null,
+    "me_method": "resistivity",
+    "additional_details": null,
+    "attribute": "tc",
+    "value": "4.0",
+    "units": "K",
+    "page_number": null,
+    "label": "valid",
+    "modification_type": null,
+    "gt_row_index": 529,
+    "donor_gt_row_index": null,
+    "measurement_id": 0
+  },
+  {
+    "document_id": "hott2013review-CC",
+    "name": "Mercury",
+    "identifiers": null,
+    "sample_details": null,
+    "pressure": null,
+    "me_method": "resistivity",
+    "additional_details": null,
+    "attribute": "tc",
+    "value": "999.0",
+    "units": "K",
+    "page_number": null,
+    "label": "invalid",
+    "modification_type": "value",
+    "gt_row_index": 529,
+    "donor_gt_row_index": null,
+    "measurement_id": 1
+  }
+]

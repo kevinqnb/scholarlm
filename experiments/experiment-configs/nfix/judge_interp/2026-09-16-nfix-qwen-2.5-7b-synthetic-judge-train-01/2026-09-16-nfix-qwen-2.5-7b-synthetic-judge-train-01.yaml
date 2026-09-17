@@ -1,0 +1,34 @@
+id: 2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-train-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (qwen-2.5-7b) over nfix's augmented synthetic-
+  probe training corpus (data/nfix/probe_dataset_v2.json, produced by
+  2026-09-16-nfix-probe-augmentation-01), collecting per-layer/per-head
+  attention activations for analysis/synthetic_probe_train.py's head probe +
+  NTP calibrator -- the nfix counterpart of pond's already-completed
+  2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01. Uses the same
+  qwen-2.5-7b judge as pond so the two are comparable and
+  analysis/calibration_ids.py's single JUDGE_MODEL scalar still holds.
+
+  CAUTION before submitting: experiments/model-configs/interp_judge/
+  qwen-2.5-7b.yaml's YaRN rope_scaling override (added in the Sep 12-14
+  model-config restructure, sized for full-paper prompts past the 32768
+  native window) is marked UNVALIDATED in its own comment -- no GPU-loaded
+  smoke/known-answer check has been run against it yet. Smoke-test it first;
+  NNsight has no admission check the way vLLM does, so a bad rope config
+  won't error, it'll silently emit a plausible-looking p_true/p_false.
+
+  walltime is set to the 24h ceiling at the user's explicit request, as a
+  uniform safety margin across all six new judge_interp configs rather than
+  a per-split estimate -- no nfix-specific judge_interp run has ever
+  completed, and per-row cost is dominated by full-paper context length,
+  which is dataset-specific and not yet measured for nfix's OCR corpus.
+  Tighten it with a real number once this run completes, the way pond's
+  template config was retroactively corrected with its own observed
+  runtime (8.6h, at ~4x this dataset's row-count floor).
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-7b
+  synthetic_file: data/nfix/probe_dataset_v2.json
+  walltime: "24:00:00"  # padded to the safe ceiling at the user's request -- pond's actual was 8.6h at 4x the row count

@@ -1,0 +1,25 @@
+id: 2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-test-diag-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (qwen-2.5-7b) over nfix's diagnostic synthetic-
+  probe test split (data/nfix/probe_dataset_test_v2_diag.json -- built like
+  the train file on the held-out valids, >=650 floor; produced by
+  2026-09-16-nfix-probe-augmentation-01). The nfix counterpart of pond's
+  2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-diag-01; used for the
+  leakage check (diag AUROC vs. primary AUROC) once registered in
+  analysis/calibration_ids.py's SYN_TEST_IDS.
+
+  Same YaRN-override caution as the train config
+  (2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-train-01) applies here --
+  smoke-test experiments/model-configs/interp_judge/qwen-2.5-7b.yaml's
+  rope_scaling before submitting for real.
+
+  walltime is set to the 24h ceiling at the user's explicit request (see the
+  train config for the full reasoning) -- no nfix-specific runtime has been
+  observed yet.
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-7b
+  synthetic_file: data/nfix/probe_dataset_test_v2_diag.json
+  walltime: "24:00:00"  # padded to the safe ceiling at the user's request -- pond's actual was 6.5h at a larger row count
