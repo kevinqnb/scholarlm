@@ -11,46 +11,34 @@ The vLLM server must be started separately before running this script
 
 Results are written to:
 
-    data/{dataset}/ocr_output_cleaned_{model_name}/
+    experiments/results/{dataset}/table_cleaning/{experiment_id}/
 
-where ``model_name`` is the short key from the model registry (e.g.
-``gemma-3-27b``).  This directory can then be passed to ``run_extraction.py``
-via ``--ocr-dir``.
+(tied to an experiment id like every other Tier-1 type -- unlike the old
+data/{dataset}/ocr_output_cleaned_{model_name}/ convention, which stays
+exactly as-is for datasets that already have it, but is no longer where new
+runs default to). Pass this directory to run_extraction.py's params.ocr_dir
+to use it for extraction.
 
 Prerequisites
 -------------
 1. Run ``process_pdfs.py`` first (preprocessing environment) to produce
    pre-rendered page images at ``data/{dataset}/processed_pdfs/``.
 
-2. Start a vLLM server serving the chosen model and wait for startup to complete.
+2. Start a vLLM server serving the chosen model and wait for startup to complete
+   (experiments/submit.sh does this for you automatically).
 
 Usage
 -----
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gemma-3-27b
+    python experiments/run_table_cleaning.py experiments/experiment-configs/pond/table_cleaning/<id>/<id>.yaml
 
-    # Resume a partial run (skip papers whose output file already exists):
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gemma-3-27b --resume
+Required params: dataset, model.
+Optional params: ocr_dir (default: data/{dataset}/ocr_output_raw/), output_dir
+(default: experiments/results/{dataset}/table_cleaning/{id}/ -- override only
+to write somewhere else, e.g. the legacy data/{dataset}/ocr_output_cleaned_{model}/
+convention), paper_subset (list), resume (bool), api_base, api_key.
 
-    # Custom server URL:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gemma-3-27b \\
-        --api-base http://<host>:8081/v1
-
-    # Custom input/output directories:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gemma-3-27b \\
-        --ocr-dir data/pond/ocr_output_raw \\
-        --output-dir data/pond/ocr_output_cleaned_gemma-3-27b
-
-    # Process a subset of papers:
-    python experiments/run_table_cleaning.py \\
-        --dataset pond --model gemma-3-27b \\
-        --paper-subset paper_a paper_b
-
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
-Available models:   keys of MODEL_REGISTRY in experiments/run_extraction.py.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
+Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
 """
 from __future__ import annotations
 
@@ -66,12 +54,11 @@ _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
-# Import shared registry and helpers from run_extraction to keep model list
-# and config loading in sync.
-from run_extraction import MODEL_REGISTRY, load_dataset_config, get_model_config, load_papers
+# Import shared helpers from run_extraction to keep config loading in sync.
+from run_extraction import load_dataset_config, get_model_config, load_papers
 from scholarlm import MeasurementLM
 from scholarlm.config import DatasetConfig, ModelConfig
-from utils import set_seeds
+import utils
 
 
 # ---------------------------------------------------------------------------
@@ -96,8 +83,8 @@ def run_vllm_table_cleaning(
     ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         ocr_dir: Input directory of ``.txt`` OCR files.  Defaults to
             ``{data_dir}/ocr_output_raw/``.
         output_dir: Destination directory for cleaned ``.txt`` files.  Defaults
@@ -179,77 +166,37 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        required=True,
-        choices=sorted(MODEL_REGISTRY.keys()),
-        help="Model key from MODEL_REGISTRY in run_extraction.py.",
-    )
-    p.add_argument(
-        "--ocr-dir",
-        default=None,
-        metavar="DIR",
-        help="Input OCR directory (default: data/{dataset}/ocr_output_raw/).",
-    )
-    p.add_argument(
-        "--output-dir",
-        default=None,
-        metavar="DIR",
-        help=(
-            "Output directory for cleaned texts "
-            "(default: data/{dataset}/ocr_output_cleaned_{model_name}/)."
-        ),
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Process only these paper codes (overrides the config's default subset).",
-    )
-    p.add_argument(
-        "--resume",
-        action="store_true",
-        help="Skip papers whose output .txt already exists in the output directory.",
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8081/v1",
-        metavar="URL",
-        help="Base URL of the vLLM OpenAI-compatible server (default: http://localhost:8081/v1).",
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = utils.load_experiment_config(config_path)
+    params = cfg["params"]
+    utils.require_params(params, "dataset", "model", config_path=config_path)
 
-    from utils import load_config
-    cfg = load_config()
-    set_seeds(cfg.get("defaults", {}).get("seed", 342))
+    utils.set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-    model_config = get_model_config(args.model)
+    dataset_config = load_dataset_config(params["dataset"])
+    model_config = get_model_config(params["model"])
+    output_dir = params.get("output_dir") or str(
+        utils.result_dir(params["dataset"], "table_cleaning", cfg["id"])
+    )
     run_vllm_table_cleaning(
         dataset_config=dataset_config,
         model_config=model_config,
-        ocr_dir=args.ocr_dir,
-        output_dir=args.output_dir,
-        paper_subset_override=args.paper_subset,
-        resume=args.resume,
-        api_base=args.api_base,
-        api_key=args.api_key,
+        ocr_dir=params.get("ocr_dir"),
+        output_dir=output_dir,
+        paper_subset_override=params.get("paper_subset"),
+        resume=params.get("resume", False),
+        api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
+        api_key=params.get("api_key", "EMPTY"),
     )
 
 

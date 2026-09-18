@@ -1,0 +1,13 @@
+id: 2026-09-13-supermat-gemma3-27b-extraction-gptoss120b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (gpt-oss-120b) over supermat MeasurementLM extraction (gemma3-27b) (2026-07-09-supermat-gemma-3-27b-extraction-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: supermat
+  judge: gpt-oss-120b
+  extraction_id: 2026-07-09-supermat-gemma-3-27b-extraction-01
+  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-01
+  walltime: "24:00:00"

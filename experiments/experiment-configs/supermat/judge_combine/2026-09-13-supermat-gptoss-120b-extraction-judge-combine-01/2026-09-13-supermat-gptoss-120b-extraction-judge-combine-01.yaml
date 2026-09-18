@@ -1,0 +1,19 @@
+id: 2026-09-13-supermat-gptoss-120b-extraction-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over supermat MeasurementLM extraction (gptoss-120b) (2026-07-13-supermat-gpt-oss-120b-extraction-01): 3 voting
+  judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) + 2 non-voting NTP
+  interp judges (qwen-2.5-7b, llama-3.1-8b). voting_threshold pinned
+  explicitly (VOTING_JUDGE_KEYS ignores the two interp entries regardless of
+  threshold, but this repo avoids inferred defaults).
+seed: 342
+params:
+  dataset: supermat
+  judge_ids:
+    - 2026-09-13-supermat-gptoss-120b-extraction-gptoss120b-judge-local-01
+    - 2026-09-13-supermat-gptoss-120b-extraction-qwen72b-judge-local-01
+    - 2026-09-13-supermat-gptoss-120b-extraction-llama70b-judge-local-01
+    - 2026-09-13-supermat-gptoss-120b-extraction-qwen7b-judge-interp-01
+    - 2026-09-13-supermat-gptoss-120b-extraction-llama8b-judge-interp-01
+  voting_threshold: 2
+  walltime: "00:30:00"

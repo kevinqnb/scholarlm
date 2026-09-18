@@ -129,7 +129,7 @@ class DatasetConfig:
             ("The name or identifier of ``<DESC>`` for which the {property} is
             reported").  Needed only when a dataset's entity is not the measurement
             subject: measeval enumerates *quantities* as entities (see
-            ``experiments/configs/measeval.py``), which would otherwise ask GLiNER
+            ``experiments/dataset-configs/measeval.py``), which would otherwise ask GLiNER
             for "the name or identifier of a numerical quantity".  GLiNER is a flat
             span tagger with no pipeline structure to invert, so it stays
             subject-centric and reads this instead.  Falls back to
@@ -179,7 +179,9 @@ class ModelConfig:
             ``None`` means the default branch HEAD was used (less reproducible).
         sampling_params: Generation parameters forwarded to the API.
             Supported keys: ``temperature``, ``top_p``, ``top_k``,
-            ``max_tokens``, ``repetition_penalty``, ``seed``.
+            ``max_tokens``, ``repetition_penalty``, ``seed``, ``enable_thinking``
+            (Qwen3-style chat-template kwarg), ``reasoning_effort`` (gpt-oss's
+            harmony chat-template kwarg: low/medium/high).
         api_base: API base URL for frontier models (e.g.
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``

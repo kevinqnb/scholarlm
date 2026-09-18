@@ -1,0 +1,13 @@
+id: 2026-09-13-supermat-gptoss-120b-ablation1-qwen7b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (qwen-2.5-7b) over supermat Ablation1 (gptoss-120b) (2026-08-13-supermat-gpt-oss-120b-ablation1-01),
+  collecting attention/layer activations. Full raw-OCR paper context
+  (pre-table-cleaning); ocr_dir pinned explicitly. qwen-2.5-7b's YaRN rope_scaling override (model_registry.py, 2026-09-13) is UNVALIDATED -- no GPU smoke/known-answer check has been run yet. Do not submit this config until that check has passed.
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  extraction_id: 2026-08-13-supermat-gpt-oss-120b-ablation1-01
+  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-01
+  walltime: "24:00:00"

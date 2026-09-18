@@ -1,0 +1,56 @@
+model_id: Qwen/Qwen2.5-7B-Instruct
+# Qwen2.5-7B-Instruct's native max_position_embeddings is 32768. Under
+# full-paper judge context (judge_prompts.prepare_chat_entries), measured
+# prompt lengths on this model's tokenizer reach 68242 tokens (supermat,
+# 2026-09-13 measurement against ocr_output_raw/) -- comfortably past the
+# native window. Unlike vLLM, NNsight/nnterp has no admission check: without
+# this override it would not error, it would silently run RoPE past the
+# trained window and still emit a plausible-looking p_true/p_false.
+# rope_scaling is forwarded via **nnsight_kwargs -> nnterp.StandardizedTransformer
+# -> transformers' AutoModelForCausalLM.from_pretrained, which accepts it as
+# a config override the same way torch_dtype above is already forwarded.
+# Same YaRN factor as qwen-2.5-72b's vLLM --hf-overrides
+# (model-configs/vllm_judge/qwen-2.5-72b.yaml), chosen for the same measured
+# max document length (68242 tok, same tokenizer family).
+#
+# 2026-09-16: the retrieval mechanism itself is now VALIDATED --
+# experiments/yarn_needle_test.py planted a unique passphrase at the tail of
+# supermat's longest real document (hott2013review-CC, 68298 prompt tokens
+# with this exact rope_scaling config) and the model retrieved it correctly,
+# same as a short-context control (14903 tokens). This override is NOT the
+# cause of a long-range attention failure.
+#
+# Judge-TASK correctness on real content is still open, though: the same-day
+# smoke test (2026-09-16-supermat-qwen-2.5-7b-yarn-smoke-test-01) judged a
+# real GT-valid measurement on this same document as invalid (high
+# confidence, p_true~4.5e-5) -- wrong, but for a reason other than RoPE/
+# attention range (leading guess: the GT row sits in a large comparison
+# table that OCR/text linearization may render awkwardly for verbatim
+# grounding, unverified). Don't trust real judge_interp output from this
+# entry on long documents until that's separately understood -- the needle
+# test only clears the rope_scaling override specifically, not the judge
+# pipeline as a whole.
+nnsight_kwargs:
+  torch_dtype: bfloat16
+  rope_scaling:
+    rope_type: yarn
+    factor: 3.0
+    original_max_position_embeddings: 32768
+sampling_params:
+  do_sample: false
+  max_new_tokens: 1
+resources:
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # Pinned explicitly, not just a capability floor: this cluster's installed
+  # torch build (2.7.1+cu126) stops at sm_90, and a gpu_c floor alone let
+  # similar 7-8B NNsight jobs land on newer incompatible GPU types (see
+  # notes/scholarlm/experiments/2026-08-11-llama-base-answer-cue-01.md).
+  # Two real qwen-2.5-7b interp-judge runs (judge_run_metadata/qwen-2.5-7b.json
+  # under 2026-09-09-fulltext-judge-probe-eval-01 and
+  # 2026-09-11-ablation1-fulltext-judge-calib-01) both completed successfully
+  # on an NVIDIA L40S, 44.4 GiB. gpu_memory below is a 32G floor, not that
+  # observed figure -- harmless only because gpu_type pins the card outright;
+  # if the pin is ever removed, raise gpu_memory to match first.
+  gpu_type: L40S
+  omp: 8

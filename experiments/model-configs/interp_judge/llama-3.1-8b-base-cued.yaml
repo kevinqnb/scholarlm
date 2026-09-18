@@ -1,0 +1,11 @@
+model_id: meta-llama/Llama-3.1-8B
+nnsight_kwargs:
+  torch_dtype: bfloat16
+sampling_params:
+  do_sample: false
+  max_new_tokens: 1
+use_chat_template: false
+answer_cue: '
+
+
+  Answer (true or false): '

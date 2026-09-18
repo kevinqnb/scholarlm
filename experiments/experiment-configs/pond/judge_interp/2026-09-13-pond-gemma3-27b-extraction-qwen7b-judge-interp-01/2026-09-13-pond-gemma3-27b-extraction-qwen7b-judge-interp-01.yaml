@@ -1,0 +1,13 @@
+id: 2026-09-13-pond-gemma3-27b-extraction-qwen7b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (qwen-2.5-7b) over pond MeasurementLM extraction (gemma3-27b) (2026-05-05-pond-gemma-3-27b-extraction-01),
+  collecting attention/layer activations. Full raw-OCR paper context
+  (pre-table-cleaning); ocr_dir pinned explicitly. qwen-2.5-7b's YaRN rope_scaling override (model_registry.py, 2026-09-13) is UNVALIDATED -- no GPU smoke/known-answer check has been run yet. Do not submit this config until that check has passed.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  extraction_id: 2026-05-05-pond-gemma-3-27b-extraction-01
+  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01
+  walltime: "24:00:00"

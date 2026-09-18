@@ -1,0 +1,68 @@
+model_id: ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
+# 2026-09-14: moved here from per-experiment params (originally set on
+# 2026-09-14-llama70b-judge-seed-determinism-01/-02) -- these are serving
+# characteristics of this model under this stack, not something that varies
+# by experiment, so they belong here rather than being copy-pasted into every
+# future llama-3.3-70b judge_local config.
+# max_concurrent: lowered from run_judge_local.py's 64 default after an
+# APITimeoutError (300s client timeout) on the seed-determinism full run,
+# same contention pattern seen on qwen-2.5-72b the same session.
+# request_timeout: idx=1007 (document dry_habitats_sustain, ~17.4k tokens --
+# not unusually long) timed out 3x in a row regardless of max_concurrent (64
+# and 32), on two separate job attempts. Not contention -- this row is
+# consistently slow to generate for this model at temperature=0.0 (no
+# sampling_params block below, so run_judge_local.py's _judge_one falls back
+# to temperature=0.0, no seed). Raised to see whether it's slow-but-finishes
+# vs. actually hung; confirmed slow-but-finishes.
+max_concurrent: 32
+request_timeout: 600
+# 2026-09-15: run_judge_local.py's length-truncation retry/flag path (added
+# for gpt-oss-120b's reasoning-budget failure, see its model-config) is
+# explicit-opt-in per judge. This model has never shown that failure --
+# max_retries: 0 reproduces the original raise-on-first-failure behavior
+# exactly (no retry, no judgement:null flagging). drop_ceiling is unused at
+# max_retries: 0 (nothing is ever flagged to count) but required (no default
+# config keys) -- 0 documents that no rate of this failure is expected or
+# tolerated here.
+max_retries: 0
+drop_ceiling: 0
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  quantization: awq_marlin
+  dtype: bfloat16
+  # 2026-09-14: bumped from vllm-openai_v0.19.0.sif to match gpt-oss-120b and
+  # qwen-2.5-72b's model-configs, now that both have their own validated
+  # reasons to be on v0.24.0 (see their comments) -- this model doesn't need
+  # a rope-scaling override (128k-native), so the specific bug found on
+  # qwen-2.5-72b doesn't apply here, but re-running seed-determinism fresh
+  # under the same version as the other two voting judges rather than
+  # assuming v0.19.0's already-recorded numbers still apply.
+  sif_image: vllm-openai_v0.24.0.sif
+  # 2026-09-14: this model's AWQ quantization goes through
+  # choose_mp_linear_kernel, which tries MacheteLinearKernel before
+  # MarlinLinearKernel. On an RTX PRO 6000 Blackwell node (job 7569337),
+  # Machete's can_implement() incorrectly reported support for this AWQ
+  # checkpoint's raw-integer zero-point format, got selected and compiled
+  # into the CUDA graph, then failed once actually invoked: NotImplementedError:
+  # machete_mm(..) is not implemented for ... with_group_zeropoint_type=Int
+  # (not in Machete's supported-type table). The same run succeeded
+  # cleanly on H200 (job 7568910/run -01), where Machete's capability gate
+  # or can_implement() apparently takes a different path -- not
+  # investigated further since the fix below sidesteps it entirely.
+  # VLLM_DISABLED_KERNELS drops a kernel class from consideration before
+  # can_implement() is even checked, falling through straight to Marlin --
+  # the kernel awq_marlin quantization is actually built around. Retried
+  # with this fix + the gpu_type: H200 pin below (job 7572218): succeeded,
+  # 4285/4285 rows. Since the pin alone keeps this off Blackwell (where the
+  # bug was observed), this run doesn't distinguish "the fix worked" from
+  # "the pin alone avoided the bug" -- kept anyway as a low-cost second
+  # line of defense in case Marlin's own priority ever changes upstream.
+  extra_env:
+    VLLM_DISABLED_KERNELS: "MacheteLinearKernel"
+resources:
+  gpu_memory: 80G
+  gpu_capability: 8.0
+  gpu_type: H200
+  omp: 8

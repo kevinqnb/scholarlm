@@ -1,35 +1,23 @@
 """
 Combine judge results across multiple models into a single ground-truth file.
 
-Reads individual judge ``responses.json`` files for a given
-(dataset, extraction_model, extraction_date) triple, merges them by
-``measurement_id``, computes a majority-vote ground truth label from the
-voting judges, and writes a combined output file.
+Reads individual judge ``responses.json`` files for an explicit list of judge
+experiment ids (each produced by run_judge_interp.py or run_judge_local.py),
+merges them by ``measurement_id``, computes a majority-vote ground truth
+label from the voting judges, and writes a combined output file.
 
-Output path:
-    data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/combined/combined.json
+Output path (id-addressed, like every other Tier-1 type):
+    experiments/results/{dataset}/judge_combine/{experiment_id}/combined.json
 
 Usage
 -----
-    # Auto-discover all judge results under the extraction date directory:
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01
+    python experiments/run_judge_combine.py experiments/experiment-configs/pond/judge_combine/<id>/<id>.yaml
 
-    # Specify judge model names explicitly (useful when multiple date dirs exist):
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01 \\
-        --judges llama-3.1-8b llama-3.3-70b qwen-2.5-72b
-
-    # Override the voting threshold (default: majority of voting judges):
-    python experiments/run_judge_combine.py \\
-        --dataset pond \\
-        --extraction-model gemma-3-27b \\
-        --extraction-date 2026_04_01 \\
-        --voting-threshold 2
+Required params: dataset, judge_ids (list of judge_interp/judge_local
+experiment ids -- explicit, no auto-discovery: under id-based addressing
+there is no shared directory tree to scan, the config just names which
+judge runs to combine).
+Optional params: voting_threshold (default: majority of voting judges).
 
 The combined JSON has one record per measurement with all individual judge
 fields merged in (``judgement_{judge_key}``, ``judgement_prob_{judge_key}``,
@@ -50,72 +38,40 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 # ---------------------------------------------------------------------------
 # Voting judge keys — only these votes count toward ground truth.
-# "human" is included so human-validation runs produced by validation.py
+# "human" is included so human-validation responses.json files (produced
+# historically by experiments/validation.py, a Streamlit app, since removed)
 # can participate in majority voting (use --voting-threshold 1 for standalone use).
 # ---------------------------------------------------------------------------
 
 VOTING_JUDGE_KEYS = {"gpt-oss-120b", "llama-3.3-70b", "qwen-2.5-72b"}
 
-import paths
+import utils as paths
 
 
-def _find_judge_result(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    judge_key: str,
-    ablation: str | None = None,
-) -> Path:
-    """Locate the most recent ``responses.json`` for a given judge key.
-
-    Searches ``data/experiments/{dataset}/judge/{extraction_model}/{extraction_date}/{judge_key}/*/responses.json``
-    and returns the path in the most recently dated directory.
-
-    Args:
-        dataset_name: Dataset identifier.
-        extraction_model: Extraction model short name.
-        extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
-        judge_key: Judge model key (e.g. ``"llama-3.1-8b"``, ``"openai"``).
+def _load_judge_result(judge_id: str) -> tuple[str, Path]:
+    """Resolve one judge experiment's responses.json and its judge_model key.
 
     Returns:
-        Path to ``responses.json``.
+        (judge_model_key, path_to_responses_json).
 
     Raises:
-        FileNotFoundError: If no result is found.
+        FileNotFoundError: If judge_id has no results directory or no
+            responses.json.
+        ValueError: If run_metadata.json is missing or has no judge_model
+            field -- run_judge_interp.py/run_judge_local.py always write one,
+            so this means judge_id doesn't point at a real judge run.
     """
-    judge_dir = paths.judge_base(dataset_name, extraction_model, extraction_date, ablation) / judge_key
-    if not judge_dir.exists():
-        raise FileNotFoundError(f"No judge directory found: {judge_dir}")
-    date_dirs = sorted(judge_dir.iterdir(), reverse=True)
-    for d in date_dirs:
-        candidate = d / "responses.json"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(
-        f"No responses.json found for judge '{judge_key}' under {judge_dir}"
-    )
-
-
-def _discover_judge_keys(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    ablation: str | None = None,
-) -> list[str]:
-    """Return all judge keys that have a responses.json under the extraction date dir."""
-    base = paths.judge_base(dataset_name, extraction_model, extraction_date, ablation)
-    if not base.exists():
-        return []
-    keys = []
-    for judge_dir in sorted(base.iterdir()):
-        print(f"Checking for judge results in: {judge_dir}")
-        if judge_dir.name == "combined":
-            continue
-        for date_dir in judge_dir.iterdir():
-            if (date_dir / "responses.json").exists():
-                keys.append(judge_dir.name)
-                break
-    return keys
+    judge_dir = paths.find_result_dir(judge_id)
+    responses_path = judge_dir / "responses.json"
+    if not responses_path.exists():
+        raise FileNotFoundError(f"No responses.json for judge_id={judge_id!r} under {judge_dir}")
+    meta = paths.load_run_metadata(judge_dir)
+    if meta is None or "judge_model" not in meta:
+        raise ValueError(
+            f"judge_id={judge_id!r}: no run_metadata.json (or no judge_model field in "
+            f"it) under {judge_dir} -- cannot determine which judge model this run used."
+        )
+    return meta["judge_model"], responses_path
 
 
 # ---------------------------------------------------------------------------
@@ -189,45 +145,37 @@ def combine_judge_results(
 
 
 def run_combine(
-    dataset_name: str,
-    extraction_model: str,
-    extraction_date: str,
-    judge_keys: list[str] | None = None,
+    judge_ids: list[str],
+    output_dir: Path,
     voting_threshold: int | None = None,
-    ablation: str | None = None,
 ) -> Path:
-    """Discover judge results, combine them, and write the combined output file.
+    """Combine multiple judge runs (named by experiment id) into one ground-truth file.
 
     Args:
-        dataset_name: Dataset identifier.
-        extraction_model: Extraction model short name.
-        extraction_date: Date tag of the extraction run (``YYYY_mm_dd``).
-        judge_keys: Explicit list of judge keys to combine. If ``None``,
-            auto-discovers all judges with results under the extraction date dir.
+        judge_ids: Explicit list of judge_interp/judge_local experiment ids to combine.
+        output_dir: Directory to write ``combined.json`` to.
         voting_threshold: Minimum votes for a positive label.
             Defaults to majority of available voting judges (ceil(n/2)).
 
     Returns:
         Path to the written ``combined.json`` file.
     """
-    if judge_keys is None:
-        judge_keys = _discover_judge_keys(dataset_name, extraction_model, extraction_date, ablation)
-        if not judge_keys:
-            raise FileNotFoundError(
-                f"No judge results found for dataset='{dataset_name}' "
-                f"extraction_model='{extraction_model}' extraction_date='{extraction_date}'."
-            )
-        print(f"Auto-discovered judges: {judge_keys}")
-
     judge_files: dict[str, Path] = {}
-    for key in judge_keys:
-        judge_files[key] = _find_judge_result(dataset_name, extraction_model, extraction_date, key, ablation)
-        print(f"  {key}: {judge_files[key]}")
+    for judge_id in judge_ids:
+        judge_key, responses_path = _load_judge_result(judge_id)
+        if judge_key in judge_files:
+            raise ValueError(
+                f"judge_ids {judge_ids} includes two runs of the same judge model "
+                f"{judge_key!r} -- combining two runs of the same judge would let "
+                "one model's vote count twice."
+            )
+        judge_files[judge_key] = responses_path
+        print(f"  {judge_id} ({judge_key}): {responses_path}")
 
-    voting_judges = VOTING_JUDGE_KEYS & set(judge_keys)
+    voting_judges = VOTING_JUDGE_KEYS & set(judge_files.keys())
     if not voting_judges:
         raise ValueError(
-            f"None of the provided judge keys are voting judges "
+            f"None of the given judge_ids resolved to a voting judge "
             f"({VOTING_JUDGE_KEYS}). Cannot compute ground truth."
         )
 
@@ -239,7 +187,6 @@ def run_combine(
 
     combined = combine_judge_results(judge_files, voting_judges, voting_threshold)
 
-    output_dir = paths.judge_combined(dataset_name, extraction_model, extraction_date, ablation)
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "combined.json"
     with open(output_file, "w") as f:
@@ -263,33 +210,35 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond', 'nfix').")
-    p.add_argument("--extraction-model", required=True, help="Extraction model short name.")
-    p.add_argument("--extraction-date", required=True, help="Date tag YYYY_mm_dd of the extraction run.")
-    p.add_argument(
-        "--ablation", default=None, metavar="N",
-        help="Ablation number (e.g. 2). If set, reads from and writes to ablations/ablation{N}/.",
-    )
-    p.add_argument(
-        "--judges", nargs="+", default=None,
-        help="Judge keys to combine. Default: auto-discover from directory.",
-    )
-    p.add_argument(
-        "--voting-threshold", type=int, default=None,
-        help="Min votes for a positive label. Default: majority of voting judges.",
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "judge_ids", config_path=config_path)
+
+    dataset = params["dataset"]
+    judge_ids = params["judge_ids"]
+    if not isinstance(judge_ids, list) or not judge_ids:
+        raise ValueError(f"{config_path}: params.judge_ids must be a non-empty list")
+
+    for judge_id in judge_ids:
+        resolved_dataset = paths.find_result_dir(judge_id).parts[-3]
+        if resolved_dataset != dataset:
+            raise ValueError(
+                f"{config_path}: params.dataset {dataset!r} does not match the dataset "
+                f"of judge_id {judge_id!r} ({resolved_dataset!r})"
+            )
+
+    output_dir = paths.result_dir(dataset, "judge_combine", cfg["id"])
     run_combine(
-        dataset_name=args.dataset,
-        extraction_model=args.extraction_model,
-        extraction_date=args.extraction_date,
-        judge_keys=args.judges,
-        voting_threshold=args.voting_threshold,
-        ablation=args.ablation,
+        judge_ids=judge_ids,
+        output_dir=output_dir,
+        voting_threshold=params.get("voting_threshold"),
     )
 
 

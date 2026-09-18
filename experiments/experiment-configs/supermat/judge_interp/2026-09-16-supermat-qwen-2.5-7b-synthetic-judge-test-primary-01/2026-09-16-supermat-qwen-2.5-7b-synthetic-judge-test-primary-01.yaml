@@ -1,0 +1,25 @@
+id: 2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-test-primary-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (qwen-2.5-7b) over supermat's primary
+  synthetic-probe test split (data/supermat/probe_dataset_test_v2.json --
+  held-out GT valids only, zero gpt-oss content, + typed negatives; produced
+  by 2026-09-16-supermat-probe-augmentation-01). The supermat counterpart of
+  pond's 2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01; feeds
+  analysis/calibration_updated.py's headline probe-vs-NTP comparison once
+  registered in analysis/calibration_ids.py's SYN_TEST_IDS.
+
+  Same YaRN-override caution as the train config
+  (2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-train-01) applies here,
+  and is MORE load-bearing for supermat than for the other two datasets --
+  smoke-test experiments/model-configs/interp_judge/qwen-2.5-7b.yaml's
+  rope_scaling before submitting for real.
+
+  walltime is set to the 24h ceiling at the user's explicit request (see the
+  train config for the full reasoning).
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  synthetic_file: data/supermat/probe_dataset_test_v2.json
+  walltime: "24:00:00"  # padded to the safe ceiling at the user's request -- pond's actual was 2.5h at a shorter avg. context

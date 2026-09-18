@@ -1,0 +1,37 @@
+id: 2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-train-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (qwen-2.5-7b) over supermat's augmented
+  synthetic-probe training corpus (data/supermat/probe_dataset_v2.json,
+  produced by 2026-09-16-supermat-probe-augmentation-01), collecting
+  per-layer/per-head attention activations for
+  analysis/synthetic_probe_train.py's head probe + NTP calibrator -- the
+  supermat counterpart of pond's already-completed
+  2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01.
+
+  CAUTION before submitting -- more load-bearing here than for nfix:
+  experiments/model-configs/interp_judge/qwen-2.5-7b.yaml's YaRN
+  rope_scaling override exists SPECIFICALLY because supermat's full-paper
+  prompts were measured at up to 68242 tokens (2026-09-13, exceeding even
+  pond's largest at ~46-48k), past the 32768 native window. That override
+  is marked UNVALIDATED in its own comment -- no GPU-loaded smoke/
+  known-answer check has run yet. NNsight has no admission check the way
+  vLLM does: a bad rope config won't error, it'll silently emit a
+  plausible-looking p_true/p_false on exactly the longest, most YaRN-
+  dependent papers in any of the three datasets. Do not skip the smoke test
+  for this one.
+
+  walltime is set to the 24h ceiling at the user's explicit request, as a
+  uniform safety margin across all six new judge_interp configs -- no
+  supermat-specific judge_interp run has ever completed, and per-row cost is
+  dominated by full-paper context length (measured up to 68242 tokens here,
+  the longest of the three datasets). Tighten it with a real number once
+  this run completes, the way pond's template config was retroactively
+  corrected with its own observed runtime (8.6h, at a shorter avg. context
+  and ~4x this dataset's row-count floor).
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  synthetic_file: data/supermat/probe_dataset_v2.json
+  walltime: "24:00:00"  # padded to the safe ceiling at the user's request -- pond's actual was 8.6h at a shorter avg. context

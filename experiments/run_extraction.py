@@ -4,21 +4,19 @@ Unified extraction pipeline runner.
 Runs the full MeasurementLM extraction pipeline for any registered dataset and
 model, writing intermediate and final results to a structured output directory:
 
-    data/experiments/{dataset}/extraction/{model}/{YYYY_mm_dd}/
+    experiments/results/{dataset}/extraction/{experiment_id}/
 
 Usage
 -----
-    # From the repo root:
-    python experiments/run_extraction.py --dataset pond --model gemma-3-27b
-    python experiments/run_extraction.py --dataset nfix --model qwen-2.5-72b
-    python experiments/run_extraction.py --dataset pond --model llama-3.3-70b \\
-        --paper-subset physical_and_chemical_limnological prairie_wetland
+    python experiments/run_extraction.py experiments/experiment-configs/pond/extraction/<id>/<id>.yaml
 
-    # Resume from a specific step (skips steps whose output files already exist):
-    python experiments/run_extraction.py --dataset pond --model gemma-3-27b --resume
+Required params: dataset, model.
+Optional params: ocr_dir, paper_subset (list), extraction_mode ('pipeline'
+default | 'direct'), resume (bool), final_only (bool), step (one of
+STEP_NAMES), api_base, api_key.
 
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
-Available models:   keys of MODEL_REGISTRY in this file.
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
+Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
 """
 from __future__ import annotations
 
@@ -37,15 +35,14 @@ from urllib.parse import urlparse
 # Path setup — make scholarlm importable when run directly from the repo root
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent
-_CONFIGS_DIR = Path(__file__).parent / "configs"
+_CONFIGS_DIR = Path(__file__).parent / "dataset-configs"
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from scholarlm import MeasurementLM
 from scholarlm.config import DatasetConfig, ModelConfig
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.utils import get_filenames_in_directory
-from model_registry import MODEL_REGISTRY
-import paths
+import utils as paths
 from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 # ---------------------------------------------------------------------------
@@ -54,13 +51,13 @@ from utils import set_seeds, check_gpu_model_compatibility, write_run_metadata
 
 
 def load_dataset_config(name: str) -> DatasetConfig:
-    """Load a DatasetConfig by name from experiments/configs/<name>.py.
+    """Load a DatasetConfig by name from experiments/dataset-configs/<name>.py.
 
     The config file must define a module-level ``CONFIG`` variable of type
     ``DatasetConfig``.
 
     Args:
-        name: Dataset identifier matching a file in ``experiments/configs/``.
+        name: Dataset identifier matching a file in ``experiments/dataset-configs/``.
 
     Returns:
         The ``DatasetConfig`` instance exported by the config file.
@@ -88,23 +85,25 @@ def load_dataset_config(name: str) -> DatasetConfig:
 
 
 def get_model_config(name: str) -> ModelConfig:
-    """Retrieve a ModelConfig from MODEL_REGISTRY by short name.
+    """Retrieve a ModelConfig from experiments/model-configs/extraction/{name}.yaml.
 
     Args:
-        name: Model key in ``MODEL_REGISTRY``.
+        name: Model key (matches a file in experiments/model-configs/extraction/).
 
     Returns:
         The corresponding ``ModelConfig``.
 
     Raises:
-        KeyError: If ``name`` is not in the registry.
+        FileNotFoundError: If ``name`` has no model-config file.
     """
-    if name not in MODEL_REGISTRY:
-        raise KeyError(
-            f"Unknown model '{name}'. "
-            f"Available models: {sorted(MODEL_REGISTRY.keys())}"
-        )
-    return MODEL_REGISTRY[name]
+    d = paths.load_model_config("extraction", name)
+    return ModelConfig(
+        name=name,
+        model_id=d["model_id"],
+        hf_revision=d.get("hf_revision"),
+        sampling_params=d.get("sampling_params", {}),
+        api_base=d.get("api_base"),
+    )
 
 
 
@@ -545,8 +544,8 @@ def run_pipeline(
     to ``output_dir``.
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory for output files (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
             is used and table cleaning is performed automatically.
@@ -670,8 +669,8 @@ def run_direct(
     ``run_ablation.py``'s ablation-1 path reads).
 
     Args:
-        dataset_config: Dataset configuration loaded from ``experiments/configs/``.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        dataset_config: Dataset configuration loaded from ``experiments/dataset-configs/``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory for the output file (created if needed).
         ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
             is used and table cleaning is performed automatically.
@@ -801,7 +800,7 @@ def run_single_step(
 
     Args:
         dataset_config: Dataset configuration.
-        model_config: Model configuration from ``MODEL_REGISTRY``.
+        model_config: Model configuration from experiments/model-configs/extraction/.
         output_dir: Directory containing prior step outputs and receiving this step's output.
         step: One of ``entities``, ``attributes``, ``entity_prov``, ``attribute_prov``,
               ``values``, ``final``.
@@ -894,148 +893,85 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        required=True,
-        choices=sorted(MODEL_REGISTRY.keys()),
-        help="Extraction model key from MODEL_REGISTRY.",
-    )
-    p.add_argument(
-        "--date",
-        default=None,
-        help="Output date tag YYYY_mm_dd (default: today).",
-    )
-    p.add_argument(
-        "--ocr-dir",
-        default=None,
-        metavar="DIR",
-        help=(
-            "Directory of pre-cleaned OCR .txt files to use as extraction input. "
-            "If omitted, raw OCR is loaded from {data_dir}/ocr_output_raw/ and "
-            "table cleaning is performed automatically using the extraction model."
-        ),
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Override dataset paper_subset with an explicit list of paper codes.",
-    )
-    p.add_argument(
-        "--extraction-mode",
-        choices=["pipeline", "direct"],
-        default="pipeline",
-        help=(
-            "'pipeline' (default) runs the full seven-step pipeline. 'direct' runs "
-            "a single LLM call per document (MeasurementLM(extraction_mode='direct')) "
-            "followed by standardize/deduplicate; requires the dataset config to set "
-            "direct_extraction_schema and direct_extraction_prompt. Incompatible with "
-            "--step and --resume (direct mode has no per-step checkpoints)."
-        ),
-    )
-    p.add_argument(
-        "--resume",
-        action="store_true",
-        help="Skip pipeline steps whose output files already exist (full pipeline only).",
-    )
-    p.add_argument(
-        "--final-only",
-        action="store_true",
-        help=(
-            "Run the full pipeline but save only final.json to the output directory; "
-            "intermediate files are written to a temporary directory and discarded. "
-            "Mutually exclusive with --step."
-        ),
-    )
-    p.add_argument(
-        "--step",
-        choices=list(STEP_NAMES),
-        default=None,
-        metavar="STEP",
-        help=(
-            "Run a single named step and exit. Previous steps' outputs must already "
-            f"exist in the output directory. Choices: {{{', '.join(STEP_NAMES)}}}. "
-            "Mutually exclusive with --final-only."
-        ),
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8081/v1",
-        metavar="URL",
-        help=(
-            "Base URL of the vLLM OpenAI-compatible server "
-            "(default: http://localhost:8081/v1)."
-        ),
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key for the vLLM server (any non-empty string; default: EMPTY).",
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "model", config_path=config_path)
 
-    if args.final_only and args.step:
-        raise SystemExit("error: --final-only and --step are mutually exclusive.")
-    if args.resume and args.step:
-        raise SystemExit("error: --resume has no effect when --step is given.")
-    if args.extraction_mode == "direct" and (args.step or args.resume):
-        raise SystemExit(
-            "error: --step and --resume are not supported with "
-            "--extraction-mode direct (direct mode has no per-step checkpoints)."
+    extraction_mode = params.get("extraction_mode", "pipeline")
+    step = params.get("step")
+    resume = params.get("resume", False)
+    final_only = params.get("final_only", False)
+
+    if final_only and step:
+        raise ValueError(f"{config_path}: params.final_only and params.step are mutually exclusive.")
+    if resume and step:
+        raise ValueError(f"{config_path}: params.resume has no effect when params.step is given.")
+    if extraction_mode == "direct" and (step or resume):
+        raise ValueError(
+            f"{config_path}: params.step and params.resume are not supported with "
+            "extraction_mode 'direct' (direct mode has no per-step checkpoints)."
         )
 
-    from utils import load_config
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
+    exp_defaults = paths.load_config().get("defaults", {})
+    repo_seed = exp_defaults.get("seed")
+    if repo_seed is not None and cfg["seed"] != repo_seed:
+        raise ValueError(
+            f"{config_path}: seed ({cfg['seed']}) does not match experiments/config.yaml "
+            f"defaults.seed ({repo_seed}) -- the repo's seed is a fixed, repo-wide value, "
+            "not a per-run knob."
+        )
+    set_seeds(cfg["seed"])
 
-    dataset_config = load_dataset_config(args.dataset)
-    model_config = get_model_config(args.model)
-    output_dir = paths.extraction(args.dataset, args.model, args.date)
+    dataset_config = load_dataset_config(params["dataset"])
+    model_config = get_model_config(params["model"])
+    output_dir = paths.result_dir(params["dataset"], "extraction", cfg["id"])
 
-    if args.extraction_mode == "direct":
+    api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"
+    api_key = params.get("api_key", "EMPTY")
+
+    if extraction_mode == "direct":
         run_direct(
             dataset_config=dataset_config,
             model_config=model_config,
             output_dir=output_dir,
-            ocr_dir=args.ocr_dir,
-            paper_subset_override=args.paper_subset,
-            api_base=args.api_base,
-            api_key=args.api_key,
+            ocr_dir=params.get("ocr_dir"),
+            paper_subset_override=params.get("paper_subset"),
+            api_base=api_base,
+            api_key=api_key,
         )
-    elif args.step:
+    elif step:
         run_single_step(
             dataset_config=dataset_config,
             model_config=model_config,
             output_dir=output_dir,
-            step=args.step,
-            ocr_dir=args.ocr_dir,
-            paper_subset_override=args.paper_subset,
-            api_base=args.api_base,
-            api_key=args.api_key,
+            step=step,
+            ocr_dir=params.get("ocr_dir"),
+            paper_subset_override=params.get("paper_subset"),
+            api_base=api_base,
+            api_key=api_key,
         )
     else:
         run_pipeline(
             dataset_config=dataset_config,
             model_config=model_config,
             output_dir=output_dir,
-            ocr_dir=args.ocr_dir,
-            paper_subset_override=args.paper_subset,
-            resume=args.resume,
-            final_only=args.final_only,
-            api_base=args.api_base,
-            api_key=args.api_key,
+            ocr_dir=params.get("ocr_dir"),
+            paper_subset_override=params.get("paper_subset"),
+            resume=resume,
+            final_only=final_only,
+            api_base=api_base,
+            api_key=api_key,
         )
 
 

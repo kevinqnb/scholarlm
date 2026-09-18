@@ -17,8 +17,8 @@ This is exploratory groundwork for the ``naacl-27`` direction — see
 ``notes/scholarlm/builds/2026-08-31-representation-lm-01.md``. No probing /
 clustering / separation analysis here; this runner stops at the artifact.
 
-Standard output path (a separate tree, like jacobian_lens/):
-    data/experiments/{dataset}/representation_lm/{model}/{date}/
+Output path (id-addressed, like every other Tier-1 type):
+    experiments/results/{dataset}/representation_lm/{experiment_id}/
 
 Saves:
   - ``representations.npz`` — one ``rep_layer_{L:02d}`` array per collected
@@ -31,19 +31,14 @@ Saves:
 
 Usage
 -----
-    python experiments/run_representation_lm.py \\
-        --dataset pond \\
-        --model llama-3.1-8b-base \\
-        --key-terms pond lake wetland \\
-        --layers 0 8 16 24 32 \\
-        [--limit N] [--date YYYY_mm_dd]
+    python experiments/run_representation_lm.py experiments/experiment-configs/pond/representation_lm/<id>/<id>.yaml
 
-NOTE: ``scripts/submit.sh <id>`` cannot run this — the contract adapter only
-covers entry_point extraction|ablation, and ``llama-3.1-8b-base`` is not in
-the extraction MODEL_REGISTRY. The full run is a hand-authored single-GPU
-qsub job (see the build note).
+Required params: dataset, model, key_terms (list), layers (list of int; no
+default -- CLAUDE.md's no-magic-numbers rule; the module's own default is
+[0, 8, 16, 24, 32]).
+Optional params: limit, verify_read_point (bool).
 
-Available models: the keys of REPRESENTATION_LM_REGISTRY.
+Available models: the YAML files in experiments/model-configs/representation_lm/.
 """
 from __future__ import annotations
 
@@ -66,8 +61,7 @@ import numpy as np
 from scholarlm import RepresentationLM
 from scholarlm.representationlm import find_key_term_occurrences
 
-import paths
-from model_registry import REPRESENTATION_LM_REGISTRY
+import utils as paths
 from run_extraction import load_dataset_config, load_papers
 from utils import load_config, set_seeds, write_run_metadata
 
@@ -76,7 +70,7 @@ def _load_documents(dataset_config, limit: int | None) -> dict[str, str]:
     """OCR text for every non-excluded paper, via run_extraction.load_papers.
 
     load_papers applies paper_filter -> paper_exclude -> paper_subset (unlike
-    judge_common.load_documents_for_dataset, which skips paper_exclude).
+    judge_prompts.load_documents_for_dataset, which skips paper_exclude).
     """
     ocr_dir = str(Path(dataset_config.data_dir) / "ocr_output_raw")
     text, text_info = load_papers(dataset_config, ocr_dir)
@@ -109,11 +103,7 @@ def run_representation_lm(
     limit: int | None = None,
     verify_read_point: bool = False,
 ) -> None:
-    if model_key not in REPRESENTATION_LM_REGISTRY:
-        raise KeyError(
-            f"Unknown model {model_key!r}. Available: {sorted(REPRESENTATION_LM_REGISTRY)}"
-        )
-    model_cfg = REPRESENTATION_LM_REGISTRY[model_key]
+    model_cfg = paths.load_model_config("representation_lm", model_key)
 
     dataset_config = load_dataset_config(dataset)
     documents = _load_documents(dataset_config, limit)
@@ -233,67 +223,50 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--dataset", required=True, help="Dataset name (e.g. 'pond').")
-    p.add_argument(
-        "--model", required=True, choices=sorted(REPRESENTATION_LM_REGISTRY),
-        help=f"Model key. Available: {sorted(REPRESENTATION_LM_REGISTRY)}",
-    )
-    p.add_argument(
-        "--key-terms", required=True, nargs="+", metavar="TERM",
-        help="Base key terms to match (case-insensitive, whole-word, simple plural).",
-    )
-    p.add_argument(
-        "--layers", required=True, nargs="+", type=int, metavar="L",
-        help=(
-            "Layer indices to collect. 0 = token embeddings, 1..n_layers-1 = "
-            "residual after that many blocks, n_layers (32) = post-final-norm. "
-            "No default (CLAUDE.md no-magic-numbers); the module's own default "
-            "is [0, 8, 16, 24, 32]."
-        ),
-    )
-    p.add_argument("--date", default=None, help="Output date tag YYYY_mm_dd (default: today).")
-    p.add_argument(
-        "--limit", type=int, default=None, metavar="N",
-        help="Only process the first N documents (smoke / tiny-e2e).",
-    )
-    p.add_argument(
-        "--verify-read-point", action="store_true",
-        help=(
-            "Smoke-only gate: before collecting, prove on one document that "
-            "every requested layer is bitwise-deterministic across two passes, "
-            "adjacent layers are distinct, and (if n_layers is requested) the "
-            "final read point is the post-final-norm state. Aborts on failure."
-        ),
-    )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", "model", "key_terms", "layers", config_path=config_path)
+
+    model_key = params["model"]
+    paths.load_model_config("representation_lm", model_key)  # fail loud on an unknown model before any work starts
 
     # DatasetConfig paths (metadata_file, data_dir, ...) are repo-root-relative.
     os.chdir(_REPO_ROOT)
 
-    cfg = load_config()
-    seed = cfg["defaults"]["seed"]  # no default — CLAUDE.md's no-magic-number rule
+    repo_seed = load_config()["defaults"]["seed"]  # no default -- CLAUDE.md's no-magic-number rule
+    if cfg["seed"] != repo_seed:
+        raise ValueError(
+            f"{config_path}: seed ({cfg['seed']}) does not match experiments/config.yaml "
+            f"defaults.seed ({repo_seed}) -- the repo's seed is a fixed, repo-wide value, "
+            "not a per-run knob."
+        )
+    seed = cfg["seed"]
     set_seeds(seed)
 
-    output_dir = paths.representation_lm(args.dataset, args.model, args.date)
+    dataset = params["dataset"]
+    output_dir = paths.result_dir(dataset, "representation_lm", cfg["id"])
 
-    print(f"\nDataset          : {args.dataset}")
-    print(f"Model            : {args.model}")
+    print(f"\nDataset          : {dataset}")
+    print(f"Model            : {model_key}")
     print(f"Seed             : {seed}")
     print(f"Output           : {output_dir}\n")
 
     run_representation_lm(
-        dataset=args.dataset,
-        model_key=args.model,
-        key_terms=args.key_terms,
-        layers=args.layers,
+        dataset=dataset,
+        model_key=model_key,
+        key_terms=params["key_terms"],
+        layers=params["layers"],
         output_dir=output_dir,
         seed=seed,
-        limit=args.limit,
-        verify_read_point=args.verify_read_point,
+        limit=params.get("limit"),
+        verify_read_point=params.get("verify_read_point", False),
     )
 
 

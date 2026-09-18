@@ -7,9 +7,10 @@ sys.path.insert(0, str(REPO_ROOT / 'experiments'))
 sys.path.insert(0, str(REPO_ROOT))
 
 import os
-import re
+import json
 import pickle
 import argparse
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -21,19 +22,15 @@ import seaborn as sns
 import relplot
 from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_loss
 
-from analysis.loaders import (
-    load_activations, load_layer_outputs, load_combined_judgements,
-    load_extraction, load_ground_truth, load_trained_probe, load_trained_ntp_calibrator,
-    cached_match, load_synthetic_activations, load_synthetic_layer_outputs,
-    load_synthetic_responses,
-)
+from analysis.loaders import load_ground_truth, cached_match
 from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
+from analysis import calibration_ids as cids
 from scholarlm.utils.calibration import (
     rescale_probabilities_em, bootstrap_ece, intercept_adjustment,
 )
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
-import paths
+import utils as paths
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -76,170 +73,28 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# Everything that varies with the extraction model lives in EXTRACTION_SETTINGS,
-# one entry per model. Select one with `--extraction-model`, the
-# CALIBRATION_EXTRACTION_MODEL env var, or by editing DEFAULT_EXTRACTION_MODEL;
-# the module-level globals below are then derived from the selected entry, so the
-# rest of this file (and the notebooks that import it) is unchanged.
+# Every value below is id-addressed (2026-09-16 experiment-contract migration
+# -- see notes/scholarlm/builds/2026-09-16-synthetic-probe-id-migration-01.md
+# and analysis/calibration_ids.py, which holds the settings registry and the
+# id-resolution helpers this file calls). No "most recent date" lookups
+# anywhere in this file: every extraction/judge/probe run this script reads is
+# a pinned experiment id, verified against its own committed config before use.
 #
-# Per-entry keys:
-#   datasets        — datasets this extraction model was run on
-#   judge_models    — judges with interpretable results for this extraction run
-#   judge_datasets  — datasets each judge has activations for. A cross-domain
-#                     (train_ds → test_ds) pair is only valid for a judge when
-#                     BOTH datasets appear here, since the probe lives in that
-#                     judge's activation space.
-#   extraction_dates / judge_dates_syn / judge_dates_real — pinned run dates
-#                     (a None judge date means "auto-detect latest")
-#   pi_te_estimate  — assumed test prevalence for the label-shift intercept
-#                     adjustment on real data; None disables the adjustment.
-EXTRACTION_SETTINGS = {
-    'gemma-3-27b': {
-        'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b'],
-        # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
-        # llama-3.1-8b-base-cued is trained/tested on all three, but its comparison
-        # baseline (llama-3.1-8b instruct) only covers pond+nfix -- see
-        # 2026-08-11-llama-base-answer-cue-01.
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
-            'mistral-7b':   ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_05',
-            'nfix': '2026_05_06',
-            'supermat': '2026_07_09',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'mistral-7b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'mistral-7b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'mistral-7b': '2026_08_18',
-                'qwen-2.5-7b': '2026_07_10',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_06',
-                'mistral-7b': '2026_05_06',
-                'qwen-2.5-7b': '2026_05_06',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_05',
-                'mistral-7b': '2026_05_05',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'mistral-7b': '2026_08_18',
-                'qwen-2.5-7b': '2026_07_09',
-            },
-        },
-        'pi_te_estimate': None,
-    },
-
-    # Previously analysis/calibration_llama.py
-    'llama-3.1-8b': {
-        'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_04',
-            'nfix': '2026_05_05',
-            'supermat': '2026_07_13',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'qwen-2.5-7b': '2026_07_10',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'qwen-2.5-7b': '2026_08_18',
-            },
-        },
-        'pi_te_estimate': None,
-    },
-
-    # Previously analysis/calibration_gpt.py
-    'gpt-oss-120b': {
-        'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_02',
-            'nfix': '2026_05_03',
-            'supermat': '2026_07_13',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'qwen-2.5-7b': '2026_07_10',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'supermat': {
-                'llama-3.1-8b': '2026_08_18',
-                'qwen-2.5-7b': '2026_08_18',
-            },
-        },
-        'pi_te_estimate': 0.85,
-    },
-}
-
-DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
+# `--setting` (or CALIBRATION_SETTING) picks one of the three judged
+# pipeline-variants in cids.SETTINGS: gemma-3-27b-extraction,
+# gpt-oss-120b-ablation1, baseline-nuextract. The judge/probe side is fixed
+# across all three -- qwen-2.5-7b is the only judge with an id-addressed
+# trained probe today (llama-3.1-8b's old-tree probe predates the
+# full-paper-judge rewrite and isn't comparable -- see calibration_ids.py).
+# TRAIN_DATASETS (below) loops over every dataset with a migrated synthetic
+# probe -- pond, nfix, supermat as of 2026-09-16/17. The plotting/metrics
+# code (and, as of 2026-09-17, compute_predictions's 'syn' branch too) is
+# generic over multiple train datasets; adding a further dataset only needs
+# a new entry in calibration_ids.TRAIN_DATASETS/SYN_TRAIN_IDS/SYN_TEST_IDS
+# once it has its own trained probe.
 DEFAULT_PROBE_TYPE = 'head'
 DEFAULT_PROBE_VARIANT = 'platt'
+DEFAULT_SYN_SPLIT = 'primary'
 
 
 def _env_list(name):
@@ -249,144 +104,68 @@ def _env_list(name):
 
 
 def _select_settings():
-    """Resolve the active extraction model from CLI flag → env var → default.
+    """Resolve setting / probe-type / probe-variant / syn-split / datasets
+    from CLI flag -> env var -> default.
 
     parse_known_args keeps this safe under import from a notebook or another
     script, where sys.argv holds flags meant for something else.
-
-    ``--datasets`` / ``--judge-models`` (or CALIBRATION_DATASETS /
-    CALIBRATION_JUDGE_MODELS) narrow the selected entry to a subset.  Both the
-    probe cache and test_data are built eagerly at import over every dataset in
-    the entry, so narrowing is what lets this module import when only part of the
-    run data is present locally.  Omitting them leaves the entry unchanged.
     """
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
+    parser.add_argument('--setting', default=None, choices=list(cids.SETTINGS))
     parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
     parser.add_argument('--probe-variant', default=None, choices=['platt', 'noplatt'])
+    parser.add_argument('--syn-split', default=None, choices=list(cids.SYN_SPLITS))
     parser.add_argument('--datasets', nargs='+', default=None)
-    parser.add_argument('--judge-models', nargs='+', default=None)
-    parser.add_argument('--syn-source', default=None)
-    parser.add_argument('--syn-judge-date', default=None)
     args, _ = parser.parse_known_args()
 
-    model = (args.extraction_model
-             or os.environ.get('CALIBRATION_EXTRACTION_MODEL')
-             or DEFAULT_EXTRACTION_MODEL)
-    if model not in EXTRACTION_SETTINGS:
-        raise ValueError(
-            f'Unknown extraction model {model!r}; '
-            f'known: {sorted(EXTRACTION_SETTINGS)}'
-        )
+    setting_name = args.setting or os.environ.get('CALIBRATION_SETTING')
     probe_type = (args.probe_type
                   or os.environ.get('CALIBRATION_PROBE_TYPE')
                   or DEFAULT_PROBE_TYPE)
-    # 'platt' (default) reproduces the original Platt-scaled behavior exactly,
-    # including every output path below -- 'noplatt' is additive, never
-    # overwrites the baseline. See 2026-08-10-no-platt-scaling-01.
+    # 'platt' (default) is the only variant the migrated trained_probe/ dir
+    # actually has files for (head_probe.pkl / ntp_calibrator.pkl only --
+    # no *_noplatt.pkl, no layer_probe.pkl: TRAIN_LAYER_PROBE was False and
+    # USE_PLATT_SCALING True when the migrated run was trained). Requesting
+    # 'noplatt' or 'layer' fails loud with FileNotFoundError further down
+    # rather than being rejected here, since that's the one place that
+    # already knows the exact missing path.
     probe_variant = (args.probe_variant
                       or os.environ.get('CALIBRATION_PROBE_VARIANT')
                       or DEFAULT_PROBE_VARIANT)
     if probe_variant not in ('platt', 'noplatt'):
         raise ValueError(f"Unknown probe variant {probe_variant!r}; expected 'platt' or 'noplatt'")
 
-    # 'baseline' (default) reads the untouched synthetic_probe[_test]/ trees and
-    # trained_probe/ pickles, and every output path below stays byte-for-byte
-    # identical -- so prior numbers are NOT invalidated. Any other value is
-    # '<probe>_<split>' with <split> in {primary, diag}: it reads the probe /
-    # calibrator from trained_probe under the synthetic_probe_<probe>/ tree and
-    # the synthetic test responses+activations from synthetic_probe_<probe>_<split>/,
-    # all at --syn-judge-date, and suffixes every output _<probe>_<split>.
-    # e.g. v2_primary / v2_diag, rung3_primary. See 2026-09-08-probe-v2-calibration-01.
-    syn_source = (args.syn_source
-                  or os.environ.get('CALIBRATION_SYN_SOURCE')
-                  or 'baseline')
-    syn_judge_date = args.syn_judge_date or os.environ.get('CALIBRATION_SYN_JUDGE_DATE') or None
-    if syn_source == 'baseline':
-        _syn_probe, _syn_split = None, None
-    else:
-        m = re.fullmatch(r'([a-z0-9][a-z0-9_]*)_(primary|diag)', syn_source)
-        if not m:
-            raise ValueError(
-                f"Unknown --syn-source {syn_source!r}; expected 'baseline' or "
-                f"'<probe>_<primary|diag>' (e.g. 'v2_primary', 'v2_diag')"
-            )
-        _syn_probe, _syn_split = m.group(1), m.group(2)
-        if not syn_judge_date:
-            raise ValueError(
-                "--syn-judge-date (or CALIBRATION_SYN_JUDGE_DATE) is required with "
-                f"--syn-source {syn_source} -- no default date (a wrong one silently "
-                "evaluates the wrong judge run)"
-            )
-
-    def _subset(selected, available, what):
-        unknown = [x for x in selected if x not in available]
-        if unknown:
-            raise ValueError(
-                f'Unknown {what} {unknown} for extraction model {model!r}; '
-                f'available: {available}'
-            )
-        return [x for x in available if x in selected]
-
-    settings = dict(EXTRACTION_SETTINGS[model])  # copy: never mutate the registry
+    syn_split = args.syn_split or os.environ.get('CALIBRATION_SYN_SPLIT') or DEFAULT_SYN_SPLIT
+    if syn_split not in cids.SYN_SPLITS:
+        raise ValueError(f"Unknown --syn-split {syn_split!r}; expected one of {cids.SYN_SPLITS}")
 
     datasets = args.datasets or _env_list('CALIBRATION_DATASETS')
-    if datasets:
-        settings['datasets'] = _subset(datasets, settings['datasets'], 'dataset')
+    setting, entry, datasets = cids.select_setting(setting_name, datasets)
 
-    judges = args.judge_models or _env_list('CALIBRATION_JUDGE_MODELS')
-    if judges:
-        settings['judge_models'] = _subset(judges, settings['judge_models'], 'judge model')
-
-    # judge_datasets drives the probe cache, so it has to be narrowed to match or the
-    # eager loading below still reaches for probes we just excluded.
-    settings['judge_datasets'] = {
-        jm: [ds for ds in dss if ds in settings['datasets']]
-        for jm, dss in settings['judge_datasets'].items()
-        if jm in settings['judge_models']
-    }
-    return (model, probe_type, probe_variant,
-            syn_source, _syn_probe, _syn_split, syn_judge_date, settings)
+    return setting, entry, datasets, probe_type, probe_variant, syn_split
 
 
-(EXTRACTION_MODEL, PROBE_TYPE, PROBE_VARIANT,
- SYN_SOURCE, _SYN_PROBE, _SYN_SPLIT, _SYN_JUDGE_DATE_RAW, _SETTINGS) = _select_settings()
+(SETTING, _ENTRY, DATASETS, PROBE_TYPE, PROBE_VARIANT, SYN_SPLIT) = _select_settings()
 
-# None reproduces load_trained_probe/load_trained_ntp_calibrator's original
-# default filenames exactly; only 'noplatt' picks the suffixed variant.
+RESULT_TYPE      = _ENTRY['result_type']
+EXTRACTION_ID    = _ENTRY['extraction_id']
+JUDGE_INTERP_ID  = _ENTRY['judge_interp_id']
+JUDGE_COMBINE_ID = _ENTRY['judge_combine_id']
+PI_TE_ESTIMATE   = _ENTRY['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
+
+JUDGE_MODEL  = cids.JUDGE_MODEL
+JUDGE_MODELS = [JUDGE_MODEL]  # kept as a list: every plot/metrics loop below is judge_model-indexed
+TRAIN_DATASETS = cids.TRAIN_DATASETS
+
+# None reproduces the Platt-scaled baseline filenames; only 'noplatt' picks the suffixed variant.
 _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
-# '' for the default 'platt' variant keeps every output path below byte-for-byte
-# identical to the pre-variant behavior; only 'noplatt' gets a distinct suffix.
-_PROBE_VARIANT_SUFFIX = '' if PROBE_VARIANT == 'platt' else f'_{PROBE_VARIANT}'
+_OUT_SUFFIX = f'_{PROBE_VARIANT}_{SYN_SPLIT}' if PROBE_VARIANT != 'platt' else f'_{SYN_SPLIT}'
 
-# Synthetic corpus selectors, all derived in _select_settings from --syn-source.
-# baseline → all None/'' → every path and load below is byte-for-byte the pre-v2
-# behavior. '<probe>_<split>' (e.g. v2_primary): probe/calibrator from
-# trained_probe under synthetic_probe_<probe>/ (source=<probe>), synthetic test
-# responses+activations from synthetic_probe_<probe>_<split>/ (name=SYN_SOURCE),
-# both at _SYN_JUDGE_DATE; all outputs suffixed _<probe>_<split>.
-_SYN_PROBE_SOURCE = _SYN_PROBE                                   # None for baseline
-_SYN_TEST_NAME    = None if _SYN_PROBE is None else SYN_SOURCE
-_SYN_SUFFIX       = '' if _SYN_PROBE is None else f'_{SYN_SOURCE}'
-_SYN_JUDGE_DATE   = None if _SYN_PROBE is None else _SYN_JUDGE_DATE_RAW
-# Output-path suffix: variant first, then syn source. Empty for the full default.
-_OUT_SUFFIX       = f'{_PROBE_VARIANT_SUFFIX}{_SYN_SUFFIX}'
-# 'real' calibration needs the probe against real-extraction judge runs that may
-# not be present locally, and adds nothing to the synthetic-calibration question.
-# Baseline keeps both dtypes; a non-baseline syn source runs synthetic only.
-_DTYPES = ['syn', 'real'] if _SYN_PROBE is None else ['syn']
+_DTYPES = ['syn', 'real']  # both always available: every TRAIN_DATASETS entry has a synthetic probe, every setting has real judge_interp data
 
-DATASETS         = _SETTINGS['datasets']
-JUDGE_MODELS     = _SETTINGS['judge_models']
-JUDGE_DATASETS   = _SETTINGS['judge_datasets']
-EXTRACTION_DATES = _SETTINGS['extraction_dates']
-JUDGE_DATES_SYN  = _SETTINGS['judge_dates_syn']
-JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
-PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
-
-print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
-      f'| probe variant: {PROBE_VARIANT} | syn source: {SYN_SOURCE} '
-      f'(judge date {_SYN_JUDGE_DATE}) | datasets: {DATASETS} | judges: {JUDGE_MODELS}')
+print(f'[calibration] setting: {SETTING} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
+      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | judge: {JUDGE_MODEL} '
+      f'| train datasets: {TRAIN_DATASETS}')
 
 THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
 EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
@@ -413,55 +192,42 @@ def get_matching_config(dataset):
     return strict, fuzzy
 
 
-# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop.
-# Only load (dataset, judge) pairs that actually have a trained probe.
-ntp_cal_cache = {}
-for ds in DATASETS:
-    ntp_cal_cache[ds] = {}
-    for jm in JUDGE_MODELS:
-        if ds not in JUDGE_DATASETS[jm]:
-            continue
-        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(
-            ds, jm, variant=_PROBE_VARIANT_KW, source=_SYN_PROBE_SOURCE)
+# ── Trained probe / NTP calibrator (id-addressed, one per TRAIN_DATASETS entry) ──
+def _load_trained_artifact(train_ds, filename):
+    syn_train_id = cids.SYN_TRAIN_IDS[train_ds]
+    probe_dir = cids.pinned_run_dir(syn_train_id, train_ds, 'judge_interp') / 'trained_probe'
+    path = probe_dir / filename
+    if not path.exists():
+        raise FileNotFoundError(
+            f'{path} does not exist. Run analysis/synthetic_probe_train.py '
+            f'--judge-run-ids {syn_train_id} first.'
+        )
+    return joblib.load(path)
 
 
-probe_cache = {}
-for ds in DATASETS:
-    probe_cache[ds] = {}
-    for jm in JUDGE_MODELS:
-        if ds not in JUDGE_DATASETS[jm]:
-            continue
-        probe_cache[ds][jm] = load_trained_probe(
-            ds, jm, ptype=PROBE_TYPE, variant=_PROBE_VARIANT_KW, source=_SYN_PROBE_SOURCE)
+_ntp_cal_filename = 'ntp_calibrator.pkl' if _PROBE_VARIANT_KW is None else 'ntp_calibrator_noplatt.pkl'
+_probe_filename = (
+    'layer_probe.pkl' if PROBE_TYPE == 'layer'
+    else ('head_probe.pkl' if _PROBE_VARIANT_KW is None else 'head_probe_noplatt.pkl')
+)
+ntp_cal_cache, probe_cache = {}, {}
+for _train_ds in TRAIN_DATASETS:
+    print(f'Loading trained probe/NTP calibrator ({_train_ds}, {JUDGE_MODEL}) '
+          f'from {cids.SYN_TRAIN_IDS[_train_ds]}...')
+    ntp_cal_cache[_train_ds] = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _ntp_cal_filename)}
+    probe_cache[_train_ds]   = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _probe_filename)}
 
-
-def get_matching_config(dataset):
-    if dataset == 'pond':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
-    elif dataset == 'nfix':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'site_type': 'site_type'}
-    elif dataset == 'supermat':
-        # tc is the only attribute; entity is the material name/formula.
-        # Many ground-truth `name` values are null → those rows fall back to
-        # strict-only matching on document_id + attribute + value + units.
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name'}
-    else:
-        raise ValueError(f'Unknown dataset: {dataset}')
-    return strict, fuzzy
 
 # Pre-load all test data, including matching results, to avoid redundant loading and matching within the loop
 test_data = {}
 for ds in DATASETS:
     EDGE_THRESHOLD = EDGE_THRESHOLDS[ds]
     print(f'Loading test data for {ds}...')
-    config  = load_dataset_config(ds)
-    records = load_extraction(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds])
+    config = load_dataset_config(ds)
+
+    ext_dir = cids.pinned_extraction_dir(ds, RESULT_TYPE, EXTRACTION_ID[ds])
+    with open(ext_dir / 'final.json') as f:
+        records = json.load(f)
     ext_df  = pd.DataFrame(records)
     ext_df  = apply_unit_conversion(ext_df, {})
 
@@ -471,11 +237,18 @@ for ds in DATASETS:
             'nfix_rate_mass':  'nfix_rate', 'nfix_rate': 'nfix_rate',
         })
 
-    real_df = pd.DataFrame(load_combined_judgements(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds]))
+    combine_dir = cids.pinned_run_dir(JUDGE_COMBINE_ID[ds], ds, 'judge_combine')
+    with open(combine_dir / 'combined.json') as f:
+        real_df = pd.DataFrame(json.load(f))
+
     gt_df   = load_ground_truth(config)
 
     strict, fuzzy = get_matching_config(ds)
-    cache_path = paths.extraction(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds]) / 'match_cache.pkl'
+    # Own cache file distinct from the extraction pipeline's own match_cache*.pkl
+    # already in this dir (computed with different matching params) -- and
+    # inside the id-addressed extraction dir itself, not the frozen old tree,
+    # so it can never silently reuse a match computed against different data.
+    cache_path = ext_dir / 'match_cache_calibration.pkl'
     matching, edges, edge_weights = cached_match(
         gt_df, ext_df,
         strict_matching=strict,
@@ -503,153 +276,162 @@ for ds in DATASETS:
     }
 
 
-
-def compute_predictions(judge_models, datasets, probe_type, load_from_precomputed=False):
+def compute_predictions(load_from_precomputed=False):
     # ── Collect data for each test setting ────────────────────────────────
     # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs: x, ntp_probs: y, labels: z}}}}}
-    
-    # Define cache file path
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_OUT_SUFFIX}.pkl'
-    
-    # Try to load from precomputed cache if requested
+    # train_ds ranges over TRAIN_DATASETS -- every dataset with a migrated
+    # synthetic-probe train run (see calibration_ids.py).
+
+    cache_file = Path(RESULTS_DIR) / f'predictions_{SETTING}_{PROBE_TYPE}{_OUT_SUFFIX}.pkl'
+
     if load_from_precomputed and cache_file.exists():
         print(f'Loading precomputed predictions from {cache_file}...')
         with open(cache_file, 'rb') as f:
             return pickle.load(f)
-    
-    setting_results = {}
 
-    for dataset_type in _DTYPES:
-        setting_results[dataset_type] = {}
-        for judge_model in judge_models:
-            setting_results[dataset_type][judge_model] = {}
-            for train_ds in datasets:
-                if train_ds not in JUDGE_DATASETS[judge_model]:
-                    continue
-                setting_results[dataset_type][judge_model][train_ds] = {}
-                pd_data = probe_cache[train_ds][judge_model]
-                ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
-                if probe_type == "layer":
-                    top = pd_data['top_layer']
-                else:
-                    top = pd_data['top_k_heads']
+    judge_model = JUDGE_MODEL
+    setting_results = {dtype: {judge_model: {}} for dtype in _DTYPES}
 
-                for test_ds in datasets:
-                    if test_ds not in JUDGE_DATASETS[judge_model]:
-                        continue
-                    if dataset_type == 'syn':
-                        jdate    = _SYN_JUDGE_DATE or JUDGE_DATES_SYN[test_ds][judge_model]
-                        syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
-                        syn_df_s = pd.DataFrame(syn_resp)
-                        mids     = syn_df_s['measurement_id'].tolist()
-                        labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
-                        raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
-                        ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                            raw_ntp_probs.reshape(-1, 1)
-                        )[:, 1]
+    for train_ds in TRAIN_DATASETS:
+        pd_data = probe_cache[train_ds][judge_model]
+        ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
+        top = pd_data['top_layer'] if PROBE_TYPE == 'layer' else pd_data['top_k_heads']
 
-                        if probe_type == "layer":
-                            syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
-                            X = np.stack([
-                                np.array(syn_lo[str(mid)], dtype=np.float32)[top]
+        for dataset_type in _DTYPES:
+            setting_results[dataset_type][judge_model][train_ds] = {}
+
+            # 'real' covers every dataset DATASETS was narrowed to, same as
+            # always. 'syn' now does too (restored 2026-09-17 -- collapsed to
+            # [train_ds] by the 7f3492a id-addressed-contract migration,
+            # which made sense in the moment since pond was the only dataset
+            # with a migrated synthetic probe/test set, but silently dropped
+            # cross-domain synthetic evaluation as a capability once nfix/
+            # supermat got their own): restricted to TRAIN_DATASETS since
+            # only those have a synthetic test set to evaluate against at
+            # all -- train_ds's own entry is always included, since train_ds
+            # is itself drawn from TRAIN_DATASETS.
+            test_datasets = (
+                DATASETS if dataset_type == 'real'
+                else [ds for ds in DATASETS if ds in TRAIN_DATASETS]
+            )
+
+            for test_ds in test_datasets:
+                if dataset_type == 'syn':
+                    # test_ds's own synthetic test set, scored with train_ds's
+                    # trained probe/calibrator (pd_data/ntp_cal_data below) --
+                    # this is what makes the cross-domain case meaningful when
+                    # test_ds != train_ds.
+                    syn_test_id = cids.SYN_TEST_IDS[test_ds][SYN_SPLIT]
+                    syn_dir = cids.pinned_run_dir(syn_test_id, test_ds, 'judge_interp')
+                    with open(syn_dir / 'responses.json') as f:
+                        syn_resp = json.load(f)
+                    syn_df_s = pd.DataFrame(syn_resp)
+                    mids     = syn_df_s['measurement_id'].tolist()
+                    labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
+                    raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
+
+                    if PROBE_TYPE == "layer":
+                        syn_lo  = np.load(syn_dir / 'layer_outputs.npz')
+                        X = np.stack([
+                            np.array(syn_lo[str(mid)], dtype=np.float32)[top]
+                            for mid in mids
+                        ], axis=0)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+
+                    else:
+                        syn_act  = np.load(syn_dir / 'attention_outputs.npz')
+                        X = np.concatenate([
+                            np.stack([
+                                np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
                                 for mid in mids
                             ], axis=0)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                            for l, h in top
+                        ], axis=1)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-                        else:
-                            syn_act  = load_synthetic_activations(test_ds, judge_model, jdate, split='test', name=_SYN_TEST_NAME)
-                            X = np.concatenate([
-                                np.stack([
-                                    np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
-                                    for mid in mids
-                                ], axis=0)
-                                for l, h in top
-                            ], axis=1)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                    # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
+                    # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
+                    # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
+                    pos_idx = np.where(labels)[0]
+                    test_edges = list(enumerate(pos_idx.tolist()))
+                    n_ground_truth = len(pos_idx)
 
-                        # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
-                        # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
-                        # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
-                        pos_idx = np.where(labels)[0]
-                        test_edges = list(enumerate(pos_idx.tolist()))
-                        n_ground_truth = len(pos_idx)
+                else:  # real
+                    td       = test_data[test_ds]
+                    real_df  = td['real_df']
+                    gt_df    = td['gt_df']
+                    syn_docs = set(pd_data['syn_document_ids'])
 
-                    else:  # real
-                        td       = test_data[test_ds]
-                        real_df  = td['real_df']
-                        gt_df    = td['gt_df']
-                        syn_docs = set(pd_data['syn_document_ids'])
+                    # Filter extractions to test documents (those not used in probe training).
+                    # idx: positional indices into real_df/ext_df for the test split.
+                    mask     = ~real_df['document_id'].isin(syn_docs)
+                    idx      = np.where(mask.to_numpy())[0]
+                    idx_set  = set(idx.tolist())
 
-                        # Filter extractions to test documents (those not used in probe training).
-                        # idx: positional indices into real_df/ext_df for the test split.
-                        mask     = ~real_df['document_id'].isin(syn_docs)
-                        idx      = np.where(mask.to_numpy())[0]
-                        idx_set  = set(idx.tolist())
+                    # Filter GT to test documents and build reindex maps so that
+                    # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
+                    gt_mask    = ~gt_df['document_id'].isin(syn_docs)
+                    gt_idx_arr = np.where(gt_mask.to_numpy())[0]
+                    gt_idx_set = set(gt_idx_arr.tolist())
+                    old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
+                    old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
+                    test_edges = [
+                        (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
+                        for gt_i, ex_i in td['filtered_edges']
+                        if ex_i in idx_set and gt_i in gt_idx_set
+                    ]
+                    n_ground_truth = len(gt_idx_arr)
 
-                        # Filter GT to test documents and build reindex maps so that
-                        # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
-                        gt_mask    = ~gt_df['document_id'].isin(syn_docs)
-                        gt_idx_arr = np.where(gt_mask.to_numpy())[0]
-                        gt_idx_set = set(gt_idx_arr.tolist())
-                        old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
-                        old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
-                        test_edges = [
-                            (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
-                            for gt_i, ex_i in td['filtered_edges']
-                            if ex_i in idx_set and gt_i in gt_idx_set
-                        ]
-                        n_ground_truth = len(gt_idx_arr)
+                    mids     = real_df['measurement_id'].iloc[idx].tolist()
+                    labels   = td['labels'][idx]
 
-                        mids     = real_df['measurement_id'].iloc[idx].tolist()
-                        labels   = td['labels'][idx]
-                        jdate    = JUDGE_DATES_REAL[test_ds][judge_model]
+                    raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
+                    ntp_probs = ntp_cal_data['calibrator'].predict_proba(
+                        raw_ntp_probs.reshape(-1, 1)
+                    )[:, 1]
 
-                        raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
-                        ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                            raw_ntp_probs.reshape(-1, 1)
-                        )[:, 1]
-
-                        if probe_type == "layer":
-                            real_lo  = load_layer_outputs(test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate)
-                            X = np.stack([
-                                np.array(real_lo[str(mid)], dtype=np.float32)[top]
+                    judge_dir = cids.pinned_run_dir(JUDGE_INTERP_ID[test_ds], test_ds, 'judge_interp')
+                    if PROBE_TYPE == "layer":
+                        real_lo  = np.load(judge_dir / 'layer_outputs.npz')
+                        X = np.stack([
+                            np.array(real_lo[str(mid)], dtype=np.float32)[top]
+                            for mid in mids
+                        ], axis=0)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                    else:
+                        real_act = np.load(judge_dir / 'attention_outputs.npz')
+                        X = np.concatenate([
+                            np.stack([
+                                np.array(real_act[str(mid)], dtype=np.float32)[l, h, :]
                                 for mid in mids
                             ], axis=0)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
-                        else:
-                            real_act = load_activations(
-                                test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate
-                            )
-                            X = np.concatenate([
-                                np.stack([
-                                    np.array(real_act[str(mid)], dtype=np.float32)[l, h, :]
-                                    for mid in mids
-                                ], axis=0)
-                                for l, h in top
-                            ], axis=1)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                            for l, h in top
+                        ], axis=1)
+                        probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
 
-                    # Real extractions have a different positive rate than the synthetic
-                    # training set; rescale to the assumed test prevalence when one is set.
-                    if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
-                        probe_probs = intercept_adjustment(
-                            probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                        )
-                        ntp_probs = intercept_adjustment(
-                            ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                        )
+                # Real extractions have a different positive rate than the synthetic
+                # training set; rescale to the assumed test prevalence when one is set.
+                if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
+                    probe_probs = intercept_adjustment(
+                        probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                    )
+                    ntp_probs = intercept_adjustment(
+                        ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
+                    )
 
-                    setting_results[dataset_type][judge_model][train_ds][test_ds] = {
-                        'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
-                        'edges': test_edges, 'n_ground_truth': n_ground_truth,
-                    }
+                setting_results[dataset_type][judge_model][train_ds][test_ds] = {
+                    'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
+                    'edges': test_edges, 'n_ground_truth': n_ground_truth,
+                }
 
     # Save to cache for future use
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}{_OUT_SUFFIX}.pkl'
     print(f'Saving predictions to {cache_file}...')
     with open(cache_file, 'wb') as f:
         pickle.dump(setting_results, f)
-    
+
     return setting_results
 
 
@@ -657,13 +439,17 @@ def _pool_cross_domain(train_dict, train_ds):
     """Pool every test_ds != train_ds in train_dict into one cross-domain cell.
 
     ``train_dict`` is ``setting_results[dtype][judge_model][train_ds]``, keyed by
-    test_ds (already restricted to datasets the judge has activations for — see
-    ``compute_predictions``). Concatenates ``probe_probs``/``ntp_probs``/``labels``
+    test_ds. Concatenates ``probe_probs``/``ntp_probs``/``labels``
     across the other test_ds's, and merges their ``edges`` by offsetting each
     subsequent test_ds's ``gt_idx``/``ex_idx`` by the running totals of prior
     ``n_ground_truth``/array length, so the pooled edges index correctly into the
-    pooled arrays. Returns None when train_ds has no other dataset to pool against
-    (single-dataset judge coverage).
+    pooled arrays. Returns None when train_ds has no other dataset to pool
+    against -- for 'syn' dtype, that only happens when TRAIN_DATASETS (via
+    DATASETS) covers just train_ds itself, e.g. a single dataset has a
+    migrated synthetic probe/test set (was the case for every dataset but
+    pond before 2026-09-16). With multiple TRAIN_DATASETS entries, 'syn'
+    pools the same way 'real' always has: test_ds's own synthetic test set
+    scored with train_ds's trained probe (see compute_predictions).
     """
     other_test_ds = [ds for ds in DATASETS if ds != train_ds and ds in train_dict]
     if not other_test_ds:
@@ -767,20 +553,16 @@ def plot_calibration_curves(
     # One (within, cross) pair of plots per judge model — one line per train_ds
     # in DATASETS. Within-domain plots train_ds against itself; cross-domain
     # plots train_ds against the pooled union of every other dataset that judge
-    # has activations for (see _pool_cross_domain). Judges covering fewer than 3
-    # datasets degrade gracefully: fewer within-domain lines, and a cross-domain
-    # "union" that pools only 1 dataset instead of 2.
+    # has activations for (see _pool_cross_domain).
     for judge_model in JUDGE_MODELS:
-        # Derived from setting_results itself, not JUDGE_DATASETS[judge_model]:
-        # compute_predictions may have been called with a narrower `datasets`
-        # list than the module-global DATASETS (the --datasets / narrowing path
-        # documented in _select_settings), in which case JUDGE_DATASETS still
-        # lists datasets that have no cell here.
+        # train_datasets is derived from setting_results itself (not just
+        # DATASETS): 'syn' dtype only ever has TRAIN_DATASETS entries as keys,
+        # while 'real' dtype has every dataset DATASETS was narrowed to.
         train_datasets = [ds for ds in DATASETS if ds in setting_results[dtype][judge_model]]
         if not train_datasets:
             continue
 
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{SETTING}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for ctype in ['in-domain', 'cross-domain']:
@@ -956,7 +738,7 @@ def compute_metrics(setting_results):
                         })
     df = pd.DataFrame(rows)
     return df
-    
+
 
 
 def plot_pr_curves(setting_results, dtype):
@@ -966,7 +748,7 @@ def plot_pr_curves(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{SETTING}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -974,7 +756,8 @@ def plot_pr_curves(setting_results, dtype):
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
                         continue
-                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
+                    if train_ds not in setting_results[dtype][judge_model] \
+                            or test_ds not in setting_results[dtype][judge_model].get(train_ds, {}):
                         continue
 
                     fig_pr, ax_pr = plt.subplots(figsize=(4.0, 3.8))
@@ -1028,7 +811,7 @@ def plot_validity_recovery(setting_results, dtype):
     sm.set_array([])
 
     for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}{_OUT_SUFFIX}/"
+        subfigure_dir = FIGURES_DIR / f"{judge_model}/{SETTING}/{PROBE_TYPE}{_OUT_SUFFIX}/"
         Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
 
         for train_ds in DATASETS:
@@ -1036,7 +819,8 @@ def plot_validity_recovery(setting_results, dtype):
                 for test_ds in DATASETS:
                     if (train_ds == test_ds) != (ctype == 'in-domain'):
                         continue
-                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
+                    if train_ds not in setting_results[dtype][judge_model] \
+                            or test_ds not in setting_results[dtype][judge_model].get(train_ds, {}):
                         continue
 
                     fig, ax = plt.subplots(figsize=(4.0, 3.8))
@@ -1127,16 +911,14 @@ def plot_validity_recovery(setting_results, dtype):
 
 if __name__ == "__main__":
     # Set to True to load precomputed results if available, False to recompute from scratch.
-    # NOTE: the cache is keyed only by (extraction_model, probe_type), so a cache built
-    # before supermat was added is stale — run once with False to regenerate, then flip back.
     load_from_precomputed = False
-    
-    setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
+
+    setting_results = compute_predictions(load_from_precomputed=load_from_precomputed)
     for _dt in _DTYPES:
         plot_calibration_curves(setting_results, dtype=_dt)
     metrics_df = compute_metrics(setting_results)
     print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))
-    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}{_OUT_SUFFIX}_pooled.csv', index=False)
+    metrics_df.to_csv(RESULTS_DIR / f'metrics_{SETTING}_{PROBE_TYPE}{_OUT_SUFFIX}_pooled.csv', index=False)
 
     #plot_pr_curves(setting_results, dtype='syn')
     #plot_pr_curves(setting_results, dtype='real')
@@ -1158,4 +940,3 @@ if __name__ == "__main__":
                 frameon=False, handlelength=2.0)
     _fig_leg.savefig(FIGURES_DIR / 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
     plt.show()
-

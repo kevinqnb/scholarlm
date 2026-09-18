@@ -27,7 +27,7 @@ from analysis.metrics import recovery_rate_from_labels, validity_rate_from_label
 from scholarlm.utils.calibration import reliability_diagram_data, rescale_probabilities_em, intercept_adjustment
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
-import paths
+import utils as paths
 
 mpl.rcParams.update({
     "font.family": "serif",

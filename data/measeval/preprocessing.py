@@ -152,7 +152,7 @@ def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict])
             # The raw Quantity span, units included as written ("54.8 years",
             # "5318"). This is the gold counterpart of the extraction side's
             # entity field, `EntitySchema.quantity`: the quantity-first design
-            # in experiments/configs/measeval.py enumerates one entity per
+            # in experiments/dataset-configs/measeval.py enumerates one entity per
             # reported quantity and copies the span verbatim, so both sides
             # hold the same kind of string. `value`/`units` below remain the
             # parsed number and its unit, and are what matching keys on --
@@ -161,7 +161,7 @@ def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict])
             "quantity": quantity["text"],
             "name": entity["text"] if entity else None,
             # Constant across every row: matches the single abstract attribute
-            # bucket in experiments/configs/measeval.py's attribute_info_dict,
+            # bucket in experiments/dataset-configs/measeval.py's attribute_info_dict,
             # so ground truth and extraction output strict-match trivially on
             # this field. The actual open-vocabulary property name lives in
             # `property` below (matched fuzzily instead, alongside `name`).

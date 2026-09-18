@@ -1,0 +1,27 @@
+id: 2026-09-13-pond-ablation1-gptoss120b-judge-local-01
+project: scholarlm
+description: >-
+  Phase C acceptance gate (restructure plan). vLLM voting judge
+  (gpt-oss-120b) over the pond ablation1/gpt-oss-120b extraction, migrated
+  in Phase B as 2026-05-03-pond-gpt-oss-120b-ablation1-01. Exercises
+  run_judge_local.py's new config-path CLI + id-based extraction_id
+  resolution end to end.
+
+  NOT byte-comparable to the gpt-oss-120b subdir sitting under
+  data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/:
+  that baseline (job 7532056, run 2026-09-11) predates commit 30f8e79
+  (reasoning_effort low->medium, max_tokens 16384->8192, temperature
+  0.0->0.2, +seed=342), which is baked into run_judge_local.py's gpt-oss
+  branch unconditionally -- there is no params override to reproduce the old
+  greedy-decoding behavior, nor should there be (30f8e79's whole point was
+  that greedy decoding was producing a degenerate repetition/truncation
+  failure mode). This run is therefore a genuinely new gpt-oss-120b vote
+  under the current, non-provisional settings, not a reproduction -- see the
+  Phase C gate-scope discussion in devlog/notes before treating a mismatch
+  here as a plumbing bug.
+seed: 342
+params:
+  dataset: pond
+  judge: gpt-oss-120b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "24:00:00"

@@ -4,38 +4,29 @@ OCR pipeline runner.
 Runs an OCR model (default: olmOCR) on all PDF files for a dataset by calling a
 running vLLM server (OpenAI-compatible API), writing plain-text output to:
 
-    data/{dataset}/{output_dir}/
+    experiments/results/{dataset}/ocr/{experiment_id}/
 
-where ``output_dir`` is model-specific (see ``OCR_MODEL_REGISTRY`` below); olmOCR's
-is ``ocr_output_raw`` for backward compatibility with every other script that reads
-it by that name.
+(id-addressed, like every other Tier-1 type -- not the old
+data/{dataset}/ocr_output_raw/-style convention this runner used to default
+to; see the run_table_cleaning.py commit for the same tradeoff, confirmed
+with the user. params.output_dir remains available to explicitly write to
+the legacy conventional location if that's what you want.)
 
-Start the OCR model server first (default endpoint: ``http://localhost:8081/v1``).
-
-Use ``--resume`` to skip PDFs that already have a corresponding ``.txt`` file
-in the output directory.
+Start the OCR model server first (default endpoint: ``http://localhost:8081/v1``,
+or let experiments/submit.sh bring it up automatically).
 
 Usage
 -----
-    # From the repo root:
-    python experiments/run_ocr.py --dataset pond
-    python experiments/run_ocr.py --dataset nfix --resume
-    python experiments/run_ocr.py --dataset pond \\
-        --paper-subset physical_and_chemical_limnological prairie_wetland
+    python experiments/run_ocr.py experiments/experiment-configs/pond/ocr/<id>/<id>.yaml
 
-    # A non-default OCR model (must be servable per experiments/config.yaml):
-    python experiments/run_ocr.py --dataset pond --model chandra-ocr-2
+Required params: dataset.
+Optional params: model (default: olmocr; also: chandra-ocr-2 -- any file in
+experiments/model-configs/ocr/), paper_subset (list), resume (bool),
+use_processed_pdfs (bool), processed_pdfs_dir, fast (bool), output_dir
+(default: experiments/results/{dataset}/ocr/{id}/), api_base, api_key.
 
-    # Point at a non-default server:
-    python experiments/run_ocr.py --dataset pond \\
-        --api-base http://node042:8081/v1
-
-    # Fast mode (lower-resolution pages, no retry loop -- trades quality for speed):
-    python experiments/run_ocr.py --dataset pond --fast
-
-Available datasets: any file in experiments/configs/<name>.py that exports CONFIG.
-Available models:   keys of OCR_MODEL_REGISTRY in this file (each must also have a
-                     matching block under ``models.<key>`` in experiments/config.yaml).
+Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
+Available models:   any file in experiments/model-configs/ocr/<name>.yaml.
 """
 from __future__ import annotations
 
@@ -57,39 +48,37 @@ from scholarlm.utils import get_filenames_in_directory
 from olmocr.prompts import build_no_anchoring_v4_yaml_prompt as olmocr_prompt
 
 from run_extraction import load_dataset_config
-from utils import load_config, set_seeds, write_run_metadata
+import utils as paths
+from utils import set_seeds, write_run_metadata
 
 
 # ---------------------------------------------------------------------------
-# OCR model registry
+# Prompt sources
 #
-# Holds what experiments/config.yaml's models.<key> blocks can't express:
-# the OCR prompt and the output directory name. model_id / sampling_params /
-# serve settings live in config.yaml (mirroring how run_ocr.py already reads
-# olmOCR), not here — this is not an extraction model, so it doesn't belong
-# in model_registry.py's MODEL_REGISTRY either.
-#
-# olmOCR's output_dir is "ocr_output_raw" and must never change: it's read by
-# that literal name from run_extraction.py, run_ablation.py, run_table_cleaning.py,
-# run_judge_local.py, run_judge_interp.py, both baseline runners,
-# analysis/ablation.py, experiments/validation.py, and several datasets'
-# preprocessing.py / create_probe_dataset.py.
+# experiments/model-configs/ocr/{model}.yaml's `prompt_source:` field is a
+# marker string, not a baked prompt: olmocr's real prompt comes from a
+# library function call (a fixed "no anchoring" template, called with no
+# per-document args), not a static constant -- baking its output into YAML
+# would drift from the olmocr package and duplicate rather than reference
+# the real source. `prompt_source: null` (chandra-ocr-2) means "use
+# DocumentLM's own default markdown-with-html-tables prompt" -- chandra's own
+# repo recommends an HTML layout-block prompt instead; swap this in if the
+# default prompt's output proves degenerate.
 # ---------------------------------------------------------------------------
 
-OCR_MODEL_REGISTRY: dict[str, dict] = {
-    "olmocr": {
-        "prompt": olmocr_prompt(),
-        "output_dir": "ocr_output_raw",
-    },
-    "chandra-ocr-2": {
-        # None -> DocumentLM's default markdown-with-html-tables prompt.
-        # chandra's own repo (chandra/prompts.py) recommends an HTML
-        # layout-block prompt instead; swap this in if the default prompt's
-        # output proves degenerate.
-        "prompt": None,
-        "output_dir": "ocr_output_chandra_ocr_2",
-    },
+_PROMPT_SOURCES = {
+    "olmocr_no_anchoring_v4": olmocr_prompt,
 }
+
+
+def _resolve_prompt(prompt_source: str | None) -> str | None:
+    if prompt_source is None:
+        return None
+    if prompt_source not in _PROMPT_SOURCES:
+        raise ValueError(
+            f"Unknown prompt_source {prompt_source!r}. Known: {sorted(_PROMPT_SOURCES)}"
+        )
+    return _PROMPT_SOURCES[prompt_source]()
 
 
 # ---------------------------------------------------------------------------
@@ -101,8 +90,8 @@ def run_ocr(
     dataset_config,
     model_id: str,
     sampling_params: dict,
+    output_dir: Path,
     ocr_prompt: str | None = None,
-    output_dirname: str = "ocr_output_raw",
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     paper_subset_override: list[str] | None = None,
@@ -113,12 +102,12 @@ def run_ocr(
     """Run an OCR model on all PDFs for a dataset via a vLLM server.
 
     Args:
-        dataset_config: Dataset configuration loaded from experiments/configs/.
+        dataset_config: Dataset configuration loaded from experiments/dataset-configs/.
         model_id: HuggingFace model ID string (must match what the server is serving).
         sampling_params: Sampling parameters forwarded to DocumentLM.
+        output_dir: Directory to write per-paper ``.txt`` OCR output to (created if needed).
         ocr_prompt: System prompt for the OCR task. ``None`` uses DocumentLM's
             default markdown prompt.
-        output_dirname: Name of the output directory under ``{data_dir}/``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the server (use "EMPTY" for local vLLM).
         paper_subset_override: If provided, process only these paper codes
@@ -133,7 +122,7 @@ def run_ocr(
     """
     data_dir = Path(dataset_config.data_dir)
     pdf_dir = data_dir / "pdfs"
-    output_dir = data_dir / output_dirname
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     pdf_files = get_filenames_in_directory(str(pdf_dir), ignore=[".DS_Store", ".gitkeep"])
@@ -201,109 +190,56 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    p.add_argument("config", help="Path to an experiment-configs/.../<id>.yaml.")
     p.add_argument(
-        "--dataset",
-        required=True,
-        help="Dataset name (must match a file in experiments/configs/<name>.py).",
-    )
-    p.add_argument(
-        "--model",
-        default="olmocr",
-        choices=sorted(OCR_MODEL_REGISTRY.keys()),
-        help="OCR model key from OCR_MODEL_REGISTRY (default: olmocr).",
-    )
-    p.add_argument(
-        "--paper-subset",
-        nargs="+",
-        default=None,
-        metavar="PAPER_CODE",
-        help="Process only these paper codes (filename stems without .pdf).",
-    )
-    p.add_argument(
-        "--resume",
-        action="store_true",
-        help="Skip PDFs whose output .txt already exists in the output directory.",
-    )
-    p.add_argument(
-        "--use-processed-pdfs",
-        action="store_true",
-        help=(
-            "Load pre-rendered page images from data/{dataset}/processed_pdfs/ "
-            "(produced by process_pdfs.py) instead of rendering PDFs at runtime."
-        ),
-    )
-    p.add_argument(
-        "--processed-pdfs-dir",
-        default=None,
-        metavar="DIR",
-        help=(
-            "Explicit path to a pre-processed PDFs directory.  "
-            "Overrides --use-processed-pdfs when set."
-        ),
-    )
-    p.add_argument(
-        "--fast",
-        action="store_true",
-        help=(
-            "Run DocumentLM in fast mode: lower-resolution page images and no "
-            "retry loop, trading OCR quality for speed."
-        ),
-    )
-    p.add_argument(
-        "--api-base",
-        default="http://localhost:8081/v1",
-        metavar="URL",
-        help="Base URL of the vLLM server (default: http://localhost:8081/v1).",
-    )
-    p.add_argument(
-        "--api-key",
-        default="EMPTY",
-        metavar="KEY",
-        help="API key for the vLLM server (default: EMPTY).",
+        "--api-base", default=None, metavar="URL",
+        help="Override params.api_base (submit.sh injects the compute node's vLLM endpoint here).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
+    config_path = Path(args.config)
+    cfg = paths.load_experiment_config(config_path)
+    params = cfg["params"]
+    paths.require_params(params, "dataset", config_path=config_path)
 
-    cfg = load_config()
-    seed = cfg.get("defaults", {}).get("seed", 342)
-    set_seeds(seed)
-
-    if args.model not in cfg.get("models", {}):
-        raise KeyError(
-            f"No 'models.{args.model}' block in experiments/config.yaml. "
-            f"Available: {sorted(cfg.get('models', {}).keys())}"
+    repo_seed = paths.load_config()["defaults"]["seed"]
+    if cfg["seed"] != repo_seed:
+        raise ValueError(
+            f"{config_path}: seed ({cfg['seed']}) does not match experiments/config.yaml "
+            f"defaults.seed ({repo_seed}) -- the repo's seed is a fixed, repo-wide value, "
+            "not a per-run knob."
         )
-    ocr_cfg = cfg["models"][args.model]
-    model_id = ocr_cfg["model_id"]
-    sampling_params = ocr_cfg.get("sampling_params", {"temperature": 0.1, "max_tokens": 8192, "seed": 342})
+    set_seeds(cfg["seed"])
 
-    registry_entry = OCR_MODEL_REGISTRY[args.model]
-    ocr_prompt = registry_entry["prompt"]
-    output_dirname = registry_entry["output_dir"]
+    model_name = params.get("model", "olmocr")
+    model_cfg = paths.load_model_config("ocr", model_name)
+    model_id = model_cfg["model_id"]
+    sampling_params = model_cfg.get("sampling_params", {})
+    ocr_prompt = _resolve_prompt(model_cfg.get("prompt_source"))
 
-    dataset_config = load_dataset_config(args.dataset)
+    dataset = params["dataset"]
+    dataset_config = load_dataset_config(dataset)
+    output_dir = Path(params.get("output_dir") or paths.result_dir(dataset, "ocr", cfg["id"]))
 
-    processed_pdfs_dir = None
-    if args.processed_pdfs_dir:
-        processed_pdfs_dir = args.processed_pdfs_dir
-    elif args.use_processed_pdfs:
+    processed_pdfs_dir = params.get("processed_pdfs_dir")
+    if not processed_pdfs_dir and params.get("use_processed_pdfs"):
         processed_pdfs_dir = str(Path(dataset_config.data_dir) / "processed_pdfs")
 
     run_ocr(
         dataset_config=dataset_config,
         model_id=model_id,
         sampling_params=sampling_params,
+        output_dir=output_dir,
         ocr_prompt=ocr_prompt,
-        output_dirname=output_dirname,
-        api_base=args.api_base,
-        api_key=args.api_key,
-        paper_subset_override=args.paper_subset,
-        resume=args.resume,
+        api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
+        api_key=params.get("api_key", "EMPTY"),
+        paper_subset_override=params.get("paper_subset"),
+        resume=params.get("resume", False),
         processed_pdfs_dir=processed_pdfs_dir,
-        fast=args.fast,
+        fast=params.get("fast", False),
     )
 
 

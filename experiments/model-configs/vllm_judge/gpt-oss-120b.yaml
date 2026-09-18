@@ -1,0 +1,115 @@
+model_id: openai/gpt-oss-120b
+# 2026-09-14: max_concurrent/request_timeout made explicit here, not tuned
+# for this model -- run_judge_local.py now requires both from the judge's
+# model-config (see llama-3.3-70b.yaml and qwen-2.5-72b.yaml, which have
+# actually-measured values), so these two carry forward the values this
+# runner previously hardcoded as its own fallback defaults, unchanged.
+max_concurrent: 32
+request_timeout: 600
+# gpt-oss-120b history (2026-09-11, notes/scholarlm/experiments/
+# 2026-09-11-supermat-fulltext-judge-01.md): under the supermat full-paper
+# judge, temperature=0.0 (greedy) truncated a THIN, RUN-TO-RUN-SHIFTING tail
+# of rows (finish_reason='length', empty completion) no matter how the token
+# budget was adjusted -- 3/3882 rows at the harmony chat template's "medium"
+# reasoning_effort default (job 7527735); 2/3882 *different* rows (one from a
+# comparatively short paper, ruling out a pure document-length effect) after
+# pinning reasoning_effort="low" (job 7530223); 1/3882 yet another row after
+# also raising max_tokens 8192->16384 (job 7531883). Two token-budget-side
+# fixes each reduced but never eliminated the failure, and a different
+# specific row failed each time under otherwise-identical settings --
+# symptoms of greedy decoding occasionally entering a degenerate repetition
+# loop (a known reasoning-model failure mode), not a genuine token shortage.
+# Moving temperature to 0.2 (with reasoning_effort back at "medium" and
+# max_tokens back at 8192 -- neither budget-side fix was doing the real work)
+# resolved every one of the 6 rows that had failed across all three prior
+# attempts, each well under the 8192 cap (diagnostic job 7532192). seed=342
+# is set for reproducibility, but that has NOT been empirically re-verified
+# the way pond's temperature=0.0 seed-determinism control was.
+# Every other vllm_judge model has no sampling_params block and stays at
+# run_judge_local.py's fallback (temperature=0.0, no seed, no
+# reasoning_effort) -- unaffected by this.
+#
+# KNOWN, ACCEPTED ISSUE (2026-09-14, notes/scholarlm/experiments/
+# 2026-09-14-judge-seed-determinism-01.md): seed=342 does NOT make this
+# judge reproducible in practice. Two identical full-scale reruns (same
+# seed, same extraction_id, matched H200 hardware) disagreed on 241/4285
+# rows (5.62%) -- an order of magnitude above the ~1-3/3882 truncation rate
+# above, and this time genuine true/false flips (confirmed by hand: same
+# entity/attribute/value/document_id, opposite verdict), not empty
+# completions. llama-3.3-70b and qwen-2.5-72b are far more stable under the
+# same test (0.40% and 0.21% respectively). Decision: not chasing a fix on
+# gpt-oss-120b's sampling/serving stack itself (candidates considered but
+# not tried: max_concurrent=1 to remove cross-request batching interference,
+# enforce_eager to rule out CUDA-graph effects, forcing the FlashInfer mxfp4
+# backend instead of Triton -- see session notes). Instead: majority-vote
+# combination across all three voting judges (run_judge_combine.py) damps
+# this down to 55/4285 (1.28%) disagreement in judgement_combined between
+# the same two reruns -- close enough to the sub-1% target to accept.
+# Downstream users of the COMBINED ground truth are fine; anyone using
+# gpt-oss-120b's raw judgement in isolation should expect ~5-6% noise
+# per run.
+sampling_params:
+  temperature: 0.2
+  seed: 342
+  reasoning_effort: medium
+# 2026-09-15 (notes/scholarlm/builds/2026-09-15-judge-length-truncation-
+# retry-01.md): finish_reason='length' with EMPTY content (reasoning channel
+# spent the whole max_tokens=8192 budget before a verdict) recurs at a low,
+# stable rate even after temperature=0.2 -- 2/10953 (pond, extraction
+# 2026-09-13-pond-gemma3-27b-extraction-01), 2/5834 (nfix, equivalent run),
+# 1/4285 (2026-09-14-gptoss120b-judge-seed-determinism-02, where a bare
+# resubmit alone happened to resolve the same row on the second attempt,
+# since seed=342 does not make this judge reproducible -- see above). Prior
+# to this, run_judge_local.py raised on the first such row and discarded the
+# whole run's other 4000-10000+ good rows. max_retries resamples that exact
+# case (empty content + finish_reason='length' only -- every other no-verdict
+# case still raises unretried, see run_judge_local._judge_one); a row still
+# empty after the budget is recorded as judgement: null + judgement_truncated:
+# true (not fabricated true/false) rather than aborting the run. Value
+# matches the prewarm-retry precedent for the same gpt-oss finish_reason=
+# 'length' failure mode (probe_augment.py, commit 58c8844).
+max_retries: 2
+# Circuit breaker: an absolute row COUNT, not a fraction -- the observed
+# rate above is 1-2 rows per several-thousand-row run, so a percentage
+# ceiling (e.g. the prewarm precedent's 2%) would never trip and wouldn't be
+# a circuit breaker at all. 10 gives headroom over the observed max (2) for
+# ordinary run-to-run variance while still catching a genuinely wedged
+# server (which would produce far more than 10 truncations) well before it
+# silently guts the run.
+drop_ceiling: 10
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  dtype: auto
+  sif_image: vllm-openai_v0.24.0.sif
+  # 2026-09-14: under v0.19.0, default (auto) mxfp4 MoE backend selection
+  # fell back to the Triton kernel path (vllm/model_executor/layers/
+  # fused_moe/gpt_oss_triton_kernels_moe.py) on H200 and crashed at server
+  # startup -- AssertionError: hidden_states.shape[-1] == w1.shape[-2] --
+  # reproduced twice, identically, on two different H200 nodes (jobs
+  # 7568854, 7569233). Bumping sif_image to v0.24.0 (no other change)
+  # fixed it: job 7571062 completed cleanly on H200 NVL, all 4285 rows.
+  # The identical assertion text still exists in v0.24.0's equivalent file
+  # (fused_moe/experts/gpt_oss_triton_kernels_moe.py:879) so this wasn't a
+  # guaranteed fix going in -- whatever changed is upstream of that line
+  # (weight-padding or backend-priority order), not inspected further since
+  # the empirical result was clean.
+  #
+  # Separately, gpu_type is pinned below because the gpu_capability/
+  # gpu_memory floor also admits an A100, which is a real capacity
+  # mismatch, not a kernel bug: job 7571332 (v0.24.0, same config, no other
+  # change) landed on an a100 node and failed at startup with "3.17 GiB KV
+  # cache is needed ... larger than the available KV cache memory (3.01
+  # GiB)" -- gpt-oss-120b's mxfp4 weights at max_model_len 90000 don't
+  # leave room for a KV cache on an 80G A100 the way they do on H200's
+  # 139.8 GiB. H200 is the only card this config has actually completed a
+  # full run on since the v0.24.0 bump; the prior working card under
+  # v0.19.0 (RTX PRO 6000 Blackwell, run 2026-09-13-pond-ablation1-
+  # gptoss120b-judge-local-01) has not been re-verified under v0.24.0, so
+  # it is deliberately not included in the pin.
+resources:
+  gpu_memory: 80G
+  gpu_capability: 8.0
+  gpu_type: H200
+  omp: 8

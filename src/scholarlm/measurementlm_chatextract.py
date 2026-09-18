@@ -410,7 +410,7 @@ class MeasurementLMChatExtract(MeasurementLM):
             "property": None,    # measeval fuzzy-match field (unpopulated by ChatExtract)
             # measeval entity field under its quantity-first design (column
             # parity only -- ChatExtract never enumerates quantities; see the
-            # ChatExtract note in experiments/configs/measeval.py).
+            # ChatExtract note in experiments/dataset-configs/measeval.py).
             "quantity": None,
             "date": None,
             "additional_details": None,

@@ -26,7 +26,7 @@ from analysis.metrics import recovery_rate, validity_rate
 from analysis.ablation import get_matching_rules, process_extraction_df
 from scholarlm.utils.normalization import canonical_units, parse_value
 from experiments.run_extraction import load_dataset_config
-import paths
+import utils as paths
 
 
 # External baselines, which are never shown the ground truth's unit vocabulary and so
@@ -306,7 +306,7 @@ def main():
         # text-only dataset with no PDFs to render (see data/measeval/README.md)
         # -- there is no input run_baseline_nuextract.py could ever consume
         # here. All arms below are 2026_08_01 runs made under the
-        # quantity-first design (see experiments/configs/measeval.py's module
+        # quantity-first design (see experiments/dataset-configs/measeval.py's module
         # docstring), so the comparison is apples-to-apples.
         'measeval': {
             'gemma-3-27b': '2026_08_01',

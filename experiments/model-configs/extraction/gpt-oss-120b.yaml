@@ -1,0 +1,44 @@
+model_id: openai/gpt-oss-120b
+sampling_params:
+  temperature: 0.6
+  top_p: 0.95
+  top_k: 20
+  max_tokens: 8192
+  seed: 342
+  enable_thinking: false
+  # gpt-oss's harmony chat template reads `reasoning_effort` (low/medium/high)
+  # as a chat_template_kwargs entry (forwarded by MeasurementLM._acall,
+  # src/scholarlm/measurementlm.py); with it absent, vLLM falls back to the
+  # template's own "medium" default -- confirmed as that default by the
+  # run_judge_local.py debugging history this same value was pulled from (see
+  # experiments/model-configs/vllm_judge/gpt-oss-120b.yaml's comment). Pinned
+  # here at "medium" explicitly so extraction runs don't silently follow
+  # wherever the harmony template's own default drifts across vLLM/template
+  # versions -- this is the value already in effect, not a behavior change.
+  reasoning_effort: medium
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  dtype: auto
+  sif_image: vllm-openai_v0.24.0.sif
+resources:
+  gpu_memory: 80G
+  # gpt-oss-120b's mxfp4 quantization needs Hopper-class hardware. A bare
+  # `gpu_c=8.0` floor doesn't exclude either failure mode: A100 (sm_80) sits
+  # exactly at 8.0 and would pass it, and Blackwell (sm_120) passes any
+  # floor at all and then crashes torch 2.7.1+cu126 mid-forward
+  # (env_blackwell_torch_cu126). H200 (sm_90) is the only gpu_type on this
+  # cluster that clears a real 9.0 floor without being Blackwell -- pinned
+  # explicitly, matching the hand-picked resources the pre-restructure
+  # gen_augment.sh used for this same model (see
+  # experiments/experiment-configs/cross_dataset/probe_augment/
+  # 2026-09-03-probe-synthetic-augmentation-01/). Added 2026-09-16 when
+  # run_probe_augment.py (which reads this same resources: block, unlike
+  # gen_augment.sh's own hand-picked job_resources) started resolving GPU
+  # requests for probe_augment runs too -- prior extraction/ablation runs of
+  # this model apparently never landed on A100/Blackwell, but nothing here
+  # was actually excluding it.
+  gpu_capability: 9.0
+  gpu_type: H200
+  omp: 8

@@ -1,5 +1,5 @@
 """Rung-1 (model-free) unit tests for ``scholarlm.utils.probe_augment`` and the
-``judge_common.prepare_chat_entries`` context-override plumbing.
+``judge_prompts.prepare_chat_entries`` context-override plumbing.
 
 Build note: ``notes/scholarlm/builds/2026-09-03-probe-synthetic-augmentation-01.md``.
 Everything here runs against a hand-built fixture with the ``StubAugmentClient``
@@ -77,6 +77,20 @@ def _rewrite_client(raw_response, monkeypatch, cache_path=None):
     return pa.GptOssClient(api_base="x", cache=pa.AugmentCache(cache_path))
 
 
+def _seed_bad_cache_entry(client, *, context, instruction, attempt=0, raw):
+    """Write ``raw`` straight into ``client``'s cache for this rewrite call,
+    bypassing the prewarm admission gate entirely -- simulates a schema-
+    violating entry already on disk from an earlier run (the exact shape of
+    ISSUE-supermat-prewarm-schema-gate.md's incident: valid JSON, wrong
+    schema, only caught by `rewrite_context` reading it on the real pass).
+    The admission gate protects fresh prewarm calls going forward; it cannot
+    retroactively clean an existing cache."""
+    key = pa._cache_key("rewrite", {"context": context, "instruction": instruction,
+                                    "protocol": 3, "context_scope": pa._CONTEXT_SCOPE,
+                                    "attempt": attempt})
+    client.cache._store[key] = raw
+
+
 def test_rewrite_applies_model_edits_and_verifies(monkeypatch):
     raw = json.dumps({"feasible": True, "replacement": "Sue Pond", "edits": [
         {"find": "Bob Pond has pH 7", "replace": "Sue Pond has pH 7"}]})
@@ -129,8 +143,14 @@ def test_rewrite_infeasible_is_a_clean_skip(monkeypatch):
 
 
 def test_rewrite_feasible_but_no_replacement_is_a_hard_error(monkeypatch):
-    c = _rewrite_client(json.dumps({"feasible": True, "edits": [{"find": "a", "replace": "b"}]}),
-                        monkeypatch)
+    # A fresh call this malformed is now caught by the admission gate and
+    # dropped instead (see test_run_batch_retries_then_drops_a_schema_violation)
+    # -- so to exercise `rewrite_context`'s own raise, seed the cache directly,
+    # as if this entry survived from before the admission gate learned to check
+    # the schema.
+    c = _rewrite_client("unused", monkeypatch)
+    _seed_bad_cache_entry(c, context="a", instruction="i",
+                          raw=json.dumps({"feasible": True, "edits": [{"find": "a", "replace": "b"}]}))
     with pytest.raises(ValueError, match="replacement.*missing/empty"):
         c.rewrite_context(context="a", instruction="i", original="a")
 
@@ -153,8 +173,14 @@ def test_rewrite_feasible_but_no_edits_is_a_clean_skip(monkeypatch, obj):
     "not a list", [{"find": "x"}], [{"replace": "y"}], [{"find": 3, "replace": "y"}], ["str"],
 ])
 def test_rewrite_malformed_edits_shape_is_a_hard_error(monkeypatch, bad_edits):
-    c = _rewrite_client(json.dumps({"feasible": True, "replacement": "z", "edits": bad_edits}),
-                        monkeypatch)
+    # As above: any of these shapes (including the general case of
+    # ISSUE-supermat-prewarm-schema-gate.md's `{"replace:": ...}` trailing-colon
+    # typo -- an edit dict missing a valid `replace` key) is now rejected at
+    # prewarm admission, so a pre-existing cache entry is the only way it still
+    # reaches `rewrite_context`.
+    c = _rewrite_client("unused", monkeypatch)
+    _seed_bad_cache_entry(c, context="ctx", instruction="i",
+                          raw=json.dumps({"feasible": True, "replacement": "z", "edits": bad_edits}))
     with pytest.raises(ValueError, match="edits.*not a list|edit is not a"):
         c.rewrite_context(context="ctx", instruction="i", original="c")
 
@@ -357,7 +383,7 @@ def test_run_batch_retries_then_drops_unparseable_response(tmp_path, monkeypatch
             return '{"feasible": true, "edits": [{"find": "a", "replace": "b"}, {"find": "a"'
         if tag == "commented":
             return '{"feasible": false, "reason": "x"} // nope'
-        return json.dumps({"feasible": True, "edits": []})
+        return json.dumps({"feasible": False, "reason": "ok"})
 
     monkeypatch.setattr(pa.GptOssClient, "_one", _one)
     cache_path = tmp_path / "cache.json"
@@ -783,7 +809,7 @@ def test_assert_wellformed_rejects_a_row_without_a_context_override():
 
 
 def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
-    import judge_common
+    from scholarlm.utils import judge_prompts
     rules = _rules()
     flags = pa.AugmentFlags(pos_axes=pa.POS_AXES, valid_floor=26,
                             diag_valid_floor=8, prompt_budget_multiple=1)
@@ -840,7 +866,7 @@ def test_run_and_write_inlines_overrides_no_sidecar_file(tmp_path):
 
     cfg = _dcfg()
     for data in (train_data, diag_data, primary_data):
-        entries = judge_common.prepare_chat_entries(data, documents, cfg)
+        entries = judge_prompts.prepare_chat_entries(data, documents, cfg)
         for entry in entries:
             row = data[int(entry["custom_id"])]
             assert entry["context_text"] == row["context_override"]
@@ -1104,17 +1130,77 @@ def test_run_batch_drops_after_the_retry_budget_is_exhausted(monkeypatch, capsys
     assert "drop" in capsys.readouterr().out.lower()     # loud warning on stdout
 
 
-def test_run_batch_does_not_retry_a_well_formed_schema_violation(monkeypatch):
-    # `{"feasible": true, "edits": "oops"}` is a JSON object, so it passes the
-    # admission gate and is cached on the first try — the schema violation is
-    # still a hard error later in `rewrite_context`, not a retry/drop case.
+def test_run_batch_retries_then_drops_a_schema_violation(monkeypatch):
+    # `{"feasible": true, "edits": "not a list"}` is a JSON object, but it
+    # violates the `rewrite` schema -- ISSUE-supermat-prewarm-schema-gate.md:
+    # this used to pass the old object-only admission gate and get cached on
+    # the first try, only detonating later in `rewrite_context` on the strict
+    # real pass. The gate now checks the schema too, so it's resampled like any
+    # other malformed response and dropped once the retry budget is exhausted
+    # (the same response every retry here, since `_one` is scripted).
     bad = json.dumps({"feasible": True, "replacement": "z", "edits": "not a list"})
     one = _counting_one({"schema": [bad]})
     monkeypatch.setattr(pa.GptOssClient, "_one", one)
-    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None))
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None), prewarm_max_retries=2)
     results = asyncio.run(client._run_batch([("k", [{"role": "user", "content": "schema"}])]))
-    assert results == {"k": bad} and one.calls == 1
-    assert not client._dropped_detail
+    assert results == {} and one.calls == 3
+    assert set(client._dropped_detail) == {"k"}
+    assert "fails the rewrite schema" in client._dropped_detail["k"]
+
+
+# ─── ISSUE-supermat-prewarm-schema-gate.md: real incident fixture ─────────────
+#
+# Reconstructed from the incident report (the raw response itself was never
+# preserved -- it's syntactically valid JSON, so the pre-fix admission gate
+# never called `_dump_bad_response` on it; only a genuine parse failure did).
+# supermat rung-4 (job 7600542): gpt-oss's `edits` array had one entry keyed
+# `"replace:"` (trailing colon) instead of `"replace"`, so that edit has no
+# usable `replace` value -- valid JSON, wrong schema. 12/16,524 cached entries
+# had this exact typo; all were evicted and resubmitted as job 7611469.
+_SUPERMAT_RUNG4_TYPO_RESPONSE = json.dumps({
+    "feasible": True,
+    "replacement": "410 MPa",
+    "edits": [
+        {"find": "a yield strength of 380 MPa", "replace": "a yield strength of 410 MPa"},
+        {"find": "| Alloy B | 380 MPa |", "replace:": "| Alloy B | 410 MPa |"},
+    ],
+})
+
+
+def test_rewrite_schema_error_catches_the_real_replace_colon_typo():
+    obj = json.loads(_SUPERMAT_RUNG4_TYPO_RESPONSE)
+    err = pa._rewrite_schema_error(obj)
+    assert err is not None and "edit is not a" in err
+
+
+def test_prewarm_admission_rejects_the_real_replace_colon_typo():
+    err = pa._prewarm_admission_error(_SUPERMAT_RUNG4_TYPO_RESPONSE)
+    assert err is not None and "fails the rewrite schema" in err
+
+
+def test_run_batch_drops_the_real_replace_colon_typo_instead_of_caching_it(monkeypatch):
+    # Before the fix: valid JSON -> passed the object-only gate -> cached as a
+    # "success" -> `rewrite_context` only raised hours later reading it back on
+    # the strict real pass. After the fix: rejected at admission, resampled,
+    # and dropped -- never reaches the cache.
+    one = _counting_one({"typo": [_SUPERMAT_RUNG4_TYPO_RESPONSE]})
+    monkeypatch.setattr(pa.GptOssClient, "_one", one)
+    client = pa.GptOssClient(api_base="x", cache=pa.AugmentCache(None), prewarm_max_retries=1)
+    jobs = [("k", [{"role": "user", "content": "typo"}])]
+    results = asyncio.run(client._run_batch(jobs))
+    assert results == {} and not client.cache._store
+    assert set(client._dropped_detail) == {"k"}
+
+
+def test_rewrite_context_still_hard_errors_on_a_stale_cached_typo(monkeypatch):
+    # The admission gate only guards fresh prewarm calls; a cache written by an
+    # earlier, pre-fix run can still hold this exact typo. `rewrite_context`
+    # must still fail loud reading it, not silently misparse the bad edit.
+    c = _rewrite_client("unused", monkeypatch)
+    _seed_bad_cache_entry(c, context="alloy ctx", instruction="i",
+                          raw=_SUPERMAT_RUNG4_TYPO_RESPONSE)
+    with pytest.raises(ValueError, match="edit is not a"):
+        c.rewrite_context(context="alloy ctx", instruction="i", original="380 MPa")
 
 
 def test_run_batch_raises_when_drops_exceed_the_ceiling(tmp_path, monkeypatch):
@@ -1242,7 +1328,7 @@ def test_dropped_prewarm_keys_are_written_beside_the_cache(tmp_path, monkeypatch
     assert "k_bad" in record
 
 
-# ─── judge_common.prepare_chat_entries context-override plumbing ──────────────
+# ─── judge_prompts.prepare_chat_entries context-override plumbing ──────────────
 
 
 def _dcfg():
@@ -1251,42 +1337,42 @@ def _dcfg():
 
 
 def test_prepare_chat_entries_no_override_field_gets_full_document():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 0, "name": "L", "page_number": [1]}]
     docs = {"X": '<page number="0">intro</page>\n\n'
                  '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     # The whole paper is the context — page_number is not consulted.
     assert entries[0]["context_text"] == docs["X"]
 
 
 def test_prepare_chat_entries_null_override_is_inert():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     base = {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
             "measurement_id": 0, "name": "L", "page_number": [1]}
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    a = judge_common.prepare_chat_entries([dict(base)], docs, cfg)
-    b = judge_common.prepare_chat_entries([dict(base, context_override=None)], docs, cfg)
+    a = judge_prompts.prepare_chat_entries([dict(base)], docs, cfg)
+    b = judge_prompts.prepare_chat_entries([dict(base, context_override=None)], docs, cfg)
     assert a == b
 
 
 def test_prepare_chat_entries_applies_row_override():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [{"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
              "measurement_id": 7, "name": "L", "page_number": [1],
              "context_override": "REWRITTEN CONTEXT for the probe"}]
     docs = {"X": '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     assert entries[0]["context_text"] == "REWRITTEN CONTEXT for the probe"
     assert "REWRITTEN CONTEXT" in entries[0]["user"]
 
 
 def test_prepare_chat_entries_override_is_per_row():
-    import judge_common
+    from scholarlm.utils import judge_prompts
     cfg = _dcfg()
     data = [
         {"document_id": "X", "attribute": "tp", "value": "5", "units": "µg/L",
@@ -1296,37 +1382,37 @@ def test_prepare_chat_entries_override_is_per_row():
     ]
     docs = {"X": '<page number="0">intro</page>\n\n'
                  '<page number="1">total phosphorus 5 µg/L</page>'}
-    entries = judge_common.prepare_chat_entries(data, docs, cfg)
+    entries = judge_prompts.prepare_chat_entries(data, docs, cfg)
     by_mid = {int(e["custom_id"]): e for e in entries}
     assert by_mid[0]["context_text"] == "EDITED"          # override row
     assert by_mid[1]["context_text"] == docs["X"]         # non-override row → full paper
 
 
-# ─── --synthetic-name path routing (experiments/paths.py) ─────────────────────
+# ─── --synthetic-name path routing (experiments/utils.py) ─────────────────────
 
 
 def test_synthetic_probe_named_routes_to_dedicated_tree():
-    import paths
+    import utils as paths
     p = paths.synthetic_probe_named("pond", "v2_diag", "mistral-7b", "2026_09_10")
     assert p.parts[-3:] == ("synthetic_probe_v2_diag", "mistral-7b", "2026_09_10")
 
 
 def test_synthetic_probe_split_vs_name_precedence():
-    import paths
+    import utils as paths
     assert paths.synthetic_probe("pond", "m").parts[-3] == "synthetic_probe"
     assert paths.synthetic_probe_test("pond", "m").parts[-3] == "synthetic_probe_test"
     assert paths.synthetic_probe("pond", "m", name="foo").parts[-3] == "synthetic_probe_foo"
 
 
 def test_synthetic_name_rejects_bad_chars():
-    import paths
+    import utils as paths
     for bad in ("Bad-Name", "has space", "UPPER", "trailing/slash", ""):
         with pytest.raises(ValueError):
             paths.synthetic_probe_named("pond", bad, "m")
 
 
 def test_find_synthetic_carries_name_through(tmp_path, monkeypatch):
-    import paths
+    import utils as paths
     monkeypatch.setattr(paths, "EXPERIMENTS_ROOT", tmp_path)
     run = tmp_path / "pond" / "synthetic_probe_v2_diag" / "mistral-7b" / "2026_09_10"
     run.mkdir(parents=True)

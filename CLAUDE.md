@@ -58,20 +58,30 @@ run writes, and the working loop: `/develop` then `/devlog` for building code,
 `/experiment` then `/explog` then `/debrief` for running experiments.
 
 This is a repo where the config standard is retrofitted, not native: keep a
-`configs/<id>.yaml` for every experiment so runs stay reproducible, but the layout
-doesn't have to match the reference repo (`coastal-crawler`).
+`experiments/experiment-configs/{dataset}/{type}/<id>/<id>.yaml` for every
+experiment so runs stay reproducible, but the layout doesn't have to match the
+reference repo (`coastal-crawler`).
 
 **No magic numbers.** Every value that would change between runs — dataset, model,
-paper subset, per-experiment sampling parameters — belongs in a `configs/<id>.yaml`
-`params` block, not hardcoded in runner code. Fixed, repo-wide values (the global
-seed, per-model default sampling params, SGE serve resources) stay in
-`experiments/config.yaml`, the committed single source of truth for those.
+paper subset, per-experiment sampling parameters, and (since 2026-09-14, Phase F of
+the restructure) walltime — belongs in an experiment config's `params` block, not
+hardcoded in runner code: `params.walltime` is required on every experiment config
+that resolves to a GPU job, no model-config fallback, since walltime is a function of
+model x dataset size x experiment type, not the model alone. Fixed, repo-wide values
+that genuinely don't vary per run (per-model sampling defaults, SGE serve params, the
+`omp`/`gpu_memory`/`gpu_capability`/`gpu_type` resource request) live one YAML per
+model under `experiments/model-configs/{kind}/<model>.yaml`; `experiments/config.yaml`
+holds only the global seed (`defaults.seed`) — every experiment config's own `seed` is
+checked against it at run time, with no fallback. It used to also carry per-model
+sampling/serve params and SGE cluster settings; that dead content was removed
+2026-09-14 (see
+`notes/scholarlm/builds/2026-09-13-experiment-config-restructure-01.md`).
 
 ## Development log
 
 `devlog/<id>.md` is the public, curated record of AI-assisted work on a build or
 experiment — my prompts + a short summary + commit hashes. `<id>` is the same
-contract id as `configs/<id>.yaml` and the private note; a `devlog/` file exists only
+contract id as the experiment config and the private note; a `devlog/` file exists only
 for an `<id>` that also has a build or experiment note. Plain refactors and bug fixes
 do not get one — their commit message and `Claude-Session:` trailer cover them.
 
@@ -87,35 +97,43 @@ message, not a second copy of the private note. See `devlog/README.md`.
 The contract-standard way to run an experiment:
 
 ```bash
-python scripts/run_experiment.py configs/<id>.yaml   # run directly
-bash scripts/submit.sh <id>                           # or submit to SGE
+python experiments/run_<type>.py experiments/experiment-configs/{dataset}/{type}/<id>/<id>.yaml
+bash experiments/submit.sh <id> [--dry-run]     # or submit to SGE
 ```
 
-`scripts/run_experiment.py` is a thin adapter over this repo's own entry points below
-— it does not reimplement any of them. `scripts/submit.sh` brings up a vLLM server as
-part of the submitted job when the experiment's model needs one (see
-`scripts/_run_experiment_job.sh`); frontier-model experiments skip that step.
+Every runner takes one positional `config` argument — no override flags. There is no
+adapter script: `experiments/submit.sh` resolves the experiment's runner, GPU need,
+and SGE resource request via `experiments/_resolve_job.py`, then qsubs
+`experiments/_submit_job.sh <id>`, which brings up a vLLM server in-job when the
+model needs one (querying `/health` before reuse) and calls the resolved runner
+directly with the experiment's own config path; frontier-model experiments skip the
+serve step.
 
-The native entry points it wraps, callable directly for anything the contract's
-`params` shape doesn't cover:
+The 14 runners, callable directly for anything the contract's `params` shape doesn't
+cover:
 
 ```bash
-python experiments/run_extraction.py --dataset pond --model gemma-3-27b
-python experiments/run_ablation.py --dataset pond --model gemma-3-27b --ablation 2
-python experiments/run_judge_local.py ...      # vLLM judge, local
-python experiments/run_judge_interp.py ...     # NNsight judge, collects activations
-python experiments/run_judge_combine.py --dataset pond --extraction-model gemma-3-27b --extraction-date 2026_04_01
-python experiments/run_jacobian_lens.py ...     # NNsight, Jacobian-lens j-scores (JacobianLensLM)
-python experiments/run_baseline_gliner.py ...
-python experiments/run_baseline_nuextract.py ...
-python experiments/run_baseline_chatextract.py ...
-python experiments/run_ocr.py ...
-python experiments/process_pdfs.py --dataset pond
+python experiments/run_extraction.py <config>
+python experiments/run_ablation.py <config>            # ablation 1-6
+python experiments/run_table_cleaning.py <config>
+python experiments/run_judge_local.py <config>          # vLLM judge, local
+python experiments/run_judge_interp.py <config>         # NNsight judge, collects activations
+python experiments/run_judge_combine.py <config>        # explicit extraction_id/judge_ids, not directory-scanning
+python experiments/run_jacobian_lens.py <config>         # NNsight, Jacobian-lens j-scores (JacobianLensLM)
+python experiments/run_representation_lm.py <config>
+python experiments/run_attribution.py <config>
+python experiments/run_baseline_gliner.py <config>
+python experiments/run_baseline_nuextract.py <config>
+python experiments/run_baseline_chatextract.py <config>
+python experiments/run_ocr.py <config>
+python experiments/process_pdfs.py <config>
+python experiments/run_probe_augment.py <config>
 ```
 
 Run any of them with `--help` for the full flag set. Available datasets are the files
-in `experiments/configs/*.py`; available models are the keys of `MODEL_REGISTRY` in
-`experiments/model_registry.py`.
+in `experiments/dataset-configs/*.py`; available models are the YAML files under
+`experiments/model-configs/{kind}/`, one directory per experiment kind (`extraction`,
+`baseline`, `vllm_judge`, `interp_judge`, `jacobian_lens`, `representation_lm`, `ocr`).
 
 ## Environment setup
 
@@ -131,7 +149,7 @@ values:
 | `VLLM_SIF_DIR` | directory of Singularity images for vLLM serving |
 | `HF_CACHE` | HuggingFace weights cache |
 | `SINGULARITY_BIND` | bind-mount argument for `singularity exec` |
-| `SCHOLARLM_ROOT` | absolute path to this repo, used by generated serve scripts |
+| `SCHOLARLM_ROOT` | absolute path to this repo, used by `experiments/_submit_job.sh` |
 | `SGE_PROJECT` | SGE project allocation (`-P` flag) |
 | `OPENAI_API_KEY` / `GEMINI_API_KEY` | required only for frontier-model runs |
 
@@ -146,14 +164,16 @@ uv run --extra dev pytest
 ## Repo layout
 
 ```
-src/scholarlm/          Core library — pipeline, config, probe/calibration utilities
-experiments/            Runner scripts, model/dataset registries, path helpers
-experiments/configs/    One DatasetConfig per dataset (pond.py, nfix.py, …)
-scripts/                Experiment-contract adapter (run_experiment.py, submit.sh)
-configs/                Committed configs/<id>.yaml, one per experiment
-analysis/               Experiment analysis code and notebooks
-examples/               Jupyter notebooks
-data/experiments/       All outputs — never committed to git
+src/scholarlm/                   Core library — pipeline, config, probe/calibration utilities
+experiments/                     Runner scripts, path helpers (utils.py)
+experiments/dataset-configs/     One DatasetConfig per dataset (pond.py, nfix.py, …)
+experiments/model-configs/       One YAML per model, by kind (extraction/, vllm_judge/, …)
+experiments/experiment-configs/  {dataset}/{type}/<id>/<id>.yaml, committed, one per experiment
+experiments/results/             Id-addressed run output — gitignored, never committed
+analysis/                        Experiment analysis code and notebooks
+examples/                        Jupyter notebooks
+data/experiments/                Legacy (pre-restructure) output tree — frozen, still read by
+                                  some analysis code; new runs write to experiments/results/
 ```
 
 ## Key concepts
@@ -165,10 +185,14 @@ Seven sequential steps: entities → attributes → entity_prov → attribute_pr
 Each ablation subclass overrides one or more pipeline steps. Run via `experiments/run_ablation.py`.
 
 **DatasetConfig / ModelConfig** (`src/scholarlm/config.py`)
-Single source of truth for dataset- and model-specific values. Config files live in `experiments/configs/`.
+Single source of truth for dataset- and model-specific values. Dataset config files
+live in `experiments/dataset-configs/`; model configs in `experiments/model-configs/`
+(`utils.get_model_config` bridges a model-config YAML into a `ModelConfig`).
 
-**Path helpers** (`experiments/paths.py`)
-Every path in the output tree is constructed here. Never build paths by hand in scripts.
+**Path helpers** (`experiments/utils.py`)
+Every path in the output tree is constructed here (`result_dir`, `find_result_dir`,
+`experiment_config_dir`, `load_model_config`, `classify_gpu_need`, …) — this absorbed
+the old `experiments/paths.py`. Never build paths by hand in scripts.
 
 **Judge pipeline**
 - `run_judge_interp.py` — NNsight (local, collects attention activations)
@@ -192,6 +216,25 @@ Driven by `run_jacobian_lens.py`; see `notes/scholarlm/threads/Jacobian Lens.md`
 
 ## Output directory schema
 
+New runs write to the id-addressed tree, via `experiments/utils.py`'s `result_dir`:
+
+```
+experiments/results/
+  {dataset}/{experiment-type}/<id>/        → run output (+ judge/ subdir where applicable)
+  out/                                      → SGE stdout/stderr only, not pipeline output
+```
+
+Two exceptions write elsewhere and only leave a manifest under `experiments/results/`:
+`run_probe_augment.py`'s real output (`probe_dataset<suffix>.json`, the diagnostic
+file, `probe_augment_cache.json`) goes to `data/{dataset}/` unchanged, with only a
+`run_metadata.json` recording params/seed under
+`experiments/results/{dataset}/probe_augment/<id>/`; `process_pdfs.py` writes to
+`data/{dataset}/processed_pdfs/`, not under `experiments/results/` at all.
+
+The pre-restructure tree stays frozen on disk (not regenerated by new runs), still
+read by some analysis code (`analysis/calibration_updated.py`, `analysis/ablation.py`)
+against the exact dates they key off:
+
 ```
 data/experiments/
   {dataset}/
@@ -207,12 +250,32 @@ data/experiments/
 
 ## Adding a new dataset
 
-1. Create `experiments/configs/{name}.py` exporting `CONFIG: DatasetConfig`.
+1. Create `experiments/dataset-configs/{name}.py` exporting `CONFIG: DatasetConfig`.
 2. Create `data/{name}/preprocessing.py` to generate `ground_truth.csv` (and `ground_truth_ten.csv` if a subset exists). Use `data/pond/preprocessing.py` or `data/nfix/preprocessing.py` as a template.
 3. Set `ground_truth_file` in the config. If units vary across papers, populate `unit_conversion_table` with per-attribute `{unit: multiplier}` entries.
 4. Run `python data/{name}/preprocessing.py` to generate the ground truth CSVs.
-5. Run `run_extraction.py --dataset {name}` to verify the pipeline end-to-end.
+5. Add an `extraction` model-config and a `experiment-configs/{name}/extraction/<id>/<id>.yaml`,
+   then run `run_extraction.py` against it to verify the pipeline end-to-end.
 
 ## Adding a new model
 
-Add an entry to `MODEL_REGISTRY` in `experiments/model_registry.py`.
+Add `experiments/model-configs/{kind}/<model>.yaml` (`kind` matches the runner's own
+model-configs subdirectory — see `utils.load_model_config`'s docstring for the full
+list: `extraction`, `baseline`, `ocr`, `vllm_judge`, `interp_judge`, `jacobian_lens`,
+`representation_lm`). There is no separate registry file anymore — every runner
+(extraction/ablation/table-cleaning/baseline/ocr and the judge/interpretability
+family: `run_judge_local.py`, `run_judge_interp.py`, `run_jacobian_lens.py`,
+`run_representation_lm.py`, `run_attribution.py`) reads model params from these YAML
+files via `utils.load_model_config`/`get_model_config`, and fails loud (a
+`FileNotFoundError` naming the available models for that kind) on an unknown key.
+
+A `vllm_server`- or `direct_gpu`-need model-config also needs a `resources:` block
+(`gpu_memory`/`gpu_capability`/`omp`, optionally `gpu_type`) for `experiments/submit.sh`
+to resolve an SGE request for it — `utils.classify_gpu_need` raises rather than
+guessing if one's missing. `walltime` does **not** go here (moved out 2026-09-14,
+Phase F of the restructure): it's required in the experiment config's own
+`params.walltime` instead, since it varies by dataset size and experiment type, not
+just model — `_resolve_job.py` fails loud if it's absent, for every experiment type.
+Don't invent GPU resource numbers to close a missing `resources:` block — infer them
+from prior real runs the way `interp_judge/qwen-2.5-7b.yaml`'s own `resources:`
+comment does, or ask.

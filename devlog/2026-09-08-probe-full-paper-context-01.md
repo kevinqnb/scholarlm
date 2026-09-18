@@ -4,7 +4,7 @@ notes/scholarlm/builds/2026-09-08-probe-full-paper-context-01.md. -->
 ---
 id: 2026-09-08-probe-full-paper-context-01
 kind: build
-config: configs/2026-09-03-probe-synthetic-augmentation-01.yaml
+config: experiments/experiment-configs/cross_dataset/probe_augment/2026-09-03-probe-synthetic-augmentation-01/2026-09-03-probe-synthetic-augmentation-01.yaml
 ---
 
 # Synthetic probe augmentation edits and stores the full paper, not one page

@@ -1,0 +1,93 @@
+model_id: Qwen/Qwen2.5-72B-Instruct-AWQ
+# 2026-09-14: moved here from per-experiment params (originally set on
+# 2026-09-14-qwen72b-judge-seed-determinism-01/-02) -- see llama-3.3-70b.yaml's
+# identical comment for why these belong in the model-config now.
+# max_concurrent: lowered from run_judge_local.py's 64 default after two
+# seed-determinism attempts each hit ~2/4285 APITimeoutError (300s client
+# timeout) under the default, with idx=68 (biodiversity_of_constructed, ~28k
+# tokens) timing out both times -- long-context requests occasionally
+# queueing behind others past the timeout under high concurrency.
+# request_timeout: not independently measured for this model -- applied from
+# llama-3.3-70b's precedent (same AWQ/H200 serving stack) rather than from a
+# qwen-specific timeout failure, since max_concurrent=32 alone resolved the
+# APITimeoutError seen on this model's own seed-determinism runs.
+max_concurrent: 32
+request_timeout: 600
+# 2026-09-15: see llama-3.3-70b.yaml's identical comment -- this model has
+# never shown gpt-oss-120b's length-truncation failure, so max_retries: 0
+# keeps run_judge_local.py's original raise-on-first-failure behavior
+# unchanged for this judge.
+max_retries: 0
+drop_ceiling: 0
+serve:
+  port: 8081
+  # Qwen2.5-72B-Instruct-AWQ's native max_position_embeddings is 32768 --
+  # unreachable at the max_model_len below without the YaRN override in
+  # extra_vllm_args (a max_model_len this large with no rope_scaling aborts
+  # vLLM startup: ValidationError, user-specified max_model_len greater than
+  # the model's derived max_model_len). The older --rope-scaling CLI flag is
+  # gone from the vLLM images used here, hence --hf-overrides.
+  # gpt-oss-120b/llama-3.3-70b are 128k-native and need no such override (see
+  # their own model-configs).
+  #
+  # Factor 3.0 -> 98304 ctx supersedes an earlier factor-2.0/65536 value
+  # here (sized for "6/128 pond papers exceed 32768" under the pre-full-paper
+  # judge, and itself never verified against the original hand-written qsub
+  # script). 98304 is validated end to end: job 7527736, full 3882-row
+  # supermat judge run (see
+  # notes/scholarlm/experiments/2026-09-11-supermat-fulltext-judge-01.md).
+  # Binding constraint: max_prompt_tokens + max_tokens(8192) < max_model_len.
+  # Fresh per-dataset measurement against data/{pond,nfix,supermat}/
+  # ocr_output_raw/ with this model's tokenizer (2026-09-13): pond 47170,
+  # nfix 52849, supermat 68242 -- supermat is the max across all three
+  # datasets, needing >= ~77264; 98304 leaves ~21k headroom.
+  max_model_len: 98304
+  gpu_memory_utilization: 0.90
+  quantization: awq_marlin
+  dtype: bfloat16
+  # 2026-09-14: bumped from vllm-openai_v0.19.0.sif -- under that image, this
+  # exact --hf-overrides rope_scaling value fails at startup with the same
+  # ValidationError described above ("derived max_model_len ... 32768"),
+  # NOT because the override is malformed but because vLLM's own
+  # _get_and_verify_max_len (vllm/config/model.py) reads
+  # hf_config.rope_parameters, while the bundled transformers (4.57.6 in
+  # v0.19.0) has no such attribute on Qwen2Config at all -- only the legacy
+  # rope_scaling name, which the override sets but vLLM's length-check no
+  # longer reads. Checked directly (CPU-only, ModelConfig construction, no
+  # GPU needed) across every sif image in $VLLM_SIF_DIR: v0.10.1 and
+  # v0.12.0 (transformers 4.55.2/4.57.3) both lack rope_parameters on
+  # Qwen2Config like v0.19.0 does -- v0.10.1's vLLM code still reads
+  # rope_scaling directly (works); v0.12.0's vLLM code has already
+  # switched to rope_parameters like v0.19.0 (fails identically). v0.22.0
+  # and v0.24.0 (transformers 5.9.0/5.12.1) have migrated rope_parameters
+  # into a real, populated attribute, and the override correctly lands on
+  # it: verified `mc.hf_config.rope_parameters ==
+  # {'rope_type': 'yarn', 'factor': 3.0, 'original_max_position_embeddings':
+  # 32768}` after construction under v0.24.0 -- not just the length gate
+  # passing, the actual RoPE config the model will run with. v0.24.0 is
+  # already this repo's validated choice for gpt-oss-120b (see that
+  # model-config), so reusing it here rather than the untested v0.22.0/
+  # v0.10.1 alternatives. This was a pre-existing bug, not something this
+  # session's changes caused -- the "validated end to end: job 7527736"
+  # claim below refers to a since-removed, gitignored hand-written script
+  # predating this config-driven pipeline, evidently under a different
+  # vllm/transformers combination; nothing had re-verified this override
+  # against the currently committed sif_image until now.
+  sif_image: vllm-openai_v0.24.0.sif
+  extra_vllm_args:
+  - '--hf-overrides ''{"rope_scaling":{"rope_type":"yarn","factor":3.0,"original_max_position_embeddings":32768}}'''
+  # 2026-09-14: applied proactively, not rediscovered here -- this model uses
+  # the same quantization: awq_marlin path as llama-3.3-70b.yaml, which hit
+  # a real bug in that exact path on an RTX PRO 6000 Blackwell node (job
+  # 7569337): choose_mp_linear_kernel's MacheteLinearKernel incorrectly
+  # reports support for this AWQ zero-point format, then fails at actual
+  # kernel invocation (NotImplementedError: machete_mm(..)). Same mechanism
+  # applies here since it's the same AWQ code path, not model-specific.
+  # See llama-3.3-70b.yaml's own comment for the full diagnosis.
+  extra_env:
+    VLLM_DISABLED_KERNELS: "MacheteLinearKernel"
+resources:
+  gpu_memory: 80G
+  gpu_capability: 8.0
+  gpu_type: H200
+  omp: 8

@@ -1,0 +1,44 @@
+id: 2026-09-14-qwen7b-interp-judge-seed-determinism-01
+project: scholarlm
+description: >-
+  Combined known-answer/validation + seed-determinism sanity control for
+  interp_judge/qwen-2.5-7b.yaml's YaRN rope-scaling override
+  (rope_type=yarn, factor=3.0, original_max_position_embeddings=32768),
+  which that model-config's own comment marks "UNVALIDATED... do not trust
+  judge output from this entry until one has [a GPU-loaded smoke/
+  known-answer check]" -- no such check has been run yet. do_sample=false,
+  max_new_tokens=1 (greedy, single-token) makes this arm cheap and
+  statistically well-powered at small N, unlike the vllm arms (see
+  2026-09-14-gptoss120b-judge-seed-determinism-01's description) --
+  N=100 is a genuine test here, not underpowered.
+
+  Input is params.synthetic_file, NOT params.extraction_id: standard mode
+  has no row-count control and would judge the full 4285-row extraction,
+  which this arm doesn't need. fixture_pond_ablation1_first100.json is a
+  deterministic, byte-identical slice: the first 100 rows, in original file
+  order, of experiments/results/pond/ablation/
+  2026-05-03-pond-gpt-oss-120b-ablation1-01/final.json (verified
+  byte-identical to the copy sitting in this experiment's -02 sibling
+  directory). Committed here rather than left in a scratch location so the
+  config stays reproducible on its own.
+
+  This run and -02 use the identical fixture and identical settings; compare
+  responses.json (judgement booleans AND the continuous
+  judgement_p_true/judgement_p_false/judgement_logit_p_true/
+  judgement_logit_p_false fields, which can drift before an argmax flips)
+  plus attention_outputs.npz/layer_outputs.npz for bitwise equality.
+  gpu_type is pinned (L40S) in this model-config, so unlike the vllm arms
+  there's no hardware-confound risk to check for here.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  synthetic_file: experiments/experiment-configs/pond/judge_interp/2026-09-14-qwen7b-interp-judge-seed-determinism-01/fixture_pond_ablation1_first100.json
+  # synthetic_name retired 2026-09-16: run_judge_interp.py now addresses
+  # synthetic_file output by this config's own id, so a separate label is a
+  # second name for the same fact. This run's original 2026-09-14 output
+  # still lives on the pre-migration tree at
+  # data/experiments/pond/synthetic_probe_seed_determinism_rerun_a/qwen-2.5-7b/2026_09_14/
+  # (untouched); a rerun of this exact config now lands under
+  # experiments/results/pond/judge_interp/2026-09-14-qwen7b-interp-judge-seed-determinism-01/
+  walltime: "2:00:00"

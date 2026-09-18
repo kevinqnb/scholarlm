@@ -1,0 +1,13 @@
+id: 2026-09-13-nfix-gemma3-27b-extraction-qwen72b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (qwen-2.5-72b) over nfix MeasurementLM extraction (gemma3-27b) (2026-05-06-nfix-gemma-3-27b-extraction-01).
+  Full raw-OCR paper context (pre-table-cleaning); ocr_dir pinned explicitly
+  rather than relying on the default.
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-72b
+  extraction_id: 2026-05-06-nfix-gemma-3-27b-extraction-01
+  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01
+  walltime: "48:00:00"

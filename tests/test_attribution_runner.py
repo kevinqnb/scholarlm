@@ -251,7 +251,11 @@ def test_analysis_loaders_importable_via_runner():
 
 def test_seed_read_has_no_fallback():
     src = (_REPO_ROOT / "experiments" / "run_attribution.py").read_text()
-    assert 'cfg["defaults"]["seed"]' in src
+    # The repo-wide seed is read straight off experiments/config.yaml's
+    # defaults.seed with no fallback -- the exact variable holding it (`cfg`,
+    # `repo_seed`, ...) is incidental; the invariant is the chained dict
+    # access itself, with no .get() default anywhere.
+    assert '["defaults"]["seed"]' in src
     assert not re.search(r"\.get\(\s*[\"']seed[\"']", src)
     assert "342" not in src  # no hardcoded seed default anywhere
 

@@ -1,0 +1,13 @@
+id: 2026-09-14-judge-seed-determinism-combine-02
+project: scholarlm
+description: >-
+  "Rerun B" counterpart to -combine-01 -- see that config for the full
+  rationale. Combines the three "rerun B" voting-judge runs.
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+    - 2026-09-14-gptoss120b-judge-seed-determinism-02
+    - 2026-09-14-llama70b-judge-seed-determinism-02
+    - 2026-09-14-qwen72b-judge-seed-determinism-02
+  walltime: "00:30:00"

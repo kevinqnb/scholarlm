@@ -136,7 +136,7 @@ class MeasurementLMGliner(MeasurementLM):
         not enumerate subjects as entities can carry it on the measurement
         event instead -- measeval enumerates *quantities* as entities and
         resolves the subject per-quantity as an event field (see
-        ``experiments/configs/measeval.py``), so the event schema is checked
+        ``experiments/dataset-configs/measeval.py``), so the event schema is checked
         before falling back to the first entity field. Without this, GLiNER
         would write the subject it found into that dataset's first entity field
         (``quantity``) and leave the ``name`` column null on every record,

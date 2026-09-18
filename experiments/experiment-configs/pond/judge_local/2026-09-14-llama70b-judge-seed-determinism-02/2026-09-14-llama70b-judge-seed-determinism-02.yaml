@@ -1,0 +1,18 @@
+id: 2026-09-14-llama70b-judge-seed-determinism-02
+project: scholarlm
+description: >-
+  Seed-determinism sanity control, second of two identical reruns -- see
+  2026-09-14-llama70b-judge-seed-determinism-01 for the full rationale
+  (this judge sends no seed at all; the test is temperature=0.0 batching
+  drift, not same-seed reproducibility). Byte-identical to -01 apart from
+  id. Compare responses.json against -01's, and check run_metadata.json's
+  gpu_info matches before interpreting any disagreement count.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.3-70b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"
+  # max_concurrent/request_timeout moved to this judge's model-config
+  # (experiments/model-configs/vllm_judge/llama-3.3-70b.yaml) on 2026-09-14 --
+  # the diagnostic history behind the 32/600 values lives there now.

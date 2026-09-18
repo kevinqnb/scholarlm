@@ -5,7 +5,9 @@ Calibration of probe / NTP confidence scores against HUMAN labels.
 (``judgement_combined`` OR'd with fuzzy ground-truth matching).  Those labels are
 themselves noisy, so an ECE computed against them mixes probe miscalibration with
 label error.  This script recomputes the same calibration statistics on the subset
-of data points that carry a human judgement from ``experiments/validation.py``.
+of data points that carry a human judgement (produced historically by
+``experiments/validation.py``, a Streamlit app, since removed -- this reads
+whatever responses.json files already exist on disk).
 
 Predictions are joined to human labels on ``measurement_id``.  That id is a
 positional index into a run's ``final.json``, so it is only meaningful within one
@@ -481,7 +483,9 @@ def main():
     metrics_df = compute_metrics(results, n_bins=args.n_bins)
     if metrics_df.empty:
         print('No human-labelled settings resolved — nothing to report. '
-              'Run experiments/validation.py first, or use --check to diagnose.')
+              'No human-validation responses.json exists for this run '
+              '(the Streamlit tool that produced these has been removed), '
+              'or use --check to diagnose.')
         return
 
     print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))

@@ -52,6 +52,7 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import os
@@ -64,14 +65,22 @@ from pathlib import Path
 BASE = Path(__file__).parent        # data/pond/
 REPO_ROOT = BASE.parent.parent      # repo root
 sys.path.insert(0, str(REPO_ROOT / "src"))
-sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
-from configs.pond import CONFIG
+# experiments/dataset-configs/ has a hyphen, so it can't be a dotted-import
+# package name (`import dataset-configs` is invalid syntax) -- load the file
+# directly, same approach experiments/run_extraction.py uses.
+_config_spec = importlib.util.spec_from_file_location(
+    "_dataset_config_pond", REPO_ROOT / "experiments" / "dataset-configs" / "pond.py"
+)
+_config_mod = importlib.util.module_from_spec(_config_spec)
+_config_spec.loader.exec_module(_config_mod)
+CONFIG = _config_mod.CONFIG
+
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
 # Entity fields a synthetic change may touch: the judge-visible entity fields
-# (experiments/configs/pond.py `judge_filter_fields`) minus `additional_details`
+# (experiments/dataset-configs/pond.py `judge_filter_fields`) minus `additional_details`
 # — a free-text catch-all that is null throughout the pond ground truth, so it
 # carries no signal to a probe and is kept out of every synthetic edit.
 _JUDGE_ENTITY_FIELDS: list[str] = ["name", "ecosystem"]

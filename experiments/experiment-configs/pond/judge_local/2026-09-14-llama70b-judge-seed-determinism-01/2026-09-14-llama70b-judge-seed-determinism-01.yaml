@@ -1,0 +1,28 @@
+id: 2026-09-14-llama70b-judge-seed-determinism-01
+project: scholarlm
+description: >-
+  Seed-determinism sanity control (first of two identical reruns; compare
+  against -02). IMPORTANT: llama-3.3-70b's vllm_judge model-config has no
+  sampling_params block, so run_judge_local.py's _judge_one falls back to
+  temperature=0.0 and sends NO seed at all to the API (kwargs["seed"] is
+  only set if seed is not None) -- this is therefore a test of "does
+  temperature=0.0 under vLLM's continuous batching drift run-to-run with no
+  seed pinned," not a same-seed comparison. It's included because
+  gpt-oss-120b's own debugging history (commit 30f8e79, notes/scholarlm/
+  experiments/2026-09-11-supermat-fulltext-judge-01.md) showed exactly this
+  temperature=0.0 setting producing a run-to-run-shifting failure on a
+  different model under the same serving stack, so it's not safe to assume
+  llama-3.3-70b's temperature=0.0 is immune just because it's greedy. Full
+  scale (4285 rows) against the same extraction, for the same
+  statistical-power reason as the gpt-oss-120b arm. Same gpu_type-pin caveat
+  applies (llama-3.3-70b.yaml has no gpu_type pin) -- check run_metadata.json
+  gpu_info matches -01 vs -02 before interpreting.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.3-70b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"
+  # max_concurrent/request_timeout moved to this judge's model-config
+  # (experiments/model-configs/vllm_judge/llama-3.3-70b.yaml) on 2026-09-14 --
+  # the diagnostic history behind the 32/600 values lives there now.

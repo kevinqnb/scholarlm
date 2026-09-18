@@ -52,6 +52,7 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import os
@@ -64,14 +65,22 @@ from pathlib import Path
 BASE = Path(__file__).parent        # data/nfix/
 REPO_ROOT = BASE.parent.parent      # repo root
 sys.path.insert(0, str(REPO_ROOT / "src"))
-sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
-from configs.nfix import CONFIG
+# experiments/dataset-configs/ has a hyphen, so it can't be a dotted-import
+# package name (`import dataset-configs` is invalid syntax) -- load the file
+# directly, same approach experiments/run_extraction.py uses.
+_config_spec = importlib.util.spec_from_file_location(
+    "_dataset_config_nfix", REPO_ROOT / "experiments" / "dataset-configs" / "nfix.py"
+)
+_config_mod = importlib.util.module_from_spec(_config_spec)
+_config_spec.loader.exec_module(_config_mod)
+CONFIG = _config_mod.CONFIG
+
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
 # Entity fields a synthetic change may touch: the judge-visible entity fields
-# (experiments/configs/nfix.py `judge_filter_fields`) minus `additional_details`
+# (experiments/dataset-configs/nfix.py `judge_filter_fields`) minus `additional_details`
 # — a free-text catch-all that is null throughout the nfix ground truth, so it
 # carries no signal to a probe and is kept out of every synthetic edit. nfix's
 # only judge-visible entity field is the name.

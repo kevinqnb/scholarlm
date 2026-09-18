@@ -58,8 +58,8 @@ import matplotlib.pyplot as plt
 from transformers import AutoTokenizer
 from IPython.display import HTML, display
 
-import paths
-import judge_common
+import utils as paths
+from scholarlm.utils import judge_prompts
 from run_extraction import load_dataset_config
 from model_registry import JACOBIAN_LENS_REGISTRY
 from scholarlm.jacobianlenslm import tokenize
@@ -106,13 +106,13 @@ print(f"{scores_path}\n{len(measurement_ids)} examples, {len(layer_indices)} lay
 # ## Reconstruct each example's (instructions, context, query)
 #
 # Same construction `run_jacobian_lens.py` used to build the prompts Thrust 1
-# scored: `judge_common.load_documents_for_dataset` +
-# `judge_common.prepare_chat_entries` over the extraction's `final.json`.
+# scored: `judge_prompts.load_documents_for_dataset` +
+# `judge_prompts.prepare_chat_entries` over the extraction's `final.json`.
 # `prepare_chat_entries` builds one entry per input record — the npz only has
 # `len(measurement_ids)` examples because `run_jacobian_lens.py` was run with
 # `--limit {len(measurement_ids)}`, so truncate `final.json` the same way
 # before calling it (passing the full ~2900-record file both wastes time and
-# floods this notebook with `judge_common`'s per-paper debug prints).
+# floods this notebook with `judge_prompts`'s per-paper debug prints).
 
 # %%
 dataset_config = load_dataset_config(dataset)
@@ -120,11 +120,11 @@ final = load_extraction(dataset, extraction_model, extraction_date)
 final = final[: len(measurement_ids)]
 
 ocr_dir = str(Path(dataset_config.data_dir) / "ocr_output_raw")
-# judge_common prints a full-page DEBUG dump for the first few papers it processes;
+# judge_prompts prints a full-page DEBUG dump for the first few papers it processes;
 # suppress it here rather than let it flood the saved notebook output.
 with contextlib.redirect_stdout(io.StringIO()):
-    documents = judge_common.load_documents_for_dataset(dataset_config, ocr_dir)
-    chat_entries = judge_common.prepare_chat_entries(final, documents, dataset_config)
+    documents = judge_prompts.load_documents_for_dataset(dataset_config, ocr_dir)
+    chat_entries = judge_prompts.prepare_chat_entries(final, documents, dataset_config)
 
 # Look up by measurement_id, not list index — custom_id is prepare_chat_entries'
 # original-index-into-`final`, which only happens to equal measurement_id here.

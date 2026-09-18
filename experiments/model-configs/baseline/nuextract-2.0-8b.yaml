@@ -1,0 +1,17 @@
+model_id: numind/NuExtract-2.0-8B
+sampling_params:
+  temperature: 0.0
+  max_tokens: 4096
+serve:
+  port: 8081
+  max_model_len: 16384
+  gpu_memory_utilization: 0.9
+  dtype: bfloat16
+  sif_image: vllm-openai_v0.19.0.sif
+  extra_vllm_args:
+  - --chat-template-content-format openai
+  - '--limit-mm-per-prompt ''{"image": 2}'''
+resources:
+  gpu_memory: 48G
+  gpu_capability: 8.0
+  omp: 8

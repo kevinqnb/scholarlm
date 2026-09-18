@@ -53,6 +53,7 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import os
@@ -65,14 +66,22 @@ from pathlib import Path
 BASE = Path(__file__).parent        # data/supermat/
 REPO_ROOT = BASE.parent.parent      # repo root
 sys.path.insert(0, str(REPO_ROOT / "src"))
-sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
-from configs.supermat import CONFIG
+# experiments/dataset-configs/ has a hyphen, so it can't be a dotted-import
+# package name (`import dataset-configs` is invalid syntax) -- load the file
+# directly, same approach experiments/run_extraction.py uses.
+_config_spec = importlib.util.spec_from_file_location(
+    "_dataset_config_supermat", REPO_ROOT / "experiments" / "dataset-configs" / "supermat.py"
+)
+_config_mod = importlib.util.module_from_spec(_config_spec)
+_config_spec.loader.exec_module(_config_mod)
+CONFIG = _config_mod.CONFIG
+
 from scholarlm.utils.page_attribution import parse_ocr
 from scholarlm.utils import probe_augment as _aug
 
 # Entity fields a synthetic change may touch: the judge-visible entity fields
-# (experiments/configs/supermat.py `judge_filter_fields`) minus `additional_details`.
+# (experiments/dataset-configs/supermat.py `judge_filter_fields`) minus `additional_details`.
 # For supermat that leaves only the name — identifiers and sample_details are
 # filtered out of the judge prompt, and additional_details is null throughout the
 # ground truth.
@@ -658,7 +667,7 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         value_pool_by_attr=_value_pool_by_attr(all_records),
         # supermat has no judge-visible measurement-event field: `date` is absent
         # from the schema and `pressure` / `me_method` are filtered out of the
-        # judge prompt (experiments/configs/supermat.py). So no pos_event axis and
+        # judge prompt (experiments/dataset-configs/supermat.py). So no pos_event axis and
         # no `event` error type — the orchestrator drops both when event_field is None.
         event_field=None,
         event_noun="applied pressure",   # unused while event_field is None

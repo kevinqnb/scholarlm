@@ -1,0 +1,20 @@
+id: 2026-09-13-pond-ablation1-llama70b-judge-local-01
+project: scholarlm
+description: >-
+  Phase C acceptance gate (restructure plan). vLLM voting judge
+  (llama-3.3-70b) over the pond ablation1/gpt-oss-120b extraction, migrated
+  in Phase B as 2026-05-03-pond-gpt-oss-120b-ablation1-01. Exercises
+  run_judge_local.py's new config-path CLI + id-based extraction_id
+  resolution end to end. Its responses.json is diffed against the
+  llama-3.3-70b subdir already sitting under
+  data/experiments/pond/ablations/ablation1/gpt-oss-120b/2026_05_03/judge/
+  -- unlike gpt-oss-120b, no sampling-param commits have touched this judge's
+  branch since that baseline run (temperature=0.0, no seed override, per git
+  log on run_judge_local.py), so a byte-exact match is the actual expectation
+  here, not just a plumbing check.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.3-70b
+  extraction_id: 2026-05-03-pond-gpt-oss-120b-ablation1-01
+  walltime: "48:00:00"

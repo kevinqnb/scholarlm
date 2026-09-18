@@ -1,0 +1,22 @@
+id: 2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01
+project: scholarlm
+description: >-
+  Backfilled record (2026-09-16). NNsight interp-judge pass (qwen-2.5-7b) over
+  the primary synthetic-probe test set (data/pond/probe_dataset_test_v2.json:
+  held-out ground-truth valids + typed negatives, zero gpt-oss augmentation on
+  positives) -- companion to 2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01
+  (see that config for the corpus/judge rationale and the retired ad hoc "v2"
+  label). Read by analysis/calibration_updated.py for SmECE (untouched, not
+  migrated this session).
+
+  Originally run 2026-09-10 via experiments/run_judge_v2.sh pond tests 2026_09_10
+  (predates the experiment-id contract for synthetic_file mode entirely).
+  Output copied unchanged from
+  data/experiments/pond/synthetic_probe_v2_primary/qwen-2.5-7b/2026_09_10/;
+  the old-tree copy is left in place for analysis/calibration_updated.py.
+seed: 342
+params:
+  dataset: pond
+  judge: qwen-2.5-7b
+  synthetic_file: data/pond/probe_dataset_test_v2.json
+  walltime: "4:00:00"  # actual runtime 2.5h (run_metadata.json runtime_seconds=8856.9)

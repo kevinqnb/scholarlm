@@ -1,6 +1,6 @@
 """Loaders for ScholarlM experiment outputs.
 
-All path resolution delegates to ``experiments/paths.py``; callers never
+All path resolution delegates to ``experiments/utils.py``; callers never
 build paths by hand.
 
 Typical usage
@@ -23,7 +23,7 @@ _EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
     sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
-import paths as _paths
+import utils as _paths
 
 _UTILS_DIR = Path(__file__).parent.parent / "experiments"
 if str(_UTILS_DIR) not in sys.path:
@@ -121,7 +121,11 @@ def load_human_judgements(
     judge_date: str | None = None,
     drop_skipped: bool = True,
 ) -> tuple[list[dict], str]:
-    """Load responses.json from a human validation run (``experiments/validation.py``).
+    """Load responses.json from a human validation run.
+
+    Produced historically by ``experiments/validation.py`` (a Streamlit app,
+    since removed) -- this reads whatever responses.json files already exist
+    on disk; nothing currently generates new ones.
 
     Args:
         dataset: Dataset identifier.

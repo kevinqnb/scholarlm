@@ -38,7 +38,7 @@ from analysis.loaders import (
 from analysis.ablation import get_matching_rules
 from scholarlm.utils.unit_conversion import apply_unit_conversion
 from experiments.run_extraction import load_dataset_config
-import paths
+import utils as paths
 
 mpl.rcParams.update({
     "font.family": "serif",

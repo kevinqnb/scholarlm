@@ -1,0 +1,41 @@
+id: 2026-09-16-supermat-qwen-2.5-7b-yarn-smoke-test-01
+project: scholarlm
+description: >-
+  Rung-2 smoke test, NOT a real probe-training run: validates
+  experiments/model-configs/interp_judge/qwen-2.5-7b.yaml's YaRN
+  rope_scaling override (added in the Sep 12-14 model-config restructure,
+  marked UNVALIDATED in its own comment -- no GPU-loaded smoke/known-answer
+  check has ever run against it) before any of the six real
+  2026-09-16-{nfix,supermat}-qwen-2.5-7b-synthetic-judge-* runs submit.
+
+  fixture.json (2 hand-built rows, committed alongside this config) both
+  reference hott2013review-CC -- supermat's longest OCR document (209730
+  bytes, the ~68242-token measurement the rope_scaling override's own
+  comment cites), stressing exactly the long-range-attention regime YaRN is
+  supposed to fix, not a short in-window control:
+    - measurement_id 0: Mercury tc=4.0K, label "valid" -- copied verbatim
+      from the real GT row in data/supermat/probe_dataset.json
+      (gt_row_index 529), a genuine known-answer case: the paper states this
+      value, so a working judge should verdict it valid.
+    - measurement_id 1: same entity/document, value swapped to 999.0K
+      (modification_type "value"), label "invalid" -- if the model can't
+      actually attend that far into the document (RoPE running past its
+      trained window, silently, since NNsight has no admission check the
+      way vLLM does), an ungrounded guess is as likely to call this valid as
+      the first row, so this row is what actually discriminates "reads the
+      long context correctly" from "always says valid" or "always says
+      invalid".
+
+  Known-answer prediction, stated in advance per CLAUDE.md's sanity-control
+  rule: row 0 -> valid, row 1 -> invalid. Anything else (including a
+  crash, a NaN in attention_outputs.npz/layer_outputs.npz, or both rows
+  getting the same verdict) means don't trust this judge on long-context
+  rows and don't submit the six real synthetic-judge configs until it's
+  fixed. This id is a smoke test, not part of the probe-training pipeline --
+  it doesn't get registered in analysis/calibration_ids.py.
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  synthetic_file: experiments/experiment-configs/supermat/judge_interp/2026-09-16-supermat-qwen-2.5-7b-yarn-smoke-test-01/fixture.json
+  walltime: "1:00:00"  # 2 rows -- dominated by NNsight model load, not inference

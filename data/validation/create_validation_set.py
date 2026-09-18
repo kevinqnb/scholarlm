@@ -190,7 +190,7 @@ def build(
         documents.setdefault(doc, {"pages": {}})["pages"][str(p)] = text
 
     # Whole OCR document, verbatim -- the <page number="N">...</page> stream
-    # the judge now consumes (judge_common.prepare_chat_entries no longer
+    # the judge now consumes (judge_prompts.prepare_chat_entries no longer
     # slices to the extracted page). The validation site renders this and
     # tints the extracted page(s); `pages` above stays for the per-page view.
     for doc in documents:

@@ -1,0 +1,17 @@
+model_id: allenai/olmOCR-2-7B-1025
+sampling_params:
+  temperature: 0.1
+  max_tokens: 16384
+  seed: 342
+prompt_source: olmocr_no_anchoring_v4
+output_dir: ocr_output_raw
+serve:
+  port: 8081
+  max_model_len: 32768
+  gpu_memory_utilization: 0.9
+  dtype: auto
+  sif_image: vllm-openai_v0.10.1.sif
+resources:
+  gpu_memory: 24G
+  gpu_capability: 8.0
+  omp: 8
