@@ -1,0 +1,21 @@
+id: 2026-09-18-pond-baseline-langextract-gemma27b-01
+project: scholarlm
+description: >-
+  Rung-2 smoke test for the langextract baseline (measurementlm_langextract.py):
+  one pond paper, real langextract chunking (max_char_buffer=4000, ~17 chunks
+  for this ~67k-char paper), no structured-decoding schema constraints yet
+  (use_schema_constraints=false, fence_output=true) to isolate whether the
+  wrapper + langextract + local vLLM chat-completions path works at all before
+  layering on response_format json_schema as a separate follow-up config.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: [agricultural_freshwater]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: false
+  fence_output: true
+  walltime: "02:00:00"

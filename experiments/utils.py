@@ -1086,6 +1086,10 @@ EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     # model-config (or none at all) at submission time.
     "baseline_chatextract":  {"runner": "run_baseline_chatextract.py", "model_kind": "extraction",
                               "model_default": "gemma-3-27b"},
+    # No model_default: run_baseline_langextract.py requires params.model
+    # explicitly (its langextract chunking/recall knobs are already
+    # required-no-default; model follows the same rule).
+    "baseline_langextract":  {"runner": "run_baseline_langextract.py", "model_kind": "extraction"},
     "probe_augment":         {"runner": "run_probe_augment.py",        "model_kind": "extraction"},
     "baseline_gliner":       {"runner": "run_baseline_gliner.py",      "model_kind": "baseline",
                               "model_default": "gliner-large-v1"},
@@ -1094,6 +1098,11 @@ EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     # params -- there is no params key to look up.
     "baseline_nuextract":    {"runner": "run_baseline_nuextract.py",   "model_kind": "baseline",
                               "fixed_model": "nuextract-2.0-8b"},
+    # model_default must match run_baseline_nuextract3.py's own
+    # params.get("model", "nuextract3") fallback exactly (see this dict's
+    # docstring on model_default).
+    "baseline_nuextract3":   {"runner": "run_baseline_nuextract3.py",  "model_kind": "baseline",
+                              "model_default": "nuextract3"},
     # These three runners name their model params.judge, not params.model
     # (matching their own --judge CLI flag before this restructure) --
     # resolve_job must key off the right params field per experiment-type,
