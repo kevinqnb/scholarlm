@@ -16,6 +16,7 @@ from .chandra_format import (
 )
 from .references import (
     drop_references_section,
+    describe_drop_references,
 )
 from .data import (
     match_datasets,
