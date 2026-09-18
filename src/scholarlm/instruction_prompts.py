@@ -117,6 +117,70 @@ Units standardization guidelines:
 
 
 # --------------------------------------------
+# MeasurementLMv2 Prompts (quantity-first pipeline)
+#
+# v2 flips the extraction order: quantities are collected per (page, attribute)
+# before any entity or event is known, deduplicated, and only then attributed
+# to an entity/event via a full-paper call. See src/scholarlm/measurementlmv2.py.
+# --------------------------------------------
+
+QUANTITY_COLLECTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract every directly reported quantity for a single measurement attribute from a single page of a research paper, pulling from both prose text and any tables on the page.
+
+Guidelines:
+- Scan the entire page — including prose text, tables, table captions, and footnotes — for every distinct numerical value reported for the given attribute.
+- Return one item per distinct quantity found. If the same value is reported more than once on the page for what is clearly the same measurement, report it once. If the page reports multiple different measurements for the attribute (different entities, dates, conditions, etc.), report each one as a separate item — do not average or collapse them.
+- Only include direct numerical measurements. Do NOT include model parameters, coefficients, p-values, or measures of statistical fit.
+- If the page reports no data for the attribute, return an empty items list.
+
+For each quantity, populate:
+- value: the numerical value, formatted according to `type` (see below). Do not include units, uncertainty, or descriptive text in this field.
+- units: the unit of measurement as reported, or null if the attribute is dimensionless or no unit is given.
+- type: one of "point", "range", or "inequality".
+  - "point": a single reported value (e.g. "12.3"). value = "12.3", quantifier = null.
+  - "range": a reported interval with no single central value (e.g. "3-7", "between 3 and 7"). value = "(3, 7)" (lower bound first), quantifier = null.
+  - "inequality": a reported bound (e.g. "< 5", "at least 10"). value = the bound only (e.g. "5"), quantifier = one of "<", ">", "<=", ">=" matching the reported relation.
+- quantifier: required (and only used) when type = "inequality"; null otherwise.
+- ci_lower / ci_upper: if a confidence interval or uncertainty range is reported as an explicit (lower, upper) interval (e.g. "(10.2, 14.8)", "95% CI: 5-9"), record the two bounds here. Otherwise null.
+- ci: if uncertainty is reported as a symmetric plus-or-minus value (e.g. "12.3 ± 0.5"), record only the half-width ("0.5") here. Otherwise null. Never populate both ci and ci_lower/ci_upper for the same item.
+
+Strict rules:
+- Do NOT infer, guess, or derive any value. Use only what is explicitly stated on the page.
+- Do NOT report a central/mean value in the value field for a range- or CI-only report — see the type rules above.
+- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "type", "quantifier", "ci_lower", "ci_upper", and "ci" fields.
+"""
+
+
+STANDARDIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to standardize the units of a single extracted quantity, and clean up its numeric formatting, using the page or table it was extracted from as the source of truth.
+
+You will be given: the source text (a page or table), a description of the measurement attribute, a list of preferred units for the attribute, and the quantity as extracted (its type, quantifier, value, units, and any confidence-interval fields).
+
+Guidelines:
+- Preserve the quantity's type and quantifier exactly — you are standardizing numeric formatting and units only, not reclassifying the quantity.
+- Value standardization: strip any residual unit text, symbols, or descriptors from the value; keep the same type-specific format ("(lower, upper)" for a range, a bare number otherwise). Do not convert magnitudes or perform unit conversion — only clean up formatting.
+- ci_lower / ci_upper / ci: apply the same formatting cleanup, unchanged in magnitude.
+- Units standardization: if the extracted units are a notational variant of one of the preferred units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the matching preferred unit. If they are not a notational variant of any preferred unit (i.e., converting would require a numerical unit conversion, or no preferred units are listed), return the extracted units unchanged. If units is null, return null.
+- Provide a brief explanation of what standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation", "value", "units", "ci_lower", "ci_upper", and "ci" fields.
+"""
+
+
+CONTEXTUALIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything a single already-extracted quantity describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
+
+You will be given: the full text of a research paper (with page boundaries marked), a description of a measurement attribute, a single quantity already extracted for that attribute (its type, quantifier, value, units, and confidence-interval fields), the page number(s) where it was found, and reference descriptions of the entity and measurement-event fields to populate.
+
+Guidelines:
+- Locate the quantity in the full paper using the given page number(s).
+- Determine which entity (or entities) this quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
+- In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item.
+- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination.
+- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach this quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
+- If you cannot confidently attribute the quantity to any entity, return an empty items list rather than guessing.
+- Populate every entity and event field as completely as the paper allows; use null for anything not explicitly stated. Do not infer, guess, or derive any field value.
+- Structure your response as a JSON object with an "items" list, where each item has the entity fields and measurement-event fields described in the reference material provided in the query.
+"""
+
+
+# --------------------------------------------
 # Ablation Prompts
 # --------------------------------------------
 

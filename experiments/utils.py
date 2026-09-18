@@ -1077,6 +1077,7 @@ def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -
 # restructure plan's two-tier taxonomy.
 EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     "extraction":           {"runner": "run_extraction.py",          "model_kind": "extraction"},
+    "extraction_v2":         {"runner": "run_extraction_v2.py",       "model_kind": "extraction"},
     "ablation":              {"runner": "run_ablation.py",            "model_kind": "extraction"},
     "table_cleaning":        {"runner": "run_table_cleaning.py",       "model_kind": "extraction"},
     # model_default: the runner's own params.get("model", <default>) fallback
