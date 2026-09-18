@@ -1,0 +1,23 @@
+id: 2026-09-18-nfix-gemma3-27b-v2-extraction-01
+project: scholarlm
+description: >
+  MeasurementLMv2 (quantity-first pipeline) full-dataset extraction, nfix,
+  gemma-3-27b. First v2 run on this dataset. Known limitation carried over
+  from the pond smoke test: contextualize-step entity over-attribution was
+  reduced but not eliminated by the instruction fix in that build (see
+  notes/scholarlm/builds/2026-09-18-measurementlmv2-01.md) -- expect some
+  shared-value quantities to over-expand across similar entities.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  # Id-addressed table_cleaning output. Table-cleaning model and extraction
+  # model are independent choices -- OCR text is just text by this point.
+  ocr_dir: experiments/results/nfix/table_cleaning/2026-05-03-nfix-table-cleaning-01
+  resume: false
+  # No solid v2 full-run timing exists yet -- the only v2 data point is a
+  # 1-paper pond smoke test (~100s, explicitly unrepresentative), and v1's
+  # full nfix runs on gemma-3-27b (different call pattern) ranged 5.2-18.3h
+  # across separate attempts. Set to the safe 24h ceiling at the user's
+  # explicit request rather than guessing a tighter number.
+  walltime: "24:00:00"

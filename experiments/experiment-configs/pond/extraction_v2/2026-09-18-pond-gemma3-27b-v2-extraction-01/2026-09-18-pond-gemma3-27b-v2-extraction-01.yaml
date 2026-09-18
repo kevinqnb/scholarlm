@@ -1,0 +1,27 @@
+id: 2026-09-18-pond-gemma3-27b-v2-extraction-01
+project: scholarlm
+description: >
+  MeasurementLMv2 (quantity-first pipeline) full-dataset extraction, pond,
+  gemma-3-27b. First full v2 run on this dataset -- follows the 2026-09-18
+  two-paper smoke pair (2026-09-18-pond-gemma3-27b-v2-smoke-01/-02) that
+  verified plumbing and seed-determinism. Known limitation carried over from
+  the smoke test: contextualize-step entity over-attribution was reduced but
+  not eliminated by the instruction fix in that build (see
+  notes/scholarlm/builds/2026-09-18-measurementlmv2-01.md) -- expect some
+  shared-value quantities to over-expand across similar entities.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  # Id-addressed table_cleaning output, not the legacy per-model directory --
+  # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
+  # run_metadata.json/config are missing). Table-cleaning model and extraction
+  # model are independent choices -- OCR text is just text by this point.
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-01
+  resume: false
+  # No solid v2 full-run timing exists yet -- the only v2 data point is the
+  # 1-paper smoke test (~100s, explicitly unrepresentative), and v1's full
+  # pond runs on gemma-3-27b (different call pattern) ranged 8.3-22.4h across
+  # separate attempts. Set to the safe 24h ceiling at the user's explicit
+  # request rather than guessing a tighter number.
+  walltime: "24:00:00"
