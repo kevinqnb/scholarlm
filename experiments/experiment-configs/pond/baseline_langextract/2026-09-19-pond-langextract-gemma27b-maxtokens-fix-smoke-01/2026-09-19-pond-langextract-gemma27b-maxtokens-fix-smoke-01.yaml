@@ -1,0 +1,45 @@
+id: 2026-09-19-pond-langextract-gemma27b-maxtokens-fix-smoke-01
+project: scholarlm
+description: >-
+  Rung-2 smoke test for the max_tokens fix to measurementlm_langextract.py
+  (see notes/scholarlm/builds/2026-09-19-langextract-max-tokens-fix-01.md):
+  MeasurementLMLangExtract.fit() passed max_output_tokens via `lx.extract`'s
+  `language_model_params=`, but `fit()` also passes `config=`, and
+  langextract's extraction.py only reads `language_model_params` in the
+  branch taken when `config=` is *not* given -- so max_tokens never reached
+  vLLM. Fixed by moving max_output_tokens (and top_p) into the ModelConfig's
+  own `provider_kwargs`, confirmed with a rung-1 unit test
+  (tests/test_measurementlm_langextract.py) against langextract's actual
+  merge_kwargs/`_build_chat_completions_params` code, no network call.
+  This config exists to confirm the same fix against the real failure
+  condition: `agricultural_freshwater` is document 0 in the sorted,
+  reference-dropped pond paper list, and was the paper stuck in both crashed
+  attempts of 2026-09-19-pond-langextract-gemma27b-full-01 (each died on an
+  unbounded single request, no max_tokens sent, after 1790s and 2660s
+  respectively per the vLLM server's own request log). Single paper,
+  ocr_dir pinned to the same reference-dropped directory the full run reads
+  (not the dataset config's un-dropped default -- the existing rung-2 smoke
+  config, 2026-09-18-pond-baseline-langextract-gemma27b-01, already passed
+  against the un-dropped text under the old broken code, so re-running it
+  unchanged wouldn't actually exercise the fix). max_workers/batch_length set
+  to the full run's 16/20, not the original smoke's conservative 4/4, since
+  concurrency was never actually implicated in the root cause and this is
+  also the one paper's chunk count (~12) that the full-run config sizes
+  max_workers against.
+  Walltime: the original 4/4 smoke run finished this same paper (un-dropped
+  text) in 637.5s; budgeted to 20 minutes for model load + real run, well
+  past that, with no long-tail expectation now that no request should exceed
+  max_tokens=8192 (a few minutes of decode at ~35 tok/s).
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  paper_subset: [agricultural_freshwater]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "00:20:00"

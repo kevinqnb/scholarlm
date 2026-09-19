@@ -282,7 +282,16 @@ class MeasurementLMLangExtract(MeasurementLM):
         config = ModelConfig(
             model_id=self.model_name,
             provider="openai",
-            provider_kwargs={"api_key": self.client.api_key, "base_url": str(self.client.base_url)},
+            # `lx.extract`'s `config=` path (unlike its `model_id=` path) never
+            # reads `language_model_params` -- max_output_tokens/top_p must go
+            # here, as provider constructor kwargs, or vLLM gets no completion
+            # budget at all and a chunk can generate unbounded.
+            provider_kwargs={
+                "api_key": self.client.api_key,
+                "base_url": str(self.client.base_url),
+                "max_output_tokens": self.sampling_params.get("max_tokens"),
+                "top_p": self.sampling_params.get("top_p"),
+            },
         )
         output_schema = (
             _build_output_schema(self.direct_extraction_schema, self.attribute_info_dict)
@@ -306,13 +315,6 @@ class MeasurementLMLangExtract(MeasurementLM):
                 output_schema=output_schema,
                 fence_output=self.fence_output,
                 temperature=self.sampling_params.get("temperature"),
-                # langextract has no fallback to the model config's own
-                # completion budget -- left unset, per-chunk calls fall back
-                # to whatever the provider/vLLM defaults to (unverified), and
-                # a truncated response hard-fails schema validation under
-                # output_schema. Reuse the same per-model default every other
-                # baseline uses for this backbone.
-                language_model_params={"max_output_tokens": self.sampling_params.get("max_tokens")},
                 show_progress=False,
             )
 

@@ -311,21 +311,33 @@ def test_fit_passes_output_schema_only_when_schema_constraints_enabled(monkeypat
     assert captured["output_schema"] == _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
 
 
-def test_fit_threads_max_tokens_from_sampling_params_into_language_model_params(monkeypatch):
-    """langextract has no fallback to the model config's own completion
-    budget -- must be threaded through explicitly or per-chunk calls fall
-    back to an unverified provider default."""
+def test_fit_threads_max_tokens_and_top_p_into_model_config_provider_kwargs(monkeypatch):
+    """`lx.extract`'s `config=` path (the one `fit()` uses) never reads
+    `language_model_params` -- only the `model_id=` path does (see
+    langextract's extraction.py: `language_model_params` is applied in the
+    `else` branch, never in the `elif config:` branch). max_output_tokens and
+    top_p must go into the ModelConfig's own `provider_kwargs` instead, or
+    vLLM gets no completion budget and a chunk can generate unbounded (this
+    is what actually happened in 2026-09-19-pond-langextract-gemma27b-full-01:
+    no max_tokens ever reached the request, so one stuck chunk ran until the
+    client's own read timeout killed it, taking the whole run down)."""
     context = '<page number="0">Lake A depth 3.2 m.</page>'
     captured = {}
 
     def fake_extract(*a, **k):
+        captured["config"] = k.get("config")
         captured["language_model_params"] = k.get("language_model_params")
         return langextract.data.AnnotatedDocument(text=context, extractions=[])
 
     monkeypatch.setattr(langextract, "extract", fake_extract)
 
-    _make_mlm(sampling_params={"temperature": 0.6, "max_tokens": 8192}).fit([context])
-    assert captured["language_model_params"] == {"max_output_tokens": 8192}
+    _make_mlm(sampling_params={"temperature": 0.6, "max_tokens": 8192, "top_p": 0.95}).fit([context])
+
+    # Not the ignored kwarg.
+    assert captured["language_model_params"] is None
+    # The kwarg langextract's config= path actually reads.
+    assert captured["config"].provider_kwargs["max_output_tokens"] == 8192
+    assert captured["config"].provider_kwargs["top_p"] == 0.95
 
 
 def test_fit_does_not_merge_duplicate_mentions(monkeypatch):
