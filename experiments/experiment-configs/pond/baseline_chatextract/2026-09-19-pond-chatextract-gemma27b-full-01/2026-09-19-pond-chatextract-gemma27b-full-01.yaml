@@ -1,0 +1,28 @@
+id: 2026-09-19-pond-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked ChatExtract baseline
+  (src/scholarlm/measurementlm_chatextract.py) on all 115 non-excluded pond
+  papers (paper_subset omitted -- dataset_config.paper_exclude, 13 papers, is
+  the only filtering applied). First full-scale pond run since this session's
+  rework: see notes/scholarlm/builds/2026-09-19-chatextract-rework-01.md /
+  devlog/2026-09-19-chatextract-rework-01.md for the full list of changes
+  (no _table_caption heuristic, anchored yes/no matching, guided-JSON table
+  extraction, tracked failures, no max_tables_per_document cap, no
+  _deduplicate()). Rungs 1-3 all passed clean this session, including a
+  tiny-e2e on this dataset's smallest paper (first_record_of_the: 15 records
+  here vs. the pre-rework run's 6 on the same paper).
+  Walltime extrapolated from the pre-rework full pond run
+  (experiments/results/pond/baseline_chatextract/2026-07-11-pond-baseline-
+  chatextract-01/run_metadata.json, runtime_seconds=16508.4 for the same
+  115-paper set, same extract_tables=true default): ~4.6h base, budgeted to
+  ~3.5x for headroom, since the new table-extraction path (guided JSON) and
+  removed table cap could add or remove time in either direction and this
+  hasn't been measured at full scale yet. No incremental output: fit() returns
+  once for the whole dataset before final.json is written, so a walltime kill
+  loses the entire run, not a partial result.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  walltime: "16:00:00"
