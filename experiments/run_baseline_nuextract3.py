@@ -18,10 +18,10 @@ Usage
     python experiments/run_baseline_nuextract3.py experiments/experiment-configs/pond/baseline_nuextract3/<id>/<id>.yaml
 
 Required params: dataset.
-Optional params: model (default "nuextract3"), paper_subset (list), api_base,
-    api_key, max_tokens (see MeasurementLMNuExtract3's own docstring for its
-    fallback order -- this, then the model config's sampling_params.max_tokens,
-    then 32768).
+Optional params: model (default "nuextract3"), paper_subset (list), ocr_dir
+    (default "{data_dir}/ocr_output_raw"), api_base, api_key, max_tokens (see
+    MeasurementLMNuExtract3's own docstring for its fallback order -- this,
+    then the model config's sampling_params.max_tokens, then 32768).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
@@ -59,13 +59,17 @@ def run_baseline_nuextract3(
     model_config,
     output_dir: Path,
     paper_subset_override: list[str] | None = None,
+    ocr_dir: str | None = None,
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     max_tokens: int | None = None,
 ) -> None:
     """Run the NuExtract3 baseline for a dataset.
 
-    Reads `{data_dir}/ocr_output_raw/` directly -- no pre-processing step.
+    Reads `{data_dir}/ocr_output_raw/` directly -- no pre-processing step --
+    unless `ocr_dir` overrides that, e.g. to point at a
+    `experiments/results/{dataset}/drop_references/<id>/` directory instead
+    (same override convention as `run_baseline_langextract.py`'s `ocr_dir`).
 
     Writes a single `final.json` to `output_dir`, in the standard extraction
     record schema (same fields as MeasurementLM/ablation final.json output),
@@ -76,6 +80,7 @@ def run_baseline_nuextract3(
         model_config: Model configuration from `experiments/model-configs/baseline/`.
         output_dir: Directory for the output file (created if needed).
         paper_subset_override: If provided, overrides `dataset_config.paper_subset`.
+        ocr_dir: If provided, overrides the default `{data_dir}/ocr_output_raw`.
         api_base: Base URL of the vLLM OpenAI-compatible server hosting NuExtract3.
         api_key: API key for the vLLM server (any non-empty string works).
         max_tokens: Forwarded to `MeasurementLMNuExtract3`; `None` uses its own
@@ -88,12 +93,14 @@ def run_baseline_nuextract3(
             f"(the same values Ablation 1 uses)."
         )
 
+    effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
+
     print(f"\nDataset   : {dataset_config.name}")
     print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"OCR dir   : {effective_ocr_dir}")
     print(f"Output    : {output_dir}\n")
 
-    ocr_dir = str(Path(dataset_config.data_dir) / "ocr_output_raw")
-    text, text_info = load_papers(dataset_config, ocr_dir, paper_subset_override)
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
     mlm = MeasurementLMNuExtract3(
@@ -196,6 +203,7 @@ def main(argv: list[str] | None = None) -> None:
         model_config=model_config,
         output_dir=output_dir,
         paper_subset_override=params.get("paper_subset"),
+        ocr_dir=params.get("ocr_dir"),
         api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
         api_key=params.get("api_key", "EMPTY"),
         max_tokens=params.get("max_tokens"),
