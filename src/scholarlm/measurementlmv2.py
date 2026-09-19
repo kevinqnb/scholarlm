@@ -24,7 +24,7 @@ from pydantic import BaseModel, create_model
 from .instruction_prompts import (
     QUANTITY_COLLECTION_INSTRUCTIONS,
     STANDARDIZE_QUANTITY_INSTRUCTIONS,
-    CONTEXTUALIZE_QUANTITY_INSTRUCTIONS,
+    CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS,
 )
 from .measurementlm import ContextLengthExceededError, MeasurementLM, response_validator
 
@@ -105,6 +105,7 @@ class QuantityItem(BaseModel):
     ci_lower: str | None = None
     ci_upper: str | None = None
     ci: str | None = None
+    table_number: int | None = None
 
 
 class QuantityListResponse(BaseModel):
@@ -120,25 +121,31 @@ class StandardizeQuantityResponse(BaseModel):
     ci: str | None = None
 
 
-def _merge_field_schemas(entity_schema: type[BaseModel], event_schema: type[BaseModel] | None, model_name: str):
-    """Combine an entity schema and (optional) event schema into one flat model.
+def _model_field_kwargs(schema: type[BaseModel]) -> dict[str, tuple]:
+    """(annotation, default-or-Ellipsis) kwargs for create_model, keyed by field name."""
+    return {
+        name: (info.annotation, ... if info.is_required() else info.default)
+        for name, info in schema.model_fields.items()
+    }
 
-    Used for the contextualization step's response schema: given a quantity,
-    the model fills in entity fields and event fields together in one item.
-    Field-name collisions between the two schemas fail loud rather than
-    silently letting one schema's field shadow the other's.
+
+def _merge_field_schemas(entity_schema: type[BaseModel], event_schema: type[BaseModel] | None, model_name: str):
+    """Combine two schemas into one flat model (the second argument may be None).
+
+    Used both for the contextualization step's entity+event response schema,
+    and again to add the quantity-echo fields on top of that merged schema.
+    Field-name collisions fail loud rather than silently letting one schema's
+    field shadow the other's.
     """
     event_fields = set(event_schema.model_fields) if event_schema is not None else set()
     overlap = set(entity_schema.model_fields) & event_fields
     if overlap:
         raise ValueError(
-            f"entity and event schemas share field name(s) {overlap}; rename to disambiguate"
+            f"schemas share field name(s) {overlap}; rename to disambiguate"
         )
-    schemas = (entity_schema,) if event_schema is None else (entity_schema, event_schema)
-    fields = {}
-    for schema in schemas:
-        for name, info in schema.model_fields.items():
-            fields[name] = (info.annotation, ... if info.is_required() else info.default)
+    fields = _model_field_kwargs(entity_schema)
+    if event_schema is not None:
+        fields.update(_model_field_kwargs(event_schema))
     return create_model(model_name, **fields)
 
 
@@ -160,6 +167,17 @@ def _norm_scalar(v: str | None):
         return str(v).strip().lower()
 
 
+def _quantity_value_key(q: dict):
+    """Normalized value key, shared by the dedup key and the (looser)
+    contextualization match key below.
+    """
+    value = q["value"]
+    if q["type"] == "range":
+        m = _RANGE_RE.match(value)
+        return (_norm_scalar(m.group(1)), _norm_scalar(m.group(2))) if m else value
+    return _norm_scalar(value)
+
+
 def _quantity_dedup_key(q: dict) -> tuple:
     """Equality key for deduplicating quantities within (document, attribute).
 
@@ -170,17 +188,58 @@ def _quantity_dedup_key(q: dict) -> tuple:
     value for two distinct entities/events, the contextualization step is
     responsible for re-expanding it into multiple final records.
     """
-    value = q["value"]
-    if q["type"] == "range":
-        m = _RANGE_RE.match(value)
-        value_key = (_norm_scalar(m.group(1)), _norm_scalar(m.group(2))) if m else value
-    else:
-        value_key = _norm_scalar(value)
     return (
         q["document_id"], q["attribute"], q["type"], q.get("quantifier"),
-        value_key, _norm_units(q.get("units")),
+        _quantity_value_key(q), _norm_units(q.get("units")),
         _norm_scalar(q.get("ci_lower")), _norm_scalar(q.get("ci_upper")), _norm_scalar(q.get("ci")),
     )
+
+
+def _quantity_match_key(q: dict) -> tuple:
+    """Looser identity key for matching a contextualization response's
+    echoed quantity back to its source: (document_id, attribute, value,
+    units) only -- type/quantifier/CI excluded.
+
+    A 2026-09-19 smoke test (gemma-3-27b, pond) showed the model reliably
+    echoes value/units/attribute verbatim, but not type/quantifier/CI: it
+    added an inequality quantifier to plain point quantities (apparently
+    re-derived from a symbol near the value in the source table, rather than
+    copied), and echoed an absent CI field as the literal string "None"
+    (a symptom of our own prompt text rendering `None` as that word -- see
+    the query-building code below, fixed the same day). The model's echoed
+    type/quantifier/CI are never trusted regardless: only the matched
+    original quantity's own fields reach the output record. When more than
+    one quantity in a group shares this reduced key (e.g. a point value that
+    coincidentally equals a separately-reported inequality bound), the full
+    _quantity_dedup_key is used to disambiguate among just those candidates.
+    """
+    return (q["document_id"], q["attribute"], _quantity_value_key(q), _norm_units(q.get("units")))
+
+
+def _describe_quantity(q: dict, attribute_info_dict: dict) -> str:
+    """Render one quantity for the contextualization prompt.
+
+    A field that is None is omitted entirely rather than interpolated (an
+    f-string on None renders the literal text "None") -- see
+    _quantity_match_key's docstring for the bug that caused: a model told to
+    copy fields back "exactly as given" copied that literal word instead of
+    emitting JSON null for an absent field.
+    """
+    lines = [
+        f"- Attribute: {q['attribute']} -- {attribute_info_dict[q['attribute']].get('description', '')}",
+        f"  Quantity type: {q['type']}",
+        f"  Value: {q['value']}",
+    ]
+    if q.get("quantifier") is not None:
+        lines.append(f"  Quantifier: {q['quantifier']}")
+    if q.get("units") is not None:
+        lines.append(f"  Units: {q['units']}")
+    if q.get("ci_lower") is not None or q.get("ci_upper") is not None:
+        lines.append(f"  CI lower/upper: {q.get('ci_lower')} / {q.get('ci_upper')}")
+    if q.get("ci") is not None:
+        lines.append(f"  CI (±): {q['ci']}")
+    lines.append(f"  Found on page(s): {q['page_number']}")
+    return "\n".join(lines) + "\n"
 
 
 # -----------------------------------------------------------------------
@@ -374,11 +433,13 @@ class MeasurementLMv2(MeasurementLM):
 
     def _deduplicate_quantities(self, quantities: list[dict]) -> list[dict]:
         """Groups by (document_id, attribute, type, quantifier, value, units,
-        CI), aggregating 'page_number' into a list so every surviving
-        quantity carries the full list of pages it was found on (see
-        _quantity_dedup_key's docstring for why this granularity).
+        CI), aggregating 'page_number' and 'table_number' into index-aligned
+        lists so every surviving quantity carries every (page, table) location
+        it was found on (see _quantity_dedup_key's docstring for why dedup
+        ignores these fields, and _group_quantities_for_contextualization for
+        how they're used downstream).
         """
-        _PROV_FIELDS = ("page_number",)
+        _PROV_FIELDS = ("page_number", "table_number")
         index_by_key: dict[tuple, int] = {}
         deduplicated: list[dict] = []
 
@@ -401,6 +462,24 @@ class MeasurementLMv2(MeasurementLM):
     # Step 3: Contextualize — attribute each quantity to entity(s) and event(s)
     # -----------------------------------------------------------------------
 
+    def _group_quantities_for_contextualization(
+        self, quantities: list[dict]
+    ) -> dict[tuple[int, int | None], list[dict]]:
+        """Buckets deduplicated quantities into (document_id, table_number) groups.
+
+        table_number is None for a document's prose group. A quantity whose
+        aggregated table_number list (see _deduplicate_quantities) contains
+        any non-null value is assigned to the first such table -- a table is a
+        more specific source location than prose, so a quantity seen in both
+        is grouped with the table. Dict insertion order determines message
+        order, which the caller relies on to zip results back to groups.
+        """
+        groups: dict[tuple[int, int | None], list[dict]] = {}
+        for q in quantities:
+            table_number = next((t for t in q["table_number"] if t is not None), None)
+            groups.setdefault((q["document_id"], table_number), []).append(q)
+        return groups
+
     def _contextualize_quantities(self, quantities: list[dict], max_tokens: int = 8192) -> list[dict]:
         if not quantities:
             return []
@@ -408,36 +487,51 @@ class MeasurementLMv2(MeasurementLM):
         EntityEventItem = _merge_field_schemas(
             self.entity_identification_schema, self.measurement_event_schema, "EntityEventItem",
         )
-        EntityEventList = create_model("EntityEventList", items=(list[EntityEventItem], ...))
+        # The response must echo each quantity's identifying fields back
+        # (QuantityEcho) so we can match an item to its source quantity by
+        # content rather than by an index the model could misapply -- see
+        # notes/scholarlm/builds/ for the build note that introduced this.
+        # table_number is provenance, not identity (see _quantity_dedup_key),
+        # so it's excluded here even though it's a QuantityItem field.
+        quantity_identity_fields = _model_field_kwargs(QuantityItem)
+        quantity_identity_fields.pop("table_number")
+        QuantityEcho = create_model("QuantityEcho", attribute=(str, ...), **quantity_identity_fields)
+        AttributedQuantityItem = _merge_field_schemas(QuantityEcho, EntityEventItem, "AttributedQuantityItem")
+        AttributedQuantityList = create_model("AttributedQuantityList", items=(list[AttributedQuantityItem], ...))
         response_format = {
             "type": "json_schema",
-            "json_schema": {"name": "entity_event_list", "schema": EntityEventList.model_json_schema()},
+            "json_schema": {"name": "attributed_quantity_list", "schema": AttributedQuantityList.model_json_schema()},
         }
+        echo_fields = set(QuantityEcho.model_fields)
 
         event_reference = (
             f"\n\nMeasurement event field reference:\n{self.measurement_event_prompt}"
             if self.measurement_event_schema is not None else ""
         )
 
+        groups = self._group_quantities_for_contextualization(quantities)
+        group_keys = list(groups.keys())
+
         messages = []
-        for q in quantities:
-            doc_context = self.data[q["document_id"]]["context"]
+        for doc_id, table_number in group_keys:
+            group = groups[(doc_id, table_number)]
+            doc_context = self.data[doc_id]["context"]
+            scope_line = (
+                f"The quantities below were all extracted from Table {table_number} of this paper."
+                if table_number is not None
+                else "The quantities below were all extracted from prose text (not from a table)."
+            )
+            quantity_lines = [_describe_quantity(q, self.attribute_info_dict) for q in group]
             query = (
-                f"Attribute: {q['attribute']}\n"
-                f"Attribute description: {self.attribute_info_dict[q['attribute']].get('description', '')}\n"
-                f"Quantity type: {q['type']}\n"
-                f"Quantifier: {q.get('quantifier')}\n"
-                f"Value: {q['value']}\n"
-                f"Units: {q.get('units')}\n"
-                f"CI lower/upper: {q.get('ci_lower')} / {q.get('ci_upper')}\n"
-                f"CI (±): {q.get('ci')}\n"
-                f"Found on page(s): {q['page_number']}\n\n"
+                f"{scope_line}\n\n"
                 f"Entity field reference:\n{self.entity_identification_prompt}"
                 f"{event_reference}\n\n"
-                f"Identify every distinct (entity, event) this quantity describes.\n"
+                f"Quantities:\n\n" + "\n".join(quantity_lines) +
+                "\nFor each quantity above, copy back its fields and identify every "
+                "distinct (entity, event) it describes.\n"
             )
             prompt = (
-                f"## INSTRUCTIONS:\n{CONTEXTUALIZE_QUANTITY_INSTRUCTIONS}\n\n"
+                f"## INSTRUCTIONS:\n{CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS}\n\n"
                 f"## CONTEXT:\n{doc_context}\n\n## QUERY:\n{query}"
             )
             messages.append([{"role": "user", "content": prompt}])
@@ -449,28 +543,54 @@ class MeasurementLMv2(MeasurementLM):
             max_tokens=max_tokens,
             max_concurrent=2,
             timeout=300,
-            validator=lambda r: response_validator(EntityEventList, r),
+            validator=lambda r: response_validator(AttributedQuantityList, r),
             extra_body=self._seed_extra_body(),
         )
 
         records = []
         dropped = 0
-        for i, resp in enumerate(response_texts):
-            q = quantities[i]
+        for msg_idx, resp in enumerate(response_texts):
+            doc_id, table_number = group_keys[msg_idx]
+            group = groups[(doc_id, table_number)]
             if isinstance(resp, ContextLengthExceededError):
-                self.context_length_exceeded_docs.add(q["document_id"])
+                self.context_length_exceeded_docs.add(doc_id)
                 continue
             try:
-                result = response_validator(EntityEventList, resp)
+                result = response_validator(AttributedQuantityList, resp)
             except Exception as e:
-                print(f"Validation error in contextualization response: {e}")
+                print(f"Validation error in contextualization response (doc {doc_id}, table {table_number}): {e}")
                 print(f"Response text: {resp}")
                 continue
-            if not result["items"]:
-                dropped += 1
-                continue
+
+            candidates_by_key: dict[tuple, list[dict]] = {}
+            for q in group:
+                candidates_by_key.setdefault(_quantity_match_key(q), []).append(q)
+
+            matched_ids = set()
             for item in result["items"]:
-                records.append(q | item)
+                echo = {k: v for k, v in item.items() if k in echo_fields}
+                echo["document_id"] = doc_id
+                candidates = candidates_by_key.get(_quantity_match_key(echo), [])
+                if len(candidates) == 1:
+                    matched_q = candidates[0]
+                elif len(candidates) > 1:
+                    # Rare: several quantities in this group share (attribute,
+                    # value, units) -- disambiguate via the full identity key.
+                    matched_q = {_quantity_dedup_key(c): c for c in candidates}.get(_quantity_dedup_key(echo))
+                else:
+                    matched_q = None
+                if matched_q is None:
+                    print(
+                        f"Contextualization: doc {doc_id} table {table_number} returned an "
+                        f"item whose copied-back quantity fields ({echo}) don't match any "
+                        "quantity sent in this batch; dropping."
+                    )
+                    continue
+                matched_ids.add(id(matched_q))
+                entity_event_fields = {k: v for k, v in item.items() if k not in echo_fields}
+                records.append(matched_q | entity_event_fields)
+
+            dropped += len(group) - len(matched_ids)
 
         if dropped:
             print(

@@ -120,8 +120,10 @@ Units standardization guidelines:
 # MeasurementLMv2 Prompts (quantity-first pipeline)
 #
 # v2 flips the extraction order: quantities are collected per (page, attribute)
-# before any entity or event is known, deduplicated, and only then attributed
-# to an entity/event via a full-paper call. See src/scholarlm/measurementlmv2.py.
+# before any entity or event is known, deduplicated, grouped by document and
+# source location (prose vs. a specific table), and only then attributed to an
+# entity/event in one full-paper call per group. See
+# src/scholarlm/measurementlmv2.py.
 # --------------------------------------------
 
 QUANTITY_COLLECTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract every directly reported quantity for a single measurement attribute from a single page of a research paper, pulling from both prose text and any tables on the page.
@@ -142,11 +144,12 @@ For each quantity, populate:
 - quantifier: required (and only used) when type = "inequality"; null otherwise.
 - ci_lower / ci_upper: if a confidence interval or uncertainty range is reported as an explicit (lower, upper) interval (e.g. "(10.2, 14.8)", "95% CI: 5-9"), record the two bounds here. Otherwise null.
 - ci: if uncertainty is reported as a symmetric plus-or-minus value (e.g. "12.3 ± 0.5"), record only the half-width ("0.5") here. Otherwise null. Never populate both ci and ci_lower/ci_upper for the same item.
+- table_number: if the quantity is reported within a table on this page, the table number from the enclosing `<table number="x">` tag. Otherwise null (the quantity is in prose text).
 
 Strict rules:
 - Do NOT infer, guess, or derive any value. Use only what is explicitly stated on the page.
 - Do NOT report a central/mean value in the value field for a range- or CI-only report — see the type rules above.
-- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "type", "quantifier", "ci_lower", "ci_upper", and "ci" fields.
+- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "type", "quantifier", "ci_lower", "ci_upper", "ci", and "table_number" fields.
 """
 
 
@@ -164,19 +167,20 @@ Guidelines:
 """
 
 
-CONTEXTUALIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything a single already-extracted quantity describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
+CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything each of a list of already-extracted quantities describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
 
-You will be given: the full text of a research paper (with page boundaries marked), a description of a measurement attribute, a single quantity already extracted for that attribute (its type, quantifier, value, units, and confidence-interval fields), the page number(s) where it was found, and reference descriptions of the entity and measurement-event fields to populate.
+You will be given: the full text of a research paper (with page and table boundaries marked), a list of quantities already extracted from this paper (each with its attribute, type, quantifier, value, units, confidence-interval fields, and the page number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
 
 Guidelines:
-- Locate the quantity in the full paper using the given page number(s).
-- Determine which entity (or entities) this quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
-- In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item.
-- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination.
-- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach this quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
-- If you cannot confidently attribute the quantity to any entity, return an empty items list rather than guessing.
+- For every quantity in the list, first copy its attribute, type, quantifier, value, units, ci_lower, ci_upper, and ci fields back into your response item exactly as given, character-for-character — this is how your answer is matched back to the right quantity, so do not alter, round, standardize, or reformat them. A quantity's listing below only shows the fields it has; anything not listed for it (quantifier, units, ci_lower/ci_upper, ci) is absent and must be copied back as JSON null, not as any word or placeholder text.
+- Locate each quantity in the full paper using its given page number(s) (and table number, if the query says these quantities come from a table).
+- Determine which entity (or entities) the quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
+- In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item for it.
+- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination — each copying back the same quantity fields.
+- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach a quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
+- If you cannot confidently attribute a quantity to any entity, omit it from your response entirely rather than guessing — do not invent an item with blank entity/event fields just to have copied the quantity back.
 - Populate every entity and event field as completely as the paper allows; use null for anything not explicitly stated. Do not infer, guess, or derive any field value.
-- Structure your response as a JSON object with an "items" list, where each item has the entity fields and measurement-event fields described in the reference material provided in the query.
+- Structure your response as a JSON object with an "items" list, where each item has the quantity's fields (attribute, type, quantifier, value, units, ci_lower, ci_upper, ci) copied back, plus the entity fields and measurement-event fields described in the reference material provided in the query.
 """
 
 

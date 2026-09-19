@@ -119,7 +119,7 @@ def test_dedup_key_differs_across_documents_and_attributes():
 
 def test_deduplicate_quantities_aggregates_page_numbers(monkeypatch):
     mlm = _make_mlm()
-    page1 = {"document_id": 0, "page_number": 1, "attribute": "depth", "type": "point",
+    page1 = {"document_id": 0, "page_number": 1, "table_number": None, "attribute": "depth", "type": "point",
              "quantifier": None, "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
     page2 = dict(page1, page_number=2)
     distinct = dict(page1, page_number=3, value="5.0")
@@ -130,6 +130,19 @@ def test_deduplicate_quantities_aggregates_page_numbers(monkeypatch):
     by_value = {r["value"]: r for r in deduped}
     assert by_value["3.2"]["page_number"] == [1, 2]
     assert by_value["5.0"]["page_number"] == [3]
+
+
+def test_deduplicate_quantities_aggregates_table_numbers():
+    mlm = _make_mlm()
+    prose = {"document_id": 0, "page_number": 1, "table_number": None, "attribute": "depth", "type": "point",
+              "quantifier": None, "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    same_value_in_table = dict(prose, page_number=2, table_number=3)
+
+    deduped = mlm._deduplicate_quantities([prose, same_value_in_table])
+
+    assert len(deduped) == 1
+    assert deduped[0]["page_number"] == [1, 2]
+    assert deduped[0]["table_number"] == [None, 3]
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +176,155 @@ def test_merge_field_schemas_with_no_event_schema():
 def test_merge_field_schemas_raises_on_field_name_collision():
     with pytest.raises(ValueError):
         _merge_field_schemas(_EntitySchema, _OverlappingEventSchema, "Merged")
+
+
+# ---------------------------------------------------------------------------
+# _group_quantities_for_contextualization
+# ---------------------------------------------------------------------------
+
+
+def _quantity(**overrides):
+    base = {
+        "document_id": 0, "attribute": "depth", "type": "point", "quantifier": None,
+        "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None,
+        "page_number": [1], "table_number": [None],
+    }
+    base.update(overrides)
+    return base
+
+
+def test_group_quantities_prefers_table_over_prose_and_keeps_docs_separate():
+    mlm = _make_mlm()
+    prose = _quantity(value="3.2", table_number=[None])
+    in_table = _quantity(value="5.0", table_number=[2])
+    mixed = _quantity(value="7.5", table_number=[None, 2])
+    other_doc = _quantity(document_id=1, value="3.2", table_number=[None])
+
+    groups = mlm._group_quantities_for_contextualization([prose, in_table, mixed, other_doc])
+
+    assert set(groups.keys()) == {(0, None), (0, 2), (1, None)}
+    assert groups[(0, None)] == [prose]
+    assert groups[(0, 2)] == [in_table, mixed]  # mixed goes with the table, not prose
+    assert groups[(1, None)] == [other_doc]
+
+
+# ---------------------------------------------------------------------------
+# _contextualize_quantities: matching by echoed fields, not position
+# ---------------------------------------------------------------------------
+
+
+def _attributed_item(value="3.2", name="Lake A", location="WI", date="2020"):
+    return (
+        f'{{"attribute": "depth", "value": "{value}", "units": "m", "type": "point", '
+        f'"quantifier": null, "ci_lower": null, "ci_upper": null, "ci": null, '
+        f'"name": "{name}", "location": "{location}", "date": "{date}"}}'
+    )
+
+
+def test_contextualize_quantities_matches_by_echo_and_drops_mismatch_and_missing(monkeypatch):
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    mlm.context_length_exceeded_docs = set()
+    q_a = _quantity(value="3.2")
+    q_b = _quantity(value="5.0")  # never echoed back by the model below
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        assert response_format["json_schema"]["name"] == "attributed_quantity_list"
+        assert len(message_sets) == 1  # both quantities are prose, same document -> 1 group
+        return [
+            "{\"items\": [" + _attributed_item(value="3.2", name="Lake A") + ", "
+            # echoes a value that was never sent -- must be dropped, not matched by position
+            + _attributed_item(value="9.9", name="Ghost Lake") + "]}"
+        ]
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+
+    records = mlm._contextualize_quantities([q_a, q_b])
+
+    assert len(records) == 1
+    assert records[0]["value"] == "3.2"
+    assert records[0]["name"] == "Lake A"
+
+
+def test_contextualize_quantities_batches_prose_and_table_separately(monkeypatch):
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    mlm.context_length_exceeded_docs = set()
+    q_prose = _quantity(value="3.2", page_number=[1], table_number=[None])
+    q_table = _quantity(value="5.0", page_number=[2], table_number=[2])
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        assert len(message_sets) == 2  # prose group and table-2 group, sent separately
+        return [
+            "{\"items\": [" + _attributed_item(value="3.2", name="Lake A") + "]}",
+            "{\"items\": [" + _attributed_item(value="5.0", name="Lake B") + "]}",
+        ]
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+
+    records = mlm._contextualize_quantities([q_prose, q_table])
+
+    by_name = {r["name"]: r for r in records}
+    assert by_name["Lake A"]["value"] == "3.2"
+    assert by_name["Lake B"]["value"] == "5.0"
+
+
+def test_contextualize_quantities_matches_despite_echoed_quantifier_and_ci_drift(monkeypatch):
+    """Regression for the 2026-09-19 smoke test (gemma-3-27b, pond): the model
+    added an inequality quantifier to a plain point quantity and echoed its
+    absent CI fields as the literal string "None" instead of JSON null.
+    Matching on (attribute, value, units) must still succeed, and the
+    ORIGINAL type/quantifier/CI -- not the model's drifted ones -- must reach
+    the record.
+    """
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    mlm.context_length_exceeded_docs = set()
+    q = _quantity(value="26", units="km^2")  # type point, quantifier None, ci None
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        return [
+            '{"items": [{"attribute": "depth", "value": "26", "units": "km^2", '
+            '"type": "point", "quantifier": "<=", "ci_lower": "None", "ci_upper": "None", '
+            '"ci": "None", "name": "Lake A", "location": "WI", "date": "2020"}]}'
+        ]
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+
+    records = mlm._contextualize_quantities([q])
+
+    assert len(records) == 1
+    assert records[0]["quantifier"] is None  # original, not the model's "<="
+    assert records[0]["ci"] is None          # original, not the string "None"
+    assert records[0]["name"] == "Lake A"
+
+
+def test_contextualize_quantities_disambiguates_reduced_key_collision(monkeypatch):
+    """Two quantities share (attribute, value, units) but differ in type --
+    a point value that coincidentally equals a separately-reported
+    inequality bound. Matching must fall back to the full identity key
+    rather than attaching the response to whichever candidate comes first.
+    """
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    mlm.context_length_exceeded_docs = set()
+    q_point = _quantity(value="5", units="m", type="point", quantifier=None, page_number=[1])
+    q_bound = _quantity(value="5", units="m", type="inequality", quantifier="<", page_number=[2])
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        return [
+            '{"items": [{"attribute": "depth", "value": "5", "units": "m", '
+            '"type": "inequality", "quantifier": "<", "ci_lower": null, "ci_upper": null, '
+            '"ci": null, "name": "Bound Lake", "location": "WI", "date": "2020"}]}'
+        ]
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+
+    records = mlm._contextualize_quantities([q_point, q_bound])
+
+    assert len(records) == 1
+    assert records[0]["page_number"] == [2]  # matched q_bound, not q_point
+    assert records[0]["name"] == "Bound Lake"
 
 
 # ---------------------------------------------------------------------------
@@ -220,14 +382,12 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
                 '"ci_lower": null, "ci_upper": null, "ci": null}'
             )
             return [resp, resp]
-        if name == "entity_event_list":
-            # Both pages produced an identical quantity -> deduped to 1 call.
+        if name == "attributed_quantity_list":
+            # Both pages produced an identical quantity -> deduped to 1 group (prose, doc 0).
             assert len(message_sets) == 1
             return [
-                '{"items": ['
-                '{"name": "Lake A", "location": "WI", "date": "2020"}, '
-                '{"name": "Lake B", "location": "WI", "date": "2021"}'
-                ']}'
+                "{\"items\": [" + _attributed_item(value="3.2", name="Lake A", date="2020")
+                + ", " + _attributed_item(value="3.2", name="Lake B", date="2021") + "]}"
             ]
         raise AssertionError(f"unexpected _call_batch invocation: {name}")
 
@@ -235,7 +395,7 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
 
     records = mlm.fit([_DOC])
 
-    assert [c[0] for c in calls] == ["quantity_list", "standardize_quantity", "entity_event_list"]
+    assert [c[0] for c in calls] == ["quantity_list", "standardize_quantity", "attributed_quantity_list"]
     assert len(records) == 2  # one deduplicated quantity -> two distinct measurements
 
     names = {r["name"] for r in records}
