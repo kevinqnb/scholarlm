@@ -113,12 +113,19 @@ during the build session, not inferred):
   does not stop a `ph` item from picking a `tn` unit; the dataset's
   `direct_extraction_prompt`, passed via `instructions`, is what tells the
   model which units belong to which attribute. Both `attribute` and `units`
-  get the same client-side retry-then-drop backstop (in `_extract_records`'s
-  `_validate` and its post-`_call_batch` loop, `max_retries=2`): if guided
-  decoding doesn't hold for this new model/backend combination -- unverified,
-  same reason the base pipeline keeps its own vocabulary check even with a
-  plain-`str` schema -- an out-of-vocabulary value is retried and, failing
-  that, dropped and counted, rather than silently entering the record set.
+  get the same client-side retry backstop (in `_extract_records`'s
+  `_validate`, `max_retries=2`): if guided decoding doesn't hold for this new
+  model/backend combination -- unverified, same reason the base pipeline
+  keeps its own vocabulary check even with a plain-`str` schema -- an
+  out-of-vocabulary value is retried. **Enforce-no-drop**: unlike the old
+  NuExtract-2.0 adapter's issue #1 discussion might suggest, a value still
+  out-of-vocabulary after retries is kept, not dropped (`out_of_vocab_count`
+  in `_extract_records` tracks it for visibility) -- Ablation 1 has no
+  vocabulary check at all and LangExtract's `output_schema` path
+  (`use_schema_constraints=True`) never drops either, so this adapter's
+  post-hoc filtering used to be a third, uniquely strict policy for the same
+  underlying failure mode. Aligned across all three baselines/points of
+  comparison as of the build session that added this note.
 - **`attribute_info_dict` is the units source of truth.** `pond.py` currently
   has three disagreeing unit vocabularies for the same attributes:
   `attribute_info_dict` (e.g. 7 entries for `tn`/`tp`/`chla`), the
@@ -173,10 +180,12 @@ def _build_response_schema(direct_extraction_schema, attribute_names: list[str],
     Used only to build `response_format`, never to parse a response: parsing
     uses the plain (non-Literal) `direct_extraction_schema` instead, so that
     one out-of-vocabulary item -- decoding-time enforcement notwithstanding --
-    fails just that item (dropped by the post-hoc vocabulary check in
-    `_extract_records`, same as the base pipeline's own `_extract_triples`)
-    rather than raising a `ValidationError` that discards every other item in
-    the same document's response.
+    fails validation on its own rather than raising a `ValidationError` that
+    discards every other item in the same document's response. The
+    post-`_call_batch` loop in `_extract_records` retries such an item
+    (`_validate`, `max_retries=2`) but keeps it either way (enforce-no-drop --
+    see module docstring), matching Ablation 1's `_extract_triples`, which
+    never checks vocabulary at all.
 
     `units` keeps its original (non-Literal) typing when `unit_names` is
     empty -- some datasets (measeval) have no closed unit vocabulary at all
@@ -391,7 +400,7 @@ class MeasurementLMNuExtract3(MeasurementLM):
         )
 
         records: list[dict] = []
-        dropped_count = 0
+        out_of_vocab_count = 0
         for doc_idx, r in enumerate(response_texts):
             if isinstance(r, ContextLengthExceededError):
                 self.context_length_exceeded_docs.add(doc_idx)
@@ -408,21 +417,21 @@ class MeasurementLMNuExtract3(MeasurementLM):
                 if item.get("value") is None:
                     continue
                 if item.get("attribute") not in known_attributes:
-                    dropped_count += 1
+                    out_of_vocab_count += 1
                     print(
-                        f"Dropping NuExtract3 record with out-of-vocabulary attribute "
+                        f"NuExtract3 record with out-of-vocabulary attribute "
                         f"{item.get('attribute')!r} (doc {doc_idx}, item {item_idx}); "
-                        f"still not in attribute_info_dict after retries."
+                        f"still not in attribute_info_dict after retries -- kept, not dropped "
+                        f"(enforce-no-drop: matches Ablation 1 and LangExtract's policy)."
                     )
-                    continue
-                if known_units is not None and item.get("units") is not None and item.get("units") not in known_units:
-                    dropped_count += 1
+                elif known_units is not None and item.get("units") is not None and item.get("units") not in known_units:
+                    out_of_vocab_count += 1
                     print(
-                        f"Dropping NuExtract3 record with out-of-vocabulary units "
+                        f"NuExtract3 record with out-of-vocabulary units "
                         f"{item.get('units')!r} (doc {doc_idx}, item {item_idx}); "
-                        f"still not in attribute_info_dict's unit vocabulary after retries."
+                        f"still not in attribute_info_dict's unit vocabulary after retries -- kept, "
+                        f"not dropped (enforce-no-drop: matches Ablation 1 and LangExtract's policy)."
                     )
-                    continue
                 entity_id = f"doc_{doc_idx}_entity_{item_idx}"
                 records.append(
                     self.data[doc_idx] | item | {
@@ -431,10 +440,10 @@ class MeasurementLMNuExtract3(MeasurementLM):
                     }
                 )
 
-        if dropped_count:
+        if out_of_vocab_count:
             print(
-                f"NuExtract3 extraction: dropped {dropped_count} record(s) with an "
-                f"out-of-vocabulary attribute or units after retries."
+                f"NuExtract3 extraction: {out_of_vocab_count} record(s) had an "
+                f"out-of-vocabulary attribute or units after retries; kept (not dropped)."
             )
 
         return records

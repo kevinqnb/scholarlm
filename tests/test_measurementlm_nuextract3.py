@@ -297,10 +297,12 @@ def test_max_tokens_constructor_value_overrides_sampling_params(monkeypatch):
     assert captured["max_tokens"] == 8192
 
 
-def test_out_of_vocabulary_units_retried_then_dropped(monkeypatch, capsys):
-    """Mirrors the attribute backstop: an off-vocabulary `units` value must
-    not silently enter the record set just because the parse schema is
-    lenient (see _build_response_schema's docstring)."""
+def test_out_of_vocabulary_units_retried_then_kept(monkeypatch, capsys):
+    """Enforce-no-drop: an off-vocabulary `units` value still triggers the
+    retry backstop (guided decoding is meant to prevent this), but a value
+    still off-vocabulary after retries is kept, not discarded -- matching
+    Ablation 1 (no vocabulary check at all) and LangExtract (enforces via
+    output_schema but never drops). See _build_response_schema's docstring."""
     mlm = _make_mlm()
     mlm.data = [{"document_id": 0, "context": "DOC0 text"}]
 
@@ -316,10 +318,11 @@ def test_out_of_vocabulary_units_retried_then_dropped(monkeypatch, capsys):
 
     records = mlm._extract_records()
 
-    assert records == []
+    assert len(records) == 1
+    assert records[0]["units"] == "furlongs"
     out = capsys.readouterr().out
     assert "furlongs" in out
-    assert "dropped 1 record" in out
+    assert "1 record(s) had an out-of-vocabulary attribute or units after retries; kept" in out
 
 
 def test_fit_never_deduplicates_identical_items(monkeypatch):
@@ -496,7 +499,8 @@ def test_builds_schema_and_template_for_every_real_dataset_config(dataset_name):
     assert entity_fields <= set(cfg.direct_extraction_schema.model_fields.keys())
 
 
-def test_out_of_vocabulary_attribute_dropped_after_retries_exhausted(monkeypatch, capsys):
+def test_out_of_vocabulary_attribute_kept_after_retries_exhausted(monkeypatch, capsys):
+    """Enforce-no-drop: see test_out_of_vocabulary_units_retried_then_kept."""
     mlm = _make_mlm()
     mlm.data = [{"document_id": 0, "context": "DOC0 text"}]
 
@@ -512,7 +516,8 @@ def test_out_of_vocabulary_attribute_dropped_after_retries_exhausted(monkeypatch
 
     records = mlm._extract_records()
 
-    assert records == []
+    assert len(records) == 1
+    assert records[0]["attribute"] == "hardness"
     out = capsys.readouterr().out
     assert "hardness" in out
-    assert "dropped 1 record" in out
+    assert "1 record(s) had an out-of-vocabulary attribute or units after retries; kept" in out

@@ -293,7 +293,11 @@ class MeasurementLMLangExtract(MeasurementLM):
         as-is, even if it falls outside `attribute_info_dict`'s vocabulary.
         This baseline does not police that itself (see `fit`'s docstring);
         an out-of-vocabulary attribute simply won't match anything at
-        evaluation time.
+        evaluation time. Enforce-no-drop: this holds regardless of
+        `use_schema_constraints` (enforcement at generation time is optional,
+        dropping post-hoc never happens either way) -- the same policy
+        `MeasurementLMNuExtract3` was aligned to and that `MeasurementLMAblation1`
+        already had by never checking vocabulary at all.
         """
         attrs = extraction.attributes or {}
         record = {field: attrs.get(field) for field in self._entity_field_names()}
