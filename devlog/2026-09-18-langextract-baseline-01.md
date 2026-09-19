@@ -59,3 +59,53 @@ page-grounded records.
 
 - `0701668` Add langextract baseline: chunked, schema-grounded extraction via
   Google's langextract library
+
+## Session 2026-09-18 (continued)
+
+### Prompts
+
+> [Asked how `extraction_class` works, how much of the module is langextract
+> "as intended" vs. our own engineering, and the alternative design] ... I
+> didn't realize we were doing deduplicate. If we are, we should not be. That
+> is not part of LangExtract, that is part of the method this repo has
+> designed. LangExtract is a baseline for comparison. We need to be as
+> faithful as possible to the original implementation and nothing else.
+
+> [Asked how `attribute` is constrained today] Yes, let's use an
+> output_schema. Wire that up. And get rid of the code which throws items out
+> for not satisfying the attribute. We should keep those, and just have them
+> be invalidated by the matching later, if anything.
+
+> Let's run this test again with schema constraints. Before we submit, please
+> walk me through the rest of the run parameters for this model. How would
+> you advise to set them in a real run?
+
+> Go ahead with (1-3). Stick with the default 8192.
+
+> Let's try vllm 0.24.0. Change the model config for gemma. ... Submit the
+> smoke test again.
+
+### Implemented
+
+Removed `_deduplicate()` and the out-of-vocabulary-attribute filter from the
+langextract baseline's `fit()` — both are this repo's own post-processing
+(needed by ChatExtract/NuExtract's own calling conventions), not part of
+langextract's method, so a faithful baseline must not apply them. Added a
+real generation-time vocabulary constraint instead: `_build_output_schema`
+passes an explicit JSON Schema to `lx.extract(output_schema=...)` that
+enum-constrains `attribute`, since langextract's own example-inferred schema
+only types by Python type, never by vocabulary value. Threaded the model's
+own `max_tokens` through as `language_model_params.max_output_tokens`. Test
+suite grew from 13 to 18. A live schema-constrained smoke run hung under vLLM
+v0.10.1's guided decoding; bumped `gemma-3-27b.yaml`'s vLLM image to v0.24.0
+(`experiments/model-configs/extraction/gemma-3-27b.yaml`), which resolved it
+cleanly — the resubmitted run produced 14 records with zero out-of-vocabulary
+attributes, confirming the new constraint. Prepared, not yet submitted, a
+10-paper rung-3 config
+(`2026-09-18-pond-baseline-langextract-gemma27b-10papers-01.yaml`).
+
+### Commits
+
+- `e31b34e` Faithfulness fixes for the langextract baseline: drop
+  _deduplicate and the out-of-vocabulary attribute filter, constrain
+  `attribute` via output_schema, bump gemma-3-27b's vLLM image to v0.24.0
