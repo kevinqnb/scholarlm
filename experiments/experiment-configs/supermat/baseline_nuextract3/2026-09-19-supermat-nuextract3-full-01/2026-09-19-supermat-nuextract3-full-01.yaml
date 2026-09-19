@@ -1,0 +1,27 @@
+id: 2026-09-19-supermat-nuextract3-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the NuExtract3 baseline (MeasurementLMNuExtract3) on all
+  143 supermat papers (dataset_config.paper_exclude is None for supermat --
+  no quality exclusions defined, unlike pond's 13 and nfix's 3, so "full run"
+  here really is every OCR'd paper on disk). No prior NuExtract3 run of any
+  kind exists for supermat -- first time this adapter's prompt/schema wiring
+  is exercised against supermat's single-attribute ("tc") schema.
+  First full-scale run since this session's enforce-no-drop fix
+  (src/scholarlm/measurementlm_nuextract3.py): an out-of-vocabulary
+  attribute/units value is now kept, not dropped, matching Ablation 1 and
+  LangExtract's policy.
+  Walltime is extrapolated with heavy headroom, not measured: mean supermat
+  OCR text (~26.8KB, data/supermat/ocr_output_raw/) is ~0.45x pond's mean
+  (~59.5KB); scaling 2026-09-19-pond-nuextract3-full-01's ~150s/doc base
+  estimate by that size ratio and supermat's paper count (143 vs. pond's 128)
+  gives a ~2.7h base, budgeted to well over 3x that for headroom given the
+  single-attribute schema's per-call cost may not scale purely with document
+  bytes. No incremental output: mlm.fit() returns once for the whole dataset
+  before final.json is written, so a walltime kill loses the entire run, not
+  a partial result.
+seed: 342
+params:
+  dataset: supermat
+  model: nuextract3
+  walltime: "12:00:00"

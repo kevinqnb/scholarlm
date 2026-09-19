@@ -1,0 +1,35 @@
+id: 2026-09-19-supermat-langextract-gemma27b-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
+  all 143 supermat papers (dataset_config.paper_exclude is None for supermat
+  -- no quality exclusions defined, so "full run" is every OCR'd paper on
+  disk), backbone gemma-3-27b only (per instruction). No prior LangExtract run
+  of any kind exists for supermat -- first time this adapter's prompt/schema
+  wiring is exercised against supermat's single-attribute ("tc") schema. Same
+  max_char_buffer/extraction_passes/max_workers/batch_length/use_schema_constraints/
+  fence_output as 2026-09-19-pond-langextract-gemma27b-full-01 (16/20
+  concurrency), reused unvalidated for this dataset -- supermat's mean OCR
+  text (~26.8KB) is much shorter than pond's (~59.5KB), so most supermat
+  documents chunk to well under max_workers=16 pieces, meaning per-document
+  parallelism is not the bottleneck here the way it might be for pond/nfix.
+  Walltime is grounded in pond's real per-paper measurement, scaled by mean
+  document size and paper count, with heavy headroom on top: pond's smoke run
+  measured runtime_seconds=637.5 for one ~59.5KB paper (4/4 concurrency);
+  scaling by supermat's size ratio (~0.45x) and paper count (143 vs. pond's
+  128) gives a ~11.4h base. Budgeted to roughly 2x that for headroom, on the
+  low end of this session's LangExtract configs since the base estimate
+  itself is already smaller. No incremental output: mlm.fit() returns once
+  for the whole dataset before final.json is written, so a walltime kill
+  loses the entire run, not a partial result.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "24:00:00"

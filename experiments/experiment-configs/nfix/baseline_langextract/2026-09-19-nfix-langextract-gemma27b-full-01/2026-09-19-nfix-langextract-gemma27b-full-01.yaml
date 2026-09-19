@@ -1,0 +1,37 @@
+id: 2026-09-19-nfix-langextract-gemma27b-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
+  all 263 non-excluded nfix papers (paper_subset omitted -- dataset_config.paper_exclude,
+  3 papers, is the only filtering applied), backbone gemma-3-27b only (per
+  instruction). No prior LangExtract run of any kind exists for nfix -- first
+  time this adapter's prompt/schema wiring is exercised against nfix's
+  5-entity-field, 3-attribute schema. Same max_char_buffer/extraction_passes/
+  max_workers/batch_length/use_schema_constraints/fence_output as
+  2026-09-19-pond-langextract-gemma27b-full-01 (16/20 concurrency), reused
+  unvalidated for this dataset -- mean nfix OCR text (~58.7KB) is close to
+  pond's mean (~59.5KB), so the same ~12-chunks/doc reasoning should roughly
+  hold, but nfix's longer per-attribute unit vocabularies were never part of
+  that check.
+  Walltime is grounded in pond's real per-paper measurement, scaled by paper
+  count, with heavy headroom on top: pond's smoke run measured
+  runtime_seconds=637.5 for one paper (4/4 concurrency); at the same mean doc
+  size, 266 nfix papers x 637.5s gives a ~47h base -- already close to or over
+  a 1-day walltime before any headroom. Budgeted well above that base to
+  absorb both the extrapolation and nfix's larger paper count. Flagged to the
+  user: this is the run most likely to need splitting into paper-subset
+  batches if a single job this long proves impractical on the shared queue.
+  No incremental output: mlm.fit() returns once for the whole dataset before
+  final.json is written, so a walltime kill loses the entire run, not a
+  partial result -- the risk is highest for this config given its size.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "72:00:00"

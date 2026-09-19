@@ -1,0 +1,27 @@
+id: 2026-09-19-pond-nuextract3-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the NuExtract3 baseline (MeasurementLMNuExtract3) on all
+  128 non-excluded pond papers (paper_subset omitted -- dataset_config.paper_exclude,
+  13 papers, is the only filtering applied; see pond.py's _EXCLUDED_PAPERS).
+  First full-scale run since this session's enforce-no-drop fix
+  (src/scholarlm/measurementlm_nuextract3.py): an out-of-vocabulary
+  attribute/units value is now kept, not dropped, matching Ablation 1 (no
+  vocabulary check at all) and LangExtract (enforces via output_schema but
+  never drops). Point of comparison: MeasurementLMAblation1's own full pond
+  run, same paper set, zero-shot vs. this baseline's 2-shot
+  (dataset_config.nuextract_examples) -- see this session's prompt/example
+  fairness review.
+  Walltime is extrapolated with heavy headroom, not measured: the only prior
+  NuExtract3 timing on disk (2026-09-18-pond-nuextract3-smoke-01,
+  runtime_seconds=19.1) used pond's smallest OCR text (~21KB, one call), while
+  the mean pond doc is ~59KB and max_model_len=131072 has never been exercised
+  against a realistically long document -- ~150s/doc average x 128 docs is
+  the base estimate (~5.3h); budgeted to ~3x that for headroom. No incremental
+  output: mlm.fit() returns once for the whole dataset before final.json is
+  written, so a walltime kill loses the entire run, not a partial result.
+seed: 342
+params:
+  dataset: pond
+  model: nuextract3
+  walltime: "16:00:00"

@@ -1,0 +1,25 @@
+id: 2026-09-19-nfix-nuextract3-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the NuExtract3 baseline (MeasurementLMNuExtract3) on all
+  263 non-excluded nfix papers (paper_subset omitted -- dataset_config.paper_exclude,
+  3 papers, is the only filtering applied; see nfix.py's _EXCLUDED_PAPERS).
+  No prior NuExtract3 run of any kind exists for nfix (smoke or otherwise) --
+  first time this adapter's prompt/schema wiring is exercised against this
+  dataset's 3-attribute schema and unit vocabulary. First full-scale run since
+  this session's enforce-no-drop fix (src/scholarlm/measurementlm_nuextract3.py):
+  an out-of-vocabulary attribute/units value is now kept, not dropped,
+  matching Ablation 1 and LangExtract's policy.
+  Walltime is extrapolated with heavy headroom, not measured: mean nfix OCR
+  text (~58.7KB, data/nfix/ocr_output_raw/) is close to pond's mean (~59.5KB),
+  so the per-doc time is assumed similar to 2026-09-19-pond-nuextract3-full-01's
+  ~150s/doc base estimate; scaled by nfix's larger paper count (266 vs. pond's
+  128, ~2.08x) to a ~11h base, budgeted to ~3x that for headroom. No
+  incremental output: mlm.fit() returns once for the whole dataset before
+  final.json is written, so a walltime kill loses the entire run, not a
+  partial result.
+seed: 342
+params:
+  dataset: nfix
+  model: nuextract3
+  walltime: "36:00:00"
