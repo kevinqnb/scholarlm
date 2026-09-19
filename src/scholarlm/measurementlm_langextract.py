@@ -1,91 +1,35 @@
 """LangExtract baseline: chunked, schema-grounded extraction via Google's
 langextract library (https://github.com/google/langextract).
 
-langextract does the heavy lifting itself -- chunking a document, prompting per
-chunk with a few-shot template, and aligning each extracted span back onto the
-source text (character-level grounding). This module is a translation layer: it
-turns a dataset config into langextract's own call shape (`prompt_description`,
-`examples`) and turns its output (a list of `Extraction`s per document) back into
-the flat measurement-record schema every other baseline in this repo emits.
+langextract handles its own chunking, per-chunk few-shot prompting, and
+character-level grounding of each extraction back onto the source text. This
+module is a translation layer: it builds langextract's call shape
+(`prompt_description`, `examples`) from this repo's dataset-config resources,
+and converts its output back into the flat measurement-record schema every
+other baseline here emits.
 
-Deliberately reuses existing dataset-config resources rather than authoring new
-ones for this baseline specifically:
+To stay faithful to what langextract itself measures, this baseline reuses
+Ablation 1's schema/prompt and the NuExtract baseline's example passages
+rather than authoring new ones, and skips `_standardize`/`_deduplicate` and
+any out-of-vocabulary filtering -- those are this repo's own post-processing,
+not part of langextract's method, and applying them would measure something
+other than langextract itself. langextract owns its own HTTP client and
+chunking; `MeasurementLM`'s `_acall`/`_call_batch` machinery is unused, only
+inherited for constructor bookkeeping. The one real addition is an explicit
+`output_schema` (`_build_output_schema`) that enum-constrains `attribute` at
+generation time when `use_schema_constraints` is set -- a supported
+langextract extension point, not a bypass of it.
 
-* `direct_extraction_schema` / `direct_extraction_prompt` (Ablation 1's flat
-  entity+event+attribute+value+units schema, see `measurementlm.py`'s
-  `_extract_triples`) supply the attribute vocabulary and field descriptions.
-  langextract's `attributes` dict is built with exactly this schema's field
-  names, so `_entity_field_names` below is dataset-generic rather than
-  hardcoded.
-* `nuextract_examples` (the NuExtract baseline's synthetic, already-audited
-  passages -- see e.g. `experiments/dataset-configs/pond.py`) become
-  langextract's few-shot `ExampleData`. Each item's `value` field is documented
-  there as an exact substring of its passage, so it doubles as the grounded
-  `extraction_text` langextract's alignment step needs -- no new example
-  authoring, and no risk of leaking real eval-paper text into a baseline's
-  headline number.
+The shared direct-extraction prompt text prescribes an `{"items": [...]}`
+output envelope that conflicts with langextract's own required
+`{"extractions": [...]}` shape, so that portion is stripped before use (see
+`_prompt_description`). OCR page tags are left in the input text so page
+numbers can be recovered from extraction offsets after the fact.
 
-Two prompt fragments prescribe the direct-extraction-mode output shape
-(`{"items": [...]}`), which conflicts with langextract's own required
-`{"extractions": [...]}` envelope -- confirmed the hard way in the first smoke
-run: every chunk came back rejected by langextract's resolver
-("Content must contain an 'extractions' key") because the model dutifully
-followed these instructions instead. Both are stripped programmatically
-(asserting if the expected text can't be found, rather than silently keeping
-a contradictory instruction) instead of reused verbatim:
-
-* `DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS` (`instruction_prompts.py`) -- its
-  last line ("Structure your response as a JSON object with an 'items'
-  list...").
-* Each dataset's own `direct_extraction_prompt` -- every one of them ends
-  with an "Output format requirements:" section spelling out the same
-  `{"items": [...]}` envelope in more detail (confirmed identical in shape
-  across pond/nfix/supermat/measeval); everything from that heading onward is
-  pure output-shape boilerplate, no substantive entity/attribute content, so
-  it's truncated there rather than patched line-by-line.
-
-Full OCR-tagged text (`<page number="N">...</page>`, same as every other
-baseline's input) is passed straight through, unstripped -- langextract chunks
-it internally regardless, and the "direct extraction" mode this baseline mirrors
-(`_extract_triples`) already feeds the model tag-included text with no ill
-effect. Keeping the tags means page numbers can be recovered by scanning the
-same original string langextract saw for the `<page>` block containing a given
-character offset -- no separate stripped-text representation to keep in sync.
-
-langextract itself owns the OpenAI-compatible HTTP client for this baseline
-(via `langextract.factory.ModelConfig(provider="openai", ...)`, pointed at a
-local vLLM server's `base_url`); `MeasurementLM`'s own `_acall`/`_call_batch`
-machinery is unused here, only inherited for shared constructor bookkeeping
-(model name, attribute vocabulary, sampling params). `_standardize` and
-`_deduplicate` are deliberately never called, and no record is ever dropped
-for an out-of-vocabulary `attribute` -- see `fit`'s docstring: all three are
-this repo's own post-processing / matching-time concerns, not part of
-langextract's method, and applying them here would make this baseline
-measure something other than langextract itself. The one thing this module
-*does* add on the generation side -- an explicit `output_schema`
-(`_build_output_schema`) enum-constraining `attribute` when
-`use_schema_constraints` is set -- is not such a bypass: it uses langextract's
-own supported `output_schema` extension point to shape what the model is
-asked for, rather than filtering its answer afterward.
-
-Known issue (observed 2026-09-19, job 7643023,
-2026-09-19-pond-langextract-gemma27b-full-01, max_workers=16/batch_length=20,
-gemma-3-27b): the run crashed on the first document with an uncaught
-`openai.APITimeoutError` propagating out of `lx.extract()` -- the vLLM server
-log showed a single request ("Running: 1 reqs") generating for the job's
-entire ~30-minute life with GPU KV cache usage climbing continuously and
-never completing, well past what `sampling_params.max_tokens` (8192,
-threaded through as `language_model_params.max_output_tokens`, confirmed
-correctly mapped to the request's `max_tokens` in langextract's OpenAI
-provider) should have allowed. `fit()` has no try/except around `lx.extract()`,
-so one stuck chunk kills the entire run with zero output saved -- final.json
-is only written after every document finishes. Not reproduced or root-caused
-yet (candidates: degenerate generation under guided decoding at this
-concurrency, or a chunk-boundary effect from the reference-dropped OCR text
-that this run read for the first time); the same paper ran cleanly in an
-earlier smoke test at max_workers=4/batch_length=4 against the un-dropped
-OCR text. No fix applied -- retry is the current mitigation, since this
-hasn't recurred in any of the five sibling runs from the same batch.
+Known issue: at high concurrency, a run can hang on a single stuck chunk and
+crash with nothing saved (`fit()` has no try/except around `lx.extract()`).
+Not reliably reproduced or root-caused; lower concurrency avoids it, and
+retrying is the current mitigation.
 """
 
 from __future__ import annotations
@@ -120,10 +64,9 @@ _OUTPUT_FORMAT_HEADING = "Output format requirements:"
 
 
 def _prompt_description(direct_extraction_prompt: str) -> str:
-    """Build langextract's `prompt_description` from the shared extraction
-    guidelines (minus the conflicting JSON-envelope line) plus the dataset's
-    own entity/attribute/event instructions (minus its own conflicting
-    "Output format requirements" section).
+    """Build langextract's `prompt_description`: the shared extraction
+    guidelines plus the dataset's own instructions, each with its own
+    conflicting `{"items": [...]}` output-format text stripped out.
     """
     if _JSON_ENVELOPE_LINE not in DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS:
         raise AssertionError(
@@ -157,9 +100,8 @@ def _prompt_description(direct_extraction_prompt: str) -> str:
 
 def _build_examples(nuextract_examples: list[dict] | None) -> list:
     """Translate `DatasetConfig.nuextract_examples` into langextract few-shot
-    `ExampleData`. Each nuextract example item's `value` field is documented at
-    its point of definition as an exact substring of the example passage, so it
-    is reused directly as the grounded `extraction_text`.
+    `ExampleData`, using each item's `value` (an exact substring of its
+    passage) as the grounded `extraction_text`.
     """
     import langextract as lx
 
@@ -186,13 +128,11 @@ def _build_examples(nuextract_examples: list[dict] | None) -> list:
 
 
 def _attribute_object_schema(direct_extraction_schema, attribute_info_dict: dict) -> dict:
-    """JSON Schema for the `<class>_attributes` object: every entity/event
-    field as a nullable string (matching `direct_extraction_schema`'s own
-    `str | None` typing), except `attribute`, constrained to an `enum` of
-    `attribute_info_dict`'s known vocabulary -- a genuine generation-time
+    """JSON Schema for one extraction's attributes: every entity/event field
+    as a nullable string, except `attribute`, enum-constrained to
+    `attribute_info_dict`'s known vocabulary -- a real generation-time
     constraint, unlike langextract's own example-inferred schema, which only
-    types each attribute by its Python *type* (str/int/float/...), never by
-    the specific string *values* seen in the examples.
+    types each attribute by Python type, never by its specific values.
     """
     known_attributes = sorted(attribute_info_dict.keys())
     properties: dict[str, dict] = {}
@@ -210,13 +150,10 @@ def _attribute_object_schema(direct_extraction_schema, attribute_info_dict: dict
 
 
 def _build_output_schema(direct_extraction_schema, attribute_info_dict: dict) -> dict:
-    """Full langextract output-envelope JSON Schema for the single
-    `_EXTRACTION_CLASS`, passed to `lx.extract(output_schema=...)` so the
-    `attribute` field is enum-constrained at generation time. Mirrors the
-    shape langextract's own `OpenAISchema.from_examples` builds (one
-    extraction-class variant, `{class}`/`{class}_attributes` keys under the
-    `extractions` array), using langextract's own key-name constants
-    (`EXTRACTIONS_KEY`/`ATTRIBUTE_SUFFIX`) rather than hardcoding them.
+    """Full langextract output-schema for the single `_EXTRACTION_CLASS`,
+    passed to `lx.extract(output_schema=...)` to enum-constrain `attribute`
+    at generation time. Mirrors the shape langextract's own schema builder
+    produces, using its own key-name constants rather than hardcoding them.
     """
     import langextract as lx
 
@@ -308,15 +245,8 @@ class MeasurementLMLangExtract(MeasurementLM):
 
     def _record_from_extraction(self, doc_idx: int, item_idx: int, extraction, context: str) -> dict:
         """One langextract `Extraction` -> one flat measurement record,
-        unfiltered -- whatever `attribute` value the model produced is kept
-        as-is, even if it falls outside `attribute_info_dict`'s vocabulary.
-        This baseline does not police that itself (see `fit`'s docstring);
-        an out-of-vocabulary attribute simply won't match anything at
-        evaluation time. Enforce-no-drop: this holds regardless of
-        `use_schema_constraints` (enforcement at generation time is optional,
-        dropping post-hoc never happens either way) -- the same policy
-        `MeasurementLMNuExtract3` was aligned to and that `MeasurementLMAblation1`
-        already had by never checking vocabulary at all.
+        unfiltered -- an out-of-vocabulary `attribute` is kept as-is, not
+        dropped (see module docstring).
         """
         attrs = extraction.attributes or {}
         record = {field: attrs.get(field) for field in self._entity_field_names()}
@@ -337,36 +267,12 @@ class MeasurementLMLangExtract(MeasurementLM):
 
     def fit(self, documents: list[str]) -> list[dict]:
         """Run langextract over each document and translate its output into
-        the standard flat schema, one record per extraction, unmodified.
+        the standard flat schema, one record per extraction, unmodified (see
+        module docstring for what's deliberately skipped and why).
 
-        Deliberately does NOT call `_standardize` (an extra MeasurementLM-
-        specific LLM pass), `_deduplicate` (this repo's own equality-based
-        merge step), or drop any record for having an out-of-vocabulary
-        `attribute`. All three are specific to how the *other* baselines'
-        calling conventions -- or this repo's own matching code -- police
-        output; langextract has no such artifact. ChatExtract asks per
-        sentence, NuExtract asks per (page, attribute), both mechanically
-        producing duplicate mentions that then need merging back down;
-        langextract's own chunking/resolution (and, if `extraction_passes>1`,
-        multi-pass merging) already decide what counts as one extraction.
-        An out-of-vocabulary attribute is not this baseline's call to make
-        either -- it is kept as-is and left to fail at evaluation-time
-        matching, if it doesn't correspond to anything real, rather than
-        pre-filtered here. Applying any of this ourselves would change
-        langextract's actual measured output, not just its format -- exactly
-        what a faithful baseline must not do.
-
-        When `use_schema_constraints` is set, `attribute` is instead
-        constrained at generation time via an explicit `output_schema`
-        (`_build_output_schema`) rather than relying on langextract's own
-        example-inferred schema, which only types each attribute by its
-        Python type, never by the specific vocabulary strings seen in the
-        examples (see `notes/scholarlm/builds/2026-09-18-langextract-baseline-01.md`).
-        That is a real langextract extension point (`lx.extract`'s own
-        `output_schema` parameter), not a bypass of it -- shaping what we ask
-        the model to do, not filtering its answer afterward. Note langextract
-        itself requires `fence_output` to be `False` (or unset) whenever
-        `output_schema` is passed; it raises its own clear error otherwise.
+        Note: langextract requires `fence_output=False` whenever
+        `output_schema` is passed (i.e. whenever `use_schema_constraints` is
+        set); it raises its own error otherwise.
         """
         import langextract as lx
         from langextract.factory import ModelConfig
