@@ -13,11 +13,18 @@ vLLM endpoint, no real langextract inference. Covers:
   * `_page_for_offset` maps a char offset back to the OCR <page number="N">
     tag that contains it, straight against the tag-included text (no
     stripping/offset-index step).
-  * `fit()` end-to-end: out-of-vocabulary attributes are dropped with a
-    printed count, ungrounded extractions (char_interval=None) are kept with
-    page_number=None and counted, and the record key set matches exactly
+  * `_attribute_object_schema`/`_build_output_schema` build a JSON Schema
+    enum-constraining `attribute` to `attribute_info_dict`'s vocabulary --
+    the generation-time constraint langextract's own example-inferred schema
+    doesn't provide (it only types by Python type, never by string value).
+  * `fit()` end-to-end: out-of-vocabulary attributes are kept, not dropped
+    (this baseline polices nothing about its own output -- see its
+    docstring), ungrounded extractions (char_interval=None) are kept with
+    page_number=None and counted, the record key set matches exactly
     direct_extraction_schema's fields plus (document_id, entity_id,
-    attribute_terms, page_number) -- the same shape _extract_triples produces.
+    attribute_terms, page_number) -- the same shape _extract_triples
+    produces -- and `output_schema` is only passed to `lx.extract` when
+    `use_schema_constraints` is set.
 """
 import json
 import sys
@@ -32,7 +39,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 import scholarlm.measurementlm_langextract as lex_mod
 from scholarlm.measurementlm_langextract import (
     MeasurementLMLangExtract,
+    _attribute_object_schema,
     _build_examples,
+    _build_output_schema,
     _page_for_offset,
     _prompt_description,
 )
@@ -182,6 +191,33 @@ def test_page_for_offset_none_when_untagged():
 
 
 # ---------------------------------------------------------------------------
+# _attribute_object_schema / _build_output_schema
+# ---------------------------------------------------------------------------
+
+
+def test_attribute_object_schema_enum_constrains_attribute_only():
+    schema = _attribute_object_schema(_DirectSchema, _ATTRIBUTE_INFO)
+    assert schema["properties"]["attribute"] == {"type": "string", "enum": ["depth", "ph"]}
+    # Every other field is a plain nullable string, no enum.
+    assert schema["properties"]["name"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    assert "enum" not in schema["properties"]["value"]
+    assert set(schema["required"]) == set(_DirectSchema.model_fields)
+    assert schema["additionalProperties"] is False
+
+
+def test_build_output_schema_uses_langextracts_own_key_constants():
+    import langextract as lx
+
+    schema = _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
+    extractions = schema["properties"][lx.data.EXTRACTIONS_KEY]
+    item = extractions["items"]
+    attributes_key = f"measurement{lx.data.ATTRIBUTE_SUFFIX}"
+    assert set(item["properties"]) == {"measurement", attributes_key}
+    nested = item["properties"][attributes_key]["anyOf"][0]
+    assert nested["properties"]["attribute"]["enum"] == ["depth", "ph"]
+
+
+# ---------------------------------------------------------------------------
 # fit(): OOV attributes, ungrounded extractions, record schema parity
 # ---------------------------------------------------------------------------
 
@@ -217,7 +253,10 @@ def _canned_annotated_document(context):
     )
 
 
-def test_fit_drops_oov_attribute_keeps_ungrounded_with_null_page(monkeypatch, capsys):
+def test_fit_keeps_out_of_vocabulary_attribute_records(monkeypatch, capsys):
+    """This baseline polices nothing about `attribute` itself -- an
+    out-of-vocabulary value survives into the record, unfiltered (see
+    fit()'s docstring: that's a matching-time concern, not extraction-time)."""
     mlm = _make_mlm()
     context = '<page number="0">Lake A depth 3.2 m, pH 6.9.</page>'
 
@@ -225,17 +264,16 @@ def test_fit_drops_oov_attribute_keeps_ungrounded_with_null_page(monkeypatch, ca
 
     records = mlm.fit([context])
 
-    assert len(records) == 2
+    assert len(records) == 3
     by_attr = {r["attribute"]: r for r in records}
-    # _deduplicate (inherited, reused as-is) wraps provenance fields into
-    # per-duplicate-group lists -- a single grounded/ungrounded record here
-    # becomes a one-element list, same as every other baseline's output.
-    assert by_attr["depth"]["page_number"] == [0]
-    assert by_attr["ph"]["page_number"] == [None]
+    assert by_attr["hardness"]["value"] == "12"  # kept, not dropped
+    # No _deduplicate call (deliberately -- see fit()'s docstring): page_number
+    # stays a plain scalar, not wrapped into a list.
+    assert by_attr["depth"]["page_number"] == 0
+    assert by_attr["ph"]["page_number"] is None
 
     out = capsys.readouterr().out
-    assert "dropped 1 record" in out
-    assert "'hardness': 1" in out  # which attribute got dropped, not just a bare count
+    assert "dropped" not in out
     assert "1 record(s) had no character-grounded span" in out
 
 
@@ -246,15 +284,83 @@ def test_fit_record_key_set_matches_direct_extraction_schema_plus_provenance(mon
     monkeypatch.setattr(langextract, "extract", lambda *a, **k: _canned_annotated_document(context))
 
     records = mlm.fit([context])
-    # _deduplicate (inherited) additionally injects the other provenance
-    # fields it aggregates alongside page_number -- same shape as every other
-    # baseline's final.json record (see e.g. ChatExtract's real output).
-    expected_keys = (
-        set(_DirectSchema.model_fields)
-        | {"document_id", "entity_id", "attribute_terms", "page_number"}
-        | {"table_number", "row_index", "column_index", "source", "context"}
-    )
+    # No _deduplicate call, so no extra provenance-aggregation fields --
+    # exactly direct_extraction_schema's own fields plus bookkeeping, the same
+    # shape _extract_triples produces.
+    expected_keys = set(_DirectSchema.model_fields) | {
+        "document_id", "entity_id", "attribute_terms", "page_number",
+    }
     assert set(records[0].keys()) == expected_keys
+
+
+def test_fit_passes_output_schema_only_when_schema_constraints_enabled(monkeypatch):
+    context = '<page number="0">Lake A depth 3.2 m.</page>'
+    captured = {}
+
+    def fake_extract(*a, **k):
+        captured["output_schema"] = k.get("output_schema")
+        return langextract.data.AnnotatedDocument(text=context, extractions=[])
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    _make_mlm(use_schema_constraints=False).fit([context])
+    assert captured["output_schema"] is None
+
+    _make_mlm(use_schema_constraints=True, fence_output=False).fit([context])
+    assert captured["output_schema"] is not None
+    assert captured["output_schema"] == _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
+
+
+def test_fit_threads_max_tokens_from_sampling_params_into_language_model_params(monkeypatch):
+    """langextract has no fallback to the model config's own completion
+    budget -- must be threaded through explicitly or per-chunk calls fall
+    back to an unverified provider default."""
+    context = '<page number="0">Lake A depth 3.2 m.</page>'
+    captured = {}
+
+    def fake_extract(*a, **k):
+        captured["language_model_params"] = k.get("language_model_params")
+        return langextract.data.AnnotatedDocument(text=context, extractions=[])
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    _make_mlm(sampling_params={"temperature": 0.6, "max_tokens": 8192}).fit([context])
+    assert captured["language_model_params"] == {"max_output_tokens": 8192}
+
+
+def test_fit_does_not_merge_duplicate_mentions(monkeypatch):
+    """Same entity+attribute+event extracted twice must survive as two
+    records -- deduplication is deliberately not this baseline's job (that's
+    langextract's own chunking/resolution to decide, not ours to redo)."""
+    mlm = _make_mlm()
+    context = '<page number="0">Lake A depth 3.2 m. Lake A depth 3.2 m.</page>'
+    first = context.index("3.2")
+    second = context.index("3.2", first + 1)
+
+    def fake_extract(*a, **k):
+        item = {"name": "Lake A", "location": None, "date": None,
+                "attribute": "depth", "value": "3.2", "units": "m"}
+        return langextract.data.AnnotatedDocument(
+            text=context,
+            extractions=[
+                langextract.data.Extraction(
+                    extraction_class="measurement", extraction_text="3.2",
+                    char_interval=langextract.data.CharInterval(start_pos=first, end_pos=first + 3),
+                    attributes=item,
+                ),
+                langextract.data.Extraction(
+                    extraction_class="measurement", extraction_text="3.2",
+                    char_interval=langextract.data.CharInterval(start_pos=second, end_pos=second + 3),
+                    attributes=item,
+                ),
+            ],
+        )
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    records = mlm.fit([context])
+    assert len(records) == 2
+    assert records[0]["entity_id"] != records[1]["entity_id"]
 
 
 # ---------------------------------------------------------------------------

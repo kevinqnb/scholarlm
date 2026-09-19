@@ -82,9 +82,13 @@ def run_baseline_langextract(
 ) -> None:
     """Run the langextract baseline for a dataset on a given backbone model.
 
-    Writes a single `final.json` to `output_dir`, in the standard extraction
-    record schema (same fields as MeasurementLM/ablation final.json output),
-    so it can be loaded via `analysis.loaders.load_extraction` unmodified.
+    Writes a single `final.json` to `output_dir`, one record per langextract
+    extraction (no `_standardize`/`_deduplicate` -- see
+    `MeasurementLMLangExtract.fit`'s docstring for why: this baseline is meant
+    to measure langextract's own method, not this repo's post-processing).
+    Field names match the standard extraction record schema (same fields as
+    MeasurementLM/ablation `final.json`), but unlike every deduplicated
+    baseline, `page_number` here is a plain scalar, not a list.
     """
     data_dir = Path(dataset_config.data_dir)
 

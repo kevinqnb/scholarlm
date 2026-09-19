@@ -55,8 +55,18 @@ character offset -- no separate stripped-text representation to keep in sync.
 langextract itself owns the OpenAI-compatible HTTP client for this baseline
 (via `langextract.factory.ModelConfig(provider="openai", ...)`, pointed at a
 local vLLM server's `base_url`); `MeasurementLM`'s own `_acall`/`_call_batch`
-machinery is unused here, only inherited for `_deduplicate` and the shared
-constructor bookkeeping (model name, attribute vocabulary, sampling params).
+machinery is unused here, only inherited for shared constructor bookkeeping
+(model name, attribute vocabulary, sampling params). `_standardize` and
+`_deduplicate` are deliberately never called, and no record is ever dropped
+for an out-of-vocabulary `attribute` -- see `fit`'s docstring: all three are
+this repo's own post-processing / matching-time concerns, not part of
+langextract's method, and applying them here would make this baseline
+measure something other than langextract itself. The one thing this module
+*does* add on the generation side -- an explicit `output_schema`
+(`_build_output_schema`) enum-constraining `attribute` when
+`use_schema_constraints` is set -- is not such a bypass: it uses langextract's
+own supported `output_schema` extension point to shape what the model is
+asked for, rather than filtering its answer afterward.
 """
 
 from __future__ import annotations
@@ -156,6 +166,66 @@ def _build_examples(nuextract_examples: list[dict] | None) -> list:
     return examples
 
 
+def _attribute_object_schema(direct_extraction_schema, attribute_info_dict: dict) -> dict:
+    """JSON Schema for the `<class>_attributes` object: every entity/event
+    field as a nullable string (matching `direct_extraction_schema`'s own
+    `str | None` typing), except `attribute`, constrained to an `enum` of
+    `attribute_info_dict`'s known vocabulary -- a genuine generation-time
+    constraint, unlike langextract's own example-inferred schema, which only
+    types each attribute by its Python *type* (str/int/float/...), never by
+    the specific string *values* seen in the examples.
+    """
+    known_attributes = sorted(attribute_info_dict.keys())
+    properties: dict[str, dict] = {}
+    for name in direct_extraction_schema.model_fields:
+        if name == "attribute":
+            properties[name] = {"type": "string", "enum": known_attributes}
+        else:
+            properties[name] = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": list(properties),
+        "additionalProperties": False,
+    }
+
+
+def _build_output_schema(direct_extraction_schema, attribute_info_dict: dict) -> dict:
+    """Full langextract output-envelope JSON Schema for the single
+    `_EXTRACTION_CLASS`, passed to `lx.extract(output_schema=...)` so the
+    `attribute` field is enum-constrained at generation time. Mirrors the
+    shape langextract's own `OpenAISchema.from_examples` builds (one
+    extraction-class variant, `{class}`/`{class}_attributes` keys under the
+    `extractions` array), using langextract's own key-name constants
+    (`EXTRACTIONS_KEY`/`ATTRIBUTE_SUFFIX`) rather than hardcoding them.
+    """
+    import langextract as lx
+
+    attributes_key = f"{_EXTRACTION_CLASS}{lx.data.ATTRIBUTE_SUFFIX}"
+    item_schema = {
+        "type": "object",
+        "properties": {
+            _EXTRACTION_CLASS: {"type": "string"},
+            attributes_key: {
+                "anyOf": [
+                    _attribute_object_schema(direct_extraction_schema, attribute_info_dict),
+                    {"type": "null"},
+                ]
+            },
+        },
+        "required": [_EXTRACTION_CLASS, attributes_key],
+        "additionalProperties": False,
+    }
+    return {
+        "type": "object",
+        "properties": {
+            lx.data.EXTRACTIONS_KEY: {"type": "array", "items": item_schema},
+        },
+        "required": [lx.data.EXTRACTIONS_KEY],
+        "additionalProperties": False,
+    }
+
+
 def _page_for_offset(context: str, char_pos: int | None) -> int | None:
     """Which `<page number="N">` block (in `context`, the exact string handed
     to langextract) contains character offset `char_pos`. None if ungrounded
@@ -218,8 +288,12 @@ class MeasurementLMLangExtract(MeasurementLM):
         ]
 
     def _record_from_extraction(self, doc_idx: int, item_idx: int, extraction, context: str) -> dict:
-        """One langextract `Extraction` -> one flat measurement record.
-        Caller has already checked `attribute` is in vocabulary.
+        """One langextract `Extraction` -> one flat measurement record,
+        unfiltered -- whatever `attribute` value the model produced is kept
+        as-is, even if it falls outside `attribute_info_dict`'s vocabulary.
+        This baseline does not police that itself (see `fit`'s docstring);
+        an out-of-vocabulary attribute simply won't match anything at
+        evaluation time.
         """
         attrs = extraction.attributes or {}
         record = {field: attrs.get(field) for field in self._entity_field_names()}
@@ -239,10 +313,37 @@ class MeasurementLMLangExtract(MeasurementLM):
         }
 
     def fit(self, documents: list[str]) -> list[dict]:
-        """Run langextract over each document, then deduplicate into the
-        standard flat schema (like NuExtract/ChatExtract, this skips
-        `_standardize` -- an extra MeasurementLM-specific LLM pass -- for a fair,
-        non-conflating baseline comparison).
+        """Run langextract over each document and translate its output into
+        the standard flat schema, one record per extraction, unmodified.
+
+        Deliberately does NOT call `_standardize` (an extra MeasurementLM-
+        specific LLM pass), `_deduplicate` (this repo's own equality-based
+        merge step), or drop any record for having an out-of-vocabulary
+        `attribute`. All three are specific to how the *other* baselines'
+        calling conventions -- or this repo's own matching code -- police
+        output; langextract has no such artifact. ChatExtract asks per
+        sentence, NuExtract asks per (page, attribute), both mechanically
+        producing duplicate mentions that then need merging back down;
+        langextract's own chunking/resolution (and, if `extraction_passes>1`,
+        multi-pass merging) already decide what counts as one extraction.
+        An out-of-vocabulary attribute is not this baseline's call to make
+        either -- it is kept as-is and left to fail at evaluation-time
+        matching, if it doesn't correspond to anything real, rather than
+        pre-filtered here. Applying any of this ourselves would change
+        langextract's actual measured output, not just its format -- exactly
+        what a faithful baseline must not do.
+
+        When `use_schema_constraints` is set, `attribute` is instead
+        constrained at generation time via an explicit `output_schema`
+        (`_build_output_schema`) rather than relying on langextract's own
+        example-inferred schema, which only types each attribute by its
+        Python type, never by the specific vocabulary strings seen in the
+        examples (see `notes/scholarlm/builds/2026-09-18-langextract-baseline-01.md`).
+        That is a real langextract extension point (`lx.extract`'s own
+        `output_schema` parameter), not a bypass of it -- shaping what we ask
+        the model to do, not filtering its answer afterward. Note langextract
+        itself requires `fence_output` to be `False` (or unset) whenever
+        `output_schema` is passed; it raises its own clear error otherwise.
         """
         import langextract as lx
         from langextract.factory import ModelConfig
@@ -254,9 +355,12 @@ class MeasurementLMLangExtract(MeasurementLM):
             provider="openai",
             provider_kwargs={"api_key": self.client.api_key, "base_url": str(self.client.base_url)},
         )
+        output_schema = (
+            _build_output_schema(self.direct_extraction_schema, self.attribute_info_dict)
+            if self.use_schema_constraints else None
+        )
 
         records: list[dict] = []
-        oov_attribute_counts: dict[str | None, int] = {}
         n_ungrounded = 0
 
         for doc_idx, context in enumerate(documents):
@@ -270,27 +374,26 @@ class MeasurementLMLangExtract(MeasurementLM):
                 max_workers=self.max_workers,
                 batch_length=self.batch_length,
                 use_schema_constraints=self.use_schema_constraints,
+                output_schema=output_schema,
                 fence_output=self.fence_output,
                 temperature=self.sampling_params.get("temperature"),
+                # langextract has no fallback to the model config's own
+                # completion budget -- left unset, per-chunk calls fall back
+                # to whatever the provider/vLLM defaults to (unverified), and
+                # a truncated response hard-fails schema validation under
+                # output_schema. Reuse the same per-model default every other
+                # baseline uses for this backbone.
+                language_model_params={"max_output_tokens": self.sampling_params.get("max_tokens")},
                 show_progress=False,
             )
 
             for item_idx, extraction in enumerate(annotated.extractions or []):
-                attrs = extraction.attributes or {}
-                attribute = attrs.get("attribute")
-                if attribute not in self.attribute_info_dict:
-                    oov_attribute_counts[attribute] = oov_attribute_counts.get(attribute, 0) + 1
-                    continue
                 if extraction.char_interval is None:
                     n_ungrounded += 1
                 records.append(self._record_from_extraction(doc_idx, item_idx, extraction, context))
 
-        if oov_attribute_counts:
-            n_oov = sum(oov_attribute_counts.values())
-            by_name = ", ".join(f"{name!r}: {count}" for name, count in oov_attribute_counts.items())
-            print(f"LangExtract: dropped {n_oov} record(s) with an out-of-vocabulary attribute ({by_name}).")
         if n_ungrounded:
             print(f"LangExtract: {n_ungrounded} record(s) had no character-grounded span (page_number=None).")
 
-        self.data = self._deduplicate(records)
+        self.data = records
         return self.data
