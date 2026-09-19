@@ -1,0 +1,50 @@
+model_id: numind/NuExtract3
+sampling_params:
+  # Non-reasoning mode, per the model card ("For production extraction
+  # workloads, we recommend starting with non-reasoning mode"). enable_thinking
+  # is forwarded via _acall's own chat_template_kwargs handling (measurementlm.py),
+  # not something MeasurementLMNuExtract3 sets itself.
+  temperature: 0.2
+  enable_thinking: false
+  seed: 342
+serve:
+  port: 8081
+  # NuExtract3's own recommended serve command uses 131072 (its native context
+  # length) -- kept at that value rather than a smaller round number because
+  # this repo's own full-paper judge work already found single papers (pond)
+  # reaching ~47k tokens; a smaller max_model_len risks silently re-introducing
+  # ISSUE-nuextract-baseline.md #2's context-length-overflow failure mode on
+  # exactly the documents worth extracting from. If gpu_memory_utilization
+  # can't fit the KV cache at this length on the resources below, vLLM fails
+  # loud at server startup -- confirm at the smoke-test stage before assuming
+  # this number is right; not verified against a live server yet.
+  max_model_len: 131072
+  gpu_memory_utilization: 0.9
+  dtype: bfloat16
+  sif_image: vllm-openai_v0.24.0.sif
+  # --trust-remote-code is already added unconditionally by
+  # experiments/_submit_job.sh for every vLLM-served model; not repeated here.
+  extra_vllm_args:
+  - --chat-template-content-format openai
+  - --generation-config vllm
+resources:
+  # NuExtract3 is 4B params with a hybrid linear-attention architecture (only
+  # 1 in 4 layers is full-attention, per its config.json) -- matched against
+  # llama-3.1-8b.yaml (a DENSE 8B model, full KV cache every layer) rather
+  # than nuextract-2.0-8b.yaml (matched by vendor, not size, in an earlier
+  # version of this file): that dense 8B model runs max_model_len=90000 on
+  # just 32G, so this smaller, mostly-linear-attention 4B model at a similar
+  # context length (131072) should fit well within 32G. Matches this repo's
+  # own established tier for ~7-8B-class models (interp_judge/qwen-2.5-7b.yaml,
+  # representation_lm/llama-3.1-8b-base.yaml, interp_judge/llama-3.1-8b.yaml
+  # all use exactly gpu_memory=32G/gpu_capability=7.0/gpu_type=L40S) -- still
+  # an inference from precedent, not verified against a live server.
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # Pinned per env_blackwell_torch_cu126: a bare gpu_capability floor does not
+  # exclude SCC's Blackwell nodes (gpu_type=RTXP6000, sm_120 passes any floor,
+  # then crashes torch mid-forward). L40S (sm_89) clears the 7.0 floor without
+  # being Blackwell, and is the type this repo already uses for models in this
+  # size class -- likely to queue faster than A100 on a shared cluster too.
+  gpu_type: L40S
+  omp: 8

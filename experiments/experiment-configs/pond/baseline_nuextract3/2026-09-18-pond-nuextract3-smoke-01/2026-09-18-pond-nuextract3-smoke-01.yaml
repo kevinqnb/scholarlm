@@ -1,0 +1,15 @@
+id: 2026-09-18-pond-nuextract3-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke test for the new NuExtract3 baseline (MeasurementLMNuExtract3):
+  one paper, confirms the vLLM server comes up, the adapter's request shape
+  (template/instructions/response_format) is accepted, and a response parses
+  -- not a check of extraction quality.
+seed: 342
+params:
+  dataset: pond
+  # Smallest pond OCR text on disk (~21KB), to minimize GPU time and blast
+  # radius while confirming plumbing -- not chosen for content.
+  paper_subset: ["first_record_of_the"]
+  # One document, one call, non-reasoning mode: generous but not tuned.
+  walltime: "00:30:00"
