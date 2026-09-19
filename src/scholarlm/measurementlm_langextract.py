@@ -67,6 +67,25 @@ measure something other than langextract itself. The one thing this module
 `use_schema_constraints` is set -- is not such a bypass: it uses langextract's
 own supported `output_schema` extension point to shape what the model is
 asked for, rather than filtering its answer afterward.
+
+Known issue (observed 2026-09-19, job 7643023,
+2026-09-19-pond-langextract-gemma27b-full-01, max_workers=16/batch_length=20,
+gemma-3-27b): the run crashed on the first document with an uncaught
+`openai.APITimeoutError` propagating out of `lx.extract()` -- the vLLM server
+log showed a single request ("Running: 1 reqs") generating for the job's
+entire ~30-minute life with GPU KV cache usage climbing continuously and
+never completing, well past what `sampling_params.max_tokens` (8192,
+threaded through as `language_model_params.max_output_tokens`, confirmed
+correctly mapped to the request's `max_tokens` in langextract's OpenAI
+provider) should have allowed. `fit()` has no try/except around `lx.extract()`,
+so one stuck chunk kills the entire run with zero output saved -- final.json
+is only written after every document finishes. Not reproduced or root-caused
+yet (candidates: degenerate generation under guided decoding at this
+concurrency, or a chunk-boundary effect from the reference-dropped OCR text
+that this run read for the first time); the same paper ran cleanly in an
+earlier smoke test at max_workers=4/batch_length=4 against the un-dropped
+OCR text. No fix applied -- retry is the current mitigation, since this
+hasn't recurred in any of the five sibling runs from the same batch.
 """
 
 from __future__ import annotations
