@@ -1,0 +1,33 @@
+id: 2026-09-19-pond-gemma3-27b-v2-extraction-01
+project: scholarlm
+description: >
+  MeasurementLMv2 full-dataset extraction, pond, gemma-3-27b, under the
+  grouped-contextualization rework of _contextualize_quantities (one call
+  per document x source-location group -- prose, or a specific table --
+  instead of one call per deduplicated quantity, with copy-back matching
+  instead of an index). Supersedes 2026-09-18-pond-gemma3-27b-v2-extraction-01,
+  whose call pattern this replaces; numbers are not comparable across the
+  two. Verified end-to-end on the single-paper smoke pair
+  (2026-09-19-pond-gemma3-27b-v2-groupctx-smoke-01/-02) and a rung-3 hand
+  check against that paper's source text -- see
+  notes/scholarlm/builds/2026-09-19-measurementlmv2-groupctx-01.md. Two
+  known, pre-existing (not introduced by this build) limitations to expect
+  at scale: the model doesn't reliably re-expand a value coincidentally
+  shared by two distinct entities into two records, and Step 1 (quantity
+  collection) can hallucinate a value not present in the source text.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  # Id-addressed table_cleaning output, not the legacy per-model directory --
+  # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
+  # run_metadata.json/config are missing). Table-cleaning model and extraction
+  # model are independent choices -- OCR text is just text by this point.
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-01
+  resume: false
+  # No representative full-scale timing exists yet for the grouped call
+  # pattern -- only the 1-paper smoke pair (~4 min including model load).
+  # Set to the same safe 24h ceiling the pre-rework full run used, per this
+  # repo's existing precedent, rather than guessing a tighter number now
+  # that the call count per paper is lower.
+  walltime: "24:00:00"
