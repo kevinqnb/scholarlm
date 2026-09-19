@@ -1,0 +1,24 @@
+id: 2026-09-19-supermat-chatextract-gemma27b-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke test for the reworked ChatExtract baseline
+  (src/scholarlm/measurementlm_chatextract.py); see
+  2026-09-19-pond-chatextract-gemma27b-smoke-01 for the full list of this
+  session's changes. Also the first supermat chatextract run to use a real
+  chatextract_property_names phrase ("superconducting critical temperature")
+  instead of the bare "tc" fallback -- see this session's dataset-config
+  completeness fix in experiments/dataset-configs/supermat.py.
+  extract_tables=false, scoped to the sentence-conversation path only --
+  confirms the vLLM server comes up and the plumbing runs end to end against
+  a real model, not extraction quality.
+  Paper PHC3410729-CC (~7KB): the smallest supermat paper that produced
+  output (3 records) in the pre-rework chatextract run, so smoke and
+  tiny-e2e can share one paper -- the single smallest file on disk
+  (PR04310568-CC) had zero records in that prior run.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  paper_subset: ["PHC3410729-CC"]
+  extract_tables: false
+  walltime: "00:45:00"

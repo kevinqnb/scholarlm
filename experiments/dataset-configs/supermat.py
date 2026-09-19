@@ -345,6 +345,27 @@ Output format requirements:
 
 
 # ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrase
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". Left unset, this falls back to the bare attribute_info_dict
+# key, "tc" -- grammatically degenerate ("a value of tc"). This supplies a
+# real noun phrase, matching the lead clause of _ATTRIBUTE_INFO_DICT["tc"]'s
+# own description.
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "tc": "superconducting critical temperature",
+}
+
+# ChatExtract's reference prompts ask about a "material"/"compound" -- this
+# happens to already match supermat's own entities, but is set explicitly
+# here for consistency with the other dataset configs (see
+# DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "material"
+
+
+# ---------------------------------------------------------------------------
 # Config instance
 # ---------------------------------------------------------------------------
 
@@ -371,6 +392,8 @@ CONFIG = DatasetConfig(
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     paper_subset=None,
     paper_filter=None,
     paper_exclude=None,

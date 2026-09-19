@@ -160,9 +160,12 @@ def run_baseline_chatextract(
         extract_tables=extract_tables,
         include_single_verification=include_single_verification,
         gpu_compatibility_warnings=gpu_warnings,
+        n_failed_work_items=len(mlm.failures),
+        failed_work_items=mlm.failures,
     )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")
+    print(f"       Failed work items: {len(mlm.failures)}")
 
 
 # ---------------------------------------------------------------------------

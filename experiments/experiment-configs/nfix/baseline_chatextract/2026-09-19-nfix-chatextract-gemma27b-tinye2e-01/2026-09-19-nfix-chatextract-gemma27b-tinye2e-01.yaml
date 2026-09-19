@@ -1,0 +1,20 @@
+id: 2026-09-19-nfix-chatextract-gemma27b-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked ChatExtract baseline; see
+  2026-09-19-pond-chatextract-gemma27b-smoke-01 for the full list of this
+  session's changes. Same paper as the sibling smoke config (R264), with
+  extract_tables left at its true default (true) so the real-document-table
+  workflow also runs.
+  Predicted result: the pre-rework chatextract run on this exact paper
+  (experiments/results/nfix/baseline_chatextract/2026-07-11-nfix-baseline-
+  chatextract-01/final.json, filtered by title) found 2 records. This run
+  should land in the same rough neighborhood (single digits, not zero, not
+  dozens) -- exact equality isn't expected given the yes/no-anchoring and
+  JSON-table-parsing changes.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  paper_subset: ["R264"]
+  walltime: "01:00:00"
