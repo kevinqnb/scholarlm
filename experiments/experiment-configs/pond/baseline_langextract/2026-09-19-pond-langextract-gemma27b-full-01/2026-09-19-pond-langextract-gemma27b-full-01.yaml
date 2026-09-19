@@ -23,10 +23,16 @@ description: >-
   ~22.7h base; budgeted to ~1.6x that for headroom. No incremental output:
   mlm.fit() returns once for the whole dataset before final.json is written,
   so a walltime kill loses the entire run, not a partial result.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/pond/ocr_output_raw/. File counts match 1:1 with ocr_output_raw/ (128
+  papers), confirming this is the same paper set with references dropped,
+  not a different subset.
 seed: 342
 params:
   dataset: pond
   model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
   max_char_buffer: 5000
   extraction_passes: 1
   max_workers: 16

@@ -20,8 +20,16 @@ description: >-
   the base estimate (~5.3h); budgeted to ~3x that for headroom. No incremental
   output: mlm.fit() returns once for the whole dataset before final.json is
   written, so a walltime kill loses the entire run, not a partial result.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/pond/ocr_output_raw/ -- required run_baseline_nuextract3.py to gain an
+  ocr_dir override (it previously always read ocr_output_raw/ directly),
+  mirroring run_baseline_langextract.py's existing ocr_dir param. File counts
+  match 1:1 with ocr_output_raw/ (128 papers), confirming this is the same
+  paper set with references dropped, not a different subset.
 seed: 342
 params:
   dataset: pond
   model: nuextract3
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
   walltime: "16:00:00"

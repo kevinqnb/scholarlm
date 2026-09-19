@@ -2,7 +2,7 @@ id: 2026-09-19-supermat-langextract-gemma27b-full-01
 project: scholarlm
 description: >-
   Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
-  all 143 supermat papers (dataset_config.paper_exclude is None for supermat
+  all 142 supermat papers (dataset_config.paper_exclude is None for supermat
   -- no quality exclusions defined, so "full run" is every OCR'd paper on
   disk), backbone gemma-3-27b only (per instruction). No prior LangExtract run
   of any kind exists for supermat -- first time this adapter's prompt/schema
@@ -16,16 +16,22 @@ description: >-
   Walltime is grounded in pond's real per-paper measurement, scaled by mean
   document size and paper count, with heavy headroom on top: pond's smoke run
   measured runtime_seconds=637.5 for one ~59.5KB paper (4/4 concurrency);
-  scaling by supermat's size ratio (~0.45x) and paper count (143 vs. pond's
+  scaling by supermat's size ratio (~0.45x) and paper count (142 vs. pond's
   128) gives a ~11.4h base. Budgeted to roughly 2x that for headroom, on the
   low end of this session's LangExtract configs since the base estimate
   itself is already smaller. No incremental output: mlm.fit() returns once
   for the whole dataset before final.json is written, so a walltime kill
   loses the entire run, not a partial result.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/supermat/ocr_output_raw/. File counts match 1:1 with ocr_output_raw/
+  (142 papers), confirming this is the same paper set with references
+  dropped, not a different subset.
 seed: 342
 params:
   dataset: supermat
   model: gemma-3-27b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01
   max_char_buffer: 5000
   extraction_passes: 1
   max_workers: 16

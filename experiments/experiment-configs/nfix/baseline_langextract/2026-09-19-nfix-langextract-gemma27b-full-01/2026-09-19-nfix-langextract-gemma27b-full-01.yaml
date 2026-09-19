@@ -2,9 +2,9 @@ id: 2026-09-19-nfix-langextract-gemma27b-full-01
 project: scholarlm
 description: >-
   Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
-  all 263 non-excluded nfix papers (paper_subset omitted -- dataset_config.paper_exclude,
-  3 papers, is the only filtering applied), backbone gemma-3-27b only (per
-  instruction). No prior LangExtract run of any kind exists for nfix -- first
+  all 262 non-excluded nfix papers (paper_subset omitted -- dataset_config.paper_exclude,
+  3 papers, is the only filtering applied against the 265 on disk), backbone
+  gemma-3-27b only (per instruction). No prior LangExtract run of any kind exists for nfix -- first
   time this adapter's prompt/schema wiring is exercised against nfix's
   5-entity-field, 3-attribute schema. Same max_char_buffer/extraction_passes/
   max_workers/batch_length/use_schema_constraints/fence_output as
@@ -16,7 +16,7 @@ description: >-
   Walltime is grounded in pond's real per-paper measurement, scaled by paper
   count, with heavy headroom on top: pond's smoke run measured
   runtime_seconds=637.5 for one paper (4/4 concurrency); at the same mean doc
-  size, 266 nfix papers x 637.5s gives a ~47h base -- already close to or over
+  size, 265 nfix papers x 637.5s gives a ~47h base -- already close to or over
   a 1-day walltime before any headroom. Budgeted well above that base to
   absorb both the extrapolation and nfix's larger paper count. Flagged to the
   user: this is the run most likely to need splitting into paper-subset
@@ -24,10 +24,16 @@ description: >-
   No incremental output: mlm.fit() returns once for the whole dataset before
   final.json is written, so a walltime kill loses the entire run, not a
   partial result -- the risk is highest for this config given its size.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/nfix/ocr_output_raw/. File counts match 1:1 with ocr_output_raw/ (265
+  papers on disk; 262 after paper_exclude), confirming this is the same
+  paper set with references dropped, not a different subset.
 seed: 342
 params:
   dataset: nfix
   model: gemma-3-27b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-ocr-drop-references-01
   max_char_buffer: 5000
   extraction_passes: 1
   max_workers: 16

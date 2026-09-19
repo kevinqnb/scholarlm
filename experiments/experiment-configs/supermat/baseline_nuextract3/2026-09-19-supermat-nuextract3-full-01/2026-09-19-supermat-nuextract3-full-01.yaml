@@ -2,7 +2,7 @@ id: 2026-09-19-supermat-nuextract3-full-01
 project: scholarlm
 description: >-
   Rung-4 full run of the NuExtract3 baseline (MeasurementLMNuExtract3) on all
-  143 supermat papers (dataset_config.paper_exclude is None for supermat --
+  142 supermat papers (dataset_config.paper_exclude is None for supermat --
   no quality exclusions defined, unlike pond's 13 and nfix's 3, so "full run"
   here really is every OCR'd paper on disk). No prior NuExtract3 run of any
   kind exists for supermat -- first time this adapter's prompt/schema wiring
@@ -14,14 +14,22 @@ description: >-
   Walltime is extrapolated with heavy headroom, not measured: mean supermat
   OCR text (~26.8KB, data/supermat/ocr_output_raw/) is ~0.45x pond's mean
   (~59.5KB); scaling 2026-09-19-pond-nuextract3-full-01's ~150s/doc base
-  estimate by that size ratio and supermat's paper count (143 vs. pond's 128)
+  estimate by that size ratio and supermat's paper count (142 vs. pond's 128)
   gives a ~2.7h base, budgeted to well over 3x that for headroom given the
   single-attribute schema's per-call cost may not scale purely with document
   bytes. No incremental output: mlm.fit() returns once for the whole dataset
   before final.json is written, so a walltime kill loses the entire run, not
   a partial result.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/supermat/ocr_output_raw/ -- required run_baseline_nuextract3.py to
+  gain an ocr_dir override (it previously always read ocr_output_raw/
+  directly), mirroring run_baseline_langextract.py's existing ocr_dir param.
+  File counts match 1:1 with ocr_output_raw/ (142 papers), confirming this is
+  the same paper set with references dropped, not a different subset.
 seed: 342
 params:
   dataset: supermat
   model: nuextract3
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01
   walltime: "12:00:00"
