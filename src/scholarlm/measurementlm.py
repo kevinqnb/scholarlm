@@ -19,7 +19,19 @@ from .instruction_prompts import (
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
+    PARSE_QUANTITY_INSTRUCTIONS,
     DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+)
+
+# Orthogonal tags describing the shape of a parsed quantity (see
+# PARSE_QUANTITY_INSTRUCTIONS and _parse_quantities()). Any combination is valid;
+# this is not a closed enum of mutually exclusive labels -- a census of the raw
+# MeasEval `mods` annotations (data/measeval/) found real quantities tagged with
+# more than one of these simultaneously (e.g. IsApproximate + IsRange, 35
+# occurrences), which a single mutually-exclusive qualifier field cannot represent.
+QUALIFIER_TAGS = (
+    "IsCount", "IsApproximate", "IsList", "IsRange",
+    "IsMean", "IsMedian", "HasTolerance", "HasSD",
 )
 
 
@@ -98,10 +110,53 @@ class TableValueExtractionResponse(BaseModel):
 
 
 class StandardizeResponse(BaseModel):
-    """Response for standardizing an extracted measurement value."""
+    """Response for standardizing an extracted measurement's units. Value
+    standardization is a separate step (see ParseQuantityResponse) -- this
+    response never touches value."""
     explanation: str
-    value: str
     units: str | None = None
+
+
+class ParseQuantityResponse(BaseModel):
+    """Response for parsing an extracted measurement value into its structured
+    shape: qualifier tags plus whichever of point_value/lower/upper/list_values/
+    tolerance/standard_deviation the reported value actually has."""
+    explanation: str
+    qualifiers: list[str]
+    point_value: str | None = None
+    lower: str | None = None
+    upper: str | None = None
+    list_values: list[str] | None = None
+    tolerance: str | None = None
+    standard_deviation: str | None = None
+
+
+def check_quantity_consistency(parsed: dict) -> list[str]:
+    """Non-fatal structural cross-checks between a parsed quantity's qualifier
+    tags and its populated fields. Returns human-readable warnings for a caller
+    to log -- never raises and never drops or alters data. A model tagging a
+    quantity IsRange without populating lower/upper (or vice versa) is a sign the
+    parse went wrong, but per-project policy we log and keep the record rather
+    than discarding it or failing the run.
+    """
+    tags = set(parsed["qualifiers"])
+    warnings = []
+    has_range = parsed["lower"] is not None or parsed["upper"] is not None
+    if "IsRange" in tags and not has_range:
+        warnings.append("IsRange tagged but lower/upper both null")
+    if has_range and "IsRange" not in tags:
+        warnings.append("lower/upper populated but IsRange not tagged")
+    if "IsList" in tags and not parsed["list_values"]:
+        warnings.append("IsList tagged but list_values empty/null")
+    if parsed["list_values"] and "IsList" not in tags:
+        warnings.append("list_values populated but IsList not tagged")
+    if "HasTolerance" in tags and parsed["tolerance"] is None:
+        warnings.append("HasTolerance tagged but tolerance null")
+    if "HasSD" in tags and parsed["standard_deviation"] is None:
+        warnings.append("HasSD tagged but standard_deviation null")
+    if {"IsMean", "IsMedian", "IsCount"} & tags and parsed["point_value"] is None and not has_range:
+        warnings.append("central-tendency tag (IsMean/IsMedian/IsCount) but point_value null")
+    return warnings
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -1573,8 +1628,10 @@ class MeasurementLM:
 
     def _standardize(self):
         """
-        LLM-based value cleanup: standardizes extracted measurement values
-        (removes uncertainty, normalizes formatting, etc.).
+        LLM-based unit cleanup: maps extracted units onto the attribute's
+        preferred unit list where they're a notational variant. Value is left
+        untouched here -- parsing its shape (range/list/mean/tolerance/etc.) is
+        a separate step, _parse_quantities().
 
         Reads from self.data and returns the standardized list.
         """
@@ -1602,7 +1659,7 @@ class MeasurementLM:
                 f"Available units for the attribute: {unit_options}\n\n"
                 f"Extracted measurement: {measurement_val}\n"
                 f"Extracted units: {measurement_units}\n"
-                f"Standardize the measurement value and units for the extracted data point. "
+                f"Standardize the units for the extracted data point. "
             )
             prompt = (
                 f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
@@ -1637,16 +1694,108 @@ class MeasurementLM:
                 continue
             try:
                 result = response_validator(StandardizeResponse, resp)
-                standardized_data[message_data_ids[i]]['value'] = result['value']
                 standardized_data[message_data_ids[i]]['units'] = result['units']
             except Exception as e:
-                print(f"Validation error in standardize response (keeping original value/units): {e}")
+                print(f"Validation error in standardize response (keeping original units): {e}")
                 print(f"Response text: {resp}")
-                # fallback: leave value and units unchanged (standardized_data was initialised
-                # as a copy of self.data, so the originals are already in place)
+                # fallback: leave units unchanged (standardized_data was initialised
+                # as a copy of self.data, so the original is already in place)
 
         return standardized_data
-    
+
+
+    def _parse_quantities(self):
+        """
+        LLM-based quantity parsing: decomposes each extracted (already
+        unit-standardized) value into qualifier tags plus whichever of
+        point_value/lower/upper/list_values/tolerance/standard_deviation the
+        reported value has, grounded against the source text it was extracted from.
+
+        Non-fatal by design: a response that fails validation, or whose
+        qualifier tags don't match its populated fields, is kept with a
+        logged warning rather than dropped or raised -- see
+        check_quantity_consistency().
+
+        Reads from self.data and returns the parsed list.
+        """
+        entity_fields = list(self.entity_identification_schema.model_fields.keys())
+        messages = []
+        message_data_ids = []
+        for i, datapoint in enumerate(self.data):
+            context = datapoint['context']
+            attribute = datapoint.get('attribute')
+            attr_description = self.attribute_info_dict[attribute]['description']
+            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
+            measurement_val = datapoint['value']
+            measurement_units = datapoint.get('units')
+
+            query = (
+                f"Entity description: {entity_description}\n"
+                f"Attribute description: {attr_description}\n\n"
+                f"Extracted value: {measurement_val}\n"
+                f"Extracted units: {measurement_units}\n"
+                f"Parse this extracted value into its structured components. "
+            )
+            prompt = (
+                f"## INSTRUCTIONS:\n{PARSE_QUANTITY_INSTRUCTIONS}\n\n"
+                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+            )
+            messages.append([{"role": "user", "content": prompt}])
+            message_data_ids.append(i)
+
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "parse_quantity_response",
+                "schema": ParseQuantityResponse.model_json_schema(),
+            },
+        }
+        response_texts = self._call_batch(
+            messages,
+            response_format=response_format,
+            max_tokens=1024,
+            max_retries=2,
+            max_concurrent=32,
+            timeout=120,
+            validator=lambda r: response_validator(ParseQuantityResponse, r),
+        )
+
+        parsed_data = [dict(datapoint) for datapoint in self.data]
+        quantity_fields = (
+            "qualifiers", "point_value", "lower", "upper",
+            "list_values", "tolerance", "standard_deviation",
+        )
+        consistency_warnings = []
+        for i, resp in enumerate(response_texts):
+            if isinstance(resp, ContextLengthExceededError):
+                self.context_length_exceeded_docs.add(
+                    parsed_data[message_data_ids[i]]['document_id']
+                )
+                continue
+            try:
+                result = response_validator(ParseQuantityResponse, resp)
+            except Exception as e:
+                print(f"Validation error in parse-quantity response (leaving quantity fields unset): {e}")
+                print(f"Response text: {resp}")
+                continue
+
+            for field in quantity_fields:
+                parsed_data[message_data_ids[i]][field] = result[field]
+            warnings = check_quantity_consistency(result)
+            consistency_warnings.extend(
+                f"doc {parsed_data[message_data_ids[i]]['document_id']}: {w}" for w in warnings
+            )
+
+        if consistency_warnings:
+            print(
+                f"Quantity parsing: {len(consistency_warnings)} qualifier/field "
+                f"consistency warning(s) -- logged only, no records dropped:"
+            )
+            for w in consistency_warnings:
+                print(f"  {w}")
+
+        return parsed_data
+
 
     def _deduplicate(self, data):
         """
@@ -1781,6 +1930,7 @@ class MeasurementLM:
         if self.extraction_mode == "direct":
             self.data = self._extract_triples()
             self.data = self._standardize()
+            self.data = self._parse_quantities()
             self.data = self._deduplicate(self.data)
             return self.data
 
@@ -1822,6 +1972,9 @@ class MeasurementLM:
 
         # Step 7: Standardize
         self.data = self._standardize()
+
+        # Step 7.5: Parse quantities
+        self.data = self._parse_quantities()
 
         # Step 8: Deduplicate
         self.data = self._deduplicate(self.data)

@@ -27,7 +27,7 @@ Changes from the baseline MeasurementLM:
 
 Unchanged from baseline: `_extract_entities()`, `_detect_attributes()`,
 `_extract_values_from_text()`, `_extract_values_from_tables()`,
-`_standardize()`, `_deduplicate()`, `save()`.
+`_standardize()`, `_parse_quantities()`, `_deduplicate()`, `save()`.
 """
 
 from pydantic import BaseModel
@@ -279,6 +279,9 @@ class MeasurementLMAblation3(MeasurementLM):
 
         # Step 7: Standardize
         self.data = self._standardize()
+
+        # Step 7.5: Parse quantities
+        self.data = self._parse_quantities()
 
         # Step 8: Deduplicate
         self.data = self._deduplicate(self.data)

@@ -30,7 +30,8 @@ Changes from the baseline MeasurementLM:
    expect, and passes event_resolution through to the value extraction steps.
 
 Unchanged from baseline: `_extract_values_from_text()`,
-`_extract_values_from_tables()`, `_standardize()`, `_deduplicate()`, `save()`.
+`_extract_values_from_tables()`, `_standardize()`, `_parse_quantities()`,
+`_deduplicate()`, `save()`.
 
 Dataset config requirements:
   - `ablation2_entity_schema` must be set (entity fields + attribute + attribute_terms).
@@ -401,6 +402,9 @@ class MeasurementLMAblation2(MeasurementLM):
 
         # Step 6: Standardize
         self.data = self._standardize()
+
+        # Step 6.5: Parse quantities
+        self.data = self._parse_quantities()
 
         # Step 7: Deduplicate
         self.data = self._deduplicate(self.data)

@@ -28,7 +28,11 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from scholarlm.measurementlm import ContextLengthExceededError, MeasurementLM
+from scholarlm.measurementlm import (
+    ContextLengthExceededError,
+    MeasurementLM,
+    check_quantity_consistency,
+)
 
 
 class _EntitySchema(BaseModel):
@@ -91,8 +95,16 @@ def test_direct_mode_fit_shapes_records_like_ablation1_then_standardizes_and_ded
         if name == "standardize_response":
             assert len(message_sets) == 2  # one message per extracted triple
             return [
-                '{"explanation": "ok", "value": "3.2", "units": "m"}',
-                '{"explanation": "ok", "value": "5.0", "units": "m"}',
+                '{"explanation": "ok", "units": "m"}',
+                '{"explanation": "ok", "units": "m"}',
+            ]
+        if name == "parse_quantity_response":
+            assert len(message_sets) == 2  # one message per standardized triple
+            return [
+                '{"explanation": "ok", "qualifiers": [], "point_value": "3.2", "lower": null, '
+                '"upper": null, "list_values": null, "tolerance": null, "standard_deviation": null}',
+                '{"explanation": "ok", "qualifiers": [], "point_value": "5.0", "lower": null, '
+                '"upper": null, "list_values": null, "tolerance": null, "standard_deviation": null}',
             ]
         raise AssertionError(f"unexpected _call_batch invocation: {name}")
 
@@ -100,7 +112,7 @@ def test_direct_mode_fit_shapes_records_like_ablation1_then_standardizes_and_ded
 
     records = mlm.fit(["doc text A", "doc text B"])
 
-    assert calls == ["direct_extraction_list", "standardize_response"]
+    assert calls == ["direct_extraction_list", "standardize_response", "parse_quantity_response"]
     assert len(records) == 2
 
     records_by_name = {r["name"]: r for r in records}
@@ -112,8 +124,10 @@ def test_direct_mode_fit_shapes_records_like_ablation1_then_standardizes_and_ded
     ]:
         rec = records_by_name[name]
         assert rec["attribute"] == "depth"
-        assert rec["value"] == expected_value
+        assert rec["value"] == expected_value  # untouched by standardize; not overwritten by parse
         assert rec["units"] == "m"
+        assert rec["qualifiers"] == []
+        assert rec["point_value"] == expected_value
         assert rec["attribute_terms"] == []
         assert rec["entity_id"].startswith("doc_")
         # _deduplicate wraps provenance fields in singleton lists and is a
@@ -296,9 +310,11 @@ def test_standardize_isolates_context_length_exceeded_document(monkeypatch):
     """_standardize (a real _call_batch call site whose message_data_ids are
     positional indices into self.data, not document ids directly -- doc id is
     recovered via standardized_data[message_data_ids[i]]['document_id']) must
-    record the failing record's document_id, leave its value/units unchanged
-    (the existing validation-failure fallback), and not disturb the sibling
-    record's standardized result."""
+    record the failing record's document_id, leave its units unchanged (the
+    existing validation-failure fallback), and not disturb the sibling record's
+    standardized result. value is never touched by _standardize (it's now
+    units-only; parsing value's shape is _parse_quantities()'s job) -- it stays
+    "3.2"/"5.0" for both records regardless of context-length outcome."""
     mlm = _make_mlm()
     mlm.data = [
         {"document_id": 0, "entity_id": "doc_0_entity_0", "name": "Lake A",
@@ -313,7 +329,7 @@ def test_standardize_isolates_context_length_exceeded_document(monkeypatch):
                           max_tokens=None, timeout=600.0, extra_body=None):
         if "DOC0" in messages[0]["content"]:
             raise ContextLengthExceededError("... exceeds model's maximum context length ...")
-        return '{"explanation": "ok", "value": "6.0", "units": "m"}'
+        return '{"explanation": "ok", "units": "m"}'
 
     monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
     monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
@@ -322,11 +338,11 @@ def test_standardize_isolates_context_length_exceeded_document(monkeypatch):
 
     assert mlm.context_length_exceeded_docs == {0}
     by_doc = {r["document_id"]: r for r in standardized}
-    # doc0's context-length failure falls back to its original, unstandardized value.
+    # doc0's context-length failure falls back to its original, unstandardized units.
     assert by_doc[0]["value"] == "3.2"
     assert by_doc[0]["units"] == "m"
-    # doc1 is unaffected and picks up the standardized value.
-    assert by_doc[1]["value"] == "6.0"
+    # doc1 is unaffected and picks up the standardized units; value is untouched either way.
+    assert by_doc[1]["value"] == "5.0"
     assert by_doc[1]["units"] == "m"
 
 
@@ -423,6 +439,7 @@ def test_pipeline_mode_default_construction_dispatches_original_seven_steps(monk
     monkeypatch.setattr(mlm, "_extract_values_from_text", stub("_extract_values_from_text", []))
     monkeypatch.setattr(mlm, "_extract_values_from_tables", stub("_extract_values_from_tables", []))
     monkeypatch.setattr(mlm, "_standardize", stub("_standardize", []))
+    monkeypatch.setattr(mlm, "_parse_quantities", stub("_parse_quantities", []))
     monkeypatch.setattr(mlm, "_deduplicate", lambda data: called.append("_deduplicate") or [])
 
     def _fail(*args, **kwargs):
@@ -440,5 +457,194 @@ def test_pipeline_mode_default_construction_dispatches_original_seven_steps(monk
         "_extract_values_from_text",
         "_extract_values_from_tables",
         "_standardize",
+        "_parse_quantities",
         "_deduplicate",
     ]
+
+
+# ---------------------------------------------------------------------------
+# _parse_quantities()
+# ---------------------------------------------------------------------------
+
+def _base_datapoint(document_id, value, units="m"):
+    return {
+        "document_id": document_id, "entity_id": f"doc_{document_id}_entity_0",
+        "name": "Lake A", "location": "WI", "context": f"DOC{document_id} text",
+        "attribute": "depth", "value": value, "units": units, "attribute_terms": [],
+    }
+
+
+def test_parse_quantities_populates_all_shapes(monkeypatch):
+    """One fake response per reported shape -- plain point, two-sided range,
+    one-sided inequality, list, and a mean given together with a range --
+    verifying each lands in the field PARSE_QUANTITY_INSTRUCTIONS calls for
+    and that every other quantity field stays null."""
+    mlm = _make_mlm()
+    mlm.data = [
+        _base_datapoint(0, "12.3"),
+        _base_datapoint(1, "3-7"),
+        _base_datapoint(2, "< 5"),
+        _base_datapoint(3, "2, 5, 9"),
+        _base_datapoint(4, "5.2 (3.1-7.4)"),
+    ]
+
+    fake_responses = [
+        '{"explanation": "plain point", "qualifiers": [], "point_value": "12.3", '
+        '"lower": null, "upper": null, "list_values": null, "tolerance": null, '
+        '"standard_deviation": null}',
+
+        '{"explanation": "two-sided range", "qualifiers": ["IsRange"], "point_value": null, '
+        '"lower": "3", "upper": "7", "list_values": null, "tolerance": null, '
+        '"standard_deviation": null}',
+
+        '{"explanation": "one-sided bound", "qualifiers": ["IsRange"], "point_value": null, '
+        '"lower": null, "upper": "5", "list_values": null, "tolerance": null, '
+        '"standard_deviation": null}',
+
+        '{"explanation": "list", "qualifiers": ["IsList"], "point_value": null, "lower": null, '
+        '"upper": null, "list_values": ["2", "5", "9"], "tolerance": null, '
+        '"standard_deviation": null}',
+
+        '{"explanation": "mean with range", "qualifiers": ["IsMean", "IsRange"], '
+        '"point_value": "5.2", "lower": "3.1", "upper": "7.4", "list_values": null, '
+        '"tolerance": null, "standard_deviation": null}',
+    ]
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        for i in range(len(mlm.data)):
+            if f"DOC{i}" in messages[0]["content"]:
+                return fake_responses[i]
+        raise AssertionError("unmatched document in parse-quantity prompt")
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+    by_doc = {r["document_id"]: r for r in parsed}
+
+    assert by_doc[0]["qualifiers"] == []
+    assert by_doc[0]["point_value"] == "12.3"
+    assert by_doc[0]["lower"] is None and by_doc[0]["upper"] is None
+
+    assert by_doc[1]["qualifiers"] == ["IsRange"]
+    assert by_doc[1]["lower"] == "3" and by_doc[1]["upper"] == "7"
+    assert by_doc[1]["point_value"] is None
+
+    assert by_doc[2]["qualifiers"] == ["IsRange"]
+    assert by_doc[2]["lower"] is None and by_doc[2]["upper"] == "5"
+
+    assert by_doc[3]["qualifiers"] == ["IsList"]
+    assert by_doc[3]["list_values"] == ["2", "5", "9"]
+
+    assert by_doc[4]["qualifiers"] == ["IsMean", "IsRange"]
+    assert by_doc[4]["point_value"] == "5.2"
+    assert by_doc[4]["lower"] == "3.1" and by_doc[4]["upper"] == "7.4"
+
+    # value/units are untouched by this step -- they were already set by extraction/standardize.
+    for doc_id in by_doc:
+        assert by_doc[doc_id]["units"] == "m"
+
+
+def test_parse_quantities_isolates_context_length_exceeded_document(monkeypatch):
+    """Mirrors test_standardize_isolates_context_length_exceeded_document: a
+    context-length failure on one record must record its document_id and leave
+    its quantity fields entirely unset, without disturbing the sibling record."""
+    mlm = _make_mlm()
+    mlm.data = [_base_datapoint(0, "3.2"), _base_datapoint(1, "5.0")]
+    mlm.data[0]["context"] = "DOC0 too-long text"
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        if "DOC0" in messages[0]["content"]:
+            raise ContextLengthExceededError("... exceeds model's maximum context length ...")
+        return (
+            '{"explanation": "ok", "qualifiers": [], "point_value": "5.0", "lower": null, '
+            '"upper": null, "list_values": null, "tolerance": null, "standard_deviation": null}'
+        )
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+
+    assert mlm.context_length_exceeded_docs == {0}
+    by_doc = {r["document_id"]: r for r in parsed}
+    assert "qualifiers" not in by_doc[0]
+    assert by_doc[1]["qualifiers"] == []
+    assert by_doc[1]["point_value"] == "5.0"
+
+
+def test_parse_quantities_logs_but_keeps_inconsistent_record(monkeypatch, capsys):
+    """A response whose qualifiers don't match its populated fields (per-project
+    policy, see CLAUDE.md's fail-loud rule and the explicit call not to drop or
+    error on this class of mismatch) is still applied in full and only logged."""
+    mlm = _make_mlm()
+    mlm.data = [_base_datapoint(0, "3-7")]
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        # Tagged IsRange but lower/upper both left null -- inconsistent, not fatal.
+        return (
+            '{"explanation": "bad parse", "qualifiers": ["IsRange"], "point_value": null, '
+            '"lower": null, "upper": null, "list_values": null, "tolerance": null, '
+            '"standard_deviation": null}'
+        )
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+
+    assert parsed[0]["qualifiers"] == ["IsRange"]
+    assert parsed[0]["lower"] is None and parsed[0]["upper"] is None
+    out = capsys.readouterr().out
+    assert "IsRange tagged but lower/upper both null" in out
+
+
+# ---------------------------------------------------------------------------
+# check_quantity_consistency()
+# ---------------------------------------------------------------------------
+
+def _quantity(**overrides):
+    base = dict(qualifiers=[], point_value=None, lower=None, upper=None,
+                list_values=None, tolerance=None, standard_deviation=None)
+    base.update(overrides)
+    return base
+
+
+def test_check_quantity_consistency_clean_cases_produce_no_warnings():
+    assert check_quantity_consistency(_quantity(point_value="12.3")) == []
+    assert check_quantity_consistency(
+        _quantity(qualifiers=["IsRange"], lower="3", upper="7")
+    ) == []
+    assert check_quantity_consistency(
+        _quantity(qualifiers=["IsList"], list_values=["1", "2"])
+    ) == []
+    assert check_quantity_consistency(
+        _quantity(qualifiers=["IsMean", "HasSD"], point_value="5", standard_deviation="0.4")
+    ) == []
+
+
+def test_check_quantity_consistency_flags_mismatches_without_raising():
+    assert check_quantity_consistency(_quantity(qualifiers=["IsRange"])) == [
+        "IsRange tagged but lower/upper both null"
+    ]
+    assert check_quantity_consistency(_quantity(lower="3")) == [
+        "lower/upper populated but IsRange not tagged"
+    ]
+    assert check_quantity_consistency(_quantity(qualifiers=["IsList"])) == [
+        "IsList tagged but list_values empty/null"
+    ]
+    assert check_quantity_consistency(_quantity(qualifiers=["HasTolerance"])) == [
+        "HasTolerance tagged but tolerance null"
+    ]
+    assert check_quantity_consistency(_quantity(qualifiers=["IsMean"])) == [
+        "central-tendency tag (IsMean/IsMedian/IsCount) but point_value null"
+    ]
+    # Multiple simultaneous mismatches are all reported, not just the first.
+    warnings = check_quantity_consistency(_quantity(qualifiers=["IsRange", "HasSD"]))
+    assert set(warnings) == {
+        "IsRange tagged but lower/upper both null",
+        "HasSD tagged but standard_deviation null",
+    }
