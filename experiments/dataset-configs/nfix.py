@@ -202,7 +202,10 @@ _MEASUREMENT_EVENT_PROMPT = """Event fields:
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value,
+    units, and the qualifier/shape fields (the same shape
+    MeasurementLM._parse_quantities() produces via a separate step -- see
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
 
     # Entity fields
     name: str | None
@@ -219,6 +222,14 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
+    # Qualifier/shape fields
+    qualifiers: list[str]
+    point_value: str | None
+    lower: str | None
+    upper: str | None
+    list_values: list[str] | None
+    tolerance: str | None
+    standard_deviation: str | None
 
 
 
@@ -272,7 +283,14 @@ Output format requirements:
       "additional_details": "...",
       "attribute": "...",
       "value": "...",
-      "units": "..."
+      "units": "...",
+      "qualifiers": [...],
+      "point_value": "...",
+      "lower": "...",
+      "upper": "...",
+      "list_values": [...],
+      "tolerance": "...",
+      "standard_deviation": "..."
     }
   ]
 }
@@ -299,6 +317,11 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
     "while water column fixation reached 120 µmol N m⁻² d⁻¹ nearby."
 )
 
+_NUEXTRACT_QUANTITY_DEFAULTS = {
+    "qualifiers": [], "point_value": None, "lower": None, "upper": None,
+    "list_values": None, "tolerance": None, "standard_deviation": None,
+}
+
 _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
@@ -309,6 +332,7 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
                 "substrate_type": "benthos", "sample_depth": "0-5 cm",
                 "additional_details": "light incubation",
                 "attribute": "nfix_rate_mass", "value": "4.2", "units": "nmol C2H4 g⁻¹ h⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "4.2"}),
             },
             {
                 "name": "Tampa Bay Seagrass Site", "identifiers": "TB-3",
@@ -317,17 +341,22 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
                 "substrate_type": "benthos", "sample_depth": "0-5 cm",
                 "additional_details": "light incubation",
                 "attribute": "nfix_rate_areal", "value": "120", "units": "µmol N m⁻² d⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "120"}),
             },
         ]
     }
 )
 
+# The volumetric rate's ranged phrasing demonstrates a non-plain-point shape,
+# so this baseline's only real instruction channel (few-shot examples -- see
+# module docstring in measurementlm_nuextract.py) actually shows the
+# qualifier fields in use, not just plain points.
 _NUEXTRACT_EXAMPLE_2_INPUT = (
     "The Chesapeake Bay Estuary Transect (CBET) is an estuary site in "
     "Chesapeake Bay. Samples of the water column from the surface (0 m) "
     "were incubated for 24 hours in March 2020 using 15N2 incorporation. "
-    "Volumetric fixation rates of 3.6 nmol N2 L⁻¹ h⁻¹ were recorded "
-    "under dark conditions."
+    "Volumetric fixation rates ranging from 3.2 to 4.0 nmol N2 L⁻¹ h⁻¹ were "
+    "recorded under dark conditions."
 )
 
 _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
@@ -339,7 +368,10 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "date": "March 2020", "nfix_method": "15N2 incorporation",
                 "substrate_type": "water column", "sample_depth": "surface",
                 "additional_details": "dark conditions",
-                "attribute": "nfix_rate_volumetric", "value": "3.6", "units": "nmol N2 L⁻¹ h⁻¹",
+                "attribute": "nfix_rate_volumetric", "value": "3.2-4.0", "units": "nmol N2 L⁻¹ h⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsRange"], "lower": "3.2", "upper": "4.0",
+                }),
             },
         ]
     }

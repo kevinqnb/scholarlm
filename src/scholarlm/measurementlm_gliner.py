@@ -90,6 +90,16 @@ _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 # treat a table as an atomic block rather than splitting it mid-rows.
 _TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 
+# The qualifier/shape fields every other extraction method carries as
+# qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation
+# (MeasurementLM.ParseQuantityResponse) -- see _build_structure's docstring
+# for why GLiNER2 represents qualifiers/list_values as comma-joined strings
+# rather than JSON lists.
+QUANTITY_FIELD_NAMES = (
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+)
+
 
 class MeasurementLMGliner(MeasurementLM):
     """Local structured-extraction baseline using GLiNER2."""
@@ -197,13 +207,22 @@ class MeasurementLMGliner(MeasurementLM):
     def _build_structure(self, attr_key: str):
         """Build a one-structure GLiNER2 `Schema` for a single attribute.
 
-        Fields: subject ``name``, measurement ``value`` (numeric) + ``units``,
+        Fields: subject ``name``, measurement ``value`` (full raw text) +
+        ``units``, the qualifier/shape fields (see QUANTITY_FIELD_NAMES below),
         plus every other entity- and measurement-event-schema field (see
         `_extra_entity_fields` / `_extra_event_fields`) — module docstring's
         "Field scope" note explains why GLiNER2 isn't restricted to name-only the
         way ChatExtract is. Each field's description is what steers this small
         model; the ``value`` field carries the attribute's full
         ``attribute_info_dict`` description.
+
+        GLiNER2 structure fields are scalar (``dtype="str"`` only, no array
+        type) — unlike every other extraction method in this repo, ``qualifiers``
+        and ``list_values`` are comma-joined strings here, not JSON lists. This
+        is a real, documented divergence from the shared
+        qualifiers/point_value/lower/upper/list_values/tolerance/
+        standard_deviation shape (MeasurementLM.ParseQuantityResponse), forced
+        by GLiNER2's own type system, not an oversight.
         """
         phrase = self._phrase(attr_key)
         info = self.attribute_info_dict.get(attr_key, {})
@@ -225,17 +244,66 @@ class MeasurementLMGliner(MeasurementLM):
         builder.field(
             "value",
             dtype="str",
-            description=f"The numeric value of the {phrase} measurement. {description} "
-            f"If there are multiple types of values reported (e.g. mean, min, max), "
-            f"give the mean or central value unless the description above directs "
-            f"otherwise. Do not include uncertainty measures, confidence intervals, "
-            f"or range bounds. Give digits only (e.g. '2.3', '850').",
+            description=f"The value of the {phrase} measurement exactly as reported, in full -- "
+            f"including any range, list, inequality, mean/median/count label, or uncertainty "
+            f"measure (+/- value, confidence interval, standard deviation) reported alongside "
+            f"it. {description} Do not convert, round, drop, or otherwise modify any part of it.",
         )
         builder.field(
             "units",
             dtype="str",
             description=f"The unit of the {phrase} value{unit_hint}. "
             f"Leave empty if the quantity is dimensionless or no unit is given.",
+        )
+        builder.field(
+            "qualifiers",
+            dtype="str",
+            description="Comma-separated tags describing the shape of the value, drawn only "
+            "from: IsCount (a count of discrete items), IsApproximate (explicitly hedged, e.g. "
+            "'about 50'), IsList (an enumerated list of separate values), IsRange (a reported "
+            "interval or one-sided bound, e.g. '3-7', '< 5'), IsMean (an explicitly stated "
+            "mean/average), IsMedian (an explicitly stated median), HasTolerance (an explicit "
+            "+/- value or confidence interval reported alongside the value), HasSD (an explicit "
+            "standard deviation reported alongside the value). Combine tags freely when the "
+            "text supports it (e.g. 'IsApproximate, IsMean'). Leave empty for a plain, unhedged "
+            "single value.",
+        )
+        builder.field(
+            "point_value",
+            dtype="str",
+            description="The single central value, when one is directly reported -- a plain "
+            "point value, or the stated mean/median/count. Leave empty if no single central "
+            "value is reported.",
+        )
+        builder.field(
+            "lower",
+            dtype="str",
+            description="The lower bound of a reported range or one-sided inequality (e.g. "
+            "'at least 10'). Leave empty if no range or lower bound is reported.",
+        )
+        builder.field(
+            "upper",
+            dtype="str",
+            description="The upper bound of a reported range or one-sided inequality (e.g. "
+            "'< 5'). Leave empty if no range or upper bound is reported.",
+        )
+        builder.field(
+            "list_values",
+            dtype="str",
+            description="If the value is an enumerated list of separate values, the parsed "
+            "items joined by commas, in the order reported. Leave empty otherwise.",
+        )
+        builder.field(
+            "tolerance",
+            dtype="str",
+            description="The confidence interval or +/- value exactly as reported (e.g. "
+            "'± 0.5', '95% CI: 5-9'), if one is given alongside the value. Leave empty otherwise.",
+        )
+        builder.field(
+            "standard_deviation",
+            dtype="str",
+            description="The standard deviation exactly as reported, if one is given "
+            "alongside the value. Leave empty otherwise.",
         )
         for field_name in self._extra_entity_fields() + self._extra_event_fields():
             builder.field(field_name, dtype="str", description=self._field_description(field_name))
@@ -398,7 +466,8 @@ class MeasurementLMGliner(MeasurementLM):
 
     def _make_record(
         self, doc_idx: int, attribute: str, name: str | None,
-        value: str, units: str | None, page_num: int | None, extra: dict[str, str | None],
+        value: str, units: str | None, quantity: dict[str, str | None],
+        page_num: int | None, extra: dict[str, str | None],
     ) -> dict:
         """Build one extraction record in the standard flat schema.
 
@@ -406,7 +475,9 @@ class MeasurementLMGliner(MeasurementLM):
         GLiNER extracted (``extra``, keyed by field name — see
         `_extra_entity_fields` / `_extra_event_fields`) is filled in, the rest
         default to ``None``, so the same record shape works across datasets
-        without hardcoding their union. ``page_num`` is the 0-indexed OCR
+        without hardcoding their union. ``quantity`` carries QUANTITY_FIELD_NAMES
+        (qualifiers/list_values as comma-joined strings, not lists -- see
+        `_build_structure`'s docstring). ``page_num`` is the 0-indexed OCR
         ``<page number="N">`` the source chunk came from; with no `_deduplicate`
         step (see module docstring), it stays a plain scalar here, matching
         ChatExtract's ``_make_record``.
@@ -422,7 +493,7 @@ class MeasurementLMGliner(MeasurementLM):
         # otherwise overwrite with None.
         record[name_field] = name
 
-        record |= {"attribute": attribute, "value": value, "units": units}
+        record |= {"attribute": attribute, "value": value, "units": units} | quantity
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(name)}"
         return {"document_id": doc_idx} | record | {
             "entity_id": entity_id, "attribute_terms": [], "page_number": page_num,
@@ -495,8 +566,11 @@ class MeasurementLMGliner(MeasurementLM):
                     continue  # values are always numeric
                 name = self._clean_field(item.get(self._entity_name_field()))
                 units = self._clean_field(item.get("units"))
+                quantity = {f: self._clean_field(item.get(f)) for f in QUANTITY_FIELD_NAMES}
                 extra = {f: self._clean_field(item.get(f)) for f in extra_field_names}
-                records.append(self._make_record(doc_idx, attr_key, name, value, units, page_num, extra))
+                records.append(
+                    self._make_record(doc_idx, attr_key, name, value, units, quantity, page_num, extra)
+                )
 
         return records
 

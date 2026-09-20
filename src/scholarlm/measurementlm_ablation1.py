@@ -13,13 +13,20 @@ Changes from the baseline MeasurementLM:
 2. The extraction schema and prompt are defined at the dataset level
    (direct_extraction_schema and direct_extraction_prompt on DatasetConfig). The schema
    is a flat Pydantic model combining entity fields, measurement event fields, and
-   'attribute', 'value', and 'units' fields. The prompt describes all three in one block.
+   'attribute', 'value', 'units', and the qualifier/shape fields ('qualifiers',
+   'point_value', 'lower', 'upper', 'list_values', 'tolerance',
+   'standard_deviation' -- the same shape MeasurementLM._parse_quantities()
+   produces via a separate step; here it's asked for directly in the one
+   extraction call). The prompt describes all of them in one block.
 
-3. After extraction, the standard _standardize() and _deduplicate() steps are available
-   but currently commented out pending evaluation. No provenance fields
-   (page_number, table_number, etc.) are produced.
+3. fit() returns straight from _extract_triples() -- the standard _standardize()
+   and _parse_quantities()/_deduplicate() steps are not called; this ablation's
+   direct_extraction_schema asks the model for the qualifier/shape fields
+   directly instead (see point 2), by design (unlike every other ablation,
+   which does call _parse_quantities() -- see MeasurementLM.fit()). No
+   provenance fields (page_number, table_number, etc.) are produced.
 
-Unchanged from baseline: _standardize(), _deduplicate(), save().
+Unchanged from baseline: save().
 """
 
 from functools import partial

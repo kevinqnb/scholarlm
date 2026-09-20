@@ -205,6 +205,23 @@ def test_attribute_object_schema_enum_constrains_attribute_only():
     assert schema["additionalProperties"] is False
 
 
+def test_attribute_object_schema_types_list_fields_as_arrays():
+    """A list[str] field (the qualifier fields, e.g. `qualifiers`) is typed
+    as a JSON array, not folded into the plain-nullable-string fallback every
+    str field gets -- introspected from the annotation, not hardcoded by name."""
+    class _DirectSchemaWithQualifiers(BaseModel):
+        name: str | None
+        attribute: str
+        value: str | None
+        qualifiers: list[str]
+        list_values: list[str] | None
+
+    schema = _attribute_object_schema(_DirectSchemaWithQualifiers, _ATTRIBUTE_INFO)
+    assert schema["properties"]["qualifiers"] == {"type": "array", "items": {"type": "string"}}
+    assert schema["properties"]["list_values"] == {"type": "array", "items": {"type": "string"}}
+    assert schema["properties"]["name"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+
 def test_build_output_schema_uses_langextracts_own_key_constants():
     import langextract as lx
 

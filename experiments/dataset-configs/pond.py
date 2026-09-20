@@ -208,7 +208,10 @@ _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value,
+    units, and the qualifier/shape fields (the same shape
+    MeasurementLM._parse_quantities() produces via a separate step -- see
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
 
     # Entity fields
     name: str | None
@@ -222,6 +225,14 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
+    # Qualifier/shape fields
+    qualifiers: list[str]
+    point_value: str | None
+    lower: str | None
+    upper: str | None
+    list_values: list[str] | None
+    tolerance: str | None
+    standard_deviation: str | None
 
 
 
@@ -273,7 +284,14 @@ Output format requirements:
       "additional_details": "...",
       "attribute": "...",
       "value": "...",
-      "units": "..."
+      "units": "...",
+      "qualifiers": [...],
+      "point_value": "...",
+      "lower": "...",
+      "upper": "...",
+      "list_values": [...],
+      "tolerance": "...",
+      "standard_deviation": "..."
     }
   ]
 }
@@ -306,6 +324,11 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
     "during the summer stratification period."
 )
 
+_NUEXTRACT_QUANTITY_DEFAULTS = {
+    "qualifiers": [], "point_value": None, "lower": None, "upper": None,
+    "list_values": None, "tolerance": None, "standard_deviation": None,
+}
+
 _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
@@ -314,35 +337,44 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
                 "location": "central Wisconsin, USA", "ecosystem": "pond",
                 "date": "June 2019", "additional_details": None,
                 "attribute": "surface_area", "value": "2.3", "units": "ha",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "2.3"}),
             },
             {
                 "name": "Beaver Pond", "identifiers": "BP-1",
                 "location": "central Wisconsin, USA", "ecosystem": "pond",
                 "date": "June 2019", "additional_details": None,
                 "attribute": "max_depth", "value": "1.8", "units": "m",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "1.8"}),
             },
             {
                 "name": "Beaver Pond", "identifiers": "BP-1",
                 "location": "central Wisconsin, USA", "ecosystem": "pond",
                 "date": "June 2019", "additional_details": None,
                 "attribute": "ph", "value": "6.9", "units": None,
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "6.9"}),
             },
             {
                 "name": "Beaver Pond", "identifiers": "BP-1",
                 "location": "central Wisconsin, USA", "ecosystem": "pond",
                 "date": "June 2019", "additional_details": None,
                 "attribute": "chla", "value": "12.4", "units": "µg/L",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "12.4"}),
             },
         ]
     }
 )
 
+# vegetation_cover's "approximately 45 percent" and tp's now-ranged phrasing
+# each demonstrate a non-plain-point shape, so this baseline's only real
+# instruction channel (few-shot examples -- see module docstring in
+# measurementlm_nuextract.py) actually shows the qualifier fields in use,
+# not just plain points.
 _NUEXTRACT_EXAMPLE_2_INPUT = (
     "The study site, Marsh Creek Wetland (also referred to as MCW or Site 4), "
     "is a freshwater wetland in coastal Louisiana. During Spring 2021, "
     "submerged and emergent vegetation covered approximately 45 percent of "
     "the wetland surface. Water samples collected at the inlet zone showed "
-    "total nitrogen of 850 µg/L and total phosphorus of 62 µg/L."
+    "total nitrogen of 850 µg/L and total phosphorus ranging from 55 to 70 µg/L."
 )
 
 _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
@@ -353,18 +385,25 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "location": "coastal Louisiana", "ecosystem": "wetland",
                 "date": "Spring 2021", "additional_details": "inlet zone",
                 "attribute": "vegetation_cover", "value": "45", "units": "percent",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsApproximate"], "point_value": "45",
+                }),
             },
             {
                 "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
                 "location": "coastal Louisiana", "ecosystem": "wetland",
                 "date": "Spring 2021", "additional_details": "inlet zone",
                 "attribute": "tn", "value": "850", "units": "µg/L",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "850"}),
             },
             {
                 "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
                 "location": "coastal Louisiana", "ecosystem": "wetland",
                 "date": "Spring 2021", "additional_details": "inlet zone",
-                "attribute": "tp", "value": "62", "units": "µg/L",
+                "attribute": "tp", "value": "55-70", "units": "µg/L",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsRange"], "lower": "55", "upper": "70",
+                }),
             },
         ]
     }

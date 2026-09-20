@@ -215,7 +215,10 @@ Enumerate every distinct property reported for the given subject on this page. A
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, and value/units fields."""
+    """Flat schema for Ablation 1: combines entity, event, value/units, and
+    the qualifier/shape fields (the same shape
+    MeasurementLM._parse_quantities() produces via a separate step -- see
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
 
     # Entity fields
     name: str | None
@@ -229,6 +232,14 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: Literal["measurement"] = "measurement"
     value: str | None
     units: str | None
+    # Qualifier/shape fields
+    qualifiers: list[str]
+    point_value: str | None
+    lower: str | None
+    upper: str | None
+    list_values: list[str] | None
+    tolerance: str | None
+    standard_deviation: str | None
 
 
 # `from __future__ import annotations` defers every annotation to a string, and
@@ -253,8 +264,22 @@ For each (subject, property) combination found, output one record with:
 - name: the subject's name or identifying description, copied verbatim from the text. Set to None only if the text reports a quantity with no identifiable subject at all.
 - property: the specific property or quantity type being measured for that subject (e.g. "mean annual temperature", "grain size", "paleolatitude"), copied verbatim from the text -- not the number itself. If the quantity attaches directly to its subject with no distinct property phrase (e.g. "5318 participants"), set this to None.
 - additional_details: any qualifying context for this specific measurement (method, location, condition, date, comparison), copied or closely paraphrased from the text and kept to a short phrase. Set to None if not applicable.
-- value: the numeric part of the reported quantity, exactly as written. Do not convert, round, or combine with uncertainty bounds.
+- value: the reported quantity exactly as written, in full -- including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
 - units: the unit part of the reported quantity as written, or None if it is unitless (e.g. a plain count or dimensionless ratio).
+- qualifiers: a list of zero or more tags describing the shape of the reported quantity. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
+  - "IsCount": a count of discrete items, not a continuous measurement.
+  - "IsApproximate": explicitly hedged, e.g. "~12", "about 50", "approximately".
+  - "IsList": an enumerated list of separate values, not a single number or range.
+  - "IsRange": a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10".
+  - "IsMean": an explicitly stated mean/average.
+  - "IsMedian": an explicitly stated median.
+  - "HasTolerance": an explicit +/- value or confidence interval is reported alongside the value.
+  - "HasSD": an explicit standard deviation is reported alongside the value.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported.
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound, populate only the reported side. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported, as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 
 Rules:
 - Output one record per distinct (subject, property) measurement. A subject with several properties measured produces several records. The same measurement restated in prose and in a table is one record.
@@ -274,7 +299,14 @@ Output format requirements:
       "additional_details": "...",
       "attribute": "measurement",
       "value": "...",
-      "units": "..."
+      "units": "...",
+      "qualifiers": [...],
+      "point_value": "...",
+      "lower": "...",
+      "upper": "...",
+      "list_values": [...],
+      "tolerance": "...",
+      "standard_deviation": "..."
     }
   ]
 }
@@ -294,6 +326,17 @@ Output format requirements:
 # multi-event case the event prompt above describes.
 # ---------------------------------------------------------------------------
 
+# _NUEXTRACT_QUANTITY_DEFAULTS_JSON is the qualifier/shape fields' JSON,
+# plain-point-shaped, spliced into every item below; the 214-individuals count
+# and the critical-current-density range each override it to demonstrate a
+# non-plain-point shape -- this baseline's only real instruction channel
+# (few-shot examples -- see module docstring in measurementlm_nuextract.py)
+# must actually show the qualifier fields in use, not just plain points.
+_NUEXTRACT_QUANTITY_DEFAULTS_JSON = (
+    '"qualifiers": [], "point_value": "{point}", "lower": null, "upper": null, '
+    '"list_values": null, "tolerance": null, "standard_deviation": null'
+)
+
 _NUEXTRACT_EXAMPLE_1_INPUT = (
     "Specimen MB-7, a juvenile coho salmon collected from the study reach, "
     "had a fork length of 8.4 cm and a body mass of 6.2 g at the time of "
@@ -303,24 +346,32 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
 
 _NUEXTRACT_EXAMPLE_1_OUTPUT = (
     '{"items": ['
-    '{"name": "Specimen MB-7", "property": "fork length", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "8.4", "units": "cm"}, '
-    '{"name": "Specimen MB-7", "property": "body mass", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "6.2", "units": "g"}, '
-    '{"name": "the site", "property": null, "additional_details": "sampled across the site", "attribute": "measurement", "value": "214", "units": null}'
+    '{"name": "Specimen MB-7", "property": "fork length", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "8.4", "units": "cm", '
+    + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="8.4") + '}, '
+    '{"name": "Specimen MB-7", "property": "body mass", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "6.2", "units": "g", '
+    + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="6.2") + '}, '
+    '{"name": "the site", "property": null, "additional_details": "sampled across the site", "attribute": "measurement", "value": "214", "units": null, '
+    '"qualifiers": ["IsCount"], "point_value": "214", "lower": null, "upper": null, '
+    '"list_values": null, "tolerance": null, "standard_deviation": null}'
     ']}'
 )
 
 _NUEXTRACT_EXAMPLE_2_INPUT = (
     "The Bi2212 crystal exhibited a superconducting transition temperature "
-    "(Tc) of 84.2 K, with a critical current density of 3.1 x 10^4 A/cm^2 "
-    "measured at 77 K. Under 2 GPa of applied pressure, Tc increased to "
-    "91.5 K."
+    "(Tc) of 84.2 K, with a critical current density measured between "
+    "3.0 x 10^4 and 3.2 x 10^4 A/cm^2 at 77 K. Under 2 GPa of applied "
+    "pressure, Tc increased to 91.5 K."
 )
 
 _NUEXTRACT_EXAMPLE_2_OUTPUT = (
     '{"items": ['
-    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": null, "attribute": "measurement", "value": "84.2", "units": "K"}, '
-    '{"name": "Bi2212 crystal", "property": "critical current density", "additional_details": "measured at 77 K", "attribute": "measurement", "value": "3.1 x 10^4", "units": "A/cm^2"}, '
-    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": "Under 2 GPa of applied pressure", "attribute": "measurement", "value": "91.5", "units": "K"}'
+    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": null, "attribute": "measurement", "value": "84.2", "units": "K", '
+    + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="84.2") + '}, '
+    '{"name": "Bi2212 crystal", "property": "critical current density", "additional_details": "measured at 77 K", "attribute": "measurement", "value": "3.0 x 10^4 - 3.2 x 10^4", "units": "A/cm^2", '
+    '"qualifiers": ["IsRange"], "point_value": null, "lower": "3.0 x 10^4", "upper": "3.2 x 10^4", '
+    '"list_values": null, "tolerance": null, "standard_deviation": null}, '
+    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": "Under 2 GPa of applied pressure", "attribute": "measurement", "value": "91.5", "units": "K", '
+    + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="91.5") + '}'
     ']}'
 )
 

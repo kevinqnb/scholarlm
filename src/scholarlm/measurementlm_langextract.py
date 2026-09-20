@@ -36,6 +36,8 @@ from __future__ import annotations
 
 import json
 import re
+import types
+import typing
 
 from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
 from .measurementlm import MeasurementLM
@@ -51,7 +53,9 @@ _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 _JSON_ENVELOPE_LINE = (
     '- Structure your response as a JSON object with an "items" list, where '
     'each item contains the entity fields, event fields, and "attribute", '
-    '"value", and "units" fields as specified in the dataset-specific instructions.'
+    '"value", "units", "qualifiers", "point_value", "lower", "upper", '
+    '"list_values", "tolerance", and "standard_deviation" fields as specified '
+    'in the dataset-specific instructions.'
 )
 
 _EXTRACTION_CLASS = "measurement"
@@ -127,20 +131,36 @@ def _build_examples(nuextract_examples: list[dict] | None) -> list:
     return examples
 
 
+def _json_type_for_field(annotation) -> dict:
+    """JSON Schema type for one direct_extraction_schema field's Python
+    annotation. Every plain field is `str | None`, kept as a nullable string
+    as before; a `list[str]` field (the qualifier fields, e.g. `qualifiers`,
+    `list_values`) becomes a JSON array instead -- introspected from the
+    annotation rather than hardcoded by field name, so a new list-typed field
+    is picked up automatically.
+    """
+    if typing.get_origin(annotation) in (typing.Union, types.UnionType):
+        annotation = next(a for a in typing.get_args(annotation) if a is not type(None))
+    if typing.get_origin(annotation) is list:
+        return {"type": "array", "items": {"type": "string"}}
+    return {"anyOf": [{"type": "string"}, {"type": "null"}]}
+
+
 def _attribute_object_schema(direct_extraction_schema, attribute_info_dict: dict) -> dict:
     """JSON Schema for one extraction's attributes: every entity/event field
-    as a nullable string, except `attribute`, enum-constrained to
-    `attribute_info_dict`'s known vocabulary -- a real generation-time
-    constraint, unlike langextract's own example-inferred schema, which only
-    types each attribute by Python type, never by its specific values.
+    typed from its own annotation (see `_json_type_for_field`), except
+    `attribute`, enum-constrained to `attribute_info_dict`'s known vocabulary
+    -- a real generation-time constraint, unlike langextract's own
+    example-inferred schema, which only types each attribute by Python type,
+    never by its specific values.
     """
     known_attributes = sorted(attribute_info_dict.keys())
     properties: dict[str, dict] = {}
-    for name in direct_extraction_schema.model_fields:
+    for name, field in direct_extraction_schema.model_fields.items():
         if name == "attribute":
             properties[name] = {"type": "string", "enum": known_attributes}
         else:
-            properties[name] = {"anyOf": [{"type": "string"}, {"type": "null"}]}
+            properties[name] = _json_type_for_field(field.annotation)
     return {
         "type": "object",
         "properties": properties,

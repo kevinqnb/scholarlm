@@ -213,13 +213,25 @@ Guidelines:
 - For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
 - Return one item per (entity, attribute, event) combination where a direct numerical measurement exists.
 - Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
-- Extract the value exactly as it appears in the document — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Extract the value exactly as it appears in the document, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
 - Give the value only in the value field; do not include any units, descriptors, or explanation there.
 - For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- qualifiers: a list of zero or more tags describing the shape of the reported value. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
+  - "IsCount": a count of discrete items, not a continuous measurement.
+  - "IsApproximate": explicitly hedged, e.g. "~12", "about 50", "approximately".
+  - "IsList": an enumerated list of separate values, not a single number or range.
+  - "IsRange": a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10".
+  - "IsMean": an explicitly stated mean/average.
+  - "IsMedian": an explicitly stated median.
+  - "HasTolerance": an explicit +/- value or confidence interval is reported alongside the value.
+  - "HasSD": an explicit standard deviation is reported alongside the value.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given).
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 - Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
-- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", "units", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields as specified in the dataset-specific instructions.
 """
 
 

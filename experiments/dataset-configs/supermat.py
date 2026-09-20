@@ -127,7 +127,10 @@ _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value,
+    units, and the qualifier/shape fields (the same shape
+    MeasurementLM._parse_quantities() produces via a separate step -- see
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
 
     # Entity fields
     name: str | None
@@ -141,6 +144,14 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
+    # Qualifier/shape fields
+    qualifiers: list[str]
+    point_value: str | None
+    lower: str | None
+    upper: str | None
+    list_values: list[str] | None
+    tolerance: str | None
+    standard_deviation: str | None
 
 
 _DIRECT_EXTRACTION_PROMPT = """Entity Identification:
@@ -185,7 +196,14 @@ Output format requirements:
       "additional_details": "...",
       "attribute": "...",
       "value": "...",
-      "units": "..."
+      "units": "...",
+      "qualifiers": [...],
+      "point_value": "...",
+      "lower": "...",
+      "upper": "...",
+      "list_values": [...],
+      "tolerance": "...",
+      "standard_deviation": "..."
     }
   ]
 }
@@ -218,6 +236,11 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
     "pressure."
 )
 
+_NUEXTRACT_QUANTITY_DEFAULTS = {
+    "qualifiers": [], "point_value": None, "lower": None, "upper": None,
+    "list_values": None, "tolerance": None, "standard_deviation": None,
+}
+
 _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
@@ -227,6 +250,7 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
                 "pressure": "ambient", "me_method": "resistivity",
                 "additional_details": "onset",
                 "attribute": "tc", "value": "39", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "39"}),
             },
             {
                 "name": "YBa2Cu3O7-δ", "identifiers": "YBCO",
@@ -234,15 +258,20 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
                 "pressure": "ambient", "me_method": "magnetic susceptibility",
                 "additional_details": "midpoint of the diamagnetic transition",
                 "attribute": "tc", "value": "92", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "92"}),
             },
         ]
     }
 )
 
+# The 203 K measurement's added tolerance demonstrates a non-plain-point
+# shape, so this baseline's only real instruction channel (few-shot examples
+# -- see module docstring in measurementlm_nuextract.py) actually shows the
+# qualifier fields in use, not just plain points.
 _NUEXTRACT_EXAMPLE_2_INPUT = (
     "Hydrogen sulfide (H3S, sample S-2) is a polycrystalline sample that "
     "becomes superconducting under extreme compression. At a pressure of "
-    "155 GPa, resistivity measurements showed zero resistance at 203 K. "
+    "155 GPa, resistivity measurements showed zero resistance at 203 ± 2 K. "
     "When the pressure was increased to 200 GPa, the zero-resistance "
     "criterion shifted to 178 K in the same sample. Separately, a "
     "theoretical calculation using Eliashberg theory predicts a Tc of "
@@ -257,7 +286,10 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "sample_details": "polycrystalline",
                 "pressure": "155 GPa", "me_method": "resistivity",
                 "additional_details": "zero resistance",
-                "attribute": "tc", "value": "203", "units": "K",
+                "attribute": "tc", "value": "203 ± 2", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["HasTolerance"], "point_value": "203", "tolerance": "± 2",
+                }),
             },
             {
                 "name": "Hydrogen sulfide", "identifiers": "H3S; S-2",
@@ -265,12 +297,14 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "pressure": "200 GPa", "me_method": "resistivity",
                 "additional_details": "zero-resistance criterion",
                 "attribute": "tc", "value": "178", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "178"}),
             },
             {
                 "name": "LaH10", "identifiers": None, "sample_details": None,
                 "pressure": "170 GPa", "me_method": "theoretical calculation",
                 "additional_details": None,
                 "attribute": "tc", "value": "235", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "235"}),
             },
         ]
     }
