@@ -148,9 +148,7 @@ class MeasurementLMGliner(MeasurementLM):
         Only fields named in ``gliner_field_descriptions`` are asked for. A
         field with no entry there is a deliberate exclusion, not an oversight
         -- e.g. ``identifiers`` (an alias-resolution aid for the real
-        pipeline's entity matching, not reported content) or measeval's
-        ``quantity`` (the verbatim value+units span, already covered by the
-        ``value``/``units`` structure fields).
+        pipeline's entity matching, not reported content).
         """
         name_field = self._entity_name_field()
         return [
@@ -161,10 +159,9 @@ class MeasurementLMGliner(MeasurementLM):
     def _extra_event_fields(self) -> list[str]:
         """Measurement-event-schema fields to ask for beyond the subject name field.
 
-        ``name_field`` is excluded here too: measeval carries the subject name on
-        the event schema rather than the entity schema (see `_entity_name_field`),
-        so without this exclusion it would be asked for twice under two field names.
-        See `_extra_entity_fields` for the description-required filter.
+        ``name_field`` is excluded here too, in case a dataset's event schema
+        happens to declare a same-named field. See `_extra_entity_fields` for
+        the description-required filter.
         """
         if self.measurement_event_schema is None:
             return []
@@ -182,25 +179,20 @@ class MeasurementLMGliner(MeasurementLM):
     def _entity_name_field(self) -> str:
         """Field that holds the measurement subject's name.
 
-        ``name`` on the entity schema for pond/nfix/supermat. Datasets that do
-        not enumerate subjects as entities can carry it on the measurement
-        event instead -- measeval enumerates *quantities* as entities and
-        resolves the subject per-quantity as an event field (see
-        ``experiments/dataset-configs/measeval.py``), so the event schema is checked
-        before falling back to the first entity field. Without this, GLiNER
-        would write the subject it found into that dataset's first entity field
-        (``quantity``) and leave the ``name`` column null on every record,
-        which silently drops every candidate edge in ``match_datasets``.
+        Every dataset config enumerates the measurement subject as ``name`` on
+        its entity schema (pond/nfix/supermat/measeval). Fail loud rather than
+        guessing a fallback field: writing the extracted subject into the
+        wrong column would silently drop every candidate edge in
+        ``match_datasets`` instead of raising here.
         """
         fields = list(self.entity_identification_schema.model_fields)
-        if "name" in fields:
-            return "name"
-        if (
-            self.measurement_event_schema is not None
-            and "name" in self.measurement_event_schema.model_fields
-        ):
-            return "name"
-        return fields[0]
+        if "name" not in fields:
+            raise ValueError(
+                f"entity_identification_schema {self.entity_identification_schema.__name__!r} "
+                f"has no 'name' field (fields: {fields}) -- MeasurementLMGliner requires the "
+                f"measurement subject to be named 'name' on the entity schema."
+            )
+        return "name"
 
     def _build_structure(self, attr_key: str):
         """Build a one-structure GLiNER2 `Schema` for a single attribute.
