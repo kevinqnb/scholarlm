@@ -423,7 +423,14 @@ def step_standardize_and_deduplicate(
     infile: Path,
     outfile: Path,
 ) -> None:
-    """Steps 6+7: Standardize units and deduplicate, then save final dataset.
+    """Steps 7+7.5+8: Standardize units, parse quantities, and deduplicate,
+    then save final dataset.
+
+    Mirrors MeasurementLM.fit()'s own call sequence
+    (self.data = self._standardize(); self.data = self._parse_quantities();
+    self.data = self._deduplicate(self.data)) -- _parse_quantities() reads
+    from self.data, so mlm.data must be reassigned after _standardize()
+    before calling it, not just threaded through as a local variable.
 
     Merges each deduplicated measurement with its document metadata and assigns
     a sequential ``measurement_id``.
@@ -434,11 +441,12 @@ def step_standardize_and_deduplicate(
         infile: Path to values JSON (step 4+5 output).
         outfile: Destination JSON path for the final dataset.
     """
-    print("Steps 6+7 — Standardizing and deduplicating...")
+    print("Steps 7+7.5+8 — Standardizing, parsing quantities, and deduplicating...")
     with open(infile) as f:
         mlm.data = json.load(f)
-    standardized = mlm._standardize()
-    deduplicated = mlm._deduplicate(standardized)
+    mlm.data = mlm._standardize()
+    mlm.data = mlm._parse_quantities()
+    deduplicated = mlm._deduplicate(mlm.data)
 
     dataset = []
     for i, dp in enumerate(deduplicated):
