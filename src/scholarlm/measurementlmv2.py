@@ -16,9 +16,6 @@ clean_tables=False) and fit() takes only the OCR text.
 """
 from __future__ import annotations
 
-import re
-from typing import Literal
-
 from pydantic import BaseModel, create_model
 
 from .instruction_prompts import (
@@ -26,73 +23,27 @@ from .instruction_prompts import (
     STANDARDIZE_QUANTITY_INSTRUCTIONS,
     CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS,
 )
-from .measurementlm import ContextLengthExceededError, MeasurementLM, response_validator
-
-
-# -----------------------------------------------------------------------
-# Quantity shape: type/quantifier/value/CI invariants
-# -----------------------------------------------------------------------
-
-QuantityType = Literal["point", "range", "inequality"]
-Quantifier = Literal["<", ">", "<=", ">="]
-
-_INEQUALITY_QUANTIFIERS = {"<", ">", "<=", ">="}
-_NUMBER = r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"
-_SCALAR_RE = re.compile(rf"^\s*{_NUMBER}\s*$")
-_RANGE_RE = re.compile(rf"^\s*\(\s*({_NUMBER})\s*,\s*({_NUMBER})\s*\)\s*$")
-
-
-def validate_quantity_shape(item: dict) -> None:
-    """Raise ValueError if a quantity's type/quantifier/value/CI fields are
-    internally inconsistent.
-
-    This is the one place these genuinely-new fields are checked structurally
-    rather than trusted from the prompt: a model can return `type: "range"`
-    with `value: "3.5"` (dropping the range) or misplace a CI bound, and none
-    of that would otherwise raise. Called from the collection-step batch
-    validator (so a violation triggers a retry) and again after
-    standardization (so reformatting can't silently break the shape).
-    """
-    qtype = item.get("type")
-    quantifier = item.get("quantifier")
-    value = item.get("value")
-
-    if qtype == "range":
-        if quantifier is not None:
-            raise ValueError(f"range quantity must not have a quantifier, got {quantifier!r}")
-        m = _RANGE_RE.match(value or "")
-        if not m:
-            raise ValueError(f"range value must be formatted '(lower, upper)', got {value!r}")
-        lower, upper = float(m.group(1)), float(m.group(2))
-        if lower > upper:
-            raise ValueError(f"range lower bound {lower} exceeds upper bound {upper}")
-    elif qtype == "inequality":
-        if quantifier not in _INEQUALITY_QUANTIFIERS:
-            raise ValueError(
-                f"inequality quantity requires quantifier in {_INEQUALITY_QUANTIFIERS}, got {quantifier!r}"
-            )
-        if not _SCALAR_RE.match(value or ""):
-            raise ValueError(f"inequality value must be a bare number, got {value!r}")
-    elif qtype == "point":
-        if quantifier is not None:
-            raise ValueError(f"point quantity must not have a quantifier, got {quantifier!r}")
-        if not _SCALAR_RE.match(value or ""):
-            raise ValueError(f"point value must be a bare number, got {value!r}")
-    else:
-        raise ValueError(f"unknown quantity type {qtype!r}")
-
-    ci_lower, ci_upper, ci = item.get("ci_lower"), item.get("ci_upper"), item.get("ci")
-    if (ci_lower is None) != (ci_upper is None):
-        raise ValueError("ci_lower and ci_upper must both be set or both be None")
-    if ci is not None and (ci_lower is not None or ci_upper is not None):
-        raise ValueError("ci is mutually exclusive with ci_lower/ci_upper")
-    for label, val in (("ci_lower", ci_lower), ("ci_upper", ci_upper), ("ci", ci)):
-        if val is not None and not _SCALAR_RE.match(val):
-            raise ValueError(f"{label} must be a bare number, got {val!r}")
+from .measurementlm import (
+    ContextLengthExceededError,
+    MeasurementLM,
+    check_quantity_consistency,
+    response_validator,
+)
 
 
 # -----------------------------------------------------------------------
 # Response schemas
+#
+# Quantity shape (qualifiers/point_value/lower/upper/list_values/tolerance/
+# standard_deviation) matches MeasurementLM's ParseQuantityResponse -- see
+# check_quantity_consistency() there for the qualifier/field cross-checks,
+# reused unchanged here. Unlike the pre-reconciliation type/quantifier/value
+# scheme this replaces, there's no packed format (e.g. "(lower, upper)") left
+# to validate structurally: every field is already its own string, so
+# inconsistency checking is purely the qualifier-vs-populated-field logging
+# check_quantity_consistency() does -- non-fatal, per-project policy (see
+# MeasurementLM._parse_quantities()'s docstring): a mismatched parse is kept
+# and logged, never dropped or retried.
 # -----------------------------------------------------------------------
 
 
@@ -100,11 +51,13 @@ class QuantityItem(BaseModel):
     """A single extracted quantity, pre-standardization and pre-attribution."""
     value: str
     units: str | None = None
-    type: QuantityType
-    quantifier: Quantifier | None = None
-    ci_lower: str | None = None
-    ci_upper: str | None = None
-    ci: str | None = None
+    qualifiers: list[str]
+    point_value: str | None = None
+    lower: str | None = None
+    upper: str | None = None
+    list_values: list[str] | None = None
+    tolerance: str | None = None
+    standard_deviation: str | None = None
     table_number: int | None = None
 
 
@@ -114,11 +67,7 @@ class QuantityListResponse(BaseModel):
 
 class StandardizeQuantityResponse(BaseModel):
     explanation: str
-    value: str
     units: str | None = None
-    ci_lower: str | None = None
-    ci_upper: str | None = None
-    ci: str | None = None
 
 
 def _model_field_kwargs(schema: type[BaseModel]) -> dict[str, tuple]:
@@ -169,49 +118,54 @@ def _norm_scalar(v: str | None):
 
 def _quantity_value_key(q: dict):
     """Normalized value key, shared by the dedup key and the (looser)
-    contextualization match key below.
+    contextualization match key below. value is now always a raw string (no
+    packed range format to parse out), so this is just a numeric-aware
+    normalization of it.
     """
-    value = q["value"]
-    if q["type"] == "range":
-        m = _RANGE_RE.match(value)
-        return (_norm_scalar(m.group(1)), _norm_scalar(m.group(2))) if m else value
-    return _norm_scalar(value)
+    return _norm_scalar(q["value"])
 
 
 def _quantity_dedup_key(q: dict) -> tuple:
     """Equality key for deduplicating quantities within (document, attribute).
 
     Two quantities on different pages of the same document, for the same
-    attribute, with the same type/quantifier/value/units/CI collapse into one
-    entry here — this is a deliberate consequence of dedup running before any
-    entity is known (see build note): if the paper genuinely reports this same
-    value for two distinct entities/events, the contextualization step is
-    responsible for re-expanding it into multiple final records.
+    attribute, with the same qualifiers/value/units/shape fields collapse
+    into one entry here — this is a deliberate consequence of dedup running
+    before any entity is known (see build note): if the paper genuinely
+    reports this same value for two distinct entities/events, the
+    contextualization step is responsible for re-expanding it into multiple
+    final records.
     """
+    list_values = q.get("list_values")
     return (
-        q["document_id"], q["attribute"], q["type"], q.get("quantifier"),
+        q["document_id"], q["attribute"], tuple(sorted(q["qualifiers"])),
         _quantity_value_key(q), _norm_units(q.get("units")),
-        _norm_scalar(q.get("ci_lower")), _norm_scalar(q.get("ci_upper")), _norm_scalar(q.get("ci")),
+        _norm_scalar(q.get("point_value")), _norm_scalar(q.get("lower")), _norm_scalar(q.get("upper")),
+        tuple(_norm_scalar(v) for v in list_values) if list_values else None,
+        _norm_scalar(q.get("tolerance")), _norm_scalar(q.get("standard_deviation")),
     )
 
 
 def _quantity_match_key(q: dict) -> tuple:
     """Looser identity key for matching a contextualization response's
     echoed quantity back to its source: (document_id, attribute, value,
-    units) only -- type/quantifier/CI excluded.
+    units) only -- qualifiers/shape fields excluded.
 
-    A 2026-09-19 smoke test (gemma-3-27b, pond) showed the model reliably
-    echoes value/units/attribute verbatim, but not type/quantifier/CI: it
-    added an inequality quantifier to plain point quantities (apparently
-    re-derived from a symbol near the value in the source table, rather than
-    copied), and echoed an absent CI field as the literal string "None"
-    (a symptom of our own prompt text rendering `None` as that word -- see
-    the query-building code below, fixed the same day). The model's echoed
-    type/quantifier/CI are never trusted regardless: only the matched
-    original quantity's own fields reach the output record. When more than
-    one quantity in a group shares this reduced key (e.g. a point value that
-    coincidentally equals a separately-reported inequality bound), the full
-    _quantity_dedup_key is used to disambiguate among just those candidates.
+    A 2026-09-19 smoke test (gemma-3-27b, pond, pre-qualifier-rework type/
+    quantifier/CI scheme) showed the model reliably echoes value/units/
+    attribute verbatim, but not the shape fields: it added a spurious
+    inequality quantifier to a plain point quantity (apparently re-derived
+    from a symbol near the value in the source table, rather than copied),
+    and echoed an absent field as the literal string "None" (a symptom of
+    our own prompt text rendering `None` as that word -- see the
+    query-building code below, fixed the same day). The same caution applies
+    to the current qualifiers/point_value/lower/upper/list_values/tolerance/
+    standard_deviation fields: the model's echoed versions are never
+    trusted, only the matched original quantity's own fields reach the
+    output record. When more than one quantity in a group shares this
+    reduced key (e.g. a point value that coincidentally equals a separately-
+    reported range bound), the full _quantity_dedup_key is used to
+    disambiguate among just those candidates.
     """
     return (q["document_id"], q["attribute"], _quantity_value_key(q), _norm_units(q.get("units")))
 
@@ -227,17 +181,22 @@ def _describe_quantity(q: dict, attribute_info_dict: dict) -> str:
     """
     lines = [
         f"- Attribute: {q['attribute']} -- {attribute_info_dict[q['attribute']].get('description', '')}",
-        f"  Quantity type: {q['type']}",
         f"  Value: {q['value']}",
     ]
-    if q.get("quantifier") is not None:
-        lines.append(f"  Quantifier: {q['quantifier']}")
+    if q.get("qualifiers"):
+        lines.append(f"  Qualifiers: {q['qualifiers']}")
     if q.get("units") is not None:
         lines.append(f"  Units: {q['units']}")
-    if q.get("ci_lower") is not None or q.get("ci_upper") is not None:
-        lines.append(f"  CI lower/upper: {q.get('ci_lower')} / {q.get('ci_upper')}")
-    if q.get("ci") is not None:
-        lines.append(f"  CI (±): {q['ci']}")
+    if q.get("point_value") is not None:
+        lines.append(f"  Point value: {q['point_value']}")
+    if q.get("lower") is not None or q.get("upper") is not None:
+        lines.append(f"  Lower/upper: {q.get('lower')} / {q.get('upper')}")
+    if q.get("list_values"):
+        lines.append(f"  List values: {q['list_values']}")
+    if q.get("tolerance") is not None:
+        lines.append(f"  Tolerance: {q['tolerance']}")
+    if q.get("standard_deviation") is not None:
+        lines.append(f"  Standard deviation: {q['standard_deviation']}")
     lines.append(f"  Found on page(s): {q['page_number']}")
     return "\n".join(lines) + "\n"
 
@@ -251,8 +210,8 @@ class MeasurementLMv2(MeasurementLM):
     """Quantity-first measurement extraction.
 
     fit() runs: collect quantities per (page, attribute) -> standardize units
-    and numeric formatting -> deduplicate (code, within document+attribute) ->
-    attribute each deduplicated quantity to entity/event using the full paper.
+    -> deduplicate (code, within document+attribute) -> attribute each
+    deduplicated quantity to entity/event using the full paper.
     Constructor is inherited unchanged from MeasurementLM.
     """
 
@@ -319,10 +278,7 @@ class MeasurementLMv2(MeasurementLM):
         }
 
         def _validate(r):
-            parsed = response_validator(QuantityListResponse, r)
-            for item in parsed["items"]:
-                validate_quantity_shape(item)
-            return parsed
+            return response_validator(QuantityListResponse, r)
 
         response_texts = self._call_batch(
             messages,
@@ -336,6 +292,7 @@ class MeasurementLMv2(MeasurementLM):
         )
 
         quantities = []
+        consistency_warnings = []
         for msg_idx, resp in enumerate(response_texts):
             doc_id, page_number, attr_name = message_ids[msg_idx]
             if isinstance(resp, ContextLengthExceededError):
@@ -357,11 +314,23 @@ class MeasurementLMv2(MeasurementLM):
                     "attribute": attr_name,
                     **item,
                 })
+                consistency_warnings.extend(
+                    f"doc {doc_id} page {page_number} attribute {attr_name!r}: {w}"
+                    for w in check_quantity_consistency(item)
+                )
+
+        if consistency_warnings:
+            print(
+                f"Quantity collection: {len(consistency_warnings)} qualifier/field "
+                f"consistency warning(s) -- logged only, no records dropped:"
+            )
+            for w in consistency_warnings:
+                print(f"  {w}")
 
         return quantities
 
     # -----------------------------------------------------------------------
-    # Step 1.5: Standardize units and numeric formatting
+    # Step 1.5: Standardize units
     # -----------------------------------------------------------------------
 
     def _standardize_quantities(self, quantities: list[dict], max_tokens: int = 1024) -> list[dict]:
@@ -374,13 +343,9 @@ class MeasurementLMv2(MeasurementLM):
             query = (
                 f"Attribute description: {attr_info.get('description', '')}\n"
                 f"Available units for the attribute: {attr_info.get('units', [])}\n\n"
-                f"Quantity type: {q['type']}\n"
-                f"Quantifier: {q.get('quantifier')}\n"
                 f"Extracted value: {q['value']}\n"
-                f"Extracted units: {q.get('units')}\n"
-                f"Extracted CI lower/upper: {q.get('ci_lower')} / {q.get('ci_upper')}\n"
-                f"Extracted CI (±): {q.get('ci')}\n\n"
-                f"Standardize the units and numeric formatting for this quantity.\n"
+                f"Extracted units: {q.get('units')}\n\n"
+                f"Standardize the units for this quantity.\n"
             )
             page_text = self._get_page_text(self.data[q["document_id"]]["context"], q["page_number"])
             prompt = (
@@ -411,19 +376,10 @@ class MeasurementLMv2(MeasurementLM):
                 continue
             try:
                 result = response_validator(StandardizeQuantityResponse, resp)
-                candidate = standardized[i] | {
-                    "value": result["value"],
-                    "units": result.get("units"),
-                    "ci_lower": result.get("ci_lower"),
-                    "ci_upper": result.get("ci_upper"),
-                    "ci": result.get("ci"),
-                }
-                validate_quantity_shape(candidate)
+                standardized[i]["units"] = result["units"]
             except Exception as e:
-                print(f"Validation error in quantity standardization (keeping original value/units): {e}")
+                print(f"Validation error in quantity standardization (keeping original units): {e}")
                 print(f"Response text: {resp}")
-                continue
-            standardized[i] = candidate
 
         return standardized
 
@@ -432,12 +388,13 @@ class MeasurementLMv2(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def _deduplicate_quantities(self, quantities: list[dict]) -> list[dict]:
-        """Groups by (document_id, attribute, type, quantifier, value, units,
-        CI), aggregating 'page_number' and 'table_number' into index-aligned
-        lists so every surviving quantity carries every (page, table) location
-        it was found on (see _quantity_dedup_key's docstring for why dedup
-        ignores these fields, and _group_quantities_for_contextualization for
-        how they're used downstream).
+        """Groups by (document_id, attribute, qualifiers, value, units, and
+        the other shape fields), aggregating 'page_number' and 'table_number'
+        into index-aligned lists so every surviving quantity carries every
+        (page, table) location it was found on (see _quantity_dedup_key's
+        docstring for why dedup ignores these fields, and
+        _group_quantities_for_contextualization for how they're used
+        downstream).
         """
         _PROV_FIELDS = ("page_number", "table_number")
         index_by_key: dict[tuple, int] = {}

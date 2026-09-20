@@ -1,10 +1,13 @@
 """Unit tests for MeasurementLMv2's quantity-first pipeline.
 
-Rung 1: validate_quantity_shape (the type/quantifier/value/CI invariant
-checker) and the code-level dedup key, on hand-built tuples -- no network,
-no LLM. This is the highest-value test in this build: it's the one place a
-genuinely new field (type/quantifier/CI) is checked structurally rather than
-trusted from a prompt.
+Rung 1: the code-level dedup key and the qualifier/field consistency-logging
+integration in _collect_quantities, on hand-built tuples -- no network, no
+LLM. Since the reconciliation of v2's quantity schema onto MeasurementLM's
+qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation
+shape (see tests/test_measurementlm.py for check_quantity_consistency's own
+exhaustive cases, reused unchanged here rather than duplicated), there's no
+packed value format (the old "(lower, upper)" range encoding) left to
+validate structurally -- every field is already its own string.
 
 Rung 2: fit() end-to-end with a stubbed _call_batch (same pattern as
 tests/test_measurementlm.py), verifying the three-call sequence (collect ->
@@ -24,55 +27,28 @@ from scholarlm.measurementlmv2 import (
     MeasurementLMv2,
     _merge_field_schemas,
     _quantity_dedup_key,
-    validate_quantity_shape,
+    check_quantity_consistency,
 )
 
 
 # ---------------------------------------------------------------------------
-# Rung 1: validate_quantity_shape
+# Rung 1: fixtures shared by the dedup-key and collection-logging tests below
 # ---------------------------------------------------------------------------
 
 
-def _item(**overrides):
+def _raw_quantity(**overrides):
+    """A single not-yet-deduplicated quantity record, as _collect_quantities
+    emits it: scalar page_number/table_number, not yet list-wrapped (see
+    _quantity() further below for the post-dedup, list-wrapped shape used by
+    the group/contextualize tests)."""
     base = {
-        "value": "12.3", "units": "m", "type": "point", "quantifier": None,
-        "ci_lower": None, "ci_upper": None, "ci": None,
+        "document_id": 0, "page_number": 1, "table_number": None,
+        "attribute": "depth", "qualifiers": [], "value": "3.2", "units": "m",
+        "point_value": "3.2", "lower": None, "upper": None, "list_values": None,
+        "tolerance": None, "standard_deviation": None,
     }
     base.update(overrides)
     return base
-
-
-@pytest.mark.parametrize("item", [
-    _item(),
-    _item(type="range", value="(3, 7)"),
-    _item(type="range", value="(3.0, 7.5)"),
-    _item(type="inequality", value="5", quantifier="<"),
-    _item(type="inequality", value="5", quantifier=">="),
-    _item(ci_lower="1.0", ci_upper="2.0"),
-    _item(ci="0.5"),
-])
-def test_validate_quantity_shape_accepts_well_formed_items(item):
-    validate_quantity_shape(item)  # must not raise
-
-
-@pytest.mark.parametrize("item, reason", [
-    (_item(type="range", value="3.5"), "range value not tuple-formatted"),
-    (_item(type="range", value="(7, 3)"), "range bounds reversed"),
-    (_item(type="range", value="(3, 7)", quantifier="<"), "range must not carry a quantifier"),
-    (_item(type="inequality", value="5", quantifier=None), "inequality missing quantifier"),
-    (_item(type="inequality", value="5", quantifier="=="), "inequality quantifier not in allowed set"),
-    (_item(type="inequality", value="(3, 7)", quantifier="<"), "inequality value must be a bare number"),
-    (_item(type="point", value="12.3", quantifier="<"), "point must not carry a quantifier"),
-    (_item(type="point", value="(3, 7)"), "point value must be a bare number"),
-    (_item(type="unknown_type"), "unrecognized type"),
-    (_item(ci_lower="1.0", ci_upper=None), "ci_lower without ci_upper"),
-    (_item(ci_lower=None, ci_upper="2.0"), "ci_upper without ci_lower"),
-    (_item(ci="0.5", ci_lower="1.0", ci_upper="2.0"), "ci and ci_lower/ci_upper both set"),
-    (_item(ci="not-a-number"), "ci not a bare number"),
-])
-def test_validate_quantity_shape_rejects_malformed_items(item, reason):
-    with pytest.raises(ValueError):
-        validate_quantity_shape(item)
 
 
 # ---------------------------------------------------------------------------
@@ -81,34 +57,33 @@ def test_validate_quantity_shape_rejects_malformed_items(item, reason):
 
 
 def test_dedup_key_matches_across_pages_for_equal_point_quantities():
-    a = {"document_id": 0, "attribute": "depth", "type": "point", "quantifier": None,
-         "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    a = _raw_quantity()
     b = dict(a)  # same quantity, would appear on a different page
     assert _quantity_dedup_key(a) == _quantity_dedup_key(b)
 
 
 def test_dedup_key_normalizes_numeric_and_unit_formatting():
-    a = {"document_id": 0, "attribute": "depth", "type": "point", "quantifier": None,
-         "value": "3.20", "units": "M", "ci_lower": None, "ci_upper": None, "ci": None}
-    b = {"document_id": 0, "attribute": "depth", "type": "point", "quantifier": None,
-         "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    a = _raw_quantity(value="3.20", units="M", point_value="3.20")
+    b = _raw_quantity(value="3.2", units="m", point_value="3.2")
     assert _quantity_dedup_key(a) == _quantity_dedup_key(b)
 
 
 def test_dedup_key_normalizes_range_bounds():
-    a = {"document_id": 0, "attribute": "depth", "type": "range", "quantifier": None,
-         "value": "(3.0, 7.0)", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
-    b = {"document_id": 0, "attribute": "depth", "type": "range", "quantifier": None,
-         "value": "(3, 7)", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    """lower/upper carry the normalized numeric identity of a range now --
+    value is raw provenance text, not a packed "(lower, upper)" format to
+    parse, so this holds value constant and varies only lower/upper's
+    formatting (unlike the point-quantity test above, which varies value)."""
+    a = _raw_quantity(qualifiers=["IsRange"], value="3-7", point_value=None,
+                       lower="3.0", upper="7.0")
+    b = _raw_quantity(qualifiers=["IsRange"], value="3-7", point_value=None,
+                       lower="3", upper="7")
     assert _quantity_dedup_key(a) == _quantity_dedup_key(b)
 
 
 def test_dedup_key_differs_across_documents_and_attributes():
-    base = {"type": "point", "quantifier": None, "value": "3.2", "units": "m",
-            "ci_lower": None, "ci_upper": None, "ci": None}
-    same_doc_diff_attr = base | {"document_id": 0, "attribute": "depth"}
-    same_doc_diff_attr2 = base | {"document_id": 0, "attribute": "tn"}
-    diff_doc = base | {"document_id": 1, "attribute": "depth"}
+    same_doc_diff_attr = _raw_quantity(document_id=0, attribute="depth")
+    same_doc_diff_attr2 = _raw_quantity(document_id=0, attribute="tn")
+    diff_doc = _raw_quantity(document_id=1, attribute="depth")
     keys = {
         _quantity_dedup_key(same_doc_diff_attr),
         _quantity_dedup_key(same_doc_diff_attr2),
@@ -117,12 +92,20 @@ def test_dedup_key_differs_across_documents_and_attributes():
     assert len(keys) == 3
 
 
+def test_dedup_key_differs_when_qualifiers_differ():
+    """qualifiers are now part of the dedup key: a plain point and an
+    approximate point with the same value/units must not collapse into one
+    quantity -- they're distinct claims about what the paper reported."""
+    plain = _raw_quantity(qualifiers=[])
+    approximate = _raw_quantity(qualifiers=["IsApproximate"])
+    assert _quantity_dedup_key(plain) != _quantity_dedup_key(approximate)
+
+
 def test_deduplicate_quantities_aggregates_page_numbers(monkeypatch):
     mlm = _make_mlm()
-    page1 = {"document_id": 0, "page_number": 1, "table_number": None, "attribute": "depth", "type": "point",
-             "quantifier": None, "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    page1 = _raw_quantity(page_number=1)
     page2 = dict(page1, page_number=2)
-    distinct = dict(page1, page_number=3, value="5.0")
+    distinct = dict(page1, page_number=3, value="5.0", point_value="5.0")
 
     deduped = mlm._deduplicate_quantities([page1, page2, distinct])
 
@@ -134,8 +117,7 @@ def test_deduplicate_quantities_aggregates_page_numbers(monkeypatch):
 
 def test_deduplicate_quantities_aggregates_table_numbers():
     mlm = _make_mlm()
-    prose = {"document_id": 0, "page_number": 1, "table_number": None, "attribute": "depth", "type": "point",
-              "quantifier": None, "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None}
+    prose = _raw_quantity(page_number=1, table_number=None)
     same_value_in_table = dict(prose, page_number=2, table_number=3)
 
     deduped = mlm._deduplicate_quantities([prose, same_value_in_table])
@@ -143,6 +125,39 @@ def test_deduplicate_quantities_aggregates_table_numbers():
     assert len(deduped) == 1
     assert deduped[0]["page_number"] == [1, 2]
     assert deduped[0]["table_number"] == [None, 3]
+
+
+# ---------------------------------------------------------------------------
+# Rung 1: _collect_quantities logs but keeps an inconsistent item
+# ---------------------------------------------------------------------------
+
+
+def test_collect_quantities_logs_but_keeps_inconsistent_item(monkeypatch, capsys):
+    """A collected item whose qualifiers don't match its populated fields is
+    kept in full and only logged -- the same non-fatal policy as
+    MeasurementLM._parse_quantities(), via the shared check_quantity_consistency()."""
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        # Tagged IsRange but lower/upper both left null -- inconsistent, not fatal.
+        item = (
+            '{"value": "3-7", "units": "m", "qualifiers": ["IsRange"], '
+            '"point_value": null, "lower": null, "upper": null, '
+            '"list_values": null, "tolerance": null, "standard_deviation": null, '
+            '"table_number": null}'
+        )
+        return [f'{{"items": [{item}]}}' for _ in message_sets]
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+
+    quantities = mlm._collect_quantities()
+
+    assert len(quantities) == 2  # 2 pages in _DOC x 1 attribute
+    assert quantities[0]["qualifiers"] == ["IsRange"]
+    assert quantities[0]["lower"] is None and quantities[0]["upper"] is None
+    out = capsys.readouterr().out
+    assert "IsRange tagged but lower/upper both null" in out
 
 
 # ---------------------------------------------------------------------------
@@ -184,9 +199,12 @@ def test_merge_field_schemas_raises_on_field_name_collision():
 
 
 def _quantity(**overrides):
+    """Post-dedup quantity shape: page_number/table_number are already
+    list-wrapped (see _raw_quantity() above for the pre-dedup shape)."""
     base = {
-        "document_id": 0, "attribute": "depth", "type": "point", "quantifier": None,
-        "value": "3.2", "units": "m", "ci_lower": None, "ci_upper": None, "ci": None,
+        "document_id": 0, "attribute": "depth", "qualifiers": [],
+        "value": "3.2", "units": "m", "point_value": "3.2", "lower": None,
+        "upper": None, "list_values": None, "tolerance": None, "standard_deviation": None,
         "page_number": [1], "table_number": [None],
     }
     base.update(overrides)
@@ -215,8 +233,9 @@ def test_group_quantities_prefers_table_over_prose_and_keeps_docs_separate():
 
 def _attributed_item(value="3.2", name="Lake A", location="WI", date="2020"):
     return (
-        f'{{"attribute": "depth", "value": "{value}", "units": "m", "type": "point", '
-        f'"quantifier": null, "ci_lower": null, "ci_upper": null, "ci": null, '
+        f'{{"attribute": "depth", "value": "{value}", "units": "m", "qualifiers": [], '
+        f'"point_value": "{value}", "lower": null, "upper": null, "list_values": null, '
+        f'"tolerance": null, "standard_deviation": null, '
         f'"name": "{name}", "location": "{location}", "date": "{date}"}}'
     )
 
@@ -269,24 +288,26 @@ def test_contextualize_quantities_batches_prose_and_table_separately(monkeypatch
     assert by_name["Lake B"]["value"] == "5.0"
 
 
-def test_contextualize_quantities_matches_despite_echoed_quantifier_and_ci_drift(monkeypatch):
-    """Regression for the 2026-09-19 smoke test (gemma-3-27b, pond): the model
-    added an inequality quantifier to a plain point quantity and echoed its
-    absent CI fields as the literal string "None" instead of JSON null.
-    Matching on (attribute, value, units) must still succeed, and the
-    ORIGINAL type/quantifier/CI -- not the model's drifted ones -- must reach
-    the record.
+def test_contextualize_quantities_matches_despite_echoed_shape_field_drift(monkeypatch):
+    """Regression for the 2026-09-19 smoke test (gemma-3-27b, pond) under the
+    pre-reconciliation type/quantifier/CI scheme: the model drifted echoed
+    shape fields away from what was sent, and echoed an absent field as the
+    literal string "None" instead of JSON null. Matching on (attribute,
+    value, units) must still succeed, and the ORIGINAL qualifiers/shape
+    fields -- not the model's drifted echo -- must reach the record.
     """
     mlm = _make_mlm()
     mlm.data = [{"document_id": 0, "context": _DOC}]
     mlm.context_length_exceeded_docs = set()
-    q = _quantity(value="26", units="km^2")  # type point, quantifier None, ci None
+    q = _quantity(value="26", units="km^2", qualifiers=[], point_value="26")
 
     def fake_call_batch(self, message_sets, response_format=None, **kwargs):
         return [
             '{"items": [{"attribute": "depth", "value": "26", "units": "km^2", '
-            '"type": "point", "quantifier": "<=", "ci_lower": "None", "ci_upper": "None", '
-            '"ci": "None", "name": "Lake A", "location": "WI", "date": "2020"}]}'
+            '"qualifiers": ["IsRange"], "point_value": "None", "lower": "None", '
+            '"upper": "None", "list_values": null, "tolerance": "None", '
+            '"standard_deviation": "None", '
+            '"name": "Lake A", "location": "WI", "date": "2020"}]}'
         ]
 
     monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
@@ -294,28 +315,32 @@ def test_contextualize_quantities_matches_despite_echoed_quantifier_and_ci_drift
     records = mlm._contextualize_quantities([q])
 
     assert len(records) == 1
-    assert records[0]["quantifier"] is None  # original, not the model's "<="
-    assert records[0]["ci"] is None          # original, not the string "None"
+    assert records[0]["qualifiers"] == []      # original, not the model's ["IsRange"]
+    assert records[0]["point_value"] == "26"   # original, not the string "None"
+    assert records[0]["lower"] is None         # original, not the string "None"
     assert records[0]["name"] == "Lake A"
 
 
 def test_contextualize_quantities_disambiguates_reduced_key_collision(monkeypatch):
-    """Two quantities share (attribute, value, units) but differ in type --
-    a point value that coincidentally equals a separately-reported
-    inequality bound. Matching must fall back to the full identity key
-    rather than attaching the response to whichever candidate comes first.
+    """Two quantities share (attribute, value, units) but differ in shape --
+    a point value that coincidentally equals a separately-reported range
+    bound. Matching must fall back to the full identity key rather than
+    attaching the response to whichever candidate comes first.
     """
     mlm = _make_mlm()
     mlm.data = [{"document_id": 0, "context": _DOC}]
     mlm.context_length_exceeded_docs = set()
-    q_point = _quantity(value="5", units="m", type="point", quantifier=None, page_number=[1])
-    q_bound = _quantity(value="5", units="m", type="inequality", quantifier="<", page_number=[2])
+    q_point = _quantity(value="5", units="m", qualifiers=[], point_value="5", page_number=[1])
+    q_bound = _quantity(value="5", units="m", qualifiers=["IsRange"], point_value=None,
+                         lower=None, upper="5", page_number=[2])
 
     def fake_call_batch(self, message_sets, response_format=None, **kwargs):
         return [
             '{"items": [{"attribute": "depth", "value": "5", "units": "m", '
-            '"type": "inequality", "quantifier": "<", "ci_lower": null, "ci_upper": null, '
-            '"ci": null, "name": "Bound Lake", "location": "WI", "date": "2020"}]}'
+            '"qualifiers": ["IsRange"], "point_value": null, "lower": null, '
+            '"upper": "5", "list_values": null, "tolerance": null, '
+            '"standard_deviation": null, '
+            '"name": "Bound Lake", "location": "WI", "date": "2020"}]}'
         ]
 
     monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
@@ -370,17 +395,16 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
             # One call per (page, attribute): 2 pages x 1 attribute = 2 calls.
             assert len(message_sets) == 2
             item = (
-                '{"value": "3.2", "units": "m", "type": "point", '
-                '"quantifier": null, "ci_lower": null, "ci_upper": null, "ci": null}'
+                '{"value": "3.2", "units": "m", "qualifiers": [], '
+                '"point_value": "3.2", "lower": null, "upper": null, '
+                '"list_values": null, "tolerance": null, "standard_deviation": null, '
+                '"table_number": null}'
             )
             return [f'{{"items": [{item}]}}', f'{{"items": [{item}]}}']
         if name == "standardize_quantity":
             # One call per raw quantity, pre-dedup: still 2 (one per page).
             assert len(message_sets) == 2
-            resp = (
-                '{"explanation": "ok", "value": "3.2", "units": "m", '
-                '"ci_lower": null, "ci_upper": null, "ci": null}'
-            )
+            resp = '{"explanation": "ok", "units": "m"}'
             return [resp, resp]
         if name == "attributed_quantity_list":
             # Both pages produced an identical quantity -> deduped to 1 group (prose, doc 0).
@@ -404,6 +428,8 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
         assert r["attribute"] == "depth"
         assert r["value"] == "3.2"
         assert r["units"] == "m"
+        assert r["qualifiers"] == []
+        assert r["point_value"] == "3.2"
         assert r["page_number"] == [1, 2]  # found on both pages, aggregated
 
 

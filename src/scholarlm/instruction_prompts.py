@@ -144,44 +144,50 @@ Guidelines:
 - If the page reports no data for the attribute, return an empty items list.
 
 For each quantity, populate:
-- value: the numerical value, formatted according to `type` (see below). Do not include units, uncertainty, or descriptive text in this field.
+- value: the full raw value exactly as reported, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
 - units: the unit of measurement as reported, or null if the attribute is dimensionless or no unit is given.
-- type: one of "point", "range", or "inequality".
-  - "point": a single reported value (e.g. "12.3"). value = "12.3", quantifier = null.
-  - "range": a reported interval with no single central value (e.g. "3-7", "between 3 and 7"). value = "(3, 7)" (lower bound first), quantifier = null.
-  - "inequality": a reported bound (e.g. "< 5", "at least 10"). value = the bound only (e.g. "5"), quantifier = one of "<", ">", "<=", ">=" matching the reported relation.
-- quantifier: required (and only used) when type = "inequality"; null otherwise.
-- ci_lower / ci_upper: if a confidence interval or uncertainty range is reported as an explicit (lower, upper) interval (e.g. "(10.2, 14.8)", "95% CI: 5-9"), record the two bounds here. Otherwise null.
-- ci: if uncertainty is reported as a symmetric plus-or-minus value (e.g. "12.3 ± 0.5"), record only the half-width ("0.5") here. Otherwise null. Never populate both ci and ci_lower/ci_upper for the same item.
+- qualifiers: a list of zero or more tags describing the shape of this quantity. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
+  - "IsCount": a count of discrete items, not a continuous measurement.
+  - "IsApproximate": explicitly hedged, e.g. "~12", "about 50", "approximately".
+  - "IsList": an enumerated list of separate values, not a single number or range.
+  - "IsRange": a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10".
+  - "IsMean": an explicitly stated mean/average.
+  - "IsMedian": an explicitly stated median.
+  - "HasTolerance": an explicit +/- value or confidence interval is reported alongside the value.
+  - "HasSD": an explicit standard deviation is reported alongside the value.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given).
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 - table_number: if the quantity is reported within a table on this page, the table number from the enclosing `<table number="x">` tag. Otherwise null (the quantity is in prose text).
 
 Strict rules:
 - Do NOT infer, guess, or derive any value. Use only what is explicitly stated on the page.
-- Do NOT report a central/mean value in the value field for a range- or CI-only report — see the type rules above.
-- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "type", "quantifier", "ci_lower", "ci_upper", "ci", and "table_number" fields.
+- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation", and "table_number" fields.
 """
 
 
-STANDARDIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to standardize the units of a single extracted quantity, and clean up its numeric formatting, using the page or table it was extracted from as the source of truth.
+STANDARDIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to standardize the units of a single extracted quantity, using the page or table it was extracted from as the source of truth.
 
-You will be given: the source text (a page or table), a description of the measurement attribute, a list of preferred units for the attribute, and the quantity as extracted (its type, quantifier, value, units, and any confidence-interval fields).
+You will be given: the source text (a page or table), a description of the measurement attribute, a list of preferred units for the attribute, and the quantity as extracted (its value and units).
 
 Guidelines:
-- Preserve the quantity's type and quantifier exactly — you are standardizing numeric formatting and units only, not reclassifying the quantity.
-- Value standardization: strip any residual unit text, symbols, or descriptors from the value; keep the same type-specific format ("(lower, upper)" for a range, a bare number otherwise). Do not convert magnitudes or perform unit conversion — only clean up formatting.
-- ci_lower / ci_upper / ci: apply the same formatting cleanup, unchanged in magnitude.
-- Units standardization: if the extracted units are a notational variant of one of the preferred units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the matching preferred unit. If they are not a notational variant of any preferred unit (i.e., converting would require a numerical unit conversion, or no preferred units are listed), return the extracted units unchanged. If units is null, return null.
-- Provide a brief explanation of what standardization was applied (or why none was needed).
-- Structure your response as a JSON object with "explanation", "value", "units", "ci_lower", "ci_upper", and "ci" fields.
+- If the extracted units are a notational variant of one of the preferred units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the matching preferred unit. You may infer notational variants based on common scientific usage.
+- If the extracted units are not a notational variant of any preferred unit (i.e., they would require unit conversion to match, or there are no preferred units listed), return the extracted units unchanged.
+- If the extracted units are null (not reported), return null.
+- Do NOT modify, standardize, round, or reformat the extracted value or any of its qualifier/shape fields (point_value, lower, upper, list_values, tolerance, standard_deviation) in any way -- that is not part of this task and is handled separately.
+- Provide a brief explanation of what unit standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation" and "units" fields.
 """
 
 
 CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything each of a list of already-extracted quantities describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
 
-You will be given: the full text of a research paper (with page and table boundaries marked), a list of quantities already extracted from this paper (each with its attribute, type, quantifier, value, units, confidence-interval fields, and the page number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
+You will be given: the full text of a research paper (with page and table boundaries marked), a list of quantities already extracted from this paper (each with its attribute, value, units, qualifiers, and shape fields, and the page number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
 
 Guidelines:
-- For every quantity in the list, first copy its attribute, type, quantifier, value, units, ci_lower, ci_upper, and ci fields back into your response item exactly as given, character-for-character — this is how your answer is matched back to the right quantity, so do not alter, round, standardize, or reformat them. A quantity's listing below only shows the fields it has; anything not listed for it (quantifier, units, ci_lower/ci_upper, ci) is absent and must be copied back as JSON null, not as any word or placeholder text.
+- For every quantity in the list, first copy its attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, and standard_deviation fields back into your response item exactly as given, character-for-character — this is how your answer is matched back to the right quantity, so do not alter, round, standardize, or reformat them. A quantity's listing below only shows the fields it has; anything not listed for it is absent and must be copied back as JSON null (or an empty list for qualifiers/list_values), not as any word or placeholder text.
 - Locate each quantity in the full paper using its given page number(s) (and table number, if the query says these quantities come from a table).
 - Determine which entity (or entities) the quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
 - In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item for it.
@@ -189,7 +195,7 @@ Guidelines:
 - CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach a quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
 - If you cannot confidently attribute a quantity to any entity, omit it from your response entirely rather than guessing — do not invent an item with blank entity/event fields just to have copied the quantity back.
 - Populate every entity and event field as completely as the paper allows; use null for anything not explicitly stated. Do not infer, guess, or derive any field value.
-- Structure your response as a JSON object with an "items" list, where each item has the quantity's fields (attribute, type, quantifier, value, units, ci_lower, ci_upper, ci) copied back, plus the entity fields and measurement-event fields described in the reference material provided in the query.
+- Structure your response as a JSON object with an "items" list, where each item has the quantity's fields (attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, standard_deviation) copied back, plus the entity fields and measurement-event fields described in the reference material provided in the query.
 """
 
 
