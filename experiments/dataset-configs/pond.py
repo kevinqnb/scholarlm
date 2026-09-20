@@ -509,6 +509,29 @@ _CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
 # wording throughout (see DatasetConfig.chatextract_entity_noun).
 _CHATEXTRACT_ENTITY_NOUN = "water body"
 
+# ---------------------------------------------------------------------------
+# GLiNER2 baseline: per-field descriptions for entity/event fields beyond the
+# subject name (see DatasetConfig.gliner_field_descriptions). Copied verbatim
+# from _DIRECT_EXTRACTION_PROMPT's own per-field bullets above -- GLiNER sees
+# the same wording Ablation 1 already uses, not freshly authored text.
+# ``identifiers`` has no entry here: it's an alias-resolution aid for the real
+# pipeline's entity matching, not reported content, so GLiNER never asks for it.
+# ---------------------------------------------------------------------------
+
+_GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
+    "location": "the general geographic location of the ecosystem, if explicitly stated.",
+    "ecosystem": 'the ecosystem type ("pond", "lake", "wetland", or "other").',
+    "date": (
+        'The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", '
+        '"Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.'
+    ),
+    "additional_details": (
+        "Any other distinguishing context not captured by date (e.g., treatment "
+        "site, treatment state, sampling conditions). One sentence or fewer. "
+        "Set to None if not applicable."
+    ),
+}
+
 
 CONFIG = DatasetConfig(
     name="pond",
@@ -527,6 +550,7 @@ CONFIG = DatasetConfig(
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
+    gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,

@@ -1,0 +1,52 @@
+id: 2026-09-19-measeval-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) on all 448 measeval documents
+  (dataset_config.paper_filter and paper_exclude are both None for measeval;
+  confirmed via load_papers()). First full-scale measeval GLiNER run since
+  this session's faithfulness rework: no `_deduplicate()` call in `fit()`
+  (was borrowed pipeline machinery, not part of GLiNER2's own method --
+  matches the ChatExtract/NuExtract3 precedent; raw record counts from this
+  run are NOT comparable to the pre-rework runs below), field scope expanded
+  from name+value+units (measeval's MeasurementEventSchema has no `date`, so
+  the old code never added a 4th field here) to name+value+units+property+
+  additional_details, per the new `DatasetConfig.gliner_field_descriptions`.
+  EntitySchema's only field, `quantity`, is deliberately NOT added -- it
+  duplicates the value+units span GLiNER already extracts on its own, and
+  the existing design note in experiments/dataset-configs/measeval.py already
+  established GLiNER stays subject-centric here rather than inverting the
+  quantity-first pipeline. `identifiers` doesn't exist on this dataset's
+  schemas at all, so there's nothing to exclude there. Full unit list shown
+  in the units field's description (measeval's "measurement" bucket has no
+  closed unit vocabulary, units=[], so this was a no-op here too),
+  central-value/range-exclusion guidance added to the value field's
+  description, and the unreachable entity_type_description fallback string
+  removed (measeval already overrides it via gliner_entity_description, so
+  this was also a no-op for measeval specifically). All description text for
+  the new fields is copied verbatim from `_DIRECT_EXTRACTION_PROMPT`'s own
+  per-field bullets in experiments/dataset-configs/measeval.py, not freshly
+  authored.
+  As of writing, this rework is UNCOMMITTED (git status dirty) and rungs 1-3
+  have only been exercised ad hoc against hand-built fixtures and the cached
+  fastino/gliner2-base-v1 weights in an interactive shell, not run end-to-end
+  under a numbered rung-1/2/3 id for gliner-large-v1 on real measeval
+  documents -- walk that ladder before actually submitting this rung-4
+  config.
+  Walltime: measeval documents are gold-annotation snippets, not full papers
+  (mean OCR size ~892 bytes vs. pond's ~59.5KB), so despite being the largest
+  paper count of the four datasets this baseline runs on, it's also by far
+  the fastest per document. Two prior full runs
+  (data/experiments/measeval/extraction/gliner-large-v1/{2026_07_31,2026_08_01}/run_metadata.json,
+  runtime_seconds 20.8 and 20.6, same 448-document set, gliner-large-v1)
+  agree closely, giving ~0.046s/doc. Budgeted to 3x that base (~1 min), then
+  padded to 30 min -- the base estimate is dominated by fixed overhead (SGE
+  job startup, weight loading from HF_CACHE), not the field-scope change.
+  No incremental output: fit() returns once for the whole dataset before
+  final.json is written, so a walltime kill loses the entire run, not a
+  partial result.
+seed: 342
+params:
+  dataset: measeval
+  model: gliner-large-v1
+  walltime: "00:30:00"

@@ -1,0 +1,34 @@
+id: 2026-09-19-pond-gliner-large-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) against real pond OCR text with
+  gliner-large-v1 -- this session's earlier validation only exercised the
+  code against hand-built fixture text and gliner-base-v1 in an interactive
+  shell, not a real dataset paper or the model these rung-4 configs target.
+  Smoke rung skipped per explicit instruction. Smallest pond OCR text on disk
+  (~20.9KB, first_record_of_the -- same paper used by
+  2026-09-19-pond-chatextract-gemma27b-{smoke,tinye2e}-01 and
+  2026-09-18-pond-nuextract3-smoke-01 for the same reason).
+  Predicted result: the pre-rework/pre-restructure gliner-large-v1 run on
+  this exact paper
+  (experiments/results/pond/baseline_gliner/2026-07-11-pond-baseline-gliner-01/final.json,
+  filtered by document_id) found 18 records across all 6 attributes, with a
+  known pre-existing artifact: independently-thresholded per-attribute
+  structures firing on the SAME span for multiple attributes at once (e.g.
+  value "109 to 91" appears under surface_area, max_depth, vegetation_cover,
+  tn, and tp; value "24.9" under surface_area, max_depth, and ph) -- not
+  introduced by this session's rework, a property of threshold=0.5 on
+  independently-scored structures. This run should land in the same rough
+  neighborhood (roughly a dozen-plus records, same cross-attribute
+  duplication pattern plausible) -- not zero, not an order of magnitude
+  different. New this run: no `_deduplicate()` (raw record count is not
+  directly comparable to the 18 above, which was post-dedup), and populated
+  location/ecosystem/additional_details fields where the old run always left
+  them null.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  paper_subset: ["first_record_of_the"]
+  walltime: "00:20:00"

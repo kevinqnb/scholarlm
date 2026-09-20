@@ -135,6 +135,22 @@ class DatasetConfig:
             subject-centric and reads this instead.  Falls back to
             ``entity_type_description`` when unset.  Ignored by every other
             pipeline path.
+        gliner_field_descriptions: Optional mapping from an entity- or event-schema
+            field name (e.g. ``"location"``, ``"date"``) to a description for that
+            field's GLiNER2 structure field, used by the GLiNER2 baseline
+            (``MeasurementLMGliner``) only — never fed into ``entity_schema``/
+            ``measurement_event_schema`` themselves, so it can't change what the
+            real pipeline (or any other baseline) sends for structured decoding.
+            GLiNER2's structured extraction supports multiple linked sub-fields
+            per structure (unlike ChatExtract's fixed Material/Value/Unit
+            triple), so ``MeasurementLMGliner`` asks for every field with an
+            entry here, in addition to the subject name/value/units — a field
+            with no entry (e.g. ``identifiers``, an alias-resolution aid for the
+            real pipeline's entity matching, not reported content) is never
+            asked for. Values should be copied verbatim from this dataset's own
+            prompts (typically ``direct_extraction_prompt``'s per-field bullets)
+            rather than freshly authored, so GLiNER sees the same wording the
+            real pipeline already uses. Ignored by every other pipeline path.
     """
 
     name: str
@@ -163,6 +179,7 @@ class DatasetConfig:
     chatextract_entity_noun: str | None = None
     gliner_property_names: dict[str, str] | None = None
     gliner_entity_description: str | None = None
+    gliner_field_descriptions: dict[str, str] | None = None
 
 
 @dataclass

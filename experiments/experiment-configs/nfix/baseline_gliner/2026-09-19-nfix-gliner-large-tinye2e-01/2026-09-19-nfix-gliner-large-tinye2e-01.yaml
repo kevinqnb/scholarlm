@@ -1,0 +1,32 @@
+id: 2026-09-19-nfix-gliner-large-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) against real nfix OCR text with
+  gliner-large-v1 -- this session's earlier validation only exercised the
+  code against hand-built fixture text and gliner-base-v1 in an interactive
+  shell, not a real dataset paper or the model these rung-4 configs target.
+  Smoke rung skipped per explicit instruction. Smallest OCR text among nfix's
+  actual 98-paper full-run set (paper_filter/paper_exclude applied --
+  confirmed via load_papers(); the smallest file on disk, R199, is filtered
+  out and not representative of what the full run will process), R264
+  (~16.9KB).
+  Predicted result: the pre-rework/pre-restructure gliner-large-v1 run on
+  this exact paper
+  (experiments/results/nfix/baseline_gliner/2026-07-11-nfix-baseline-gliner-01/final.json,
+  filtered by document_id) found 3 records, all "natural seawater" at value
+  1.4, one per nfix attribute (nfix_rate_mass/areal/volumetric) -- the same
+  cross-attribute duplication artifact seen in the pond tiny-e2e (independent
+  per-attribute structures firing on one span at once, not introduced by this
+  session's rework). This run should land in the same rough neighborhood (a
+  small handful of records, same entity name and value plausible) -- not
+  zero, not an order of magnitude different. New this run: no
+  `_deduplicate()`, and populated site_type/location/nfix_method/
+  substrate_type/sample_depth/additional_details fields where the old run
+  always left them null.
+seed: 342
+params:
+  dataset: nfix
+  model: gliner-large-v1
+  paper_subset: ["R264"]
+  walltime: "00:20:00"

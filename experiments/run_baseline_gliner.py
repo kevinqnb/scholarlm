@@ -102,6 +102,7 @@ def run_baseline_gliner(
         ),
         entity_type_description=dataset_config.entity_type_description,
         gliner_entity_description=dataset_config.gliner_entity_description,
+        gliner_field_descriptions=dataset_config.gliner_field_descriptions,
         measurement_event_schema=dataset_config.measurement_event_schema,
         sampling_params=model_config.sampling_params,
         threshold=threshold,

@@ -341,14 +341,41 @@ _CHATEXTRACT_ENTITY_NOUN = "subject"
 # field describes a QUANTITY, which would ask GLiNER for "the name or
 # identifier of a directly reported numerical quantity" -- nonsense. GLiNER is
 # a flat span tagger with no pipeline to invert, so it stays subject-centric
-# (name + value + units, same as ChatExtract) and gets a subject-level
-# description here instead. See DatasetConfig.gliner_entity_description.
+# and gets a subject-level description here instead. See
+# DatasetConfig.gliner_entity_description.
 # ---------------------------------------------------------------------------
 
 _GLINER_ENTITY_DESCRIPTION = (
     "the concrete subject a measurement is made on -- a sample, specimen, site, "
     "material, compound, organism, structure, instrument, or population"
 )
+
+# ---------------------------------------------------------------------------
+# GLiNER2 baseline: per-field descriptions for event fields beyond the subject
+# name (see DatasetConfig.gliner_field_descriptions). Copied verbatim from
+# _DIRECT_EXTRACTION_PROMPT's own per-field bullets above -- GLiNER sees the
+# same wording Ablation 1 already uses, not freshly authored text.
+# EntitySchema's only field, ``quantity``, has no entry here: it's the
+# verbatim value+units span, already covered by GLiNER's own ``value``/
+# ``units`` structure fields, so asking for it separately would be redundant
+# (GLiNER stays subject-centric otherwise, same as ChatExtract, per the note
+# above).
+# ---------------------------------------------------------------------------
+
+_GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
+    "property": (
+        'the specific property or quantity type being measured for that subject '
+        '(e.g. "mean annual temperature", "grain size", "paleolatitude"), copied '
+        "verbatim from the text -- not the number itself. If the quantity is a "
+        "bare count or attaches directly to its subject with no distinct property "
+        'phrase (e.g. "5318 participants"), set this to None.'
+    ),
+    "additional_details": (
+        "any qualifying context for this specific measurement (method, location, "
+        "condition, date, comparison), copied or closely paraphrased from the "
+        "text and kept to a short phrase. Set to None if not applicable."
+    ),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +412,7 @@ CONFIG = DatasetConfig(
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_entity_description=_GLINER_ENTITY_DESCRIPTION,
+    gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
     # paper_subset: set to a list of document_id codes to restrict the run.
     paper_subset=None,
     # paper_filter: None processes all three splits (train+trial+eval) by default.

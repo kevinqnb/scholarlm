@@ -467,6 +467,46 @@ _CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
 # that wording throughout (see DatasetConfig.chatextract_entity_noun).
 _CHATEXTRACT_ENTITY_NOUN = "site"
 
+# ---------------------------------------------------------------------------
+# GLiNER2 baseline: per-field descriptions for entity/event fields beyond the
+# subject name (see DatasetConfig.gliner_field_descriptions). Copied verbatim
+# from _DIRECT_EXTRACTION_PROMPT's own per-field bullets above -- GLiNER sees
+# the same wording Ablation 1 already uses, not freshly authored text.
+# ``identifiers`` has no entry here: it's an alias-resolution aid for the real
+# pipeline's entity matching, not reported content, so GLiNER never asks for it.
+# ---------------------------------------------------------------------------
+
+_GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
+    "site_type": (
+        "the type of site (e.g., continental shelf, estuary, lake, freshwater "
+        "wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, "
+        "cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer "
+        "from the site name."
+    ),
+    "location": "the general geographic location of the site.",
+    "date": (
+        'The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", '
+        '"Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.'
+    ),
+    "nfix_method": (
+        "The method used to measure dinitrogen fixation (e.g., acetylene "
+        "reduction assay, ARA, 15N2 incorporation). Set to None if not stated."
+    ),
+    "substrate_type": (
+        "The substrate on which the measurement was taken (e.g., water column, "
+        "benthos). Set to None if not stated."
+    ),
+    "sample_depth": (
+        'The depth at which the sample was collected (e.g., "surface", "0-5 cm", '
+        '"0-10 m"). Set to None if not stated.'
+    ),
+    "additional_details": (
+        "Any other distinguishing context not captured above (e.g., light vs. "
+        "dark incubation, specific treatment condition). One sentence or fewer. "
+        "Set to None if not applicable."
+    ),
+}
+
 
 CONFIG = DatasetConfig(
     name="nfix",
@@ -486,6 +526,7 @@ CONFIG = DatasetConfig(
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
+    gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

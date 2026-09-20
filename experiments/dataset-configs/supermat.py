@@ -364,6 +364,38 @@ _CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
 # DatasetConfig.chatextract_entity_noun).
 _CHATEXTRACT_ENTITY_NOUN = "material"
 
+# ---------------------------------------------------------------------------
+# GLiNER2 baseline: per-field descriptions for entity/event fields beyond the
+# subject name (see DatasetConfig.gliner_field_descriptions). Copied verbatim
+# from _DIRECT_EXTRACTION_PROMPT's own per-field bullets above -- GLiNER sees
+# the same wording Ablation 1 already uses, not freshly authored text.
+# ``identifiers`` has no entry here: it's an alias-resolution aid for the real
+# pipeline's entity matching, not reported content, so GLiNER never asks for it.
+# ---------------------------------------------------------------------------
+
+_GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
+    "sample_details": (
+        "doping level or fraction, crystal form (single crystal, polycrystalline, "
+        "powder, thin film), substrate, and growth/treatment qualifiers explicitly "
+        "stated for this material. Set to None if not given."
+    ),
+    "pressure": (
+        'The applied pressure for this measurement. Use "ambient" if '
+        "ambient/atmospheric or unstated; otherwise report the stated pressure "
+        'with its unit (e.g. "2 GPa").'
+    ),
+    "me_method": (
+        'The measurement method, mapped to "resistivity", "magnetic '
+        'susceptibility", "specific heat", or "theoretical calculation" whenever '
+        "the text supports it; otherwise report as given. Set to None if not stated."
+    ),
+    "additional_details": (
+        "The Tc-defining criterion (onset, midpoint, zero resistance) if stated, "
+        "plus any other distinguishing context. One sentence or fewer. Set to "
+        "None if not applicable."
+    ),
+}
+
 
 # ---------------------------------------------------------------------------
 # Config instance
@@ -394,6 +426,7 @@ CONFIG = DatasetConfig(
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
+    gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
     paper_subset=None,
     paper_filter=None,
     paper_exclude=None,
