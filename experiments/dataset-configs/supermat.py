@@ -220,10 +220,11 @@ Output format requirements:
 # Every output value below (except identifiers, a synthesized semicolon-joined
 # field, and attribute, a fixed enum) is an exact substring of its input text,
 # since NuExtract's verbatim-string fields are trained to copy spans rather
-# than paraphrase. Together the two examples cover multiple entities per
+# than paraphrase. Together the three examples cover multiple entities per
 # passage, multiple measurement events for the same entity (ambient vs. high
-# pressure), and three of the four me_method categories (resistivity,
-# magnetic susceptibility, theoretical calculation).
+# pressure), three of the four me_method categories (resistivity, magnetic
+# susceptibility, theoretical calculation), and all of point_value,
+# lower/upper, list_values, tolerance, and standard_deviation at least once.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -310,9 +311,61 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
     }
 )
 
+# Rounds out shape coverage with lower/upper, list_values, and
+# standard_deviation -- example 1 and 2 above only reach point_value and
+# HasTolerance.
+_NUEXTRACT_EXAMPLE_3_INPUT = (
+    "Iron selenide (FeSe, sample F-4) is a layered superconductor. At "
+    "ambient pressure, susceptibility measurements across three separate "
+    "crystal batches gave critical temperatures of 8.0, 8.5, and 9.1 K. "
+    "Under applied pressure of 6 GPa, resistivity measurements on the same "
+    "sample placed the transition between 12 and 14 K. A separate "
+    "polycrystalline sample of niobium nitride (NbN) showed a mean "
+    "transition temperature of 16.2 (SD 0.5) K across five specimens, "
+    "measured at ambient pressure using resistivity."
+)
+
+_NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Iron selenide", "identifiers": "FeSe; F-4",
+                "sample_details": None,
+                "pressure": "ambient", "me_method": "magnetic susceptibility",
+                "additional_details": None,
+                "attribute": "tc", "value": "8.0, 8.5, and 9.1", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsList"], "list_values": ["8.0", "8.5", "9.1"],
+                }),
+            },
+            {
+                "name": "Iron selenide", "identifiers": "FeSe; F-4",
+                "sample_details": None,
+                "pressure": "6 GPa", "me_method": "resistivity",
+                "additional_details": None,
+                "attribute": "tc", "value": "12 and 14", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsRange"], "lower": "12", "upper": "14",
+                }),
+            },
+            {
+                "name": "Niobium nitride", "identifiers": "NbN",
+                "sample_details": "polycrystalline",
+                "pressure": "ambient", "me_method": "resistivity",
+                "additional_details": "across five specimens",
+                "attribute": "tc", "value": "16.2 (SD 0.5)", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsMean", "HasSD"], "point_value": "16.2", "standard_deviation": "0.5",
+                }),
+            },
+        ]
+    }
+)
+
 _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
 
 

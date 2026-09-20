@@ -320,10 +320,12 @@ Output format requirements:
 #
 # Synthetic text, never overlapping with data/measeval papers. Every output
 # value below is an exact substring of its own input text (NuExtract's
-# verbatim-string fields are trained to copy spans, not paraphrase). The two
-# examples span different scientific domains (biology, materials science) and
-# each gives one subject multiple distinct properties, to demonstrate the
-# multi-event case the event prompt above describes.
+# verbatim-string fields are trained to copy spans, not paraphrase). The
+# three examples span different scientific domains (biology, materials
+# science, ecology) and each gives one subject multiple distinct properties,
+# to demonstrate the multi-event case the event prompt above describes.
+# Together they touch all of point_value, lower/upper, list_values,
+# tolerance, and standard_deviation at least once.
 # ---------------------------------------------------------------------------
 
 # _NUEXTRACT_QUANTITY_DEFAULTS_JSON is the qualifier/shape fields' JSON,
@@ -367,7 +369,7 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = (
     '{"items": ['
     '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": null, "attribute": "measurement", "value": "84.2", "units": "K", '
     + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="84.2") + '}, '
-    '{"name": "Bi2212 crystal", "property": "critical current density", "additional_details": "measured at 77 K", "attribute": "measurement", "value": "3.0 x 10^4 - 3.2 x 10^4", "units": "A/cm^2", '
+    '{"name": "Bi2212 crystal", "property": "critical current density", "additional_details": "measured at 77 K", "attribute": "measurement", "value": "3.0 x 10^4 and 3.2 x 10^4", "units": "A/cm^2", '
     '"qualifiers": ["IsRange"], "point_value": null, "lower": "3.0 x 10^4", "upper": "3.2 x 10^4", '
     '"list_values": null, "tolerance": null, "standard_deviation": null}, '
     '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": "Under 2 GPa of applied pressure", "attribute": "measurement", "value": "91.5", "units": "K", '
@@ -375,9 +377,34 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = (
     ']}'
 )
 
+# Rounds out shape coverage with list_values, tolerance, and standard_deviation
+# -- example 1 and 2 above only reach point_value, IsCount, and IsRange.
+_NUEXTRACT_EXAMPLE_3_INPUT = (
+    "A cohort of loggerhead sea turtles was tracked over three nesting "
+    "seasons; clutch sizes were recorded as 92, 105, and 118 eggs. Curved "
+    "carapace length was measured at 78.4 ± 1.2 cm across the tagged "
+    "individuals. The mean incubation temperature was 29.1 (SD 0.6) °C "
+    "across all monitored nests."
+)
+
+_NUEXTRACT_EXAMPLE_3_OUTPUT = (
+    '{"items": ['
+    '{"name": "loggerhead sea turtles", "property": "clutch size", "additional_details": "over three nesting seasons", "attribute": "measurement", "value": "92, 105, and 118", "units": "eggs", '
+    '"qualifiers": ["IsList"], "point_value": null, "lower": null, "upper": null, '
+    '"list_values": ["92", "105", "118"], "tolerance": null, "standard_deviation": null}, '
+    '{"name": "the tagged individuals", "property": "curved carapace length", "additional_details": null, "attribute": "measurement", "value": "78.4 ± 1.2", "units": "cm", '
+    '"qualifiers": ["HasTolerance"], "point_value": "78.4", "lower": null, "upper": null, '
+    '"list_values": null, "tolerance": "± 1.2", "standard_deviation": null}, '
+    '{"name": "all monitored nests", "property": "incubation temperature", "additional_details": null, "attribute": "measurement", "value": "29.1 (SD 0.6)", "units": "°C", '
+    '"qualifiers": ["IsMean", "HasSD"], "point_value": "29.1", "lower": null, "upper": null, '
+    '"list_values": null, "tolerance": null, "standard_deviation": "0.6"}'
+    ']}'
+)
+
 _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
 
 

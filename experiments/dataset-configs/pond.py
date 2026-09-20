@@ -310,10 +310,12 @@ other_things = """
 # NuExtract-2.0-8B baseline: few-shot synthetic examples
 #
 # NuExtract's calling convention has no field for freeform instructions,
-# only a JSON template and optional few-shot examples. 
+# only a JSON template and optional few-shot examples.
 # Every output value below is an exact substring of its input text, since NuExtract's
 # verbatim-string fields are trained to copy spans rather than paraphrase.
-# Together the two examples touch all 7 pond attributes at least once.
+# Together the three examples touch all 7 pond attributes and all of
+# point_value, lower/upper, list_values, tolerance, and standard_deviation
+# at least once.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -377,6 +379,10 @@ _NUEXTRACT_EXAMPLE_2_INPUT = (
     "total nitrogen of 850 µg/L and total phosphorus ranging from 55 to 70 µg/L."
 )
 
+# tp's value is preserved in full, exactly as reported ("55 to 70", not a
+# reformatted "55-70") -- see DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS: "Do not
+# convert, round, drop, or otherwise modify any part of it."
+
 _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
     {
         "items": [
@@ -400,9 +406,52 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
                 "location": "coastal Louisiana", "ecosystem": "wetland",
                 "date": "Spring 2021", "additional_details": "inlet zone",
-                "attribute": "tp", "value": "55-70", "units": "µg/L",
+                "attribute": "tp", "value": "55 to 70", "units": "µg/L",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsRange"], "lower": "55", "upper": "70",
+                }),
+            },
+        ]
+    }
+)
+
+# Rounds out shape coverage with list_values, tolerance, and standard_deviation
+# -- example 1 and 2 above only reach point_value, IsApproximate, and IsRange.
+_NUEXTRACT_EXAMPLE_3_INPUT = (
+    "Crescent Lake (site CL-9) is a natural lake in northern Minnesota. "
+    "Chlorophyll-a was sampled on three dates during summer 2021, yielding "
+    "8.2, 10.5, and 14.1 µg/L. Maximum depth was measured by sonar at "
+    "1.9 ± 0.1 m. Mean water pH across five replicate probes was 7.4 (SD 0.3)."
+)
+
+_NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Crescent Lake", "identifiers": "CL-9",
+                "location": "northern Minnesota", "ecosystem": "lake",
+                "date": "summer 2021", "additional_details": None,
+                "attribute": "chla", "value": "8.2, 10.5, and 14.1", "units": "µg/L",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsList"], "list_values": ["8.2", "10.5", "14.1"],
+                }),
+            },
+            {
+                "name": "Crescent Lake", "identifiers": "CL-9",
+                "location": "northern Minnesota", "ecosystem": "lake",
+                "date": "summer 2021", "additional_details": None,
+                "attribute": "max_depth", "value": "1.9 ± 0.1", "units": "m",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["HasTolerance"], "point_value": "1.9", "tolerance": "± 0.1",
+                }),
+            },
+            {
+                "name": "Crescent Lake", "identifiers": "CL-9",
+                "location": "northern Minnesota", "ecosystem": "lake",
+                "date": "summer 2021", "additional_details": None,
+                "attribute": "ph", "value": "7.4 (SD 0.3)", "units": None,
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsMean", "HasSD"], "point_value": "7.4", "standard_deviation": "0.3",
                 }),
             },
         ]
@@ -412,6 +461,7 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
 _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
 
 

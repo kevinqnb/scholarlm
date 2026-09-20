@@ -304,8 +304,9 @@ Output format requirements:
 # NuExtract's calling convention has no field for freeform instructions.
 # Every output value below is
 # an exact substring of its input text, since NuExtract's verbatim-string
-# fields are trained to copy spans rather than paraphrase. Together the two
-# examples touch all 3 nfix rate attributes at least once.
+# fields are trained to copy spans rather than paraphrase. Together the three
+# examples touch all 3 nfix rate attributes and all of point_value,
+# lower/upper, list_values, tolerance, and standard_deviation at least once.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -368,9 +369,60 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
                 "date": "March 2020", "nfix_method": "15N2 incorporation",
                 "substrate_type": "water column", "sample_depth": "surface",
                 "additional_details": "dark conditions",
-                "attribute": "nfix_rate_volumetric", "value": "3.2-4.0", "units": "nmol N2 L⁻¹ h⁻¹",
+                "attribute": "nfix_rate_volumetric", "value": "3.2 to 4.0", "units": "nmol N2 L⁻¹ h⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsRange"], "lower": "3.2", "upper": "4.0",
+                }),
+            },
+        ]
+    }
+)
+
+# Rounds out shape coverage with list_values, tolerance, and standard_deviation
+# -- example 1 and 2 above only reach point_value and IsRange.
+_NUEXTRACT_EXAMPLE_3_INPUT = (
+    "Baltic Sea Transect (BST) is an estuary site in the Baltic Sea. "
+    "Sediment cores incubated in July 2019 using the acetylene reduction "
+    "assay at a depth of 0-3 cm yielded fixation rates of 2.1, 2.8, and 3.4 "
+    "nmol C2H4 g⁻¹ h⁻¹ across three replicates. Water column fixation was "
+    "95 ± 12 µmol N m⁻² d⁻¹ under light conditions. Mean volumetric "
+    "fixation was 3.6 (SD 0.4) nmol N2 L⁻¹ h⁻¹ at the surface."
+)
+
+_NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Baltic Sea Transect", "identifiers": "BST",
+                "site_type": "estuary", "location": "Baltic Sea",
+                "date": "July 2019", "nfix_method": "acetylene reduction assay",
+                "substrate_type": "sediment", "sample_depth": "0-3 cm",
+                "additional_details": None,
+                "attribute": "nfix_rate_mass", "value": "2.1, 2.8, and 3.4", "units": "nmol C2H4 g⁻¹ h⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsList"], "list_values": ["2.1", "2.8", "3.4"],
+                }),
+            },
+            {
+                "name": "Baltic Sea Transect", "identifiers": "BST",
+                "site_type": "estuary", "location": "Baltic Sea",
+                "date": "July 2019", "nfix_method": "acetylene reduction assay",
+                "substrate_type": "water column", "sample_depth": None,
+                "additional_details": "under light conditions",
+                "attribute": "nfix_rate_areal", "value": "95 ± 12", "units": "µmol N m⁻² d⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["HasTolerance"], "point_value": "95", "tolerance": "± 12",
+                }),
+            },
+            {
+                "name": "Baltic Sea Transect", "identifiers": "BST",
+                "site_type": "estuary", "location": "Baltic Sea",
+                "date": "July 2019", "nfix_method": "acetylene reduction assay",
+                "substrate_type": "water column", "sample_depth": "surface",
+                "additional_details": None,
+                "attribute": "nfix_rate_volumetric", "value": "3.6 (SD 0.4)", "units": "nmol N2 L⁻¹ h⁻¹",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsMean", "HasSD"], "point_value": "3.6", "standard_deviation": "0.4",
                 }),
             },
         ]
@@ -380,6 +432,7 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
 _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
 
 
