@@ -127,22 +127,30 @@ def run_pipeline(
     f_final = output_dir / "final.json"
 
     start_time = time.time()
+    step_seconds: dict[str, dict] = {}
+
+    def _write_metadata(current_step: str | None) -> None:
+        write_run_metadata(
+            output_dir, start_time=start_time, step_seconds=step_seconds, resume=resume,
+            dataset=dataset_config.name, model=model_config.name,
+            model_id=model_config.model_id, hf_revision=model_config.hf_revision, ocr_dir=ocr_dir,
+            gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
+            token_usage=mlm.token_usage, hostname=urlparse(effective_api_base).hostname, step=current_step,
+        )
 
     if step in (None, "quantities"):
         if not (resume and f_quantities.exists()):
             print("Step 1 — Collecting quantities...")
+            t0 = time.time()
             quantities = mlm._collect_quantities()
+            step_seconds["quantities"] = {"ran": True, "seconds": round(time.time() - t0, 1)}
             with open(f_quantities, "w") as f:
                 json.dump(quantities, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
         else:
             print("Step 1 — Skipping (quantities.json exists).")
+            step_seconds["quantities"] = {"ran": False, "seconds": None}
         if step == "quantities":
-            write_run_metadata(
-                output_dir, start_time=start_time, dataset=dataset_config.name, model=model_config.name,
-                model_id=model_config.model_id, hf_revision=model_config.hf_revision, ocr_dir=ocr_dir,
-                gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
-                hostname=urlparse(effective_api_base).hostname, step=step,
-            )
+            _write_metadata(step)
             return
 
     if step in (None, "standardized"):
@@ -150,19 +158,17 @@ def run_pipeline(
             quantities = json.load(f)
         if not (resume and f_standardized.exists()):
             print("Step 1.5+2 — Standardizing and deduplicating...")
+            t0 = time.time()
             quantities = mlm._standardize_quantities(quantities)
             quantities = mlm._deduplicate_quantities(quantities)
+            step_seconds["standardized"] = {"ran": True, "seconds": round(time.time() - t0, 1)}
             with open(f_standardized, "w") as f:
                 json.dump(quantities, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
         else:
             print("Step 1.5+2 — Skipping (standardized.json exists).")
+            step_seconds["standardized"] = {"ran": False, "seconds": None}
         if step == "standardized":
-            write_run_metadata(
-                output_dir, start_time=start_time, dataset=dataset_config.name, model=model_config.name,
-                model_id=model_config.model_id, hf_revision=model_config.hf_revision, ocr_dir=ocr_dir,
-                gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
-                hostname=urlparse(effective_api_base).hostname, step=step,
-            )
+            _write_metadata(step)
             return
 
     if step in (None, "final"):
@@ -170,19 +176,17 @@ def run_pipeline(
             quantities = json.load(f)
         if not (resume and f_final.exists()):
             print("Step 3 — Contextualizing...")
+            t0 = time.time()
             records = mlm._contextualize_quantities(quantities)
             dataset = _finalize_records(records, text_info)
+            step_seconds["final"] = {"ran": True, "seconds": round(time.time() - t0, 1)}
             with open(f_final, "w") as f:
                 json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
         else:
             print("Step 3 — Skipping (final.json exists).")
+            step_seconds["final"] = {"ran": False, "seconds": None}
 
-    write_run_metadata(
-        output_dir, start_time=start_time, dataset=dataset_config.name, model=model_config.name,
-        model_id=model_config.model_id, hf_revision=model_config.hf_revision, ocr_dir=ocr_dir,
-        gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
-        hostname=urlparse(effective_api_base).hostname, step=step,
-    )
+    _write_metadata(step)
     print(f"\nDone. Final dataset: {f_final}")
 
 

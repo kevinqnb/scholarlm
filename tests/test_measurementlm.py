@@ -234,6 +234,48 @@ def test_acall_raises_context_length_exceeded_only_for_matching_message(monkeypa
     assert result == ""
 
 
+def _fake_response(content: str, prompt_tokens: int, completion_tokens: int):
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))],
+        usage=SimpleNamespace(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens),
+    )
+
+
+def test_acall_accumulates_token_usage_across_successful_and_failed_calls(monkeypatch):
+    """token_usage must sum prompt/completion tokens over every successful call
+    (not just track a running max, the way max_prompt_tokens does) and must
+    count failed calls separately -- a compute-time report built only from
+    token_usage's prompt/completion totals would otherwise silently omit the
+    compute spent on calls that errored out."""
+    mlm = _make_mlm()
+
+    async def call_ok_1(*args, **kwargs):
+        return _fake_response('{"a": 1}', prompt_tokens=100, completion_tokens=20)
+    monkeypatch.setattr(mlm.async_client.chat.completions, "create", call_ok_1)
+    asyncio.run(mlm._acall([{"role": "user", "content": "x"}]))
+
+    async def call_ok_2(*args, **kwargs):
+        return _fake_response('{"b": 2}', prompt_tokens=50, completion_tokens=10)
+    monkeypatch.setattr(mlm.async_client.chat.completions, "create", call_ok_2)
+    asyncio.run(mlm._acall([{"role": "user", "content": "y"}]))
+
+    async def call_fails(*args, **kwargs):
+        raise RuntimeError("connection reset")
+    monkeypatch.setattr(mlm.async_client.chat.completions, "create", call_fails)
+    result = asyncio.run(mlm._acall([{"role": "user", "content": "z"}]))
+    assert result == ""
+
+    assert mlm.token_usage == {
+        "prompt_tokens": 150,
+        "completion_tokens": 30,
+        "successful_calls": 2,
+        "failed_calls": 1,
+    }
+    # max_prompt_tokens is unaffected -- still the largest single call, not a sum.
+    assert mlm.max_prompt_tokens == 100
+
+
 def test_call_batch_isolates_context_length_exceeded_without_retrying_it(monkeypatch):
     """A ContextLengthExceededError on one message set must not fail the batch,
     must not be retried (it's deterministic -- retrying wastes calls), and must
@@ -459,6 +501,14 @@ def test_pipeline_mode_default_construction_dispatches_original_seven_steps(monk
         "_parse_quantities",
         "_deduplicate",
     ]
+    # Every ablation that reuses this base fit() unchanged (4, 5, 6) gets this
+    # same per-step timing for free. values_text/values_tables are separate
+    # (not one combined "values") so ablation 5's table-only change and
+    # ablation 4's text+table change are each individually visible.
+    assert set(mlm.step_seconds) == {
+        "entities", "entity_prov", "attributes", "attribute_prov", "events",
+        "values_text", "values_tables", "final",
+    }
 
 
 # ---------------------------------------------------------------------------

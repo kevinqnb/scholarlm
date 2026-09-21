@@ -472,8 +472,15 @@ def _run_all_steps(
     text_info: list[dict],
     work_dir: Path,
     resume: bool = False,
-) -> None:
-    """Run all pipeline steps, writing outputs into work_dir."""
+) -> dict[str, dict]:
+    """Run all pipeline steps, writing outputs into work_dir.
+
+    Returns a ``{step_name: {"ran": bool, "seconds": float | None}}`` map
+    for this invocation -- a step skipped via ``resume`` gets ``ran=False,
+    seconds=None`` rather than being silently absent, so a resumed run's
+    metadata is never mistaken for a fresh one's (see write_run_metadata's
+    step_seconds merge).
+    """
     f_entities = work_dir / "entities.json"
     f_attributes = work_dir / "attributes.json"
     f_entity_prov = work_dir / "entity_prov.json"
@@ -482,40 +489,33 @@ def _run_all_steps(
     f_values = work_dir / "values.json"
     f_final = work_dir / "final.json"
 
-    if not (resume and f_entities.exists()):
-        step_extract_entities(mlm, text, f_entities)
-    else:
-        print("Step 1 — Skipping (entities.json exists).")
+    step_seconds: dict[str, dict] = {}
 
-    if not (resume and f_attributes.exists()):
-        step_detect_attributes(mlm, text, f_attributes)
-    else:
-        print("Step 2 — Skipping (attributes.json exists).")
+    def _timed(name: str, checkpoint: Path, skip_msg: str, run_fn) -> None:
+        if resume and checkpoint.exists():
+            print(skip_msg)
+            step_seconds[name] = {"ran": False, "seconds": None}
+            return
+        t0 = time.time()
+        run_fn()
+        step_seconds[name] = {"ran": True, "seconds": round(time.time() - t0, 1)}
 
-    if not (resume and f_entity_prov.exists()):
-        step_entity_provenance(mlm, text, f_entities, f_entity_prov)
-    else:
-        print("Step 3a — Skipping (entity_prov.json exists).")
+    _timed("entities", f_entities, "Step 1 — Skipping (entities.json exists).",
+           lambda: step_extract_entities(mlm, text, f_entities))
+    _timed("attributes", f_attributes, "Step 2 — Skipping (attributes.json exists).",
+           lambda: step_detect_attributes(mlm, text, f_attributes))
+    _timed("entity_prov", f_entity_prov, "Step 3a — Skipping (entity_prov.json exists).",
+           lambda: step_entity_provenance(mlm, text, f_entities, f_entity_prov))
+    _timed("attribute_prov", f_attr_prov, "Step 3b — Skipping (attribute_prov.json exists).",
+           lambda: step_attribute_provenance(mlm, text, f_attributes, f_attr_prov))
+    _timed("events", f_events, "Step 3c — Skipping (events.json exists).",
+           lambda: step_resolve_events(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events))
+    _timed("values", f_values, "Steps 4+5 — Skipping (values.json exists).",
+           lambda: step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events, f_values))
+    _timed("final", f_final, "Steps 6+7 — Skipping (final.json exists).",
+           lambda: step_standardize_and_deduplicate(mlm, text_info, f_values, f_final))
 
-    if not (resume and f_attr_prov.exists()):
-        step_attribute_provenance(mlm, text, f_attributes, f_attr_prov)
-    else:
-        print("Step 3b — Skipping (attribute_prov.json exists).")
-
-    if not (resume and f_events.exists()):
-        step_resolve_events(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events)
-    else:
-        print("Step 3c — Skipping (events.json exists).")
-
-    if not (resume and f_values.exists()):
-        step_extract_values(mlm, text, f_entities, f_attributes, f_entity_prov, f_attr_prov, f_events, f_values)
-    else:
-        print("Steps 4+5 — Skipping (values.json exists).")
-
-    if not (resume and f_final.exists()):
-        step_standardize_and_deduplicate(mlm, text_info, f_values, f_final)
-    else:
-        print("Steps 6+7 — Skipping (final.json exists).")
+    return step_seconds
 
 
 def run_pipeline(
@@ -613,23 +613,26 @@ def run_pipeline(
     if final_only:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
-            _run_all_steps(mlm, text, text_info, tmp_path, resume=False)
+            step_seconds = _run_all_steps(mlm, text, text_info, tmp_path, resume=False)
             output_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(tmp_path / "final.json", output_dir / "final.json")
     else:
         output_dir.mkdir(parents=True, exist_ok=True)
-        _run_all_steps(mlm, text, text_info, output_dir, resume=resume)
+        step_seconds = _run_all_steps(mlm, text, text_info, output_dir, resume=resume)
 
     write_run_metadata(
         output_dir,
         start_time=start_time,
+        step_seconds=step_seconds,
         dataset=dataset_config.name,
         model=model_config.name,
         model_id=model_config.model_id,
         hf_revision=model_config.hf_revision,
         ocr_dir=effective_ocr_dir,
+        resume=resume,
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
         hostname=urlparse(effective_api_base).hostname,
     )
     print(f"\nDone. Final dataset: {output_dir / 'final.json'}")
@@ -738,6 +741,7 @@ def run_direct(
         ocr_dir=effective_ocr_dir,
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
         hostname=urlparse(effective_api_base).hostname,
         extraction_mode="direct",
     )
@@ -827,6 +831,7 @@ def run_single_step(
     f_values = output_dir / "values.json"
     f_final = output_dir / "final.json"
 
+    step_start = time.time()
     if step == "entities":
         step_extract_entities(mlm, text, f_entities)
     elif step == "attributes":
@@ -842,6 +847,22 @@ def run_single_step(
     elif step == "final":
         step_standardize_and_deduplicate(mlm, text_info, f_values, f_final)
 
+    write_run_metadata(
+        output_dir,
+        step_seconds={step: {"ran": True, "seconds": round(time.time() - step_start, 1)}},
+        dataset=dataset_config.name,
+        model=model_config.name,
+        model_id=model_config.model_id,
+        hf_revision=model_config.hf_revision,
+        ocr_dir=effective_ocr_dir,
+        # run_single_step has no resume concept of its own (every call reruns
+        # its one named step); pinned to False so the field is always present
+        # rather than only when run_pipeline --resume happened to write it last.
+        resume=False,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
+        hostname=urlparse(effective_api_base).hostname,
+    )
     print(f"\nDone.")
 
 

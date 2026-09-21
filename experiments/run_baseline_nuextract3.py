@@ -145,6 +145,8 @@ def run_baseline_nuextract3(
         hf_revision=model_config.hf_revision,
         baseline="nuextract3",
         gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
         # Surfaces issue #2's fix (ISSUE-nuextract-baseline.md): a dropped call
         # or an overflowing document is no longer indistinguishable from a
         # genuine negative -- see MeasurementLMNuExtract3's module docstring.

@@ -235,15 +235,27 @@ def run_ablation(
     with open(out_path, "w") as f:
         json.dump(dataset, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
 
+    # Ablation 1 doesn't wrap fit() in _timed_step (single direct-extraction
+    # call, nothing to break down -- same as run_direct); mlm.step_seconds
+    # stays {} there, so step_seconds is left as None rather than written as
+    # a misleading all-zero total_step_seconds.
+    step_seconds = (
+        {name: {"ran": True, "seconds": seconds} for name, seconds in mlm.step_seconds.items()}
+        if mlm.step_seconds else None
+    )
+
     write_run_metadata(
         output_dir,
         start_time=start_time,
+        step_seconds=step_seconds,
         dataset=dataset_config.name,
         model=model_config.name,
         model_id=model_config.model_id,
         hf_revision=model_config.hf_revision,
         ablation=ablation,
         gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
     )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")

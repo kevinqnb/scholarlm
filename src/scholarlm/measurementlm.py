@@ -1,5 +1,7 @@
 import asyncio
+import contextlib
 import json
+import time
 from typing import Any, Callable
 from pydantic import BaseModel
 import numpy as np
@@ -206,6 +208,13 @@ class BatchLLMBase:
         self.max_concurrent = max_concurrent
         self.use_extra_body = use_extra_body
         self.max_prompt_tokens: int = 0
+        self.token_usage: dict[str, int] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+        }
+        self.step_seconds: dict[str, float] = {}
         self.context_length_exceeded_docs: set[int] = set()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
@@ -275,18 +284,26 @@ class BatchLLMBase:
             response = await self.async_client.chat.completions.create(
                 **kwargs, timeout=timeout
             )
-            if response.usage is not None and response.usage.prompt_tokens:
-                if response.usage.prompt_tokens > self.max_prompt_tokens:
-                    self.max_prompt_tokens = response.usage.prompt_tokens
+            self.token_usage["successful_calls"] += 1
+            if response.usage is not None:
+                if response.usage.prompt_tokens:
+                    self.token_usage["prompt_tokens"] += response.usage.prompt_tokens
+                    if response.usage.prompt_tokens > self.max_prompt_tokens:
+                        self.max_prompt_tokens = response.usage.prompt_tokens
+                if response.usage.completion_tokens:
+                    self.token_usage["completion_tokens"] += response.usage.completion_tokens
             return response.choices[0].message.content
         except BadRequestError as e:
             message = e.body.get("message", "") if isinstance(e.body, dict) else str(e)
             if _CONTEXT_LENGTH_MESSAGE_RE.search(message):
+                self.token_usage["failed_calls"] += 1
                 raise ContextLengthExceededError(message) from e
             print(f"API call failed: {e}")
+            self.token_usage["failed_calls"] += 1
             return ""
         except Exception as e:
             print(f"API call failed: {e}")
+            self.token_usage["failed_calls"] += 1
             return ""
 
     def _call_batch(
@@ -1779,6 +1796,18 @@ class MeasurementLM(BatchLLMBase):
     # Full pipeline
     # -----------------------------------------------------------------------
 
+    @contextlib.contextmanager
+    def _timed_step(self, name: str):
+        """Records elapsed wall-clock time for one fit() step into
+        self.step_seconds[name]. Shared by the base pipeline and by any
+        ablation subclass's own fit() override, so step names stay comparable
+        across ablations that keep a step vs. merge/replace it."""
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            self.step_seconds[name] = round(time.time() - t0, 1)
+
     def fit(
         self,
         documents: list[str],
@@ -1796,6 +1825,17 @@ class MeasurementLM(BatchLLMBase):
         directory as ``documents``' source (``params.ocr_dir`` at the
         experiment-config layer).
 
+        Per-step wall-clock time is recorded into ``self.step_seconds`` (pipeline
+        mode only -- direct mode is a single call, nothing to break down) under
+        keys ``entities``, ``entity_prov``, ``attributes``, ``attribute_prov``,
+        ``events``, ``values_text``, ``values_tables``, ``final`` (standardize +
+        parse + deduplicate combined). ``values_text``/``values_tables`` are kept
+        separate (rather than one combined ``values`` key) because ablation 5
+        changes table extraction only and ablation 4 changes both but
+        differently -- a combined number would blend a changed step with an
+        unchanged one. Summing them reproduces run_extraction.py's single
+        ``values`` checkpoint, so the two remain comparable at that level.
+
         Args:
             documents: OCR text strings, one per document.
         Returns:
@@ -1805,6 +1845,7 @@ class MeasurementLM(BatchLLMBase):
         # carry forward document indices from the previous batch (those indices are
         # positions within *this* batch's documents list, not stable document ids).
         self.context_length_exceeded_docs = set()
+        self.step_seconds = {}
 
         self.data = []
         for i, doc in enumerate(documents):
@@ -1820,47 +1861,49 @@ class MeasurementLM(BatchLLMBase):
         doc_data = list(self.data)
 
         # Step 1: Entity extraction
-        entity_data = self._extract_entities()
+        with self._timed_step("entities"):
+            entity_data = self._extract_entities()
 
         # Step 2: Entity provenance
-        entity_prov = self._entity_provenance(entity_data)
+        with self._timed_step("entity_prov"):
+            entity_prov = self._entity_provenance(entity_data)
 
         # Step 3: Document-level attribute detection
         self.data = doc_data
-        doc_attributes = self._detect_attributes()
+        with self._timed_step("attributes"):
+            doc_attributes = self._detect_attributes()
 
         # Step 4: Attribute provenance
-        attr_prov = self._attribute_provenance(doc_attributes)
+        with self._timed_step("attribute_prov"):
+            attr_prov = self._attribute_provenance(doc_attributes)
 
         # Step 4.5: Measurement event resolution (optional)
-        if self.measurement_event_schema is not None:
-            event_resolution = self._resolve_events(
-                entity_data, doc_attributes, entity_prov, attr_prov
+        with self._timed_step("events"):
+            if self.measurement_event_schema is not None:
+                event_resolution = self._resolve_events(
+                    entity_data, doc_attributes, entity_prov, attr_prov
+                )
+            else:
+                event_resolution = None
+
+        # Steps 5+6: Extract values from text and tables (provenance intersection)
+        with self._timed_step("values_text"):
+            text_values = self._extract_values_from_text(
+                entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
             )
-        else:
-            event_resolution = None
-
-        # Step 5: Extract values from text (provenance intersection)
-        text_values = self._extract_values_from_text(
-            entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
-
-        # Step 6: Extract values from tables (provenance intersection)
-        table_values = self._extract_values_from_tables(
-            entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
+        with self._timed_step("values_tables"):
+            table_values = self._extract_values_from_tables(
+                entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
+            )
 
         # Combine text and table extractions
         self.data = text_values + table_values
 
-        # Step 7: Standardize
-        self.data = self._standardize()
-
-        # Step 7.5: Parse quantities
-        self.data = self._parse_quantities()
-
-        # Step 8: Deduplicate
-        self.data = self._deduplicate(self.data)
+        # Steps 7+7.5+8: Standardize, parse quantities, deduplicate
+        with self._timed_step("final"):
+            self.data = self._standardize()
+            self.data = self._parse_quantities()
+            self.data = self._deduplicate(self.data)
 
         return self.data
 

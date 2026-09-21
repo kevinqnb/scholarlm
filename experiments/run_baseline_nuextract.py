@@ -154,6 +154,8 @@ def run_baseline_nuextract(
         hf_revision=model_config.hf_revision,
         baseline="nuextract",
         gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
     )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")

@@ -158,6 +158,10 @@ def run_baseline_langextract(
         use_schema_constraints=use_schema_constraints,
         fence_output=fence_output,
         gpu_compatibility_warnings=gpu_warnings,
+        # lx.extract() manages its own HTTP calls, bypassing _acall/_call_batch
+        # entirely (see module docstring) -- token_usage would be all-zero,
+        # indistinguishable from "forgot to record", so it's marked n/a instead.
+        token_accounting="n/a: langextract manages its own HTTP calls",
     )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")

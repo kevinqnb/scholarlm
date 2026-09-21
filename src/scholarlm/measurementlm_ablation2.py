@@ -332,21 +332,28 @@ class MeasurementLMAblation2(MeasurementLM):
           Step 3: Event resolution (optional)
           Step 4: Extract values from text
           Step 5: Extract values from tables
-          Step 6: Standardize
-          Step 7: Deduplicate
+          Step 6+6.5+7: Standardize, parse quantities, deduplicate
 
         After pair provenance, pair_prov is adapted into the (entity_prov,
         attr_prov, doc_attributes) format expected by the extraction methods.
+
+        Per-step timing lands in self.step_seconds under entity_attribute_pairs,
+        pair_provenance, events, values_text, values_tables, final -- there's no
+        separate entities/attributes/entity_prov/attribute_prov keys here since
+        this ablation merges exactly those steps (that's the point of it).
         """
         self.data = []
+        self.step_seconds = {}
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})
 
         # Step 1: Extract (entity, attribute) pairs
-        pair_data = self._extract_entity_attribute_pairs()
+        with self._timed_step("entity_attribute_pairs"):
+            pair_data = self._extract_entity_attribute_pairs()
 
         # Step 2: Combined (entity, attribute) pair provenance
-        pair_prov = self._entity_attribute_provenance(pair_data)
+        with self._timed_step("pair_provenance"):
+            pair_prov = self._entity_attribute_provenance(pair_data)
 
         # Adapt pair_prov to the (entity_prov, attr_prov, doc_attributes) interface
         # expected by the unchanged _extract_values_from_text / _extract_values_from_tables.
@@ -372,32 +379,30 @@ class MeasurementLMAblation2(MeasurementLM):
                 attr_prov.setdefault(attr_key, []).append(entry)
 
         # Step 3: Event resolution (optional)
-        if self.measurement_event_schema is not None:
-            event_resolution = self._resolve_events(
-                pair_data, doc_attributes, entity_prov, attr_prov
+        with self._timed_step("events"):
+            if self.measurement_event_schema is not None:
+                event_resolution = self._resolve_events(
+                    pair_data, doc_attributes, entity_prov, attr_prov
+                )
+            else:
+                event_resolution = None
+
+        # Steps 4+5: Extract values from text and tables (identical to baseline)
+        with self._timed_step("values_text"):
+            text_values = self._extract_values_from_text(
+                pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
             )
-        else:
-            event_resolution = None
-
-        # Step 4: Extract values from text (identical to baseline)
-        text_values = self._extract_values_from_text(
-            pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
-
-        # Step 5: Extract values from tables (identical to baseline)
-        table_values = self._extract_values_from_tables(
-            pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
+        with self._timed_step("values_tables"):
+            table_values = self._extract_values_from_tables(
+                pair_data, doc_attributes, entity_prov, attr_prov, event_resolution
+            )
 
         self.data = text_values + table_values
 
-        # Step 6: Standardize
-        self.data = self._standardize()
-
-        # Step 6.5: Parse quantities
-        self.data = self._parse_quantities()
-
-        # Step 7: Deduplicate
-        self.data = self._deduplicate(self.data)
+        # Steps 6+6.5+7: Standardize, parse quantities, deduplicate
+        with self._timed_step("final"):
+            self.data = self._standardize()
+            self.data = self._parse_quantities()
+            self.data = self._deduplicate(self.data)
 
         return self.data

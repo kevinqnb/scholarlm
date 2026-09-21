@@ -160,6 +160,8 @@ def run_baseline_chatextract(
         extract_tables=extract_tables,
         include_single_verification=include_single_verification,
         gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
         n_failed_work_items=len(mlm.failures),
         failed_work_items=mlm.failures,
     )

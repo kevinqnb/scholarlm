@@ -137,6 +137,10 @@ def run_baseline_gliner(
         baseline="gliner",
         threshold=threshold,
         batch_size=batch_size,
+        # GLiNER2.from_pretrained is a local model, no OpenAI-compatible calls
+        # (see module docstring) -- token_usage would be all-zero, indistinguishable
+        # from "forgot to record", so it's marked n/a rather than omitted.
+        token_accounting="n/a: local GLiNER2, no API calls",
         gpu_compatibility_warnings=gpu_warnings,
     )
     print(f"\nDone. Final dataset: {out_path}")
