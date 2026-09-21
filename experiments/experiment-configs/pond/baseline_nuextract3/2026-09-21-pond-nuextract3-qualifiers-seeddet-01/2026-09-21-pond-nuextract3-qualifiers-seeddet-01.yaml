@@ -1,0 +1,26 @@
+id: 2026-09-21-pond-nuextract3-qualifiers-seeddet-01
+project: scholarlm
+description: >
+  Seed-determinism sanity control for the NuExtract3 baseline (CLAUDE.md's
+  sanity-controls list). Paired with sibling config
+  2026-09-21-pond-nuextract3-qualifiers-seeddet-02: same seed (342), same
+  params, same code, same input (trophic_status_and_threats.txt), both run
+  today. NOT compared against the original
+  2026-09-20-pond-nuextract3-qualifiers-tinye2e-01 -- commits 533d684
+  (schema/field changes touching measurementlm_nuextract3.py, +29/-7 lines
+  net) and d40846c (table-cleaning removed from the shared MeasurementLM
+  base) landed after that round and would confound a diff against that
+  stale output. Chose NuExtract3 over NuExtract-2.0-8B per the standing
+  preference recorded 2026-09-20 (nuextract3-preferred-baseline).
+  Hypothesis (verbatim): "results will be 90-95% similar, but there may be
+  some room for noise/randomness given the nature of the models we are
+  running." Comparison: this run's final.json diffed record-for-record
+  against seeddet-02's. nuextract3.yaml's own sampling_params already pin
+  temperature=0.2 and seed=342 as fixed repo-wide model defaults (not
+  overridden here) -- same fixed-seed-doesn't-guarantee-exact-match caveat
+  as the gemma-3-27b methods.
+seed: 342
+params:
+  dataset: pond
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:30:00"

@@ -1,0 +1,16 @@
+id: 2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02
+project: scholarlm
+description: >
+  Second half of the seed-determinism pair for MeasurementLM v1's base
+  pipeline -- see 2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-01
+  for the full rationale (identical params/seed/code, run today; not
+  compared against the stale 2026-09-20 tinye2e outputs since intervening
+  commits 533d684/d40846c/bda4bee touch this path). Comparison: this run's
+  final.json diffed record-for-record against seeddet-01's.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

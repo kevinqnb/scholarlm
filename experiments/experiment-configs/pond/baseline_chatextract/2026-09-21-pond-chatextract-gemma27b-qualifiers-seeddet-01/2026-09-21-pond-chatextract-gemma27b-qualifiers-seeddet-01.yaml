@@ -1,0 +1,24 @@
+id: 2026-09-21-pond-chatextract-gemma27b-qualifiers-seeddet-01
+project: scholarlm
+description: >
+  Seed-determinism sanity control for the ChatExtract baseline (CLAUDE.md's
+  sanity-controls list). Paired with sibling config
+  2026-09-21-pond-chatextract-gemma27b-qualifiers-seeddet-02: same seed
+  (342), same params, same code, same input (trophic_status_and_threats.txt),
+  both run today. NOT compared against the original
+  2026-09-20-pond-chatextract-gemma27b-qualifiers-tinye2e-01 -- see the
+  MeasurementLM v1 sibling seeddet config for the three intervening commits
+  (533d684, d40846c, bda4bee) that touch measurementlm_chatextract.py's
+  shared MeasurementLM base and would confound a diff against that stale
+  output. Hypothesis (verbatim): "results will be 90-95% similar, but there
+  may be some room for noise/randomness given the nature of the models we
+  are running." Comparison: this run's final.json diffed record-for-record
+  against seeddet-02's. Same gemma-3-27b sampling caveat as the
+  MeasurementLM/LangExtract seeddet configs.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  extract_tables: true
+  walltime: "01:00:00"

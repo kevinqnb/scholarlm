@@ -1,0 +1,31 @@
+id: 2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-01
+project: scholarlm
+description: >
+  Seed-determinism sanity control for MeasurementLM v1's base pipeline
+  (CLAUDE.md's sanity-controls list). Paired with sibling config
+  2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02: same seed (342),
+  same params, same code, same input (trophic_status_and_threats.txt via
+  ocr_dir), both run today. NOT compared against the original
+  2026-09-20-pond-extraction-gemma27b-qualifiers-tinye2e-02 -- three commits
+  landed after that round finished and touch this exact path: 533d684
+  (renamed/dropped pond.py schema fields, e.g. dropped `location`,
+  `additional_details`->`event_details`), d40846c (315-line removal of
+  clean_tables/_clean_tables from measurementlm.py, table cleaning now a
+  separate TableCleaner), and bda4bee (per-step timing/token-accounting
+  changes to run_extraction.py/measurementlm.py's _acall). Diffing against
+  -02's stale final.json would confound real schema/pipeline changes with
+  sampling noise -- a same-code pair run today is the only valid comparison.
+  Hypothesis (verbatim): "results will be 90-95% similar, but there may be
+  some room for noise/randomness given the nature of the models we are
+  running." Comparison: this run's final.json diffed record-for-record
+  against seeddet-02's. gemma-3-27b's sampling_params (temperature=0.6,
+  seed=342) fix the sampling seed, but vLLM continuous-batching/AWQ-marlin
+  kernel nondeterminism is a known real source of run-to-run float noise even
+  under a fixed seed -- exact match is not guaranteed by construction here.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

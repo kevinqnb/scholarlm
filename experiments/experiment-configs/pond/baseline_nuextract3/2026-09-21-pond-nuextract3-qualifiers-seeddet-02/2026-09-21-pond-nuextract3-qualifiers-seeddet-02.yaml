@@ -1,0 +1,15 @@
+id: 2026-09-21-pond-nuextract3-qualifiers-seeddet-02
+project: scholarlm
+description: >
+  Second half of the seed-determinism pair for the NuExtract3 baseline --
+  see 2026-09-21-pond-nuextract3-qualifiers-seeddet-01 for the full
+  rationale (identical params/seed/code, run today; not compared against the
+  stale 2026-09-20 tinye2e output since intervening commits
+  533d684/d40846c touch measurementlm_nuextract3.py and its shared
+  MeasurementLM base). Comparison: this run's final.json diffed
+  record-for-record against seeddet-01's.
+seed: 342
+params:
+  dataset: pond
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:30:00"
