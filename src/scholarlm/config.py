@@ -151,6 +151,18 @@ class DatasetConfig:
             prompts (typically ``direct_extraction_prompt``'s per-field bullets)
             rather than freshly authored, so GLiNER sees the same wording the
             real pipeline already uses. Ignored by every other pipeline path.
+        baseline_filter_fields: Optional list of field names to omit from the
+            NuExtract-2.0-8B and NuExtract3 baselines' decoding schema, prompt
+            template, and few-shot examples (``MeasurementLMNuExtract`` /
+            ``MeasurementLMNuExtract3``) — never fed into ``direct_extraction_schema``
+            itself, so it can't change what Ablation 1 (which shares that same
+            schema) asks for. Use this for a field that the real pipeline and its
+            ablations should keep extracting but that a baseline method has no
+            business reproducing (e.g. ``identifiers``, an alias-resolution aid
+            for the real pipeline's entity matching — GLiNER already excludes it
+            structurally via ``gliner_field_descriptions``, and ChatExtract's flat
+            schema never included it, so this is currently only load-bearing for
+            the two NuExtract baselines). ``None`` applies no filtering.
         has_tables: Whether this dataset's OCR text ever contains tables.
             ``run_extraction.py``'s pipeline and direct-extraction modes
             default to cleaning tables automatically (``clean_tables=True``)
@@ -193,6 +205,7 @@ class DatasetConfig:
     gliner_property_names: dict[str, str] | None = None
     gliner_entity_description: str | None = None
     gliner_field_descriptions: dict[str, str] | None = None
+    baseline_filter_fields: list[str] | None = None
     has_tables: bool = True
 
 

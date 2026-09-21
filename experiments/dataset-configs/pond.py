@@ -26,8 +26,20 @@ class EntitySchema(BaseModel):
 
     name: str | None
     identifiers: str | None
-    location: str | None
     ecosystem: str | None
+    # ``location`` was removed 2026-09-20: it was never shown to the judge
+    # (judge_filter_fields already dropped it) and location is often not
+    # explicit in the text anyway. NOTE: it was also one of pond's 3 fuzzy
+    # recovery-matching fields (analysis/ablation.py's get_matching_rules) --
+    # that matching code is NOT updated here (out of scope for this pass; a
+    # larger matching-algorithm update is planned separately). Until that
+    # lands, pond recovery-rate computation will KeyError on the missing
+    # `location` column.
+    # ``identifiers`` is extracted by the real pipeline and its ablations only
+    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
+    # baselines; GLiNER already excludes it structurally (never listed in
+    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
 # This is a general prompt template for which we input 
@@ -48,7 +60,6 @@ Response schema:
 For each distinct ecosystem, output one item with the following fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- location: the general geographic location of the ecosystem (e.g. "central Wisconsin", "Ontario, Canada"), if explicitly stated.
 - ecosystem: the ecosystem type (e.g. "pond", "lake", "wetland", "other").
 
 
@@ -61,7 +72,6 @@ Strict rules about missing information:
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
 - Do NOT infer the ecosystem type from the entity name.
-- Do NOT infer coordinates from general geographic descriptions.
 
 
 Extraction procedure:
@@ -81,7 +91,6 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "location": "...",
       "ecosystem": "..."
     }
   ]
@@ -160,26 +169,6 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
     },
 }
 
-# Not currently in use
-other_attributes = {
-    "latitude": {
-        "description": (
-            "Geographic latitude of the ecosystem location, expressed in a standard geographic "
-            "coordinate system (e.g., WGS84). This should refer to the centroid or stated reference "
-            "point of the ecosystem, not a bounding box or region."
-        ),
-        "units": ["degrees", "radians"],
-    },
-    "longitude": {
-        "description": (
-            "Geographic longitude of the ecosystem location, expressed in a standard geographic "
-            "coordinate system (e.g., WGS84). This should refer to the centroid or stated reference "
-            "point of the ecosystem, not a bounding box or region."
-        ),
-        "units": ["degrees", "radians"],
-    },
-}
-
 
 # ---------------------------------------------------------------------------
 # Measurement Schema
@@ -189,7 +178,7 @@ class MeasurementEventSchema(BaseModel):
     """Event-level fields that distinguish individual measurements within a pond ecosystem."""
 
     date: str | None
-    additional_details: str | None
+    event_details: str | None
 
 _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
 - date: The date the measurement was taken. Use one of the following formats depending on available precision:
@@ -198,7 +187,7 @@ _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
   - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
   - Year only: "yyyy"
   Set to None if no date is stated on this page.
-- additional_details: Any other distinguishing context not captured by date — for example, treatment site or sub-site (e.g., "inlet zone", "P1"), treatment state (e.g., "restored", "control", "fertilized"), or other sampling conditions. Keep this to one sentence or fewer. Set to None if not applicable.
+- event_details: A catch-all for any other distinguishing context not captured by date, whatever form it takes — for example, sample or sensor depth (e.g., "0-10 cm", "1 m below surface"), treatment site or sub-site (e.g., "inlet zone", "P1"), treatment state (e.g., "restored", "control", "fertilized"), or other sampling conditions. The goal is that two measurements of the same attribute for the same ecosystem that are genuinely distinct (different depth, site, or treatment) end up with different event_details, while two reports of the literal same measurement do not. Keep this to one sentence or fewer. Set to None if not applicable.
 """
 
 
@@ -216,11 +205,10 @@ class DirectExtractionItemSchema(BaseModel):
     # Entity fields
     name: str | None
     identifiers: str | None
-    location: str | None
     ecosystem: str | None
     # Event fields
     date: str | None
-    additional_details: str | None
+    event_details: str | None
     # Measurement fields
     attribute: str
     value: str | None
@@ -242,7 +230,6 @@ Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar wat
 Entity fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- location: the general geographic location of the ecosystem, if explicitly stated.
 - ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
 
 Entity identification rules:
@@ -254,7 +241,7 @@ Entity identification rules:
 Measurement event fields:
 For each ecosystem and each detected attribute measurement, also identify the measurement event context:
 - date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
-- additional_details: Any other distinguishing context not captured by date (e.g., treatment site, treatment state, sampling conditions). One sentence or fewer. Set to None if not applicable.
+- event_details: A catch-all for any other distinguishing context not captured by date — for example, sample or sensor depth, treatment site, treatment state, or sampling conditions. Two genuinely distinct measurements should end up with different event_details. One sentence or fewer. Set to None if not applicable.
 
 
 Attributes to extract:
@@ -278,10 +265,9 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "location": "...",
       "ecosystem": "...",
       "date": "...",
-      "additional_details": "...",
+      "event_details": "...",
       "attribute": "...",
       "value": "...",
       "units": "...",
@@ -315,7 +301,9 @@ other_things = """
 # verbatim-string fields are trained to copy spans rather than paraphrase.
 # Together the three examples touch all 7 pond attributes and all of
 # point_value, lower/upper, list_values, tolerance, and standard_deviation
-# at least once.
+# at least once. No `identifiers` key: see DatasetConfig.baseline_filter_fields
+# below -- these examples are baseline-only, so they never show the field a
+# baseline shouldn't reproduce.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -335,30 +323,30 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Beaver Pond", "identifiers": "BP-1",
-                "location": "central Wisconsin, USA", "ecosystem": "pond",
-                "date": "June 2019", "additional_details": None,
+                "name": "Beaver Pond",
+                "ecosystem": "pond",
+                "date": "June 2019", "event_details": None,
                 "attribute": "surface_area", "value": "2.3", "units": "ha",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "2.3"}),
             },
             {
-                "name": "Beaver Pond", "identifiers": "BP-1",
-                "location": "central Wisconsin, USA", "ecosystem": "pond",
-                "date": "June 2019", "additional_details": None,
+                "name": "Beaver Pond",
+                "ecosystem": "pond",
+                "date": "June 2019", "event_details": None,
                 "attribute": "max_depth", "value": "1.8", "units": "m",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "1.8"}),
             },
             {
-                "name": "Beaver Pond", "identifiers": "BP-1",
-                "location": "central Wisconsin, USA", "ecosystem": "pond",
-                "date": "June 2019", "additional_details": None,
+                "name": "Beaver Pond",
+                "ecosystem": "pond",
+                "date": "June 2019", "event_details": None,
                 "attribute": "ph", "value": "6.9", "units": None,
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "6.9"}),
             },
             {
-                "name": "Beaver Pond", "identifiers": "BP-1",
-                "location": "central Wisconsin, USA", "ecosystem": "pond",
-                "date": "June 2019", "additional_details": None,
+                "name": "Beaver Pond",
+                "ecosystem": "pond",
+                "date": "June 2019", "event_details": None,
                 "attribute": "chla", "value": "12.4", "units": "µg/L",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "12.4"}),
             },
@@ -387,25 +375,25 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
-                "location": "coastal Louisiana", "ecosystem": "wetland",
-                "date": "Spring 2021", "additional_details": "inlet zone",
+                "name": "Marsh Creek Wetland",
+                "ecosystem": "wetland",
+                "date": "Spring 2021", "event_details": "inlet zone",
                 "attribute": "vegetation_cover", "value": "45", "units": "percent",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsApproximate"], "point_value": "45",
                 }),
             },
             {
-                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
-                "location": "coastal Louisiana", "ecosystem": "wetland",
-                "date": "Spring 2021", "additional_details": "inlet zone",
+                "name": "Marsh Creek Wetland",
+                "ecosystem": "wetland",
+                "date": "Spring 2021", "event_details": "inlet zone",
                 "attribute": "tn", "value": "850", "units": "µg/L",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "850"}),
             },
             {
-                "name": "Marsh Creek Wetland", "identifiers": "MCW; Site 4",
-                "location": "coastal Louisiana", "ecosystem": "wetland",
-                "date": "Spring 2021", "additional_details": "inlet zone",
+                "name": "Marsh Creek Wetland",
+                "ecosystem": "wetland",
+                "date": "Spring 2021", "event_details": "inlet zone",
                 "attribute": "tp", "value": "55 to 70", "units": "µg/L",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsRange"], "lower": "55", "upper": "70",
@@ -428,27 +416,27 @@ _NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Crescent Lake", "identifiers": "CL-9",
-                "location": "northern Minnesota", "ecosystem": "lake",
-                "date": "summer 2021", "additional_details": None,
+                "name": "Crescent Lake",
+                "ecosystem": "lake",
+                "date": "summer 2021", "event_details": None,
                 "attribute": "chla", "value": "8.2, 10.5, and 14.1", "units": "µg/L",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsList"], "list_values": ["8.2", "10.5", "14.1"],
                 }),
             },
             {
-                "name": "Crescent Lake", "identifiers": "CL-9",
-                "location": "northern Minnesota", "ecosystem": "lake",
-                "date": "summer 2021", "additional_details": None,
+                "name": "Crescent Lake",
+                "ecosystem": "lake",
+                "date": "summer 2021", "event_details": None,
                 "attribute": "max_depth", "value": "1.9 ± 0.1", "units": "m",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["HasTolerance"], "point_value": "1.9", "tolerance": "± 0.1",
                 }),
             },
             {
-                "name": "Crescent Lake", "identifiers": "CL-9",
-                "location": "northern Minnesota", "ecosystem": "lake",
-                "date": "summer 2021", "additional_details": None,
+                "name": "Crescent Lake",
+                "ecosystem": "lake",
+                "date": "summer 2021", "event_details": None,
                 "attribute": "ph", "value": "7.4 (SD 0.3)", "units": None,
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsMean", "HasSD"], "point_value": "7.4", "standard_deviation": "0.3",
@@ -475,7 +463,6 @@ class Ablation2ObservationSchema(BaseModel):
     # Entity fields (same as ObservationSchema)
     name: str | None
     identifiers: str | None
-    location: str | None
     ecosystem: str | None
     # Reserved fields required by Ablation 2
     attribute: str
@@ -493,7 +480,6 @@ Response schema:
 For each (ecosystem, attribute) pair, output one item with the following fields:
 - name: the name of the ecosystem. If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- location: the general geographic location of the ecosystem, if explicitly stated.
 - ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
 - attribute: the exact attribute name from the list below.
 - attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
@@ -524,7 +510,6 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "location": "...",
       "ecosystem": "...",
       "attribute": "...",
       "attribute_terms": [...]
@@ -608,16 +593,16 @@ _CHATEXTRACT_ENTITY_NOUN = "water body"
 # ---------------------------------------------------------------------------
 
 _GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
-    "location": "the general geographic location of the ecosystem, if explicitly stated.",
     "ecosystem": 'the ecosystem type ("pond", "lake", "wetland", or "other").',
     "date": (
         'The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", '
         '"Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.'
     ),
-    "additional_details": (
-        "Any other distinguishing context not captured by date (e.g., treatment "
-        "site, treatment state, sampling conditions). One sentence or fewer. "
-        "Set to None if not applicable."
+    "event_details": (
+        "A catch-all for any other distinguishing context not captured by date "
+        "(e.g., sample or sensor depth, treatment site, treatment state, "
+        "sampling conditions). One sentence or fewer. Set to None if not "
+        "applicable."
     ),
 }
 
@@ -640,6 +625,10 @@ CONFIG = DatasetConfig(
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
+    # identifiers is extracted by the real pipeline and its ablations only --
+    # see EntitySchema's comment above; excluded here from the NuExtract
+    # baselines specifically (GLiNER/ChatExtract already never see it).
+    baseline_filter_fields=["identifiers"],
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,
@@ -647,10 +636,12 @@ CONFIG = DatasetConfig(
     paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    # Judge sees only: name, ecosystem, date, additional_details (+ attribute, value, units).
-    # identifiers and location are dropped — location is often not explicit in the text and
-    # ambiguous; identifiers is an alias-resolution aid, not something to judge on.
-    judge_filter_fields=["identifiers", "location"],
+    # Judge sees only: name, ecosystem, date (+ attribute, value, units).
+    # identifiers is an alias-resolution aid, not something to judge on;
+    # event_details is a catch-all for distinguishing measurements from each
+    # other, not the main extraction interest, so it's kept out of the judge
+    # prompt too.
+    judge_filter_fields=["identifiers", "event_details"],
     ground_truth_file="data/pond/ground_truth_review.json",
     # Note: these unit conversions are not currently in use, since the ground truth file has 
     # been converted back to original units.

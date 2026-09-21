@@ -26,11 +26,17 @@ class EntitySchema(BaseModel):
 
     name: str | None
     identifiers: str | None
-    site_type: str | None
-    location: str | None
+    ecosystem_type: str | None
+    # ``location`` was removed 2026-09-20: it was never shown to the judge and
+    # location is often not explicit in the text anyway.
+    # ``identifiers`` is extracted by the real pipeline and its ablations only
+    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
+    # baselines; GLiNER already excludes it structurally (never listed in
+    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
-# This is a general prompt template for which we input 
+# This is a general prompt template for which we input
 # entity instructions, type, and extraction fields.
 # It's used as the first step of the pipeline for entity identification. 
 ENTITY_IDENTIFICATION_PROMPT = """You are an expert in identifying and extracting information from scientific literature. Given the provided text (including any tables), extract identifying information for unique dinitrogen fixation measurement sites.
@@ -42,8 +48,7 @@ Response schema:
 Site identifying information includes the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
-- location: the general geographic location of the site.
+- ecosystem_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
 
 
 Identification rules:
@@ -54,7 +59,7 @@ Strict rules about missing information:
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
-- Do NOT infer site_type from the entity name.
+- Do NOT infer ecosystem_type from the entity name.
 
 
 Extraction procedure:
@@ -74,8 +79,7 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
-      "location": "..."
+      "ecosystem_type": "..."
     }
   ]
 }
@@ -144,28 +148,6 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
 }
 
 
-other_attributes = {
-    "nfix_incubation_time": {
-        "description": (
-            "Duration of the experimental incubation for measuring dinitrogen fixation, "
-            "from introduction of the tracer or substrate analog to termination and sampling."
-        ),
-        "units": ["minutes", "hours", "days"],
-    },
-    "nfix_incubation_temperature": {
-        "description": (
-            "Temperature at which the sample was held during the dinitrogen fixation incubation. "
-            "Extract only if a specific numeric temperature is reported for the incubation itself. "
-            "Do not extract in situ water temperatures unless the text explicitly states they equal "
-            "the incubation temperature. If the text says only 'ambient temperature' or 'in situ "
-            "temperature' without a numeric value, set to None."
-        ),
-        "units": ["°C", "K"],
-    },
-}
-
-
-
 # ---------------------------------------------------------------------------
 # Measurement Schema
 # ---------------------------------------------------------------------------
@@ -175,10 +157,8 @@ class MeasurementEventSchema(BaseModel):
     """Event-level fields that distinguish individual dinitrogen fixation measurements."""
 
     date: str | None
-    nfix_method: str | None
     substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
+    event_details: str | None
 
 
 
@@ -189,10 +169,12 @@ _MEASUREMENT_EVENT_PROMPT = """Event fields:
   - Season and year: "Spring yyyy", "Summer yyyy", "Fall yyyy", or "Winter yyyy"
   - Year only: "yyyy"
   Set to None if no date is stated on this page.
-- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
-- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
-- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "bottom", "0-10 m"). Set to None if not stated.
-- additional_details: Any other distinguishing context not captured by the above fields (e.g., light vs. dark incubation, specific treatment condition). Keep this to one sentence or fewer. Set to None if not applicable.
+- substrate_type: The physical substrate the fixation was measured in or on — where the sample was taken from, NOT how the reported rate is normalized (mass/area/volume is a separate choice, captured by the attribute itself, not this field). Must be exactly one of these three values — do not report any other wording:
+  - "benthos": sediment, rock, microbial mat/biofilm, or other bottom/substrate material (e.g. "sediment cores were incubated", "microbial mats were sampled", "attached to cobble").
+  - "water column": water samples, filtered seawater, or suspended particulates/plankton not tied to a specific host organism (e.g. "water samples were collected at 5 m", "surface water was filtered").
+  - "other": fixation tied to a living plant, alga, or colonial organism rather than sediment or bulk water — e.g. seagrass or mangrove leaves/roots, marsh grass (Spartina) stems, macroalgae, epiphytes on a host surface, or a suspended colonial organism like Trichodesmium.
+  Set to None only if the substrate is genuinely not stated; otherwise always classify into one of the three values above.
+- event_details: A catch-all for any other distinguishing context not captured by date or substrate_type, whatever form it takes — for example, the dinitrogen-fixation measurement method (e.g., acetylene reduction assay, ARA, 15N2 incorporation), the sample depth (e.g., "surface", "0-5 cm", "bottom", "0-10 m"), light vs. dark incubation, or a specific treatment condition. The goal is that two measurements that are genuinely distinct (different method, depth, or condition) end up with different event_details, while two reports of the literal same measurement do not. Keep this to one sentence or fewer. Set to None if not applicable.
 """
 
 
@@ -210,14 +192,11 @@ class DirectExtractionItemSchema(BaseModel):
     # Entity fields
     name: str | None
     identifiers: str | None
-    site_type: str | None
-    location: str | None
+    ecosystem_type: str | None
     # Event fields
     date: str | None
-    nfix_method: str | None
     substrate_type: str | None
-    sample_depth: str | None
-    additional_details: str | None
+    event_details: str | None
     # Measurement fields
     attribute: str
     value: str | None
@@ -239,8 +218,7 @@ Extract all distinct dinitrogen fixation measurement sites mentioned in the docu
 Entity fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- location: the general geographic location of the site.
+- ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 
 Entity identification rules:
 - Treat sites as separate only if their geographic location clearly differs.
@@ -251,10 +229,12 @@ Entity identification rules:
 Measurement event fields:
 For each site and each detected attribute measurement, also identify the measurement event context:
 - date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
-- nfix_method: The method used to measure dinitrogen fixation (e.g., acetylene reduction assay, ARA, 15N2 incorporation). Set to None if not stated.
-- substrate_type: The substrate on which the measurement was taken (e.g., water column, benthos). Set to None if not stated.
-- sample_depth: The depth at which the sample was collected (e.g., "surface", "0-5 cm", "0-10 m"). Set to None if not stated.
-- additional_details: Any other distinguishing context not captured above (e.g., light vs. dark incubation, specific treatment condition). One sentence or fewer. Set to None if not applicable.
+- substrate_type: The physical substrate the fixation was measured in or on — where the sample was taken from, NOT how the reported rate is normalized (mass/area/volume is a separate choice, captured by the attribute itself, not this field). Must be exactly one of these three values — do not report any other wording:
+  - "benthos": sediment, rock, microbial mat/biofilm, or other bottom/substrate material.
+  - "water column": water samples, filtered seawater, or suspended particulates/plankton not tied to a specific host organism.
+  - "other": fixation tied to a living plant, alga, or colonial organism rather than sediment or bulk water — e.g. seagrass/mangrove leaves or roots, marsh grass (Spartina) stems, macroalgae, epiphytes, or a suspended colonial organism like Trichodesmium.
+  Set to None only if the substrate is genuinely not stated; otherwise always classify into one of the three values above.
+- event_details: A catch-all for any other distinguishing context not captured by date or substrate_type — for example, the dinitrogen-fixation measurement method (e.g., acetylene reduction assay, ARA, 15N2 incorporation), the sample depth (e.g., "surface", "0-5 cm", "0-10 m"), light vs. dark incubation, or a specific treatment condition. Two genuinely distinct measurements should end up with different event_details. One sentence or fewer. Set to None if not applicable.
 
 
 Attributes to extract:
@@ -274,13 +254,10 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
-      "location": "...",
+      "ecosystem_type": "...",
       "date": "...",
-      "nfix_method": "...",
       "substrate_type": "...",
-      "sample_depth": "...",
-      "additional_details": "...",
+      "event_details": "...",
       "attribute": "...",
       "value": "...",
       "units": "...",
@@ -327,20 +304,20 @@ _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Tampa Bay Seagrass Site", "identifiers": "TB-3",
-                "site_type": "seagrass meadow", "location": "Tampa Bay, Florida",
-                "date": "August 2018", "nfix_method": "acetylene reduction assay",
-                "substrate_type": "benthos", "sample_depth": "0-5 cm",
-                "additional_details": "light incubation",
+                "name": "Tampa Bay Seagrass Site",
+                "ecosystem_type": "seagrass meadow",
+                "date": "August 2018",
+                "substrate_type": "benthos",
+                "event_details": "acetylene reduction assay; 0-5 cm depth; light incubation",
                 "attribute": "nfix_rate_mass", "value": "4.2", "units": "nmol C2H4 g⁻¹ h⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "4.2"}),
             },
             {
-                "name": "Tampa Bay Seagrass Site", "identifiers": "TB-3",
-                "site_type": "seagrass meadow", "location": "Tampa Bay, Florida",
-                "date": "August 2018", "nfix_method": "acetylene reduction assay",
-                "substrate_type": "benthos", "sample_depth": "0-5 cm",
-                "additional_details": "light incubation",
+                "name": "Tampa Bay Seagrass Site",
+                "ecosystem_type": "seagrass meadow",
+                "date": "August 2018",
+                "substrate_type": "benthos",
+                "event_details": "acetylene reduction assay; 0-5 cm depth; light incubation",
                 "attribute": "nfix_rate_areal", "value": "120", "units": "µmol N m⁻² d⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "120"}),
             },
@@ -364,11 +341,11 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Chesapeake Bay Estuary Transect", "identifiers": "CBET",
-                "site_type": "estuary", "location": "Chesapeake Bay",
-                "date": "March 2020", "nfix_method": "15N2 incorporation",
-                "substrate_type": "water column", "sample_depth": "surface",
-                "additional_details": "dark conditions",
+                "name": "Chesapeake Bay Estuary Transect",
+                "ecosystem_type": "estuary",
+                "date": "March 2020",
+                "substrate_type": "water column",
+                "event_details": "15N2 incorporation; surface; dark conditions",
                 "attribute": "nfix_rate_volumetric", "value": "3.2 to 4.0", "units": "nmol N2 L⁻¹ h⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsRange"], "lower": "3.2", "upper": "4.0",
@@ -393,33 +370,33 @@ _NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Baltic Sea Transect", "identifiers": "BST",
-                "site_type": "estuary", "location": "Baltic Sea",
-                "date": "July 2019", "nfix_method": "acetylene reduction assay",
-                "substrate_type": "sediment", "sample_depth": "0-3 cm",
-                "additional_details": None,
+                "name": "Baltic Sea Transect",
+                "ecosystem_type": "estuary",
+                "date": "July 2019",
+                "substrate_type": "benthos",
+                "event_details": "acetylene reduction assay; 0-3 cm depth",
                 "attribute": "nfix_rate_mass", "value": "2.1, 2.8, and 3.4", "units": "nmol C2H4 g⁻¹ h⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsList"], "list_values": ["2.1", "2.8", "3.4"],
                 }),
             },
             {
-                "name": "Baltic Sea Transect", "identifiers": "BST",
-                "site_type": "estuary", "location": "Baltic Sea",
-                "date": "July 2019", "nfix_method": "acetylene reduction assay",
-                "substrate_type": "water column", "sample_depth": None,
-                "additional_details": "under light conditions",
+                "name": "Baltic Sea Transect",
+                "ecosystem_type": "estuary",
+                "date": "July 2019",
+                "substrate_type": "water column",
+                "event_details": "acetylene reduction assay; under light conditions",
                 "attribute": "nfix_rate_areal", "value": "95 ± 12", "units": "µmol N m⁻² d⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["HasTolerance"], "point_value": "95", "tolerance": "± 12",
                 }),
             },
             {
-                "name": "Baltic Sea Transect", "identifiers": "BST",
-                "site_type": "estuary", "location": "Baltic Sea",
-                "date": "July 2019", "nfix_method": "acetylene reduction assay",
-                "substrate_type": "water column", "sample_depth": "surface",
-                "additional_details": None,
+                "name": "Baltic Sea Transect",
+                "ecosystem_type": "estuary",
+                "date": "July 2019",
+                "substrate_type": "water column",
+                "event_details": "acetylene reduction assay; surface",
                 "attribute": "nfix_rate_volumetric", "value": "3.6 (SD 0.4)", "units": "nmol N2 L⁻¹ h⁻¹",
                 **(_NUEXTRACT_QUANTITY_DEFAULTS | {
                     "qualifiers": ["IsMean", "HasSD"], "point_value": "3.6", "standard_deviation": "0.4",
@@ -447,8 +424,7 @@ class Ablation2ObservationSchema(BaseModel):
     # Entity fields (same as ObservationSchema)
     name: str | None
     identifiers: str | None
-    site_type: str | None
-    location: str | None
+    ecosystem_type: str | None
     # Reserved fields required by Ablation 2
     attribute: str
     attribute_terms: list[str]
@@ -465,8 +441,7 @@ Response schema:
 For each (site, attribute) pair, output one item with the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
-- location: the general geographic location of the site.
+- ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 - attribute: the exact attribute name from the list below.
 - attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
 
@@ -492,8 +467,7 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
-      "location": "...",
+      "ecosystem_type": "...",
       "attribute": "...",
       "attribute_terms": [...]
     }
@@ -562,33 +536,39 @@ _CHATEXTRACT_ENTITY_NOUN = "site"
 # ---------------------------------------------------------------------------
 
 _GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
-    "site_type": (
+    "ecosystem_type": (
         "the type of site (e.g., continental shelf, estuary, lake, freshwater "
         "wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, "
         "cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer "
         "from the site name."
     ),
-    "location": "the general geographic location of the site.",
     "date": (
         'The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", '
         '"Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.'
     ),
-    "nfix_method": (
-        "The method used to measure dinitrogen fixation (e.g., acetylene "
-        "reduction assay, ARA, 15N2 incorporation). Set to None if not stated."
-    ),
     "substrate_type": (
-        "The substrate on which the measurement was taken (e.g., water column, "
-        "benthos). Set to None if not stated."
+        "The physical substrate the fixation was measured in or on — where the "
+        "sample was taken from, NOT how the reported rate is normalized "
+        "(mass/area/volume is a separate choice, captured by the attribute "
+        "itself, not this field). Must be exactly one of these three values — "
+        "do not report any other wording: \"benthos\" (sediment, rock, microbial "
+        "mat/biofilm, or other bottom/substrate material), \"water column\" "
+        "(water samples, filtered seawater, or suspended particulates/plankton "
+        "not tied to a specific host organism), or \"other\" (fixation tied to a "
+        "living plant, alga, or colonial organism rather than sediment or bulk "
+        "water — e.g. seagrass/mangrove leaves or roots, marsh grass stems, "
+        "macroalgae, epiphytes, or a suspended colonial organism like "
+        "Trichodesmium). Set to None only if the substrate is genuinely not "
+        "stated; otherwise always classify into one of the three values above."
     ),
-    "sample_depth": (
-        'The depth at which the sample was collected (e.g., "surface", "0-5 cm", '
-        '"0-10 m"). Set to None if not stated.'
-    ),
-    "additional_details": (
-        "Any other distinguishing context not captured above (e.g., light vs. "
-        "dark incubation, specific treatment condition). One sentence or fewer. "
-        "Set to None if not applicable."
+    "event_details": (
+        "A catch-all for any other distinguishing context not captured above — "
+        "including the dinitrogen-fixation measurement method (e.g., acetylene "
+        "reduction assay, ARA, 15N2 incorporation) and the sample depth (e.g., "
+        "\"surface\", \"0-5 cm\", \"0-10 m\"), plus anything else like light vs. "
+        "dark incubation or a specific treatment condition. Two genuinely "
+        "distinct measurements should end up with different event_details. One "
+        "sentence or fewer. Set to None if not applicable."
     ),
 }
 
@@ -612,6 +592,10 @@ CONFIG = DatasetConfig(
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
+    # identifiers is extracted by the real pipeline and its ablations only --
+    # see EntitySchema's comment above; excluded here from the NuExtract
+    # baselines specifically (GLiNER/ChatExtract already never see it).
+    baseline_filter_fields=["identifiers"],
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,
@@ -619,14 +603,15 @@ CONFIG = DatasetConfig(
     paper_exclude=_EXCLUDED_PAPERS,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    # Judge sees only: name, date, additional_details (+ attribute, value, units).
-    # location / nfix_method / substrate_type throw off the judgement (ground-truth
-    # formatting mismatch); identifiers, site_type and sample_depth are dropped too so
-    # the judge evaluates the minimal entity/event context.
-    judge_filter_fields=[
-        "identifiers", "site_type", "location",
-        "nfix_method", "substrate_type", "sample_depth",
-    ],
+    # Judge sees only: name, date, substrate_type (+ attribute, value, units).
+    # identifiers are dropped so the judge evaluates the
+    # minimal entity/event context; event_details is a catch-all for
+    # distinguishing measurements from each other, not the main extraction
+    # interest, so it's kept out of the judge prompt too. substrate_type is
+    # now shown deliberately (2026-09-20) -- it's an important axis for
+    # judging correctness; watch for the ground-truth-formatting-mismatch
+    # risk noted historically for this field if judge numbers look off.
+    judge_filter_fields=["identifiers", "event_details"],
     judge_instructions=JUDGE_INSTRUCTIONS,
     ground_truth_file="data/nfix/ground_truth_review.json",
 )

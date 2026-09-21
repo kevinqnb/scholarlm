@@ -115,6 +115,7 @@ def run_baseline_nuextract3(
         api_base=api_base,
         api_key=api_key,
         max_tokens=max_tokens,
+        baseline_filter_fields=dataset_config.baseline_filter_fields,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)

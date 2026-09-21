@@ -9,83 +9,48 @@ single abstract bucket, "measurement", used only as a coarse per-document gate
 ("does this document report any direct numerical measurement at all"), which
 every measeval paper trivially passes.
 
-Subject-first design (2026-09-20 revision)
--------------------------------------------
+Subject-first design
+---------------------
 The entity is a general-purpose SUBJECT: the sample, specimen, site, material,
 organism, structure, instrument, population, or similar concrete thing a
-measurement is made on or of. `EntitySchema` carries one field, `name`, same
-convention as pond/nfix/supermat. What was measured (`property`) and under
-what circumstances (`additional_details`) are resolved afterwards, per
-subject, on the measurement event -- a subject can have many distinct
-properties reported (age, mass, temperature, ...), so event resolution
-enumerates all of them rather than assuming exactly one. Value extraction then
-does real work: it searches the located page/table for the reported quantity
-matching a given (subject, property) event, splitting it into `value` and
-`units` -- the normal MeasurementLM value-extraction step, unmodified.
+measurement is made on or of (`EntitySchema`: `name` + `identifiers`, the same
+convention as pond/nfix/supermat). What was measured (`property`) and under
+what circumstances (`event_details`) are resolved afterwards, per subject, on
+the measurement event -- a subject can have many distinct properties reported
+(age, mass, temperature, ...), so event resolution enumerates all of them
+rather than assuming exactly one. Value extraction then searches the located
+page/table for the reported quantity matching a given (subject, property)
+event, splitting it into `value` and `units` -- the normal MeasurementLM
+value-extraction step, unmodified.
 
-This supersedes an earlier "quantity-first" design (entity = the quantity
-itself, subject/property resolved afterwards as event fields) adopted
-2026-09-19 after a 10-doc dev measurement showed enumerating (subject,
-property) pairs as entities lost 55 of the pipeline's ~92 gold rows to
-quantity coverage alone, with subject/property mismatches costing only ~1
-point once a quantity was found at all (gemma-3-27b,
-`data/experiments/measeval/extraction/gemma-3-27b/2026_08_01_ten/`). That
-measurement was against a design that entangled subject AND property into a
-single entity-identification step -- enumerating a full (subject, property)
-pair up front, before any number was found. This revision keeps the mitigation
-(the model no longer has to name a property to find a quantity: property is
-deferred to event resolution, per subject, after the subject is already
-grounded to specific pages) while dropping the quantity-first inversion, which
-users found unnatural: it asked the model to copy a verbatim quantity span at
-identification time and then re-derive the same value/units by searching for
-that already-known span again at the value-extraction step -- a redundant
-round trip that produced no benefit over just searching for the value once,
-scoped to a real subject, the way every other dataset in this repo already
-works.
+The entity field is `name` (not `subject`) and the attribute bucket's key is
+the literal string `"measurement"` (not e.g. "quantity") because both match
+`data/measeval/ground_truth.json`'s existing columns exactly: `name` holds
+the MeasuredEntity span, `property` the MeasuredProperty span (or None when a
+quantity attaches to its subject with no distinct property phrase, e.g.
+"5318 participants"), `value`/`units` the parsed Quantity, and `attribute`
+the constant "measurement". `analysis/ablation.py`'s `get_matching_rules`
+measeval branch (imported by `analysis/baselines.py` too) reads this directly:
+it fuzzy-matches `name` + `property` and strict-matches `document_id` +
+`attribute` + `value` + `units`. measeval uses no judge pipeline -- ground
+truth is matched directly (see data/measeval/README.md).
 
-Two config-level choices were deliberately kept unchanged from the
-quantity-first design rather than "cleaned up" alongside it, to avoid an
-unrelated ground-truth/eval-code change:
-  - The entity field is `name`, not `subject`, matching pond/nfix/supermat and
-    `data/measeval/ground_truth.json`'s existing `name` column. `analysis/
-    ablation.py`'s `get_matching_rules` measeval branch needs no change.
-  - The attribute bucket's key is still the literal string `"measurement"`,
-    matching the constant `attribute` value already baked into every row of
-    `data/measeval/ground_truth.json` (strict-matched, not fuzzy). Renaming it
-    to something like "quantity" would fail that strict match on every row
-    unless ground truth were regenerated too -- out of scope here.
+`DirectExtractionItemSchema` (used by Ablation 1 and the NuExtract3 baseline)
+mirrors pond's field ordering: entity fields, then event fields, then
+attribute/value/units. Every arm's raw output -- main pipeline, Ablation 1,
+NuExtract3, Ablation 2, GLiNER, ChatExtract -- carries the same `name` /
+`identifiers` / `property` / `event_details` / `attribute` / `value` / `units`
+columns, so `process_extraction_df` needs no measeval-specific branch.
 
-The ground truth schema (data/measeval/preprocessing.py) is unchanged by this
-revision: `name` holds the MeasuredEntity span, `property` the MeasuredProperty
-span (or None for the ~36% of rows where a quantity attaches to its subject
-with no distinct property phrase, e.g. "5318 participants"), `value`/`units`
-the parsed Quantity, and `attribute` the constant "measurement".
-
-The matching branch lives in analysis/ablation.py's `get_matching_rules`
-(imported by analysis/baselines.py too) -- NOT analysis/calibration.py, which
-is judge/probe-only and has no relevance here since measeval uses no judge
-pipeline (ground truth is matched directly; see data/measeval/README.md). It
-fuzzy-matches `name` + `property` and strict-matches `document_id` +
-`attribute` + `value` + `units`, unchanged by this revision.
-
-DirectExtractionItemSchema below (used by Ablation 1 and the NuExtract3
-baseline) mirrors pond's field ordering: entity fields, then event fields,
-then attribute/value/units. Every arm's raw output -- main pipeline,
-Ablation 1, NuExtract3, Ablation 2, GLiNER, ChatExtract -- carries the same
-`name` / `property` / `additional_details` / `attribute` / `value` / `units`
-columns; `process_extraction_df` needs no measeval-specific branch.
-
-NuExtract3 (text-based, unlike the vision-only NuExtract-2.0-8B baseline)
-needs nothing beyond what's already here: `run_baseline_nuextract3.py` reads
-`entity_schema`, `attribute_info_dict`, `direct_extraction_schema`,
+NuExtract3 needs nothing beyond what's already here: `run_baseline_nuextract3.py`
+reads `entity_schema`, `attribute_info_dict`, `direct_extraction_schema`,
 `direct_extraction_prompt`, and `nuextract_examples` straight off this config,
 same as every other dataset. Ablation 2 (combined entity-attribute detection)
 is a legitimate measurement here too, despite the single-bucket attribute
 space: it tests whether asking the model to name the (trivial, constant)
 attribute in the same step as the subject costs anything, versus the two-step
-baseline. `attribute_terms` will be empty on every item since
-`collect_attribute_terms=False`, so it measures step-combination overhead
-only, not term-collection quality.
+baseline; `attribute_terms` is always empty (`collect_attribute_terms=False`),
+so it measures step-combination overhead only, not term-collection quality.
 
 See data/measeval/README.md.
 """
@@ -107,6 +72,13 @@ class EntitySchema(BaseModel):
     """A general-purpose subject that at least one measured quantity is reported for."""
 
     name: str | None
+    identifiers: str | None
+    # ``identifiers`` is an alias-resolution aid, extracted by the real
+    # pipeline and its ablations only -- excluded from the NuExtract
+    # baselines (DatasetConfig.baseline_filter_fields, below), never listed
+    # in gliner_field_descriptions (GLiNER never asks for it), never in
+    # ChatExtract's flat schema, and never shown to the judge
+    # (judge_filter_fields, below).
 
 
 ENTITY_IDENTIFICATION_PROMPT = """You are an expert at identifying the subjects of reported measurements in scientific text. Given the provided text (including any tables), find every distinct subject that has at least one directly reported numerical measurement associated with it, and identify it by name.
@@ -124,8 +96,9 @@ What counts as a subject?:
 
 
 Response schema:
-For each distinct subject, output one item with the following field:
+For each distinct subject, output one item with the following fields:
 - name: the subject's name or identifying description, copied verbatim from the text (e.g. "Sample A", "Lake Mendota sediment core", "the control group", "specimen MB-7"). Do NOT paraphrase or normalize wording.
+- identifiers: every alternate short-form reference to this subject used in the text -- codes, abbreviations, or shortened versions of the name -- joined into a single string with semicolons separating each (e.g. "MB-7; Specimen 7"). Collect these whenever the text uses them for the same subject, even if the linkage is introduced only once. Do not include the primary name itself. If no alternatives exist, set to None.
 
 
 Identification guidelines:
@@ -142,7 +115,7 @@ Strict rules about missing information:
 Extraction procedure:
 1. Scan the entire text, including tables, from beginning to end.
 2. Each time you encounter a directly reported numerical measurement, determine what subject it is about.
-3. Group measurements that share the same subject under a single item for that subject.
+3. Group measurements that share the same subject under a single item for that subject, recording any alternate short-form references in the identifiers field.
 4. Output one JSON item per distinct subject.
 5. Collect all items into a single JSON array under the key "items".
 
@@ -154,7 +127,8 @@ Output format requirements:
 {
   "items": [
     {
-      "name": "..."
+      "name": "...",
+      "identifiers": "..."
     }
   ]
 }
@@ -169,8 +143,8 @@ Output format requirements:
 
 # Single abstract bucket used only as a coarse per-document gate ("does this
 # document report any direct numerical measurement at all"), which every
-# measeval paper trivially passes. Key is "measurement", not "quantity" -- see
-# module docstring on why this is unchanged from the prior design.
+# measeval paper trivially passes. Key is "measurement", not "quantity", to
+# match the constant `attribute` value in data/measeval/ground_truth.json.
 _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
     "measurement": {
         "description": (
@@ -199,11 +173,11 @@ class MeasurementEventSchema(BaseModel):
     """A single distinct property reported for an already-identified subject, and its context."""
 
     property: str | None
-    additional_details: str | None
+    event_details: str | None
 
 _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
 - property: the specific property, quantity type, or characteristic being measured for the given subject -- e.g. "mean annual temperature", "grain size", "paleolatitude", "mean age", "sedimentation rate". Copy the exact wording used in the text; do not paraphrase, abbreviate, or normalize it. This is open-ended -- there is no fixed list of allowed values. A property is NOT the number itself, and NOT a generic word like "measurement". If a quantity attaches directly to the subject with no distinct property phrase (e.g. a bare count like "5318 participants"), set this to None.
-- additional_details: the qualifying context for this specific measurement -- for example the date, method, location, treatment condition, comparison group, or circumstance under which it was measured (e.g. "at baseline in 1991", "under high pressure", "compared to the control group"). Copied or closely paraphrased from the text, and kept SHORT -- a phrase, not a sentence. Set to None if the text gives no distinguishing context.
+- event_details: the qualifying context for this specific measurement -- for example the date, method, location, treatment condition, comparison group, or circumstance under which it was measured (e.g. "at baseline in 1991", "under high pressure", "compared to the control group"). Copied or closely paraphrased from the text, and kept SHORT -- a phrase, not a sentence. Set to None if the text gives no distinguishing context.
 
 Enumerate every distinct property reported for the given subject on this page. A subject commonly has MORE THAN ONE property measured (e.g. a specimen with both an age and a mass reported) -- output one item per distinct property, not one item total. Two properties that differ only in their qualifying context (e.g. the same property measured at two different times) are also two separate items. Only output an empty list if the given subject has no reported measurement at all on this page.
 """
@@ -222,9 +196,10 @@ class DirectExtractionItemSchema(BaseModel):
 
     # Entity fields
     name: str | None
+    identifiers: str | None
     # Event fields
     property: str | None
-    additional_details: str | None
+    event_details: str | None
     # Measurement fields -- `attribute` is forced to the same single-value
     # bucket the main pipeline uses (see module docstring). It's a
     # Literal, not a free field: structured decoding leaves the model no
@@ -262,8 +237,9 @@ Include statistical quantities -- p-values and significance thresholds, confiden
 
 For each (subject, property) combination found, output one record with:
 - name: the subject's name or identifying description, copied verbatim from the text. Set to None only if the text reports a quantity with no identifiable subject at all.
+- identifiers: every alternate short-form reference to this subject used in the text -- codes, abbreviations, or shortened versions of the name -- joined into a single string with semicolons separating each. Do not include the primary name itself. If no alternatives exist, set to None.
 - property: the specific property or quantity type being measured for that subject (e.g. "mean annual temperature", "grain size", "paleolatitude"), copied verbatim from the text -- not the number itself. If the quantity attaches directly to its subject with no distinct property phrase (e.g. "5318 participants"), set this to None.
-- additional_details: any qualifying context for this specific measurement (method, location, condition, date, comparison), copied or closely paraphrased from the text and kept to a short phrase. Set to None if not applicable.
+- event_details: any qualifying context for this specific measurement (method, location, condition, date, comparison), copied or closely paraphrased from the text and kept to a short phrase. Set to None if not applicable.
 - value: the reported quantity exactly as written, in full -- including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
 - units: the unit part of the reported quantity as written, or None if it is unitless (e.g. a plain count or dimensionless ratio).
 - qualifiers: a list of zero or more tags describing the shape of the reported quantity. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
@@ -295,8 +271,9 @@ Output format requirements:
   "items": [
     {
       "name": "...",
+      "identifiers": "...",
       "property": "...",
-      "additional_details": "...",
+      "event_details": "...",
       "attribute": "measurement",
       "value": "...",
       "units": "...",
@@ -325,7 +302,9 @@ Output format requirements:
 # science, ecology) and each gives one subject multiple distinct properties,
 # to demonstrate the multi-event case the event prompt above describes.
 # Together they touch all of point_value, lower/upper, list_values,
-# tolerance, and standard_deviation at least once.
+# tolerance, and standard_deviation at least once. No `identifiers` key: see
+# DatasetConfig.baseline_filter_fields below -- these examples are
+# baseline-only, so they never show the field a baseline shouldn't reproduce.
 # ---------------------------------------------------------------------------
 
 # _NUEXTRACT_QUANTITY_DEFAULTS_JSON is the qualifier/shape fields' JSON,
@@ -348,11 +327,11 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
 
 _NUEXTRACT_EXAMPLE_1_OUTPUT = (
     '{"items": ['
-    '{"name": "Specimen MB-7", "property": "fork length", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "8.4", "units": "cm", '
+    '{"name": "Specimen MB-7", "property": "fork length", "event_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "8.4", "units": "cm", '
     + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="8.4") + '}, '
-    '{"name": "Specimen MB-7", "property": "body mass", "additional_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "6.2", "units": "g", '
+    '{"name": "Specimen MB-7", "property": "body mass", "event_details": "at the time of capture in June 2019", "attribute": "measurement", "value": "6.2", "units": "g", '
     + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="6.2") + '}, '
-    '{"name": "the site", "property": null, "additional_details": "sampled across the site", "attribute": "measurement", "value": "214", "units": null, '
+    '{"name": "the site", "property": null, "event_details": "sampled across the site", "attribute": "measurement", "value": "214", "units": null, '
     '"qualifiers": ["IsCount"], "point_value": "214", "lower": null, "upper": null, '
     '"list_values": null, "tolerance": null, "standard_deviation": null}'
     ']}'
@@ -367,12 +346,12 @@ _NUEXTRACT_EXAMPLE_2_INPUT = (
 
 _NUEXTRACT_EXAMPLE_2_OUTPUT = (
     '{"items": ['
-    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": null, "attribute": "measurement", "value": "84.2", "units": "K", '
+    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "event_details": null, "attribute": "measurement", "value": "84.2", "units": "K", '
     + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="84.2") + '}, '
-    '{"name": "Bi2212 crystal", "property": "critical current density", "additional_details": "measured at 77 K", "attribute": "measurement", "value": "3.0 x 10^4 and 3.2 x 10^4", "units": "A/cm^2", '
+    '{"name": "Bi2212 crystal", "property": "critical current density", "event_details": "measured at 77 K", "attribute": "measurement", "value": "3.0 x 10^4 and 3.2 x 10^4", "units": "A/cm^2", '
     '"qualifiers": ["IsRange"], "point_value": null, "lower": "3.0 x 10^4", "upper": "3.2 x 10^4", '
     '"list_values": null, "tolerance": null, "standard_deviation": null}, '
-    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "additional_details": "Under 2 GPa of applied pressure", "attribute": "measurement", "value": "91.5", "units": "K", '
+    '{"name": "Bi2212 crystal", "property": "superconducting transition temperature", "event_details": "Under 2 GPa of applied pressure", "attribute": "measurement", "value": "91.5", "units": "K", '
     + _NUEXTRACT_QUANTITY_DEFAULTS_JSON.format(point="91.5") + '}'
     ']}'
 )
@@ -389,13 +368,13 @@ _NUEXTRACT_EXAMPLE_3_INPUT = (
 
 _NUEXTRACT_EXAMPLE_3_OUTPUT = (
     '{"items": ['
-    '{"name": "loggerhead sea turtles", "property": "clutch size", "additional_details": "over three nesting seasons", "attribute": "measurement", "value": "92, 105, and 118", "units": "eggs", '
+    '{"name": "loggerhead sea turtles", "property": "clutch size", "event_details": "over three nesting seasons", "attribute": "measurement", "value": "92, 105, and 118", "units": "eggs", '
     '"qualifiers": ["IsList"], "point_value": null, "lower": null, "upper": null, '
     '"list_values": ["92", "105", "118"], "tolerance": null, "standard_deviation": null}, '
-    '{"name": "the tagged individuals", "property": "curved carapace length", "additional_details": null, "attribute": "measurement", "value": "78.4 ± 1.2", "units": "cm", '
+    '{"name": "the tagged individuals", "property": "curved carapace length", "event_details": null, "attribute": "measurement", "value": "78.4 ± 1.2", "units": "cm", '
     '"qualifiers": ["HasTolerance"], "point_value": "78.4", "lower": null, "upper": null, '
     '"list_values": null, "tolerance": "± 1.2", "standard_deviation": null}, '
-    '{"name": "all monitored nests", "property": "incubation temperature", "additional_details": null, "attribute": "measurement", "value": "29.1 (SD 0.6)", "units": "°C", '
+    '{"name": "all monitored nests", "property": "incubation temperature", "event_details": null, "attribute": "measurement", "value": "29.1 (SD 0.6)", "units": "°C", '
     '"qualifiers": ["IsMean", "HasSD"], "point_value": "29.1", "lower": null, "upper": null, '
     '"list_values": null, "tolerance": null, "standard_deviation": "0.6"}'
     ']}'
@@ -416,6 +395,7 @@ class Ablation2EntitySchema(BaseModel):
     """Entity schema for Ablation 2: one item per (subject, attribute) pair."""
 
     name: str | None
+    identifiers: str | None
     # Reserved fields required by Ablation 2 (see run_ablation.py's runtime check).
     attribute: str
     attribute_terms: list[str]
@@ -431,6 +411,7 @@ IMPORTANT: Only emit a pair when a direct numerical measurement exists in the do
 Response schema:
 For each (subject, attribute) pair, output one item with the following fields:
 - name: the subject's name or identifying description, copied verbatim from the text.
+- identifiers: every alternate short-form reference to this subject used in the text, joined into a single string with semicolons separating each. Do not include the primary name itself. If no alternatives exist, set to None.
 - attribute: always the exact string "measurement" -- this dataset has only one attribute.
 - attribute_terms: any terminology or abbreviations used in the document to describe the kind of measurement reported for this subject. This dataset has no fixed attribute vocabulary to collect terms for, so this should always be an empty list.
 
@@ -449,6 +430,7 @@ Output format requirements:
   "items": [
     {
       "name": "...",
+      "identifiers": "...",
       "attribute": "measurement",
       "attribute_terms": []
     }
@@ -497,7 +479,9 @@ _CHATEXTRACT_ENTITY_NOUN = "subject"
 # the same wording Ablation 1 already uses, not freshly authored text.
 # No gliner_entity_description override is needed: the entity schema's `name`
 # field already matches what GLiNER expects by default via
-# entity_type_description.
+# entity_type_description. ``identifiers`` has no entry here: it's an
+# alias-resolution aid for the real pipeline's entity matching, not reported
+# content, so GLiNER never asks for it.
 # ---------------------------------------------------------------------------
 
 _GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
@@ -508,7 +492,7 @@ _GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
         "directly to its subject with no distinct property phrase (e.g. \"5318 "
         "participants\"), set this to None."
     ),
-    "additional_details": (
+    "event_details": (
         "any qualifying context for this specific measurement (method, location, "
         "condition, date, comparison), copied or closely paraphrased from the "
         "text and kept to a short phrase. Set to None if not applicable."
@@ -545,6 +529,10 @@ CONFIG = DatasetConfig(
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
+    # identifiers is extracted by the real pipeline and its ablations only --
+    # see EntitySchema's comment above; excluded here from the NuExtract
+    # baselines specifically (GLiNER/ChatExtract already never see it).
+    baseline_filter_fields=["identifiers"],
     # paper_subset: set to a list of document_id codes to restrict the run.
     paper_subset=None,
     # paper_filter: None processes all three splits (train+trial+eval) by default.
@@ -555,7 +543,13 @@ CONFIG = DatasetConfig(
     paper_exclude=None,
     ablation2_entity_schema=Ablation2EntitySchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    judge_filter_fields=None,
+    # measeval has no judge pipeline today (ground truth is matched directly --
+    # see module docstring), so this is currently inert; set for parity with
+    # the other three datasets in case that changes. identifiers is an
+    # alias-resolution aid, not something to judge on; event_details is a
+    # catch-all for distinguishing measurements from each other, not the main
+    # extraction interest.
+    judge_filter_fields=["identifiers", "event_details"],
     ground_truth_file="data/measeval/ground_truth.json",
     # Units are open free text (Quantity.other["unit"]), not drawn from a fixed
     # catalog, so there is nothing to convert here -- see data/measeval/README.md's

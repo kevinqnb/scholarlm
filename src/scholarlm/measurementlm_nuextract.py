@@ -72,36 +72,44 @@ def _value_field_key(attribute_name: str, attribute_info_dict: dict) -> str:
     return f"{attribute_name}: {description}" if description else attribute_name
 
 
-def _build_template(direct_extraction_schema, value_field_key: str) -> dict:
+def _build_template(
+    direct_extraction_schema, value_field_key: str, exclude_fields: frozenset[str] = frozenset()
+) -> dict:
     """Convert a flat direct-extraction schema into a NuExtract JSON template.
 
     Every field is typed as `verbatim-string` (copy exactly from the document)
     except `attribute`, which is omitted, and `value`, which is renamed to
     `value_field_key` so the key itself tells the model which attribute this
-    call is for (see module docstring).
+    call is for (see module docstring). Fields named in `exclude_fields` (see
+    `DatasetConfig.baseline_filter_fields`) are omitted too -- e.g.
+    `identifiers`, which Ablation 1 shares this same `direct_extraction_schema`
+    to extract but this baseline should not reproduce.
     """
     item_template = {}
     for field_name in direct_extraction_schema.model_fields:
-        if field_name == "attribute":
+        if field_name == "attribute" or field_name in exclude_fields:
             continue
         key = value_field_key if field_name == "value" else field_name
         item_template[key] = "verbatim-string"
     return {"items": [item_template]}
 
 
-def _schema_for_attribute(direct_extraction_schema, value_field_key: str):
-    """Pydantic model mirroring direct_extraction_schema minus `attribute`,
-    with `value` aliased to `value_field_key`.
+def _schema_for_attribute(direct_extraction_schema, value_field_key: str, exclude_fields: frozenset[str] = frozenset()):
+    """Pydantic model mirroring direct_extraction_schema minus `attribute` and
+    `exclude_fields`, with `value` aliased to `value_field_key`.
 
     Used to build the guided-decoding `response_format` for a single-attribute
     NuExtract call, so the enforced JSON schema matches the template's field
     names exactly. The alias is internal to the wire format: `response_validator`
     calls `model_dump()` (by_alias=False), so parsed records still come back
-    keyed as plain `"value"`.
+    keyed as plain `"value"`. This is also the schema used to parse the
+    response (see `_extract_records`), so a field dropped here is simply
+    absent from the returned record rather than failing validation as a
+    missing required field.
     """
     fields = {}
     for name, field in direct_extraction_schema.model_fields.items():
-        if name == "attribute":
+        if name == "attribute" or name in exclude_fields:
             continue
         default = ... if field.is_required() else field.default
         if name == "value":
@@ -112,14 +120,18 @@ def _schema_for_attribute(direct_extraction_schema, value_field_key: str):
 
 
 def _filter_examples_for_attribute(
-    examples: list[dict] | None, attribute_name: str, value_field_key: str
+    examples: list[dict] | None,
+    attribute_name: str,
+    value_field_key: str,
+    exclude_fields: frozenset[str] = frozenset(),
 ) -> list[dict]:
     """Narrow dataset-level few-shot examples down to one attribute's items.
 
-    Strips the `attribute` key from kept items and renames `value` to
-    `value_field_key` so example outputs match the per-attribute template
-    used at call time (see module docstring).
+    Strips the `attribute` key (and any `exclude_fields`) from kept items and
+    renames `value` to `value_field_key` so example outputs match the
+    per-attribute template used at call time (see module docstring).
     """
+    drop = {"attribute", "value"} | exclude_fields
     filtered = []
     for example in examples or []:
         items = json.loads(example["output"])["items"]
@@ -127,7 +139,7 @@ def _filter_examples_for_attribute(
         for item in items:
             if item.get("attribute") != attribute_name:
                 continue
-            renamed = {k: v for k, v in item.items() if k not in ("attribute", "value")}
+            renamed = {k: v for k, v in item.items() if k not in drop}
             renamed[value_field_key] = item["value"]
             kept_items.append(renamed)
         filtered.append({"input": example["input"], "output": json.dumps({"items": kept_items})})
@@ -145,6 +157,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         max_concurrent: int = 16,
         max_images_per_document: int = 45,
         use_extra_body: bool = True,
+        baseline_filter_fields: list[str] | None = None,
         **kwargs,
     ):
         super().__init__(*args, max_concurrent=max_concurrent, use_extra_body=use_extra_body, **kwargs)
@@ -156,6 +169,7 @@ class MeasurementLMNuExtract(MeasurementLM):
         self.direct_extraction_schema = direct_extraction_schema
         self.examples = examples
         self.max_images_per_document = max_images_per_document
+        self._exclude_fields = frozenset(baseline_filter_fields or ())
 
     # -----------------------------------------------------------------------
     # Single extraction step: extract all records directly from page images
@@ -220,9 +234,9 @@ class MeasurementLMNuExtract(MeasurementLM):
         for attr_name in self.attribute_info_dict:
             value_field_key = _value_field_key(attr_name, self.attribute_info_dict)
             template_json = json.dumps(
-                _build_template(self.direct_extraction_schema, value_field_key), indent=2
+                _build_template(self.direct_extraction_schema, value_field_key, self._exclude_fields), indent=2
             )
-            AttributeSchema = _schema_for_attribute(self.direct_extraction_schema, value_field_key)
+            AttributeSchema = _schema_for_attribute(self.direct_extraction_schema, value_field_key, self._exclude_fields)
             DirectExtractionList = create_model(
                 "DirectExtractionList",
                 items=(list[AttributeSchema], ...),
@@ -236,7 +250,9 @@ class MeasurementLMNuExtract(MeasurementLM):
             }
 
             chat_template_kwargs = {"template": template_json}
-            attr_examples = _filter_examples_for_attribute(self.examples, attr_name, value_field_key)
+            attr_examples = _filter_examples_for_attribute(
+                self.examples, attr_name, value_field_key, self._exclude_fields
+            )
             if attr_examples:
                 chat_template_kwargs["examples"] = attr_examples
             extra_body = {"chat_template_kwargs": chat_template_kwargs}

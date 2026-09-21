@@ -73,6 +73,27 @@ def _units_vocabulary(attribute_info_dict: dict) -> list[str]:
     return seen
 
 
+def _filtered_schema(direct_extraction_schema, exclude_fields: frozenset[str]):
+    """`direct_extraction_schema` with any field named in `exclude_fields`
+    entirely removed (see `DatasetConfig.baseline_filter_fields`).
+
+    Used so a field this baseline shouldn't reproduce (e.g. `identifiers`,
+    which Ablation 1 shares this same `direct_extraction_schema` to extract)
+    is dropped from BOTH the decoding schema and the lenient parse schema
+    together -- parsing the model's response against the unfiltered schema
+    would otherwise fail validation on a required field the model was never
+    asked to emit in the first place.
+    """
+    if not exclude_fields:
+        return direct_extraction_schema
+    fields = {
+        name: (finfo.annotation, ... if finfo.is_required() else finfo.default)
+        for name, finfo in direct_extraction_schema.model_fields.items()
+        if name not in exclude_fields
+    }
+    return create_model(f"{direct_extraction_schema.__name__}Filtered", **fields)
+
+
 def _build_response_schema(direct_extraction_schema, attribute_names: list[str], unit_names: list[str]):
     """Pydantic model mirroring `direct_extraction_schema`, with `attribute`
     and `units` narrowed from plain `str` to `Literal` enums -- this is what
@@ -141,6 +162,7 @@ class MeasurementLMNuExtract3(MeasurementLM):
         direct_extraction_prompt=None,
         examples: list[dict] | None = None,
         max_tokens: int | None = None,
+        baseline_filter_fields: list[str] | None = None,
         **kwargs,
     ):
         if direct_extraction_schema is None or direct_extraction_prompt is None:
@@ -176,6 +198,13 @@ class MeasurementLMNuExtract3(MeasurementLM):
             direct_extraction_schema=direct_extraction_schema,
             direct_extraction_prompt=direct_extraction_prompt,
             **kwargs,
+        )
+        # Overwrite the parent's copy with a version that drops any
+        # baseline_filter_fields entries (e.g. identifiers) -- every use of
+        # self.direct_extraction_schema below is local to _extract_records,
+        # so this one reassignment is sufficient (see _filtered_schema).
+        self.direct_extraction_schema = _filtered_schema(
+            direct_extraction_schema, frozenset(baseline_filter_fields or ())
         )
         self.examples = examples
         self.max_tokens = max_tokens

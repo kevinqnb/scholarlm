@@ -126,6 +126,7 @@ def run_baseline_nuextract(
         max_concurrent=max_concurrent,
         clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
+        baseline_filter_fields=dataset_config.baseline_filter_fields,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
