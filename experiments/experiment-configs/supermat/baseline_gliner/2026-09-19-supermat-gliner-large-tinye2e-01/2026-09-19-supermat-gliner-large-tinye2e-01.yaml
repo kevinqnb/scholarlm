@@ -1,0 +1,27 @@
+id: 2026-09-19-supermat-gliner-large-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) against real supermat OCR text with
+  gliner-large-v1 -- this session's earlier validation only exercised the
+  code against hand-built fixture text and gliner-base-v1 in an interactive
+  shell, not a real dataset paper or the model these rung-4 configs target.
+  Smoke rung skipped per explicit instruction. Smallest supermat OCR text on
+  disk (~5.4KB, PR04310568-CC -- supermat has no paper_filter/paper_exclude,
+  so every on-disk paper is in the full-run set).
+  Predicted result: the pre-rework/pre-restructure gliner-large-v1 run on
+  this exact paper
+  (experiments/results/supermat/baseline_gliner/2026-07-13-supermat-baseline-gliner-01/final.json,
+  filtered by document_id) found exactly 1 record: tc = 5 K, name null.
+  supermat has only one attribute (tc), so the cross-attribute duplication
+  artifact seen in the pond/nfix tiny-e2e configs can't occur here. This run
+  should find that same tc=5K measurement (a handful of records at most, not
+  zero, not an order of magnitude different). New this run: no
+  `_deduplicate()`, and populated sample_details/pressure/me_method/
+  additional_details fields where the old run always left them null.
+seed: 342
+params:
+  dataset: supermat
+  model: gliner-large-v1
+  paper_subset: ["PR04310568-CC"]
+  walltime: "00:20:00"

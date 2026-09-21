@@ -1,0 +1,25 @@
+id: 2026-09-19-pond-chatextract-gemma27b-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke test for the reworked ChatExtract baseline
+  (src/scholarlm/measurementlm_chatextract.py) after this session's changes:
+  removed the _table_caption heuristic, anchored yes/no parsing (_is_yes/
+  _is_no), guided-JSON table extraction (_TABLE_RESPONSE_FORMAT) replacing
+  CSV/pipe-splitting, failure counting (self.failures), no
+  max_tables_per_document cap, no _deduplicate() call in fit(). Confirms the
+  vLLM server comes up for gemma-3-27b, the sentence-conversation plumbing
+  runs end to end (classify -> single/multi gate -> extract -> verify) against
+  a real model, and run_metadata.json's new n_failed_work_items field is
+  written -- not a check of extraction quality. extract_tables=false to keep
+  this rung cheap and scoped to the sentence-conversation path only (the
+  separate real-document-table workflow is exercised by the tiny-e2e config
+  instead). Smallest pond OCR text on disk (~21KB) -- same paper
+  2026-09-18-pond-nuextract3-smoke-01 used, for the same reason (minimize GPU
+  time and blast radius while confirming plumbing).
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["first_record_of_the"]
+  extract_tables: false
+  walltime: "00:45:00"

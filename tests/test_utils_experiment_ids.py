@@ -131,9 +131,8 @@ def test_classify_error_message_includes_source_when_given():
 def test_classify_all_real_model_configs_are_resolvable_or_flagged():
     """Every model-config file in the repo either classifies cleanly, or is
     one of the known-missing-resources files this restructure's own commit
-    history documents (interp_judge/*, jacobian_lens/*, representation_lm/*,
-    baseline/gliner-*). Catches an accidental new unresolvable model-config
-    slipping in silently.
+    history documents (interp_judge/*, jacobian_lens/*, representation_lm/*).
+    Catches an accidental new unresolvable model-config slipping in silently.
 
     interp_judge/qwen-2.5-7b is deliberately NOT in this set anymore: its
     resources: block (including a pinned gpu_type=L40S) was filled in from
@@ -149,9 +148,21 @@ def test_classify_all_real_model_configs_are_resolvable_or_flagged():
     notes/scholarlm/experiments/2026-08-11-llama-base-answer-cue-01.md (see
     each model-config file's own comments for the full evidence and its
     limits).
+
+    baseline/gliner-large-v1 and baseline/gliner-base-v1 are also no longer in
+    this set (2026-09-19): both were blocking the new baseline_gliner rung-4
+    experiment-configs from resolving through submit.sh. Filled in by reusing
+    this repo's own established small-model floor (gpu_memory=32G/
+    gpu_capability=7.0/gpu_type=L40S/omp=8, already used by nuextract3.yaml
+    and the interp_judge/representation_lm 7-8B-class configs above) --
+    GLiNER2-{base,large} are 205M/435M encoders, far smaller than the
+    smallest model already using that floor, and 3 prior real baseline_gliner
+    runs (experiments/results/{pond,nfix,supermat}/baseline_gliner/*/
+    run_metadata.json, 2026-07-11/13) completed on A40/L40S cards without
+    incident. See each model-config file's own comments for the full
+    evidence and its limits.
     """
     known_missing = {
-        ("baseline", "gliner-large-v1"), ("baseline", "gliner-base-v1"),
         ("interp_judge", "mistral-7b"),
         ("interp_judge", "qwen-2.5-7b-base"),
         ("interp_judge", "qwen-2.5-7b-base-cued"), ("interp_judge", "llama-3.1-8b-base-cued"),

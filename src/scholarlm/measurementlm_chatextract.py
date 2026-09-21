@@ -34,7 +34,9 @@ from __future__ import annotations
 import asyncio
 import re
 
-from .measurementlm import MeasurementLM
+from pydantic import BaseModel
+
+from .measurementlm import MeasurementLM, response_validator
 from .utils.sentences import split_sentences
 
 # ---------------------------------------------------------------------------
@@ -42,8 +44,6 @@ from .utils.sentences import split_sentences
 # ---------------------------------------------------------------------------
 _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 _TABLE_RE = re.compile(r'<table number="(\d+)">.*?</table>', re.DOTALL)
-_CAPTION_RE = re.compile(r'<caption>(.*?)</caption>', re.DOTALL)
-_STRIP_TAGS_RE = re.compile(r'<[^>]+>|\\\([^)]*\)|\\\[[^\]]*\]')
 
 _ORDINALS = [
     "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth",
@@ -93,14 +93,66 @@ TAB_FOLLOWUP_Q = [
 TABLE_CLASSIFY_Q = 'Answer "Yes" or "No" only. Does the following table contain values of {prop}?\n\n'
 TABLE_EXTRACT_Q = (
     'Use only data given in the table and its caption. Extract the {noun} names and '
-    'values of {prop} from the following table. Present these values in a new table with '
-    'columns only for: {Noun}, Value, Unit\n\n'
+    'values of {prop} from the following table. Present these values as a JSON object '
+    'with a "rows" list, where each item has "material", "value", and "unit" fields.\n\n'
+)
+
+# Appended (not merged into TAB_Q, which is part of the verbatim-copied block
+# above) so TAB_Q's own text stays exactly what ChatExtract.py asked for.
+# `_TABLE_RESPONSE_FORMAT` (below) already forces valid JSON regardless of
+# wording, but every other JSON-structured step in this codebase also states
+# the expected shape explicitly (see instruction_prompts.py) -- match that
+# convention rather than relying on response_format silently.
+_TABLE_JSON_INSTRUCTION = (
+    'Structure your response as a JSON object with a "rows" list, where each '
+    'item has "material", "value", and "unit" fields.\n\n'
 )
 
 # Token budgets by call type (ChatExtract.py: 6 for yes/no, 500 otherwise). We
 # use a slightly larger yes/no budget to tolerate models that prefix a word.
 _YN_TOKENS = 12
 _EXTRACT_TOKENS = 512
+
+# ---------------------------------------------------------------------------
+# Structured table-extraction schema. TAB_Q/TABLE_EXTRACT_Q still ask (in the
+# paper's own wording) for a "table"; guided decoding is what actually parses
+# the answer, replacing a hand-rolled CSV/pipe split that broke on any comma
+# inside a cell (e.g. "1,000" parsed as two cells) and assumed a header row
+# was always present.
+# ---------------------------------------------------------------------------
+
+
+class _ChatExtractTableRow(BaseModel):
+    material: str
+    value: str
+    unit: str
+
+
+class _ChatExtractTableResponse(BaseModel):
+    rows: list[_ChatExtractTableRow]
+
+
+_TABLE_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "chatextract_table",
+        "schema": _ChatExtractTableResponse.model_json_schema(),
+    },
+}
+
+
+def _is_yes(text: str) -> bool:
+    """True iff `text`'s first word is "yes" -- anchored so "eyes" or "Yesterday"
+    don't false-match the way a bare substring check would."""
+    m = re.match(r"\s*([A-Za-z]+)", text)
+    return bool(m) and m.group(1).lower() == "yes"
+
+
+def _is_no(text: str) -> bool:
+    """True iff `text`'s first word is "no" -- anchored so "know", "not", or
+    "none" don't false-match the way a bare substring check would."""
+    m = re.match(r"\s*([A-Za-z]+)", text)
+    return bool(m) and m.group(1).lower() == "no"
 
 
 class MeasurementLMChatExtract(MeasurementLM):
@@ -113,13 +165,9 @@ class MeasurementLMChatExtract(MeasurementLM):
         entity_noun: str | None = None,
         include_single_verification: bool = False,
         extract_tables: bool = True,
-        max_tables_per_document: int = 30,
         max_concurrent: int = 32,
         **kwargs,
     ):
-        # ChatExtract reads OCR text directly; never run the image-based table
-        # cleaning pass (mirrors the other baselines).
-        kwargs.setdefault("clean_tables", False)
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.attribute_property_names = attribute_property_names or {}
         # Replaces the reference script's materials-science "material"/"compound"
@@ -130,7 +178,11 @@ class MeasurementLMChatExtract(MeasurementLM):
         self.entity_noun = entity_noun or "material"
         self.include_single_verification = include_single_verification
         self.extract_tables = extract_tables
-        self.max_tables_per_document = max_tables_per_document
+        # One entry per work item (sentence or table conversation) whose
+        # coroutine raised -- populated by `_extract_records`, read by the
+        # runner to write a count (and the individual errors) into
+        # run_metadata.json rather than letting them vanish into stdout.
+        self.failures: list[dict] = []
 
     # -----------------------------------------------------------------------
     # Property vocabulary
@@ -177,17 +229,10 @@ class MeasurementLMChatExtract(MeasurementLM):
 
         for page_num, body in page_bodies:
             for tm in _TABLE_RE.finditer(body):
-                table_block = tm.group(0)
-                if _CAPTION_RE.search(table_block):
-                    # Cleaned OCR: the caption is a <caption> element inside the
-                    # table block, so it is already fed to the model as-is.
-                    tables.append((table_block, page_num))
-                else:
-                    # Raw OCR: no caption element; attach the nearest preceding
-                    # text line as the caption.
-                    caption = self._table_caption(body, tm.start())
-                    text = (caption + "\n" + table_block).strip() if caption else table_block
-                    tables.append((text, page_num))
+                # Cleaned OCR tags a <caption> element inside the table block;
+                # raw OCR has none. Either way the table is passed through as
+                # OCR'd -- no caption is guessed from surrounding text.
+                tables.append((tm.group(0), page_num))
             # Prose = page body with table blocks removed, then sentence-split.
             prose = _TABLE_RE.sub(" ", body)
             prose_sentences.extend((page_num, s) for s in split_sentences(prose))
@@ -199,9 +244,6 @@ class MeasurementLMChatExtract(MeasurementLM):
             prev = prose_sentences[i - 1][1] if i > 0 else ""
             passage = self._build_passage(title, prev, sentence)
             sentences.append((sentence, passage, page_num))
-
-        if len(tables) > self.max_tables_per_document:
-            tables = tables[: self.max_tables_per_document]
 
         return {"sentences": sentences, "tables": tables}
 
@@ -215,33 +257,31 @@ class MeasurementLMChatExtract(MeasurementLM):
         parts.append(sentence)
         return " ".join(parts)
 
-    @staticmethod
-    def _table_caption(body: str, table_start: int) -> str:
-        """Caption fallback for *raw* OCR tables with no <caption> element:
-        the last non-empty text line immediately preceding the table tag."""
-        before = _STRIP_TAGS_RE.sub("", body[:table_start])
-        lines = [ln.strip() for ln in before.splitlines() if ln.strip()]
-        return lines[-1] if lines else ""
-
     # -----------------------------------------------------------------------
     # Conversation helpers (stateful; reuse _acall)
     # -----------------------------------------------------------------------
 
-    async def _acall_retry(self, messages, max_tokens, max_retries: int = 3) -> str:
+    async def _acall_retry(
+        self, messages, max_tokens, max_retries: int = 3, response_format: dict | None = None
+    ) -> str:
         """`_acall` at temperature 0 with a light retry on empty responses."""
         answer = ""
         for attempt in range(max_retries):
-            answer = await self._acall(messages, temperature=0.0, max_tokens=max_tokens)
+            answer = await self._acall(
+                messages, response_format=response_format, temperature=0.0, max_tokens=max_tokens
+            )
             if answer:
                 return answer
             await asyncio.sleep(2 ** attempt)
         return answer
 
-    async def _ask(self, messages: list[dict], question: str, yes_no: bool) -> str:
+    async def _ask(
+        self, messages: list[dict], question: str, yes_no: bool, response_format: dict | None = None
+    ) -> str:
         """Append a user turn, call the model, append the assistant turn, return it."""
         messages.append({"role": "user", "content": question})
         answer = await self._acall_retry(
-            messages, max_tokens=_YN_TOKENS if yes_no else _EXTRACT_TOKENS
+            messages, max_tokens=_YN_TOKENS if yes_no else _EXTRACT_TOKENS, response_format=response_format
         )
         messages.append({"role": "assistant", "content": answer})
         return answer
@@ -255,15 +295,14 @@ class MeasurementLMChatExtract(MeasurementLM):
 
         # Stage A: classify the bare sentence.
         ans = await self._ask(messages, CLASSIF_Q.format(prop=prop) + sentence, yes_no=True)
-        if "yes" not in ans.strip().lower():
+        if not _is_yes(ans):
             return []
 
         # Stage B gate: single vs. multiple values (on the passage).
         ans = await self._ask(messages, IFMULTI_Q.format(prop=prop) + passage, yes_no=True)
-        low = ans.lower()
-        if "no" in low:
+        if _is_no(ans):
             return await self._extract_single(messages, doc_idx, passage, attr_key, prop, page_num)
-        if "yes" in low:
+        if _is_yes(ans):
             return await self._extract_multi(messages, doc_idx, passage, attr_key, prop, page_num)
         return []  # ambiguous gate → extract nothing (matches reference behavior)
 
@@ -281,7 +320,7 @@ class MeasurementLMChatExtract(MeasurementLM):
                 pre, post = SINGLE_FOLLOWUP_Q[idx]
                 followup = pre + ans + post.format(prop=prop, noun=self.entity_noun) + passage
                 verdict = await self._ask(messages, followup, yes_no=True)
-                if "no" in verdict.lower():
+                if _is_no(verdict):
                     ok = False
             valid[field] = ok
 
@@ -293,8 +332,12 @@ class MeasurementLMChatExtract(MeasurementLM):
 
     async def _extract_multi(self, messages, doc_idx, passage, attr_key, prop, page_num) -> list[dict]:
         """Ask for a Material/Value/Unit table, then verify each cell strictly."""
-        table_text = await self._ask(messages, TAB_Q.format(prop=prop, Noun=self.entity_noun.title()) + passage, yes_no=False)
-        rows = self._parse_table_rows(table_text)
+        table_text = await self._ask(
+            messages,
+            TAB_Q.format(prop=prop, Noun=self.entity_noun.title()) + _TABLE_JSON_INSTRUCTION + passage,
+            yes_no=False, response_format=_TABLE_RESPONSE_FORMAT,
+        )
+        rows = self._parse_table_response(table_text)
 
         records: list[dict] = []
         for k, (material, value, unit) in enumerate(rows):
@@ -314,7 +357,7 @@ class MeasurementLMChatExtract(MeasurementLM):
                 p0, p1, p2 = TAB_FOLLOWUP_Q[col_idx]
                 followup = p0 + cell + p1 + ordinal + p2.format(prop=prop, noun=self.entity_noun) + passage
                 verdict = await self._ask(messages, followup, yes_no=True)
-                if "no" in verdict.lower():
+                if _is_no(verdict):
                     valid[col] = False
                     row_ok = False
                 else:
@@ -335,15 +378,16 @@ class MeasurementLMChatExtract(MeasurementLM):
         messages: list[dict] = [{"role": "system", "content": ""}]
 
         ans = await self._ask(messages, TABLE_CLASSIFY_Q.format(prop=prop) + table_text, yes_no=True)
-        if "yes" not in ans.lower():
+        if not _is_yes(ans):
             return []
 
         extracted = await self._ask(
             messages,
             TABLE_EXTRACT_Q.format(prop=prop, noun=self.entity_noun, Noun=self.entity_noun.title()) + table_text,
             yes_no=False,
+            response_format=_TABLE_RESPONSE_FORMAT,
         )
-        rows = self._parse_table_rows(extracted)
+        rows = self._parse_table_response(extracted)
 
         records: list[dict] = []
         for material, value, unit in rows:
@@ -360,28 +404,18 @@ class MeasurementLMChatExtract(MeasurementLM):
     # -----------------------------------------------------------------------
 
     @staticmethod
-    def _parse_table_rows(text: str) -> list[tuple[str, str, str]]:
-        """Parse a model-emitted Material/Value/Unit table into (mat, val, unit) rows.
+    def _parse_table_response(text: str) -> list[tuple[str, str, str]]:
+        """Parse a guided-JSON table response into (material, value, unit) rows.
 
-        Handles both CSV-style and Markdown-pipe tables (split on ``[,|]``, drop
-        empty cells — ChatExtract.py line 162-163), drops the header row and any
-        Markdown separator (``|---|---|``) row, and reads the first three cells of
-        each remaining row positionally as Material, Value, Unit.
+        ``response_format=_TABLE_RESPONSE_FORMAT`` constrains the model's answer
+        to this schema, so parsing is exact regardless of a comma or pipe inside
+        a cell (e.g. ``"1,000"``) or a missing header row -- both broke the
+        CSV/pipe-splitting this replaced. Raises if the model's response doesn't
+        validate against the schema; the caller's `_guarded` wrapper counts that
+        as a failed work item rather than silently returning no rows.
         """
-        parsed: list[list[str]] = []
-        for line in text.strip().splitlines():
-            cells = [c.strip() for c in re.split(r"[,|]", line) if c.strip()]
-            if len(cells) >= 3:
-                parsed.append(cells)
-
-        rows: list[tuple[str, str, str]] = []
-        for idx, cells in enumerate(parsed):
-            if idx == 0:  # header row
-                continue
-            if all(set(c) <= set("-: ") for c in cells):  # markdown separator
-                continue
-            rows.append((cells[0], cells[1], cells[2]))
-        return rows
+        parsed = response_validator(_ChatExtractTableResponse, text)
+        return [(row["material"], row["value"], row["unit"]) for row in parsed["rows"]]
 
     # -----------------------------------------------------------------------
     # Record construction
@@ -397,9 +431,10 @@ class MeasurementLMChatExtract(MeasurementLM):
     def _make_record(self, doc_idx: int, attribute: str, material: str | None, value: str, units: str | None, page_num: int | None) -> dict:
         """Build one extraction record in the standard flat schema.
 
-        ``entity_id`` keys on the document + normalized material so `_deduplicate`
-        merges the same material+attribute+value mentioned across sentences (and
-        aggregates their ``page_number`` values into an aligned list).
+        ``entity_id`` keys on the document + normalized material, matching the
+        rest of the record schema's ID scheme -- `fit()` skips `_deduplicate`
+        (see its docstring), so distinct mentions of the same material+attribute+
+        value stay as separate records, one per (sentence or table row).
         """
         item = {
             "name": material,
@@ -445,29 +480,41 @@ class MeasurementLMChatExtract(MeasurementLM):
             f"→ {(total_sentences + (total_tables if self.extract_tables else 0)) * len(property_items)} conversations."
         )
 
+        self.failures = []
+
         async def _run():
             sem = asyncio.Semaphore(self.max_concurrent)
 
-            async def _guarded(coro):
+            async def _guarded(label, coro):
                 async with sem:
                     try:
                         return await coro
                     except Exception as e:  # never let one conversation sink the run
-                        print(f"ChatExtract work item failed: {e}")
+                        self.failures.append({"item": label, "error": f"{type(e).__name__}: {e}"})
                         return []
 
             tasks = []
             for doc_idx, units in enumerate(doc_units):
                 for attr_key, prop in property_items:
                     for sentence, passage, page_num in units["sentences"]:
-                        tasks.append(_guarded(self._process_sentence(doc_idx, sentence, passage, attr_key, prop, page_num)))
+                        label = f"doc={doc_idx} attr={attr_key} kind=sentence page={page_num}"
+                        tasks.append(_guarded(
+                            label, self._process_sentence(doc_idx, sentence, passage, attr_key, prop, page_num)
+                        ))
                     if self.extract_tables:
-                        for table_text, page_num in units["tables"]:
-                            tasks.append(_guarded(self._process_table(doc_idx, table_text, attr_key, prop, page_num)))
+                        for table_idx, (table_text, page_num) in enumerate(units["tables"]):
+                            label = f"doc={doc_idx} attr={attr_key} kind=table table_idx={table_idx} page={page_num}"
+                            tasks.append(_guarded(
+                                label, self._process_table(doc_idx, table_text, attr_key, prop, page_num)
+                            ))
 
             return await asyncio.gather(*tasks)
 
         results = asyncio.run(_run())
+        if self.failures:
+            print(f"ChatExtract: {len(self.failures)} of {len(results)} work items failed (see self.failures):")
+            for failure in self.failures:
+                print(f"  {failure['item']}: {failure['error']}")
         return [record for record_list in results for record in record_list]
 
     # -----------------------------------------------------------------------
@@ -477,13 +524,12 @@ class MeasurementLMChatExtract(MeasurementLM):
     def fit(self, documents: list[str], titles: list[str]) -> list[dict]:
         """Run ChatExtract over the given documents.
 
-        Like the NuExtract baseline, this deliberately skips `_standardize` (an
-        extra MeasurementLM-specific LLM pass) and applies only the programmatic
-        `_deduplicate` for a fair, non-conflating cleanup of duplicate mentions.
+        Like the NuExtract3 and LangExtract baselines, this skips both
+        `_standardize()` and `_deduplicate()`: both are part of the actual
+        MeasurementLM pipeline's own contribution, not something a reimplemented
+        reference method should be credited with.
         """
         if len(titles) != len(documents):
             raise ValueError("titles must be the same length as documents")
-        self.data = [{"document_id": i} for i in range(len(documents))]
         self.data = self._extract_records(documents, titles)
-        self.data = self._deduplicate(self.data)
         return self.data

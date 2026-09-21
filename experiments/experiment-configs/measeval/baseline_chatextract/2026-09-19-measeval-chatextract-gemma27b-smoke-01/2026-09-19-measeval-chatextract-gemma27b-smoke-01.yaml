@@ -1,0 +1,27 @@
+id: 2026-09-19-measeval-chatextract-gemma27b-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke test for the reworked ChatExtract baseline
+  (src/scholarlm/measurementlm_chatextract.py); see
+  2026-09-19-pond-chatextract-gemma27b-smoke-01 for the full list of this
+  session's changes. First chatextract run on measeval under the
+  contract-standard experiments/results/ tree (prior chatextract-gemma-3-27b
+  output for measeval only exists under the pre-restructure data/experiments/
+  tree) -- also exercises the single-attribute "measurement" bucket with its
+  chatextract_property_names phrase ("directly reported numerical
+  measurement") and entity_noun ("subject"), both dataset-config fields, for
+  the first time under this rework.
+  extract_tables=false, scoped to the sentence-conversation path only --
+  confirms the vLLM server comes up and the plumbing runs end to end against
+  a real model, not extraction quality.
+  Document S0006322312001096-1194 (615 bytes): from the canonical 10-document
+  measeval dev subset (data/measeval/ground_truth_ten.json), the smallest of
+  the ten. A single dense paragraph reporting several odds ratios and
+  confidence intervals (10 gold quantities total).
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  paper_subset: ["S0006322312001096-1194"]
+  extract_tables: false
+  walltime: "00:45:00"

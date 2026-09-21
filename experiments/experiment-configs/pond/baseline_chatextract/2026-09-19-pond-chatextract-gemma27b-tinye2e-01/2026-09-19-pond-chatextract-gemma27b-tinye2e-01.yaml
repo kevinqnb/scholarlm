@@ -1,0 +1,24 @@
+id: 2026-09-19-pond-chatextract-gemma27b-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked ChatExtract baseline (see the
+  sibling smoke config, 2026-09-19-pond-chatextract-gemma27b-smoke-01, for
+  the full list of this session's changes). Same paper as the smoke config
+  (first_record_of_the), but with extract_tables left at its true default
+  (true) so the separate real-document-table workflow
+  (TABLE_CLASSIFY_Q/TABLE_EXTRACT_Q, guided JSON via _TABLE_RESPONSE_FORMAT)
+  also runs, not just the sentence-conversation path.
+  Predicted result: the pre-rework chatextract run on this exact paper
+  (experiments/results/pond/baseline_chatextract/2026-07-11-pond-baseline-
+  chatextract-01/final.json, filtered by title) found 6 records -- 1
+  max_depth, 2 tn, 3 chla. This run should land in the same rough
+  neighborhood (a handful of records, same attribute mix plausible) -- not
+  zero, not an order of magnitude different. Exact equality isn't expected:
+  yes/no anchoring and JSON-vs-CSV table parsing can each flip individual
+  verification outcomes.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["first_record_of_the"]
+  walltime: "01:00:00"

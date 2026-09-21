@@ -5,9 +5,8 @@ Faithful adaptation of GLiNER2 (Fastino AI, EMNLP 2025 System Demo;
 small (205M/340M) DeBERTa-style encoder run **locally** via
 ``GLiNER2.from_pretrained(...)`` — it is NOT an LLM behind an OpenAI-compatible
 server, so this baseline makes no `_acall` / `_call_batch` calls at all. It only
-reuses `MeasurementLM`'s programmatic `_deduplicate` (and its stored config
-attributes); the base ctor still constructs unused OpenAI clients, which is
-harmless.
+reuses `MeasurementLM`'s stored config attributes; the base ctor still constructs
+unused OpenAI clients, which is harmless.
 
 How it maps onto this library (decisions locked with the user):
 
@@ -22,21 +21,40 @@ How it maps onto this library (decisions locked with the user):
   line-based word windows (GLiNER2's pip release operates on a bounded word
   window, so long papers must be chunked); work items
   ``(document × attribute × chunk)`` are dispatched together through
-  `batch_extract` with a list of per-attribute schemas. Overlap-induced duplicate
-  detections are collapsed downstream by `_deduplicate` (which merges records
-  sharing entity/attribute/event with equal value+units), so no span-level
-  chunk merging is needed.
+  `batch_extract` with a list of per-attribute schemas.
 
-* **Field scope = name + date + value + units.** Each structure extracts the
-  entity ``name``, the measurement ``value`` (numeric), its ``units``, and — when
-  the dataset's ``measurement_event_schema`` declares a ``date`` field — the
-  measurement ``date``. All other entity/event fields are left ``None`` and are
-  matched via the fuzzy ``name`` matcher, exactly as the ChatExtract baseline does.
+  Unlike `measurementlm_nuextract.py` (which also chunks and, for exactly that
+  reason, keeps `_deduplicate` to merge cross-chunk repeats of the same
+  measurement), this baseline does **not** deduplicate: `_deduplicate` is
+  `MeasurementLM`'s own pipeline machinery, not part of GLiNER2's method, and per
+  `measurementlm_chatextract.py` / `measurementlm_nuextract3.py`'s precedent a
+  reimplemented reference baseline shouldn't be credited with it. The practical
+  consequence is that `chunk_overlap` (default 64 words) can cause the same
+  reported value to surface as more than one record when it falls in the
+  overlapping region between two adjacent chunks — a known, accepted artifact of
+  adapting a bounded-window encoder to long documents, not a modeling gap.
 
-Like the NuExtract and ChatExtract baselines, `fit()` deliberately skips
-`_standardize` (an extra MeasurementLM-specific LLM pass) and applies only the
-programmatic `_deduplicate`, for a fair, non-conflating cleanup of duplicate
-mentions.
+* **Field scope = every entity/event field the dataset opts in, not just
+  name.** GLiNER2's structures support multiple linked sub-fields (see above),
+  so — unlike ChatExtract, whose method is fixed to a single Material/Value/Unit
+  triple — restricting GLiNER2 to name+value+units would be leaving capability
+  on the table, not matching the reference method. Each structure asks for
+  every entity/event field named in ``DatasetConfig.gliner_field_descriptions``
+  (in addition to the subject name, value, and units); a field with no entry
+  there is never asked for. This is a GLiNER-only mapping, never
+  ``entity_schema``/``measurement_event_schema`` themselves — those feed the
+  real pipeline's (and other baselines') structured-decoding schemas directly,
+  and GLiNER's field scope must not change what they send. A field with no
+  entry (e.g. ``identifiers``, an alias-resolution aid for the real pipeline's
+  entity matching, never reported content in its own right) is a deliberate
+  exclusion, not an oversight. Description text should be copied verbatim from
+  this dataset's own prompts (typically ``direct_extraction_prompt``), not
+  freshly authored.
+
+Like the ChatExtract and NuExtract3 baselines, `fit()` deliberately skips both
+`_standardize` and `_deduplicate` — both are `MeasurementLM`'s own pipeline
+contributions, not something a reimplemented reference method should be
+credited with.
 """
 
 from __future__ import annotations
@@ -72,6 +90,16 @@ _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 # treat a table as an atomic block rather than splitting it mid-rows.
 _TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 
+# The qualifier/shape fields every other extraction method carries as
+# qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation
+# (MeasurementLM.ParseQuantityResponse) -- see _build_structure's docstring
+# for why GLiNER2 represents qualifiers/list_values as comma-joined strings
+# rather than JSON lists.
+QUANTITY_FIELD_NAMES = (
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+)
+
 
 class MeasurementLMGliner(MeasurementLM):
     """Local structured-extraction baseline using GLiNER2."""
@@ -82,6 +110,7 @@ class MeasurementLMGliner(MeasurementLM):
         gliner_property_names: dict[str, str] | None = None,
         entity_type_description: str | None = None,
         gliner_entity_description: str | None = None,
+        gliner_field_descriptions: dict[str, str] | None = None,
         threshold: float = 0.5,
         batch_size: int = 8,
         chunk_size: int = 384,
@@ -89,9 +118,6 @@ class MeasurementLMGliner(MeasurementLM):
         device: str | None = None,
         **kwargs,
     ):
-        # GLiNER reads OCR text directly; never run the image-based table
-        # cleaning pass (mirrors the other baselines).
-        kwargs.setdefault("clean_tables", False)
         super().__init__(*args, **kwargs)
 
         # Imported here (not at module top) so `analysis`/config imports of this
@@ -104,6 +130,7 @@ class MeasurementLMGliner(MeasurementLM):
         self.gliner_property_names = gliner_property_names or {}
         self.entity_type_description = entity_type_description
         self.gliner_entity_description = gliner_entity_description
+        self.gliner_field_descriptions = gliner_field_descriptions or {}
         self.threshold = threshold
         self.batch_size = batch_size
         self.chunk_size = chunk_size
@@ -122,55 +149,85 @@ class MeasurementLMGliner(MeasurementLM):
         """
         return self.gliner_property_names.get(attr_key) or attr_key.replace("_", " ")
 
-    def _has_date_event(self) -> bool:
-        """Whether the dataset's event schema declares a ``date`` field."""
-        return (
-            self.measurement_event_schema is not None
-            and "date" in self.measurement_event_schema.model_fields
-        )
+    def _extra_entity_fields(self) -> list[str]:
+        """Entity-schema fields to ask for beyond the subject name field.
+
+        Only fields named in ``gliner_field_descriptions`` are asked for. A
+        field with no entry there is a deliberate exclusion, not an oversight
+        -- e.g. ``identifiers`` (an alias-resolution aid for the real
+        pipeline's entity matching, not reported content).
+        """
+        name_field = self._entity_name_field()
+        return [
+            f for f in self.entity_identification_schema.model_fields
+            if f != name_field and f in self.gliner_field_descriptions
+        ]
+
+    def _extra_event_fields(self) -> list[str]:
+        """Measurement-event-schema fields to ask for beyond the subject name field.
+
+        ``name_field`` is excluded here too, in case a dataset's event schema
+        happens to declare a same-named field. See `_extra_entity_fields` for
+        the description-required filter.
+        """
+        if self.measurement_event_schema is None:
+            return []
+        name_field = self._entity_name_field()
+        return [
+            f for f in self.measurement_event_schema.model_fields
+            if f != name_field and f in self.gliner_field_descriptions
+        ]
+
+    def _field_description(self, field_name: str) -> str:
+        """Description for one extra entity/event field, from
+        ``gliner_field_descriptions`` (see `_extra_entity_fields`)."""
+        return self.gliner_field_descriptions[field_name]
 
     def _entity_name_field(self) -> str:
         """Field that holds the measurement subject's name.
 
-        ``name`` on the entity schema for pond/nfix/supermat. Datasets that do
-        not enumerate subjects as entities can carry it on the measurement
-        event instead -- measeval enumerates *quantities* as entities and
-        resolves the subject per-quantity as an event field (see
-        ``experiments/dataset-configs/measeval.py``), so the event schema is checked
-        before falling back to the first entity field. Without this, GLiNER
-        would write the subject it found into that dataset's first entity field
-        (``quantity``) and leave the ``name`` column null on every record,
-        which silently drops every candidate edge in ``match_datasets``.
+        Every dataset config enumerates the measurement subject as ``name`` on
+        its entity schema (pond/nfix/supermat/measeval). Fail loud rather than
+        guessing a fallback field: writing the extracted subject into the
+        wrong column would silently drop every candidate edge in
+        ``match_datasets`` instead of raising here.
         """
         fields = list(self.entity_identification_schema.model_fields)
-        if "name" in fields:
-            return "name"
-        if (
-            self.measurement_event_schema is not None
-            and "name" in self.measurement_event_schema.model_fields
-        ):
-            return "name"
-        return fields[0]
+        if "name" not in fields:
+            raise ValueError(
+                f"entity_identification_schema {self.entity_identification_schema.__name__!r} "
+                f"has no 'name' field (fields: {fields}) -- MeasurementLMGliner requires the "
+                f"measurement subject to be named 'name' on the entity schema."
+            )
+        return "name"
 
     def _build_structure(self, attr_key: str):
         """Build a one-structure GLiNER2 `Schema` for a single attribute.
 
-        Fields: entity ``name``, measurement ``value`` (numeric) + ``units``,
-        and — when the dataset tracks measurement dates — ``date``. Each field's
-        description is what steers this small model; the ``value`` field carries
-        the attribute's full ``attribute_info_dict`` description.
+        Fields: subject ``name``, measurement ``value`` (full raw text) +
+        ``units``, the qualifier/shape fields (see QUANTITY_FIELD_NAMES below),
+        plus every other entity- and measurement-event-schema field (see
+        `_extra_entity_fields` / `_extra_event_fields`) — module docstring's
+        "Field scope" note explains why GLiNER2 isn't restricted to name-only the
+        way ChatExtract is. Each field's description is what steers this small
+        model; the ``value`` field carries the attribute's full
+        ``attribute_info_dict`` description.
+
+        GLiNER2 structure fields are scalar (``dtype="str"`` only, no array
+        type) — unlike every other extraction method in this repo, ``qualifiers``
+        and ``list_values`` are comma-joined strings here, not JSON lists. This
+        is a real, documented divergence from the shared
+        qualifiers/point_value/lower/upper/list_values/tolerance/
+        standard_deviation shape (MeasurementLM.ParseQuantityResponse), forced
+        by GLiNER2's own type system, not an oversight.
         """
         phrase = self._phrase(attr_key)
         info = self.attribute_info_dict.get(attr_key, {})
         description = info.get("description", "")
         units = info.get("units") or []
-        unit_hint = f" (e.g. {', '.join(units[:4])})" if units else ""
+        unit_hint = f" (e.g. {', '.join(units)})" if units else ""
 
-        entity_desc = (
-            self.gliner_entity_description
-            or self.entity_type_description
-            or "the entity that this measurement belongs to"
-        ).rstrip(". ")
+        entity_desc = (self.gliner_entity_description or self.entity_type_description).rstrip(". ")
 
         struct_name = attr_key  # unique per work item; used to read results back
         schema = self.extractor.create_schema()
@@ -184,8 +241,10 @@ class MeasurementLMGliner(MeasurementLM):
         builder.field(
             "value",
             dtype="str",
-            description=f"The numeric value of the {phrase} measurement. {description} "
-            f"Give digits only (e.g. '2.3', '850').",
+            description=f"The value of the {phrase} measurement exactly as reported, in full -- "
+            f"including any range, list, inequality, mean/median/count label, or uncertainty "
+            f"measure (+/- value, confidence interval, standard deviation) reported alongside "
+            f"it. {description} Do not convert, round, drop, or otherwise modify any part of it.",
         )
         builder.field(
             "units",
@@ -193,13 +252,58 @@ class MeasurementLMGliner(MeasurementLM):
             description=f"The unit of the {phrase} value{unit_hint}. "
             f"Leave empty if the quantity is dimensionless or no unit is given.",
         )
-        if self._has_date_event():
-            builder.field(
-                "date",
-                dtype="str",
-                description="The date or time period when this measurement was taken "
-                "(e.g. 'June 2019', 'Summer 2021', '2015'), if stated.",
-            )
+        builder.field(
+            "qualifiers",
+            dtype="str",
+            description="Comma-separated tags describing the shape of the value, drawn only "
+            "from: IsCount (a count of discrete items), IsApproximate (explicitly hedged, e.g. "
+            "'about 50'), IsList (an enumerated list of separate values), IsRange (a reported "
+            "interval or one-sided bound, e.g. '3-7', '< 5'), IsMean (an explicitly stated "
+            "mean/average), IsMedian (an explicitly stated median), HasTolerance (an explicit "
+            "+/- value or confidence interval reported alongside the value), HasSD (an explicit "
+            "standard deviation reported alongside the value). Combine tags freely when the "
+            "text supports it (e.g. 'IsApproximate, IsMean'). Leave empty for a plain, unhedged "
+            "single value.",
+        )
+        builder.field(
+            "point_value",
+            dtype="str",
+            description="The single central value, when one is directly reported -- a plain "
+            "point value, or the stated mean/median/count. Leave empty if no single central "
+            "value is reported.",
+        )
+        builder.field(
+            "lower",
+            dtype="str",
+            description="The lower bound of a reported range or one-sided inequality (e.g. "
+            "'at least 10'). Leave empty if no range or lower bound is reported.",
+        )
+        builder.field(
+            "upper",
+            dtype="str",
+            description="The upper bound of a reported range or one-sided inequality (e.g. "
+            "'< 5'). Leave empty if no range or upper bound is reported.",
+        )
+        builder.field(
+            "list_values",
+            dtype="str",
+            description="If the value is an enumerated list of separate values, the parsed "
+            "items joined by commas, in the order reported. Leave empty otherwise.",
+        )
+        builder.field(
+            "tolerance",
+            dtype="str",
+            description="The confidence interval or +/- value exactly as reported (e.g. "
+            "'± 0.5', '95% CI: 5-9'), if one is given alongside the value. Leave empty otherwise.",
+        )
+        builder.field(
+            "standard_deviation",
+            dtype="str",
+            description="The standard deviation exactly as reported, if one is given "
+            "alongside the value. Leave empty otherwise.",
+        )
+        for field_name in self._extra_entity_fields() + self._extra_event_fields():
+            builder.field(field_name, dtype="str", description=self._field_description(field_name))
         schema.build()  # finalize the active builder on the Schema object
         return struct_name, schema
 
@@ -358,31 +462,35 @@ class MeasurementLMGliner(MeasurementLM):
         return text
 
     def _make_record(
-        self, doc_idx: int, attribute: str, name: str | None, date: str | None,
-        value: str, units: str | None, page_num: int | None,
+        self, doc_idx: int, attribute: str, name: str | None,
+        value: str, units: str | None, quantity: dict[str, str | None],
+        page_num: int | None, extra: dict[str, str | None],
     ) -> dict:
         """Build one extraction record in the standard flat schema.
 
-        Entity/event fields are derived from the dataset's schemas and set to
-        ``None`` except the entity name (and ``date`` when tracked), so the same
-        record shape works across datasets without hardcoding their union.
-        ``page_num`` is the 0-indexed OCR ``<page number="N">`` the source chunk
-        came from; ``_deduplicate`` aggregates it into an aligned ``page_number``
-        list so the judge can limit its context to the source page(s).
+        Entity/event fields are derived from the dataset's schemas: every field
+        GLiNER extracted (``extra``, keyed by field name — see
+        `_extra_entity_fields` / `_extra_event_fields`) is filled in, the rest
+        default to ``None``, so the same record shape works across datasets
+        without hardcoding their union. ``quantity`` carries QUANTITY_FIELD_NAMES
+        (qualifiers/list_values as comma-joined strings, not lists -- see
+        `_build_structure`'s docstring). ``page_num`` is the 0-indexed OCR
+        ``<page number="N">`` the source chunk came from; with no `_deduplicate`
+        step (see module docstring), it stays a plain scalar here, matching
+        ChatExtract's ``_make_record``.
         """
         name_field = self._entity_name_field()
         record: dict = {f: None for f in self.entity_identification_schema.model_fields}
         if self.measurement_event_schema is not None:
             for f in self.measurement_event_schema.model_fields:
                 record[f] = None
-            if self._has_date_event():
-                record["date"] = date
-        # After the event nulling, not before: ``name_field`` may itself be an
+        record.update(extra)
+        # After the extra-field fill, not before: ``name_field`` may itself be an
         # event field (see _entity_name_field), which the loop above would
         # otherwise overwrite with None.
         record[name_field] = name
 
-        record |= {"attribute": attribute, "value": value, "units": units}
+        record |= {"attribute": attribute, "value": value, "units": units} | quantity
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(name)}"
         return {"document_id": doc_idx} | record | {
             "entity_id": entity_id, "attribute_terms": [], "page_number": page_num,
@@ -445,8 +553,9 @@ class MeasurementLMGliner(MeasurementLM):
             max_len=self.chunk_size,
         )
 
+        extra_field_names = self._extra_entity_fields() + self._extra_event_fields()
+
         records: list[dict] = []
-        has_date = self._has_date_event()
         for (doc_idx, attr_key, page_num), struct_name, result in zip(work, struct_names, results):
             for item in result.get(struct_name, []):
                 value = self._clean_field(item.get("value"))
@@ -454,8 +563,11 @@ class MeasurementLMGliner(MeasurementLM):
                     continue  # values are always numeric
                 name = self._clean_field(item.get(self._entity_name_field()))
                 units = self._clean_field(item.get("units"))
-                date = self._clean_field(item.get("date")) if has_date else None
-                records.append(self._make_record(doc_idx, attr_key, name, date, value, units, page_num))
+                quantity = {f: self._clean_field(item.get(f)) for f in QUANTITY_FIELD_NAMES}
+                extra = {f: self._clean_field(item.get(f)) for f in extra_field_names}
+                records.append(
+                    self._make_record(doc_idx, attr_key, name, value, units, quantity, page_num, extra)
+                )
 
         return records
 
@@ -464,8 +576,10 @@ class MeasurementLMGliner(MeasurementLM):
     # -----------------------------------------------------------------------
 
     def fit(self, documents: list[str]) -> list[dict]:
-        """Run the GLiNER baseline over the given documents' OCR text."""
-        self.data = [{"document_id": i} for i in range(len(documents))]
+        """Run the GLiNER baseline over the given documents' OCR text.
+
+        Like ChatExtract and NuExtract3, skips both `_standardize` and
+        `_deduplicate` — see module docstring's "Field scope" and dedup notes.
+        """
         self.data = self._extract_records(documents)
-        self.data = self._deduplicate(self.data)
         return self.data

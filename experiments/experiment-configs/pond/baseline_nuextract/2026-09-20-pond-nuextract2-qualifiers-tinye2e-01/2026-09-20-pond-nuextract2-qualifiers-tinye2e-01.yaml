@@ -1,0 +1,36 @@
+id: 2026-09-20-pond-nuextract2-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for NuExtract-2.0-8B's new qualifier/shape fields.
+  Per Phase 3 of devlog/2026-09-20-measurement-qualifiers-01.md, NuExtract
+  and NuExtract3 needed no code changes -- both build their JSON schema
+  generically from Pydantic field annotations, so the 7 new fields pass
+  through once the dataset config's DirectExtractionItemSchema has them
+  (verified in-session with an ad hoc script, not against a live model).
+  This run is the first live check. Unlike the OCR-text-driven baselines,
+  NuExtract-2.0-8B is a vision-language model that reads rendered page
+  images directly (run_baseline_nuextract.py requires
+  experiments/process_pdfs.py output, already present for this paper under
+  data/pond/processed_pdfs/trophic_status_and_threats/), so "does the table
+  land correctly" here is a genuinely different code path than the
+  OCR-text baselines -- the model reads the rendered Table 1 image, not
+  OCR'd text. Same paper for cross-baseline comparability:
+  trophic_status_and_threats.txt / .pdf, Table 1's pH row ("8,4±0,4" at 0m
+  depth). Scope is plumbing + qualitative field inspection only -- no
+  recovery-rate interpretation this round (eval-matching caveat, see
+  sibling configs).
+  Predicted result: one API call per rendered page (per this runner's own
+  docstring), a pH-relevant record with point_value/qualifiers/
+  standard_deviation populated as real JSON (list-valued qualifiers as an
+  actual array, unlike GLiNER's forced comma-joined string) if the model
+  reads the table image correctly at all. If the new fields are present in
+  the schema request but come back empty/null on every record, distinguish
+  a vision-read failure (plausible on a dense table image, not itself a
+  qualifier-code regression) from the fields never being requested in the
+  first place (a real schema-wiring bug) by checking the request payload in
+  log.txt.
+seed: 342
+params:
+  dataset: pond
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:30:00"

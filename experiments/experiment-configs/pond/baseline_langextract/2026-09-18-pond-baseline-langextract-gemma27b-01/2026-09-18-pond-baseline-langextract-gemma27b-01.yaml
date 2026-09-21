@@ -1,0 +1,26 @@
+id: 2026-09-18-pond-baseline-langextract-gemma27b-01
+project: scholarlm
+description: >-
+  Rung-2 smoke test for the langextract baseline (measurementlm_langextract.py):
+  one pond paper, real langextract chunking (max_char_buffer=5000). First round
+  (use_schema_constraints=false, fence_output=true) confirmed the wrapper +
+  langextract + local vLLM chat-completions path works and, unfiltered,
+  produces plausible measurements (including several legitimately
+  out-of-vocabulary attributes -- confirmed not a bug). This round flips on
+  structured-decoding schema constraints (use_schema_constraints=true,
+  fence_output=false, required pairing -- see _build_output_schema), enum-
+  constraining `attribute` to the dataset's known vocabulary at generation
+  time, and threads gemma-3-27b's own max_tokens (8192) through as
+  langextract's language_model_params.max_output_tokens.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: [agricultural_freshwater]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "02:00:00"

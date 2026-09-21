@@ -1,0 +1,20 @@
+id: 2026-09-19-pond-gemma3-27b-v2-groupctx-smoke-02
+project: scholarlm
+description: >
+  Re-run of 2026-09-19-pond-gemma3-27b-v2-groupctx-smoke-01 after fixing two
+  bugs that smoke test found in _contextualize_quantities's copy-back
+  matching: (1) our own prompt rendered an absent CI field as the literal
+  text "None" instead of omitting it, which the model then echoed back as a
+  string, and (2) the match key was narrowed to (attribute, value, units)
+  since the model was observed re-deriving quantifier from table context
+  rather than echoing it verbatim, dropping every one of the 19
+  standardized quantities in -01 (0 final records). Same paper and model as
+  -01. Not a real extraction run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-qwen-3.5-27b-01
+  paper_subset: ["analysis_of_biological"]
+  resume: false
+  walltime: "01:00:00"

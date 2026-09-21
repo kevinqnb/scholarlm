@@ -1,2 +1,24 @@
 model_id: fastino/gliner2-large-v1
 sampling_params: {}
+resources:
+  # GLiNER2-large is a ~435M-param DeBERTa-v3-large encoder loaded directly
+  # in-process (no vLLM server) -- far smaller than the smallest model class
+  # already using this exact gpu_memory=32G/gpu_capability=7.0/gpu_type=L40S
+  # tier in this repo (nuextract3.yaml at 4B; interp_judge/qwen-2.5-7b.yaml,
+  # representation_lm/llama-3.1-8b-base.yaml, interp_judge/llama-3.1-8b.yaml
+  # at 7-8B), so reusing that established floor is safe headroom for GLiNER,
+  # not a fresh guess (no direct peak-memory measurement exists for GLiNER2
+  # itself -- see CLAUDE.md's "no invented resource numbers" rule).
+  # 3 prior real baseline_gliner runs (pre-dating this resources: block; all
+  # of them ran gliner-large-v1, the runner's own default --
+  # experiments/results/{pond,nfix,supermat}/baseline_gliner/*/run_metadata.json,
+  # 2026-07-11/13) completed successfully on A40 (pond) and L40S (nfix,
+  # supermat) -- both 44.4 GiB total card memory, not GLiNER's own peak usage.
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # Pinned per env_blackwell_torch_cu126: a bare gpu_capability floor does not
+  # exclude SCC's Blackwell nodes (sm_120 passes any floor, then crashes torch
+  # mid-forward). L40S (sm_89) clears the 7.0 floor without being Blackwell,
+  # and is the type 2 of the 3 prior real GLiNER runs above already landed on.
+  gpu_type: L40S
+  omp: 8

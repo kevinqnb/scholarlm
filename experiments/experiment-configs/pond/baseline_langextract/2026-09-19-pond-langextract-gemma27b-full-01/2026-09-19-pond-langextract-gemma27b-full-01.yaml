@@ -1,0 +1,42 @@
+id: 2026-09-19-pond-langextract-gemma27b-full-01
+project: scholarlm
+description: >-
+  Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
+  all 128 non-excluded pond papers, backbone gemma-3-27b only (per instruction
+  -- no other backbone run for this baseline this session). max_char_buffer /
+  extraction_passes / max_workers / batch_length / use_schema_constraints /
+  fence_output match the never-executed rung-3 tiny-e2e config
+  (2026-09-18-pond-baseline-langextract-gemma27b-10papers-01): schema
+  constraints on (use_schema_constraints=true, fence_output=false, required
+  pairing), concurrency raised from the 1-paper smoke test's conservative 4/4
+  to 16/20 for a real run. max_workers=16/batch_length=20 checked against real
+  data, not just copied: mean pond OCR text (~59.5KB) chunks to ~12
+  max_char_buffer=5000 pieces/doc, so 16 workers covers a typical document in
+  one round, and batch_length(20) >= max_workers(16) avoids langextract's own
+  degraded-parallelism warning -- but this concurrency has never actually been
+  timed (only the 4/4 smoke run has a real measurement).
+  Walltime is grounded in that real measurement, with heavy headroom on top:
+  the 1-paper smoke run (2026-09-18-pond-baseline-langextract-gemma27b-01,
+  run_metadata.json) measured runtime_seconds=637.5 at max_workers=4/batch_length=4
+  for one pond paper. Using that per-paper cost directly (not assuming the
+  16/20 concurrency bump helps, since that's unverified) x 128 papers gives a
+  ~22.7h base; budgeted to ~1.6x that for headroom. No incremental output:
+  mlm.fit() returns once for the whole dataset before final.json is written,
+  so a walltime kill loses the entire run, not a partial result.
+  ocr_dir explicitly set to the non-cleaned (source_type=ocr, not
+  table_cleaning) drop-references output, not dataset_config's default
+  data/pond/ocr_output_raw/. File counts match 1:1 with ocr_output_raw/ (128
+  papers), confirming this is the same paper set with references dropped,
+  not a different subset.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "36:00:00"

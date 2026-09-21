@@ -1,0 +1,40 @@
+id: 2026-09-19-pond-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) on all 115 non-excluded pond papers
+  (paper_subset omitted -- dataset_config.paper_exclude, 13 papers, is the
+  only filtering applied; confirmed via load_papers()). First full-scale pond
+  GLiNER run since this session's faithfulness rework: no `_deduplicate()`
+  call in `fit()` (was borrowed pipeline machinery, not part of GLiNER2's own
+  method -- matches the ChatExtract/NuExtract3 precedent; raw record counts
+  from this run are NOT comparable to the pre-rework run below), field scope
+  expanded from name+value+units+date to every field named in the new
+  `DatasetConfig.gliner_field_descriptions` (location, ecosystem, date,
+  additional_details -- `identifiers` deliberately excluded, an
+  alias-resolution aid, not reported content), full unit list shown in the
+  units field's description (was silently truncated to 4), central-value/
+  range-exclusion guidance added to the value field's description, and the
+  unreachable entity_type_description fallback string removed. All
+  description text for the new fields is copied verbatim from
+  `_DIRECT_EXTRACTION_PROMPT`'s own per-field bullets in
+  experiments/dataset-configs/pond.py, not freshly authored.
+  As of writing, this rework is UNCOMMITTED (git status dirty) and rungs 1-3
+  have only been exercised ad hoc against hand-built fixtures and the cached
+  fastino/gliner2-base-v1 weights in an interactive shell, not run end-to-end
+  under a numbered rung-1/2/3 id for gliner-large-v1 on real pond papers --
+  walk that ladder before actually submitting this rung-4 config.
+  Walltime: prior full run
+  (experiments/results/pond/baseline_gliner/2026-07-11-pond-baseline-gliner-01/run_metadata.json,
+  runtime_seconds=1100.5, same 115-paper set, gliner-large-v1) gives
+  ~9.57s/paper. Budgeted to 3x that base (~55 min) for headroom, since the
+  new field scope roughly doubles the fields scored per GLiNER structure
+  (4 -> 7) and this hasn't been measured at full scale under the new code.
+  No incremental output: fit() returns once for the whole dataset before
+  final.json is written, so a walltime kill loses the entire run, not a
+  partial result.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  walltime: "02:00:00"

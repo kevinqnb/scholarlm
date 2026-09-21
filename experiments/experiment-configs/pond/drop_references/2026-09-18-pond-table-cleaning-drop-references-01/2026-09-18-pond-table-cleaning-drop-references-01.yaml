@@ -1,0 +1,16 @@
+id: 2026-09-18-pond-table-cleaning-drop-references-01
+project: scholarlm
+description: >-
+  Retroactively apply the resume-heading fix in drop_references_section (this
+  session's addition: an appendix/figures/tables/supplementary-material bare
+  heading found after the reference cut now resumes the kept text there,
+  instead of dropping straight to end-of-document) to the existing pond
+  table-cleaned OCR output. Pure text post-processing on the already-written
+  .txt files -- the table-cleaning model call is not re-run, since cleaned
+  table markup is untouched by this transform. Source run
+  (2026-04-07-pond-table-cleaning-qwen-3.5-27b-01) is left untouched; output goes to a new id.
+seed: 342
+params:
+  dataset: pond
+  source_type: table_cleaning
+  source_id: 2026-04-07-pond-table-cleaning-qwen-3.5-27b-01

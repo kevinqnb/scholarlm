@@ -1,0 +1,41 @@
+id: 2026-09-20-pond-extraction-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for MeasEval-style qualifier/shape fields
+  (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation; devlog/2026-09-20-measurement-qualifiers-01.md) on the
+  base MeasurementLM pipeline. Rung 2 skipped -- no GPU or frontier API key
+  available in the current shell, and this repo has precedent for skipping
+  smoke on an explicit call (2026-09-19-pond-gliner-large-tinye2e-01). Scope
+  is plumbing + qualitative inspection of how values land in the new fields,
+  NOT a recovery-rate comparison: apply_unit_conversion/get_matching_rules
+  strict-match on a numeric-coerced value, so any record where this run
+  correctly returns a non-plain-point value (a range, a tolerance) will
+  register as a ground-truth miss for reasons unrelated to extraction
+  quality (flagged, not fixed, in the build note -- fixing it is a separate
+  standalone eval-logic commit per CLAUDE.md). Paper chosen for real table
+  content, not file size: trophic_status_and_threats.txt (21.4KB) has a
+  clean depth-profile table (Table 1) with `value±sd`-shaped cells for a
+  tracked attribute, pH -- e.g. "8,4±0,4" at 0m depth. Comma-decimal
+  notation, not period -- a real risk that the model normalizes the
+  separator (violating "preserve the raw value verbatim") or misreads the
+  comma as an IsList delimiter.
+  Predicted result: a pH record with point_value close to "8,4" (comma
+  preserved verbatim, not renormalized to "8.4"), qualifiers including
+  "HasSD", and standard_deviation close to "0,4" -- consistent with pond.py's
+  own existing few-shot example pairing pH with an SD-qualified value
+  ("7.4 (SD 0.3)"). If the comma is dropped, or the value is coerced to a
+  bare "8.4" with no HasSD/standard_deviation populated, or the pipeline
+  crashes on _parse_quantities(), stop before scaling to more papers.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  # Table cleaning was split out of run_extraction.py into a separate step
+  # (TableCleaner) -- run_extraction.py no longer auto-cleans tables itself.
+  # This pins ocr_dir to the already-cleaned corpus this run originally used
+  # (via the removed has_tables-driven auto-clean), so a rerun of this exact
+  # config stays input-identical.
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

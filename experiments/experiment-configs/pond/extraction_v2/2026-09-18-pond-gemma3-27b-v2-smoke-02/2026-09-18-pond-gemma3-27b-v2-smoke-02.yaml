@@ -1,0 +1,18 @@
+id: 2026-09-18-pond-gemma3-27b-v2-smoke-02
+project: scholarlm
+description: >
+  MeasurementLMv2 smoke test (run 2 of 2, identical params to -01): same
+  paper, same model, same seed -- diff final.json against -01 to check
+  seed-determinism (CLAUDE.md sanity control). Not a real extraction run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  # Id-addressed table_cleaning output, not the legacy per-model directory --
+  # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
+  # run_metadata.json/config are missing). Table-cleaning model and extraction
+  # model are independent choices -- OCR text is just text by this point.
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-qwen-3.5-27b-01
+  paper_subset: ["analysis_of_biological"]
+  resume: false
+  walltime: "01:00:00"

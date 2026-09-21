@@ -1,0 +1,43 @@
+id: 2026-09-19-supermat-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) on all 142 supermat papers
+  (dataset_config.paper_exclude is None for supermat -- no quality exclusions
+  defined, so "full run" here really is every OCR'd paper on disk; confirmed
+  via load_papers()). First full-scale supermat GLiNER run since this
+  session's faithfulness rework: no `_deduplicate()` call in `fit()` (was
+  borrowed pipeline machinery, not part of GLiNER2's own method -- matches
+  the ChatExtract/NuExtract3 precedent; raw record counts from this run are
+  NOT comparable to the pre-rework run below), field scope expanded from
+  name+value+units (supermat's MeasurementEventSchema has no `date`, so the
+  old code never added a 4th field here) to every field named in the new
+  `DatasetConfig.gliner_field_descriptions` -- adding sample_details,
+  pressure, me_method, and additional_details (`identifiers` deliberately
+  excluded, an alias-resolution aid, not reported content), full unit list
+  shown in the units field's description (was silently truncated to 4,
+  though supermat's tc attribute only ever had 2 units so this was a no-op
+  here), central-value/range-exclusion guidance added to the value field's
+  description, and the unreachable entity_type_description fallback string
+  removed. All description text for the new fields is copied verbatim from
+  `_DIRECT_EXTRACTION_PROMPT`'s own per-field bullets in
+  experiments/dataset-configs/supermat.py, not freshly authored.
+  As of writing, this rework is UNCOMMITTED (git status dirty) and rungs 1-3
+  have only been exercised ad hoc against hand-built fixtures and the cached
+  fastino/gliner2-base-v1 weights in an interactive shell, not run end-to-end
+  under a numbered rung-1/2/3 id for gliner-large-v1 on real supermat papers
+  -- walk that ladder before actually submitting this rung-4 config.
+  Walltime: prior full run
+  (experiments/results/supermat/baseline_gliner/2026-07-13-supermat-baseline-gliner-01/run_metadata.json,
+  runtime_seconds=72.3, same 142-paper set, gliner-large-v1) gives
+  ~0.51s/paper. Budgeted to 3x that base (~4 min), then padded to 45 min --
+  the base estimate is small enough that fixed overhead (SGE job startup,
+  weight loading from HF_CACHE) dominates it, not just the field-scope
+  change. No incremental output: fit() returns once for the whole dataset
+  before final.json is written, so a walltime kill loses the entire run, not
+  a partial result.
+seed: 342
+params:
+  dataset: supermat
+  model: gliner-large-v1
+  walltime: "00:45:00"

@@ -1,0 +1,15 @@
+id: 2026-09-18-supermat-ocr-drop-references-01
+project: scholarlm
+description: >-
+  Retroactively apply the resume-heading fix in drop_references_section (this
+  session's addition: an appendix/figures/tables/supplementary-material bare
+  heading found after the reference cut now resumes the kept text there,
+  instead of dropping straight to end-of-document) to the existing supermat
+  OCR output. Pure text post-processing on the already-written .txt files --
+  no olmOCR re-run, no vLLM server. Source run
+  (2026-07-09-supermat-ocr-olmocr-01) is left untouched; output goes to a new id.
+seed: 342
+params:
+  dataset: supermat
+  source_type: ocr
+  source_id: 2026-07-09-supermat-ocr-olmocr-01

@@ -1,0 +1,39 @@
+id: 2026-09-20-supermat-extraction-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the base MeasurementLM pipeline's qualifier
+  fields on a third dataset (supermat), combining a genuine known-answer
+  case with a table-parsing stress test. PR05003221-CC.txt (12.9KB) has two
+  relevant things: (1) a prose known-answer for supermat's one tracked
+  attribute, tc -- "T_c increases from 38 K, at ambient pressure, to 42K at
+  ~2 GPa" -- a real IsRange case with inconsistent spacing ("38 K" vs.
+  "42K") that verbatim preservation must reproduce exactly, not normalize;
+  (2) Table 1, an untracked dω/dP table where two tolerance-bearing values
+  are packed into a single cell via <br>, one of them bracketed:
+  "3.77±0.89<br>[1.7±0.4]". Supermat tracks only tc, so Table 1 is a
+  specificity check like nfix's genus table, not a value-fidelity check --
+  but if the pipeline does attempt to parse a cell like this, whether it
+  splits it into two records or produces one mangled record is worth
+  observing. Scope is plumbing + qualitative field inspection only -- no
+  recovery-rate interpretation this round (same eval-matching caveat as the
+  other configs in this collection).
+  Predicted result: a tc record with qualifiers including "IsRange", lower
+  ~"38 K" and upper ~"42K" -- spacing difference preserved, not normalized
+  to a consistent style. Table 1's dω/dP values should not surface as tc
+  records (untracked attribute). If a tc record appears with lower/upper
+  collapsed to a single point_value, or the space inconsistency gets
+  "cleaned up," that's the verbatim-preservation guarantee failing on
+  exactly the kind of real-world formatting irregularity it exists to
+  survive.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  # Table cleaning was split out of run_extraction.py into a separate step
+  # (TableCleaner) -- run_extraction.py no longer auto-cleans tables itself.
+  # This pins ocr_dir to the already-cleaned corpus this run originally used
+  # (via the removed has_tables-driven auto-clean), so a rerun of this exact
+  # config stays input-identical.
+  ocr_dir: data/supermat/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["PR05003221-CC"]
+  walltime: "01:00:00"

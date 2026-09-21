@@ -45,6 +45,7 @@ dependencies = [
     "statsmodels>=0.14.6",
     "relplot>=1.0.3",
     "sentencepiece>=0.2.2",
+    "langextract[openai]>=1.7.0",
 ]
 
 [project.optional-dependencies]

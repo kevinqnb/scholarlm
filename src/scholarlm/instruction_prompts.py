@@ -70,9 +70,8 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS = """You are an expert in data extraction for sy
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Copy the value exactly as it appears, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- If there are multiple, separate measurements reported (e.g., different sites, dates, or conditions), extract only the one relevant to the given (entity, attribute, event); do not merge separate measurements into one value.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
@@ -96,23 +95,107 @@ Guidelines:
 """
 
 
-STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing measurement values and units extracted from a research paper. You will be given the source text where the measurement was extracted from (either a page of prose text or an HTML table), a description of the specific entity and attribute, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Use the provided source text to verify the original measurement context. Your task is to standardize both the extracted value and the units according to the following guidelines.
-
-Value standardization guidelines:
-- For numerical values associated with uncertainty measures (e.g., ± values, confidence intervals), report only the central value without any uncertainty information, unless the queried attribute specifically directs otherwise.
-- For numerical values reported as ranges with a central value (e.g., 5 (3-7)) report only the central value, unless the queried attribute specifically directs otherwise.
-- For numerical values reported as ranges without a central value (e.g., 3-7), choose the single value which best fits the queried attribute.
-- For numerical values reported with inequalities (e.g., < 5), report the numerical value only without any additional formatting.
-- For numerical values which are reported with a unit of measurement or other descriptor, convert the value to a standardized numerical format without any units or descriptors.
-- If the value does not need any standardization (i.e. is a single numerical or descriptive value), return the value exactly as it is given.
+STANDARDIZE_MEASUREMENTS_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing the units of a measurement value extracted from a research paper. You will be given the source text where the measurement was extracted from (either a page of prose text or an HTML table), a description of the specific entity and attribute, a list of available (preferred) units for the attribute, and an extracted measurement value with units. Use the provided source text to verify the original measurement context. Your task is to standardize the units only, according to the following guidelines.
 
 Units standardization guidelines:
 - If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the best matching entry from the available units list. You may infer notational variants based on common scientific usage.
 - If the extracted units are not a notational variant of any available unit (i.e., they would require unit conversion to match, or there are no available units listed), return the extracted units unchanged.
 - If the extracted units are null (not reported), return null.
+- Do NOT modify, standardize, round, or reformat the extracted measurement value in any way -- it is not part of this task and is handled separately.
 
-- Provide a brief explanation of what standardization was applied to both value and units (or why none was needed).
-- Structure your response as a JSON object with "explanation", "value", and "units" fields.
+- Provide a brief explanation of what unit standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation" and "units" fields.
+"""
+
+
+PARSE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to parse a single already-extracted measurement value into its structured components, using the source text it was extracted from as ground truth.
+
+You will be given: the source text (a page or table) the value was extracted from, a description of the measurement attribute, and the extracted value and units as originally reported.
+
+Guidelines:
+- qualifiers: a list of zero or more tags describing the shape of the reported quantity. Use only tags from this set: "IsCount" (a count of discrete items, not a continuous measurement), "IsApproximate" (explicitly hedged, e.g. "~12", "about 50", "approximately"), "IsList" (an enumerated list of separate values, not a single number or range), "IsRange" (a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10"), "IsMean" (an explicitly stated mean/average), "IsMedian" (an explicitly stated median), "HasTolerance" (an explicit +/- value or confidence interval is reported alongside the value), "HasSD" (an explicit standard deviation is reported alongside the value). These tags are independent and may combine freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]; a mean reported together with a range, e.g. "5.2 (3.1-7.4)", is ["IsMean", "IsRange"]). Use an empty list for a plain, unhedged single value with no other qualifier.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given).
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
+- Do NOT infer, guess, or derive any field. Use ONLY what is explicitly stated in the source text.
+- Provide a brief explanation of your parsing decisions.
+- Structure your response as a JSON object with "explanation", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields.
+"""
+
+
+# --------------------------------------------
+# MeasurementLMv2 Prompts (quantity-first pipeline)
+#
+# v2 flips the extraction order: quantities are collected per (page, attribute)
+# before any entity or event is known, deduplicated, grouped by document and
+# source location (prose vs. a specific table), and only then attributed to an
+# entity/event in one full-paper call per group. See
+# src/scholarlm/measurementlmv2.py.
+# --------------------------------------------
+
+QUANTITY_COLLECTION_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract every directly reported quantity for a single measurement attribute from a single page of a research paper, pulling from both prose text and any tables on the page.
+
+Guidelines:
+- Scan the entire page — including prose text, tables, table captions, and footnotes — for every distinct numerical value reported for the given attribute.
+- Return one item per distinct quantity found. If the same value is reported more than once on the page for what is clearly the same measurement, report it once. If the page reports multiple different measurements for the attribute (different entities, dates, conditions, etc.), report each one as a separate item — do not average or collapse them.
+- Only include direct numerical measurements. Do NOT include model parameters, coefficients, p-values, or measures of statistical fit.
+- If the page reports no data for the attribute, return an empty items list.
+
+For each quantity, populate:
+- value: the full raw value exactly as reported, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- units: the unit of measurement as reported, or null if the attribute is dimensionless or no unit is given.
+- qualifiers: a list of zero or more tags describing the shape of this quantity. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
+  - "IsCount": a count of discrete items, not a continuous measurement.
+  - "IsApproximate": explicitly hedged, e.g. "~12", "about 50", "approximately".
+  - "IsList": an enumerated list of separate values, not a single number or range.
+  - "IsRange": a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10".
+  - "IsMean": an explicitly stated mean/average.
+  - "IsMedian": an explicitly stated median.
+  - "HasTolerance": an explicit +/- value or confidence interval is reported alongside the value.
+  - "HasSD": an explicit standard deviation is reported alongside the value.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given).
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
+- table_number: if the quantity is reported within a table on this page, the table number from the enclosing `<table number="x">` tag. Otherwise null (the quantity is in prose text).
+
+Strict rules:
+- Do NOT infer, guess, or derive any value. Use only what is explicitly stated on the page.
+- Structure your response as a JSON object with an "items" list, where each item has "value", "units", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation", and "table_number" fields.
+"""
+
+
+STANDARDIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to standardize the units of a single extracted quantity, using the page or table it was extracted from as the source of truth.
+
+You will be given: the source text (a page or table), a description of the measurement attribute, a list of preferred units for the attribute, and the quantity as extracted (its value and units).
+
+Guidelines:
+- If the extracted units are a notational variant of one of the preferred units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the matching preferred unit. You may infer notational variants based on common scientific usage.
+- If the extracted units are not a notational variant of any preferred unit (i.e., they would require unit conversion to match, or there are no preferred units listed), return the extracted units unchanged.
+- If the extracted units are null (not reported), return null.
+- Do NOT modify, standardize, round, or reformat the extracted value or any of its qualifier/shape fields (point_value, lower, upper, list_values, tolerance, standard_deviation) in any way -- that is not part of this task and is handled separately.
+- Provide a brief explanation of what unit standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation" and "units" fields.
+"""
+
+
+CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything each of a list of already-extracted quantities describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
+
+You will be given: the full text of a research paper (with page and table boundaries marked), a list of quantities already extracted from this paper (each with its attribute, value, units, qualifiers, and shape fields, and the page number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
+
+Guidelines:
+- For every quantity in the list, first copy its attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, and standard_deviation fields back into your response item exactly as given, character-for-character — this is how your answer is matched back to the right quantity, so do not alter, round, standardize, or reformat them. A quantity's listing below only shows the fields it has; anything not listed for it is absent and must be copied back as JSON null (or an empty list for qualifiers/list_values), not as any word or placeholder text.
+- Locate each quantity in the full paper using its given page number(s) (and table number, if the query says these quantities come from a table).
+- Determine which entity (or entities) the quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
+- In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item for it.
+- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination — each copying back the same quantity fields.
+- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach a quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
+- If you cannot confidently attribute a quantity to any entity, omit it from your response entirely rather than guessing — do not invent an item with blank entity/event fields just to have copied the quantity back.
+- Populate every entity and event field as completely as the paper allows; use null for anything not explicitly stated. Do not infer, guess, or derive any field value.
+- Structure your response as a JSON object with an "items" list, where each item has the quantity's fields (attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, standard_deviation) copied back, plus the entity fields and measurement-event fields described in the reference material provided in the query.
 """
 
 
@@ -130,13 +213,25 @@ Guidelines:
 - For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
 - Return one item per (entity, attribute, event) combination where a direct numerical measurement exists.
 - Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
-- Extract the value exactly as it appears in the document — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Extract the value exactly as it appears in the document, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
 - Give the value only in the value field; do not include any units, descriptors, or explanation there.
 - For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- qualifiers: a list of zero or more tags describing the shape of the reported value. Use only tags from this set, and combine them freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]); use an empty list for a plain, unhedged single value:
+  - "IsCount": a count of discrete items, not a continuous measurement.
+  - "IsApproximate": explicitly hedged, e.g. "~12", "about 50", "approximately".
+  - "IsList": an enumerated list of separate values, not a single number or range.
+  - "IsRange": a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10".
+  - "IsMean": an explicitly stated mean/average.
+  - "IsMedian": an explicitly stated median.
+  - "HasTolerance": an explicit +/- value or confidence interval is reported alongside the value.
+  - "HasSD": an explicit standard deviation is reported alongside the value.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given).
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 - Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
-- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", "units", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields as specified in the dataset-specific instructions.
 """
 
 
@@ -192,9 +287,8 @@ Guidelines:
 - You will be given the full document text.
 - If the document does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Copy the value exactly as it appears, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- If there are multiple, separate measurements reported (e.g., different sites, dates, or conditions), extract only the one relevant to the given (entity, attribute, event); do not merge separate measurements into one value.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
@@ -220,9 +314,8 @@ EXTRACT_TABLE_VALUE_DIRECT_INSTRUCTIONS = """You are an expert in data extractio
 Guidelines:
 - If the table does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the table, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Copy the value exactly as it appears, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- If there are multiple, separate measurements reported (e.g., different sites, dates, or conditions), extract only the one relevant to the given (entity, attribute, event); do not merge separate measurements into one value.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "explanation", "has_value", "value", and "units" fields.
 """
@@ -277,9 +370,8 @@ EXTRACT_TEXT_VALUE_INSTRUCTIONS_NO_EXPLANATIONS = """You are an expert in data e
 Guidelines:
 - If the page does not contain a relevant measurement, set has_value to false and leave value and units as null.
 - If a measurement is found, set has_value to true, extract the value exactly as it appears in the context, and extract the units of measurement.
-- Copy the value exactly as it appears — do not convert, round, or modify it.
-- Do not include uncertainty measures, confidence intervals, or range bounds in the value field.
-- If there are multiple types of values reported (e.g., mean, min, max), extract the mean or central value unless the attribute description directs otherwise.
+- Copy the value exactly as it appears, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- If there are multiple, separate measurements reported (e.g., different sites, dates, or conditions), extract only the one relevant to the given (entity, attribute, event); do not merge separate measurements into one value.
 - Give the value only in the value field, and do not include any units of measurement, descriptors, or explanation.
 - Structure your response as a JSON object with "has_value", "value", and "units" fields.
 """

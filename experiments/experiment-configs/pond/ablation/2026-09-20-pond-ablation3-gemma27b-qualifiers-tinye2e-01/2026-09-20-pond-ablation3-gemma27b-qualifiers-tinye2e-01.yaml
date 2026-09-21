@@ -1,0 +1,35 @@
+id: 2026-09-20-pond-ablation3-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for Ablation 3 (full-document pair provenance --
+  both provenance steps replaced by a single full-document query per
+  entity/attribute pair). Ablation 3 overrides fit() and explicitly calls
+  _parse_quantities() after _standardize() (devlog/2026-09-20-measurement-
+  qualifiers-01.md, Phase 1), same mechanism as the base pipeline -- this
+  config exists to confirm that override wiring actually works, not just
+  that the code compiles. Same paper as the base-pipeline and Ablation-1
+  siblings for a controlled three-way comparison:
+  trophic_status_and_threats.txt, Table 1's pH row ("8,4±0,4" at 0m depth).
+  Scope is plumbing + qualitative field inspection only -- no recovery-rate
+  interpretation this round (see sibling configs for the eval-matching
+  artifact this is deliberately not computing against).
+  Predicted result: field population should closely track the base-pipeline
+  config's result (same _parse_quantities() call, same input), differing
+  only in which entity/attribute pairs get identified at all, since
+  Ablation 3 changes provenance resolution, not quantity parsing. A pH
+  record with qualifiers including "HasSD" and the comma-decimal value
+  preserved verbatim is expected. If this run's qualifier fields look
+  structurally different from the base-pipeline run on the same cell,
+  that's a sign _parse_quantities() is not actually shared/consistent
+  across call sites -- stop and report rather than treat it as ablation
+  variance.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "3"
+  # See the ablation-1 sibling config's params.ocr_dir comment: run_ablation.py
+  # no longer auto-cleans tables, so this pins the same already-cleaned corpus.
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

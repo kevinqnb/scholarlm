@@ -1,0 +1,52 @@
+id: 2026-09-19-pond-langextract-gemma27b-maxtokens-fix-tinye2e-01
+project: scholarlm
+description: >-
+  Rung-3 tiny end-to-end for the max_tokens fix to measurementlm_langextract.py
+  (see rung-1 unit test in tests/test_measurementlm_langextract.py and rung-2
+  smoke test 2026-09-19-pond-langextract-gemma27b-maxtokens-fix-smoke-01,
+  which reproduced and cleared the original hang on `agricultural_freshwater`
+  in 96.7s vs. the pre-fix 637.5s-and-eventually-fine / full-run 1790s-and-
+  -crashed pattern). Same 10-paper subset as the never-executed
+  2026-09-18-pond-baseline-langextract-gemma27b-10papers-01 (the pond_ten dev
+  subset's paper codes, run against `dataset: pond` for its
+  nuextract_examples), but with ocr_dir pinned to the reference-dropped
+  directory the full run actually reads -- the original rung-3 config
+  predates that ocr_dir change (commit 49edf28) and would not have been
+  representative of rung 4 even before this fix. All 10 paper codes confirmed
+  present under the reference-dropped directory before writing this config.
+  Same schema-constrained settings and 16/20 concurrency as the full-run
+  config.
+  Prediction (stated before running, per CLAUDE.md): no APITimeoutError or
+  stuck request on any of the 10 papers -- fit() calls lx.extract() once per
+  document sequentially, so nothing about processing more documents changes
+  the per-request max_tokens plumbing rung 2 already exercised. Per-paper
+  runtime should land in the same order of magnitude as rung 2's 96.7s for a
+  similarly-sized paper (mean pond OCR text ~59.5KB vs. this rung's papers,
+  unmeasured but comparable); budgeting 60-180s/paper gives a total predicted
+  range of roughly 10-30 minutes plus ~2 minutes model load. Every paper
+  should yield at least one record, with per-paper record counts of the same
+  order as rung 2's 33. If any paper times out or the total runtime is wildly
+  outside this range, stop before rung 4 rather than treat it as noise.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  paper_subset:
+    - classification_trees
+    - physical-chemical_influences
+    - habitat_characteristics
+    - physical_and_chemical_limnological
+    - prairie_wetland
+    - macroinvertebrate_size
+    - relationships_between_fish
+    - net_heterotrophy
+    - impact_of_macrophytes
+    - environmental_conditions
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "00:45:00"

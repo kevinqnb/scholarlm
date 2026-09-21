@@ -9,5 +9,5 @@ params:
   dataset: pond
   judge: qwen-2.5-7b
   extraction_id: 2026-07-11-pond-baseline-gliner-01
-  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-01
+  ocr_dir: experiments/results/pond/ocr/2026-02-20-pond-ocr-olmocr-01
   walltime: "24:00:00"

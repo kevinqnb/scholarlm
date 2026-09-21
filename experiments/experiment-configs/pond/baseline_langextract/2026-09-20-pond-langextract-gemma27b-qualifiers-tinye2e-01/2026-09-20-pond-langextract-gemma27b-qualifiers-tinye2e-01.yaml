@@ -1,0 +1,32 @@
+id: 2026-09-20-pond-langextract-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for LangExtract's new qualifier/shape fields.
+  Unlike NuExtract, LangExtract needed a real code fix (Phase 3,
+  devlog/2026-09-20-measurement-qualifiers-01.md): _attribute_object_schema
+  used to hardcode every field as nullable-string, so list[str] fields like
+  qualifiers/list_values would have been coerced to string and silently
+  broken; added _json_type_for_field (introspects typing.get_origin/get_args)
+  so list fields now emit a real JSON array. This is the first live check of
+  that fix. Same paper as every sibling config: trophic_status_and_threats.txt,
+  Table 1's pH row ("8,4±0,4" at 0m depth). Scope is plumbing + qualitative
+  field inspection only -- no recovery-rate interpretation this round
+  (eval-matching caveat, see sibling configs).
+  Predicted result: a pH-relevant record with qualifiers returned as a real
+  JSON array (e.g. ["HasSD"]), not a string -- the specific thing
+  _json_type_for_field was added to fix. If qualifiers comes back as a
+  single string, a stringified list ("['HasSD']"), or the request errors
+  against the schema, that's the exact regression this fix targeted --
+  stop and report rather than treat it as model noise.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "00:30:00"

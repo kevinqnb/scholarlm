@@ -1,0 +1,19 @@
+id: 2026-09-20-nfix-extraction-gemma27b-schema-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke run for today's extraction-schema simplification (location
+  removed, site_type -> ecosystem_type, nfix_method/sample_depth removed,
+  substrate_type unfiltered from judge, additional_details -> event_details
+  catch-all). Confirms plumbing only, on the smallest valid nfix paper
+  (R264, 16.9KB) -- the tiny-e2e config in this same directory
+  (2026-09-20-nfix-extraction-gemma27b-qualifiers-tinye2e-01) targets R138,
+  whose extraction_location ("paper - figure/s") is excluded by
+  _nfix_paper_filter, so it silently loads 0 papers; not fixed here, flagged
+  separately. No prediction: this is plumbing verification, not a
+  known-answer check.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  paper_subset: ["R264"]
+  walltime: "00:30:00"

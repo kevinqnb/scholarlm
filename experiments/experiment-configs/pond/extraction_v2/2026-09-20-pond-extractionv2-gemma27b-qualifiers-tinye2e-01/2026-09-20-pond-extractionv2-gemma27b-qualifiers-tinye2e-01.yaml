@@ -1,0 +1,31 @@
+id: 2026-09-20-pond-extractionv2-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for MeasurementLMv2's reconciled quantity shape
+  (Phase 2, devlog/2026-09-20-measurement-qualifiers-01.md): the old
+  QuantityType/Quantifier/regex-based range validation was removed and
+  QuantityItem rebuilt onto the same field shape as v1 (qualifiers,
+  point_value, lower, upper, list_values, tolerance, standard_deviation).
+  Same paper as the v1 base-pipeline sibling config for a cross-version
+  comparison on identical input content: trophic_status_and_threats.txt,
+  Table 1's pH row ("8,4±0,4" at 0m depth). run_extraction_v2.py requires
+  pre-cleaned OCR text (it never runs table cleaning itself), so ocr_dir
+  points at data/pond/ocr_output_cleaned_gemma-3-27b, which already contains
+  this paper. Scope is plumbing + qualitative field inspection only -- same
+  eval-matching caveat as the sibling v1 configs (no recovery-rate
+  interpretation this round).
+  Predicted result: a pH quantity item with point_value ~"8,4" (comma
+  preserved), qualifiers including "HasSD", standard_deviation ~"0,4" --
+  same expectation as the v1 base-pipeline config, since both now share the
+  same field shape and the same non-fatal check_quantity_consistency
+  (imported from .measurementlm). If v2's dedup key (rewritten in Phase 2 to
+  key on qualifiers + each normalized scalar field) drops this record as a
+  duplicate of something else, or the run errors on the new QuantityItem
+  shape, stop and report rather than scale up.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

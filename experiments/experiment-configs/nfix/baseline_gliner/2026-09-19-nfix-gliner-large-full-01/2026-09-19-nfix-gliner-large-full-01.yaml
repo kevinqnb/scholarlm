@@ -1,0 +1,44 @@
+id: 2026-09-19-nfix-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) on all 98 non-excluded/filtered
+  nfix papers (paper_subset omitted -- dataset_config.paper_exclude, 3
+  papers, and dataset_config.paper_filter, _nfix_paper_filter, are the only
+  filtering applied; confirmed via load_papers()). First full-scale nfix
+  GLiNER run since this session's faithfulness rework: no `_deduplicate()`
+  call in `fit()` (was borrowed pipeline machinery, not part of GLiNER2's own
+  method -- matches the ChatExtract/NuExtract3 precedent; raw record counts
+  from this run are NOT comparable to the pre-rework run below), field scope
+  expanded from name+value+units+date (nfix's MeasurementEventSchema already
+  has `date`, so the old code asked for it) to every field named in the new
+  `DatasetConfig.gliner_field_descriptions` -- adding site_type, location,
+  nfix_method, substrate_type, sample_depth, and additional_details
+  (`identifiers` deliberately excluded, an alias-resolution aid, not reported
+  content), full unit list shown in the units field's description (was
+  silently truncated to 4), central-value/range-exclusion guidance added to
+  the value field's description, and the unreachable entity_type_description
+  fallback string removed. All description text for the new fields is copied
+  verbatim from `_DIRECT_EXTRACTION_PROMPT`'s own per-field bullets in
+  experiments/dataset-configs/nfix.py, not freshly authored.
+  As of writing, this rework is UNCOMMITTED (git status dirty) and rungs 1-3
+  have only been exercised ad hoc against hand-built fixtures and the cached
+  fastino/gliner2-base-v1 weights in an interactive shell, not run end-to-end
+  under a numbered rung-1/2/3 id for gliner-large-v1 on real nfix papers --
+  walk that ladder before actually submitting this rung-4 config.
+  Walltime: prior full run
+  (experiments/results/nfix/baseline_gliner/2026-07-11-nfix-baseline-gliner-01/run_metadata.json,
+  runtime_seconds=252.6, same 98-paper filtered set, gliner-large-v1) gives
+  ~2.58s/paper. Budgeted to 3x that base (~13 min) for headroom, since the
+  new field scope more than doubles the fields scored per GLiNER structure
+  (4 -> 10: name+value+units+date before, plus site_type, location,
+  nfix_method, substrate_type, sample_depth, additional_details now) and
+  this hasn't been measured at full scale under the new code.
+  No incremental output: fit() returns once for the whole dataset before
+  final.json is written, so a walltime kill loses the entire run, not a
+  partial result.
+seed: 342
+params:
+  dataset: nfix
+  model: gliner-large-v1
+  walltime: "01:00:00"

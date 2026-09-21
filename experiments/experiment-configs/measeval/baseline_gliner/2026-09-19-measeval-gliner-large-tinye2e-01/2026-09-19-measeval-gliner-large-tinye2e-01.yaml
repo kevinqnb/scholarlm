@@ -1,0 +1,33 @@
+id: 2026-09-19-measeval-gliner-large-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) against real measeval OCR text with
+  gliner-large-v1 -- this session's earlier validation only exercised the
+  code against hand-built fixture text and gliner-base-v1 in an interactive
+  shell, not a real dataset paper or the model these rung-4 configs target.
+  Smoke rung skipped per explicit instruction. measeval documents are
+  gold-annotation snippets, not full papers; the smallest ones on disk are
+  title-only fragments with no quantity at all (e.g. "The Aberdeen Swash
+  Rig."), which would make for a vacuous end-to-end test. Picked instead the
+  smallest document that actually contains one (~66 bytes),
+  S0925443913003037-654: "Cranial MRI performed at age 2.5 years."
+  Predicted result: the pre-rework, pre-restructure gliner-large-v1 run on
+  this exact document
+  (data/experiments/measeval/extraction/gliner-large-v1/2026_08_01/final.json,
+  filtered by document_id) found exactly 1 record: attribute="measurement",
+  value="2.5", units=None, name="Cranial MRI", property=None (the field
+  didn't exist under the old field scope), additional_details=None. This run
+  should still find value~=2.5 (a single record, not zero). New this run:
+  no `_deduplicate()`, and property/additional_details are now actually
+  requested (previously always null by construction) -- "age" is a plausible
+  property value on this exact sentence, worth checking for specifically.
+  EntitySchema's only field, `quantity`, is still never asked for (see
+  measeval.py's own note: redundant with value+units, GLiNER stays
+  subject-centric there by design).
+seed: 342
+params:
+  dataset: measeval
+  model: gliner-large-v1
+  paper_subset: ["S0925443913003037-654"]
+  walltime: "00:20:00"

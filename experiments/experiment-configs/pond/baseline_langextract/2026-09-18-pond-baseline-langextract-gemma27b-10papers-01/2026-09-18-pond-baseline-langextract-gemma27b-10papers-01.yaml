@@ -1,0 +1,36 @@
+id: 2026-09-18-pond-baseline-langextract-gemma27b-10papers-01
+project: scholarlm
+description: >-
+  Rung-3 tiny end-to-end for the langextract baseline: the same 10 papers as
+  the pond_ten dev subset (_TOP_PAPERS), but run against `dataset: pond`
+  rather than `dataset: pond_ten` -- pond_ten never defines
+  `nuextract_examples`, so running against it would silently fall back to
+  zero-shot extraction (langextract only requires examples OR an active
+  schema, not both -- it would not error). All 10 paper codes confirmed to
+  also exist under pond's own ocr_output_raw/. Same schema-constrained
+  settings as 2026-09-18-pond-baseline-langextract-gemma27b-01 (round 2), with
+  max_workers/batch_length raised from the 1-paper smoke test's conservative
+  4/4 to the range recommended for a real run, to also validate that
+  concurrency setting at this rung rather than as a separate step.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset:
+    - classification_trees
+    - physical-chemical_influences
+    - habitat_characteristics
+    - physical_and_chemical_limnological
+    - prairie_wetland
+    - macroinvertebrate_size
+    - relationships_between_fish
+    - net_heterotrophy
+    - impact_of_macrophytes
+    - environmental_conditions
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "02:00:00"

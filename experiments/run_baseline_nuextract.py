@@ -124,8 +124,8 @@ def run_baseline_nuextract(
         api_base=api_base,
         api_key=api_key,
         max_concurrent=max_concurrent,
-        clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
+        baseline_filter_fields=dataset_config.baseline_filter_fields,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
@@ -154,6 +154,8 @@ def run_baseline_nuextract(
         hf_revision=model_config.hf_revision,
         baseline="nuextract",
         gpu_compatibility_warnings=gpu_warnings,
+        max_prompt_tokens=mlm.max_prompt_tokens,
+        token_usage=mlm.token_usage,
     )
     print(f"\nDone. Final dataset: {out_path}")
     print(f"       Records saved: {len(dataset)}")

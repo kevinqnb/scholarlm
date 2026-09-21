@@ -1,0 +1,24 @@
+id: 2026-09-19-supermat-chatextract-gemma27b-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the reworked ChatExtract baseline; see
+  2026-09-19-pond-chatextract-gemma27b-smoke-01 for the full list of this
+  session's changes, and 2026-09-19-supermat-chatextract-gemma27b-smoke-01
+  for the chatextract_property_names fix specific to this dataset. Same
+  paper as the sibling smoke config (PHC3410729-CC), with extract_tables
+  left at its true default (true).
+  Predicted result: the pre-rework chatextract run on this exact paper
+  (experiments/results/supermat/baseline_chatextract/2026-07-13-supermat-
+  baseline-chatextract-01/final.json, filtered by title) found 3 records,
+  all under the bare "tc" property phrase. This run should find at least as
+  many -- the fixed property phrase ("superconducting critical temperature")
+  gives the classification step real semantic content instead of an opaque
+  two-letter token, so recovery should not regress; a similar or higher
+  count is plausible, a collapse to zero would indicate a real problem, not
+  expected noise.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  paper_subset: ["PHC3410729-CC"]
+  walltime: "01:00:00"

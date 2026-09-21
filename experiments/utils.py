@@ -252,20 +252,54 @@ def check_gpu_model_compatibility(model_id: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def write_run_metadata(output_dir: Path, *, start_time: float | None = None, **kwargs: Any) -> None:
+def write_run_metadata(
+    output_dir: Path,
+    *,
+    start_time: float | None = None,
+    step_seconds: dict[str, dict[str, Any]] | None = None,
+    token_usage: dict[str, int] | None = None,
+    **kwargs: Any,
+) -> None:
     """Write run_metadata.json to output_dir.
 
     Automatically populates git_commit, git_dirty, run_timestamp, gpu_info,
     and (if start_time is given) runtime_seconds.  Any additional keyword
     arguments are merged in.
 
+    ``runtime_seconds`` is this invocation's wall-clock time only. For a
+    checkpointed pipeline run resumed across separate job submissions, it
+    silently understates total compute unless step_seconds/token_usage are
+    also used -- both of those are accumulated across invocations instead.
+
     Args:
         output_dir: Directory to write ``run_metadata.json``.
         start_time: ``time.time()`` value recorded at the start of the run.
             If provided, ``runtime_seconds`` is computed and included.
+        step_seconds: Per-step timing for *this* invocation, as
+            ``{step_name: {"ran": bool, "seconds": float | None}}``. Merged
+            (by step name) with any ``step_seconds`` already on disk for
+            ``output_dir`` rather than overwriting it, so a run resumed
+            across multiple invocations accumulates a complete per-step
+            record instead of each call clobbering the last one's. On every
+            write, ``total_step_seconds`` is recomputed from the merged map
+            (summing only entries with ``ran=True``) -- unlike
+            ``runtime_seconds``, this total is resume-safe.
+        token_usage: This invocation's token/call counters (e.g.
+            ``MeasurementLM.token_usage``). Summed key-by-key with whatever
+            token_usage is already on disk for ``output_dir``, for the same
+            reason step_seconds is merged rather than overwritten: a fresh
+            ``MeasurementLM`` instance per script invocation only knows
+            about calls *it* made, so an unmerged write would silently drop
+            the token cost of steps run in an earlier invocation.
         **kwargs: Additional fields (dataset, model, model_id, seed, …).
     """
     output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / "run_metadata.json"
+
+    existing: dict[str, Any] = {}
+    if (step_seconds is not None or token_usage is not None or "max_prompt_tokens" in kwargs) and path.exists():
+        with open(path) as f:
+            existing = json.load(f)
 
     metadata: dict[str, Any] = {
         "run_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -276,7 +310,35 @@ def write_run_metadata(output_dir: Path, *, start_time: float | None = None, **k
     if start_time is not None:
         metadata["runtime_seconds"] = round(time.time() - start_time, 1)
 
-    path = output_dir / "run_metadata.json"
+    if "max_prompt_tokens" in kwargs and "max_prompt_tokens" in existing:
+        # max_prompt_tokens is a running max, same resume hazard as
+        # step_seconds/token_usage: a resumed invocation only sees the prompts
+        # from the steps *it* ran, so an unmerged write could report a lower
+        # max than a step from an earlier invocation actually produced.
+        metadata["max_prompt_tokens"] = max(kwargs["max_prompt_tokens"], existing["max_prompt_tokens"])
+
+    if step_seconds is not None:
+        # A step_seconds entry with ran=False means only "not run *this*
+        # invocation" -- it must not clobber a real timing recorded for that
+        # step by an earlier invocation, or a resumed run's second call would
+        # erase the first call's actual work. Only a ran=True entry overwrites.
+        existing_step_seconds = existing.get("step_seconds", {})
+        merged_steps = dict(existing_step_seconds)
+        for name, entry in step_seconds.items():
+            if entry.get("ran") or name not in merged_steps:
+                merged_steps[name] = entry
+        metadata["step_seconds"] = merged_steps
+        metadata["total_step_seconds"] = round(
+            sum(v["seconds"] for v in merged_steps.values() if v.get("seconds") is not None), 1
+        )
+
+    if token_usage is not None:
+        existing_usage = existing.get("token_usage", {})
+        metadata["token_usage"] = {
+            key: existing_usage.get(key, 0) + token_usage.get(key, 0)
+            for key in set(existing_usage) | set(token_usage)
+        }
+
     with open(path, "w") as f:
         json.dump(metadata, f, indent=2)
 
@@ -1077,6 +1139,7 @@ def classify_gpu_need(model_config: dict, *, source: str | Path | None = None) -
 # restructure plan's two-tier taxonomy.
 EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     "extraction":           {"runner": "run_extraction.py",          "model_kind": "extraction"},
+    "extraction_v2":         {"runner": "run_extraction_v2.py",       "model_kind": "extraction"},
     "ablation":              {"runner": "run_ablation.py",            "model_kind": "extraction"},
     "table_cleaning":        {"runner": "run_table_cleaning.py",       "model_kind": "extraction"},
     # model_default: the runner's own params.get("model", <default>) fallback
@@ -1085,6 +1148,10 @@ EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     # model-config (or none at all) at submission time.
     "baseline_chatextract":  {"runner": "run_baseline_chatextract.py", "model_kind": "extraction",
                               "model_default": "gemma-3-27b"},
+    # No model_default: run_baseline_langextract.py requires params.model
+    # explicitly (its langextract chunking/recall knobs are already
+    # required-no-default; model follows the same rule).
+    "baseline_langextract":  {"runner": "run_baseline_langextract.py", "model_kind": "extraction"},
     "probe_augment":         {"runner": "run_probe_augment.py",        "model_kind": "extraction"},
     "baseline_gliner":       {"runner": "run_baseline_gliner.py",      "model_kind": "baseline",
                               "model_default": "gliner-large-v1"},
@@ -1093,6 +1160,11 @@ EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
     # params -- there is no params key to look up.
     "baseline_nuextract":    {"runner": "run_baseline_nuextract.py",   "model_kind": "baseline",
                               "fixed_model": "nuextract-2.0-8b"},
+    # model_default must match run_baseline_nuextract3.py's own
+    # params.get("model", "nuextract3") fallback exactly (see this dict's
+    # docstring on model_default).
+    "baseline_nuextract3":   {"runner": "run_baseline_nuextract3.py",  "model_kind": "baseline",
+                              "model_default": "nuextract3"},
     # These three runners name their model params.judge, not params.model
     # (matching their own --judge CLI flag before this restructure) --
     # resolve_job must key off the right params field per experiment-type,

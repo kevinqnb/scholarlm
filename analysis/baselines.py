@@ -11,6 +11,7 @@ can compare an arbitrary set of models at once -- e.g. several MeasurementLM
 backbones plus NuExtract, ChatExtract, and GLiNER -- so results are stored in
 long/tidy form: one row per (dataset, model).
 """
+import json
 import sys
 from pathlib import Path
 
@@ -38,6 +39,8 @@ EXTERNAL_BASELINES = {
     'nuextract-2.0-8b',
     'chatextract-gemma-3-27b',
     'gliner-large-v1',
+    'nuextract3',
+    'langextract',
 }
 
 
@@ -157,11 +160,24 @@ def f1_score(recovery, validity):
 
 
 def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matching, fuzzy_matching, fuzzy_threshold, cache_tag, unit_vocabulary):
-    """Load an extraction run, match against ground truth, and return (recovery, validity) triples."""
-    path = paths.find_extraction_final(dataset, model, date)
-    resolved_date = Path(path).parent.name
+    """Load an extraction run, match against ground truth, and return (recovery, validity) triples.
 
-    records = load_extraction(dataset, model, resolved_date)
+    ``date`` is either a legacy ``YYYY_MM_DD`` tag (data/experiments/ tree) or
+    a contract-standard experiment id, e.g. the new nuextract3/langextract
+    baselines (experiments/results/ tree) -- tried in that order, using
+    find_result_dir's own id-format validation rather than a separate check.
+    """
+    try:
+        run_dir = paths.find_result_dir(date)
+        resolved_date = date
+        with open(run_dir / 'final.json') as f:
+            records = json.load(f)
+    except (ValueError, FileNotFoundError):
+        path = paths.find_extraction_final(dataset, model, date)
+        resolved_date = Path(path).parent.name
+        records = load_extraction(dataset, model, resolved_date)
+        run_dir = paths.extraction(dataset, model, resolved_date)
+
     df = pd.DataFrame(records)
     if model in EXTERNAL_BASELINES:
         df = normalize_baseline_extraction(df, unit_vocabulary)
@@ -172,7 +188,7 @@ def _load_and_score(dataset, config, model, date, ground_truth_df, strict_matchi
     except FileNotFoundError:
         judged = None
 
-    cache_path = paths.extraction(dataset, model, resolved_date) / f'match_cache_{cache_tag}_v2.pkl'
+    cache_path = run_dir / f'match_cache_{cache_tag}_v2.pkl'
 
     cached_match(
         ground_truth_df, df,
@@ -284,6 +300,10 @@ def main():
             'nuextract-2.0-8b': '2026_07_11',
             'chatextract-gemma-3-27b': '2026_07_11',
             'gliner-large-v1': '2026_07_11',
+            'nuextract3': '2026-09-19-pond-nuextract3-full-01',
+            # langextract omitted, not None: failed twice on the same paper
+            # (openai.APITimeoutError, see measurementlm_langextract.py's
+            # "Known issue" docstring note) -- no successful run yet.
         },
         'nfix': {
             'llama-3.1-8b': '2026_05_05',
@@ -292,6 +312,8 @@ def main():
             'nuextract-2.0-8b': '2026_07_11',
             'chatextract-gemma-3-27b': '2026_07_11',
             'gliner-large-v1': '2026_07_11',
+            'nuextract3': '2026-09-19-nfix-nuextract3-full-01',
+            'langextract': '2026-09-19-nfix-langextract-gemma27b-full-01',
         },
         'supermat': {
 	    'llama-3.1-8b': '2026_07_13',
@@ -300,6 +322,8 @@ def main():
             'nuextract-2.0-8b': '2026_07_13',
             'chatextract-gemma-3-27b': '2026_07_13',
             'gliner-large-v1': '2026_07_13',
+            'nuextract3': '2026-09-19-supermat-nuextract3-full-01',
+            'langextract': '2026-09-19-supermat-langextract-gemma27b-full-01',
         },
         # nuextract-2.0-8b is deliberately omitted (not just None): it reads
         # rendered PDF page images via processed_pdfs/, and measeval is a

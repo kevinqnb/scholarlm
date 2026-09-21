@@ -1,0 +1,32 @@
+id: 2026-09-19-measeval-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked ChatExtract baseline
+  (src/scholarlm/measurementlm_chatextract.py) on all 448 measeval documents
+  (paper_subset/paper_filter/paper_exclude all unset -- processes train+trial+
+  eval splits together, matching dataset_config's own default). First
+  contract-standard (experiments/results/) full chatextract run for measeval;
+  the only prior run lives under the pre-restructure data/experiments/ tree
+  (data/experiments/measeval/extraction/chatextract-gemma-3-27b/2026_08_01/,
+  runtime_seconds=391.3, 368 of presumably ~448 documents yielding at least
+  one record) and predates both this session's rework and the
+  chatextract_property_names/entity_noun fields this dataset config didn't
+  have until recently. See
+  notes/scholarlm/builds/2026-09-19-chatextract-rework-01.md /
+  devlog/2026-09-19-chatextract-rework-01.md for the full list of changes.
+  Rungs 1-3 all passed clean this session, including a tiny-e2e on this
+  dataset's canonical dev-subset document (S0006322312001096-1194: 8 records
+  from a single dense paragraph).
+  Walltime: the ~391s pre-rework reference isn't confirmed to cover all 448
+  documents (measeval documents are short snippets, not full papers, so
+  per-document cost is far lower than pond/nfix/supermat, but 448 is by far
+  the largest document count of the four datasets and this session's changes
+  are unmeasured at this scale) -- budgeted to a flat 2h floor rather than a
+  multiple of an uncertain base. No incremental output: fit() returns once
+  for the whole dataset before final.json is written, so a walltime kill
+  loses the entire run, not a partial result.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  walltime: "02:00:00"

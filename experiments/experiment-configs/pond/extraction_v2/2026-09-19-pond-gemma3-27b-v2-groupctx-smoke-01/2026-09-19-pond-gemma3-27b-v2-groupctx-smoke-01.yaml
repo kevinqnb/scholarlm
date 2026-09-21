@@ -1,0 +1,21 @@
+id: 2026-09-19-pond-gemma3-27b-v2-groupctx-smoke-01
+project: scholarlm
+description: >
+  Smoke test for the grouped-contextualization rework of
+  MeasurementLMv2._contextualize_quantities (prose/table groups, full paper
+  context, copy-back matching instead of quantity_index). Same paper and
+  model as the 2026-09-18 v2 smoke pair -- picked again here because it has
+  3 tables and 10 pages, so this run actually exercises the prose group and
+  multiple table groups, not just prose. Not a real extraction run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  # Id-addressed table_cleaning output, not the legacy per-model directory --
+  # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
+  # run_metadata.json/config are missing). Table-cleaning model and extraction
+  # model are independent choices -- OCR text is just text by this point.
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-qwen-3.5-27b-01
+  paper_subset: ["analysis_of_biological"]
+  resume: false
+  walltime: "01:00:00"

@@ -27,7 +27,7 @@ Changes from the baseline MeasurementLM:
 
 Unchanged from baseline: `_extract_entities()`, `_detect_attributes()`,
 `_extract_values_from_text()`, `_extract_values_from_tables()`,
-`_standardize()`, `_deduplicate()`, `save()`.
+`_standardize()`, `_parse_quantities()`, `_deduplicate()`, `save()`.
 """
 
 from pydantic import BaseModel
@@ -218,7 +218,6 @@ class MeasurementLMAblation3(MeasurementLM):
     def fit(
         self,
         documents: list[str],
-        processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
         Runs the ablation 3 pipeline on the provided documents.
@@ -228,29 +227,34 @@ class MeasurementLMAblation3(MeasurementLM):
         _adapt_pair_prov() before being passed to the extraction methods. Event
         resolution is run after provenance adaptation and passed to value
         extraction steps.
-        """
-        if self.clean_tables:
-            if processed_pdf_dirs is None:
-                raise ValueError(
-                    "processed_pdf_dirs is required when clean_tables=True. "
-                    "Run 'python experiments/process_pdfs.py' first."
-                )
-            documents = self._clean_tables(documents, processed_pdf_dirs)
 
+        Per-step timing lands in self.step_seconds under entities, attributes,
+        pair_provenance_full_context, events, values_text, values_tables, final.
+        The provenance key is named after its method (not the shorter
+        "pair_provenance" ablation 2 uses) because the two ablations replace
+        provenance with genuinely different mechanisms -- ablation 2's is a
+        per-page combined (entity, attribute) query, this one is a single
+        full-document call -- and a shared key name would make two different
+        operations look like the same step running at different speeds.
+        """
         self.data = []
+        self.step_seconds = {}
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})
         doc_data = list(self.data)
 
         # Step 1: Entity extraction
-        entity_data = self._extract_entities()
+        with self._timed_step("entities"):
+            entity_data = self._extract_entities()
 
         # Step 2: Document-level attribute detection
         self.data = doc_data
-        doc_attributes = self._detect_attributes()
+        with self._timed_step("attributes"):
+            doc_attributes = self._detect_attributes()
 
         # Steps 3 + 4: full-document pair provenance
-        pair_prov = self._pair_provenance_full_context(entity_data, doc_attributes)
+        with self._timed_step("pair_provenance_full_context"):
+            pair_prov = self._pair_provenance_full_context(entity_data, doc_attributes)
 
         # Adapt pair_prov into the (entity_prov, attr_prov) interface the extraction methods expect.
         extended_entity_data, entity_prov, attr_prov = _adapt_pair_prov(
@@ -258,29 +262,30 @@ class MeasurementLMAblation3(MeasurementLM):
         )
 
         # Step 4.5: Event resolution (optional)
-        if self.measurement_event_schema is not None:
-            event_resolution = self._resolve_events(
-                extended_entity_data, doc_attributes, entity_prov, attr_prov
+        with self._timed_step("events"):
+            if self.measurement_event_schema is not None:
+                event_resolution = self._resolve_events(
+                    extended_entity_data, doc_attributes, entity_prov, attr_prov
+                )
+            else:
+                event_resolution = None
+
+        # Steps 5+6: Extract values from text and tables
+        with self._timed_step("values_text"):
+            text_values = self._extract_values_from_text(
+                extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
             )
-        else:
-            event_resolution = None
-
-        # Step 5: Extract values from text
-        text_values = self._extract_values_from_text(
-            extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
-
-        # Step 6: Extract values from tables
-        table_values = self._extract_values_from_tables(
-            extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
-        )
+        with self._timed_step("values_tables"):
+            table_values = self._extract_values_from_tables(
+                extended_entity_data, doc_attributes, entity_prov, attr_prov, event_resolution
+            )
 
         self.data = text_values + table_values
 
-        # Step 7: Standardize
-        self.data = self._standardize()
-
-        # Step 8: Deduplicate
-        self.data = self._deduplicate(self.data)
+        # Steps 7+7.5+8: Standardize, parse quantities, deduplicate
+        with self._timed_step("final"):
+            self.data = self._standardize()
+            self.data = self._parse_quantities()
+            self.data = self._deduplicate(self.data)
 
         return self.data

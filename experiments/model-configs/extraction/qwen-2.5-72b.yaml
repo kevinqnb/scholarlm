@@ -12,7 +12,7 @@ serve:
   gpu_memory_utilization: 0.9
   quantization: awq_marlin
   dtype: bfloat16
-  sif_image: vllm-openai_v0.19.0.sif
+  sif_image: vllm-openai_v0.24.0.sif
 resources:
   gpu_memory: 80G
   gpu_capability: 8.0

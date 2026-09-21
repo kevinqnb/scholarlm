@@ -9,7 +9,8 @@ Mapping onto the pipeline's entity/attribute/event model
 ----------------------------------------------------------
 entity  = the superconducting material/sample
 attribute = "tc" (superconducting critical temperature)
-event = pressure + measurement method (the conditions under which a given Tc was measured)
+event = event_details, a free-text catch-all covering pressure, measurement
+method, and any other condition under which a given Tc was measured
 """
 from __future__ import annotations
 
@@ -30,7 +31,14 @@ class EntitySchema(BaseModel):
 
     name: str | None
     identifiers: str | None
-    sample_details: str | None
+    # ``sample_details`` was removed 2026-09-20: doping/form/substrate/growth
+    # info now belongs in the event_details catch-all (see
+    # MeasurementEventSchema) instead of its own entity field.
+    # ``identifiers`` is extracted by the real pipeline and its ablations only
+    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
+    # baselines; GLiNER already excludes it structurally (never listed in
+    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
 ENTITY_IDENTIFICATION_PROMPT = """You are an expert in identifying superconducting materials referenced in scientific literature. Given the provided text (including any tables), extract all distinct superconducting materials.
@@ -42,27 +50,24 @@ Response schema:
 For each distinct material, output one item with the following fields:
 - name: the material's name or chemical formula, as given in the text (e.g. "YBa2Cu3O7-δ", "MgB2", "mercury"). Use whatever primary identifier the paper provides — a full formula, a common compositional name, or an element name.
 - identifiers: every alternate short-form reference to this material used in the text — abbreviations, sample codes, or shortened names — joined into a single string with semicolons separating each (e.g. "YBCO; Y-123"). Collect these whenever the text uses them for the same material, even if the linkage is introduced only once (e.g. "YBa2Cu3O7-δ (YBCO)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- sample_details: doping level or fraction (e.g. "x = 0.10", "optimally doped", "20%-doped"), crystal form (single crystal, polycrystalline, powder, thin film), substrate (e.g. "grown on MgO(100)"), and growth/treatment qualifiers (as-grown, annealed, untwinned) explicitly stated for this material. Set to None if no such details are given.
 
 
 Identification guidelines:
-Treat materials with the same base formula as multiple separate items ONLY if they are clearly described as chemically distinct compounds (different stoichiometric family or composition). Do NOT create separate items for the same compound because it was measured at different doping levels, under different pressures, or via different measurement methods — those distinctions will be captured separately as measurement events, and doping level belongs in sample_details, not as a new entity.
+Treat materials with the same base formula as multiple separate items ONLY if they are clearly described as chemically distinct compounds (different stoichiometric family or composition). Do NOT create separate items for the same compound because it was measured at different doping levels, under different pressures, or via different measurement methods — those distinctions, along with doping level, form, substrate, and growth condition, will be captured separately as measurement-event details.
 
 
 Strict rules about missing information:
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
-- Do NOT infer sample_details from the material name alone.
 
 
 Extraction procedure:
 1. Scan the entire text, including tables, table captions, and table footnotes, for any mentions of superconducting materials.
 2. Determine which mentions correspond to distinct materials using the identification guidelines above.
 3. For each distinct material, actively scan the full text for any alternate short-form references (abbreviations, sample codes) that refer to it. Record all such identifiers in the identifiers field.
-4. Record any doping, form, substrate, or growth details explicitly stated for the material in sample_details.
-5. Output one JSON item per distinct material.
-6. Collect all items into a single JSON array under the key "items".
+4. Output one JSON item per distinct material.
+5. Collect all items into a single JSON array under the key "items".
 
 
 Output format requirements:
@@ -73,8 +78,7 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
-      "sample_details": "..."
+      "identifiers": "..."
     }
   ]
 }
@@ -109,15 +113,16 @@ _ATTRIBUTE_INFO_DICT: dict[str, dict] = {
 class MeasurementEventSchema(BaseModel):
     """Event-level fields that distinguish individual Tc measurements for a material."""
 
-    pressure: str | None
-    me_method: str | None
-    additional_details: str | None
+    event_details: str | None
 
 
 _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
-- pressure: The applied pressure under which this Tc measurement was taken. Use "ambient" if the text states ambient/atmospheric pressure or no pressure is mentioned as a variable. Otherwise report the stated pressure with its unit (e.g. "2 GPa", "500 GPa"). Set to None only if pressure is genuinely ambiguous (not simply unstated — unstated pressure defaults to "ambient").
-- me_method: The measurement method used to determine this Tc value. Map to one of these four categories whenever the text supports it: "resistivity" (resistance, R-T curve, ρ(T)), "magnetic susceptibility" (susceptibility, magnetization, AC susceptibility, M(T)), "specific heat" (heat capacity, C(T)), "theoretical calculation" (predicted/calculated values, e.g. Eliashberg theory). If the method is stated but doesn't fit any category, report it as given. Set to None if not stated.
-- additional_details: The criterion used to define this Tc value, if stated — for example "onset", "midpoint of resistive transition", or "zero resistance". Include any other distinguishing context not captured by the fields above (e.g., increasing/decreasing Tc trend). Keep this to one sentence or fewer. Set to None if not applicable.
+- event_details: A catch-all for whatever distinguishes this Tc measurement from another one for the same material — most commonly the applied pressure and the measurement method, but also the criterion used to define the value or any other distinguishing condition. Include, whenever stated:
+  - Pressure: the applied pressure under which this Tc measurement was taken. Use "ambient" if the text states ambient/atmospheric pressure or no pressure is mentioned as a variable; otherwise report the stated pressure with its unit (e.g. "2 GPa", "500 GPa"). Unstated pressure defaults to "ambient" rather than being omitted.
+  - Measurement method: map to one of these four categories whenever the text supports it: "resistivity" (resistance, R-T curve, ρ(T)), "magnetic susceptibility" (susceptibility, magnetization, AC susceptibility, M(T)), "specific heat" (heat capacity, C(T)), "theoretical calculation" (predicted/calculated values, e.g. Eliashberg theory). If the method is stated but doesn't fit any category, report it as given.
+  - The criterion used to define this Tc value, if stated — for example "onset", "midpoint of resistive transition", or "zero resistance".
+  - Doping level or fraction, crystal form, substrate, growth/treatment qualifiers, or any other distinguishing context (e.g., increasing/decreasing Tc trend) not captured above.
+  The goal is that two Tc measurements for the same material that are genuinely distinct (different pressure, method, criterion, or sample condition) end up with different event_details, while two reports of the literal same measurement do not. Keep this to one sentence or fewer, joining multiple pieces of information with semicolons. Set to None only if none of the above is stated.
 """
 
 
@@ -127,20 +132,28 @@ _MEASUREMENT_EVENT_PROMPT = """EVENT FIELDS:
 
 
 class DirectExtractionItemSchema(BaseModel):
-    """Flat schema for Ablation 1: combines entity, event, attribute, value, and units."""
+    """Flat schema for Ablation 1: combines entity, event, attribute, value,
+    units, and the qualifier/shape fields (the same shape
+    MeasurementLM._parse_quantities() produces via a separate step -- see
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
 
     # Entity fields
     name: str | None
     identifiers: str | None
-    sample_details: str | None
     # Event fields
-    pressure: str | None
-    me_method: str | None
-    additional_details: str | None
+    event_details: str | None
     # Measurement fields
     attribute: str
     value: str | None
     units: str | None
+    # Qualifier/shape fields
+    qualifiers: list[str]
+    point_value: str | None
+    lower: str | None
+    upper: str | None
+    list_values: list[str] | None
+    tolerance: str | None
+    standard_deviation: str | None
 
 
 _DIRECT_EXTRACTION_PROMPT = """Entity Identification:
@@ -149,19 +162,21 @@ Extract all distinct superconducting materials (compounds, chemical formulas, or
 Entity fields:
 - name: the material's name or chemical formula, as given in the text (e.g. "YBa2Cu3O7-δ", "MgB2", "mercury").
 - identifiers: every alternate short-form reference to this material used in the text — abbreviations, sample codes, or shortened names — joined into a single string with semicolons separating each (e.g. "YBCO; Y-123"). Do not include the primary name itself. If no alternatives exist, set to None.
-- sample_details: doping level or fraction, crystal form (single crystal, polycrystalline, powder, thin film), substrate, and growth/treatment qualifiers explicitly stated for this material. Set to None if not given.
 
 Entity identification rules:
 - Treat materials as separate only if they are chemically distinct compounds (different formula or stoichiometric family).
-- Do NOT create separate items for the same compound measured at different doping levels, pressures, or methods — doping belongs in sample_details; pressure/method are captured as measurement events.
+- Do NOT create separate items for the same compound measured at different doping levels, pressures, or methods — those are captured in the measurement event's event_details.
 - Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
 
 
 Measurement event fields:
 For each material and each detected Tc measurement, also identify the measurement event context:
-- pressure: The applied pressure for this measurement. Use "ambient" if ambient/atmospheric or unstated; otherwise report the stated pressure with its unit (e.g. "2 GPa").
-- me_method: The measurement method, mapped to "resistivity", "magnetic susceptibility", "specific heat", or "theoretical calculation" whenever the text supports it; otherwise report as given. Set to None if not stated.
-- additional_details: The Tc-defining criterion (onset, midpoint, zero resistance) if stated, plus any other distinguishing context. One sentence or fewer. Set to None if not applicable.
+- event_details: A catch-all for whatever distinguishes this Tc measurement from another one for the same material. Include, whenever stated:
+  - Pressure: the applied pressure for this measurement. Use "ambient" if ambient/atmospheric or unstated; otherwise report the stated pressure with its unit (e.g. "2 GPa").
+  - Measurement method: mapped to "resistivity", "magnetic susceptibility", "specific heat", or "theoretical calculation" whenever the text supports it; otherwise report as given.
+  - The Tc-defining criterion (onset, midpoint, zero resistance), if stated.
+  - Doping level or fraction, crystal form, substrate, growth/treatment qualifiers, or any other distinguishing context.
+  Two genuinely distinct measurements should end up with different event_details. Keep this to one sentence or fewer, joining multiple pieces of information with semicolons. Set to None only if none of the above is stated.
 
 
 Attributes to extract:
@@ -179,13 +194,17 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "sample_details": "...",
-      "pressure": "...",
-      "me_method": "...",
-      "additional_details": "...",
+      "event_details": "...",
       "attribute": "...",
       "value": "...",
-      "units": "..."
+      "units": "...",
+      "qualifiers": [...],
+      "point_value": "...",
+      "lower": "...",
+      "upper": "...",
+      "list_values": [...],
+      "tolerance": "...",
+      "standard_deviation": "..."
     }
   ]
 }
@@ -199,13 +218,17 @@ Output format requirements:
 #
 # NuExtract's calling convention has no field for freeform instructions,
 # only a JSON template and optional few-shot examples.
-# Every output value below (except identifiers, a synthesized semicolon-joined
-# field, and attribute, a fixed enum) is an exact substring of its input text,
-# since NuExtract's verbatim-string fields are trained to copy spans rather
-# than paraphrase. Together the two examples cover multiple entities per
-# passage, multiple measurement events for the same entity (ambient vs. high
-# pressure), and three of the four me_method categories (resistivity,
-# magnetic susceptibility, theoretical calculation).
+# Every output value below (except attribute, a fixed enum, and event_details,
+# which joins several pieces of information with semicolons) is an exact
+# substring of its input text, since NuExtract's verbatim-string fields are
+# trained to copy spans rather than paraphrase. Together the three examples
+# cover multiple entities per passage, multiple measurement events for the
+# same entity (ambient vs. high pressure), three of the four measurement-method
+# categories (resistivity, magnetic susceptibility, theoretical calculation),
+# and all of point_value, lower/upper, list_values, tolerance, and
+# standard_deviation at least once. No `identifiers` key: see
+# DatasetConfig.baseline_filter_fields below -- these examples are
+# baseline-only, so they never show the field a baseline shouldn't reproduce.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -218,31 +241,38 @@ _NUEXTRACT_EXAMPLE_1_INPUT = (
     "pressure."
 )
 
+_NUEXTRACT_QUANTITY_DEFAULTS = {
+    "qualifiers": [], "point_value": None, "lower": None, "upper": None,
+    "list_values": None, "tolerance": None, "standard_deviation": None,
+}
+
 _NUEXTRACT_EXAMPLE_1_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Magnesium diboride", "identifiers": "MgB2",
-                "sample_details": None,
-                "pressure": "ambient", "me_method": "resistivity",
-                "additional_details": "onset",
+                "name": "Magnesium diboride",
+                "event_details": "ambient pressure; resistivity; onset",
                 "attribute": "tc", "value": "39", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "39"}),
             },
             {
-                "name": "YBa2Cu3O7-δ", "identifiers": "YBCO",
-                "sample_details": None,
-                "pressure": "ambient", "me_method": "magnetic susceptibility",
-                "additional_details": "midpoint of the diamagnetic transition",
+                "name": "YBa2Cu3O7-δ",
+                "event_details": "ambient pressure; magnetic susceptibility; midpoint of the diamagnetic transition",
                 "attribute": "tc", "value": "92", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "92"}),
             },
         ]
     }
 )
 
+# The 203 K measurement's added tolerance demonstrates a non-plain-point
+# shape, so this baseline's only real instruction channel (few-shot examples
+# -- see module docstring in measurementlm_nuextract.py) actually shows the
+# qualifier fields in use, not just plain points.
 _NUEXTRACT_EXAMPLE_2_INPUT = (
     "Hydrogen sulfide (H3S, sample S-2) is a polycrystalline sample that "
     "becomes superconducting under extreme compression. At a pressure of "
-    "155 GPa, resistivity measurements showed zero resistance at 203 K. "
+    "155 GPa, resistivity measurements showed zero resistance at 203 ± 2 K. "
     "When the pressure was increased to 200 GPa, the zero-resistance "
     "criterion shifted to 178 K in the same sample. Separately, a "
     "theoretical calculation using Eliashberg theory predicts a Tc of "
@@ -253,24 +283,69 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
     {
         "items": [
             {
-                "name": "Hydrogen sulfide", "identifiers": "H3S; S-2",
-                "sample_details": "polycrystalline",
-                "pressure": "155 GPa", "me_method": "resistivity",
-                "additional_details": "zero resistance",
-                "attribute": "tc", "value": "203", "units": "K",
+                "name": "Hydrogen sulfide",
+                "event_details": "155 GPa; resistivity; polycrystalline; zero resistance",
+                "attribute": "tc", "value": "203 ± 2", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["HasTolerance"], "point_value": "203", "tolerance": "± 2",
+                }),
             },
             {
-                "name": "Hydrogen sulfide", "identifiers": "H3S; S-2",
-                "sample_details": "polycrystalline",
-                "pressure": "200 GPa", "me_method": "resistivity",
-                "additional_details": "zero-resistance criterion",
+                "name": "Hydrogen sulfide",
+                "event_details": "200 GPa; resistivity; polycrystalline; zero-resistance criterion",
                 "attribute": "tc", "value": "178", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "178"}),
             },
             {
-                "name": "LaH10", "identifiers": None, "sample_details": None,
-                "pressure": "170 GPa", "me_method": "theoretical calculation",
-                "additional_details": None,
+                "name": "LaH10",
+                "event_details": "170 GPa; theoretical calculation",
                 "attribute": "tc", "value": "235", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {"point_value": "235"}),
+            },
+        ]
+    }
+)
+
+# Rounds out shape coverage with lower/upper, list_values, and
+# standard_deviation -- example 1 and 2 above only reach point_value and
+# HasTolerance.
+_NUEXTRACT_EXAMPLE_3_INPUT = (
+    "Iron selenide (FeSe, sample F-4) is a layered superconductor. At "
+    "ambient pressure, susceptibility measurements across three separate "
+    "crystal batches gave critical temperatures of 8.0, 8.5, and 9.1 K. "
+    "Under applied pressure of 6 GPa, resistivity measurements on the same "
+    "sample placed the transition between 12 and 14 K. A separate "
+    "polycrystalline sample of niobium nitride (NbN) showed a mean "
+    "transition temperature of 16.2 (SD 0.5) K across five specimens, "
+    "measured at ambient pressure using resistivity."
+)
+
+_NUEXTRACT_EXAMPLE_3_OUTPUT = json.dumps(
+    {
+        "items": [
+            {
+                "name": "Iron selenide",
+                "event_details": "ambient pressure; magnetic susceptibility",
+                "attribute": "tc", "value": "8.0, 8.5, and 9.1", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsList"], "list_values": ["8.0", "8.5", "9.1"],
+                }),
+            },
+            {
+                "name": "Iron selenide",
+                "event_details": "6 GPa; resistivity",
+                "attribute": "tc", "value": "12 and 14", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsRange"], "lower": "12", "upper": "14",
+                }),
+            },
+            {
+                "name": "Niobium nitride",
+                "event_details": "ambient pressure; resistivity; polycrystalline; across five specimens",
+                "attribute": "tc", "value": "16.2 (SD 0.5)", "units": "K",
+                **(_NUEXTRACT_QUANTITY_DEFAULTS | {
+                    "qualifiers": ["IsMean", "HasSD"], "point_value": "16.2", "standard_deviation": "0.5",
+                }),
             },
         ]
     }
@@ -279,6 +354,7 @@ _NUEXTRACT_EXAMPLE_2_OUTPUT = json.dumps(
 _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_1_INPUT, "output": _NUEXTRACT_EXAMPLE_1_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
+    {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
 
 
@@ -292,7 +368,6 @@ class Ablation2ObservationSchema(BaseModel):
     # Entity fields (same as EntitySchema)
     name: str | None
     identifiers: str | None
-    sample_details: str | None
     # Reserved fields required by Ablation 2
     attribute: str
     attribute_terms: list[str]
@@ -309,7 +384,6 @@ Response schema:
 For each (material, attribute) pair, output one item with the following fields:
 - name: the material's name or chemical formula, as given in the text.
 - identifiers: every alternate short-form reference to this material used in the text, joined into a single string with semicolons separating each. Do not include the primary name itself. If no alternatives exist, set to None.
-- sample_details: doping level or fraction, crystal form, substrate, and growth/treatment qualifiers explicitly stated for this material. Set to None if not given.
 - attribute: the exact attribute name from the list below.
 - attribute_terms: any terminology or abbreviations used in the document to refer to that attribute (e.g. "Tc", "transition temperature"). Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
 
@@ -333,7 +407,6 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "sample_details": "...",
       "attribute": "...",
       "attribute_terms": [...]
     }
@@ -342,6 +415,53 @@ Output format requirements:
 - If no (material, attribute) pairs with direct numerical measurements are found, output exactly:
 { "items": [] }
 """
+
+
+# ---------------------------------------------------------------------------
+# ChatExtract baseline: per-attribute <PROPERTY> phrase
+#
+# ChatExtract is a single-property method; each prompt reads "...a value of
+# <PROPERTY>...". Left unset, this falls back to the bare attribute_info_dict
+# key, "tc" -- grammatically degenerate ("a value of tc"). This supplies a
+# real noun phrase, matching the lead clause of _ATTRIBUTE_INFO_DICT["tc"]'s
+# own description.
+# ---------------------------------------------------------------------------
+
+_CHATEXTRACT_PROPERTY_NAMES: dict[str, str] = {
+    "tc": "superconducting critical temperature",
+}
+
+# ChatExtract's reference prompts ask about a "material"/"compound" -- this
+# happens to already match supermat's own entities, but is set explicitly
+# here for consistency with the other dataset configs (see
+# DatasetConfig.chatextract_entity_noun).
+_CHATEXTRACT_ENTITY_NOUN = "material"
+
+# ---------------------------------------------------------------------------
+# GLiNER2 baseline: per-field descriptions for entity/event fields beyond the
+# subject name (see DatasetConfig.gliner_field_descriptions). Copied verbatim
+# from _DIRECT_EXTRACTION_PROMPT's own per-field bullets above -- GLiNER sees
+# the same wording Ablation 1 already uses, not freshly authored text.
+# ``identifiers`` has no entry here: it's an alias-resolution aid for the real
+# pipeline's entity matching, not reported content, so GLiNER never asks for it.
+# ---------------------------------------------------------------------------
+
+_GLINER_FIELD_DESCRIPTIONS: dict[str, str] = {
+    "event_details": (
+        "A catch-all for whatever distinguishes this Tc measurement from "
+        "another one for the same material -- most commonly the applied "
+        'pressure (use "ambient" if ambient/atmospheric or unstated, otherwise '
+        'the stated pressure with its unit, e.g. "2 GPa") and the measurement '
+        'method (mapped to "resistivity", "magnetic susceptibility", "specific '
+        'heat", or "theoretical calculation" whenever the text supports it), '
+        "but also the Tc-defining criterion (onset, midpoint, zero resistance), "
+        "doping level, crystal form, substrate, growth/treatment qualifiers, or "
+        "any other distinguishing context. Two genuinely distinct measurements "
+        "should end up with different event_details. One sentence or fewer, "
+        "joining multiple pieces of information with semicolons. Set to None "
+        "only if none of the above is stated."
+    ),
+}
 
 
 # ---------------------------------------------------------------------------
@@ -371,14 +491,22 @@ CONFIG = DatasetConfig(
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
+    chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
+    gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
+    # identifiers is extracted by the real pipeline and its ablations only --
+    # see EntitySchema's comment above; excluded here from the NuExtract
+    # baselines specifically (GLiNER/ChatExtract already never see it).
+    baseline_filter_fields=["identifiers"],
     paper_subset=None,
     paper_filter=None,
     paper_exclude=None,
     ablation2_entity_schema=Ablation2ObservationSchema,
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
-    # Judge sees only: name, additional_details (+ attribute, value, units).
-    # identifiers (alias-resolution aid), sample_details, pressure and me_method are
-    # dropped so the judge evaluates the minimal entity/event context.
-    judge_filter_fields=["identifiers", "sample_details", "pressure", "me_method"],
+    # Judge sees only: name (+ attribute, value, units). identifiers is an
+    # alias-resolution aid, not something to judge on; event_details is a
+    # catch-all for distinguishing measurements from each other, not the main
+    # extraction interest, so it's kept out of the judge prompt too.
+    judge_filter_fields=["identifiers", "event_details"],
     ground_truth_file="data/supermat/ground_truth.json",
 )

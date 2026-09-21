@@ -1,0 +1,26 @@
+id: 2026-09-20-pond-nuextract3-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for NuExtract3's new qualifier/shape fields --
+  see the sibling NuExtract-2.0-8B config
+  (2026-09-20-pond-nuextract2-qualifiers-tinye2e-01) for why no code changes
+  were needed in Phase 3. Unlike NuExtract-2.0-8B, NuExtract3 reads OCR
+  text like the other baselines, so this is the direct
+  text-based-schema-passthrough check. Same paper as every sibling config:
+  trophic_status_and_threats.txt, Table 1's pH row ("8,4±0,4" at 0m depth).
+  Scope is plumbing + qualitative field inspection only -- no recovery-rate
+  interpretation this round (eval-matching caveat, see sibling configs).
+  Predicted result: a pH-relevant record with point_value near "8,4",
+  qualifiers as a real JSON array including "HasSD", and standard_deviation
+  near "0,4" -- directly comparable to the base-pipeline and Ablation-1
+  results on the same cell, since NuExtract3 gets the same schema fields via
+  the same generic Pydantic-annotation mechanism NuExtract-2.0-8B does. If
+  the response fails to parse against the extended schema, or a request
+  errors on the new field types, that's a regression this run rung 1's ad
+  hoc script-only verification did not catch -- stop and report.
+seed: 342
+params:
+  dataset: pond
+  model: nuextract3
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:30:00"
