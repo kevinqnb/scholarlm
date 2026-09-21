@@ -9,5 +9,5 @@ params:
   dataset: supermat
   judge: llama-3.1-8b
   extraction_id: 2026-07-13-supermat-gpt-oss-120b-extraction-01
-  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-01
+  ocr_dir: experiments/results/supermat/ocr/2026-07-09-supermat-ocr-olmocr-01
   walltime: "24:00:00"

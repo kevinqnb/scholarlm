@@ -9,5 +9,5 @@ params:
   dataset: nfix
   judge: gpt-oss-120b
   extraction_id: 2026-05-05-nfix-llama-3.1-8b-extraction-01
-  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01
+  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-olmocr-01
   walltime: "24:00:00"

@@ -13,7 +13,7 @@ params:
   model: gemma-3-27b
   # Id-addressed table_cleaning output. Table-cleaning model and extraction
   # model are independent choices -- OCR text is just text by this point.
-  ocr_dir: experiments/results/nfix/table_cleaning/2026-05-03-nfix-table-cleaning-01
+  ocr_dir: experiments/results/nfix/table_cleaning/2026-05-03-nfix-table-cleaning-qwen-3.5-27b-01
   resume: false
   # No solid v2 full-run timing exists yet -- the only v2 data point is a
   # 1-paper pond smoke test (~100s, explicitly unrepresentative), and v1's

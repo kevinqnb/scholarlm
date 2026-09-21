@@ -12,7 +12,7 @@ params:
   # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
   # run_metadata.json/config are missing). Table-cleaning model and extraction
   # model are independent choices -- OCR text is just text by this point.
-  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-01
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-qwen-3.5-27b-01
   paper_subset: ["analysis_of_biological"]
   resume: false
   walltime: "01:00:00"

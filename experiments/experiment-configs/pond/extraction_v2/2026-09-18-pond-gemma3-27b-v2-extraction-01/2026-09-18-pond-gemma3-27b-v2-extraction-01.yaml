@@ -17,7 +17,7 @@ params:
   # actually cleaned by qwen-3.5-27b (verified by content diff; that run's own
   # run_metadata.json/config are missing). Table-cleaning model and extraction
   # model are independent choices -- OCR text is just text by this point.
-  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-01
+  ocr_dir: experiments/results/pond/table_cleaning/2026-04-07-pond-table-cleaning-qwen-3.5-27b-01
   resume: false
   # No solid v2 full-run timing exists yet -- the only v2 data point is the
   # 1-paper smoke test (~100s, explicitly unrepresentative), and v1's full

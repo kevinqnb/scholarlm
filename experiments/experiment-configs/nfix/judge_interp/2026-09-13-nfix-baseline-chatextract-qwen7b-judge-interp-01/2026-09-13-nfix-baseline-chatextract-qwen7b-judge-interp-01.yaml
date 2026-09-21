@@ -9,5 +9,5 @@ params:
   dataset: nfix
   judge: qwen-2.5-7b
   extraction_id: 2026-07-11-nfix-baseline-chatextract-01
-  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-01
+  ocr_dir: experiments/results/nfix/ocr/2026-05-03-nfix-ocr-olmocr-01
   walltime: "24:00:00"

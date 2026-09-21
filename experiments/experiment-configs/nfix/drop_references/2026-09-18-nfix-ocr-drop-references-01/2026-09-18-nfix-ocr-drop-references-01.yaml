@@ -6,10 +6,10 @@ description: >-
   heading found after the reference cut now resumes the kept text there,
   instead of dropping straight to end-of-document) to the existing nfix OCR
   output. Pure text post-processing on the already-written .txt files -- no
-  olmOCR re-run, no vLLM server. Source run (2026-05-03-nfix-ocr-01) is left
+  olmOCR re-run, no vLLM server. Source run (2026-05-03-nfix-ocr-olmocr-01) is left
   untouched; output goes to a new id.
 seed: 342
 params:
   dataset: nfix
   source_type: ocr
-  source_id: 2026-05-03-nfix-ocr-01
+  source_id: 2026-05-03-nfix-ocr-olmocr-01
