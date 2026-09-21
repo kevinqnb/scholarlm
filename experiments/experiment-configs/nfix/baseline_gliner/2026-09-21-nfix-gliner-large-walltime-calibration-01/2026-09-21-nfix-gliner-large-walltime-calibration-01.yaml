@@ -1,0 +1,39 @@
+id: 2026-09-21-nfix-gliner-large-walltime-calibration-01
+project: scholarlm
+description: >
+  Walltime calibration for the nfix GLiNER2 baseline full run, not itself a
+  full run. 2026-09-19-nfix-gliner-large-full-01 (98 papers, walltime
+  01:00:00, budgeted as 3x the pre-rework 2.58s/paper rate) was killed at
+  its walltime with zero output (job 7671537). The existing tinye2e single-
+  paper timing (292.3s, pre-qualifier field-scope rework only, never
+  re-measured with yesterday's qualifier fields on top) can't be
+  extrapolated to a 98-paper full run with confidence: supermat's
+  comparable single-paper tinye2e (17.3s) differs by 17x despite a similar
+  field-count multiplier, meaning per-paper cost is dominated by paper
+  content, not field count, and the existing nfix timing used a paper that
+  wasn't picked to be representative.
+  This config runs an 8-paper sample drawn by `random.Random(342).sample()`
+  over the same eligible-paper list `load_papers()` would produce for nfix
+  (dataset_config.paper_exclude and paper_filter applied first, matching the
+  full run) -- seeded, not hand-picked, so the resulting per-paper rate is
+  usable to set 2026-09-19-nfix-gliner-large-full-01's walltime for its next
+  resubmission.
+  Papers: R117, R121, R124, R142, R163, R25, R45, R96.
+  Walltime here is deliberately generous (2h for 8 papers) since the point is
+  to observe real per-paper cost, not to fit a tight budget -- read
+  run_metadata.json's runtime_seconds / 8 for the calibration number
+  regardless of how much of the 2h it actually uses.
+seed: 342
+params:
+  dataset: nfix
+  model: gliner-large-v1
+  paper_subset:
+    - R117
+    - R121
+    - R124
+    - R142
+    - R163
+    - R25
+    - R45
+    - R96
+  walltime: "02:00:00"
