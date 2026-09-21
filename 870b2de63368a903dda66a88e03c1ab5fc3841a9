@@ -1,0 +1,21 @@
+[SIGNOFF 870b2de]: human comprehension and risk attestation
+
+Signoff-Spec-Version: 1.0
+Signoff-Status: VERIFIED_BY_HUMAN
+Signoff-Timestamp: 2026-09-21T04:56:26Z
+Signoff-Base-SHA: 0c410f14991a2f85d612060ec18d1d870c7d604b
+Signoff-Reviewed-Commit-SHA: 870b2de63368a903dda66a88e03c1ab5fc3841a9
+Signoff-Reviewed-Tree-SHA: 2b1fb9792854a5ff583eca56a0d795f3805b5da7
+Signoff-Harness-ID: claude-code
+Signoff-Conversation-ID: 9b2ce0b7-2d03-4ee5-a28e-6bcb5eb36e4f
+Signoff-Transcript-Digest: sha256:d2ca7943d80aa4f1adaeb264502395bd9b1880c05ea6ddfda4d61d091aa68d82
+Signoff-Transcript-Bytes: 801365
+Signoff-Tradeoff: nuextract3/langextract baseline validity+F1 in results/baselines/*.csv use a matching-derived lower-bound proxy (has_judge=False), not judge-scored; not comparable to has_judge=True rows until judges are run
+Signoff-Tradeoff: _deduplicate()/OOV filtering removed from ChatExtract, GLiNER2, NuExtract3, and LangExtract baselines (dedup treated as MeasurementLM's own contribution, not the reimplemented method's); recovery unaffected (verified against per-GT-row matching in analysis/metrics.py), validity/F1 direction is genuinely unknown until judged
+Signoff-Tradeoff: qualifier-tag/field consistency checks in MeasurementLM._parse_quantities() log warnings rather than raising; zero current blast radius since no scoring code references qualifier fields yet (verified against analysis/ablation.py, analysis/metrics.py); warnings are stdout-only, not persisted to run_metadata.json, detection relies on grepping SGE logs by experiment id
+Signoff-Risk: langextract baseline has an open, undiagnosed uncaught-timeout crash (lx.extract(), no try/except) observed on job 7643023 (2026-09-19-pond-langextract-gemma27b-full-01); fails loud with zero partial output (confirmed: no langextract row in results/baselines/baselines_pond.csv) but root cause unknown, accepted as ongoing flakiness risk
+Signoff-Risk: seed determinism not yet verified for new pipeline paths added in this range (qualifier parsing, standalone TableCleaner, baseline reworks) beyond smoke/tiny-e2e scale; open item, to be addressed in a follow-up PR
+Signoff-Verified-By: quinnk@bu.edu
+Signoff-Agent: harness=claude-code/N/A model=claude-sonnet-5 reasoning=high interview=skeptical/domain-science/sha256:f8508fa3740f
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
