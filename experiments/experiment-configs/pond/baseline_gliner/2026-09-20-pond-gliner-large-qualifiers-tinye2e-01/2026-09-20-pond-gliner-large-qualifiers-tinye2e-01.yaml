@@ -1,0 +1,33 @@
+id: 2026-09-20-pond-gliner-large-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the GLiNER2 baseline's new qualifier/shape
+  fields (devlog/2026-09-20-measurement-qualifiers-01.md, Phase 3):
+  QUANTITY_FIELD_NAMES added to _build_structure(), merged into records in
+  _make_record(). GLiNER2 has no array dtype, so qualifiers/list_values are
+  forced to comma-joined strings here -- a documented exception, not an
+  oversight, and the one baseline where the encoding itself (not just the
+  model's judgment) could visibly mangle a multi-tag qualifier like
+  "IsRange,HasSD" into something a downstream consumer misreads as a single
+  tag. Same paper as the sibling MeasurementLM configs:
+  trophic_status_and_threats.txt, Table 1's pH row ("8,4±0,4" at 0m depth).
+  Scope is plumbing + qualitative field inspection only -- no recovery-rate
+  interpretation this round (see sibling configs for the eval-matching
+  caveat).
+  Predicted result: per-attribute independently-thresholded structures will
+  likely fire on the pH cell among others (this baseline has a known
+  pre-existing cross-attribute duplication artifact at threshold=0.5,
+  unrelated to today's changes -- see the prior tinye2e run,
+  2026-09-19-pond-gliner-large-tinye2e-01). The new quantity fields should
+  appear on records built from that cell with qualifiers as a comma-joined
+  string (e.g. "HasSD"), not a JSON array and not silently absent. If the
+  new fields are absent from every record while the base cell content is
+  still being extracted, that's a schema-wiring regression in
+  _build_structure()/_make_record(), not a model-confidence issue -- stop
+  and report.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:20:00"

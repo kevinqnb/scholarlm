@@ -1,0 +1,32 @@
+id: 2026-09-20-pond-ablation1-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for Ablation 1 (direct triple extraction, single
+  LLM call per document) after today's qualifier work: unlike the base
+  pipeline, Ablation 1 gets the qualifier/shape fields built directly into
+  its schema rather than via a dedicated _parse_quantities() step
+  (devlog/2026-09-20-measurement-qualifiers-01.md, Phase 3). Same paper as
+  the sibling base-pipeline config
+  (2026-09-20-pond-extraction-gemma27b-qualifiers-tinye2e-01) for a direct
+  comparison of the two field-population mechanisms on the same input:
+  trophic_status_and_threats.txt, Table 1's pH row ("8,4±0,4" at 0m depth,
+  comma-decimal, tracked attribute). Scope is plumbing + qualitative field
+  inspection only -- see the sibling config for why recovery-rate numbers
+  are not being computed this round (eval-matching artifact on non-numeric
+  `value`, flagged in the build note, not fixed here).
+  Predicted result: since Ablation 1 has no separate parsing step and must
+  emit qualifiers/point_value/etc. in the same single call as everything
+  else, expect it to be more likely than the base pipeline to leave some of
+  the 7 new fields null or to fold the ± into a differently-shaped string --
+  this is the open fairness question raised (not resolved) in today's build
+  note. At minimum: a pH record should still appear with a value derived
+  from "8,4±0,4", and the run should complete without error. If Ablation 1
+  produces zero records or crashes, that's a schema-wiring regression, not
+  the fairness question -- stop and report.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "1"
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:30:00"

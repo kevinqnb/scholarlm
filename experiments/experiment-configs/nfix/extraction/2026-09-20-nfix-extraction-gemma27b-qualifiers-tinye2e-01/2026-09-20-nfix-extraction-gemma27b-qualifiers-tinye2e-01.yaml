@@ -1,0 +1,31 @@
+id: 2026-09-20-nfix-extraction-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the base MeasurementLM pipeline's qualifier
+  fields on a second dataset (nfix), checking cross-dataset plumbing rather
+  than a specific known-answer cell. R138.txt (19.9KB) is small and has a
+  dense, real ± table (Table S2, genus-level diazotroph relative abundance,
+  e.g. "15.18 ± 5.51") -- but that table's rows (bacterial genera) are NOT
+  one of nfix's tracked attributes (nfix_rate_mass/areal/volumetric,
+  nfix_incubation_time/temperature; experiments/dataset-configs/nfix.py).
+  This is therefore a specificity/robustness check, not a value-fidelity
+  check: does the pipeline correctly decline to emit nfix_rate records from
+  an untracked abundance table, and does it not crash or hang on a
+  compact multi-column ± table during _parse_quantities()? Scope is
+  plumbing + qualitative field inspection only -- no recovery-rate
+  interpretation this round (same eval-matching caveat as the pond siblings
+  in this collection).
+  Predicted result: the run completes without error; any genuine
+  nfix_rate_* records that do appear (from body text elsewhere in the
+  paper, which does discuss nitrogen fixation rate as acetylene reduction
+  in nmol g^-1 h^-1) should have correctly populated qualifier fields; the
+  genus-abundance table should NOT surface as nfix_rate records. If it
+  does, that's the pipeline conflating an untracked table with a tracked
+  attribute -- a real precision problem, not something to wave off as
+  "extra data."
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  paper_subset: ["R138"]
+  walltime: "01:00:00"

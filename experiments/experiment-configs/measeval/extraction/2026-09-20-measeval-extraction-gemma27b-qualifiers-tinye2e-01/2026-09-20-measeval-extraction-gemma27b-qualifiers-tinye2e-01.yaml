@@ -1,0 +1,32 @@
+id: 2026-09-20-measeval-extraction-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the base MeasurementLM pipeline's qualifier
+  fields against real qualifier ground truth -- measeval is the only
+  dataset in this repo with annotated MeasEval `mods` tags, so this is the
+  one config in the collection where a qualifier match can actually be
+  checked against a human label, not just inspected for plausibility.
+  S1873506113001116-1369.txt is a tiny (1.6KB) single-page document whose
+  ground truth (data/measeval/ground_truth_ten.json) has exactly two
+  HasTolerance records: "43.57% ± 4.35%" and "43.22% ± 7.13%", both in
+  prose ("Differentiating BC1 and TNC1 cells contained 43.57% ± 4.35% (n=3)
+  and 43.22% ± 7.13% (n=3) CD34+CD45+ HPCs..."). Scope is plumbing +
+  qualitative field inspection only for the pond/nfix/supermat configs in
+  this collection, but measeval's ground truth does carry qualifier
+  annotations, so this specific config's qualifier match (not a full
+  recovery-rate run) is a legitimate check, distinct from the deflation
+  artifact flagged for the other three datasets.
+  Predicted result: two records with qualifiers including "HasTolerance",
+  point_value ~"43.57%"/"43.22%", and tolerance ~"4.35%"/"7.13%" --
+  directly comparable to the ground truth's own `mods: ["HasTolerance"]`
+  and `value` fields for these two rows. If qualifiers comes back empty or
+  wrongly tagged (e.g. "HasSD" instead of "HasTolerance") on these two,
+  that's a genuine miss against real ground truth, not an artifact -- worth
+  flagging distinctly from the other three configs' inspection-only
+  results.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  paper_subset: ["S1873506113001116-1369"]
+  walltime: "00:45:00"

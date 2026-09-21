@@ -1,0 +1,29 @@
+id: 2026-09-20-pond-chatextract-gemma27b-qualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for ChatExtract as a regression control: today's
+  qualifier work made no changes to measurementlm_chatextract.py --
+  "nothing to do for ChatExtract," per the build note, since it has no
+  mechanism to be extended with structured fields. extract_tables=true (real
+  -table workflow included), same as the pre-qualifiers tinye2e run,
+  2026-09-19-pond-chatextract-gemma27b-tinye2e-01 -- but on
+  trophic_status_and_threats.txt rather than that run's paper
+  (first_record_of_the), to match every sibling config in this collection.
+  This is therefore not a same-paper regression check against that prior
+  run; it's a fresh baseline on the qualifier-focused paper, run for parity
+  with the rest of the collection and to confirm ChatExtract still executes
+  cleanly with no changes of its own in today's work.
+  Predicted result: ChatExtract output should show no qualifiers/point_value/
+  etc. fields at all (untouched schema) -- any appearance of those fields
+  here would mean something unexpected is bleeding into ChatExtract's
+  output path. Expect a handful of records from Table 1 and the surrounding
+  text, verified/anchored yes-no style, consistent in kind (not necessarily
+  count) with the pre-existing chatextract baseline behavior on other pond
+  papers.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  extract_tables: true
+  walltime: "01:00:00"

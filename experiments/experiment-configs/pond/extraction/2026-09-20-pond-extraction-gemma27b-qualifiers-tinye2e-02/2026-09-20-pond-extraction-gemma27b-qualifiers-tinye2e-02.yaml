@@ -1,0 +1,27 @@
+id: 2026-09-20-pond-extraction-gemma27b-qualifiers-tinye2e-02
+project: scholarlm
+description: >
+  Rerun of 2026-09-20-pond-extraction-gemma27b-qualifiers-tinye2e-01 (see
+  that config for the full rationale and predicted result -- unchanged
+  here). -01 ran successfully (exit 0, valid final.json) but with zero
+  records carrying a qualifiers key: run_extraction.py's
+  step_standardize_and_deduplicate() called mlm._standardize() then
+  mlm._deduplicate() directly, never mlm._parse_quantities() -- unlike
+  MeasurementLM.fit(), which threads self.data through all three calls.
+  Every run through this CLI entry point silently dropped the entire
+  qualifier feature while still writing a superficially valid result --
+  discovered by checking -01's final.json against the stated prediction
+  rather than assuming success from exit_status=0. Fixed and committed
+  (commit a7b8140) before this rerun; full unit test suite still 573
+  passed / 1 skipped after the fix. Same paper, same prediction as -01:
+  trophic_status_and_threats.txt, Table 1's pH row ("8,4±0,4" at 0m
+  depth) should now produce a pH record with qualifiers including
+  "HasSD", point_value ~"8,4" (comma preserved), and standard_deviation
+  ~"0,4". If this rerun still shows no qualifiers key, the fix didn't
+  take -- stop and report rather than scale up.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"
