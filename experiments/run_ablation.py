@@ -158,7 +158,7 @@ def run_ablation(
     else:
         effective_api_base = api_base
 
-    if ocr_dir is not None or is_frontier:
+    if ocr_dir is not None or is_frontier or not dataset_config.has_tables:
         effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
         clean_tables = False
         cleaned_ocr_output_dir = None

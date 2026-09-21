@@ -151,6 +151,19 @@ class DatasetConfig:
             prompts (typically ``direct_extraction_prompt``'s per-field bullets)
             rather than freshly authored, so GLiNER sees the same wording the
             real pipeline already uses. Ignored by every other pipeline path.
+        has_tables: Whether this dataset's OCR text ever contains tables.
+            ``run_extraction.py``'s pipeline and direct-extraction modes
+            default to cleaning tables automatically (``clean_tables=True``)
+            whenever raw OCR is used, which requires
+            ``{data_dir}/processed_pdfs/`` (``process_pdfs.py`` output) to
+            exist. Datasets whose OCR text has no ``<table>`` markup at all
+            (e.g. measeval, whose snippets are page-level prose) have no
+            processed-PDF prerequisite to satisfy and nothing for a
+            table-cleaning pass to do -- set this to ``False`` so
+            ``run_extraction.py`` skips table cleaning unconditionally for
+            them rather than failing loud on a missing directory that would
+            never be populated for a real reason. Defaults to ``True``
+            (every pre-existing dataset has tables).
     """
 
     name: str
@@ -180,6 +193,7 @@ class DatasetConfig:
     gliner_property_names: dict[str, str] | None = None
     gliner_entity_description: str | None = None
     gliner_field_descriptions: dict[str, str] | None = None
+    has_tables: bool = True
 
 
 @dataclass

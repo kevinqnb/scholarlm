@@ -561,4 +561,10 @@ CONFIG = DatasetConfig(
     # catalog, so there is nothing to convert here -- see data/measeval/README.md's
     # "Attribute is free text, not a closed catalog" section.
     unit_conversion_table={},
+    # measeval's OCR text is page-level prose snippets with no <table> markup
+    # anywhere in the corpus (confirmed: zero <table> occurrences across every
+    # file in data/measeval/ocr_output_raw/) -- there is nothing for a
+    # table-cleaning pass to do, and no reason to require
+    # data/measeval/processed_pdfs/ (process_pdfs.py output) to exist.
+    has_tables=False,
 )
