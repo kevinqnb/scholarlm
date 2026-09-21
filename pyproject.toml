@@ -66,6 +66,13 @@ dev = [
     "jupytext>=1.16.4",
     "pytest>=8.4.2",
 ]
+measeval-eval = [
+    # data/measeval/raw/eval/measeval-eval.py's own requirements.txt -- the
+    # unmodified official SemEval-2021 Task 8 scorer, invoked as a subprocess
+    # by analysis/measeval_evaluation.py.
+    "pandasql>=0.7.3",
+    "vladiate>=0.0.14",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
