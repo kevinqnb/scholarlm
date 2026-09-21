@@ -1,5 +1,13 @@
 model_id: fastino/gliner2-large-v1
 sampling_params: {}
+# GLiNER2 loads weights directly in-process (no vLLM server) via
+# GLiNER2.from_pretrained(..., map_location=device) -- unlike a served model,
+# nothing auto-detects the GPU: from_pretrained only moves the model off its
+# construction-time default (CPU) when map_location is passed. Required, not
+# defaulted (measurementlm_gliner.py's __init__ has no fallback) -- 2026-09-21
+# calibration jobs ran undetected on CPU (single-core-saturated per `qacct`,
+# ~400x slower than GPU) until they blew their walltime.
+device: cuda
 resources:
   # GLiNER2-large is a ~435M-param DeBERTa-v3-large encoder loaded directly
   # in-process (no vLLM server) -- far smaller than the smallest model class

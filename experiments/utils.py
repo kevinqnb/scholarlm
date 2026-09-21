@@ -1061,6 +1061,7 @@ def get_model_config(kind: str, model_name: str) -> ModelConfig:
         hf_revision=d.get("hf_revision"),
         sampling_params=d.get("sampling_params", {}),
         api_base=d.get("api_base"),
+        device=d.get("device"),
     )
 
 

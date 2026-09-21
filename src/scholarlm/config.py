@@ -216,6 +216,12 @@ class ModelConfig:
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``
             CLI argument instead.
+        device: Torch device to load weights onto directly (e.g. ``"cuda"``),
+            for models a runner loads in-process rather than through a served
+            API/vLLM endpoint (currently only the GLiNER baseline). ``None``
+            for every other kind, which never reads this field. A runner that
+            does load weights directly must fail loud if this is ``None``
+            rather than falling back to CPU -- see measurementlm_gliner.py.
     """
 
     name: str
@@ -230,3 +236,4 @@ class ModelConfig:
         }
     )
     api_base: str | None = None
+    device: str | None = None

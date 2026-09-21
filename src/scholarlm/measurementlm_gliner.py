@@ -115,7 +115,7 @@ class MeasurementLMGliner(MeasurementLM):
         batch_size: int = 8,
         chunk_size: int = 384,
         chunk_overlap: int = 64,
-        device: str | None = None,
+        device: str,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -124,8 +124,15 @@ class MeasurementLMGliner(MeasurementLM):
         # module don't require the optional `gliner2[local]` dependency.
         from gliner2 import GLiNER2
 
-        from_pretrained_kwargs = {"map_location": device} if device else {}
-        self.extractor = GLiNER2.from_pretrained(self.model_name, **from_pretrained_kwargs)
+        # `device` is required, not defaulted: GLiNER2.Extractor.from_pretrained
+        # only calls `.to(map_location)` when `map_location is not None` -- pass
+        # nothing and the model silently stays on whatever device `nn.Module`
+        # construction defaults to (CPU), even inside a job with a GPU
+        # allocated. That silent CPU fallback ran undetected for months
+        # (single-core-saturated GLiNER jobs that "worked", just far slower
+        # than GPU) until the 2026-09-21 walltime-calibration jobs died at
+        # their 2h budget and the CPU saturation showed up in `qacct`.
+        self.extractor = GLiNER2.from_pretrained(self.model_name, map_location=device)
 
         self.gliner_property_names = gliner_property_names or {}
         self.entity_type_description = entity_type_description

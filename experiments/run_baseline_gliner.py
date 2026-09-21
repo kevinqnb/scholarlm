@@ -27,7 +27,14 @@ Usage
 
 Required params: dataset.
 Optional params: model (default: gliner-large-v1; also: gliner-base-v1),
-paper_subset (list), threshold (default 0.5), batch_size (default 8), device.
+paper_subset (list), threshold (default 0.5), batch_size (default 8).
+
+`device` is NOT a params key -- GLiNER2 loads weights directly in-process (no
+vLLM server), so the device to load them onto is a fixed per-model value, not
+something that varies between experiments; it lives in the model config
+(`experiments/model-configs/baseline/<model>.yaml`'s `device:` key, e.g.
+`cuda`) alongside that file's `resources:` block. Missing it is a hard error,
+not a CPU fallback -- see measurementlm_gliner.py's `__init__`.
 
 Requires the optional `gliner2[local]` dependency (installed via the `gpu` extra:
 `uv sync --extra gpu`, or `pip install "gliner2[local]"`).
@@ -72,7 +79,8 @@ def run_baseline_gliner(
     paper_subset_override: list[str] | None = None,
     threshold: float = 0.5,
     batch_size: int = 8,
-    device: str | None = None,
+    *,
+    device: str,
 ) -> None:
     """Run the GLiNER2 baseline for a dataset with a given GLiNER model.
 
@@ -176,6 +184,15 @@ def main(argv: list[str] | None = None) -> None:
     model_config = paths.get_model_config("baseline", model_name)
     output_dir = paths.result_dir(params["dataset"], "baseline_gliner", cfg["id"])
 
+    if model_config.device is None:
+        raise ValueError(
+            f"Model config 'baseline/{model_name}.yaml' has no 'device' key. "
+            f"MeasurementLMGliner loads weights directly in-process (no vLLM "
+            f"server) -- without an explicit device it silently stays on "
+            f"whatever nn.Module defaults to (CPU), even inside a GPU job. "
+            f"Add e.g. `device: cuda` to that model config."
+        )
+
     run_baseline_gliner(
         dataset_config=dataset_config,
         model_config=model_config,
@@ -183,7 +200,7 @@ def main(argv: list[str] | None = None) -> None:
         paper_subset_override=params.get("paper_subset"),
         threshold=params.get("threshold", 0.5),
         batch_size=params.get("batch_size", 8),
-        device=params.get("device"),
+        device=model_config.device,
     )
 
 
