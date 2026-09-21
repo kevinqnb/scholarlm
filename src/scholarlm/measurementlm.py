@@ -1,7 +1,5 @@
 import asyncio
 import json
-from copy import deepcopy
-from pathlib import Path
 from typing import Any, Callable
 from pydantic import BaseModel
 import numpy as np
@@ -11,7 +9,6 @@ import re
 from io import StringIO
 from openai import AsyncOpenAI, BadRequestError, OpenAI
 from .instruction_prompts import (
-    CLEAN_TABLE_INSTRUCTIONS,
     DETECT_ATTRIBUTES_BATCH_INSTRUCTIONS,
     ENTITY_PROVENANCE_INSTRUCTIONS,
     ATTRIBUTE_PROVENANCE_INSTRUCTIONS,
@@ -172,63 +169,26 @@ class NumpyEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-class MeasurementLM:
-    """
-    A language model class designed for organized collection of measurements from scientific text.
+class BatchLLMBase:
+    """Shared plumbing for a class that dispatches batched chat-completion
+    requests against a vLLM/OpenAI-compatible endpoint: client setup, the
+    async single-call helper with context-length isolation, batched dispatch
+    with per-item retry, and the OCR page/table tag helpers used to slice
+    ``<page number="N">``/``<table number="M">``-tagged text.
 
-    Args:
-        model_name (str): The name or path of the pre-trained language model from the huggingface
-            collection.
-        entity_identification_prompt (str): The prompt template for entity identification.
-        entity_identification_schema (BaseModel): The pydantic schema for entity identification.
-        attribute_info_dict (dict[str, any]): A dictionary containing information about the
-            attributes to be measured. Each key is an attribute name, and each value is a dict
-            with at least a 'description' key and optionally a 'units' key.
-        sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
-        collect_attribute_terms (bool): Whether to request and forward per-attribute
-            terminology ("terms") during attribute detection. Meaningful only for
-            datasets with a real closed attribute vocabulary (pond/nfix/supermat),
-            where "terms" means synonyms/abbreviations for a named attribute. For
-            datasets whose attribute space collapses to a single abstract bucket
-            (e.g. measeval's "measurement"), there is no textual referent for
-            "terminology used to refer to this attribute", and models asked for it
-            tend to dump unrelated numeric values instead. Set to False to discard
-            whatever the model returns for `terms` and omit the "Terminology used
-            for the attribute: ..." line from downstream prompts, without changing
-            the detection prompt/schema itself (so this has no effect on other
-            datasets). Defaults to True for backward compatibility.
-        extraction_mode ("pipeline" | "direct"): "pipeline" (default) runs the full
-            seven-step pipeline unchanged. "direct" replaces entity/attribute
-            detection, provenance, and value extraction with a single per-document
-            LLM call (see `_extract_triples`), still followed by `_standardize` and
-            `_deduplicate`. Requires `direct_extraction_schema` and
-            `direct_extraction_prompt` when set to "direct".
-        direct_extraction_schema (BaseModel | None): Flat pydantic schema combining
-            entity, event, attribute, value, and units fields, used only when
-            `extraction_mode="direct"`.
-        direct_extraction_prompt (str | None): Dataset-specific prompt describing
-            entities, events, and attributes for the single direct-extraction call;
-            used only when `extraction_mode="direct"`.
+    Used by both ``MeasurementLM`` (and its subclasses) and ``TableCleaner``
+    -- the two classes that need to make batched, retried LLM calls over
+    OCR text, but otherwise have no pipeline logic in common.
     """
+
     def __init__(
         self,
         model_name: str,
-        entity_identification_prompt: str,
-        entity_identification_schema: BaseModel,
-        attribute_info_dict: dict[str, any],
         sampling_params: dict[str, any] = {},
         api_base: str = "http://localhost:8000/v1",
         api_key: str = "EMPTY",
         max_concurrent: int = 32,
-        clean_tables: bool = True,
-        cleaned_ocr_output_dir: str | None = None,
-        measurement_event_schema: BaseModel | None = None,
-        measurement_event_prompt: str | None = None,
         use_extra_body: bool = True,
-        collect_attribute_terms: bool = True,
-        extraction_mode: str = "pipeline",
-        direct_extraction_schema: BaseModel | None = None,
-        direct_extraction_prompt: str | None = None,
     ):
         self.model_name = model_name
         if sampling_params is None:
@@ -242,29 +202,13 @@ class MeasurementLM:
             }
         else:
             self.sampling_params = sampling_params
-            
-        self.entity_identification_prompt = entity_identification_prompt
-        self.entity_identification_schema = entity_identification_schema
-        self.attribute_info_dict = attribute_info_dict
+
         self.max_concurrent = max_concurrent
-        self.clean_tables = clean_tables
-        self.cleaned_ocr_output_dir = cleaned_ocr_output_dir
-        self.measurement_event_schema = measurement_event_schema
-        self.measurement_event_prompt = measurement_event_prompt
         self.use_extra_body = use_extra_body
-        self.collect_attribute_terms = collect_attribute_terms
-        if extraction_mode not in ("pipeline", "direct"):
-            raise ValueError(
-                f"extraction_mode must be 'pipeline' or 'direct', got {extraction_mode!r}."
-            )
-        self.extraction_mode = extraction_mode
-        self.direct_extraction_schema = direct_extraction_schema
-        self.direct_extraction_prompt = direct_extraction_prompt
         self.max_prompt_tokens: int = 0
         self.context_length_exceeded_docs: set[int] = set()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
         self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
-
 
     # -----------------------------------------------------------------------
     # Core API call helpers
@@ -435,6 +379,89 @@ class MeasurementLM:
         """Return sorted list of table numbers found in *page_text*."""
         return sorted(int(t) for t in re.findall(r'<table number="(\d+)">', page_text))
 
+
+class MeasurementLM(BatchLLMBase):
+    """
+    A language model class designed for organized collection of measurements from scientific text.
+
+    Args:
+        model_name (str): The name or path of the pre-trained language model from the huggingface
+            collection.
+        entity_identification_prompt (str): The prompt template for entity identification.
+        entity_identification_schema (BaseModel): The pydantic schema for entity identification.
+        attribute_info_dict (dict[str, any]): A dictionary containing information about the
+            attributes to be measured. Each key is an attribute name, and each value is a dict
+            with at least a 'description' key and optionally a 'units' key.
+        sampling_params (dict[str, any]): A dictionary of sampling parameters for text generation.
+        collect_attribute_terms (bool): Whether to request and forward per-attribute
+            terminology ("terms") during attribute detection. Meaningful only for
+            datasets with a real closed attribute vocabulary (pond/nfix/supermat),
+            where "terms" means synonyms/abbreviations for a named attribute. For
+            datasets whose attribute space collapses to a single abstract bucket
+            (e.g. measeval's "measurement"), there is no textual referent for
+            "terminology used to refer to this attribute", and models asked for it
+            tend to dump unrelated numeric values instead. Set to False to discard
+            whatever the model returns for `terms` and omit the "Terminology used
+            for the attribute: ..." line from downstream prompts, without changing
+            the detection prompt/schema itself (so this has no effect on other
+            datasets). Defaults to True for backward compatibility.
+        extraction_mode ("pipeline" | "direct"): "pipeline" (default) runs the full
+            seven-step pipeline unchanged. "direct" replaces entity/attribute
+            detection, provenance, and value extraction with a single per-document
+            LLM call (see `_extract_triples`), still followed by `_standardize` and
+            `_deduplicate`. Requires `direct_extraction_schema` and
+            `direct_extraction_prompt` when set to "direct".
+        direct_extraction_schema (BaseModel | None): Flat pydantic schema combining
+            entity, event, attribute, value, and units fields, used only when
+            `extraction_mode="direct"`.
+        direct_extraction_prompt (str | None): Dataset-specific prompt describing
+            entities, events, and attributes for the single direct-extraction call;
+            used only when `extraction_mode="direct"`.
+    """
+    def __init__(
+        self,
+        model_name: str,
+        entity_identification_prompt: str,
+        entity_identification_schema: BaseModel,
+        attribute_info_dict: dict[str, any],
+        sampling_params: dict[str, any] = {},
+        api_base: str = "http://localhost:8000/v1",
+        api_key: str = "EMPTY",
+        max_concurrent: int = 32,
+        measurement_event_schema: BaseModel | None = None,
+        measurement_event_prompt: str | None = None,
+        use_extra_body: bool = True,
+        collect_attribute_terms: bool = True,
+        extraction_mode: str = "pipeline",
+        direct_extraction_schema: BaseModel | None = None,
+        direct_extraction_prompt: str | None = None,
+    ):
+        super().__init__(
+            model_name=model_name,
+            sampling_params=sampling_params,
+            api_base=api_base,
+            api_key=api_key,
+            max_concurrent=max_concurrent,
+            use_extra_body=use_extra_body,
+        )
+        self.entity_identification_prompt = entity_identification_prompt
+        self.entity_identification_schema = entity_identification_schema
+        self.attribute_info_dict = attribute_info_dict
+        self.measurement_event_schema = measurement_event_schema
+        self.measurement_event_prompt = measurement_event_prompt
+        self.collect_attribute_terms = collect_attribute_terms
+        if extraction_mode not in ("pipeline", "direct"):
+            raise ValueError(
+                f"extraction_mode must be 'pipeline' or 'direct', got {extraction_mode!r}."
+            )
+        self.extraction_mode = extraction_mode
+        self.direct_extraction_schema = direct_extraction_schema
+        self.direct_extraction_prompt = direct_extraction_prompt
+
+    # -----------------------------------------------------------------------
+    # Helpers
+    # -----------------------------------------------------------------------
+
     def _auto_provenance_for_single_page(
         self, context: str, pages: list[int]
     ) -> list[dict] | None:
@@ -467,138 +494,6 @@ class MeasurementLM:
             for t in self._get_table_numbers_on_page(page_text)
         ]
         return entries
-
-    # -----------------------------------------------------------------------
-    # Step 0: Table cleaning (optional, runs before extraction)
-    # -----------------------------------------------------------------------
-
-    def _clean_tables(
-        self,
-        documents: list[str],
-        processed_pdf_dirs: list[str],
-    ) -> list[str]:
-        """
-        Clean and normalize tables in OCR text using the loaded vLLM model.
-
-        For each page containing ``<table>`` tags, loads the pre-rendered page
-        image and asks the model to correct and normalize the table markup
-        against it.  Pages without tables are returned unchanged.
-
-        Pre-processed images must be produced first by ``process_pdfs.py``,
-        which saves each page as a base64 string at
-        ``{processed_pdf_dir}/{page_index}.b64``.
-
-        If ``self.cleaned_ocr_output_dir`` is set, the cleaned texts are saved
-        as ``{stem}.txt`` files (where *stem* is the last component of the
-        ``processed_pdf_dir`` path) in that directory.
-
-        Args:
-            documents: OCR text strings, one per document.
-            processed_pdf_dirs: Paths to the pre-processed image directories,
-                one per document.  Each directory must contain ``{i}.b64``
-                files (from ``process_pdfs.py``).
-
-        Returns:
-            Cleaned OCR text strings in the same order as ``documents``.
-        """
-        print("Loading pre-processed PDF images...")
-        all_images: list[list[str]] = []
-        for doc_dir in processed_pdf_dirs:
-            doc_path = Path(doc_dir)
-            if not doc_path.exists():
-                raise FileNotFoundError(
-                    f"Processed PDF directory not found: {doc_dir}\n"
-                    f"Run 'python experiments/process_pdfs.py' first."
-                )
-            page_files = sorted(doc_path.glob("*.b64"), key=lambda p: int(p.stem))
-            all_images.append([p.read_text().strip() for p in page_files])
-
-        messages: list[list[dict]] = []
-        message_ids: list[tuple[int, int]] = []  # (doc_idx, page_number)
-
-        for doc_idx, (text, doc_images) in enumerate(zip(documents, all_images)):
-            for page_number in self._get_page_numbers(text):
-                page_text = self._get_page_text(text, page_number)
-                if not re.search(r'<table number="\d+">', page_text):
-                    continue
-                if page_number >= len(doc_images):
-                    continue
-                image_b64 = doc_images[page_number]
-                messages.append([{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{image_b64}"},
-                        },
-                        {
-                            "type": "text",
-                            "text": (
-                                f"## INSTRUCTIONS:\n{CLEAN_TABLE_INSTRUCTIONS}\n\n"
-                                f"## OCR TEXT:\n{page_text}\n\n"
-                                f"## QUERY:\nClean and normalize the tables in the OCR text, "
-                                f"using the page image for reference. Return ONLY the cleaned "
-                                f"OCR text for this page, with tables normalized and restructured "
-                                f"as needed. Do NOT include any additional explanation, return "
-                                f"ONLY the cleaned text.\n"
-                            ),
-                        },
-                    ],
-                }])
-                message_ids.append((doc_idx, page_number))
-
-        if not messages:
-            print("No pages with tables found. Nothing to clean.")
-            return deepcopy(documents)
-
-        print(f"Cleaning tables on {len(messages)} pages...")
-        response_texts = self._call_batch(
-            messages,
-            response_format=None,
-            temperature=self.sampling_params.get('temperature'),
-            max_tokens=16384,
-            max_retries=4,
-            max_concurrent=2,
-            timeout=1200,
-        )
-
-        cleaned_documents = deepcopy(documents)
-        for (doc_idx, page_number), cleaned_page_text in zip(message_ids, response_texts):
-            if isinstance(cleaned_page_text, ContextLengthExceededError):
-                self.context_length_exceeded_docs.add(doc_idx)
-                continue
-            cleaned_page_text = cleaned_page_text.strip()
-            if not cleaned_page_text:
-                continue
-            open_tag = f'<page number="{page_number}">'
-            close_tag = "</page>"
-            full_text = cleaned_documents[doc_idx]
-            start = full_text.find(open_tag)
-            if start == -1:
-                continue
-            content_start = start + len(open_tag)
-            content_end = full_text.find(close_tag, content_start)
-            if content_end == -1:
-                continue
-            cleaned_documents[doc_idx] = (
-                full_text[:content_start]
-                + "\n"
-                + cleaned_page_text
-                + "\n"
-                + full_text[content_end:]
-            )
-
-        if self.cleaned_ocr_output_dir is not None:
-            out_dir = Path(self.cleaned_ocr_output_dir)
-            out_dir.mkdir(parents=True, exist_ok=True)
-            for proc_dir, cleaned_text in zip(processed_pdf_dirs, cleaned_documents):
-                stem = Path(proc_dir).name
-                out_file = out_dir / (stem + ".txt")
-                with open(out_file, "w", encoding="utf-8") as fh:
-                    fh.write(cleaned_text)
-            print(f"Saved cleaned OCR to {out_dir}")
-
-        return cleaned_documents
 
     # -----------------------------------------------------------------------
     # Step 1: Document Level entity extraction
@@ -1887,7 +1782,6 @@ class MeasurementLM:
     def fit(
         self,
         documents: list[str],
-        processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
         Runs measurement extraction on the provided documents.
@@ -1896,16 +1790,14 @@ class MeasurementLM:
         ``_extract_triples()`` call per document followed by ``_standardize()``
         and ``_deduplicate()``, instead of the full pipeline below.
 
-        If ``clean_tables=True`` (set at construction), table cleaning is
-        performed as an initial step using the loaded vLLM model before entity
-        extraction begins.  Pre-processed PDF images must be available (produced
-        by ``process_pdfs.py``).  Cleaned texts are optionally saved to
-        ``cleaned_ocr_output_dir``.
+        Table cleaning is not part of this class -- it's a separate,
+        explicit step (``TableCleaner``, ``experiments/run_table_cleaning.py``).
+        If a dataset's OCR text needs it, run that first and pass its output
+        directory as ``documents``' source (``params.ocr_dir`` at the
+        experiment-config layer).
 
         Args:
             documents: OCR text strings, one per document.
-            processed_pdf_dirs: Directories of pre-processed ``.b64`` page images,
-                one per document.  Required when ``clean_tables=True``.
         Returns:
             Measurement records extracted from the documents.
         """
@@ -1913,15 +1805,6 @@ class MeasurementLM:
         # carry forward document indices from the previous batch (those indices are
         # positions within *this* batch's documents list, not stable document ids).
         self.context_length_exceeded_docs = set()
-
-        # Step 0: Table cleaning (optional)
-        if self.clean_tables:
-            if processed_pdf_dirs is None:
-                raise ValueError(
-                    "processed_pdf_dirs is required when clean_tables=True. "
-                    "Run 'python experiments/process_pdfs.py' first."
-                )
-            documents = self._clean_tables(documents, processed_pdf_dirs)
 
         self.data = []
         for i, doc in enumerate(documents):

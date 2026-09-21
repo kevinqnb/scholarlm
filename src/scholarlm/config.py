@@ -163,19 +163,6 @@ class DatasetConfig:
             structurally via ``gliner_field_descriptions``, and ChatExtract's flat
             schema never included it, so this is currently only load-bearing for
             the two NuExtract baselines). ``None`` applies no filtering.
-        has_tables: Whether this dataset's OCR text ever contains tables.
-            ``run_extraction.py``'s pipeline and direct-extraction modes
-            default to cleaning tables automatically (``clean_tables=True``)
-            whenever raw OCR is used, which requires
-            ``{data_dir}/processed_pdfs/`` (``process_pdfs.py`` output) to
-            exist. Datasets whose OCR text has no ``<table>`` markup at all
-            (e.g. measeval, whose snippets are page-level prose) have no
-            processed-PDF prerequisite to satisfy and nothing for a
-            table-cleaning pass to do -- set this to ``False`` so
-            ``run_extraction.py`` skips table cleaning unconditionally for
-            them rather than failing loud on a missing directory that would
-            never be populated for a real reason. Defaults to ``True``
-            (every pre-existing dataset has tables).
     """
 
     name: str
@@ -206,7 +193,6 @@ class DatasetConfig:
     gliner_entity_description: str | None = None
     gliner_field_descriptions: dict[str, str] | None = None
     baseline_filter_fields: list[str] | None = None
-    has_tables: bool = True
 
 
 @dataclass

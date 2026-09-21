@@ -65,7 +65,6 @@ def _make_mlm(**overrides):
         entity_identification_schema=_EntitySchema,
         attribute_info_dict=_ATTRIBUTE_INFO,
         api_base="http://localhost:0/v1",
-        clean_tables=False,
         use_extra_body=False,
     )
     kwargs.update(overrides)

@@ -23,5 +23,8 @@ seed: 342
 params:
   dataset: pond
   model: gemma-3-27b
+  # See -01's params.ocr_dir comment: run_extraction.py no longer auto-cleans
+  # tables, so this pins the same already-cleaned corpus -01 used.
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
   paper_subset: ["trophic_status_and_threats"]
   walltime: "01:00:00"

@@ -369,7 +369,6 @@ def _make_mlm(**overrides):
         entity_identification_schema=_EntitySchema,
         attribute_info_dict=_ATTRIBUTE_INFO,
         api_base="http://localhost:0/v1",
-        clean_tables=False,
         use_extra_body=False,
         measurement_event_schema=_EventSchema,
         measurement_event_prompt="EVENT FIELDS: - date: the date of measurement.",
@@ -431,12 +430,6 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
         assert r["qualifiers"] == []
         assert r["point_value"] == "3.2"
         assert r["page_number"] == [1, 2]  # found on both pages, aggregated
-
-
-def test_fit_raises_if_clean_tables_true():
-    mlm = _make_mlm(clean_tables=True)
-    with pytest.raises(ValueError, match="table cleaning"):
-        mlm.fit([_DOC])
 
 
 def test_fit_raises_if_event_schema_set_without_event_prompt():

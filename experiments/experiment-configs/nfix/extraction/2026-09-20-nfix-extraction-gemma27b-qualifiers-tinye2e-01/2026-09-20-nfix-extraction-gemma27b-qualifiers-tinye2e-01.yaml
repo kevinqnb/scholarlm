@@ -27,5 +27,16 @@ seed: 342
 params:
   dataset: nfix
   model: gemma-3-27b
+  # Table cleaning was split out of run_extraction.py into a separate step
+  # (TableCleaner) -- run_extraction.py no longer auto-cleans tables itself.
+  # Unlike this collection's pond/supermat siblings, no
+  # data/nfix/ocr_output_cleaned_gemma-3-27b/ corpus exists to pin to: this
+  # run's original final.json was already empty ("Loaded 0 papers", an
+  # unrelated paper_subset-matching bug, not a table-cleaning issue), so
+  # there is no real cleaned-text baseline to preserve here. Pinning to raw
+  # OCR explicitly rather than silently inheriting a different behavior; a
+  # real rerun of this config needs a table_cleaning experiment first if
+  # cleaned text is wanted.
+  ocr_dir: data/nfix/ocr_output_raw
   paper_subset: ["R138"]
   walltime: "01:00:00"

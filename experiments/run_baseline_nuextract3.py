@@ -9,9 +9,10 @@ Runs the NuExtract3 extraction baseline for any registered dataset, writing to:
 
 Unlike the old NuExtract-2.0-8B baseline (`run_baseline_nuextract.py`), this
 runner reads raw OCR text directly -- no `process_pdfs.py` step, no rendered
-page images, no table cleaning (`MeasurementLMNuExtract3` doesn't support
-`clean_tables`; see its own module docstring for why). One API call per
-document, not one per (page, attribute).
+page images, no table cleaning (`MeasurementLMNuExtract3` takes no
+`processed_pdf_dirs`; table cleaning is a separate step -- see `TableCleaner`
+-- with no wiring into this baseline). One API call per document, not one
+per (page, attribute).
 
 Usage
 -----

@@ -28,5 +28,11 @@ params:
   dataset: pond
   model: gemma-3-27b
   ablation: "1"
+  # Table cleaning was split out of run_ablation.py into a separate step
+  # (TableCleaner) -- run_ablation.py no longer auto-cleans tables itself.
+  # This pins ocr_dir to the already-cleaned corpus this run originally used
+  # (via the removed has_tables-driven auto-clean), so a rerun of this exact
+  # config stays input-identical.
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
   paper_subset: ["trophic_status_and_threats"]
   walltime: "00:30:00"

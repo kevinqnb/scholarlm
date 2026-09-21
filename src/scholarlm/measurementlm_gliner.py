@@ -118,9 +118,6 @@ class MeasurementLMGliner(MeasurementLM):
         device: str | None = None,
         **kwargs,
     ):
-        # GLiNER reads OCR text directly; never run the image-based table
-        # cleaning pass (mirrors the other baselines).
-        kwargs.setdefault("clean_tables", False)
         super().__init__(*args, **kwargs)
 
         # Imported here (not at module top) so `analysis`/config imports of this

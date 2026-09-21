@@ -187,11 +187,6 @@ def test_missing_direct_extraction_prompt_raises():
         _make_mlm(direct_extraction_prompt=None)
 
 
-def test_clean_tables_true_raises():
-    with pytest.raises(ValueError):
-        _make_mlm(clean_tables=True)
-
-
 def test_use_extra_body_false_raises():
     # use_extra_body=False would silently drop template/instructions/seed at
     # the _acall layer while response_format still forces valid-looking JSON
@@ -346,14 +341,13 @@ def test_fit_never_deduplicates_identical_items(monkeypatch):
     assert records[0]["entity_id"] != records[1]["entity_id"]
 
 
-def test_fit_does_not_call_standardize_or_clean_tables(monkeypatch):
+def test_fit_does_not_call_standardize(monkeypatch):
     mlm = _make_mlm()
 
     def fail_if_called(self, *args, **kwargs):
         raise AssertionError("must not be called")
 
     monkeypatch.setattr(MeasurementLM, "_standardize", fail_if_called)
-    monkeypatch.setattr(MeasurementLM, "_clean_tables", fail_if_called)
     monkeypatch.setattr(MeasurementLMNuExtract3, "_call_batch", lambda *a, **k: ['{"items": []}'])
 
     mlm.fit(["doc text A"])  # must not raise

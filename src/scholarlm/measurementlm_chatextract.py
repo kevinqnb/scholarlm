@@ -168,9 +168,6 @@ class MeasurementLMChatExtract(MeasurementLM):
         max_concurrent: int = 32,
         **kwargs,
     ):
-        # ChatExtract reads OCR text directly; never run the image-based table
-        # cleaning pass (mirrors the other baselines).
-        kwargs.setdefault("clean_tables", False)
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.attribute_property_names = attribute_property_names or {}
         # Replaces the reference script's materials-science "material"/"compound"

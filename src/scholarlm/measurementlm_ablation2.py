@@ -323,7 +323,6 @@ class MeasurementLMAblation2(MeasurementLM):
     def fit(
         self,
         documents: list[str],
-        processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
         Runs the ablation 2 pipeline on the provided documents.
@@ -339,14 +338,6 @@ class MeasurementLMAblation2(MeasurementLM):
         After pair provenance, pair_prov is adapted into the (entity_prov,
         attr_prov, doc_attributes) format expected by the extraction methods.
         """
-        if self.clean_tables:
-            if processed_pdf_dirs is None:
-                raise ValueError(
-                    "processed_pdf_dirs is required when clean_tables=True. "
-                    "Run 'python experiments/process_pdfs.py' first."
-                )
-            documents = self._clean_tables(documents, processed_pdf_dirs)
-
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})

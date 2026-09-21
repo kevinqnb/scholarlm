@@ -29,5 +29,11 @@ seed: 342
 params:
   dataset: supermat
   model: gemma-3-27b
+  # Table cleaning was split out of run_extraction.py into a separate step
+  # (TableCleaner) -- run_extraction.py no longer auto-cleans tables itself.
+  # This pins ocr_dir to the already-cleaned corpus this run originally used
+  # (via the removed has_tables-driven auto-clean), so a rerun of this exact
+  # config stays input-identical.
+  ocr_dir: data/supermat/ocr_output_cleaned_gemma-3-27b
   paper_subset: ["PR05003221-CC"]
   walltime: "01:00:00"

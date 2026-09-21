@@ -10,9 +10,10 @@ this class.
 
 Subclasses MeasurementLM to reuse its API-call plumbing (_acall, _call_batch,
 response_validator) and page/table text helpers unchanged; only the pipeline
-steps and fit() are new. Table cleaning is not one of them: v2 assumes
-documents are already cleaned by a separate process (construct with
-clean_tables=False) and fit() takes only the OCR text.
+steps and fit() are new. Table cleaning is not one of them: it's a fully
+separate step (TableCleaner, experiments/run_table_cleaning.py) -- v2 assumes
+documents are already cleaned by that process, and fit() takes only the OCR
+text.
 """
 from __future__ import annotations
 
@@ -564,10 +565,9 @@ class MeasurementLMv2(MeasurementLM):
     def fit(self, documents: list[str]) -> list[dict]:
         """Runs the quantity-first extraction pipeline on the provided documents.
 
-        Unlike MeasurementLM.fit(), table cleaning is not run here: v2 assumes
-        it has already been done as a separate process (see
-        experiments/run_table_cleaning.py), so ``documents`` should already be
-        cleaned OCR text. Construct with ``clean_tables=False``.
+        Table cleaning is not run here: it's a separate, explicit step
+        (TableCleaner, see experiments/run_table_cleaning.py) -- run it first
+        if needed, so ``documents`` is already cleaned OCR text.
 
         Args:
             documents: OCR text strings, one per document, already cleaned.
@@ -577,12 +577,6 @@ class MeasurementLMv2(MeasurementLM):
         self.context_length_exceeded_docs = set()
         if self.measurement_event_schema is not None and self.measurement_event_prompt is None:
             raise ValueError("measurement_event_prompt is required when measurement_event_schema is set.")
-        if self.clean_tables:
-            raise ValueError(
-                "MeasurementLMv2 does not run table cleaning itself -- it assumes "
-                "documents are already cleaned by a separate process. Construct "
-                "with clean_tables=False and pass already-cleaned OCR text to fit()."
-            )
 
         self.data = [{"document_id": i, "context": doc} for i, doc in enumerate(documents)]
 

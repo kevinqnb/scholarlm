@@ -124,7 +124,6 @@ def run_baseline_nuextract(
         api_base=api_base,
         api_key=api_key,
         max_concurrent=max_concurrent,
-        clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
         baseline_filter_fields=dataset_config.baseline_filter_fields,
     )

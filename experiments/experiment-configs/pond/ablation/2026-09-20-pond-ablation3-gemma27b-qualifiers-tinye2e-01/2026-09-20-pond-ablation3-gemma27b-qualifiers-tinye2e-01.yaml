@@ -28,5 +28,8 @@ params:
   dataset: pond
   model: gemma-3-27b
   ablation: "3"
+  # See the ablation-1 sibling config's params.ocr_dir comment: run_ablation.py
+  # no longer auto-cleans tables, so this pins the same already-cleaned corpus.
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
   paper_subset: ["trophic_status_and_threats"]
   walltime: "01:00:00"

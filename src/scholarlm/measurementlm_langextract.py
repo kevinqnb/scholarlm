@@ -235,9 +235,6 @@ class MeasurementLMLangExtract(MeasurementLM):
         max_concurrent: int = 32,
         **kwargs,
     ):
-        # langextract reads full document text directly; never run the
-        # image-based table cleaning pass (mirrors the other text baselines).
-        kwargs.setdefault("clean_tables", False)
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         if direct_extraction_schema is None or direct_extraction_prompt is None:
             raise ValueError(

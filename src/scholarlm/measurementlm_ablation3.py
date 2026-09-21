@@ -218,7 +218,6 @@ class MeasurementLMAblation3(MeasurementLM):
     def fit(
         self,
         documents: list[str],
-        processed_pdf_dirs: list[str] | None = None,
     ) -> list[dict]:
         """
         Runs the ablation 3 pipeline on the provided documents.
@@ -229,14 +228,6 @@ class MeasurementLMAblation3(MeasurementLM):
         resolution is run after provenance adaptation and passed to value
         extraction steps.
         """
-        if self.clean_tables:
-            if processed_pdf_dirs is None:
-                raise ValueError(
-                    "processed_pdf_dirs is required when clean_tables=True. "
-                    "Run 'python experiments/process_pdfs.py' first."
-                )
-            documents = self._clean_tables(documents, processed_pdf_dirs)
-
         self.data = []
         for i, doc in enumerate(documents):
             self.data.append({"document_id": i, "context": doc})

@@ -118,13 +118,11 @@ def run_ablation(
 ) -> None:
     """Run a single ablation experiment for a dataset / model pair.
 
-    When ``ocr_dir`` is not given, raw OCR texts are loaded from
-    ``{data_dir}/ocr_output_raw/`` and table cleaning is performed before
-    running the ablation pipeline.  Cleaned texts are cached to
-    ``{data_dir}/ocr_output_cleaned_{model_name}/``.
-
-    When ``ocr_dir`` is given, texts are loaded directly from that directory
-    and table cleaning is skipped.
+    Table cleaning is not part of this runner -- it's a separate, explicit
+    step (``TableCleaner``, ``experiments/run_table_cleaning.py``). ``ocr_dir``
+    defaults to ``{data_dir}/ocr_output_raw/`` when not given; to run the
+    ablation on cleaned text, run table cleaning first and pass its output
+    directory as ``ocr_dir``.
 
     Writes a single ``final.json`` to ``output_dir``.
 
@@ -133,8 +131,10 @@ def run_ablation(
         model_config: Model configuration from experiments/model-configs/extraction/.
         ablation: Ablation key string (``"1"`` … ``"6"``).
         output_dir: Directory for the output file (created if needed).
-        ocr_dir: Directory of pre-cleaned ``.txt`` files.  If ``None``, raw OCR
-            is used and table cleaning is performed automatically.
+        ocr_dir: Directory of ``.txt`` OCR files to run the ablation on.
+            Defaults to ``{data_dir}/ocr_output_raw/`` (raw OCR); point it at
+            a ``run_table_cleaning.py`` output directory to use cleaned text
+            instead.
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server (any non-empty string works).
@@ -158,21 +158,12 @@ def run_ablation(
     else:
         effective_api_base = api_base
 
-    if ocr_dir is not None or is_frontier or not dataset_config.has_tables:
-        effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
-        clean_tables = False
-        cleaned_ocr_output_dir = None
-    else:
-        effective_ocr_dir = str(data_dir / "ocr_output_raw")
-        clean_tables = True
-        cleaned_ocr_output_dir = str(data_dir / f"ocr_output_cleaned_{model_config.name}")
+    effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
 
     print(f"\nDataset   : {dataset_config.name}")
     print(f"Model     : {model_config.name} ({model_config.model_id})")
     print(f"Ablation  : {ablation} — {ablation_desc}")
     print(f"OCR dir   : {effective_ocr_dir}")
-    if clean_tables:
-        print(f"Cleaned   : {cleaned_ocr_output_dir}")
     print(f"Output    : {output_dir}\n")
 
     text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
@@ -217,8 +208,6 @@ def run_ablation(
         sampling_params=model_config.sampling_params,
         api_base=effective_api_base,
         api_key=api_key,
-        clean_tables=clean_tables,
-        cleaned_ocr_output_dir=cleaned_ocr_output_dir,
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
@@ -228,22 +217,6 @@ def run_ablation(
         mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema
         mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt
     mlm = ablation_class(**mlm_kwargs)
-
-    # Pre-clean tables if needed (same pattern as run_extraction.py)
-    processed_pdf_dirs = None
-    if clean_tables:
-        processed_pdf_root = data_dir / "processed_pdfs"
-        if not processed_pdf_root.exists():
-            raise FileNotFoundError(
-                f"Processed PDF directory not found: {processed_pdf_root}\n"
-                f"Run 'python experiments/process_pdfs.py --dataset {dataset_config.name}' first."
-            )
-        processed_pdf_dirs = [
-            str(processed_pdf_root / info["document_id"]) for info in text_info
-        ]
-        text = mlm._clean_tables(text, processed_pdf_dirs)
-        # Tables are now cleaned; disable the check inside fit() to avoid a second pass.
-        mlm.clean_tables = False
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
 

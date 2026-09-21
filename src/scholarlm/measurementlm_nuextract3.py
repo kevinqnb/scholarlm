@@ -171,13 +171,6 @@ class MeasurementLMNuExtract3(MeasurementLM):
                 "for MeasurementLMNuExtract3. Use the same values defined in the "
                 "dataset config for Ablation 1."
             )
-        if kwargs.get("clean_tables", False):
-            raise ValueError(
-                "MeasurementLMNuExtract3 does not support clean_tables=True: it has "
-                "no table-cleaning step and takes no processed_pdf_dirs. Clean text "
-                "upstream (or use MeasurementLMAblation1) if table cleaning is needed."
-            )
-        kwargs["clean_tables"] = False
         if not kwargs.get("use_extra_body", True):
             # _acall (measurementlm.py) gates its *entire* extra_body handling --
             # including the caller-supplied extra_body this adapter passes for

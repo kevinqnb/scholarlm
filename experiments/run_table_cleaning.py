@@ -56,7 +56,7 @@ sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 # Import shared helpers from run_extraction to keep config loading in sync.
 from run_extraction import load_dataset_config, get_model_config, load_papers
-from scholarlm import MeasurementLM
+from scholarlm import TableCleaner
 from scholarlm.config import DatasetConfig, ModelConfig
 import utils
 
@@ -134,20 +134,16 @@ def run_vllm_table_cleaning(
         )
     processed_pdf_dirs = [str(processed_pdf_root / info["document_id"]) for info in text_info]
 
-    mlm = MeasurementLM(
+    cleaner = TableCleaner(
         model_name=model_config.model_id,
-        entity_identification_prompt="",
-        entity_identification_schema=dataset_config.entity_schema,
-        attribute_info_dict=dataset_config.attribute_info_dict,
         sampling_params=model_config.sampling_params,
         api_base=api_base,
         api_key=api_key,
-        clean_tables=True,
-        cleaned_ocr_output_dir=str(effective_output_dir),
+        output_dir=str(effective_output_dir),
     )
 
     print(f"Cleaning tables for {len(text)} paper(s)...")
-    mlm._clean_tables(text, processed_pdf_dirs)
+    cleaner.clean(text, processed_pdf_dirs)
 
     print(f"\nDone. Cleaned texts written to {effective_output_dir}")
     print(f"To use these cleaned texts for extraction, pass:")

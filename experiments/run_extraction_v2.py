@@ -69,7 +69,6 @@ def _build_mlm(dataset_config: DatasetConfig, model_config: ModelConfig, api_bas
         sampling_params=model_config.sampling_params,
         api_base=api_base,
         api_key=api_key,
-        clean_tables=False,
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=model_config.api_base is None,
