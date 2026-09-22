@@ -1,0 +1,33 @@
+id: 2026-09-21-supermat-extractionv2-llama8b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of MeasurementLMv2 (src/scholarlm/measurementlmv2.py,
+  grouped-contextualization call pattern) on supermat, model=llama-3.1-8b. One
+  cell of the 2026-09-21 full extraction-config matrix. Paper count: 142 (142
+  raw OCR files, no paper_filter/paper_exclude defined for supermat). ocr_dir
+  pinned to
+  experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  -- per instruction, the table-cleaning-based drop_references output, NOT the
+  plain table_cleaning dir the pre-existing gemma-3-27b v2 full-run configs for
+  this dataset use (table-cleaning model and extraction model are independent;
+  same file count either way). MeasurementLMv2 has NEVER been run at full scale
+  for llama-3.1-8b on supermat -- gemma-3-27b is the only model with any v2
+  full-run history at all, and only on pond/nfix/supermat. This walltime is v1's
+  own measured runtime for this (dataset, model) reused as a proxy, per this
+  repo's existing precedent of falling back to a v1-grounded ceiling when no v2
+  timing exists; it could be badly wrong in either direction since v2's call
+  pattern differs structurally from v1. resume=false, matching every existing
+  extraction_v2 config in this repo (v1 uses resume=true here; the difference is
+  inherited from precedent, not independently re-justified). STAGED-GATES: A
+  smoke pair and rung-3 hand check exist for v2's groupctx rework, but only on
+  pond, and not on supermat specifically or on llama-3.1-8b at all -- see
+  notes/scholarlm/builds/2026-09-19-measurementlmv2-groupctx-01.md. Do not
+  submit this without first running rung-1/2/3 on this exact (dataset, model)
+  pair.
+seed: 342
+params:
+  dataset: supermat
+  model: llama-3.1-8b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  resume: false
+  walltime: "24:00:00"

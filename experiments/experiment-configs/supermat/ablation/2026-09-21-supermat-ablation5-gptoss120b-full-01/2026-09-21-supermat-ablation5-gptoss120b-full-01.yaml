@@ -1,0 +1,35 @@
+id: 2026-09-21-supermat-ablation5-gptoss120b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 5 (merged provenance+standardization) on supermat,
+  model=gpt-oss-120b (src/scholarlm/measurementlm_ablation5.py, via
+  run_ablation.py). One cell of the 2026-09-21 full extraction-config matrix.
+  Paper count: 142 (142 raw OCR files, no paper_filter/paper_exclude defined for
+  supermat). ocr_dir pinned to
+  experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  -- per instruction, the same table-cleaning-based drop_references corpus as
+  this dataset's extraction/extraction_v2 siblings; run_ablation.py no longer
+  auto-cleans tables itself. Walltime grounded in the last pre-restructure full
+  run of this exact (dataset, ablation, model) triple:
+  data/experiments/supermat/ablations/ablation5/gpt-oss-120b/2026_08_13/run_metadata.json,
+  runtime_seconds=4898.8 (1.36h). That run predates the 2026-09-20
+  qualifier-field schema rework -- All ablations now also run
+  _parse_quantities() for the 7 qualifier fields (added 2026-09-20, shared with
+  the base pipeline), an extra per-record step this legacy timing predates.
+  Headroom applied per this matrix's graduated multiplier policy (4x under a 3h
+  base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
+  next whole hour) -> 06:00:00. resume=true (matches the v1 extraction sibling;
+  ablations share the same checkpointed-step machinery). STAGED-GATES: NO
+  rung-1/2/3 pass exists for ablation5 on gpt-oss-120b/supermat under the
+  current schema (only ablation1 and ablation3 on pond/gemma-3-27b have a
+  tinye2e precedent at all, anywhere in this matrix). Per CLAUDE.md's
+  staged-gate ladder, run a smoke and a tiny end-to-end with a predicted result
+  on this exact triple before submitting this config.
+seed: 342
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  ablation: "5"
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  resume: true
+  walltime: "06:00:00"

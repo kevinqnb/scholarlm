@@ -1,0 +1,35 @@
+id: 2026-09-21-supermat-extractionv2-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of MeasurementLMv2 (src/scholarlm/measurementlmv2.py,
+  grouped-contextualization call pattern) on supermat, model=gemma-3-27b. One
+  cell of the 2026-09-21 full extraction-config matrix. Paper count: 142 (142
+  raw OCR files, no paper_filter/paper_exclude defined for supermat). ocr_dir
+  pinned to
+  experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  -- per instruction, the table-cleaning-based drop_references output, NOT the
+  plain table_cleaning dir the pre-existing gemma-3-27b v2 full-run configs for
+  this dataset use (table-cleaning model and extraction model are independent;
+  same file count either way). gemma-3-27b v2 has an existing full-scale run on
+  this dataset
+  (experiments/experiment-configs/supermat/extraction_v2/2026-09-19-*-v2-extraction-01),
+  which used a flat 24:00:00 ceiling with no model-specific grounding (only a
+  1-paper smoke pair had been timed). This config instead grounds the estimate
+  in v1's own measured runtime for the same (dataset, model) -- a deliberate
+  deviation from that flat-24h precedent, flagged since v2's actual per-call
+  pattern (grouped contextualization, fewer calls than v1) is unmeasured at full
+  scale for any model. resume=false, matching every existing extraction_v2
+  config in this repo (v1 uses resume=true here; the difference is inherited
+  from precedent, not independently re-justified). STAGED-GATES: A smoke pair
+  and rung-3 hand check exist for v2's groupctx rework, but only on pond, and
+  not on supermat specifically or on gemma-3-27b at all -- see
+  notes/scholarlm/builds/2026-09-19-measurementlmv2-groupctx-01.md. Do not
+  submit this without first running rung-1/2/3 on this exact (dataset, model)
+  pair.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  resume: false
+  walltime: "12:00:00"

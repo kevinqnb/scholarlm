@@ -1,0 +1,33 @@
+id: 2026-09-21-measeval-extraction-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the base MeasurementLM pipeline
+  (src/scholarlm/measurementlm.py) on measeval, model=gemma-3-27b. Drafted as
+  one cell of a full 4-dataset x 3-model x {v1, v2, ablation1-6}
+  extraction-config matrix (requested 2026-09-21); see sibling ids across
+  experiments/experiment-configs/measeval/{extraction,extraction_v2,ablation}/
+  for the rest. Paper count: 448 (448 raw OCR files (train+trial+eval splits
+  combined), no paper_filter/paper_exclude defined for measeval). ocr_dir
+  omitted -- defaults to data/measeval/ocr_output_raw/ (448 files); measeval has
+  no table-cleaning run to point at (unlike pond/nfix/supermat), matching the
+  one existing measeval full-extraction precedent
+  (2026-08-01-measeval-llama-8b-01), which also ran against raw OCR. Walltime
+  grounded in the last pre-restructure full run of this exact (dataset, model)
+  pair:
+  data/experiments/measeval/extraction/gemma-3-27b/2026_08_01/run_metadata.json,
+  runtime_seconds=4378.3 (1.22h). That legacy run predates the 2026-09-20
+  qualifier-field schema rework (_parse_quantities and 7 new per-quantity
+  fields), so its timing doesn't reflect the current per-record call pattern --
+  headroom applied per this matrix's graduated multiplier policy (4x under a 3h
+  base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
+  next whole hour) -> 05:00:00. resume=true so a walltime kill loses only the
+  steps not yet checkpointed, not the whole run. STAGED-GATES: A rung-1/2/3 pass
+  for this exact (dataset, model) pair already exists under the current
+  qualifier-field schema (see the tinye2e/seeddet siblings in this directory) --
+  this is that sequence's rung-4 step.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  resume: true
+  walltime: "05:00:00"

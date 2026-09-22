@@ -1,0 +1,30 @@
+id: 2026-09-21-measeval-extractionv2-llama8b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of MeasurementLMv2 (src/scholarlm/measurementlmv2.py,
+  grouped-contextualization call pattern) on measeval, model=llama-3.1-8b. One
+  cell of the 2026-09-21 full extraction-config matrix. Paper count: 448 (448
+  raw OCR files (train+trial+eval splits combined), no
+  paper_filter/paper_exclude defined for measeval). ocr_dir omitted -- defaults
+  to data/measeval/ocr_output_raw/; measeval has no table-cleaning or
+  drop_references run and no prior v2 config of any kind to match against.
+  MeasurementLMv2 has NEVER been run at full scale for llama-3.1-8b on any
+  dataset -- gemma-3-27b is the only model with any v2 full-run history at all,
+  and only on pond/nfix/supermat. This walltime is v1's own measured runtime for
+  this (dataset, model) reused as a proxy, per this repo's existing precedent of
+  falling back to a v1-grounded ceiling when no v2 timing exists; it could be
+  badly wrong in either direction since v2's call pattern differs structurally
+  from v1. resume=false, matching every existing extraction_v2 config in this
+  repo (v1 uses resume=true here; the difference is inherited from precedent,
+  not independently re-justified). STAGED-GATES: A smoke pair and rung-3 hand
+  check exist for v2's groupctx rework, but only on pond, and not on measeval
+  specifically or on llama-3.1-8b at all -- see
+  notes/scholarlm/builds/2026-09-19-measurementlmv2-groupctx-01.md. Do not
+  submit this without first running rung-1/2/3 on this exact (dataset, model)
+  pair.
+seed: 342
+params:
+  dataset: measeval
+  model: llama-3.1-8b
+  resume: false
+  walltime: "17:00:00"

@@ -1,0 +1,37 @@
+id: 2026-09-21-measeval-langextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline (MeasurementLMLangExtract) on
+  measeval, backbone gemma-3-27b (the only backbone this repo's other three
+  datasets' LangExtract baselines use). No LangExtract run of any kind exists
+  yet for measeval. Per instruction, baselines use the ocr-based (not
+  table-cleaning-based) drop_references corpus at
+  experiments/results/{dataset}/drop_references/<ocr-id> -- but measeval has no
+  drop_references run at all (unlike pond/nfix/supermat, which each have one),
+  so ocr_dir is set explicitly to data/measeval/ocr_output_raw/ (448 documents,
+  no paper_filter/paper_exclude) per the stated measeval exception, matching
+  every other measeval baseline in this batch.
+  max_char_buffer/extraction_passes/max_workers/batch_length/use_schema_constraints/fence_output
+  copied unvalidated from the pond/nfix/supermat full LangExtract configs
+  (5000/1/16/20/true/false) -- measeval's documents are short annotation
+  snippets (mean ~892 bytes, vs. pond's ~59.5KB), so max_char_buffer chunking
+  and the 16/20 concurrency tuning derived for full-length papers may not
+  transfer; this is untested. No walltime precedent exists for this baseline on
+  this dataset at all -- budgeted a flat, heavily-padded ceiling given
+  measeval's short per-document text but very large document count (448, the
+  largest of the four datasets) and complete absence of any timing data, rather
+  than extrapolating a number that would look more grounded than it is.
+  STAGED-GATES: no rung-1/2/3 pass exists for this baseline on this dataset --
+  run a smoke and a tiny end-to-end before submitting.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  ocr_dir: data/measeval/ocr_output_raw
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "04:00:00"

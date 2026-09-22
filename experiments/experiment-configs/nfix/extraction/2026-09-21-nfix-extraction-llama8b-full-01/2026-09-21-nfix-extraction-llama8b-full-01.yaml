@@ -1,0 +1,43 @@
+id: 2026-09-21-nfix-extraction-llama8b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the base MeasurementLM pipeline
+  (src/scholarlm/measurementlm.py) on nfix, model=llama-3.1-8b. Drafted as one
+  cell of a full 4-dataset x 3-model x {v1, v2, ablation1-6} extraction-config
+  matrix (requested 2026-09-21); see sibling ids across
+  experiments/experiment-configs/nfix/{extraction,extraction_v2,ablation}/ for
+  the rest. Paper count: 98 (265 raw OCR files; 101 pass _nfix_paper_filter
+  (verified: the table-cleaning-based drop_references run this config points at
+  was itself already scoped to exactly those 101 files -- confirmed by set
+  comparison against dataset-configs/nfix.py's paper_filter, not assumed); minus
+  3 more from paper_exclude = 98). ocr_dir pinned to
+  experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  -- per instruction, MeasurementLM v1/v2 and ablations use the
+  table-cleaning-based drop_references output (NOT the plain table_cleaning dir
+  the pre-existing 2026-09-19 extraction_v2 full-run configs for this dataset
+  point at; same file count either way, drop_references is a pure text
+  post-process). Table-cleaning model and extraction model are independent
+  choices -- this same corpus is used for all three extraction models on this
+  dataset so numbers stay comparable across models. Walltime grounded in the
+  last pre-restructure full run of this exact (dataset, model) pair:
+  data/experiments/nfix/extraction/llama-3.1-8b/2026_05_05/run_metadata.json,
+  runtime_seconds=20694.3 (5.75h). That legacy run predates the 2026-09-20
+  qualifier-field schema rework (_parse_quantities and 7 new per-quantity
+  fields), so its timing doesn't reflect the current per-record call pattern --
+  headroom applied per this matrix's graduated multiplier policy (4x under a 3h
+  base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
+  next whole hour) -> 18:00:00. resume=true so a walltime kill loses only the
+  steps not yet checkpointed, not the whole run. STAGED-GATES: NO rung-1/2/3
+  pass exists for this exact (dataset, model) pair under the current
+  (2026-09-20+) qualifier-field schema -- only gemma-3-27b has been
+  smoke/tiny-e2e tested on this schema so far. Per CLAUDE.md's staged-gate
+  ladder, this should not be submitted before a unit test, a one-paper smoke
+  run, and a tiny end-to-end pass with a predicted result on this specific
+  (dataset, model) combination.
+seed: 342
+params:
+  dataset: nfix
+  model: llama-3.1-8b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  resume: true
+  walltime: "18:00:00"

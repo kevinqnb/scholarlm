@@ -1,0 +1,34 @@
+id: 2026-09-21-measeval-ablation3-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 3 (full-document pair provenance (both provenance
+  steps replaced by one full-document query per entity/attribute pair)) on
+  measeval, model=gemma-3-27b (src/scholarlm/measurementlm_ablation3.py, via
+  run_ablation.py). One cell of the 2026-09-21 full extraction-config matrix.
+  Paper count: 448 (448 raw OCR files (train+trial+eval splits combined), no
+  paper_filter/paper_exclude defined for measeval). ocr_dir omitted -- defaults
+  to data/measeval/ocr_output_raw/; measeval has no table-cleaning or
+  drop_references run. NO ablation3 run of ANY kind exists for measeval -- this
+  is the first time ablation3 would be run on this dataset at all. Walltime is
+  doubly extrapolated: the ratio of ablation3's measured runtime to plain
+  extraction's measured runtime, averaged across pond/nfix/supermat for
+  gemma-3-27b (the only real data available for this ablation+model
+  combination), applied to measeval's own measured gemma-3-27b extraction
+  runtime. Treat this number as a placeholder, not a grounded estimate -- run a
+  smoke and a tiny end-to-end on measeval/gemma-3-27b/ablation3 before trusting
+  it. Headroom applied per this matrix's graduated multiplier policy (4x under a
+  3h base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
+  next whole hour) -> 06:00:00. resume=true (matches the v1 extraction sibling;
+  ablations share the same checkpointed-step machinery). STAGED-GATES: NO
+  rung-1/2/3 pass exists for ablation3 on gemma-3-27b/measeval under the current
+  schema (only ablation1 and ablation3 on pond/gemma-3-27b have a tinye2e
+  precedent at all, anywhere in this matrix). Per CLAUDE.md's staged-gate
+  ladder, run a smoke and a tiny end-to-end with a predicted result on this
+  exact triple before submitting this config.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  ablation: "3"
+  resume: true
+  walltime: "06:00:00"

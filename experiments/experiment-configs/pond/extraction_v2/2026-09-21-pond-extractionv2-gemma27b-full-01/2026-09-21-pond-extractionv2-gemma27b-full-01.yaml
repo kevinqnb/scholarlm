@@ -1,0 +1,32 @@
+id: 2026-09-21-pond-extractionv2-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of MeasurementLMv2 (src/scholarlm/measurementlmv2.py,
+  grouped-contextualization call pattern) on pond, model=gemma-3-27b. One cell
+  of the 2026-09-21 full extraction-config matrix. Paper count: 115 (128 raw OCR
+  files minus 13 paper_exclude entries (pond has no paper_filter)). ocr_dir
+  pinned to
+  experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  -- per instruction, the table-cleaning-based drop_references output, NOT the
+  plain table_cleaning dir the pre-existing gemma-3-27b v2 full-run configs for
+  this dataset use (table-cleaning model and extraction model are independent;
+  same file count either way). gemma-3-27b v2 has an existing full-scale run on
+  this dataset
+  (experiments/experiment-configs/pond/extraction_v2/2026-09-19-*-v2-extraction-01),
+  which used a flat 24:00:00 ceiling with no model-specific grounding (only a
+  1-paper smoke pair had been timed). This config instead grounds the estimate
+  in v1's own measured runtime for the same (dataset, model) -- a deliberate
+  deviation from that flat-24h precedent, flagged since v2's actual per-call
+  pattern (grouped contextualization, fewer calls than v1) is unmeasured at full
+  scale for any model. resume=false, matching every existing extraction_v2
+  config in this repo (v1 uses resume=true here; the difference is inherited
+  from precedent, not independently re-justified). STAGED-GATES: This is the one
+  cell of the matrix with a same-dataset, same-model rung-3 precedent (the
+  groupctx rework's own verification ran on pond/gemma-3-27b).
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  resume: false
+  walltime: "27:00:00"

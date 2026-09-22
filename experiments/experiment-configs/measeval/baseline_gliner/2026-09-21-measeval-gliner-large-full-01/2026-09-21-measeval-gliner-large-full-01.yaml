@@ -1,0 +1,32 @@
+id: 2026-09-21-measeval-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the reworked GLiNER2 baseline
+  (src/scholarlm/measurementlm_gliner.py) on measeval, model=gliner-large-v1.
+  Redrafted under today's date as part of the 2026-09-21 full extraction-config
+  matrix -- 2026-09-19-measeval-gliner-large-full-01 already exists and has
+  already been run (real result dir under
+  experiments/results/measeval/baseline_gliner/); that one is left untouched as
+  the historical record, this is a fresh sibling id so the matrix's dated set is
+  self-consistent, not a replacement or a claim that the old one is wrong. Same
+  params as that prior run: no paper_subset/paper_filter/paper_exclude (measeval
+  has none), ocr_dir explicit rather than relying on the default. Per
+  instruction, baselines use the ocr-based (not table-cleaning-based)
+  drop_references corpus at
+  experiments/results/{dataset}/drop_references/<ocr-id> -- but measeval has no
+  drop_references run at all (unlike pond/nfix/supermat, which each have one),
+  so ocr_dir is set explicitly to data/measeval/ocr_output_raw/ (448 documents,
+  no paper_filter/paper_exclude) per the stated measeval exception, matching
+  every other measeval baseline in this batch. Walltime: the prior run
+  (2026-09-19-measeval-gliner-large-full-01/run_metadata.json) is the direct
+  precedent for this exact (dataset, model) baseline pair -- reuse its walltime
+  unchanged (00:30:00) since nothing about the run recipe has changed.
+  STAGED-GATES: this baseline already has a full-run precedent under the current
+  code (2026-09-19); no additional smoke/tinye2e needed beyond what already
+  validated that prior run.
+seed: 342
+params:
+  dataset: measeval
+  model: gliner-large-v1
+  ocr_dir: data/measeval/ocr_output_raw
+  walltime: "00:30:00"
