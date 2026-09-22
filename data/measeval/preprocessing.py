@@ -38,6 +38,7 @@ Or from data/measeval/:
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import re
@@ -49,6 +50,13 @@ from scholarlm.utils.page_attribution import parse_numeric
 BASE = Path(__file__).parent  # data/measeval/
 RAW_DATA_DIR = BASE / "raw" / "data"
 OCR_DIR = BASE / "ocr_output_raw"
+
+# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
+# minus `explanation` (a generation-only field, not part of the GT record).
+QUALIFIER_FIELDS = [
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+]
 
 _TOP_PAPERS_N = 10
 
@@ -118,7 +126,18 @@ def _read_tsv(path: Path) -> list[dict]:
     return rows
 
 
-def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict]) -> list[dict]:
+def _build_rows_for_document(
+    document_id: str, split: str, tsv_rows: list[dict], *, build_qualifiers: bool = False
+) -> list[dict]:
+    """build_qualifiers=True switches `value` to the raw, unparsed Quantity
+    span text and stops dropping rows for mods (range/approximate/list) or
+    for having no parseable numeric token -- the only remaining drop reason
+    is an annotSet with no Quantity annotation at all, which isn't a value-
+    parsing question. The 7 qualifier/shape fields (`QUALIFIER_FIELDS`) are
+    appended, all null: `mods` already carries MeasEval's own shape
+    annotation for this dataset, but this build deliberately does not map it
+    onto `qualifiers` -- that mapping is a separate, not-yet-done change.
+    """
     by_set: dict[str, list[dict]] = {}
     for row in tsv_rows:
         by_set.setdefault(row["annotSet"], []).append(row)
@@ -137,16 +156,18 @@ def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict])
         entity = by_type.get("MeasuredEntity", [None])[0]
         prop = by_type.get("MeasuredProperty", [None])[0]
         qualifiers = by_type.get("Qualifier", [])
-
         mods = quantity["other"].get("mods", [])
-        if _should_drop(mods):
-            continue
 
-        value = _extract_value(quantity["text"])
-        if value is None:
-            continue
+        if build_qualifiers:
+            value = quantity["text"]
+        else:
+            if _should_drop(mods):
+                continue
+            value = _extract_value(quantity["text"])
+            if value is None:
+                continue
 
-        out_rows.append({
+        row_out = {
             "document_id": document_id,
             "split": split,
             # The raw Quantity span, units included as written ("54.8 years",
@@ -154,10 +175,14 @@ def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict])
             # entity field, `EntitySchema.quantity`: the quantity-first design
             # in experiments/dataset-configs/measeval.py enumerates one entity per
             # reported quantity and copies the span verbatim, so both sides
-            # hold the same kind of string. `value`/`units` below remain the
-            # parsed number and its unit, and are what matching keys on --
-            # this is carried for traceability and for the option of fuzzy-
-            # matching on the span itself later.
+            # hold the same kind of string. In the non-qualifiers build,
+            # `value`/`units` below remain the parsed number and its unit,
+            # and are what matching keys on -- `quantity` here is carried for
+            # traceability and for the option of fuzzy-matching on the span
+            # itself later. In the qualifiers build, `value` *is* this same
+            # raw span text (verbatim, unparsed) -- `quantity` and `value`
+            # are then exact duplicates of each other, kept both for
+            # backward-compatible field naming.
             "quantity": quantity["text"],
             "name": entity["text"] if entity else None,
             # Constant across every row: matches the single abstract attribute
@@ -178,11 +203,22 @@ def _build_rows_for_document(document_id: str, split: str, tsv_rows: list[dict])
             "property_end": prop["endOffset"] if prop else None,
             "quantity_start": quantity["startOffset"],
             "quantity_end": quantity["endOffset"],
-        })
+        }
+        if build_qualifiers:
+            for field in QUALIFIER_FIELDS:
+                row_out[field] = None
+        out_rows.append(row_out)
     return out_rows
 
 
-def build_ground_truth() -> None:
+def build_ground_truth(*, build_qualifiers: bool = False) -> None:
+    """build_qualifiers=True writes only ground_truth_qualifiers.json (raw,
+    undropped Quantity-span text as `value`, plus null qualifier fields) --
+    see `_build_rows_for_document`'s docstring for what changes. directory.json
+    and the OCR passthrough files are regenerated either way (deterministic,
+    independent of this flag); ground_truth.json/ground_truth_ten.json are
+    only written when build_qualifiers=False.
+    """
     OCR_DIR.mkdir(exist_ok=True)
 
     directory: dict[str, dict] = {}
@@ -225,18 +261,23 @@ def build_ground_truth() -> None:
                 continue  # real document with zero annotated measurements
 
             tsv_rows = _read_tsv(tsv_path)
-            doc_rows = _build_rows_for_document(document_id, split, tsv_rows)
+            doc_rows = _build_rows_for_document(
+                document_id, split, tsv_rows, build_qualifiers=build_qualifiers
+            )
             n_rows_split += len(doc_rows)
 
-            # Tally why quantities were dropped for the summary printed below.
-            for row in tsv_rows:
-                if row["annotType"] != "Quantity":
-                    continue
-                mods = row["other"].get("mods", [])
-                if _should_drop(mods):
-                    n_dropped_mods += 1
-                elif _extract_value(row["text"]) is None:
-                    n_no_value += 1
+            # Tally why quantities were dropped for the summary printed below
+            # (non-qualifiers build only -- the qualifiers build drops nothing
+            # for these reasons, see docstring).
+            if not build_qualifiers:
+                for row in tsv_rows:
+                    if row["annotType"] != "Quantity":
+                        continue
+                    mods = row["other"].get("mods", [])
+                    if _should_drop(mods):
+                        n_dropped_mods += 1
+                    elif _extract_value(row["text"]) is None:
+                        n_no_value += 1
             all_rows.extend(doc_rows)
 
         print(f"  {split}: {n_docs} documents, {n_rows_split} ground-truth rows")
@@ -244,6 +285,12 @@ def build_ground_truth() -> None:
     with open(BASE / "directory.json", "w", encoding="utf-8") as fh:
         json.dump(directory, fh, indent=2)
     print(f"  Saved {len(directory):,} documents -> directory.json")
+
+    if build_qualifiers:
+        with open(BASE / "ground_truth_qualifiers.json", "w", encoding="utf-8") as fh:
+            json.dump(all_rows, fh, indent=2)
+        print(f"  Saved {len(all_rows):,} rows -> ground_truth_qualifiers.json")
+        return
 
     print(f"  Dropped {n_dropped_mods:,} Quantity rows tagged IsRange/IsApproximate/IsList")
     print(f"  Dropped {n_no_value:,} Quantity rows with no parseable numeric token "
@@ -272,8 +319,21 @@ def main(argv: list[str] | None = None) -> None:
         raise FileNotFoundError(
             f"{RAW_DATA_DIR} not found -- run data/measeval/download_measeval.py first"
         )
-    print("Building ground truth JSONs ...")
-    build_ground_truth()
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        "--qualifiers", action="store_true",
+        help="Build only ground_truth_qualifiers.json (raw, undropped Quantity-span "
+             "text as value, plus null qualifier fields); leaves ground_truth.json/"
+             "ground_truth_ten.json untouched.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.qualifiers:
+        print("Building qualifiers ground truth JSON ...")
+        build_ground_truth(build_qualifiers=True)
+    else:
+        print("Building ground truth JSONs ...")
+        build_ground_truth()
 
 
 if __name__ == "__main__":

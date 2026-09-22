@@ -13,6 +13,13 @@
     "attribute":"nfix_rate",
     "value":14.8,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":14.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -33,6 +40,13 @@
     "attribute":"nfix_rate",
     "value":26.7,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":26.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -53,6 +67,13 @@
     "attribute":"nfix_rate",
     "value":1.4,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -73,6 +94,13 @@
     "attribute":"nfix_rate",
     "value":125.5,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":125.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -93,6 +121,13 @@
     "attribute":"nfix_rate",
     "value":1.2,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -113,6 +148,13 @@
     "attribute":"nfix_rate",
     "value":4.8,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -133,6 +175,13 @@
     "attribute":"nfix_rate",
     "value":4.1,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -153,6 +202,13 @@
     "attribute":"nfix_rate",
     "value":30.0,
     "units":"ng N L\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":30.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       9
@@ -174,6 +230,13 @@
     "attribute":"nfix_rate",
     "value":655.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":655.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -194,6 +257,13 @@
     "attribute":"nfix_rate",
     "value":709.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":709.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -214,6 +284,13 @@
     "attribute":"nfix_rate",
     "value":301.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":301.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -234,6 +311,13 @@
     "attribute":"nfix_rate",
     "value":494.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":494.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -254,6 +338,13 @@
     "attribute":"nfix_rate",
     "value":549.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":549.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -274,6 +365,13 @@
     "attribute":"nfix_rate",
     "value":227.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":227.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -294,6 +392,13 @@
     "attribute":"nfix_rate",
     "value":242.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":242.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -314,6 +419,13 @@
     "attribute":"nfix_rate",
     "value":422.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":422.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -334,6 +446,13 @@
     "attribute":"nfix_rate",
     "value":970.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":970.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -354,6 +473,13 @@
     "attribute":"nfix_rate",
     "value":212.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":212.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -374,6 +500,13 @@
     "attribute":"nfix_rate",
     "value":283.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":283.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -394,6 +527,13 @@
     "attribute":"nfix_rate",
     "value":821.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":821.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -414,6 +554,13 @@
     "attribute":"nfix_rate",
     "value":259.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":259.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -434,6 +581,13 @@
     "attribute":"nfix_rate",
     "value":121.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":121.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -454,6 +608,13 @@
     "attribute":"nfix_rate",
     "value":821.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":821.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -474,6 +635,13 @@
     "attribute":"nfix_rate",
     "value":213.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":213.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -494,6 +662,13 @@
     "attribute":"nfix_rate",
     "value":78.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":78.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -514,6 +689,13 @@
     "attribute":"nfix_rate",
     "value":598.0,
     "units":"mg N m\u207b\u00b2 yr\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":598.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       9
     ],
@@ -534,6 +716,13 @@
     "attribute":"nfix_rate",
     "value":642.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":642.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -554,6 +743,13 @@
     "attribute":"nfix_rate",
     "value":743.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":743.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -574,6 +770,13 @@
     "attribute":"nfix_rate",
     "value":1276.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1276.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1,
       3
@@ -595,6 +798,13 @@
     "attribute":"nfix_rate",
     "value":590.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":590.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -615,6 +825,13 @@
     "attribute":"nfix_rate",
     "value":445.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":445.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -635,6 +852,13 @@
     "attribute":"nfix_rate",
     "value":1190.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1190.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1,
       3
@@ -656,6 +880,13 @@
     "attribute":"nfix_rate",
     "value":1068.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1068.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1,
       3
@@ -677,6 +908,13 @@
     "attribute":"nfix_rate",
     "value":443.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":443.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -697,6 +935,13 @@
     "attribute":"nfix_rate",
     "value":1310.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1310.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1,
       3
@@ -718,6 +963,13 @@
     "attribute":"nfix_rate",
     "value":782.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":782.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -738,6 +990,13 @@
     "attribute":"nfix_rate",
     "value":108.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":108.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -758,6 +1017,13 @@
     "attribute":"nfix_rate",
     "value":2585.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2585.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -778,6 +1044,13 @@
     "attribute":"nfix_rate",
     "value":1029.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1029.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1,
       3
@@ -799,6 +1072,13 @@
     "attribute":"nfix_rate",
     "value":387.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":387.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -819,6 +1099,13 @@
     "attribute":"nfix_rate",
     "value":327.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":327.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       1
     ],
@@ -839,6 +1126,13 @@
     "attribute":"nfix_rate",
     "value":718.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":718.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -859,6 +1153,13 @@
     "attribute":"nfix_rate",
     "value":899.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":899.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -879,6 +1180,13 @@
     "attribute":"nfix_rate",
     "value":948.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":948.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -899,6 +1207,13 @@
     "attribute":"nfix_rate",
     "value":383.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":383.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -919,6 +1234,13 @@
     "attribute":"nfix_rate",
     "value":492.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":492.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -939,6 +1261,13 @@
     "attribute":"nfix_rate",
     "value":349.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":349.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -959,6 +1288,13 @@
     "attribute":"nfix_rate",
     "value":982.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":982.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -979,6 +1315,13 @@
     "attribute":"nfix_rate",
     "value":721.0,
     "units":"\u00b5g N2 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":721.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       3
     ],
@@ -999,6 +1342,13 @@
     "attribute":"nfix_rate",
     "value":9.1,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1019,6 +1369,13 @@
     "attribute":"nfix_rate",
     "value":821.3,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":821.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1039,6 +1396,13 @@
     "attribute":"nfix_rate",
     "value":306.9,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":306.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1059,6 +1423,13 @@
     "attribute":"nfix_rate",
     "value":148.5,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":148.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1079,6 +1450,13 @@
     "attribute":"nfix_rate",
     "value":264.5,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":264.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1099,6 +1477,13 @@
     "attribute":"nfix_rate",
     "value":1.0,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1119,6 +1504,13 @@
     "attribute":"nfix_rate",
     "value":25.1,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":25.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1139,6 +1531,13 @@
     "attribute":"nfix_rate",
     "value":14.6,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":14.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1159,6 +1558,13 @@
     "attribute":"nfix_rate",
     "value":65.5,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":65.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1179,6 +1585,13 @@
     "attribute":"nfix_rate",
     "value":170.3,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":170.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1199,6 +1612,13 @@
     "attribute":"nfix_rate",
     "value":0.6,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1219,6 +1639,13 @@
     "attribute":"nfix_rate",
     "value":38.2,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":38.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1239,6 +1666,13 @@
     "attribute":"nfix_rate",
     "value":19.2,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":19.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1259,6 +1693,13 @@
     "attribute":"nfix_rate",
     "value":318.2,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":318.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1279,6 +1720,13 @@
     "attribute":"nfix_rate",
     "value":0.1,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1299,6 +1747,13 @@
     "attribute":"nfix_rate",
     "value":2.7,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1319,6 +1774,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1339,6 +1801,13 @@
     "attribute":"nfix_rate",
     "value":20.2,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":20.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1359,6 +1828,13 @@
     "attribute":"nfix_rate",
     "value":1.2,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1379,6 +1855,13 @@
     "attribute":"nfix_rate",
     "value":6.0,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1399,6 +1882,13 @@
     "attribute":"nfix_rate",
     "value":20.9,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":20.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1419,6 +1909,13 @@
     "attribute":"nfix_rate",
     "value":25.8,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":25.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1439,6 +1936,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1459,6 +1963,13 @@
     "attribute":"nfix_rate",
     "value":3.3,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1479,6 +1990,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1499,6 +2017,13 @@
     "attribute":"nfix_rate",
     "value":7.3,
     "units":"nmol N2 g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       11
     ],
@@ -1519,6 +2044,13 @@
     "attribute":"nfix_rate",
     "value":18.6,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":18.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1539,6 +2071,13 @@
     "attribute":"nfix_rate",
     "value":13.3,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":13.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1559,6 +2098,13 @@
     "attribute":"nfix_rate",
     "value":2.9,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1579,6 +2125,13 @@
     "attribute":"nfix_rate",
     "value":3.2,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1599,6 +2152,13 @@
     "attribute":"nfix_rate",
     "value":78.1,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":78.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1619,6 +2179,13 @@
     "attribute":"nfix_rate",
     "value":6.2,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1639,6 +2206,13 @@
     "attribute":"nfix_rate",
     "value":6.2,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1659,6 +2233,13 @@
     "attribute":"nfix_rate",
     "value":14.8,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":14.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1679,6 +2260,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1699,6 +2287,13 @@
     "attribute":"nfix_rate",
     "value":2.3,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1719,6 +2314,13 @@
     "attribute":"nfix_rate",
     "value":5.6,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1739,6 +2341,13 @@
     "attribute":"nfix_rate",
     "value":2.3,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1759,6 +2368,13 @@
     "attribute":"nfix_rate",
     "value":2.6,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1779,6 +2395,13 @@
     "attribute":"nfix_rate",
     "value":3.0,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1799,6 +2422,13 @@
     "attribute":"nfix_rate",
     "value":1.9,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1819,6 +2449,13 @@
     "attribute":"nfix_rate",
     "value":1.5,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1839,6 +2476,13 @@
     "attribute":"nfix_rate",
     "value":1.5,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       20
     ],
@@ -1859,6 +2503,13 @@
     "attribute":"nfix_rate",
     "value":112.8,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":112.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -1879,6 +2530,13 @@
     "attribute":"nfix_rate",
     "value":82.8,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":82.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -1899,6 +2557,13 @@
     "attribute":"nfix_rate",
     "value":93.5,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":93.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -1919,6 +2584,13 @@
     "attribute":"nfix_rate",
     "value":62.7,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":62.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -1939,6 +2611,13 @@
     "attribute":"nfix_rate",
     "value":69.7,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":69.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -1959,6 +2638,13 @@
     "attribute":"nfix_rate",
     "value":14.98,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":14.98,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -1979,6 +2665,13 @@
     "attribute":"nfix_rate",
     "value":42.62,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":42.62,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -1999,6 +2692,13 @@
     "attribute":"nfix_rate",
     "value":45.42,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":45.42,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2019,6 +2719,13 @@
     "attribute":"nfix_rate",
     "value":34.68,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":34.68,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2039,6 +2746,13 @@
     "attribute":"nfix_rate",
     "value":24.54,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":24.54,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2059,6 +2773,13 @@
     "attribute":"nfix_rate",
     "value":7.26,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.26,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2079,6 +2800,13 @@
     "attribute":"nfix_rate",
     "value":15.56,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":15.56,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2099,6 +2827,13 @@
     "attribute":"nfix_rate",
     "value":47.58,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":47.58,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2119,6 +2854,13 @@
     "attribute":"nfix_rate",
     "value":46.53,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":46.53,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2139,6 +2881,13 @@
     "attribute":"nfix_rate",
     "value":26.76,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":26.76,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2159,6 +2908,13 @@
     "attribute":"nfix_rate",
     "value":19.53,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":19.53,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2179,6 +2935,13 @@
     "attribute":"nfix_rate",
     "value":33.03,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":33.03,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2199,6 +2962,13 @@
     "attribute":"nfix_rate",
     "value":118.93,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":118.93,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2219,6 +2989,13 @@
     "attribute":"nfix_rate",
     "value":70.25,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":70.25,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2239,6 +3016,13 @@
     "attribute":"nfix_rate",
     "value":33.99,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":33.99,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2259,6 +3043,13 @@
     "attribute":"nfix_rate",
     "value":61.48,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":61.48,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2279,6 +3070,13 @@
     "attribute":"nfix_rate",
     "value":24.67,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":24.67,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2299,6 +3097,13 @@
     "attribute":"nfix_rate",
     "value":105.52,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":105.52,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2319,6 +3124,13 @@
     "attribute":"nfix_rate",
     "value":96.24,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":96.24,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2339,6 +3151,13 @@
     "attribute":"nfix_rate",
     "value":118.07,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":118.07,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2359,6 +3178,13 @@
     "attribute":"nfix_rate",
     "value":251.73,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":251.73,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2379,6 +3205,13 @@
     "attribute":"nfix_rate",
     "value":2.96,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.96,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2399,6 +3232,13 @@
     "attribute":"nfix_rate",
     "value":44.33,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":44.33,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2419,6 +3259,13 @@
     "attribute":"nfix_rate",
     "value":77.03,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":77.03,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2439,6 +3286,13 @@
     "attribute":"nfix_rate",
     "value":223.76,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":223.76,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2459,6 +3313,13 @@
     "attribute":"nfix_rate",
     "value":251.76,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":251.76,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2479,6 +3340,13 @@
     "attribute":"nfix_rate",
     "value":7.49,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.49,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2499,6 +3367,13 @@
     "attribute":"nfix_rate",
     "value":104.29,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":104.29,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2519,6 +3394,13 @@
     "attribute":"nfix_rate",
     "value":161.91,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":161.91,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2539,6 +3421,13 @@
     "attribute":"nfix_rate",
     "value":177.42,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":177.42,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2559,6 +3448,13 @@
     "attribute":"nfix_rate",
     "value":73.68,
     "units":"nmol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":73.68,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -2579,6 +3475,13 @@
     "attribute":"nfix_rate",
     "value":26.9,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":26.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2599,6 +3502,13 @@
     "attribute":"nfix_rate",
     "value":9.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2619,6 +3529,13 @@
     "attribute":"nfix_rate",
     "value":6.4,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2639,6 +3556,13 @@
     "attribute":"nfix_rate",
     "value":5.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -2660,6 +3584,13 @@
     "attribute":"nfix_rate",
     "value":2.6,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2680,6 +3611,13 @@
     "attribute":"nfix_rate",
     "value":1.8,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2700,6 +3638,13 @@
     "attribute":"nfix_rate",
     "value":9.9,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2720,6 +3665,13 @@
     "attribute":"nfix_rate",
     "value":8.6,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2740,6 +3692,13 @@
     "attribute":"nfix_rate",
     "value":6.7,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2760,6 +3719,13 @@
     "attribute":"nfix_rate",
     "value":4.8,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2780,6 +3746,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2800,6 +3773,13 @@
     "attribute":"nfix_rate",
     "value":1.6,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2820,6 +3800,13 @@
     "attribute":"nfix_rate",
     "value":2.2,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2840,6 +3827,13 @@
     "attribute":"nfix_rate",
     "value":2.2,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2860,6 +3854,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2880,6 +3881,13 @@
     "attribute":"nfix_rate",
     "value":46.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":46.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2900,6 +3908,13 @@
     "attribute":"nfix_rate",
     "value":22.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":22.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2920,6 +3935,13 @@
     "attribute":"nfix_rate",
     "value":17.5,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":17.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2940,6 +3962,13 @@
     "attribute":"nfix_rate",
     "value":13.6,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":13.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2960,6 +3989,13 @@
     "attribute":"nfix_rate",
     "value":12.1,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":12.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -2980,6 +4016,13 @@
     "attribute":"nfix_rate",
     "value":24.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":24.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3000,6 +4043,13 @@
     "attribute":"nfix_rate",
     "value":18.4,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":18.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3020,6 +4070,13 @@
     "attribute":"nfix_rate",
     "value":17.5,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":17.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3040,6 +4097,13 @@
     "attribute":"nfix_rate",
     "value":13.3,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":13.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3060,6 +4124,13 @@
     "attribute":"nfix_rate",
     "value":9.8,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3080,6 +4151,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3100,6 +4178,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3120,6 +4205,13 @@
     "attribute":"nfix_rate",
     "value":2.9,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3140,6 +4232,13 @@
     "attribute":"nfix_rate",
     "value":4.9,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3160,6 +4259,13 @@
     "attribute":"nfix_rate",
     "value":4.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -3181,6 +4287,13 @@
     "attribute":"nfix_rate",
     "value":33.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":33.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3201,6 +4314,13 @@
     "attribute":"nfix_rate",
     "value":31.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":31.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3221,6 +4341,13 @@
     "attribute":"nfix_rate",
     "value":14.0,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":14.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3241,6 +4368,13 @@
     "attribute":"nfix_rate",
     "value":5.1,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3261,6 +4395,13 @@
     "attribute":"nfix_rate",
     "value":1.4,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3281,6 +4422,13 @@
     "attribute":"nfix_rate",
     "value":0.3,
     "units":"\u00b5mol C2H4 m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -3301,6 +4449,13 @@
     "attribute":"nfix_rate",
     "value":35.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":35.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -3321,6 +4476,13 @@
     "attribute":"nfix_rate",
     "value":6.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -3342,6 +4504,13 @@
     "attribute":"nfix_rate",
     "value":0.9,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -3363,6 +4532,13 @@
     "attribute":"nfix_rate",
     "value":8.7,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -3383,6 +4559,13 @@
     "attribute":"nfix_rate",
     "value":81.9,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":81.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -3403,6 +4586,13 @@
     "attribute":"nfix_rate",
     "value":63.3,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":63.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -3423,6 +4613,13 @@
     "attribute":"nfix_rate",
     "value":9.2,
     "units":"fmol N g\u207b\u00b9 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       21
     ],
@@ -3443,6 +4640,13 @@
     "attribute":"nfix_rate",
     "value":61.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":61.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -3463,6 +4667,13 @@
     "attribute":"nfix_rate",
     "value":8.5,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -3483,6 +4694,13 @@
     "attribute":"nfix_rate",
     "value":59.0,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":59.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3503,6 +4721,13 @@
     "attribute":"nfix_rate",
     "value":57.4,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":57.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3523,6 +4748,13 @@
     "attribute":"nfix_rate",
     "value":318.5,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":318.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3543,6 +4775,13 @@
     "attribute":"nfix_rate",
     "value":80.8,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":80.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3563,6 +4802,13 @@
     "attribute":"nfix_rate",
     "value":32.0,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":32.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3583,6 +4829,13 @@
     "attribute":"nfix_rate",
     "value":117.7,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":117.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3603,6 +4856,13 @@
     "attribute":"nfix_rate",
     "value":100.4,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":100.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3623,6 +4883,13 @@
     "attribute":"nfix_rate",
     "value":26.7,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":26.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3643,6 +4910,13 @@
     "attribute":"nfix_rate",
     "value":11.4,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":11.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3663,6 +4937,13 @@
     "attribute":"nfix_rate",
     "value":91.8,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":91.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3683,6 +4964,13 @@
     "attribute":"nfix_rate",
     "value":112.1,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":112.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3703,6 +4991,13 @@
     "attribute":"nfix_rate",
     "value":122.3,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":122.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3723,6 +5018,13 @@
     "attribute":"nfix_rate",
     "value":10.6,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":10.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3743,6 +5045,13 @@
     "attribute":"nfix_rate",
     "value":263.3,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":263.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3763,6 +5072,13 @@
     "attribute":"nfix_rate",
     "value":12.0,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":12.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3783,6 +5099,13 @@
     "attribute":"nfix_rate",
     "value":35.4,
     "units":"nmol C2H4 g\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":35.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3803,6 +5126,13 @@
     "attribute":"nfix_rate",
     "value":205.5,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":205.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3823,6 +5153,13 @@
     "attribute":"nfix_rate",
     "value":98.9,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":98.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3843,6 +5180,13 @@
     "attribute":"nfix_rate",
     "value":30.7,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":30.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3863,6 +5207,13 @@
     "attribute":"nfix_rate",
     "value":130.9,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":130.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3883,6 +5234,13 @@
     "attribute":"nfix_rate",
     "value":571.8,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":571.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3903,6 +5261,13 @@
     "attribute":"nfix_rate",
     "value":798.1,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":798.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3923,6 +5288,13 @@
     "attribute":"nfix_rate",
     "value":1000.8,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1000.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3943,6 +5315,13 @@
     "attribute":"nfix_rate",
     "value":37.1,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":37.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3963,6 +5342,13 @@
     "attribute":"nfix_rate",
     "value":54.7,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":54.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -3983,6 +5369,13 @@
     "attribute":"nfix_rate",
     "value":286.0,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":286.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4003,6 +5396,13 @@
     "attribute":"nfix_rate",
     "value":490.0,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":490.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4023,6 +5423,13 @@
     "attribute":"nfix_rate",
     "value":433.5,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":433.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4043,6 +5450,13 @@
     "attribute":"nfix_rate",
     "value":35.5,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":35.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4063,6 +5477,13 @@
     "attribute":"nfix_rate",
     "value":392.7,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":392.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4083,6 +5504,13 @@
     "attribute":"nfix_rate",
     "value":58.8,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":58.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4103,6 +5531,13 @@
     "attribute":"nfix_rate",
     "value":126.3,
     "units":"nmol C2H4 m\u207b\u00b2 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":126.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4123,6 +5558,13 @@
     "attribute":"nfix_rate",
     "value":3.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       7
@@ -4144,6 +5586,13 @@
     "attribute":"nfix_rate",
     "value":2.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4172,6 +5621,13 @@
     "attribute":"nfix_rate",
     "value":12.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":12.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4192,6 +5648,13 @@
     "attribute":"nfix_rate",
     "value":19.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":19.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       6
@@ -4213,6 +5676,13 @@
     "attribute":"nfix_rate",
     "value":10.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":10.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4233,6 +5703,13 @@
     "attribute":"nfix_rate",
     "value":11.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":11.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4253,6 +5730,13 @@
     "attribute":"nfix_rate",
     "value":17.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":17.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       5,
@@ -4277,6 +5761,13 @@
     "attribute":"nfix_rate",
     "value":22.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":22.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       8
@@ -4298,6 +5789,13 @@
     "attribute":"nfix_rate",
     "value":24.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":24.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4318,6 +5816,13 @@
     "attribute":"nfix_rate",
     "value":30.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":30.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4341,6 +5846,13 @@
     "attribute":"nfix_rate",
     "value":35.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":35.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4361,6 +5873,13 @@
     "attribute":"nfix_rate",
     "value":39.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":39.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       11
@@ -4382,6 +5901,13 @@
     "attribute":"nfix_rate",
     "value":23.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":23.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2
     ],
@@ -4402,6 +5928,13 @@
     "attribute":"nfix_rate",
     "value":3.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4424,6 +5957,13 @@
     "attribute":"nfix_rate",
     "value":4.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -4447,6 +5987,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4469,6 +6016,13 @@
     "attribute":"nfix_rate",
     "value":1.4,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -4492,6 +6046,13 @@
     "attribute":"nfix_rate",
     "value":1.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4518,6 +6079,13 @@
     "attribute":"nfix_rate",
     "value":1.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       6
@@ -4539,6 +6107,13 @@
     "attribute":"nfix_rate",
     "value":4.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -4559,6 +6134,13 @@
     "attribute":"nfix_rate",
     "value":3.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       8,
@@ -4581,6 +6163,13 @@
     "attribute":"nfix_rate",
     "value":5.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4608,6 +6197,13 @@
     "attribute":"nfix_rate",
     "value":4.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -4630,6 +6226,13 @@
     "attribute":"nfix_rate",
     "value":3.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -4650,6 +6253,13 @@
     "attribute":"nfix_rate",
     "value":2.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -4671,6 +6281,13 @@
     "attribute":"nfix_rate",
     "value":8.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -4692,6 +6309,13 @@
     "attribute":"nfix_rate",
     "value":2.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -4715,6 +6339,13 @@
     "attribute":"nfix_rate",
     "value":3.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4737,6 +6368,13 @@
     "attribute":"nfix_rate",
     "value":5.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -4761,6 +6399,13 @@
     "attribute":"nfix_rate",
     "value":2.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -4783,6 +6428,13 @@
     "attribute":"nfix_rate",
     "value":8.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7
@@ -4804,6 +6456,13 @@
     "attribute":"nfix_rate",
     "value":15.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":15.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -4824,6 +6483,13 @@
     "attribute":"nfix_rate",
     "value":17.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":17.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       5,
@@ -4848,6 +6514,13 @@
     "attribute":"nfix_rate",
     "value":20.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":20.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       8
@@ -4869,6 +6542,13 @@
     "attribute":"nfix_rate",
     "value":6.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5
     ],
@@ -4889,6 +6569,13 @@
     "attribute":"nfix_rate",
     "value":4.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4915,6 +6602,13 @@
     "attribute":"nfix_rate",
     "value":7.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       5
@@ -4936,6 +6630,13 @@
     "attribute":"nfix_rate",
     "value":2.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -4964,6 +6665,13 @@
     "attribute":"nfix_rate",
     "value":2.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       5,
@@ -4988,6 +6696,13 @@
     "attribute":"nfix_rate",
     "value":1.4,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5011,6 +6726,13 @@
     "attribute":"nfix_rate",
     "value":1.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5034,6 +6756,13 @@
     "attribute":"nfix_rate",
     "value":4.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5057,6 +6786,13 @@
     "attribute":"nfix_rate",
     "value":4.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7,
@@ -5080,6 +6816,13 @@
     "attribute":"nfix_rate",
     "value":4.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5103,6 +6846,13 @@
     "attribute":"nfix_rate",
     "value":11.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":11.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5125,6 +6875,13 @@
     "attribute":"nfix_rate",
     "value":4.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6
     ],
@@ -5145,6 +6902,13 @@
     "attribute":"nfix_rate",
     "value":4.4,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5167,6 +6931,13 @@
     "attribute":"nfix_rate",
     "value":13.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":13.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       8
@@ -5188,6 +6959,13 @@
     "attribute":"nfix_rate",
     "value":6.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6
@@ -5209,6 +6987,13 @@
     "attribute":"nfix_rate",
     "value":10.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":10.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       8
@@ -5230,6 +7015,13 @@
     "attribute":"nfix_rate",
     "value":5.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -5254,6 +7046,13 @@
     "attribute":"nfix_rate",
     "value":1.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5276,6 +7075,13 @@
     "attribute":"nfix_rate",
     "value":7.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       6,
@@ -5298,6 +7104,13 @@
     "attribute":"nfix_rate",
     "value":1.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       6,
@@ -5321,6 +7134,13 @@
     "attribute":"nfix_rate",
     "value":1.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -5347,6 +7167,13 @@
     "attribute":"nfix_rate",
     "value":0.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5369,6 +7196,13 @@
     "attribute":"nfix_rate",
     "value":0.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -5394,6 +7228,13 @@
     "attribute":"nfix_rate",
     "value":0.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -5418,6 +7259,13 @@
     "attribute":"nfix_rate",
     "value":2.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5440,6 +7288,13 @@
     "attribute":"nfix_rate",
     "value":1.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5462,6 +7317,13 @@
     "attribute":"nfix_rate",
     "value":1.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7,
@@ -5484,6 +7346,13 @@
     "attribute":"nfix_rate",
     "value":9.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -5504,6 +7373,13 @@
     "attribute":"nfix_rate",
     "value":2.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -5525,6 +7401,13 @@
     "attribute":"nfix_rate",
     "value":21.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":21.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -5546,6 +7429,13 @@
     "attribute":"nfix_rate",
     "value":11.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":11.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -5566,6 +7456,13 @@
     "attribute":"nfix_rate",
     "value":8.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7
@@ -5587,6 +7484,13 @@
     "attribute":"nfix_rate",
     "value":1.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -5611,6 +7515,13 @@
     "attribute":"nfix_rate",
     "value":5.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -5631,6 +7542,13 @@
     "attribute":"nfix_rate",
     "value":25.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":25.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       7,
@@ -5653,6 +7571,13 @@
     "attribute":"nfix_rate",
     "value":49.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":49.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -5673,6 +7598,13 @@
     "attribute":"nfix_rate",
     "value":2.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       5,
@@ -5697,6 +7629,13 @@
     "attribute":"nfix_rate",
     "value":2.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5720,6 +7659,13 @@
     "attribute":"nfix_rate",
     "value":3.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -5746,6 +7692,13 @@
     "attribute":"nfix_rate",
     "value":1.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -5768,6 +7721,13 @@
     "attribute":"nfix_rate",
     "value":9.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7,
@@ -5790,6 +7750,13 @@
     "attribute":"nfix_rate",
     "value":4.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7,
@@ -5813,6 +7780,13 @@
     "attribute":"nfix_rate",
     "value":28.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":28.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7,
       8
@@ -5834,6 +7808,13 @@
     "attribute":"nfix_rate",
     "value":5.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -5858,6 +7839,13 @@
     "attribute":"nfix_rate",
     "value":3.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       7
@@ -5879,6 +7867,13 @@
     "attribute":"nfix_rate",
     "value":7.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -5902,6 +7897,13 @@
     "attribute":"nfix_rate",
     "value":10.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":10.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -5922,6 +7924,13 @@
     "attribute":"nfix_rate",
     "value":4.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5945,6 +7954,13 @@
     "attribute":"nfix_rate",
     "value":2.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -5966,6 +7982,13 @@
     "attribute":"nfix_rate",
     "value":4.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -5988,6 +8011,13 @@
     "attribute":"nfix_rate",
     "value":3.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7,
       13
@@ -6009,6 +8039,13 @@
     "attribute":"nfix_rate",
     "value":1.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       6,
@@ -6032,6 +8069,13 @@
     "attribute":"nfix_rate",
     "value":7.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7
@@ -6053,6 +8097,13 @@
     "attribute":"nfix_rate",
     "value":2.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7
@@ -6074,6 +8125,13 @@
     "attribute":"nfix_rate",
     "value":22.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":22.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -6094,6 +8152,13 @@
     "attribute":"nfix_rate",
     "value":18.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":18.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -6117,6 +8182,13 @@
     "attribute":"nfix_rate",
     "value":1.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7,
@@ -6139,6 +8211,13 @@
     "attribute":"nfix_rate",
     "value":1.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -6161,6 +8240,13 @@
     "attribute":"nfix_rate",
     "value":1.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6187,6 +8273,13 @@
     "attribute":"nfix_rate",
     "value":1.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       6,
@@ -6210,6 +8303,13 @@
     "attribute":"nfix_rate",
     "value":20.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":20.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       8
@@ -6231,6 +8331,13 @@
     "attribute":"nfix_rate",
     "value":2.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -6253,6 +8360,13 @@
     "attribute":"nfix_rate",
     "value":2.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -6273,6 +8387,13 @@
     "attribute":"nfix_rate",
     "value":0.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -6295,6 +8416,13 @@
     "attribute":"nfix_rate",
     "value":1.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -6318,6 +8446,13 @@
     "attribute":"nfix_rate",
     "value":10.9,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":10.9,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       8
@@ -6339,6 +8474,13 @@
     "attribute":"nfix_rate",
     "value":9.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       7,
@@ -6361,6 +8503,13 @@
     "attribute":"nfix_rate",
     "value":1.8,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       6,
       7,
@@ -6383,6 +8532,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6405,6 +8561,13 @@
     "attribute":"nfix_rate",
     "value":2.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6433,6 +8596,13 @@
     "attribute":"nfix_rate",
     "value":2.4,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -6453,6 +8623,13 @@
     "attribute":"nfix_rate",
     "value":1.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -6477,6 +8654,13 @@
     "attribute":"nfix_rate",
     "value":0.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6502,6 +8686,13 @@
     "attribute":"nfix_rate",
     "value":5.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -6522,6 +8713,13 @@
     "attribute":"nfix_rate",
     "value":2.1,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.1,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6544,6 +8742,13 @@
     "attribute":"nfix_rate",
     "value":4.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       7,
@@ -6567,6 +8772,13 @@
     "attribute":"nfix_rate",
     "value":4.7,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.7,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7,
       8
@@ -6588,6 +8800,13 @@
     "attribute":"nfix_rate",
     "value":12.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":12.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       8
     ],
@@ -6608,6 +8827,13 @@
     "attribute":"nfix_rate",
     "value":5.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -6632,6 +8858,13 @@
     "attribute":"nfix_rate",
     "value":1.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       5,
       6,
@@ -6656,6 +8889,13 @@
     "attribute":"nfix_rate",
     "value":5.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6683,6 +8923,13 @@
     "attribute":"nfix_rate",
     "value":1.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6709,6 +8956,13 @@
     "attribute":"nfix_rate",
     "value":3.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       8,
@@ -6731,6 +8985,13 @@
     "attribute":"nfix_rate",
     "value":5.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6758,6 +9019,13 @@
     "attribute":"nfix_rate",
     "value":1.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4,
       5,
@@ -6781,6 +9049,13 @@
     "attribute":"nfix_rate",
     "value":2.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       2,
       4,
@@ -6809,6 +9084,13 @@
     "attribute":"nfix_rate",
     "value":3.3,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.3,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7,
       8
@@ -6830,6 +9112,13 @@
     "attribute":"nfix_rate",
     "value":0.37,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.37,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6850,6 +9139,13 @@
     "attribute":"nfix_rate",
     "value":0.23,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.23,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6870,6 +9166,13 @@
     "attribute":"nfix_rate",
     "value":6.03,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.03,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6890,6 +9193,13 @@
     "attribute":"nfix_rate",
     "value":0.2,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.2,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6910,6 +9220,13 @@
     "attribute":"nfix_rate",
     "value":1.49,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.49,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6930,6 +9247,13 @@
     "attribute":"nfix_rate",
     "value":0.79,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.79,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6950,6 +9274,13 @@
     "attribute":"nfix_rate",
     "value":3.88,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.88,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6970,6 +9301,13 @@
     "attribute":"nfix_rate",
     "value":2.93,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.93,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -6990,6 +9328,13 @@
     "attribute":"nfix_rate",
     "value":9.02,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":9.02,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7010,6 +9355,13 @@
     "attribute":"nfix_rate",
     "value":3.66,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.66,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7030,6 +9382,13 @@
     "attribute":"nfix_rate",
     "value":6.93,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.93,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7050,6 +9409,13 @@
     "attribute":"nfix_rate",
     "value":0.56,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.56,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7070,6 +9436,13 @@
     "attribute":"nfix_rate",
     "value":0.54,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.54,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7090,6 +9463,13 @@
     "attribute":"nfix_rate",
     "value":3.89,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.89,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7110,6 +9490,13 @@
     "attribute":"nfix_rate",
     "value":0.47,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.47,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7130,6 +9517,13 @@
     "attribute":"nfix_rate",
     "value":0.63,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.63,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7150,6 +9544,13 @@
     "attribute":"nfix_rate",
     "value":0.51,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.51,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7170,6 +9571,13 @@
     "attribute":"nfix_rate",
     "value":0.04,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.04,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7190,6 +9598,13 @@
     "attribute":"nfix_rate",
     "value":0.29,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.29,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7210,6 +9625,13 @@
     "attribute":"nfix_rate",
     "value":3.51,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.51,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7230,6 +9652,13 @@
     "attribute":"nfix_rate",
     "value":0.32,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.32,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7250,6 +9679,13 @@
     "attribute":"nfix_rate",
     "value":0.38,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.38,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7270,6 +9706,13 @@
     "attribute":"nfix_rate",
     "value":0.69,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.69,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7290,6 +9733,13 @@
     "attribute":"nfix_rate",
     "value":3.85,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.85,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7310,6 +9760,13 @@
     "attribute":"nfix_rate",
     "value":2.57,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.57,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7330,6 +9787,13 @@
     "attribute":"nfix_rate",
     "value":3.31,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.31,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7350,6 +9814,13 @@
     "attribute":"nfix_rate",
     "value":5.15,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.15,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7370,6 +9841,13 @@
     "attribute":"nfix_rate",
     "value":1.28,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.28,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7390,6 +9868,13 @@
     "attribute":"nfix_rate",
     "value":0.83,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.83,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7410,6 +9895,13 @@
     "attribute":"nfix_rate",
     "value":0.38,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.38,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7430,6 +9922,13 @@
     "attribute":"nfix_rate",
     "value":5.73,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.73,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7450,6 +9949,13 @@
     "attribute":"nfix_rate",
     "value":0.52,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.52,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7470,6 +9976,13 @@
     "attribute":"nfix_rate",
     "value":0.57,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.57,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7490,6 +10003,13 @@
     "attribute":"nfix_rate",
     "value":0.51,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.51,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7510,6 +10030,13 @@
     "attribute":"nfix_rate",
     "value":0.73,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.73,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7530,6 +10057,13 @@
     "attribute":"nfix_rate",
     "value":0.12,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.12,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7550,6 +10084,13 @@
     "attribute":"nfix_rate",
     "value":0.99,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.99,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7570,6 +10111,13 @@
     "attribute":"nfix_rate",
     "value":0.23,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.23,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7590,6 +10138,13 @@
     "attribute":"nfix_rate",
     "value":0.65,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.65,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7610,6 +10165,13 @@
     "attribute":"nfix_rate",
     "value":1.31,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.31,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7630,6 +10192,13 @@
     "attribute":"nfix_rate",
     "value":4.29,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.29,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7650,6 +10219,13 @@
     "attribute":"nfix_rate",
     "value":7.98,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.98,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7670,6 +10246,13 @@
     "attribute":"nfix_rate",
     "value":0.17,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.17,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7690,6 +10273,13 @@
     "attribute":"nfix_rate",
     "value":1.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7710,6 +10300,13 @@
     "attribute":"nfix_rate",
     "value":1.39,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.39,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7730,6 +10327,13 @@
     "attribute":"nfix_rate",
     "value":1.08,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.08,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7750,6 +10354,13 @@
     "attribute":"nfix_rate",
     "value":2.56,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.56,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7770,6 +10381,13 @@
     "attribute":"nfix_rate",
     "value":0.03,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.03,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7790,6 +10408,13 @@
     "attribute":"nfix_rate",
     "value":0.54,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.54,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7810,6 +10435,13 @@
     "attribute":"nfix_rate",
     "value":7.41,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.41,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7830,6 +10462,13 @@
     "attribute":"nfix_rate",
     "value":0.07,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.07,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7850,6 +10489,13 @@
     "attribute":"nfix_rate",
     "value":5.5,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.5,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7870,6 +10516,13 @@
     "attribute":"nfix_rate",
     "value":7.26,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.26,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7890,6 +10543,13 @@
     "attribute":"nfix_rate",
     "value":5.27,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.27,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7910,6 +10570,13 @@
     "attribute":"nfix_rate",
     "value":1.25,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.25,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7930,6 +10597,13 @@
     "attribute":"nfix_rate",
     "value":2.13,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.13,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7950,6 +10624,13 @@
     "attribute":"nfix_rate",
     "value":2.91,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.91,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7970,6 +10651,13 @@
     "attribute":"nfix_rate",
     "value":0.43,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.43,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -7990,6 +10678,13 @@
     "attribute":"nfix_rate",
     "value":8.55,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":8.55,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8010,6 +10705,13 @@
     "attribute":"nfix_rate",
     "value":7.53,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":7.53,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8030,6 +10732,13 @@
     "attribute":"nfix_rate",
     "value":0.41,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.41,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8050,6 +10759,13 @@
     "attribute":"nfix_rate",
     "value":0.02,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.02,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8070,6 +10786,13 @@
     "attribute":"nfix_rate",
     "value":2.13,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.13,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8090,6 +10813,13 @@
     "attribute":"nfix_rate",
     "value":2.34,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.34,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8110,6 +10840,13 @@
     "attribute":"nfix_rate",
     "value":4.39,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.39,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8130,6 +10867,13 @@
     "attribute":"nfix_rate",
     "value":69.0,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":69.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8150,6 +10894,13 @@
     "attribute":"nfix_rate",
     "value":5.61,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":5.61,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8170,6 +10921,13 @@
     "attribute":"nfix_rate",
     "value":1.74,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.74,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8190,6 +10948,13 @@
     "attribute":"nfix_rate",
     "value":0.77,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.77,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8210,6 +10975,13 @@
     "attribute":"nfix_rate",
     "value":0.52,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.52,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8230,6 +11002,13 @@
     "attribute":"nfix_rate",
     "value":3.89,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":3.89,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8250,6 +11029,13 @@
     "attribute":"nfix_rate",
     "value":0.49,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.49,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8270,6 +11056,13 @@
     "attribute":"nfix_rate",
     "value":13.6,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":13.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8290,6 +11083,13 @@
     "attribute":"nfix_rate",
     "value":6.87,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":6.87,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8310,6 +11110,13 @@
     "attribute":"nfix_rate",
     "value":0.27,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.27,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8330,6 +11137,13 @@
     "attribute":"nfix_rate",
     "value":1.85,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.85,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8350,6 +11164,13 @@
     "attribute":"nfix_rate",
     "value":1.4,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.4,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8370,6 +11191,13 @@
     "attribute":"nfix_rate",
     "value":0.97,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.97,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8390,6 +11218,13 @@
     "attribute":"nfix_rate",
     "value":1.53,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.53,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8410,6 +11245,13 @@
     "attribute":"nfix_rate",
     "value":2.09,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.09,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8430,6 +11272,13 @@
     "attribute":"nfix_rate",
     "value":0.37,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.37,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8450,6 +11299,13 @@
     "attribute":"nfix_rate",
     "value":0.23,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.23,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8470,6 +11326,13 @@
     "attribute":"nfix_rate",
     "value":1.45,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.45,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8490,6 +11353,13 @@
     "attribute":"nfix_rate",
     "value":0.92,
     "units":"nmol N L\u207b\u00b9 d\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.92,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       4
     ],
@@ -8510,6 +11380,13 @@
     "attribute":"nfix_rate",
     "value":78.49,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":78.49,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8530,6 +11407,13 @@
     "attribute":"nfix_rate",
     "value":41.37,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":41.37,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8550,6 +11434,13 @@
     "attribute":"nfix_rate",
     "value":253.14,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":253.14,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8570,6 +11461,13 @@
     "attribute":"nfix_rate",
     "value":1.217,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.217,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8590,6 +11488,13 @@
     "attribute":"nfix_rate",
     "value":1.825,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.825,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8610,6 +11515,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8630,6 +11542,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8650,6 +11569,13 @@
     "attribute":"nfix_rate",
     "value":1.83,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.83,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8670,6 +11596,13 @@
     "attribute":"nfix_rate",
     "value":2.43,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.43,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8690,6 +11623,13 @@
     "attribute":"nfix_rate",
     "value":52.65,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":52.65,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8710,6 +11650,13 @@
     "attribute":"nfix_rate",
     "value":12.24,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":12.24,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8730,6 +11677,13 @@
     "attribute":"nfix_rate",
     "value":46.53,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":46.53,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8750,6 +11704,13 @@
     "attribute":"nfix_rate",
     "value":4.28,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.28,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8770,6 +11731,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8790,6 +11758,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8810,6 +11785,13 @@
     "attribute":"nfix_rate",
     "value":1.22,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.22,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8830,6 +11812,13 @@
     "attribute":"nfix_rate",
     "value":1.22,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.22,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8850,6 +11839,13 @@
     "attribute":"nfix_rate",
     "value":0.504,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.504,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8870,6 +11866,13 @@
     "attribute":"nfix_rate",
     "value":0.443,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.443,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8890,6 +11893,13 @@
     "attribute":"nfix_rate",
     "value":0.667,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.667,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8910,6 +11920,13 @@
     "attribute":"nfix_rate",
     "value":1.42,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.42,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8930,6 +11947,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8950,6 +11974,13 @@
     "attribute":"nfix_rate",
     "value":0.0,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8970,6 +12001,13 @@
     "attribute":"nfix_rate",
     "value":4.78,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":4.78,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -8990,6 +12028,13 @@
     "attribute":"nfix_rate",
     "value":22.8,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":22.8,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9010,6 +12055,13 @@
     "attribute":"nfix_rate",
     "value":15.37,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":15.37,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9030,6 +12082,13 @@
     "attribute":"nfix_rate",
     "value":35.13,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":35.13,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9050,6 +12109,13 @@
     "attribute":"nfix_rate",
     "value":2.03,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":2.03,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9070,6 +12136,13 @@
     "attribute":"nfix_rate",
     "value":0.721,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":0.721,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9090,6 +12163,13 @@
     "attribute":"nfix_rate",
     "value":1.12,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.12,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],
@@ -9110,6 +12190,13 @@
     "attribute":"nfix_rate",
     "value":1.629,
     "units":"\u00b5mol N m\u207b\u00b2 h\u207b\u00b9",
+    "qualifiers":null,
+    "point_value":1.629,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
     "page_number":[
       7
     ],

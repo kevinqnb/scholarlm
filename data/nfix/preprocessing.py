@@ -7,8 +7,30 @@ Pipeline
         ↓  filter to text/table-extractable papers
         ↓  reshape: one row per nfix_rate measurement
         ↓  page attribution via OCR scoring
+        ↓  add qualifier/shape fields (all null except point_value=value --
+           see QUALIFIER_FIELDS)
     ground_truth.json                 (all registered text/table papers)
     ground_truth_ten.json             (top-10 paper development subset)
+
+ground_truth_review.json / ground_truth_ten_review.json are produced
+afterwards by apply_review.py from page_review.csv corrections, and are the
+file DatasetConfig.ground_truth_file actually points at -- the qualifier
+fields added here flow through unchanged, except point_value, which
+apply_review.py resyncs to any corrected value; corrected_units is passed
+through normalize_units() below (apply_review.py resolves it dynamically by
+dataset, see its own docstring), so a manual units correction is formatted
+the same way as every other row's units, not left as raw shorthand.
+
+This function deliberately does not sort/reorder its output: page_review.csv's
+gt_row_index is a row *position*, and unlike pond this dataset's row order is
+stable as-is. Do not add a canonicalizing sort here without re-deriving
+page_review.csv's alignment first -- several distinct R163 rows report the
+identical value for the identical site (real replicate measurements a human
+reviewer told apart by reading the source PDF, not from anything in
+ground_truth.json's own fields), so a fresh sort's tie-breaking cannot be
+safely content-matched back to the existing review corrections. See
+notes/scholarlm/builds/2026-09-22-qualifier-ground-truth-01.md for the
+verification behind this.
 
 Paper inclusion filter
 ----------------------
@@ -25,7 +47,8 @@ Output columns
 --------------
 document_id, name, identifiers, location, site_type, date, nfix_method,
 substrate_type, sample_depth, additional_details, attribute, value, units,
-page, page_score, page_confidence.
+page, page_score, page_confidence, plus QUALIFIER_FIELDS (qualifiers,
+point_value, lower, upper, list_values, tolerance, standard_deviation).
 
 Usage
 -----
@@ -67,7 +90,7 @@ _CHEMICAL_MAP = {'n': 'N', 'n2': 'N2', 'c2h4': 'C2H4'}
 _DENOM_MAP = {'l': 'L', 'ml': 'mL', 'y': 'yr'}
 
 
-def _normalize_units(s: str) -> str | None:
+def normalize_units(s: str) -> str | None:
     """Normalize a raw CSV unit string to LLM-friendly Unicode format.
 
     Converts e.g. 'nmol-n g-1 h-1' → 'nmol N g⁻¹ h⁻¹'.
@@ -113,6 +136,16 @@ def _normalize_units(s: str) -> str | None:
 _TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
     "R51", "R59", "R114", "R43", "R103",
+]
+
+# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
+# minus `explanation` (a generation-only field, not part of the GT record).
+# nfix's raw data has no shape annotation beyond a single reported value, so
+# every field is null except `point_value`, which copies `value` -- the only
+# shape fact this ground truth has: a plain point value was reported.
+QUALIFIER_FIELDS = [
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
 ]
 
 
@@ -214,7 +247,8 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
 
     Output schema: document_id, name, identifiers, location, site_type, date,
     nfix_method, substrate_type, sample_depth, additional_details, attribute,
-    value, units.
+    value, units, plus QUALIFIER_FIELDS (qualifiers, point_value, lower,
+    upper, list_values, tolerance, standard_deviation).
 
     Args:
         raw_path: Path to ``raw_data/aquatic_N2fix_rates.csv``.
@@ -254,8 +288,12 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "additional_details": None,
         "attribute":          "nfix_rate",
         "value":              df["nfix_rate_original"],
-        "units":              df["nfix_unit_original"].map(_normalize_units),
+        "units":              df["nfix_unit_original"].map(normalize_units),
     }).dropna(subset=["value"]).reset_index(drop=True)
+
+    for field in QUALIFIER_FIELDS:
+        gt[field] = None
+    gt["point_value"] = gt["value"]
 
     gt = _add_page_attribution(gt, paper_info, BASE / "ocr_output_raw")
 

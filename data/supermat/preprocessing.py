@@ -34,6 +34,7 @@ Or from data/supermat/:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import re
@@ -274,6 +275,26 @@ def _parse_tcvalue(raw: object) -> tuple[float | None, str | None]:
     return numeric, units
 
 
+def _raw_tcvalue(raw: object) -> tuple[str | None, str | None]:
+    """Returns (value, units) for the qualifiers ground truth: value is the
+    raw reported tcValue text, verbatim -- no numeric parsing, and rows are
+    no longer dropped for being a range/approximation/bound/junk-word/
+    unparseable. The only drop reason is a genuinely absent tcValue
+    (NaN/empty after stripping) -- there is no text to carry over at all.
+
+    units is still derived the same mK/K way as _parse_tcvalue: `tc` is
+    always a temperature for this dataset regardless of the value's shape,
+    so this is units bookkeeping for the attribute, not value parsing.
+    """
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    units = "mK" if re.search(r'\bmk\b', s, re.I) else "K"
+    return s, units
+
+
 # ---------------------------------------------------------------------------
 # Page attribution
 # ---------------------------------------------------------------------------
@@ -316,13 +337,31 @@ def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
 # Ground truth builder
 # ---------------------------------------------------------------------------
 
+# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
+# minus `explanation` (a generation-only field, not part of the GT record).
+QUALIFIER_FIELDS = [
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+]
 
-def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
+
+def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool = False) -> None:
     """Build ground_truth.json and ground_truth_ten.json from raw_data.csv.
 
     Output schema: document_id, name, identifiers, sample_details, pressure,
     me_method, additional_details, attribute, value, units[, page_number,
     page_score, page_confidence].
+
+    build_qualifiers=True switches to the qualifiers ground truth instead:
+    `value` becomes the raw, unparsed tcValue text (via `_raw_tcvalue`
+    instead of `_parse_tcvalue`) so rows are no longer dropped for being a
+    range/approximation/bound/unparseable -- only a genuinely absent tcValue
+    still drops a row. The 7 qualifier/shape fields (`QUALIFIER_FIELDS`) are
+    appended, all null (supermat's raw data carries no shape annotation at
+    all, unlike pond/nfix where `point_value` could at least copy the
+    reviewed `value`). Writes only `ground_truth_qualifiers.json` -- no ten-
+    paper subset for this path. `ground_truth.json`/`ground_truth_ten.json`
+    are untouched by this flag.
     """
     df = pd.read_csv(raw_path, encoding_errors="ignore")
     df = df.drop(columns=["id"])
@@ -358,7 +397,10 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
     df["me_method"] = df["me_method"].apply(_normalize_me_method)
     df["pressure"] = df["pressure"].apply(_normalize_pressure)
 
-    parsed_tc = df["tcValue"].apply(_parse_tcvalue)
+    if build_qualifiers:
+        parsed_tc = df["tcValue"].apply(_raw_tcvalue)
+    else:
+        parsed_tc = df["tcValue"].apply(_parse_tcvalue)
     df["value"] = [t[0] for t in parsed_tc]
     df["units"] = [t[1] for t in parsed_tc]
     # raw_data.csv has no separate Tc-criterion column; additional_details is an
@@ -367,8 +409,12 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
 
     n_before = len(df)
     df = df.dropna(subset=["value"]).reset_index(drop=True)
-    print(f"  Dropped {n_before - len(df):,} rows with unparseable, junk, or "
-          f"qualified (range/approximate/bounded) tcValue")
+    if build_qualifiers:
+        print(f"  Dropped {n_before - len(df):,} rows with a genuinely absent tcValue "
+              f"(ranges/approximates/bounds/junk kept verbatim)")
+    else:
+        print(f"  Dropped {n_before - len(df):,} rows with unparseable, junk, or "
+              f"qualified (range/approximate/bounded) tcValue")
 
     df["attribute"] = "tc"
 
@@ -376,6 +422,10 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
         "document_id", "name", "identifiers", "sample_details", "pressure",
         "me_method", "additional_details", "attribute", "value", "units",
     ]
+    if build_qualifiers:
+        for field in QUALIFIER_FIELDS:
+            df[field] = None
+        final_cols = final_cols + QUALIFIER_FIELDS
     df_final = df[final_cols].reset_index(drop=True)
 
     ocr_dir = BASE / "ocr_output_raw"
@@ -384,6 +434,11 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
     else:
         print(f"  Skipping page attribution: {ocr_dir} not found "
               f"(run experiments/run_ocr.py --dataset supermat first)")
+
+    if build_qualifiers:
+        df_final.to_json(out_dir / "ground_truth_qualifiers.json", orient="records", indent=2)
+        print(f"  Saved {len(df_final):,} rows -> ground_truth_qualifiers.json")
+        return
 
     df_final.to_json(out_dir / "ground_truth.json", orient="records", indent=2)
     print(f"  Saved {len(df_final):,} rows -> ground_truth.json")
@@ -398,9 +453,21 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        "--qualifiers", action="store_true",
+        help="Build only ground_truth_qualifiers.json (raw, undropped tcValue text "
+             "plus null qualifier fields); leaves ground_truth.json/ground_truth_ten.json untouched.",
+    )
+    args = parser.parse_args(argv)
+
     raw_path = BASE / "raw_data.csv"
-    print("Building ground truth JSONs ...")
-    build_ground_truth(raw_path, BASE)
+    if args.qualifiers:
+        print("Building qualifiers ground truth JSON ...")
+        build_ground_truth(raw_path, BASE, build_qualifiers=True)
+    else:
+        print("Building ground truth JSONs ...")
+        build_ground_truth(raw_path, BASE)
 
 
 if __name__ == "__main__":
