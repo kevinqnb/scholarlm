@@ -1,6 +1,6 @@
 model_id: gaunernst/gemma-3-27b-it-int4-awq
 sampling_params:
-  temperature: 0.6
+  temperature: 0.2
   top_p: 0.95
   top_k: 20
   max_tokens: 8192

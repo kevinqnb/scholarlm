@@ -300,14 +300,25 @@ class MeasurementLMLangExtract(MeasurementLM):
             model_id=self.model_name,
             provider="openai",
             # `lx.extract`'s `config=` path (unlike its `model_id=` path) never
-            # reads `language_model_params` -- max_output_tokens/top_p must go
-            # here, as provider constructor kwargs, or vLLM gets no completion
-            # budget at all and a chunk can generate unbounded.
+            # reads `language_model_params`, nor the top-level `temperature=`
+            # kwarg passed to `lx.extract()` below (see extraction.py: that
+            # kwarg is only read in the `model_id=`-only branch) -- every
+            # OpenAILanguageModel constructor kwarg, including `temperature`
+            # and `seed`, must go here as provider_kwargs, or vLLM gets no
+            # completion budget/sampling control at all. Confirmed by reading
+            # langextract's openai.py: `temperature` is a named constructor
+            # kwarg, `seed` lands in `**kwargs` (`_extra_kwargs`) and is
+            # forwarded from there on every request. Before this fix, every
+            # LangExtract run in this repo sampled at vLLM's server-default
+            # temperature and an unset seed -- `sampling_params["temperature"]`
+            # was silently a no-op, not just unseeded.
             provider_kwargs={
                 "api_key": self.client.api_key,
                 "base_url": str(self.client.base_url),
                 "max_output_tokens": self.sampling_params.get("max_tokens"),
                 "top_p": self.sampling_params.get("top_p"),
+                "temperature": self.sampling_params.get("temperature"),
+                "seed": self.sampling_params.get("seed"),
             },
         )
         output_schema = (
@@ -331,7 +342,6 @@ class MeasurementLMLangExtract(MeasurementLM):
                 use_schema_constraints=self.use_schema_constraints,
                 output_schema=output_schema,
                 fence_output=self.fence_output,
-                temperature=self.sampling_params.get("temperature"),
                 show_progress=False,
             )
 

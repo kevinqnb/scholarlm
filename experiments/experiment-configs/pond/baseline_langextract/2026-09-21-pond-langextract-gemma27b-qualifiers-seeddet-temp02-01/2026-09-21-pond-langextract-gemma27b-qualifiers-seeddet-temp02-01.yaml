@@ -1,0 +1,45 @@
+id: 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-01
+project: scholarlm
+description: >
+  Rerun of the LangExtract seed-determinism pair
+  (2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-01/-02, see
+  notes/scholarlm/experiments/2026-09-21-qualifiers-seeddet-01.md) after two
+  fixes: (1) measurementlm_langextract.py's `fit()` used to pass
+  `temperature=` straight to `lx.extract(config=config, temperature=...)`,
+  but langextract's `config=` path (unlike its `model_id=` path) never reads
+  that kwarg -- confirmed by reading extraction.py, where `temperature` is
+  only used in the branch this baseline doesn't take. That made
+  `sampling_params["temperature"]` a silent no-op for every prior LangExtract
+  run in this repo (sampling at vLLM's server-default temperature instead of
+  whatever was configured), and `seed` was never forwarded at all. Both now
+  go into `ModelConfig(provider_kwargs=...)` instead, alongside
+  max_output_tokens/top_p which already worked that way. (2)
+  experiments/model-configs/extraction/gemma-3-27b.yaml's temperature
+  lowered 0.6 -> 0.2 repo-wide (same edit already applied for the
+  MeasurementLM v1/v2 temp02 reruns). `extraction_passes` stays at 1 --
+  explicitly not changing to 2 this round (that reprocesses the whole
+  document per pass, not a per-chunk retry of parse failures, roughly
+  doubling cost for partial recovery at best; declined for now).
+  Original pair result: 41 vs 0 records, driven by gemma-3-27b's JSON-format
+  compliance on the same 5 chunks varying between runs (3/5 vs 4/5
+  parse failures) -- worth checking whether the lower, now-actually-applied
+  temperature changes the chunk-level parse-failure rate at all, separately
+  from whether the pair matches each other.
+  Paired with sibling config
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-02: same
+  seed (342), same params, same code, same input
+  (trophic_status_and_threats.txt), both run today. Comparison: this run's
+  final.json diffed record-for-record against temp02-02's, and both logs'
+  `Skipping chunk` warning counts checked against the original pair's.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "00:30:00"

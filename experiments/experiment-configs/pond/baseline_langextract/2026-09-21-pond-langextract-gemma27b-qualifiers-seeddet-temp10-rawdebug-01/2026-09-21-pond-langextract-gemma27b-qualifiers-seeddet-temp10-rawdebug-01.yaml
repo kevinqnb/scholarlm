@@ -1,0 +1,23 @@
+id: 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-rawdebug-01
+project: scholarlm
+description: >
+  One-off diagnostic, not a sanity control: same params/seed/input as
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-01/-02
+  (both 0 records; parse-failure rate dropped from 4/5 to 3/5 vs. the
+  temperature-0.2 pair, but the 2 non-failing chunks still contributed
+  nothing). Run with run_baseline_langextract.py's absl logging temporarily
+  bumped to DEBUG (reverted afterward) to see what the 2 non-failing chunks
+  actually parsed to.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  temperature: 1.0
+  walltime: "00:30:00"

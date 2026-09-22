@@ -29,7 +29,9 @@ Usage
 Required params: dataset, model, max_char_buffer, extraction_passes,
 max_workers, batch_length, use_schema_constraints, fence_output.
 Optional params: paper_subset (list), ocr_dir, api_base, api_key,
-max_concurrent (default 32).
+max_concurrent (default 32), temperature (per-experiment override of the
+model config's own sampling_params.temperature -- see
+run_baseline_langextract()'s docstring).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models: any file in experiments/model-configs/extraction/<name>.yaml.
@@ -79,6 +81,7 @@ def run_baseline_langextract(
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     max_concurrent: int = 32,
+    temperature_override: float | None = None,
 ) -> None:
     """Run the langextract baseline for a dataset on a given backbone model.
 
@@ -89,6 +92,16 @@ def run_baseline_langextract(
     Field names match the standard extraction record schema (same fields as
     MeasurementLM/ablation `final.json`), but unlike every deduplicated
     baseline, `page_number` here is a plain scalar, not a list.
+
+    `temperature_override`, if set, replaces `model_config.sampling_params`'s
+    `temperature` for this run only -- the model config's own value is a
+    per-model default shared with extraction v1/v2/ablations/table_cleaning
+    (all read the same experiments/model-configs/extraction/<model>.yaml),
+    and this baseline's chunking/JSON-formatting behavior can call for a
+    different sampling temperature than that shared default without moving
+    it for every other consumer of the file. Same category as
+    max_char_buffer/extraction_passes/etc. above: a per-experiment sampling
+    parameter (CLAUDE.md), not a per-model default.
     """
     data_dir = Path(dataset_config.data_dir)
 
@@ -105,6 +118,11 @@ def run_baseline_langextract(
     text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text_info)} papers.\n")
 
+    sampling_params = dict(model_config.sampling_params)
+    if temperature_override is not None:
+        print(f"Overriding temperature: {sampling_params.get('temperature')} -> {temperature_override}")
+        sampling_params["temperature"] = temperature_override
+
     mlm = MeasurementLMLangExtract(
         model_name=model_config.model_id,
         entity_identification_prompt=dataset_config.entity_identification_prompt,
@@ -114,7 +132,7 @@ def run_baseline_langextract(
         direct_extraction_prompt=dataset_config.direct_extraction_prompt,
         nuextract_examples=dataset_config.nuextract_examples,
         measurement_event_schema=dataset_config.measurement_event_schema,
-        sampling_params=model_config.sampling_params,
+        sampling_params=sampling_params,
         api_base=api_base,
         api_key=api_key,
         max_concurrent=max_concurrent,
@@ -155,6 +173,7 @@ def run_baseline_langextract(
         extraction_passes=extraction_passes,
         max_workers=max_workers,
         batch_length=batch_length,
+        temperature=sampling_params.get("temperature"),
         use_schema_constraints=use_schema_constraints,
         fence_output=fence_output,
         gpu_compatibility_warnings=gpu_warnings,
@@ -219,6 +238,7 @@ def main(argv: list[str] | None = None) -> None:
         api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
         api_key=params.get("api_key", "EMPTY"),
         max_concurrent=params.get("max_concurrent", 32),
+        temperature_override=params.get("temperature"),
     )
 
 

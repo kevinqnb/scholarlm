@@ -337,24 +337,40 @@ def test_fit_threads_max_tokens_and_top_p_into_model_config_provider_kwargs(monk
     vLLM gets no completion budget and a chunk can generate unbounded (this
     is what actually happened in 2026-09-19-pond-langextract-gemma27b-full-01:
     no max_tokens ever reached the request, so one stuck chunk ran until the
-    client's own read timeout killed it, taking the whole run down)."""
+    client's own read timeout killed it, taking the whole run down).
+
+    The same `config=` blind spot also swallowed the top-level `temperature=`
+    kwarg `fit()` used to pass straight to `lx.extract()` -- that kwarg is
+    only read in the `model_id=`-only branch too, so it was a silent no-op:
+    every LangExtract run in this repo sampled at vLLM's server-default
+    temperature, not the configured one, and `seed` was never forwarded at
+    all. Both now go into `provider_kwargs` instead, same as max_output_tokens
+    and top_p (confirmed against langextract's openai.py: `temperature` is a
+    named `OpenAILanguageModel.__init__` kwarg, `seed` is forwarded from
+    `_extra_kwargs` on every request)."""
     context = '<page number="0">Lake A depth 3.2 m.</page>'
     captured = {}
 
     def fake_extract(*a, **k):
         captured["config"] = k.get("config")
         captured["language_model_params"] = k.get("language_model_params")
+        captured["temperature"] = k.get("temperature")
         return langextract.data.AnnotatedDocument(text=context, extractions=[])
 
     monkeypatch.setattr(langextract, "extract", fake_extract)
 
-    _make_mlm(sampling_params={"temperature": 0.6, "max_tokens": 8192, "top_p": 0.95}).fit([context])
+    _make_mlm(sampling_params={
+        "temperature": 0.6, "max_tokens": 8192, "top_p": 0.95, "seed": 342,
+    }).fit([context])
 
-    # Not the ignored kwarg.
+    # Not the ignored kwargs.
     assert captured["language_model_params"] is None
-    # The kwarg langextract's config= path actually reads.
+    assert captured["temperature"] is None
+    # The kwargs langextract's config= path actually reads.
     assert captured["config"].provider_kwargs["max_output_tokens"] == 8192
     assert captured["config"].provider_kwargs["top_p"] == 0.95
+    assert captured["config"].provider_kwargs["temperature"] == 0.6
+    assert captured["config"].provider_kwargs["seed"] == 342
 
 
 def test_fit_does_not_merge_duplicate_mentions(monkeypatch):

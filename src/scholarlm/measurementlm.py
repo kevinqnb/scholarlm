@@ -260,6 +260,22 @@ class BatchLLMBase:
                 extra["top_k"] = self.sampling_params["top_k"]
             if "repetition_penalty" in self.sampling_params:
                 extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+            if "seed" in self.sampling_params:
+                # Chat Completions has no top-level `seed` field for vLLM's
+                # server; it must ride in extra_body like top_k/repetition_penalty.
+                # Previously never forwarded here at all -- a configured seed
+                # was silently a no-op for every caller of this base _acall
+                # (extraction v1, ablations 1-6, NuExtract-v1, ChatExtract).
+                # MeasurementLMv2 and NuExtract3 noticed and worked around it
+                # locally (_seed_extra_body/extra_body["seed"]); fixing it here
+                # covers everyone else instead of requiring the same patch
+                # per subclass. Does not by itself restore run-to-run
+                # determinism -- MeasurementLMv2 already forwarded seed this
+                # way and still diverged (see 2026-09-21-qualifiers-seeddet-01);
+                # the residual cause is temperature-amplified vLLM float noise
+                # compounding across a chained multi-step pipeline, not a
+                # missing seed.
+                extra["seed"] = self.sampling_params["seed"]
             chat_template_kwargs = {}
             if "enable_thinking" in self.sampling_params:
                 # Disable thinking by default for extraction tasks
