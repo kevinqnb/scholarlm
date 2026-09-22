@@ -1,0 +1,40 @@
+id: 2026-09-22-nfix-langextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline on nfix, backbone gemma-3-27b. Per
+  instruction (2026-09-22): baselines now use the same table-cleaning-based
+  drop_references corpus
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  their extraction/ablation siblings use, replacing the *ocr-based*
+  drop_references dir
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-ocr-drop-references-01)
+  the 2026-09-19-nfix-langextract-gemma27b-full-01 sibling pointed at (already
+  run, left untouched; this is a fresh id). For nfix this is also a real scope
+  change, not just text quality: the table-cleaning corpus is pre-restricted to
+  101 files passing _nfix_paper_filter, vs. the 265 raw files (262 after
+  paper_exclude) the old config's own description reported processing -- this
+  runner apparently doesn't apply paper_filter itself, so switching ocr_dir is
+  what actually narrows the scope here, structurally, down to (at most) 101
+  papers.
+  max_char_buffer/extraction_passes/max_workers/batch_length/use_schema_constraints/fence_output
+  carried over unchanged (5000/1/16/20/true/false). Walltime rescaled from the
+  2026-09-19 sibling's 72:00:00 by the exact file-count ratio this switch
+  produces (101/265 ~= 0.381, since that estimate was explicitly sized for the
+  then-262-paper scope) -> 28:00:00, padded to a 2h floor. This is a real
+  recomputation, not a guess, but assumes runtime scales linearly with paper
+  count, which wasn't independently verified. STAGED-GATES: this
+  baseline+dataset pair already has a full-run precedent under the
+  pre-table-cleaning-switch code (2026-09-19); the changes here are ocr_dir and
+  (for nfix) walltime.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "28:00:00"

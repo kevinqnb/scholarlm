@@ -1,0 +1,33 @@
+id: 2026-09-22-supermat-langextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline on supermat, backbone gemma-3-27b.
+  Per instruction (2026-09-22): baselines now use the same table-cleaning-based
+  drop_references corpus
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01)
+  their extraction/ablation siblings use, replacing the *ocr-based*
+  drop_references dir
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01)
+  the 2026-09-19-supermat-langextract-gemma27b-full-01 sibling pointed at
+  (already run, left untouched; this is a fresh id). pond/supermat have no
+  paper_filter, so file count is unchanged (142 files) -- only the table markup
+  differs.
+  max_char_buffer/extraction_passes/max_workers/batch_length/use_schema_constraints/fence_output
+  carried over unchanged (5000/1/16/20/true/false). Walltime carried over
+  unchanged from the 2026-09-19 sibling (24:00:00) -- same 142-file scope either
+  way, only the table markup in the text differs. STAGED-GATES: this
+  baseline+dataset pair already has a full-run precedent under the
+  pre-table-cleaning-switch code (2026-09-19); the changes here are ocr_dir and
+  (for nfix) walltime.
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "24:00:00"

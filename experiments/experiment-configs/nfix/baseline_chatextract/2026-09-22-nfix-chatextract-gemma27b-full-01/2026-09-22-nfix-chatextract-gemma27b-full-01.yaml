@@ -1,0 +1,27 @@
+id: 2026-09-22-nfix-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the ChatExtract baseline on nfix, backbone gemma-3-27b. Per
+  instruction (2026-09-22): baselines now use the same table-cleaning-based
+  drop_references corpus their extraction/ablation siblings use
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01),
+  not the implicit raw-OCR default the
+  2026-09-19-nfix-chatextract-gemma27b-full-01 sibling used (that config,
+  already run, is left untouched as the historical record; this is a fresh id,
+  not a replacement). For nfix specifically this is a real scope change, not
+  just a text-quality change: the table-cleaning corpus is pre-restricted to the
+  101 files passing _nfix_paper_filter, vs. 265 raw files this runner's own
+  filtering previously had to narrow down itself. Same 98-paper outcome the
+  original run reported, now structural rather than dependent on the runner's
+  own filter logic matching { }. Walltime carried over unchanged from the
+  2026-09-19 sibling (08:00:00) -- same paper count either way, table-cleaned
+  text isn't expected to meaningfully change runtime, but this is an assumption,
+  not a re-measurement. STAGED-GATES: this baseline+dataset pair already has a
+  full-run precedent under the pre-table-cleaning-switch code (2026-09-19); the
+  only change here is ocr_dir.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "08:00:00"

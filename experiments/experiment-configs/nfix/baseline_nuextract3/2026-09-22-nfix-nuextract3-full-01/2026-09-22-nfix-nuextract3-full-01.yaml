@@ -1,0 +1,28 @@
+id: 2026-09-22-nfix-nuextract3-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the NuExtract3 baseline on nfix. Per instruction
+  (2026-09-22): baselines now use the same table-cleaning-based drop_references
+  corpus
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  their extraction/ablation siblings use, replacing the *ocr-based*
+  drop_references dir
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-ocr-drop-references-01)
+  the 2026-09-19-nfix-nuextract3-full-01 sibling pointed at (already run, left
+  untouched; this is a fresh id). For nfix this is also a real scope change: the
+  table-cleaning corpus is pre-restricted to 101 files passing
+  _nfix_paper_filter, vs. the 265 raw files (262 after paper_exclude) the old
+  config's own description reported -- this runner apparently doesn't apply
+  paper_filter itself, so switching ocr_dir structurally narrows scope here.
+  Walltime rescaled from the 2026-09-19 sibling's 36:00:00 by the exact
+  file-count ratio this switch produces (101/265 ~= 0.381) -> 14:00:00, padded
+  to a 2h floor. Real recomputation, not a guess, but assumes linear scaling
+  with paper count. STAGED-GATES: this baseline+dataset pair already has a
+  full-run precedent under the pre-table-cleaning-switch code (2026-09-19); the
+  changes here are ocr_dir and (for nfix) walltime.
+seed: 342
+params:
+  dataset: nfix
+  model: nuextract3
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "14:00:00"
