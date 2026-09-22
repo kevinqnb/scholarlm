@@ -26,18 +26,38 @@ description: >
   fields), so its timing doesn't reflect the current per-record call pattern --
   headroom applied per this matrix's graduated multiplier policy (4x under a 3h
   base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
-  next whole hour) -> 18:00:00. resume=true so a walltime kill loses only the
-  steps not yet checkpointed, not the whole run. STAGED-GATES: NO rung-1/2/3
-  pass exists for this exact (dataset, model) pair under the current
-  (2026-09-20+) qualifier-field schema -- only gemma-3-27b has been
-  smoke/tiny-e2e tested on this schema so far. Per CLAUDE.md's staged-gate
-  ladder, this should not be submitted before a unit test, a one-paper smoke
-  run, and a tiny end-to-end pass with a predicted result on this specific
-  (dataset, model) combination.
+  next whole hour) -> originally 18:00:00. STAGED-GATES: NO rung-1/2/3 pass
+  exists for this exact (dataset, model) pair under the current (2026-09-20+)
+  qualifier-field schema -- only gemma-3-27b has been smoke/tiny-e2e tested on
+  this schema so far; this is exactly the staged-gate skip that bit here.
+  UPDATE 2026-09-22 (job 7687210, killed by SGE at its 18h h_rt on scc-218):
+  steps 1/2/3a/3b (entities/attributes/entity_prov/attribute_prov, 705
+  entities/80 attributed docs) all completed within the first 58 minutes --
+  checkpointed and verified non-empty/well-formed. Step 3c (event resolution)
+  then ran for the remaining ~17h without finishing, no exceptions logged,
+  server continuously busy (10769 total chat-completion calls over the run).
+  Root-cause hypothesis, not yet directly confirmed: replaying
+  _resolve_events()'s exact (entity, attribute, page-intersection) enumeration
+  against this run's own checkpoint files gives exactly 1671 calls needed for
+  this step on nfix -- a small number. nfix-extraction-gemma27b-full-01's own
+  run_metadata.json shows its events step took 1219.1s for a comparable count
+  on the same dataset. 1671 calls in >61200s only pencils out if each call is
+  running close to llama-3.1-8b's max_tokens=8192 ceiling instead of stopping
+  after a short structured response (1671 * 8192 / ~200 tok/s aggregate ≈ 19h,
+  matching the observed shortfall) -- i.e. this looks like llama-3.1-8b not
+  terminating event-resolution responses cleanly, not a hang and not more
+  legitimate work than gemma faced. Not confirmed directly (would need a live
+  server to check a completion's finish_reason), and not fixed here -- flagged
+  as likely to recur on every llama-3.1-8b run that reaches this step
+  (measeval-extraction-llama8b-full-01 hit the identical step-3c stall
+  independently the same day). Walltime bumped to 72:00:00 to actually clear
+  this step under the current (probably-pathological) per-call cost rather
+  than re-hit the same wall; resume=true skips the ~1h already checkpointed.
+  Monitor this run.
 seed: 342
 params:
   dataset: nfix
   model: llama-3.1-8b
   ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
   resume: true
-  walltime: "18:00:00"
+  walltime: "72:00:00"
