@@ -20,17 +20,31 @@ description: >
   fields), so its timing doesn't reflect the current per-record call pattern --
   headroom applied per this matrix's graduated multiplier policy (4x under a 3h
   base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
-  next whole hour) -> 17:00:00. resume=true so a walltime kill loses only the
-  steps not yet checkpointed, not the whole run. STAGED-GATES: NO rung-1/2/3
+  next whole hour) -> originally 17:00:00. STAGED-GATES: NO rung-1/2/3
   pass exists for this exact (dataset, model) pair under the current
   (2026-09-20+) qualifier-field schema -- only gemma-3-27b has been
-  smoke/tiny-e2e tested on this schema so far. Per CLAUDE.md's staged-gate
-  ladder, this should not be submitted before a unit test, a one-paper smoke
-  run, and a tiny end-to-end pass with a predicted result on this specific
-  (dataset, model) combination.
+  smoke/tiny-e2e tested on this schema so far; this is exactly the staged-gate
+  skip that bit here.
+  UPDATE 2026-09-22 (job 7687209, killed by SGE at its 17h h_rt on scc-217, an
+  A40): the legacy 5.55h estimate was badly wrong for llama-3.1-8b under the
+  current qualifier-field schema. Real observed timing: Step 1 (entities)
+  finished by ~1h in; Steps 2/3a/3b (attributes, entity_prov, attribute_prov)
+  together took roughly another 12h, finishing around the 13h mark
+  (entities.json/attributes.json/entity_prov.json/attribute_prov.json all
+  checkpointed and verified non-empty/well-formed -- confirmed real progress,
+  not a repeat of the collision corruption); Step 3c (event resolution) then
+  ran for the remaining ~4h without finishing before the kill (no events.json
+  ever appeared) -- vLLM's own throughput log during this run showed an
+  unusually low ~200 tok/s aggregate across 8 concurrent requests for an 8B
+  model on an A40, which may itself be worth a separate look. Walltime bumped
+  to 48:00:00 for the resubmission: resume=true means the ~13h of
+  already-checkpointed work (steps 1/2/3a/3b) is skipped, not redone, so this
+  budget only needs to cover 3c onward -- but since 3c alone didn't finish in
+  4h, this is still a rough, unverified estimate, not a grounded one. Monitor
+  this run; it may need another bump.
 seed: 342
 params:
   dataset: measeval
   model: llama-3.1-8b
   resume: true
-  walltime: "17:00:00"
+  walltime: "48:00:00"
