@@ -108,6 +108,39 @@ Units standardization guidelines:
 """
 
 
+# 2026-09-23-standardize-valueonly-01: value-only variant of
+# STANDARDIZE_MEASUREMENTS_INSTRUCTIONS above -- no source-text grounding, no
+# entity/attribute description, no attribute terminology. Tests the hypothesis
+# that unit standardization doesn't need (and may be hurt by) the surrounding
+# page/table context _standardize() otherwise supplies -- mirrors
+# PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS's rationale for the sibling
+# _parse_quantities() step. The decision rule itself (best-matching notational
+# variant, else unchanged, else null for null) is unchanged from the full-context
+# version -- only the context shown to the model differs.
+#
+# The basis/component-annotation bullet below was added after rung-3-01's tiny
+# end-to-end: without page context, gemma-3-27b was inconsistent on whether a
+# substance-qualified compound unit (e.g. "mg N/L") counts as a notational
+# variant of the plain unit on the list ("mg/L") -- it correctly dropped an
+# analogous phosphorus annotation but kept the nitrogen one, on structurally
+# identical inputs. The added bullet makes explicit, with dataset-independent
+# examples, exactly the distinction the model needs and evidently wasn't
+# getting reliably from the unit string alone: an annotation is safe to drop
+# only when doing so requires no numeric conversion.
+STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing the units of a measurement value extracted from a research paper. You will be given a list of available (preferred) units for the attribute, and an extracted measurement value with units -- no other context is provided or needed. Your task is to standardize the units only, according to the following guidelines.
+
+Units standardization guidelines:
+- If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the best matching entry from the available units list. You may infer notational variants based on common scientific usage.
+- If the extracted units carry an additional basis or component annotation that the best-matching available unit omits (e.g., "kg (dry matter)/ha" when the available unit is "kg/ha", or "counts (viable)/mL" when the available unit is "counts/mL"), it is fine to use the more generic available unit, as long as no numeric conversion is required -- only the annotation is being dropped, not the measured quantity. If the annotation instead names a genuinely different substance or basis that would require converting the value (not just relabeling it), leave the units unchanged.
+- If the extracted units are not a notational variant of any available unit (i.e., they would require unit conversion to match, or there are no available units listed), return the extracted units unchanged.
+- If the extracted units are null (not reported), return null.
+- Do NOT modify, standardize, round, or reformat the extracted measurement value in any way -- it is not part of this task and is handled separately.
+
+- Provide a brief explanation of what unit standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation" and "units" fields.
+"""
+
+
 PARSE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to parse a single already-extracted measurement value into its structured components, using the source text it was extracted from as ground truth.
 
 You will be given: the source text (a page or table) the value was extracted from, a description of the measurement attribute, and the extracted value and units as originally reported.

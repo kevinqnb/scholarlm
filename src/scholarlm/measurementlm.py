@@ -18,6 +18,7 @@ from .instruction_prompts import (
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
+    STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS,
     PARSE_QUANTITY_INSTRUCTIONS,
     PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS,
     DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
@@ -458,6 +459,16 @@ class MeasurementLM(BatchLLMBase):
             it nothing but the extracted value string -- see
             PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS and
             2026-09-22-pond-parsequantities-valueonly-01.
+        standardize_context ("full" | "value_only"): Controls what
+            `_standardize()` shows the model. "full" (default) is unchanged:
+            source-text context, entity description, attribute description,
+            attribute terminology, available units, and the extracted
+            measurement/units. "value_only" gives it only the available
+            units list and the extracted measurement/units -- no source
+            text, entity description, attribute description, or
+            terminology. The standardization decision rule itself (best-
+            matching notational variant, else unchanged, else null) is the
+            same in both modes -- see STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS.
     """
     def __init__(
         self,
@@ -477,6 +488,7 @@ class MeasurementLM(BatchLLMBase):
         direct_extraction_schema: BaseModel | None = None,
         direct_extraction_prompt: str | None = None,
         parse_quantities_context: str = "full",
+        standardize_context: str = "full",
     ):
         super().__init__(
             model_name=model_name,
@@ -504,6 +516,11 @@ class MeasurementLM(BatchLLMBase):
                 f"parse_quantities_context must be 'full' or 'value_only', got {parse_quantities_context!r}."
             )
         self.parse_quantities_context = parse_quantities_context
+        if standardize_context not in ("full", "value_only"):
+            raise ValueError(
+                f"standardize_context must be 'full' or 'value_only', got {standardize_context!r}."
+            )
+        self.standardize_context = standardize_context
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -1575,38 +1592,59 @@ class MeasurementLM(BatchLLMBase):
         untouched here -- parsing its shape (range/list/mean/tolerance/etc.) is
         a separate step, _parse_quantities().
 
+        In the default ``standardize_context="full"`` mode, this is grounded
+        against the source text the value was extracted from (entity/attribute
+        description, attribute terminology, page/table context). In
+        ``"value_only"`` mode, the model sees nothing but the available units
+        list and the extracted measurement/units -- see
+        STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS. The standardization
+        decision rule (best-matching notational variant, else unchanged, else
+        null) is identical in both modes.
+
         Reads from self.data and returns the standardized list.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
         message_data_ids = []
         for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
             attribute = datapoint.get('attribute')
-            attr_description = self.attribute_info_dict[attribute]['description']
-            attr_terms = datapoint.get('attribute_terms', [])
             unit_options = self.attribute_info_dict[attribute].get('units', [])
-            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
             measurement_units = datapoint.get('units')
 
-            terms_line = (
-                f"Terminology used for the attribute: {attr_terms}\n"
-                if self.collect_attribute_terms else ""
-            )
-            query = (
-                f"Entity description: {entity_description}\n"
-                f"Attribute description: {attr_description}\n"
-                f"{terms_line}"
-                f"Available units for the attribute: {unit_options}\n\n"
-                f"Extracted measurement: {measurement_val}\n"
-                f"Extracted units: {measurement_units}\n"
-                f"Standardize the units for the extracted data point. "
-            )
-            prompt = (
-                f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
-                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
-            )
+            if self.standardize_context == "value_only":
+                query = (
+                    f"Available units for the attribute: {unit_options}\n\n"
+                    f"Extracted measurement: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Standardize the units for the extracted data point. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+                )
+            else:
+                context = datapoint['context']
+                attr_description = self.attribute_info_dict[attribute]['description']
+                attr_terms = datapoint.get('attribute_terms', [])
+                entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
+
+                terms_line = (
+                    f"Terminology used for the attribute: {attr_terms}\n"
+                    if self.collect_attribute_terms else ""
+                )
+                query = (
+                    f"Entity description: {entity_description}\n"
+                    f"Attribute description: {attr_description}\n"
+                    f"{terms_line}"
+                    f"Available units for the attribute: {unit_options}\n\n"
+                    f"Extracted measurement: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Standardize the units for the extracted data point. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+                )
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 

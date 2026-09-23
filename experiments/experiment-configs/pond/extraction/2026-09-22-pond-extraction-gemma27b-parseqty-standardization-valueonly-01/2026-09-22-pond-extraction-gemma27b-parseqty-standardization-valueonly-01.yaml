@@ -1,0 +1,74 @@
+id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+project: scholarlm
+description: >
+  Full-scale rung-4 run of the value-only standardize_context hypothesis
+  (MeasurementLM._standardize() dropping source-text/entity/attribute
+  context during unit standardization, keeping only the available-units
+  list and the extracted measurement+units -- see
+  STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS in
+  src/scholarlm/instruction_prompts.py). params.step=final re-runs only
+  standardize + _parse_quantities + deduplicate against values.json copied
+  in from 2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-01 -- same
+  ocr_dir, no paper_subset override, so document_id's positional indexing
+  into the paper list stays aligned with that run's (and, transitively,
+  with 2026-09-21-pond-extraction-gemma27b-full-01's, which
+  parseqty-valueonly-01 itself was built on). parse_quantities_context is
+  held at value_only (matching parseqty-valueonly-01) so the only variable
+  relative to that run is standardize_context.
+
+  Hypothesis (verbatim, from the initiating /experiment session): "In the
+  results for 2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-01 we
+  found 349 (10.5%) ground truth rows which matched with some extraction on
+  everything *except* units. My hypothesis is that with this new approach,
+  we will see an improvement. Let's say <5% which are mismatched from only
+  units."
+
+  Staged-gate history: unit tests (22 passed, including a golden exact-match
+  check pinning full-mode's prompt as byte-identical to pre-change
+  behavior) -> smoke run in-shell (stubbed LLM call, real dataset config,
+  confirmed prompt construction and record count) -> two rung-3 tiny
+  end-to-ends on a 26-row single-paper checkpoint (from
+  2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02), against the
+  full-context control
+  2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-tinye2e-01:
+    - tinye2e-01 (original wording): 15/19 matched-attribute rows agreed
+      with control; all 4 divergences were tn "mg N/L" staying unchanged
+      instead of collapsing to "mg/L", while the structurally identical tp
+      "mg P/L" rows (4 rows) did collapse correctly, matching control.
+      Checked against the actual attribute definitions
+      (experiments/dataset-configs/pond.py): tn/tp are aggregate
+      elemental-basis concentrations, so "mg N/L" vs "mg/L" (and "mg P/L"
+      vs "mg/L") is a pure relabeling requiring no conversion -- the
+      control's collapse was correct and the asymmetry looked like a gap
+      in the instructions.
+    - Added an explicit basis/component-annotation bullet to
+      STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS (generic,
+      cross-domain examples, not tied to this dataset's actual units) and
+      reran as tinye2e-02: still 15/19 matching control, but the specific 4
+      rows that diverged flipped -- tn now collapsed correctly (matching
+      control), tp now didn't (previously correct, now diverged to "mg
+      P/L"). Net agreement with control unchanged; the divergence just
+      relocated to the structurally identical case. Conclusion: this looks
+      like temperature=0.2 sampling noise on one narrow judgment call
+      (substance-qualified compound units), not something either wording
+      resolves -- every other row (chla, ph, surface_area, the trivial tn
+      "mg/L" row) was stable across all three runs (control, both tiny-e2e
+      wordings). By explicit instruction, keeping the new wording (not
+      worse, more defensive against silent conversions in general) and
+      proceeding to the full run rather than iterating further on prompt
+      wording -- treating this as expected, quantifiable noise for the
+      full ~11k-row run to reveal, not a blocker.
+  By explicit instruction, this is the treatment only -- no paired
+  full-mode control at full scale, mirroring parseqty-valueonly-01's own
+  scope decision; comparison is against parseqty-valueonly-01's own
+  final.json (and the 10.5%/349-row units-only-mismatch figure computed
+  from it), not a fresh same-code rerun.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  step: final
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "05:00:00"

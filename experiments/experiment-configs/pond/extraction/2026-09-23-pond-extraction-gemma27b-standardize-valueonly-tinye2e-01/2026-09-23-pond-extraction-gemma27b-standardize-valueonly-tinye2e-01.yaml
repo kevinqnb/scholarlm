@@ -1,0 +1,47 @@
+id: 2026-09-23-pond-extraction-gemma27b-standardize-valueonly-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for the new standardize_context="value_only" mode
+  (MeasurementLM._standardize() dropping source-text/entity/attribute
+  context, keeping only the available-units list and the extracted
+  measurement+units -- see src/scholarlm/instruction_prompts.py's
+  STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS). Same copied-in
+  values.json checkpoint used by the sibling
+  2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-tinye2e-01 (from
+  2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02, single paper
+  "trophic_status_and_threats", 26 rows), params.step=final,
+  parse_quantities_context=value_only held fixed (matching what the rung-4
+  full run will use) -- only standardize_context differs from that sibling:
+  "value_only" instead of the default "full". That sibling's own final.json
+  is the control (full-context standardize, same values.json,
+  same parse_quantities_context).
+
+  Predicted outcome, per distinct (attribute, extracted units) pair in the
+  26-row checkpoint, none of which need page context to resolve given the
+  attribute's available-units list alone:
+    - chla "μg/L" (Greek mu, 4 rows) -> "µg/L" (micro sign, matches control)
+    - surface_area "km²" (1 row) -> "km^2" (matches control)
+    - tn "mg N/L" (4 rows) -> "mg/L" (matches control's own choice -- this
+      is the critical check: the substance-qualified unit should land on
+      the same list entry as full-context mode chose, not spuriously
+      collapse further or get left unrecognized)
+    - tn "mg/L" (1 row, already exact) -> "mg/L" unchanged
+    - tp "mg P/L" (4 rows) -> "mg/L" (matches control, same reasoning as tn)
+    - ph "None"/"null"/None/"unitless" (10 rows, attribute has an empty
+      available-units list) -> unchanged per row (actual null stays null;
+      the three string variants stay exactly as extracted, since "no
+      available units listed" triggers the unchanged-passthrough rule
+      regardless of context)
+  If any row's units diverge from its control counterpart, or a
+  conversion-needed unit (e.g. "mg N/L") gets force-mapped somewhere the
+  control didn't put it, stop before the full run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  step: final
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "01:00:00"

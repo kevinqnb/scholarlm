@@ -33,6 +33,7 @@ from scholarlm.measurementlm import (
     MeasurementLM,
     check_quantity_consistency,
 )
+from scholarlm.instruction_prompts import STANDARDIZE_MEASUREMENTS_INSTRUCTIONS
 
 
 class _EntitySchema(BaseModel):
@@ -730,6 +731,94 @@ def test_parse_quantities_context_rejects_unknown_value():
     """Fail loud on a typo'd mode rather than silently falling back to 'full'."""
     with pytest.raises(ValueError, match="parse_quantities_context"):
         _make_mlm(parse_quantities_context="valueonly")  # missing underscore
+
+
+# ---------------------------------------------------------------------------
+# _standardize() -- standardize_context ("full" vs "value_only")
+# ---------------------------------------------------------------------------
+
+_STANDARDIZE_FAKE_RESPONSE = '{"explanation": "ok", "units": "m"}'
+
+
+def test_standardize_full_mode_prompt_unchanged_by_default(monkeypatch):
+    """Default construction (no standardize_context override) must build the
+    exact same prompt as before this flag existed. Pinned by exact string
+    equality rather than substring checks alone, so a reordered terms_line or
+    silently dropped field is caught."""
+    mlm = _make_mlm()
+    assert mlm.standardize_context == "full"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _STANDARDIZE_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    mlm._standardize()
+
+    expected_query = (
+        "Entity description: {'name': 'Lake A', 'location': 'WI'}\n"
+        "Attribute description: Maximum depth\n"
+        "Terminology used for the attribute: []\n"
+        "Available units for the attribute: ['m']\n\n"
+        "Extracted measurement: 12.3\n"
+        "Extracted units: m\n"
+        "Standardize the units for the extracted data point. "
+    )
+    expected_prompt = (
+        f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+        f"## CONTEXT:\nDOC0 text\n\n## QUERY:\n{expected_query}"
+    )
+    assert captured["prompt"] == expected_prompt
+
+
+def test_standardize_value_only_mode_prompt_excludes_context_but_keeps_unit_list(monkeypatch):
+    """standardize_context='value_only' must strip the CONTEXT block, entity
+    description, attribute description, and terminology -- but still give the
+    model the available-units list and the extracted measurement/units, since
+    the task is choosing the best-fitting entry from that list, not parsing
+    the value out of source text."""
+    mlm = _make_mlm(standardize_context="value_only")
+    assert mlm.standardize_context == "value_only"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _STANDARDIZE_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    standardized = mlm._standardize()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" not in prompt
+    assert "DOC0 text" not in prompt
+    assert "Entity description:" not in prompt
+    assert "Attribute description:" not in prompt
+    assert "Terminology" not in prompt
+    assert "Available units for the attribute: ['m']" in prompt
+    assert "Extracted measurement: 12.3" in prompt
+    assert "Extracted units: m" in prompt
+
+    # Response is still applied exactly as in full mode -- only the prompt
+    # construction differs; value is untouched by _standardize either way.
+    assert standardized[0]["units"] == "m"
+    assert standardized[0]["value"] == "12.3"
+
+
+def test_standardize_context_rejects_unknown_value():
+    """Fail loud on a typo'd mode rather than silently falling back to 'full'."""
+    with pytest.raises(ValueError, match="standardize_context"):
+        _make_mlm(standardize_context="valueonly")  # missing underscore
 
 
 # ---------------------------------------------------------------------------

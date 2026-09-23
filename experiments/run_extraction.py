@@ -14,7 +14,8 @@ Required params: dataset, model.
 Optional params: ocr_dir, paper_subset (list), extraction_mode ('pipeline'
 default | 'direct'), resume (bool), final_only (bool), step (one of
 STEP_NAMES), api_base, api_key, parse_quantities_context ('full' default |
-'value_only' -- see MeasurementLM.__init__).
+'value_only' -- see MeasurementLM.__init__), standardize_context ('full'
+default | 'value_only' -- see MeasurementLM.__init__).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
@@ -530,6 +531,7 @@ def run_pipeline(
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
     parse_quantities_context: str = "full",
+    standardize_context: str = "full",
 ) -> None:
     """Run the full extraction pipeline for a dataset / model pair.
 
@@ -566,6 +568,8 @@ def run_pipeline(
             ``"http://localhost:8000/v1"``).
         api_key: API key for the vLLM server (any non-empty string works).
         parse_quantities_context: "full" (default) or "value_only" -- see
+            ``MeasurementLM.__init__``.
+        standardize_context: "full" (default) or "value_only" -- see
             ``MeasurementLM.__init__``.
     """
     data_dir = Path(dataset_config.data_dir)
@@ -610,6 +614,7 @@ def run_pipeline(
         use_extra_body=not is_frontier,
         collect_attribute_terms=dataset_config.collect_attribute_terms,
         parse_quantities_context=parse_quantities_context,
+        standardize_context=standardize_context,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
@@ -652,6 +657,7 @@ def run_direct(
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
     parse_quantities_context: str = "full",
+    standardize_context: str = "full",
 ) -> None:
     """Run direct-mode extraction: a single LLM call per document via
     ``MeasurementLM(extraction_mode="direct")``, followed by standardize and
@@ -674,6 +680,8 @@ def run_direct(
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server (any non-empty string works).
         parse_quantities_context: "full" (default) or "value_only" -- see
+            ``MeasurementLM.__init__``.
+        standardize_context: "full" (default) or "value_only" -- see
             ``MeasurementLM.__init__``.
     """
     data_dir = Path(dataset_config.data_dir)
@@ -721,6 +729,7 @@ def run_direct(
         direct_extraction_schema=dataset_config.direct_extraction_schema,
         direct_extraction_prompt=dataset_config.direct_extraction_prompt,
         parse_quantities_context=parse_quantities_context,
+        standardize_context=standardize_context,
     )
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
@@ -771,6 +780,7 @@ def run_single_step(
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
     parse_quantities_context: str = "full",
+    standardize_context: str = "full",
 ) -> None:
     """Run a single named pipeline step, reading inputs from and writing output to output_dir.
 
@@ -788,6 +798,8 @@ def run_single_step(
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server (any non-empty string works).
         parse_quantities_context: "full" (default) or "value_only" -- see
+            ``MeasurementLM.__init__``. Only affects ``step="final"``.
+        standardize_context: "full" (default) or "value_only" -- see
             ``MeasurementLM.__init__``. Only affects ``step="final"``.
     """
     if step not in STEP_NAMES:
@@ -834,6 +846,7 @@ def run_single_step(
         use_extra_body=not is_frontier,
         collect_attribute_terms=dataset_config.collect_attribute_terms,
         parse_quantities_context=parse_quantities_context,
+        standardize_context=standardize_context,
     )
 
     f_entities = output_dir / "entities.json"
@@ -910,6 +923,7 @@ def main(argv: list[str] | None = None) -> None:
     resume = params.get("resume", False)
     final_only = params.get("final_only", False)
     parse_quantities_context = params.get("parse_quantities_context", "full")
+    standardize_context = params.get("standardize_context", "full")
 
     if final_only and step:
         raise ValueError(f"{config_path}: params.final_only and params.step are mutually exclusive.")
@@ -948,6 +962,7 @@ def main(argv: list[str] | None = None) -> None:
             api_base=api_base,
             api_key=api_key,
             parse_quantities_context=parse_quantities_context,
+            standardize_context=standardize_context,
         )
     elif step:
         run_single_step(
@@ -960,6 +975,7 @@ def main(argv: list[str] | None = None) -> None:
             api_base=api_base,
             api_key=api_key,
             parse_quantities_context=parse_quantities_context,
+            standardize_context=standardize_context,
         )
     else:
         run_pipeline(
@@ -972,6 +988,7 @@ def main(argv: list[str] | None = None) -> None:
             final_only=final_only,
             api_base=api_base,
             parse_quantities_context=parse_quantities_context,
+            standardize_context=standardize_context,
             api_key=api_key,
         )
 
