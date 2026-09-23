@@ -19,6 +19,7 @@ from .instruction_prompts import (
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
     PARSE_QUANTITY_INSTRUCTIONS,
+    PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS,
     DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
 )
 
@@ -450,6 +451,13 @@ class MeasurementLM(BatchLLMBase):
         direct_extraction_prompt (str | None): Dataset-specific prompt describing
             entities, events, and attributes for the single direct-extraction call;
             used only when `extraction_mode="direct"`.
+        parse_quantities_context ("full" | "value_only"): Controls what
+            `_parse_quantities()` shows the model. "full" (default) is
+            unchanged: source-text context, entity description, attribute
+            description, units, and the extracted value. "value_only" gives
+            it nothing but the extracted value string -- see
+            PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS and
+            2026-09-22-pond-parsequantities-valueonly-01.
     """
     def __init__(
         self,
@@ -468,6 +476,7 @@ class MeasurementLM(BatchLLMBase):
         extraction_mode: str = "pipeline",
         direct_extraction_schema: BaseModel | None = None,
         direct_extraction_prompt: str | None = None,
+        parse_quantities_context: str = "full",
     ):
         super().__init__(
             model_name=model_name,
@@ -490,6 +499,11 @@ class MeasurementLM(BatchLLMBase):
         self.extraction_mode = extraction_mode
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
+        if parse_quantities_context not in ("full", "value_only"):
+            raise ValueError(
+                f"parse_quantities_context must be 'full' or 'value_only', got {parse_quantities_context!r}."
+            )
+        self.parse_quantities_context = parse_quantities_context
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -1637,7 +1651,13 @@ class MeasurementLM(BatchLLMBase):
         LLM-based quantity parsing: decomposes each extracted (already
         unit-standardized) value into qualifier tags plus whichever of
         point_value/lower/upper/list_values/tolerance/standard_deviation the
-        reported value has, grounded against the source text it was extracted from.
+        reported value has.
+
+        In the default ``parse_quantities_context="full"`` mode, this is
+        grounded against the source text the value was extracted from
+        (entity/attribute description, units, page/table context). In
+        ``"value_only"`` mode, the model sees nothing but the extracted value
+        string itself -- see PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS.
 
         Non-fatal by design: a response that fails validation, or whose
         qualifier tags don't match its populated fields, is kept with a
@@ -1650,24 +1670,34 @@ class MeasurementLM(BatchLLMBase):
         messages = []
         message_data_ids = []
         for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            attribute = datapoint.get('attribute')
-            attr_description = self.attribute_info_dict[attribute]['description']
-            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
-            measurement_units = datapoint.get('units')
 
-            query = (
-                f"Entity description: {entity_description}\n"
-                f"Attribute description: {attr_description}\n\n"
-                f"Extracted value: {measurement_val}\n"
-                f"Extracted units: {measurement_units}\n"
-                f"Parse this extracted value into its structured components. "
-            )
-            prompt = (
-                f"## INSTRUCTIONS:\n{PARSE_QUANTITY_INSTRUCTIONS}\n\n"
-                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
-            )
+            if self.parse_quantities_context == "value_only":
+                query = (
+                    f"Extracted value: {measurement_val}\n"
+                    f"Parse this extracted value into its structured components. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+                )
+            else:
+                context = datapoint['context']
+                attribute = datapoint.get('attribute')
+                attr_description = self.attribute_info_dict[attribute]['description']
+                entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
+                measurement_units = datapoint.get('units')
+
+                query = (
+                    f"Entity description: {entity_description}\n"
+                    f"Attribute description: {attr_description}\n\n"
+                    f"Extracted value: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Parse this extracted value into its structured components. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{PARSE_QUANTITY_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+                )
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 

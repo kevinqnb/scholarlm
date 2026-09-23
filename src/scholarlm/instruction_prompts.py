@@ -125,6 +125,28 @@ Guidelines:
 """
 
 
+# 2026-09-22-pond-parsequantities-valueonly-01: value-only variant of
+# PARSE_QUANTITY_INSTRUCTIONS above -- no source-text grounding, no entity/
+# attribute description, no units. Tests the hypothesis that this purely
+# textual parsing task doesn't need (and may be hurt by) the surrounding
+# page/table context _parse_quantities() otherwise supplies.
+PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to parse a single already-extracted measurement value into its structured components, using only the value string itself -- no other context is provided or needed.
+
+You will be given: the extracted value, exactly as reported.
+
+Guidelines:
+- qualifiers: a list of zero or more tags describing the shape of the reported quantity. Use only tags from this set: "IsCount" (a count of discrete items, not a continuous measurement), "IsApproximate" (explicitly hedged, e.g. "~12", "about 50", "approximately"), "IsList" (an enumerated list of separate values, not a single number or range), "IsRange" (a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10"), "IsMean" (an explicitly stated mean/average), "IsMedian" (an explicitly stated median), "HasTolerance" (an explicit +/- value or confidence interval is reported alongside the value), "HasSD" (an explicit standard deviation is reported alongside the value). These tags are independent and may combine freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]; a mean reported together with a range, e.g. "5.2 (3.1-7.4)", is ["IsMean", "IsRange"]). Use an empty list for a plain, unhedged single value with no other qualifier.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given). A plain number with no qualifying text (e.g. "2.4") IS its own point_value.
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
+- Do NOT infer, guess, or derive anything beyond what the value string itself states.
+- Provide a brief explanation of your parsing decisions.
+- Structure your response as a JSON object with "explanation", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields.
+"""
+
+
 # --------------------------------------------
 # MeasurementLMv2 Prompts (quantity-first pipeline)
 #

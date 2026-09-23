@@ -652,6 +652,87 @@ def test_parse_quantities_logs_but_keeps_inconsistent_record(monkeypatch, capsys
 
 
 # ---------------------------------------------------------------------------
+# _parse_quantities() -- parse_quantities_context ("full" vs "value_only")
+# ---------------------------------------------------------------------------
+
+_PARSE_QTY_FAKE_RESPONSE = (
+    '{"explanation": "plain point", "qualifiers": [], "point_value": "12.3", '
+    '"lower": null, "upper": null, "list_values": null, "tolerance": null, '
+    '"standard_deviation": null}'
+)
+
+
+def test_parse_quantities_full_mode_prompt_unchanged_by_default(monkeypatch):
+    """Default construction (no parse_quantities_context override) must build
+    the exact same prompt as before this flag existed: CONTEXT block with the
+    datapoint's context text, entity description, attribute description, and
+    units all present."""
+    mlm = _make_mlm()
+    assert mlm.parse_quantities_context == "full"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _PARSE_QTY_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    mlm._parse_quantities()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" in prompt
+    assert "DOC0 text" in prompt
+    assert "Entity description:" in prompt
+    assert "Attribute description:" in prompt
+    assert "Extracted units: m" in prompt
+    assert "Extracted value: 12.3" in prompt
+
+
+def test_parse_quantities_value_only_mode_prompt_excludes_everything_but_value(monkeypatch):
+    """parse_quantities_context='value_only' must strip the CONTEXT block,
+    entity description, attribute description, and units entirely -- the
+    prompt should contain nothing but the extracted value."""
+    mlm = _make_mlm(parse_quantities_context="value_only")
+    assert mlm.parse_quantities_context == "value_only"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _PARSE_QTY_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" not in prompt
+    assert "DOC0 text" not in prompt
+    assert "Entity description:" not in prompt
+    assert "Attribute description:" not in prompt
+    assert "Extracted units:" not in prompt
+    assert "Extracted value: 12.3" in prompt
+
+    # The response is still parsed into the record exactly as in full mode --
+    # only the prompt construction differs.
+    assert parsed[0]["point_value"] == "12.3"
+    assert parsed[0]["qualifiers"] == []
+
+
+def test_parse_quantities_context_rejects_unknown_value():
+    """Fail loud on a typo'd mode rather than silently falling back to 'full'."""
+    with pytest.raises(ValueError, match="parse_quantities_context"):
+        _make_mlm(parse_quantities_context="valueonly")  # missing underscore
+
+
+# ---------------------------------------------------------------------------
 # check_quantity_consistency()
 # ---------------------------------------------------------------------------
 
