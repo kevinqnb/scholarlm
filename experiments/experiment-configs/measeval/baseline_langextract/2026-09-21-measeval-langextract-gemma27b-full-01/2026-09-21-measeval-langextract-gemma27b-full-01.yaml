@@ -23,6 +23,40 @@ description: >
   than extrapolating a number that would look more grounded than it is.
   STAGED-GATES: no rung-1/2/3 pass exists for this baseline on this dataset --
   run a smoke and a tiny end-to-end before submitting.
+  UPDATE 2026-09-23 (job 7701678, killed by SGE at its 4h h_rt, exit_status 137):
+  the padded 4h ceiling was not just insufficient, it was sized on a wrong
+  throughput assumption. This runner has no checkpointing at all -- fit()
+  writes final.json exactly once via a single json.dump() after the whole
+  corpus finishes, so the 4h run left no output dir on disk and nothing to
+  resume from; this resubmission is a from-scratch run, not a resume. Log
+  analysis of the killed run found the real cause of the slowness: vLLM's own
+  throughput log shows "Running: 1 reqs" on all 1409 sampled ticks -- 0
+  concurrency for the entire 4h, despite max_workers=16/batch_length=20 --
+  vs. pond's own completed run under the same config values, which reached
+  0-10 concurrent requests. Root cause, confirmed by reading
+  MeasurementLMLangExtract.fit() (src/scholarlm/measurementlm_langextract.py:332-346):
+  it calls lx.extract() once per document in a serial Python for-loop;
+  max_workers/batch_length are langextract's own knobs for parallelizing
+  chunks *within* one document's text, not across documents. Pond's papers
+  average ~59.5KB, so each one splits into ~12 chunks under
+  max_char_buffer=5000, giving langextract's internal pool real work to
+  parallelize; measeval's documents average ~892 bytes -- under the buffer,
+  so every document is exactly one chunk, and every lx.extract() call has
+  nothing to parallelize against. This makes the baseline structurally
+  single-threaded on measeval regardless of max_workers, a real difference in
+  kind, not degree, from the padded-guess walltime this config originally
+  shipped with. Only 75 chat-completion calls completed in the killed run's
+  4h (~192s/call) -- at that rate, 448 documents serially needs ~24h minimum.
+  Per instruction (2026-09-23): accepted as-is rather than fixing fit()'s
+  per-document loop to batch across documents -- walltime bumped to 48:00:00
+  (roughly 2x the ~24h serial-throughput floor, since that floor comes from
+  only 75 samples and isn't itself tightly grounded) rather than fixing the
+  underlying concurrency gap. Separately (not walltime-relevant, just noted):
+  63/75 calls (84%) hit langextract's own "Skipping chunk: parse error" and
+  were silently dropped -- pond's own accepted completed run saw this at
+  54.6% (689/1262), so some skip rate looks like inherent langextract
+  behavior, but measeval's rate is meaningfully higher and worth keeping in
+  mind for output completeness, not confirmed as a problem here.
 seed: 342
 params:
   dataset: measeval
@@ -34,4 +68,4 @@ params:
   batch_length: 20
   use_schema_constraints: true
   fence_output: false
-  walltime: "04:00:00"
+  walltime: "48:00:00"
