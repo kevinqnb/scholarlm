@@ -654,4 +654,21 @@ CONFIG = DatasetConfig(
         "chla":             {"µg/L": 1.0, "mg/L": 1000.0, "mg/m^3": 1.0},
         "ph":               {},
     },
+    # Matching rules for the id-addressed evaluation path (analysis/match_cache.py,
+    # analysis/recovery_validity.py) -- see DatasetConfig's docstring for scope
+    # and why these are allowed to diverge from analysis/ablation.py's own
+    # get_matching_rules (converted_value, not point_value; no legacy history
+    # here to stay comparable with).
+    strict_matching={
+        "document_id": "document_id",
+        "attribute": "attribute",
+        "point_value": "point_value",
+        "units": "units",
+    },
+    fuzzy_matching={
+        "name": "name",
+        "ecosystem": "ecosystem",
+    },
+    fuzzy_threshold=1 / 3,
+    numeric_coerce=["point_value"],
 )

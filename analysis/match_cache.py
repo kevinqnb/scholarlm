@@ -1,9 +1,12 @@
 """Compute and cache extraction <-> ground-truth matches, by experiment id.
 
-The only job of this script: given a list of experiment ids and this file's
-MATCHING_CONFIGS (one entry per dataset), load each run's final.json and its
-dataset's ground truth, run match_datasets, and write the result to
-match_cache.pkl inside that run's own results directory
+The only job of this script: given a list of experiment ids, load each run's
+final.json, its dataset's ground truth, and that dataset's matching rules
+(``strict_matching``/``fuzzy_matching``/``fuzzy_threshold``/``numeric_coerce``
+on its ``DatasetConfig``, in ``experiments/dataset-configs/{dataset}.py`` --
+see ``get_matching_config`` below and ``DatasetConfig``'s own docstring),
+run match_datasets, and write the result to match_cache.pkl inside that run's
+own results directory
 (experiments/results/{dataset}/{experiment-type}/<id>/match_cache.pkl).
 Always recomputes and overwrites -- this is the point where a fresh,
 authoritative cache gets built, not a read-through cache that might silently
@@ -26,9 +29,15 @@ O(n_gt * n_extraction) strict+fuzzy scan. Caching at 0.0 stores every
 strict-matched candidate once; edges_above_threshold (below) applies
 whatever threshold is wanted on top of that, for free.
 
-This is meant to be the one centralized place matching configuration and
-matching runs live -- add a new dataset's rules to MATCHING_CONFIGS here
-rather than growing another copy of get_matching_rules-style logic elsewhere.
+This is meant to be the one centralized place matching *runs* live, reading
+matching *rules* from each dataset's own committed config (not a copy kept
+here) -- add a new dataset's rules to its DatasetConfig in
+experiments/dataset-configs/{dataset}.py rather than growing another copy of
+get_matching_rules-style logic elsewhere. This deliberately does not touch
+the legacy analysis/ablation.py/baselines.py's own get_matching_rules, which
+predates this and scores a different column shape (``converted_value``, not
+``point_value``) against an earlier extraction/judge era -- the two are
+allowed to diverge (see DatasetConfig's ``strict_matching`` docstring).
 
 Usage
 -----
@@ -114,26 +123,41 @@ def _parse_numeric(x):
         return float(mantissa) * (10.0 ** int(exponent))
     return np.nan
 
-MATCHING_CONFIGS: dict[str, dict] = {
-    "pond": {
-        "strict": {
-            "document_id": "document_id",
-            "attribute": "attribute",
-            "point_value": "point_value",
-            "units": "units",
-        },
-        "fuzzy": {
-            "name": "name",
-            "ecosystem": "ecosystem",
-        },
-        # Selected/default operating threshold for this dataset -- applied
-        # on top of the 0.0-threshold cache via edges_above_threshold, NOT
-        # passed to match_datasets when the cache itself is built (see
-        # module docstring).
-        "fuzzy_threshold": 1 / 3,
-        "numeric_coerce": ["point_value"],
-    },
-}
+def get_matching_config(dataset_config) -> dict:
+    """Read this dataset's matching rules off its own DatasetConfig, in the
+    ``{"strict": ..., "fuzzy": ..., "fuzzy_threshold": ..., "numeric_coerce": ...}``
+    shape the rest of this module (and analysis/recovery_validity.py) expects.
+
+    The single place that bridges DatasetConfig's ``strict_matching``/
+    ``fuzzy_matching``/``fuzzy_threshold``/``numeric_coerce`` fields (see
+    their docstrings in ``scholarlm.config.DatasetConfig``) into this
+    module's own dict shape -- callers should use this rather than reading
+    those fields off a DatasetConfig directly, so there is one place to
+    change if that shape ever does.
+
+    Raises:
+        KeyError: ``strict_matching`` or ``fuzzy_matching``/``fuzzy_threshold``
+            is unset on this dataset's config -- add them to
+            experiments/dataset-configs/{dataset}.py before using this
+            dataset through match_cache.py/recovery_validity.py.
+    """
+    missing = [
+        field for field in ("strict_matching", "fuzzy_matching", "fuzzy_threshold")
+        if getattr(dataset_config, field, None) is None
+    ]
+    if missing:
+        raise KeyError(
+            f"DatasetConfig for {dataset_config.name!r} has no {missing} set -- "
+            f"add them to experiments/dataset-configs/{dataset_config.name}.py "
+            f"before using match_cache.py/recovery_validity.py for this dataset "
+            f"(see DatasetConfig's docstring)."
+        )
+    return {
+        "strict": dataset_config.strict_matching,
+        "fuzzy": dataset_config.fuzzy_matching,
+        "fuzzy_threshold": dataset_config.fuzzy_threshold,
+        "numeric_coerce": dataset_config.numeric_coerce or [],
+    }
 
 
 def cached_match(
@@ -235,18 +259,13 @@ def build_match_cache(experiment_id: str) -> Path:
     if not final_path.exists():
         raise FileNotFoundError(f"{experiment_id}: no final.json at {final_path}")
 
-    if dataset not in MATCHING_CONFIGS:
-        raise KeyError(
-            f"{experiment_id}: no matching configuration for dataset {dataset!r} "
-            f"in MATCHING_CONFIGS. Configured datasets: {sorted(MATCHING_CONFIGS)}"
-        )
-    cfg = MATCHING_CONFIGS[dataset]
+    dataset_config = load_dataset_config(dataset)
+    cfg = get_matching_config(dataset_config)
 
     with open(final_path) as f:
         extraction_records = json.load(f)
     extraction_df = pd.DataFrame(extraction_records).reset_index(drop=True)
 
-    dataset_config = load_dataset_config(dataset)
     ground_truth_df = load_ground_truth(dataset_config).reset_index(drop=True)
 
     for gt_col in cfg.get("numeric_coerce", []):

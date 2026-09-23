@@ -163,6 +163,41 @@ class DatasetConfig:
             structurally via ``gliner_field_descriptions``, and ChatExtract's flat
             schema never included it, so this is currently only load-bearing for
             the two NuExtract baselines). ``None`` applies no filtering.
+        strict_matching: Optional column mapping (ground-truth column name ->
+            extraction column name) for exact-match comparison, passed to
+            ``scholarlm.utils.data.match_datasets`` by
+            ``analysis/match_cache.py`` and ``analysis/recovery_validity.py``
+            (via ``analysis.match_cache.get_matching_config``) — the single
+            centralized source of matching rules for that id-addressed
+            evaluation path. Not read by the legacy, pre-id-addressing
+            ``analysis/ablation.py``/``analysis/baselines.py`` (their own
+            ``get_matching_rules`` predates this field and scores a different
+            column shape — ``converted_value`` rather than ``point_value`` —
+            against an earlier extraction/judge era; the two are allowed to
+            diverge, see ``analysis/match_cache.py``'s module docstring).
+            Required (raises) if unset when a dataset is used through
+            ``match_cache.py``/``recovery_validity.py``.
+        fuzzy_matching: Optional column mapping (ground-truth -> extraction)
+            for fuzzy-score comparison, same consumer as ``strict_matching``.
+            Required (raises) if unset when a dataset is used through
+            ``match_cache.py``/``recovery_validity.py``; ``fuzzy_threshold``
+            must also be set whenever this is.
+        fuzzy_threshold: Optional selected/default operating threshold for
+            ``fuzzy_matching`` scores, same consumer as ``strict_matching``.
+            Applied on top of a match cache built at ``fuzzy_threshold=0.0``
+            (every cache is built at 0.0 regardless of this value — see
+            ``analysis/match_cache.py``'s module docstring) via
+            ``analysis.match_cache.edges_above_threshold``/
+            ``load_match_cache(..., fuzzy_threshold=...)``, never passed to
+            the cache-building call itself. Required (raises) if unset
+            whenever ``fuzzy_matching`` is.
+        numeric_coerce: Optional subset of ``strict_matching``'s keys
+            (ground-truth column names) that must be coerced to float on both
+            sides before strict matching — see
+            ``analysis/match_cache.py``'s ``_parse_numeric``/module docstring
+            for why (a strict-match column can be numeric in the ground truth
+            but a raw string in extraction output). ``None``/``[]`` applies no
+            coercion.
     """
 
     name: str
@@ -193,6 +228,10 @@ class DatasetConfig:
     gliner_entity_description: str | None = None
     gliner_field_descriptions: dict[str, str] | None = None
     baseline_filter_fields: list[str] | None = None
+    strict_matching: dict[str, str] | None = None
+    fuzzy_matching: dict[str, str] | None = None
+    fuzzy_threshold: float | None = None
+    numeric_coerce: list[str] | None = None
 
 
 @dataclass
