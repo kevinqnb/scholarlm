@@ -1,0 +1,38 @@
+id: 2026-09-23-pond-extraction-gemma27b-attrdetect-missingpapers-01
+project: scholarlm
+description: >
+  Diagnostic re-run of just the attribute-detection step (params.step=attributes)
+  for the 6 (of 7) papers that came back with zero rows in
+  2026-09-21-pond-extraction-gemma27b-full-01 despite having real ground-truth
+  data and non-trivial entity counts in that run's own entities.json --
+  attributes.json for that run had exactly 108 keys (115 papers minus these 7),
+  so attribute detection returned nothing for exactly this set. The 7th paper,
+  impact_of_macrophytes, is excluded here -- its cleaned OCR text is only 468
+  characters (vs 22k-48k for the other 6), a distinct upstream table-cleaning/
+  drop_references bug unrelated to attribute detection.
+  Validation errors are ruled out (0 hits for "Validation error in batched
+  attribute detection" in the original run's log). ContextLengthExceededError
+  is the only remaining candidate in the code, but unverifiable after the fact:
+  self.context_length_exceeded_docs is populated at every _detect_attributes
+  call site but never logged or passed to write_run_metadata anywhere in
+  run_extraction.py -- a real, separate observability gap, not fixed here.
+  This run's only job is to check reproducibility: does step=attributes come
+  back empty again for these same 6 papers (pointing at a deterministic
+  model/prompt issue) or does it now succeed (pointing at one-off flakiness,
+  e.g. a context-length boundary condition)? attributes step has no upstream
+  checkpoint dependency (entities.json is not required), so no checkpoint
+  copying is needed -- this loads raw text directly via ocr_dir+paper_subset.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  paper_subset:
+    - bacterial_processes
+    - characterizing_ponds
+    - patterns_in_the_species
+    - relationships_of_fish
+    - seed_bank
+    - the_ecology_of_littoral
+  step: attributes
+  walltime: "01:00:00"
