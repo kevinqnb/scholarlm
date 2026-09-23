@@ -1,0 +1,32 @@
+id: 2026-09-23-nfix-full-pipeline-vs-baselines-recovery-01
+project: scholarlm
+description: >
+  Recovery-only comparison of the main pipeline's latest full nfix runs
+  (gemma-3-27b, llama-3.1-8b) against the latest full baseline runs
+  (langextract, gliner, nuextract3). None of these have judge_combine
+  coverage yet, so compute_validity is false; none have a match_cache.pkl
+  yet either -- run `python analysis/match_cache.py --config
+  analysis/analysis-configs/2026-09-23-nfix-full-pipeline-vs-baselines-recovery-01.yaml`
+  first. Requires experiments/dataset-configs/nfix.py's DatasetConfig to have
+  strict_matching/fuzzy_matching/fuzzy_threshold set (not yet true as of this
+  writing -- get_matching_config raises until it is; nfix's ground truth has
+  no "ecosystem" column the way pond's fuzzy_matching does, so it needs its
+  own rule, not a copy of pond's).
+  2026-09-21-nfix-extraction-gptoss120b-full-01 (the only nfix gpt-oss-120b
+  full run) and both datasets' baseline_chatextract runs are excluded here:
+  their final.json has no point_value/units columns in the current
+  strict_matching shape (chatextract emits property/quantity instead; the
+  gpt-oss-120b run predates the qualifiers/point_value pipeline schema).
+seed: 342
+params:
+  experiment_ids:
+    - 2026-09-21-nfix-extraction-gemma27b-full-01
+    - 2026-09-21-nfix-extraction-llama8b-full-01
+    - 2026-09-22-nfix-langextract-gemma27b-full-01
+    - 2026-09-22-nfix-gliner-large-full-01
+    - 2026-09-22-nfix-nuextract3-full-01
+  recovery_validity:
+    n_resamples: 2000
+    alpha: 0.05
+    compute_validity: false
+    output: analysis/results/2026-09-23-nfix-full-pipeline-vs-baselines-recovery-01.csv

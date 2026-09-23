@@ -1,0 +1,32 @@
+id: 2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+project: scholarlm
+description: >
+  Recovery-only comparison of the main pipeline's latest full supermat runs
+  (gemma-3-27b, gpt-oss-120b, llama-3.1-8b) against the latest full baseline
+  runs (langextract, gliner, nuextract3). None of these have judge_combine
+  coverage yet, so compute_validity is false; none have a match_cache.pkl
+  yet either -- run `python analysis/match_cache.py --config
+  analysis/analysis-configs/2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01.yaml`
+  first. Requires experiments/dataset-configs/supermat.py's DatasetConfig to
+  have strict_matching/fuzzy_matching/fuzzy_threshold set (not yet true as of
+  this writing -- get_matching_config raises until it is). supermat's ground
+  truth has no point_value/lower/upper/qualifiers columns at all (only raw
+  value/units), so it can't reuse pond's point_value-based strict rule --
+  see the "supermat matching coverage gap" note on the units-in-value /
+  range-Tc issues this already runs into on the extraction side.
+  baseline_chatextract is excluded here for the same reason as pond/nfix:
+  its final.json has property/quantity fields, not point_value/units.
+seed: 342
+params:
+  experiment_ids:
+    - 2026-09-21-supermat-extraction-gemma27b-full-01
+    - 2026-09-21-supermat-extraction-gptoss120b-full-01
+    - 2026-09-21-supermat-extraction-llama8b-full-01
+    - 2026-09-22-supermat-langextract-gemma27b-full-01
+    - 2026-09-22-supermat-gliner-large-full-01
+    - 2026-09-22-supermat-nuextract3-full-01
+  recovery_validity:
+    n_resamples: 2000
+    alpha: 0.05
+    compute_validity: false
+    output: analysis/results/2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01.csv

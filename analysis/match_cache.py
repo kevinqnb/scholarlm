@@ -42,7 +42,12 @@ allowed to diverge (see DatasetConfig's ``strict_matching`` docstring).
 Usage
 -----
     python analysis/match_cache.py <experiment_id> [<experiment_id> ...]
+    python analysis/match_cache.py --config analysis/analysis-configs/<id>.yaml
     bash analysis/match_cache.sh
+
+``--config`` reads ``params.experiment_ids`` from an analysis-configs/<id>.yaml
+(see analysis/analysis_config.py) instead of taking ids positionally --
+mutually exclusive with passing ids directly.
 """
 from __future__ import annotations
 
@@ -62,6 +67,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.data import match_datasets
+from analysis.analysis_config import load_analysis_config
 from analysis.loaders import load_ground_truth
 from experiments.run_extraction import load_dataset_config
 import utils as paths
@@ -312,10 +318,24 @@ def build_match_cache(experiment_id: str) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("experiment_ids", nargs="+", help="Experiment ids to compute and cache matches for.")
+    parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to compute and cache matches for.")
+    parser.add_argument(
+        "--config", type=Path, default=None,
+        help="analysis-configs/<id>.yaml providing params.experiment_ids -- "
+             "mutually exclusive with passing experiment_ids directly.",
+    )
     args = parser.parse_args()
 
-    for experiment_id in args.experiment_ids:
+    if bool(args.config) == bool(args.experiment_ids):
+        parser.error("pass experiment_ids directly, or --config, not both/neither")
+
+    if args.config:
+        cfg = load_analysis_config(args.config)
+        experiment_ids = cfg["params"]["experiment_ids"]
+    else:
+        experiment_ids = args.experiment_ids
+
+    for experiment_id in experiment_ids:
         build_match_cache(experiment_id)
 
 

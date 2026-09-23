@@ -1,0 +1,24 @@
+id: 2026-09-23-pond-full-pipeline-vs-baselines-recovery-01
+project: scholarlm
+description: >
+  Recovery-only comparison of the main pipeline's latest full pond runs
+  (gemma-3-27b, gpt-oss-120b, llama-3.1-8b) against the latest full baseline
+  runs (langextract, gliner, nuextract3). None of these have judge_combine
+  coverage yet, so compute_validity is false. Only nuextract3 already has a
+  match_cache.pkl; run `python analysis/match_cache.py --config
+  analysis/analysis-configs/2026-09-23-pond-full-pipeline-vs-baselines-recovery-01.yaml`
+  first to build the rest (~15min/id, uncached).
+seed: 342
+params:
+  experiment_ids:
+    - 2026-09-21-pond-extraction-gemma27b-full-01
+    - 2026-09-21-pond-extraction-gptoss120b-full-01
+    - 2026-09-21-pond-extraction-llama8b-full-01
+    - 2026-09-22-pond-langextract-gemma27b-full-01
+    - 2026-09-22-pond-gliner-large-full-01
+    - 2026-09-22-pond-nuextract3-full-01
+  recovery_validity:
+    n_resamples: 2000
+    alpha: 0.05
+    compute_validity: false
+    output: analysis/results/2026-09-23-pond-full-pipeline-vs-baselines-recovery-01.csv

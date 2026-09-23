@@ -49,11 +49,25 @@ Usage
 -----
     python analysis/recovery_validity.py <id> [<id> ...] \\
         --n-resamples 2000 --seed 0 [--alpha 0.05] [--skip-validity] [--output PATH]
+    python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
 
 ``--n-resamples`` and ``--seed`` are required, not defaulted (CLAUDE.md: no
 inferred defaults for a value that changes the reported numbers) -- pass the
 repo's own ``experiments/config.yaml`` ``defaults.seed`` for ``--seed`` to
 keep it consistent with the rest of the repo's seeding.
+
+``--config`` reads ``params.experiment_ids`` and a ``params.recovery_validity``
+section (``n_resamples``/``alpha``/``compute_validity``/``output``, all
+required with no defaults, plus an optional ``judge_combine_ids`` id-to-id
+override map) from an analysis-configs/<id>.yaml -- see
+analysis/analysis_config.py. Mutually exclusive with ``experiment_ids`` and
+every flag above. A declared ``judge_combine_ids`` entry is still verified
+against its extraction id (see ``verify_judge_combine_id``) before use, the
+same way automatic resolution (``find_judge_combine_id``) verifies a
+candidate it finds by scanning -- it only skips the scan, never the check.
+Every output row also carries the analysis config's own ``id`` (``None`` in
+ad-hoc CLI mode) so a number can be traced back to the config that produced
+it.
 """
 from __future__ import annotations
 
@@ -71,6 +85,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis import match_cache
+from analysis.analysis_config import get_section, load_analysis_config
 from analysis.loaders import load_ground_truth
 from analysis.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
 from experiments.run_extraction import load_dataset_config
@@ -191,6 +206,102 @@ def _assert_matching_columns_present(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_judged_extraction_ids(judge_ids: list[str]) -> tuple[set[str], str | None]:
+    """The set of extraction_id(s) that judge_ids' own committed configs
+    (``params.extraction_id``) resolve to -- the per-candidate check shared
+    by find_judge_combine_id's scan and verify_judge_combine_id's single-
+    candidate check, factored out so the two never drift apart.
+
+    Returns:
+        (judged_extraction_ids, skip_reason). skip_reason is None on full
+        success; otherwise judged_extraction_ids is incomplete and the
+        caller decides whether that's a skip (scanning) or a hard error
+        (a config-declared id, which has no other candidate to fall back to).
+    """
+    judged_extraction_ids: set[str] = set()
+    for judge_id in judge_ids:
+        try:
+            judge_config_path = paths.find_experiment_config(judge_id)
+        except FileNotFoundError:
+            return judged_extraction_ids, f"judge_id {judge_id!r} has no committed experiment-config"
+        judge_extraction_id = paths.load_experiment_config(judge_config_path)["params"].get("extraction_id")
+        if judge_extraction_id is None:
+            return judged_extraction_ids, f"judge_id {judge_id!r} has no params.extraction_id (synthetic judge?)"
+        judged_extraction_ids.add(judge_extraction_id)
+    return judged_extraction_ids, None
+
+
+def _cross_check_judge_run_metadata(combine_id: str, judge_ids: list[str], extraction_id: str) -> None:
+    """Raise if a judge_id has actually run (has a run_metadata.json) and its
+    recorded extraction_id disagrees with its own committed config -- shared
+    tail check for find_judge_combine_id and verify_judge_combine_id.
+
+    Raises:
+        ValueError: a judge_id's run_metadata.json disagrees with its config.
+    """
+    for judge_id in judge_ids:
+        try:
+            judge_dir = paths.find_result_dir(judge_id)
+        except FileNotFoundError:
+            continue
+        run_meta = paths.load_run_metadata(judge_dir)
+        if run_meta is not None and run_meta.get("extraction_id") not in (None, extraction_id):
+            raise ValueError(
+                f"{combine_id}: judge_id {judge_id!r}'s committed config points at "
+                f"extraction_id={extraction_id!r}, but its own run_metadata.json "
+                f"recorded extraction_id={run_meta.get('extraction_id')!r} -- it was "
+                f"not run against the config it currently has"
+            )
+
+
+def verify_judge_combine_id(dataset: str, judge_combine_id: str, extraction_id: str) -> list[str]:
+    """Validate a config-DECLARED judge_combine_id against extraction_id, for
+    an analysis config's optional ``params.recovery_validity.judge_combine_ids``
+    override (see analysis/analysis_config.py) -- so a wrong declared id
+    still fails loud rather than being trusted blindly.
+
+    Runs the exact same per-candidate check find_judge_combine_id applies to
+    every candidate it finds by scanning, just against this one id instead of
+    all of experiment-configs/{dataset}/judge_combine/*/*.yaml -- it never
+    replaces or loosens that check, only skips the scan. This also means it
+    can disambiguate a case where more than one judge_combine run judges the
+    same extraction, which find_judge_combine_id itself would refuse
+    (ValueError: ambiguous).
+
+    Returns:
+        judge_ids -- same shape as find_judge_combine_id's second return value.
+
+    Raises:
+        FileNotFoundError: no committed config for judge_combine_id, or one
+            of its own judge_ids has no committed config.
+        ValueError: judge_combine_id isn't under
+            experiment-configs/{dataset}/judge_combine/, its judge_ids
+            disagree with each other or don't resolve to extraction_id, or a
+            judge_id's run_metadata.json disagrees with its committed config.
+    """
+    config_path = paths.find_experiment_config(judge_combine_id)
+    if config_path.parts[-4] != dataset or config_path.parts[-3] != "judge_combine":
+        raise ValueError(
+            f"judge_combine_id={judge_combine_id!r} resolves to {config_path}, "
+            f"not under experiment-configs/{dataset}/judge_combine/"
+        )
+    cfg = paths.load_experiment_config(config_path)
+    judge_ids = cfg["params"]["judge_ids"]
+
+    judged_extraction_ids, skip_reason = _resolve_judged_extraction_ids(judge_ids)
+    if skip_reason is not None:
+        raise FileNotFoundError(f"{config_path}: {skip_reason}")
+    if judged_extraction_ids != {extraction_id}:
+        raise ValueError(
+            f"{config_path}: its own judge_ids {judge_ids} resolve to "
+            f"extraction_id(s) {sorted(judged_extraction_ids)}, not the "
+            f"declared extraction_id={extraction_id!r}"
+        )
+
+    _cross_check_judge_run_metadata(judge_combine_id, judge_ids, extraction_id)
+    return judge_ids
+
+
 def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[str]]:
     """Find the judge_combine experiment whose judge_ids all judged extraction_id.
 
@@ -238,20 +349,7 @@ def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[s
         cfg = paths.load_experiment_config(config_path)
         judge_ids = cfg["params"]["judge_ids"]
 
-        judged_extraction_ids = set()
-        skip_reason = None
-        for judge_id in judge_ids:
-            try:
-                judge_config_path = paths.find_experiment_config(judge_id)
-            except FileNotFoundError:
-                skip_reason = f"judge_id {judge_id!r} has no committed experiment-config"
-                break
-            judge_extraction_id = paths.load_experiment_config(judge_config_path)["params"].get("extraction_id")
-            if judge_extraction_id is None:
-                skip_reason = f"judge_id {judge_id!r} has no params.extraction_id (synthetic judge?)"
-                break
-            judged_extraction_ids.add(judge_extraction_id)
-
+        judged_extraction_ids, skip_reason = _resolve_judged_extraction_ids(judge_ids)
         if skip_reason is not None:
             skipped.append((cfg["id"], skip_reason))
             continue
@@ -283,19 +381,7 @@ def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[s
         print(f"  find_judge_combine_id: skipped {len(skipped)} unrelated candidate(s): {skipped}")
 
     winning_id, winning_judge_ids = matches[0]
-    for judge_id in winning_judge_ids:
-        try:
-            judge_dir = paths.find_result_dir(judge_id)
-        except FileNotFoundError:
-            continue
-        run_meta = paths.load_run_metadata(judge_dir)
-        if run_meta is not None and run_meta.get("extraction_id") not in (None, extraction_id):
-            raise ValueError(
-                f"{winning_id}: judge_id {judge_id!r}'s committed config points at "
-                f"extraction_id={extraction_id!r}, but its own run_metadata.json "
-                f"recorded extraction_id={run_meta.get('extraction_id')!r} -- it was "
-                f"not run against the config it currently has"
-            )
+    _cross_check_judge_run_metadata(winning_id, winning_judge_ids, extraction_id)
     return winning_id, winning_judge_ids
 
 
@@ -536,6 +622,7 @@ def compute_metrics_for_id(
     seed: int,
     alpha: float = 0.05,
     compute_validity: bool = True,
+    judge_combine_id: str | None = None,
 ) -> dict:
     """Compute recovery (+ validity, unless ``compute_validity=False``) with
     paper-clustered bootstrap CIs for one experiment id.
@@ -545,6 +632,11 @@ def compute_metrics_for_id(
     resolution failure. The returned row's validity-related fields are then
     ``None``, not 0.0 or some other placeholder (CLAUDE.md: no silent
     fallback in place of a value that was never computed).
+
+    ``judge_combine_id``, if given, is used instead of scanning for one via
+    ``find_judge_combine_id`` -- verified against ``experiment_id`` first
+    (``verify_judge_combine_id``) so a wrong caller-supplied id still fails
+    loud. Default ``None`` preserves the original scan-only behavior exactly.
 
     Raises loud on any of: unsupported dataset, missing/stale/schema-mismatched
     match cache, an out-of-range cached edge, no (or an ambiguous)
@@ -612,7 +704,10 @@ def compute_metrics_for_id(
     if not compute_validity:
         return row
 
-    judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
+    if judge_combine_id is not None:
+        judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
+    else:
+        judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
     judged_labels = load_validity_labels(judge_combine_id, extraction_df)
     validity_labels = _verify_validity(
         ground_truth_df, extraction_df, cfg, threshold, cache_path, matched, judged_labels,
@@ -642,33 +737,114 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("experiment_ids", nargs="+", help="Extraction/ablation/baseline experiment ids to score.")
-    p.add_argument("--n-resamples", type=int, required=True, help="Number of paper-cluster bootstrap resamples.")
-    p.add_argument("--seed", type=int, required=True, help="Bootstrap RNG seed.")
-    p.add_argument("--alpha", type=float, default=0.05, help="CI significance level (default: 0.05, a 95%% interval).")
+    p.add_argument("experiment_ids", nargs="*", help="Extraction/ablation/baseline experiment ids to score.")
+    p.add_argument(
+        "--config", type=Path, default=None,
+        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+             "params.recovery_validity -- mutually exclusive with experiment_ids "
+             "and every flag below.",
+    )
+    p.add_argument(
+        "--n-resamples", type=int, default=None,
+        help="Number of paper-cluster bootstrap resamples. Required unless --config is given.",
+    )
+    p.add_argument(
+        "--seed", type=int, default=None,
+        help="Bootstrap RNG seed. Required unless --config is given.",
+    )
+    p.add_argument(
+        "--alpha", type=float, default=None,
+        help="CI significance level (default: 0.05, a 95%% interval; ignored with --config, "
+             "which requires it explicit in params.recovery_validity.alpha).",
+    )
     p.add_argument(
         "--skip-validity", action="store_true",
         help="Report recovery only -- skip judge_combine resolution and validity entirely "
-             "(for an id with no judge coverage yet).",
+             "(for an id with no judge coverage yet). Ignored with --config, which requires "
+             "params.recovery_validity.compute_validity explicit instead.",
     )
     p.add_argument(
-        "--output", type=Path, default=Path("results/recovery_validity.csv"),
+        "--output", type=Path, default=None,
         help="CSV path to write (default: results/recovery_validity.csv, matching "
-             "analysis/ablation.py's/baselines.py's own results/ output convention).",
+             "analysis/ablation.py's/baselines.py's own results/ output convention; "
+             "ignored with --config, which requires params.recovery_validity.output explicit).",
     )
     return p
 
 
 def main(argv: list[str] | None = None) -> None:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+
+    cli_flags_given = (
+        args.experiment_ids or args.n_resamples is not None or args.seed is not None
+        or args.alpha is not None or args.skip_validity or args.output is not None
+    )
+    if args.config and cli_flags_given:
+        parser.error("--config is mutually exclusive with experiment_ids and every other flag")
+    if not args.config and not (args.experiment_ids and args.n_resamples is not None and args.seed is not None):
+        parser.error("experiment_ids, --n-resamples and --seed are required unless --config is given")
+
+    judge_combine_overrides: dict[str, str] = {}
+    if args.config:
+        cfg = load_analysis_config(args.config)
+        experiment_ids = cfg["params"]["experiment_ids"]
+        section = get_section(
+            cfg, "recovery_validity",
+            required_keys=("n_resamples", "alpha", "compute_validity", "output"),
+            optional_keys=("judge_combine_ids",),
+        )
+        n_resamples = section["n_resamples"]
+        seed = cfg["seed"]
+        alpha = section["alpha"]
+        compute_validity = section["compute_validity"]
+        if not isinstance(compute_validity, bool):
+            raise ValueError(
+                f"{args.config}: params.recovery_validity.compute_validity must be a "
+                f"bool, got {compute_validity!r}"
+            )
+        output = Path(section["output"])
+        if not output.is_absolute():
+            output = _REPO_ROOT / output
+
+        judge_combine_overrides = section.get("judge_combine_ids", {})
+        if not isinstance(judge_combine_overrides, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in judge_combine_overrides.items()
+        ):
+            raise ValueError(
+                f"{args.config}: params.recovery_validity.judge_combine_ids must be a "
+                f"string-to-string mapping, got {judge_combine_overrides!r}"
+            )
+        if judge_combine_overrides and not compute_validity:
+            raise ValueError(
+                f"{args.config}: params.recovery_validity.judge_combine_ids is set but "
+                f"compute_validity is false -- it would never be used"
+            )
+        unknown_overrides = set(judge_combine_overrides) - set(experiment_ids)
+        if unknown_overrides:
+            raise ValueError(
+                f"{args.config}: params.recovery_validity.judge_combine_ids has key(s) "
+                f"not in params.experiment_ids: {sorted(unknown_overrides)}"
+            )
+        analysis_config_id = cfg["id"]
+    else:
+        experiment_ids = args.experiment_ids
+        n_resamples = args.n_resamples
+        seed = args.seed
+        alpha = args.alpha if args.alpha is not None else 0.05
+        compute_validity = not args.skip_validity
+        output = args.output if args.output is not None else Path("results/recovery_validity.csv")
+        analysis_config_id = None
 
     rows = []
-    for experiment_id in args.experiment_ids:
+    for experiment_id in experiment_ids:
         print(f"Processing {experiment_id} ...")
         row = compute_metrics_for_id(
-            experiment_id, n_resamples=args.n_resamples, seed=args.seed, alpha=args.alpha,
-            compute_validity=not args.skip_validity,
+            experiment_id, n_resamples=n_resamples, seed=seed, alpha=alpha,
+            compute_validity=compute_validity,
+            judge_combine_id=judge_combine_overrides.get(experiment_id),
         )
+        row["analysis_config_id"] = analysis_config_id
         rows.append(row)
         validity_str = (
             f"validity={row['validity']:.3f} [{row['validity_ci_lo']:.3f}, {row['validity_ci_hi']:.3f}] "
@@ -681,9 +857,9 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     df = pd.DataFrame(rows)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(args.output, index=False)
-    print(f"\nWrote {len(df)} row(s) to {args.output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output, index=False)
+    print(f"\nWrote {len(df)} row(s) to {output}")
 
 
 if __name__ == "__main__":

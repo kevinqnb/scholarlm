@@ -314,6 +314,93 @@ def test_find_judge_combine_id_run_metadata_agreement_passes(fixture_roots):
     assert found_judge_ids == [judge_id]
 
 
+# ---------------------------------------------------------------------------
+# verify_judge_combine_id -- the config-declared-id path (checks the exact
+# same per-candidate rule find_judge_combine_id applies while scanning,
+# against a single named candidate instead)
+# ---------------------------------------------------------------------------
+
+
+def test_verify_judge_combine_id_happy_path(fixture_roots):
+    exp_root, _ = fixture_roots
+    extraction_id = "2026-01-01-pond-model-extraction-01"
+    judge_id = "2026-01-02-pond-model-judgea-judge-local-01"
+    combine_id = "2026-01-03-pond-model-judge-combine-01"
+    _write_judge_config(exp_root, "pond", judge_id, extraction_id)
+    _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
+
+    assert rv.verify_judge_combine_id("pond", combine_id, extraction_id) == [judge_id]
+
+
+def test_verify_judge_combine_id_disambiguates_what_scanning_would_refuse(fixture_roots):
+    # Two judge_combine runs judge the same extraction -- find_judge_combine_id
+    # itself would raise "more than one" here; a declared id should let the
+    # caller pick one directly instead.
+    exp_root, _ = fixture_roots
+    extraction_id = "2026-01-01-pond-model-extraction-01"
+    for combine_id, jid in [
+        ("2026-01-03-pond-model-c1-01", "2026-01-02-pond-model-j1-01"),
+        ("2026-01-03-pond-model-c2-01", "2026-01-02-pond-model-j2-01"),
+    ]:
+        _write_judge_config(exp_root, "pond", jid, extraction_id)
+        _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [jid]})
+
+    with pytest.raises(ValueError, match="more than one"):
+        rv.find_judge_combine_id("pond", extraction_id)
+
+    assert rv.verify_judge_combine_id("pond", "2026-01-03-pond-model-c1-01", extraction_id) == [
+        "2026-01-02-pond-model-j1-01"
+    ]
+
+
+def test_verify_judge_combine_id_wrong_extraction_raises(fixture_roots):
+    exp_root, _ = fixture_roots
+    judge_id = "2026-01-02-pond-model-judgea-judge-local-01"
+    combine_id = "2026-01-03-pond-model-judge-combine-01"
+    _write_judge_config(exp_root, "pond", judge_id, "2026-01-01-pond-model-actual-01")
+    _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
+
+    with pytest.raises(ValueError, match="not the declared extraction_id"):
+        rv.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-wrong-01")
+
+
+def test_verify_judge_combine_id_wrong_dataset_raises(fixture_roots):
+    exp_root, _ = fixture_roots
+    extraction_id = "2026-01-01-pond-model-extraction-01"
+    judge_id = "2026-01-02-pond-model-judgea-judge-local-01"
+    combine_id = "2026-01-03-pond-model-judge-combine-01"
+    _write_judge_config(exp_root, "pond", judge_id, extraction_id)
+    _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
+
+    with pytest.raises(ValueError, match="not under experiment-configs/nfix/judge_combine"):
+        rv.verify_judge_combine_id("nfix", combine_id, extraction_id)
+
+
+def test_verify_judge_combine_id_unresolvable_judge_raises(fixture_roots):
+    exp_root, _ = fixture_roots
+    combine_id = "2026-01-03-pond-model-judge-combine-01"
+    _write_experiment_config(
+        exp_root, "pond", "judge_combine", combine_id,
+        {"judge_ids": ["2026-01-02-pond-model-nosuchconfig-judge-local-01"]},
+    )
+
+    with pytest.raises(FileNotFoundError):
+        rv.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-extraction-01")
+
+
+def test_verify_judge_combine_id_run_metadata_disagreement_raises(fixture_roots):
+    exp_root, results_root = fixture_roots
+    extraction_id = "2026-01-01-pond-model-extraction-01"
+    judge_id = "2026-01-02-pond-model-judgea-judge-local-01"
+    combine_id = "2026-01-03-pond-model-judge-combine-01"
+    _write_judge_config(exp_root, "pond", judge_id, extraction_id)
+    _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
+    _write_run_metadata(results_root, "pond", "judge_local", judge_id, {"extraction_id": "some-other-extraction"})
+
+    with pytest.raises(ValueError, match="not run against"):
+        rv.verify_judge_combine_id("pond", combine_id, extraction_id)
+
+
 def _final_json_row(mid, doc="d1", attr="ph"):
     return {"measurement_id": mid, "document_id": doc, "attribute": attr}
 
@@ -526,3 +613,173 @@ def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fi
     assert row["validity"] is None
     assert row["validity_ci_lo"] is None
     assert row["validity_ci_hi"] is None
+
+
+def test_compute_metrics_for_id_with_declared_judge_combine_id_skips_scan(e2e_fixture, monkeypatch):
+    extraction_id, combine_id, judge_ids = e2e_fixture
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("find_judge_combine_id must not be called when judge_combine_id is given")
+
+    monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
+
+    row = rv.compute_metrics_for_id(
+        extraction_id, n_resamples=200, seed=0, judge_combine_id=combine_id,
+    )
+    assert row["judge_combine_id"] == combine_id
+    assert row["judge_ids"] == ";".join(judge_ids)
+    assert row["validity"] == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# main(): --config vs. ad-hoc CLI, mutually exclusive
+# ---------------------------------------------------------------------------
+
+
+def test_main_rejects_neither_ids_nor_config(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["recovery_validity.py"])
+    with pytest.raises(SystemExit):
+        rv.main([])
+
+
+def test_main_rejects_config_plus_cli_flags(tmp_path):
+    with pytest.raises(SystemExit):
+        rv.main(["some-id", "--config", str(tmp_path / "x.yaml"), "--n-resamples", "10"])
+
+
+def test_main_rejects_ids_without_n_resamples_or_seed():
+    with pytest.raises(SystemExit):
+        rv.main(["some-id"])
+
+
+def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
+    calls = []
+
+    def _fake_compute(experiment_id, *, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+        return {
+            "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
+            "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
+            "judge_ids": None,
+        }
+
+    monkeypatch.setattr(rv, "compute_metrics_for_id", _fake_compute)
+    output = tmp_path / "out.csv"
+    rv.main(["id-a", "--n-resamples", "10", "--seed", "0", "--skip-validity", "--output", str(output)])
+
+    assert calls == [("id-a", 10, 0, 0.05, False, None)]
+    df = pd.read_csv(output)
+    assert pd.isna(df.loc[0, "analysis_config_id"])  # None round-tripped through CSV as NaN
+
+
+def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_path, monkeypatch):
+    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    with open(config_path, "w") as f:
+        yaml.safe_dump(
+            {
+                "id": "2026-09-23-test-rv-01",
+                "project": "scholarlm",
+                "description": "test",
+                "seed": 342,
+                "params": {
+                    "experiment_ids": ["id-a", "id-b"],
+                    "recovery_validity": {
+                        "n_resamples": 500,
+                        "alpha": 0.1,
+                        "compute_validity": True,
+                        "output": str(tmp_path / "out.csv"),
+                        "judge_combine_ids": {"id-a": "declared-combine-id"},
+                    },
+                },
+            },
+            f,
+        )
+
+    calls = []
+
+    def _fake_compute(experiment_id, *, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+        return {
+            "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
+            "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
+            "judge_ids": None,
+        }
+
+    monkeypatch.setattr(rv, "compute_metrics_for_id", _fake_compute)
+    rv.main(["--config", str(config_path)])
+
+    assert calls == [
+        ("id-a", 500, 342, 0.1, True, "declared-combine-id"),
+        ("id-b", 500, 342, 0.1, True, None),
+    ]
+    df = pd.read_csv(tmp_path / "out.csv")
+    assert (df["analysis_config_id"] == "2026-09-23-test-rv-01").all()
+
+
+def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
+    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    with open(config_path, "w") as f:
+        yaml.safe_dump(
+            {
+                "id": "2026-09-23-test-rv-01",
+                "project": "scholarlm",
+                "description": "test",
+                "seed": 342,
+                "params": {
+                    "experiment_ids": ["id-a"],
+                    "recovery_validity": {
+                        "n_resamples": 500,
+                        "alpha": 0.1,
+                        "compute_validity": True,
+                        "output": str(tmp_path / "out.csv"),
+                        "judge_combine_ids": {"id-not-in-experiment-ids": "declared-combine-id"},
+                    },
+                },
+            },
+            f,
+        )
+    with pytest.raises(ValueError, match="not in params.experiment_ids"):
+        rv.main(["--config", str(config_path)])
+
+
+def _rv_config(tmp_path, **rv_overrides):
+    section = {
+        "n_resamples": 500,
+        "alpha": 0.1,
+        "compute_validity": True,
+        "output": str(tmp_path / "out.csv"),
+    }
+    section.update(rv_overrides)
+    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    with open(config_path, "w") as f:
+        yaml.safe_dump(
+            {
+                "id": "2026-09-23-test-rv-01",
+                "project": "scholarlm",
+                "description": "test",
+                "seed": 342,
+                "params": {"experiment_ids": ["id-a"], "recovery_validity": section},
+            },
+            f,
+        )
+    return config_path
+
+
+def test_main_config_mode_non_bool_compute_validity_raises(tmp_path):
+    config_path = _rv_config(tmp_path, compute_validity="false")  # YAML string, not a bool
+    with pytest.raises(ValueError, match="compute_validity must be a bool"):
+        rv.main(["--config", str(config_path)])
+
+
+def test_main_config_mode_null_judge_combine_override_value_raises(tmp_path):
+    config_path = _rv_config(tmp_path, judge_combine_ids={"id-a": None})  # "id-a:" with nothing after it
+    with pytest.raises(ValueError, match="string-to-string mapping"):
+        rv.main(["--config", str(config_path)])
+
+
+def test_main_config_mode_judge_combine_override_with_compute_validity_false_raises(tmp_path):
+    config_path = _rv_config(
+        tmp_path, compute_validity=False, judge_combine_ids={"id-a": "declared-combine-id"}
+    )
+    with pytest.raises(ValueError, match="would never be used"):
+        rv.main(["--config", str(config_path)])
