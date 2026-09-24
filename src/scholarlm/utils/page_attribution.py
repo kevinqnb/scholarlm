@@ -59,7 +59,7 @@ NFIX_WEIGHTS: dict[str, float] = {
     "attribute":    2.0,
     "units":        1.5,
     "nfix_method":  1.5,
-    "site_type":    1.0,
+    "ecosystem_type": 1.0,
     "date":         1.0,
     "location":     1.0,
 }

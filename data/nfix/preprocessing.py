@@ -45,7 +45,7 @@ original reported values.
 
 Output columns
 --------------
-document_id, name, identifiers, location, site_type, date, nfix_method,
+document_id, name, identifiers, location, ecosystem_type, date, nfix_method,
 substrate_type, sample_depth, additional_details, attribute, value, units,
 page, page_score, page_confidence, plus QUALIFIER_FIELDS (qualifiers,
 point_value, lower, upper, list_values, tolerance, standard_deviation).
@@ -245,7 +245,7 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
     columns, assigns attribute='nfix_rate' with value=nfix_rate_original and
     units=nfix_unit_original, and writes two output files.
 
-    Output schema: document_id, name, identifiers, location, site_type, date,
+    Output schema: document_id, name, identifiers, location, ecosystem_type, date,
     nfix_method, substrate_type, sample_depth, additional_details, attribute,
     value, units, plus QUALIFIER_FIELDS (qualifiers, point_value, lower,
     upper, list_values, tolerance, standard_deviation).
@@ -280,7 +280,7 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "name":               df["site_name"],
         "identifiers":        None,
         "location":           df["_location"],
-        "site_type":          df["habitat"],
+        "ecosystem_type":     df["habitat"],
         "date":               df["_date"],
         "nfix_method":        df["nfix_method"],
         "substrate_type":     df["substrate"],
