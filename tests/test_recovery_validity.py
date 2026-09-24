@@ -31,6 +31,7 @@ sys.path.insert(0, str(_REPO / "src"))
 
 import utils as paths  # noqa: E402
 from scholarlm.config import DatasetConfig  # noqa: E402
+from analysis import match_cache  # noqa: E402
 from analysis import recovery_validity as rv  # noqa: E402
 
 
@@ -543,7 +544,6 @@ def e2e_fixture(tmp_path, monkeypatch):
         entity_identification_prompt="prompt",
         entity_type_description="a thing",
         attribute_info_dict={},
-        ground_truth_file=str(gt_path),
         strict_matching={"document_id": "document_id", "attribute": "attribute", "point_value": "point_value", "units": "units"},
         fuzzy_matching={"name": "name", "ecosystem": "ecosystem"},
         fuzzy_threshold=0.5,
@@ -558,6 +558,15 @@ def e2e_fixture(tmp_path, monkeypatch):
     edges = [(0, 0), (1, 1), (2, 2)]
     edge_weights = [1.0, 1.0, 0.2]
     _write_match_cache(cache_path, edges, edge_weights)
+    # match_cache.meta.json sidecar -- _assert_ground_truth_matches_cache
+    # requires this to confirm the cache was built against gt_path.
+    meta = {
+        "ground_truth_file": match_cache.repo_relative(gt_path),
+        "ground_truth_sha256": match_cache.sha256_file(gt_path),
+        "n_gt": len(gt_rows),
+    }
+    with open(cache_path.with_name("match_cache.meta.json"), "w") as f:
+        json.dump(meta, f)
     # Cache must be >= final.json/ground-truth mtime (freshness guard).
     import os
     import time
@@ -577,15 +586,16 @@ def e2e_fixture(tmp_path, monkeypatch):
     _write_judge_config(exp_root, dataset, judge_id, extraction_id)
     _write_experiment_config(exp_root, dataset, "judge_combine", combine_id, {"judge_ids": judge_ids})
 
-    return extraction_id, combine_id, judge_ids
+    return extraction_id, combine_id, judge_ids, gt_path
 
 
 def test_compute_metrics_for_id_with_validity(e2e_fixture):
-    extraction_id, combine_id, judge_ids = e2e_fixture
-    row = rv.compute_metrics_for_id(extraction_id, n_resamples=200, seed=0)
+    extraction_id, combine_id, judge_ids, gt_path = e2e_fixture
+    row = rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
 
     assert row["n_gt"] == 3
     assert row["n_ext"] == 3
+    assert row["ground_truth_file"] == match_cache.repo_relative(gt_path)
     # gt rows 0,1 recovered (weight 1.0 > 0.5); row 2 not (weight 0.2).
     assert row["recovery"] == pytest.approx(2 / 3)
     assert row["judge_combine_id"] == combine_id
@@ -597,15 +607,65 @@ def test_compute_metrics_for_id_with_validity(e2e_fixture):
     assert 0.0 <= row["recovery_ci_lo"] <= row["recovery"] <= row["recovery_ci_hi"] <= 1.0
 
 
+# ---------------------------------------------------------------------------
+# _assert_ground_truth_matches_cache -- a cache passing every OTHER guard
+# (fresh by mtime, n_gt in range) must still be refused if it wasn't built
+# against the ground_truth_path given now. Without this guard these three
+# scenarios would silently misalign the cached (gt_idx, ex_idx) edges.
+# ---------------------------------------------------------------------------
+
+
+def test_compute_metrics_for_id_different_ground_truth_file_raises(tmp_path, e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+
+    # Same shape as the fixture's ground truth (so n_gt still matches, and
+    # this file is freshly written so it's newer than nothing the freshness
+    # check would catch), but one value changed -- only the sidecar's sha256
+    # can tell this apart from the cache's real ground truth.
+    gt_b_rows = json.loads(gt_path.read_text())
+    gt_b_rows[0]["point_value"] = 8.0
+    gt_b_path = tmp_path / "gt_b.json"
+    with open(gt_b_path, "w") as f:
+        json.dump(gt_b_rows, f)
+
+    with pytest.raises(RuntimeError, match="different ground truth"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_b_path, n_resamples=200, seed=0)
+
+
+def test_compute_metrics_for_id_ground_truth_edited_in_place_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+
+    # Same path, contents changed after the cache was built -- the sha256
+    # check must catch this even though the path string is identical.
+    rows = json.loads(gt_path.read_text())
+    rows[0]["point_value"] = 8.0
+    gt_path.write_text(json.dumps(rows))
+
+    with pytest.raises(RuntimeError, match="sha256"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+
+
+def test_compute_metrics_for_id_missing_sidecar_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+
+    cache_path = match_cache.match_cache_path(extraction_id)
+    cache_path.with_name("match_cache.meta.json").unlink()
+
+    with pytest.raises(FileNotFoundError, match="match_cache.meta.json"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+
+
 def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fixture, monkeypatch):
-    extraction_id, combine_id, _judge_ids = e2e_fixture
+    extraction_id, combine_id, _judge_ids, gt_path = e2e_fixture
 
     def _boom(*args, **kwargs):
         raise AssertionError("find_judge_combine_id must not be called when compute_validity=False")
 
     monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
 
-    row = rv.compute_metrics_for_id(extraction_id, n_resamples=200, seed=0, compute_validity=False)
+    row = rv.compute_metrics_for_id(
+        extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, compute_validity=False,
+    )
 
     assert row["recovery"] == pytest.approx(2 / 3)
     assert row["judge_combine_id"] is None
@@ -616,7 +676,7 @@ def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fi
 
 
 def test_compute_metrics_for_id_with_declared_judge_combine_id_skips_scan(e2e_fixture, monkeypatch):
-    extraction_id, combine_id, judge_ids = e2e_fixture
+    extraction_id, combine_id, judge_ids, gt_path = e2e_fixture
 
     def _boom(*args, **kwargs):
         raise AssertionError("find_judge_combine_id must not be called when judge_combine_id is given")
@@ -624,7 +684,7 @@ def test_compute_metrics_for_id_with_declared_judge_combine_id_skips_scan(e2e_fi
     monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
 
     row = rv.compute_metrics_for_id(
-        extraction_id, n_resamples=200, seed=0, judge_combine_id=combine_id,
+        extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, judge_combine_id=combine_id,
     )
     assert row["judge_combine_id"] == combine_id
     assert row["judge_ids"] == ";".join(judge_ids)
@@ -649,14 +709,22 @@ def test_main_rejects_config_plus_cli_flags(tmp_path):
 
 def test_main_rejects_ids_without_n_resamples_or_seed():
     with pytest.raises(SystemExit):
-        rv.main(["some-id"])
+        rv.main(["some-id", "--ground-truth-file", "data/pond/ground_truth_review.json"])
+
+
+def test_main_rejects_ids_without_ground_truth_file():
+    with pytest.raises(SystemExit):
+        rv.main(["some-id", "--n-resamples", "10", "--seed", "0"])
 
 
 def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+
     calls = []
 
-    def _fake_compute(experiment_id, *, n_resamples, seed, alpha, compute_validity, judge_combine_id):
-        calls.append((experiment_id, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+    def _fake_compute(experiment_id, *, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id))
         return {
             "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
             "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
@@ -665,14 +733,20 @@ def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
 
     monkeypatch.setattr(rv, "compute_metrics_for_id", _fake_compute)
     output = tmp_path / "out.csv"
-    rv.main(["id-a", "--n-resamples", "10", "--seed", "0", "--skip-validity", "--output", str(output)])
+    rv.main([
+        "id-a", "--n-resamples", "10", "--seed", "0", "--ground-truth-file", str(gt_path),
+        "--skip-validity", "--output", str(output),
+    ])
 
-    assert calls == [("id-a", 10, 0, 0.05, False, None)]
+    assert calls == [("id-a", gt_path, 10, 0, 0.05, False, None)]
     df = pd.read_csv(output)
     assert pd.isna(df.loc[0, "analysis_config_id"])  # None round-tripped through CSV as NaN
 
 
 def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_path, monkeypatch):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+
     config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
     with open(config_path, "w") as f:
         yaml.safe_dump(
@@ -683,6 +757,7 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
                 "seed": 342,
                 "params": {
                     "experiment_ids": ["id-a", "id-b"],
+                    "ground_truth_file": str(gt_path),
                     "recovery_validity": {
                         "n_resamples": 500,
                         "alpha": 0.1,
@@ -697,8 +772,8 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
 
     calls = []
 
-    def _fake_compute(experiment_id, *, n_resamples, seed, alpha, compute_validity, judge_combine_id):
-        calls.append((experiment_id, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+    def _fake_compute(experiment_id, *, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id))
         return {
             "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
             "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
@@ -709,14 +784,17 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
     rv.main(["--config", str(config_path)])
 
     assert calls == [
-        ("id-a", 500, 342, 0.1, True, "declared-combine-id"),
-        ("id-b", 500, 342, 0.1, True, None),
+        ("id-a", gt_path, 500, 342, 0.1, True, "declared-combine-id"),
+        ("id-b", gt_path, 500, 342, 0.1, True, None),
     ]
     df = pd.read_csv(tmp_path / "out.csv")
     assert (df["analysis_config_id"] == "2026-09-23-test-rv-01").all()
 
 
 def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+
     config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
     with open(config_path, "w") as f:
         yaml.safe_dump(
@@ -727,6 +805,7 @@ def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
                 "seed": 342,
                 "params": {
                     "experiment_ids": ["id-a"],
+                    "ground_truth_file": str(gt_path),
                     "recovery_validity": {
                         "n_resamples": 500,
                         "alpha": 0.1,
@@ -750,6 +829,9 @@ def _rv_config(tmp_path, **rv_overrides):
         "output": str(tmp_path / "out.csv"),
     }
     section.update(rv_overrides)
+    gt_path = tmp_path / "ground_truth.json"
+    if not gt_path.exists():
+        gt_path.write_text("[]")
     config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
     with open(config_path, "w") as f:
         yaml.safe_dump(
@@ -758,7 +840,11 @@ def _rv_config(tmp_path, **rv_overrides):
                 "project": "scholarlm",
                 "description": "test",
                 "seed": 342,
-                "params": {"experiment_ids": ["id-a"], "recovery_validity": section},
+                "params": {
+                    "experiment_ids": ["id-a"],
+                    "ground_truth_file": str(gt_path),
+                    "recovery_validity": section,
+                },
             },
             f,
         )

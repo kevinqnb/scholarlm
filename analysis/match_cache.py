@@ -1,18 +1,30 @@
 """Compute and cache extraction <-> ground-truth matches, by experiment id.
 
-The only job of this script: given a list of experiment ids, load each run's
-final.json, its dataset's ground truth, and that dataset's matching rules
-(``strict_matching``/``fuzzy_matching``/``fuzzy_threshold``/``numeric_coerce``
-on its ``DatasetConfig``, in ``experiments/dataset-configs/{dataset}.py`` --
-see ``get_matching_config`` below and ``DatasetConfig``'s own docstring),
-run match_datasets, and write the result to match_cache.pkl inside that run's
-own results directory
-(experiments/results/{dataset}/{experiment-type}/<id>/match_cache.pkl).
-Always recomputes and overwrites -- this is the point where a fresh,
-authoritative cache gets built, not a read-through cache that might silently
-keep serving a match computed under an older matching configuration.
+The only job of this script: given a list of experiment ids and an explicit
+ground-truth file, load each run's final.json, that ground truth, and the
+run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
+``fuzzy_threshold``/``numeric_coerce`` on its ``DatasetConfig``, in
+``experiments/dataset-configs/{dataset}.py`` -- see ``get_matching_config``
+below and ``DatasetConfig``'s own docstring), run match_datasets, and write
+the result to match_cache.pkl inside that run's own results directory
+(experiments/results/{dataset}/{experiment-type}/<id>/match_cache.pkl), plus
+a match_cache.meta.json sidecar recording exactly which ground truth file it
+was built against (repo-relative path, sha256, row count) -- see
+``build_match_cache``. Always recomputes and overwrites -- this is the point
+where a fresh, authoritative cache gets built, not a read-through cache that
+might silently keep serving a match computed under an older matching
+configuration or a different ground truth file.
 analysis/metrics.py's recovery_rate/validity_rate (via analysis/loaders.py's
 cached_match) read the file this writes; they never write it themselves.
+
+The ground truth file is never inferred from the run's dataset's own
+DatasetConfig.ground_truth_file -- it is always given explicitly, either via
+an analysis config's ``params.ground_truth_file`` (see
+analysis/analysis_config.py) or, in ad-hoc CLI mode, ``--ground-truth-file``.
+This is deliberate: reading it implicitly off the DatasetConfig would let a
+cache (and everything scored against it) silently start using a different
+file if that config is later repointed (e.g. a revised ground-truth review
+pass), with no record of which file actually produced a given number.
 
 The cache is always built with fuzzy_threshold=0.0, regardless of the
 dataset's configured "selected" threshold -- this is the same convention
@@ -41,17 +53,20 @@ allowed to diverge (see DatasetConfig's ``strict_matching`` docstring).
 
 Usage
 -----
-    python analysis/match_cache.py <experiment_id> [<experiment_id> ...]
+    python analysis/match_cache.py <experiment_id> [<experiment_id> ...] \\
+        --ground-truth-file <path>
     python analysis/match_cache.py --config analysis/analysis-configs/<id>.yaml
     bash analysis/match_cache.sh
 
-``--config`` reads ``params.experiment_ids`` from an analysis-configs/<id>.yaml
-(see analysis/analysis_config.py) instead of taking ids positionally --
-mutually exclusive with passing ids directly.
+``--config`` reads ``params.experiment_ids`` and ``params.ground_truth_file``
+from an analysis-configs/<id>.yaml (see analysis/analysis_config.py) instead
+of taking them as flags -- mutually exclusive with passing ids/
+``--ground-truth-file`` directly.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pickle
 import re
@@ -67,8 +82,8 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.data import match_datasets
-from analysis.analysis_config import load_analysis_config
-from analysis.loaders import load_ground_truth
+from analysis.analysis_config import get_ground_truth_path, load_analysis_config
+from analysis.loaders import load_ground_truth_file
 from experiments.run_extraction import load_dataset_config
 import utils as paths
 
@@ -223,6 +238,36 @@ def match_cache_path(experiment_id: str) -> Path:
     return paths.find_result_dir(experiment_id) / "match_cache.pkl"
 
 
+def match_cache_meta_path(experiment_id: str) -> Path:
+    """The match_cache.meta.json sidecar path for an experiment id -- records
+    which ground truth file (repo-relative path, sha256, row count) the
+    match_cache.pkl at match_cache_path(experiment_id) was built against. See
+    build_match_cache / recovery_validity._assert_ground_truth_matches_cache.
+    """
+    return match_cache_path(experiment_id).with_name("match_cache.meta.json")
+
+
+def repo_relative(path: Path) -> str:
+    """path's string relative to the repo root, or its plain string if it
+    isn't under the repo root (e.g. a tmp_path in tests) -- used for the
+    match_cache.meta.json sidecar so it stays comparable across machines
+    with the repo checked out at different absolute paths.
+    """
+    try:
+        return str(path.relative_to(_REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def sha256_file(path: Path) -> str:
+    """Hex sha256 digest of a file's contents, read in chunks."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def load_match_cache(
     experiment_id: str, fuzzy_threshold: float | None = None,
 ) -> tuple | list[tuple[int, int]]:
@@ -256,8 +301,26 @@ def load_match_cache(
     return edges_above_threshold(edges, edge_weights, fuzzy_threshold)
 
 
-def build_match_cache(experiment_id: str) -> Path:
-    """Compute and cache the match for one experiment id. Returns the cache path."""
+def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
+    """Compute and cache the match for one experiment id against an
+    explicitly given ground truth file. Returns the cache path.
+
+    ``ground_truth_path`` has no default (CLAUDE.md: no inferred default for
+    a value that changes the reported numbers) -- callers get it from an
+    analysis config's ``params.ground_truth_file``
+    (analysis.analysis_config.get_ground_truth_path) or, in ad-hoc CLI mode,
+    ``--ground-truth-file``. Matching *rules* (strict/fuzzy/threshold/
+    numeric_coerce) still come from the experiment's own dataset's
+    DatasetConfig -- only which ground truth *rows* to match against is
+    pinned explicitly now.
+
+    Raises:
+        FileNotFoundError: no final.json for this id.
+        ValueError: the ground truth and extraction frames share no
+            document_id at all -- almost certainly the wrong ground truth
+            file for this experiment's dataset, not a real zero-overlap
+            result.
+    """
     result_dir = paths.find_result_dir(experiment_id)
     dataset = result_dir.relative_to(paths.RESULTS_ROOT).parts[0]
 
@@ -272,7 +335,16 @@ def build_match_cache(experiment_id: str) -> Path:
         extraction_records = json.load(f)
     extraction_df = pd.DataFrame(extraction_records).reset_index(drop=True)
 
-    ground_truth_df = load_ground_truth(dataset_config).reset_index(drop=True)
+    ground_truth_df = load_ground_truth_file(ground_truth_path).reset_index(drop=True)
+
+    if "document_id" in ground_truth_df.columns and "document_id" in extraction_df.columns:
+        shared_documents = set(ground_truth_df["document_id"]) & set(extraction_df["document_id"])
+        if not shared_documents:
+            raise ValueError(
+                f"{experiment_id}: ground truth {ground_truth_path} and this run's "
+                f"final.json share zero document_id values -- almost certainly the "
+                f"wrong ground_truth_file for this experiment's dataset ({dataset!r})"
+            )
 
     for gt_col in cfg.get("numeric_coerce", []):
         ex_col = cfg["strict"][gt_col]
@@ -292,6 +364,12 @@ def build_match_cache(experiment_id: str) -> Path:
             df[col] = parsed
 
     cache_path = result_dir / "match_cache.pkl"  # == match_cache_path(experiment_id); result_dir already resolved above
+    # Delete any stale sidecar before writing a new pkl -- if this call is
+    # interrupted between the pkl write and the sidecar write below, a leftover
+    # sidecar from a PREVIOUS (different) ground truth file would otherwise
+    # sit next to the new pkl and make _assert_ground_truth_matches_cache
+    # wrongly pass on the next run.
+    match_cache_meta_path(experiment_id).unlink(missing_ok=True)
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
         extraction_df,
@@ -300,14 +378,22 @@ def build_match_cache(experiment_id: str) -> Path:
         cache_path=cache_path,
     )
 
+    meta = {
+        "ground_truth_file": repo_relative(ground_truth_path),
+        "ground_truth_sha256": sha256_file(ground_truth_path),
+        "n_gt": len(ground_truth_df),
+    }
+    with open(match_cache_meta_path(experiment_id), "w") as f:
+        json.dump(meta, f, indent=2)
+
     selected = edges_above_threshold(edges, edge_weights, cfg["fuzzy_threshold"])
     n_gt_recovered = len({gt_idx for gt_idx, _ in selected})
     n_ex_matched = len({ex_idx for _, ex_idx in selected})
 
     print(
-        f"{experiment_id}: {len(ground_truth_df)} ground-truth rows, "
-        f"{len(extraction_df)} extraction rows, {len(edges)} candidate edges "
-        f"cached at threshold=0.0 -> {cache_path}\n"
+        f"{experiment_id}: ground truth {meta['ground_truth_file']} "
+        f"({len(ground_truth_df)} rows), {len(extraction_df)} extraction rows, "
+        f"{len(edges)} candidate edges cached at threshold=0.0 -> {cache_path}\n"
         f"{experiment_id}: at this dataset's selected threshold="
         f"{cfg['fuzzy_threshold']:.4f}: {len(selected)} edges, "
         f"{n_gt_recovered}/{len(ground_truth_df)} ground-truth rows recovered, "
@@ -321,22 +407,42 @@ def main() -> None:
     parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to compute and cache matches for.")
     parser.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids -- "
-             "mutually exclusive with passing experiment_ids directly.",
+        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+             "params.ground_truth_file -- mutually exclusive with passing "
+             "experiment_ids/--ground-truth-file directly.",
+    )
+    parser.add_argument(
+        "--ground-truth-file", type=Path, default=None,
+        help="Ground-truth CSV/JSON to match experiment_ids against. Required "
+             "when passing experiment_ids directly; ignored (read from "
+             "params.ground_truth_file instead) with --config.",
     )
     args = parser.parse_args()
 
     if bool(args.config) == bool(args.experiment_ids):
         parser.error("pass experiment_ids directly, or --config, not both/neither")
+    if args.config and args.ground_truth_file is not None:
+        parser.error(
+            "--ground-truth-file is ignored with --config -- set "
+            "params.ground_truth_file in the analysis config instead"
+        )
+    if args.experiment_ids and args.ground_truth_file is None:
+        parser.error("--ground-truth-file is required when passing experiment_ids directly")
 
     if args.config:
         cfg = load_analysis_config(args.config)
         experiment_ids = cfg["params"]["experiment_ids"]
+        ground_truth_path = get_ground_truth_path(cfg)
     else:
         experiment_ids = args.experiment_ids
+        ground_truth_path = args.ground_truth_file
+        if not ground_truth_path.is_absolute():
+            ground_truth_path = _REPO_ROOT / ground_truth_path
+        if not ground_truth_path.exists():
+            parser.error(f"--ground-truth-file {ground_truth_path} does not exist")
 
     for experiment_id in experiment_ids:
-        build_match_cache(experiment_id)
+        build_match_cache(experiment_id, ground_truth_path)
 
 
 if __name__ == "__main__":

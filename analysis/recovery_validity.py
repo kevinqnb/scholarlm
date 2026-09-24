@@ -6,20 +6,26 @@ This is the centralized replacement for the recovery/validity halves of
 ``analysis/ablation.py`` and ``analysis/baselines.py`` -- same underlying
 ``analysis.metrics.recovery_rate``/``validity_rate`` semantics, but:
 
-  - reads matching rules (``strict_matching``/``fuzzy_matching``/
+  - reads matching *rules* (``strict_matching``/``fuzzy_matching``/
     ``fuzzy_threshold``/``numeric_coerce``) off each dataset's own
     ``DatasetConfig`` in ``experiments/dataset-configs/{dataset}.py`` -- the
     same source ``analysis/match_cache.py`` reads via
     ``get_matching_config`` -- rather than keeping a second copy of those
-    rules here;
+    rules here, but reads the ground truth *rows* themselves from an
+    explicit ``ground_truth_path`` (an analysis config's own
+    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
+    mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
+    -- see analysis/analysis_config.py's module docstring for why;
   - reads a match cache instead of computing one (never recomputes -- run
     ``python analysis/match_cache.py <id>`` first for any id that doesn't
     have one yet, and refuses a cache that predates its own final.json or
-    the dataset's ground truth file rather than silently matching against
-    row positions that have since shifted underneath it). Every cache is
-    built at ``fuzzy_threshold=0.0`` regardless of the dataset's configured
-    threshold (see ``analysis/match_cache.py``'s module docstring), so this
-    script always loads it back via
+    the ground truth file rather than silently matching against row
+    positions that have since shifted underneath it, or that was built
+    against a *different* ground truth file than the one given now, per its
+    match_cache.meta.json sidecar -- see ``_assert_ground_truth_matches_cache``).
+    Every cache is built at ``fuzzy_threshold=0.0`` regardless of the
+    dataset's configured threshold (see ``analysis/match_cache.py``'s module
+    docstring), so this script always loads it back via
     ``match_cache.load_match_cache(id, fuzzy_threshold=<the dataset's own
     threshold>)`` -- never the raw 0.0 cache -- so the edges it works with
     are already the ones that threshold selects, not a second manual filter
@@ -48,26 +54,31 @@ writing) -- the same restriction match_cache.py itself has.
 Usage
 -----
     python analysis/recovery_validity.py <id> [<id> ...] \\
-        --n-resamples 2000 --seed 0 [--alpha 0.05] [--skip-validity] [--output PATH]
+        --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
+        [--alpha 0.05] [--skip-validity] [--output PATH]
     python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
 
-``--n-resamples`` and ``--seed`` are required, not defaulted (CLAUDE.md: no
-inferred defaults for a value that changes the reported numbers) -- pass the
-repo's own ``experiments/config.yaml`` ``defaults.seed`` for ``--seed`` to
-keep it consistent with the rest of the repo's seeding.
+``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
+defaulted (CLAUDE.md: no inferred defaults for a value that changes the
+reported numbers) -- pass the repo's own ``experiments/config.yaml``
+``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
+repo's seeding. ``--ground-truth-file`` must be the exact file the
+corresponding ``match_cache.py`` run used (its match_cache.meta.json sidecar
+is checked against it -- see ``_assert_ground_truth_matches_cache``).
 
-``--config`` reads ``params.experiment_ids`` and a ``params.recovery_validity``
-section (``n_resamples``/``alpha``/``compute_validity``/``output``, all
-required with no defaults, plus an optional ``judge_combine_ids`` id-to-id
-override map) from an analysis-configs/<id>.yaml -- see
-analysis/analysis_config.py. Mutually exclusive with ``experiment_ids`` and
-every flag above. A declared ``judge_combine_ids`` entry is still verified
-against its extraction id (see ``verify_judge_combine_id``) before use, the
-same way automatic resolution (``find_judge_combine_id``) verifies a
-candidate it finds by scanning -- it only skips the scan, never the check.
-Every output row also carries the analysis config's own ``id`` (``None`` in
-ad-hoc CLI mode) so a number can be traced back to the config that produced
-it.
+``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
+and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
+``compute_validity``/``output``, all required with no defaults, plus an
+optional ``judge_combine_ids`` id-to-id override map) from an
+analysis-configs/<id>.yaml -- see analysis/analysis_config.py. Mutually
+exclusive with ``experiment_ids`` and every flag above. A declared
+``judge_combine_ids`` entry is still verified against its extraction id (see
+``verify_judge_combine_id``) before use, the same way automatic resolution
+(``find_judge_combine_id``) verifies a candidate it finds by scanning -- it
+only skips the scan, never the check. Every output row also carries the
+analysis config's own ``id`` (``None`` in ad-hoc CLI mode) and the
+repo-relative ``ground_truth_file`` it was scored against, so a number can be
+traced back to exactly what produced it.
 """
 from __future__ import annotations
 
@@ -85,8 +96,8 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis import match_cache
-from analysis.analysis_config import get_section, load_analysis_config
-from analysis.loaders import load_ground_truth
+from analysis.analysis_config import get_ground_truth_path, get_section, load_analysis_config
+from analysis.loaders import load_ground_truth_file
 from analysis.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
 from experiments.run_extraction import load_dataset_config
 import utils as paths
@@ -97,23 +108,16 @@ import utils as paths
 # ---------------------------------------------------------------------------
 
 
-def _ground_truth_path(dataset_config) -> Path:
-    """Resolve a DatasetConfig's ground_truth_file the same way
-    analysis.loaders.load_ground_truth does, without loading it -- needed
-    here only for its mtime.
-    """
-    path = Path(dataset_config.ground_truth_file)
-    if not path.is_absolute():
-        path = _REPO_ROOT / path
-    return path
-
-
-def load_frames(experiment_id: str):
+def load_frames(experiment_id: str, ground_truth_path: Path):
     """Load an experiment's ground truth + extraction frames exactly as
     ``match_cache.build_match_cache`` did when it built this id's cache
     (reset_index, no unit conversion, no row filtering) -- the cached
     (gt_idx, ex_idx) edges are positions into frames loaded this same way,
     so loading them any other way would silently misalign the cache.
+
+    ``ground_truth_path`` has no default -- see module docstring for why the
+    ground truth file is always given explicitly rather than read off the
+    dataset's own DatasetConfig.
 
     Returns:
         (dataset, dataset_config, ground_truth_df, extraction_df, final_path,
@@ -141,8 +145,7 @@ def load_frames(experiment_id: str):
         extraction_df = pd.DataFrame(json.load(f)).reset_index(drop=True)
 
     dataset_config = load_dataset_config(dataset)
-    ground_truth_path = _ground_truth_path(dataset_config)
-    ground_truth_df = load_ground_truth(dataset_config).reset_index(drop=True)
+    ground_truth_df = load_ground_truth_file(ground_truth_path).reset_index(drop=True)
 
     return dataset, dataset_config, ground_truth_df, extraction_df, final_path, ground_truth_path
 
@@ -162,6 +165,61 @@ def _assert_cache_fresh(cache_path: Path, *source_paths: Path) -> None:
             f"{cache_path} is older than {[str(p) for p in stale]} -- its cached "
             f"match indices may no longer line up with the current rows. Rerun "
             f"`python analysis/match_cache.py <experiment_id>` before using it."
+        )
+
+
+def _assert_ground_truth_matches_cache(
+    experiment_id: str, cache_path: Path, ground_truth_path: Path, ground_truth_df: pd.DataFrame,
+) -> None:
+    """Raise unless match_cache.py's own match_cache.meta.json sidecar
+    confirms cache_path was built against this exact ground_truth_path.
+
+    The mtime check in _assert_cache_fresh only catches a cache older than
+    its sources -- it says nothing about WHICH ground truth file a cache was
+    built against, now that the file is an explicit, selectable parameter
+    rather than always the one true value on the run's DatasetConfig. A cache
+    built against ground truth A and then scored here against ground truth B
+    would otherwise pass every existing guard (both older than the cache,
+    edges in-range for n_gt/n_ext) while silently misaligning every cached
+    (gt_idx, ex_idx) pair -- exactly the "runs cleanly, produces a wrong
+    number" failure mode this repo is built to avoid. Checked by content hash,
+    not just path string, so an edited-in-place ground truth file is also
+    caught.
+
+    Raises:
+        FileNotFoundError: no match_cache.meta.json sidecar (a cache built
+            before this check existed) -- rebuild it rather than trust it.
+        RuntimeError: the sidecar's ground_truth_file/sha256/n_gt disagree
+            with ground_truth_path/ground_truth_df.
+    """
+    meta_path = cache_path.with_name("match_cache.meta.json")
+    if not meta_path.exists():
+        raise FileNotFoundError(
+            f"{experiment_id}: no {meta_path} sidecar for this match cache -- it "
+            f"predates explicit ground-truth-file tracking and cannot be trusted "
+            f"to have been built against {ground_truth_path}. Rerun "
+            f"`python analysis/match_cache.py {experiment_id} "
+            f"--ground-truth-file {ground_truth_path}` (or --config) to rebuild it."
+        )
+    with open(meta_path) as f:
+        cache_meta = json.load(f)
+
+    actual = {
+        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
+        "ground_truth_sha256": match_cache.sha256_file(ground_truth_path),
+        "n_gt": len(ground_truth_df),
+    }
+    mismatches = [
+        f"{key}: cache={cache_meta.get(key)!r} vs current={actual[key]!r}"
+        for key in actual if cache_meta.get(key) != actual[key]
+    ]
+    if mismatches:
+        raise RuntimeError(
+            f"{experiment_id}: {cache_path} was built against a different ground "
+            f"truth than {ground_truth_path} ({'; '.join(mismatches)}). Rerun "
+            f"`python analysis/match_cache.py {experiment_id} "
+            f"--ground-truth-file {ground_truth_path}` (or --config) against the "
+            f"ground truth this analysis actually wants."
         )
 
 
@@ -618,6 +676,7 @@ def bootstrap_cluster_rate(
 def compute_metrics_for_id(
     experiment_id: str,
     *,
+    ground_truth_path: Path,
     n_resamples: int,
     seed: int,
     alpha: float = 0.05,
@@ -626,6 +685,11 @@ def compute_metrics_for_id(
 ) -> dict:
     """Compute recovery (+ validity, unless ``compute_validity=False``) with
     paper-clustered bootstrap CIs for one experiment id.
+
+    ``ground_truth_path`` has no default -- see module docstring: the ground
+    truth file is always given explicitly (an analysis config's
+    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
+    mode), never inferred from the experiment's dataset's own DatasetConfig.
 
     ``compute_validity=False`` skips judge_combine resolution entirely --
     for an id that has no judge coverage yet, not a way to suppress a real
@@ -639,12 +703,17 @@ def compute_metrics_for_id(
     loud. Default ``None`` preserves the original scan-only behavior exactly.
 
     Raises loud on any of: unsupported dataset, missing/stale/schema-mismatched
-    match cache, an out-of-range cached edge, no (or an ambiguous)
-    judge_combine match, a combined.json/final.json row-alignment problem, or
-    the recovered/matched masks disagreeing with analysis.metrics' own rates.
-    No fallback path for any of these -- see module docstring.
+    match cache, a match cache built against a different ground truth file
+    (missing or mismatched match_cache.meta.json sidecar -- see
+    ``_assert_ground_truth_matches_cache``), an out-of-range cached edge, no
+    (or an ambiguous) judge_combine match, a combined.json/final.json
+    row-alignment problem, or the recovered/matched masks disagreeing with
+    analysis.metrics' own rates. No fallback path for any of these -- see
+    module docstring.
     """
-    dataset, dataset_config, ground_truth_df, extraction_df, final_path, ground_truth_path = load_frames(experiment_id)
+    dataset, dataset_config, ground_truth_df, extraction_df, final_path, ground_truth_path = load_frames(
+        experiment_id, ground_truth_path,
+    )
 
     cfg = match_cache.get_matching_config(dataset_config)
     threshold = cfg["fuzzy_threshold"]
@@ -654,9 +723,11 @@ def compute_metrics_for_id(
     if not cache_path.exists():
         raise FileNotFoundError(
             f"{experiment_id}: no match_cache.pkl at {cache_path}. Run "
-            f"`python analysis/match_cache.py {experiment_id}` first."
+            f"`python analysis/match_cache.py {experiment_id} "
+            f"--ground-truth-file {ground_truth_path}` first."
         )
     _assert_cache_fresh(cache_path, final_path, ground_truth_path)
+    _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
 
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
     # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
@@ -685,6 +756,7 @@ def compute_metrics_for_id(
     row = {
         "experiment_id": experiment_id,
         "dataset": dataset,
+        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
         "n_gt": n_gt,
         "n_ext": n_ext,
         "fuzzy_threshold": threshold,
@@ -740,9 +812,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("experiment_ids", nargs="*", help="Extraction/ablation/baseline experiment ids to score.")
     p.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
-             "params.recovery_validity -- mutually exclusive with experiment_ids "
-             "and every flag below.",
+        help="analysis-configs/<id>.yaml providing params.experiment_ids, "
+             "params.ground_truth_file, and params.recovery_validity -- mutually "
+             "exclusive with experiment_ids and every flag below.",
+    )
+    p.add_argument(
+        "--ground-truth-file", type=Path, default=None,
+        help="Ground-truth CSV/JSON experiment_ids are scored against -- must match "
+             "the file the corresponding match_cache.py run used. Required unless "
+             "--config is given.",
     )
     p.add_argument(
         "--n-resamples", type=int, default=None,
@@ -779,16 +857,24 @@ def main(argv: list[str] | None = None) -> None:
     cli_flags_given = (
         args.experiment_ids or args.n_resamples is not None or args.seed is not None
         or args.alpha is not None or args.skip_validity or args.output is not None
+        or args.ground_truth_file is not None
     )
     if args.config and cli_flags_given:
         parser.error("--config is mutually exclusive with experiment_ids and every other flag")
-    if not args.config and not (args.experiment_ids and args.n_resamples is not None and args.seed is not None):
-        parser.error("experiment_ids, --n-resamples and --seed are required unless --config is given")
+    if not args.config and not (
+        args.experiment_ids and args.n_resamples is not None and args.seed is not None
+        and args.ground_truth_file is not None
+    ):
+        parser.error(
+            "experiment_ids, --n-resamples, --seed and --ground-truth-file are "
+            "required unless --config is given"
+        )
 
     judge_combine_overrides: dict[str, str] = {}
     if args.config:
         cfg = load_analysis_config(args.config)
         experiment_ids = cfg["params"]["experiment_ids"]
+        ground_truth_path = get_ground_truth_path(cfg)
         section = get_section(
             cfg, "recovery_validity",
             required_keys=("n_resamples", "alpha", "compute_validity", "output"),
@@ -829,6 +915,11 @@ def main(argv: list[str] | None = None) -> None:
         analysis_config_id = cfg["id"]
     else:
         experiment_ids = args.experiment_ids
+        ground_truth_path = args.ground_truth_file
+        if not ground_truth_path.is_absolute():
+            ground_truth_path = _REPO_ROOT / ground_truth_path
+        if not ground_truth_path.exists():
+            parser.error(f"--ground-truth-file {ground_truth_path} does not exist")
         n_resamples = args.n_resamples
         seed = args.seed
         alpha = args.alpha if args.alpha is not None else 0.05
@@ -840,7 +931,8 @@ def main(argv: list[str] | None = None) -> None:
     for experiment_id in experiment_ids:
         print(f"Processing {experiment_id} ...")
         row = compute_metrics_for_id(
-            experiment_id, n_resamples=n_resamples, seed=seed, alpha=alpha,
+            experiment_id, ground_truth_path=ground_truth_path,
+            n_resamples=n_resamples, seed=seed, alpha=alpha,
             compute_validity=compute_validity,
             judge_combine_id=judge_combine_overrides.get(experiment_id),
         )

@@ -4,8 +4,10 @@ description: >
   Recovery-only comparison of the main pipeline's latest full supermat runs
   (gemma-3-27b, gpt-oss-120b, llama-3.1-8b) against the latest full baseline
   runs (langextract, gliner, nuextract3). None of these have judge_combine
-  coverage yet, so compute_validity is false; none have a match_cache.pkl
-  yet either -- run `python analysis/match_cache.py --config
+  coverage yet, so compute_validity is false. As of 2026-09-24,
+  params.ground_truth_file is required and every match_cache.pkl already on
+  disk for these ids predates its match_cache.meta.json sidecar, so all of
+  them need rebuilding -- run `python analysis/match_cache.py --config
   analysis/analysis-configs/2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01.yaml`
   first. Requires experiments/dataset-configs/supermat.py's DatasetConfig to
   have strict_matching/fuzzy_matching/fuzzy_threshold set (not yet true as of
@@ -18,6 +20,7 @@ description: >
   its final.json has property/quantity fields, not point_value/units.
 seed: 342
 params:
+  ground_truth_file: data/supermat/ground_truth.json
   experiment_ids:
     - 2026-09-21-supermat-extraction-gemma27b-full-01
     - 2026-09-21-supermat-extraction-gptoss120b-full-01

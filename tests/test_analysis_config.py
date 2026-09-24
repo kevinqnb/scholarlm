@@ -24,13 +24,22 @@ def _write(tmp_path: Path, name: str, cfg: dict) -> Path:
     return path
 
 
-def _base_cfg(**overrides) -> dict:
+def _ground_truth_file(tmp_path: Path) -> Path:
+    path = tmp_path / "ground_truth.json"
+    path.write_text("[]")
+    return path
+
+
+def _base_cfg(tmp_path: Path, **overrides) -> dict:
     cfg = {
         "id": "2026-09-23-test-analysis-01",
         "project": "scholarlm",
         "description": "test",
         "seed": GOOD_SEED,
-        "params": {"experiment_ids": ["2026-01-01-pond-model-extraction-01"]},
+        "params": {
+            "experiment_ids": ["2026-01-01-pond-model-extraction-01"],
+            "ground_truth_file": str(_ground_truth_file(tmp_path)),
+        },
     }
     cfg.update(overrides)
     return cfg
@@ -42,7 +51,7 @@ def _base_cfg(**overrides) -> dict:
 
 
 def test_load_analysis_config_happy_path(tmp_path):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     path = _write(tmp_path, cfg["id"], cfg)
     loaded = ac.load_analysis_config(path)
     assert loaded["params"]["experiment_ids"] == ["2026-01-01-pond-model-extraction-01"]
@@ -50,7 +59,7 @@ def test_load_analysis_config_happy_path(tmp_path):
 
 @pytest.mark.parametrize("missing_key", ["id", "project", "description", "seed", "params"])
 def test_load_analysis_config_missing_envelope_key_raises(tmp_path, missing_key):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     del cfg[missing_key]
     path = _write(tmp_path, "2026-09-23-test-analysis-01", cfg)
     with pytest.raises(ValueError, match="missing required key"):
@@ -58,14 +67,14 @@ def test_load_analysis_config_missing_envelope_key_raises(tmp_path, missing_key)
 
 
 def test_load_analysis_config_id_filename_mismatch_raises(tmp_path):
-    cfg = _base_cfg(id="2026-09-23-different-id-01")
+    cfg = _base_cfg(tmp_path, id="2026-09-23-different-id-01")
     path = _write(tmp_path, "2026-09-23-test-analysis-01", cfg)
     with pytest.raises(ValueError, match="does not match filename stem"):
         ac.load_analysis_config(path)
 
 
 def test_load_analysis_config_params_not_a_mapping_raises(tmp_path):
-    cfg = _base_cfg(params=["not", "a", "mapping"])
+    cfg = _base_cfg(tmp_path, params=["not", "a", "mapping"])
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="params must be a mapping"):
         ac.load_analysis_config(path)
@@ -73,7 +82,7 @@ def test_load_analysis_config_params_not_a_mapping_raises(tmp_path):
 
 @pytest.mark.parametrize("bad_experiment_ids", [None, [], "a-string", [1, 2], {"a": "b"}])
 def test_load_analysis_config_bad_experiment_ids_raises(tmp_path, bad_experiment_ids):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     if bad_experiment_ids is None:
         del cfg["params"]["experiment_ids"]
     else:
@@ -83,19 +92,52 @@ def test_load_analysis_config_bad_experiment_ids_raises(tmp_path, bad_experiment
         ac.load_analysis_config(path)
 
 
+@pytest.mark.parametrize("bad_ground_truth_file", [None, "", 123, ["a"]])
+def test_load_analysis_config_bad_ground_truth_file_raises(tmp_path, bad_ground_truth_file):
+    cfg = _base_cfg(tmp_path)
+    if bad_ground_truth_file is None:
+        del cfg["params"]["ground_truth_file"]
+    else:
+        cfg["params"]["ground_truth_file"] = bad_ground_truth_file
+    path = _write(tmp_path, cfg["id"], cfg)
+    with pytest.raises(ValueError, match="ground_truth_file"):
+        ac.load_analysis_config(path)
+
+
+def test_load_analysis_config_nonexistent_ground_truth_file_raises(tmp_path):
+    cfg = _base_cfg(tmp_path)
+    cfg["params"]["ground_truth_file"] = str(tmp_path / "no_such_file.json")
+    path = _write(tmp_path, cfg["id"], cfg)
+    with pytest.raises(ValueError, match="does not exist"):
+        ac.load_analysis_config(path)
+
+
+def test_get_ground_truth_path_resolves_repo_relative_path():
+    cfg = {"params": {"ground_truth_file": "data/pond/ground_truth_review.json"}}
+    resolved = ac.get_ground_truth_path(cfg)
+    assert resolved.is_absolute()
+    assert resolved.parts[-3:] == ("data", "pond", "ground_truth_review.json")
+
+
+def test_get_ground_truth_path_keeps_absolute_path(tmp_path):
+    gt_path = _ground_truth_file(tmp_path)
+    cfg = {"params": {"ground_truth_file": str(gt_path)}}
+    assert ac.get_ground_truth_path(cfg) == gt_path
+
+
 def test_load_analysis_config_seed_need_not_match_defaults_seed(tmp_path):
     # Unlike an experiments/experiment-configs/ entry, this envelope's seed
     # is the bootstrap RNG seed (recovery_validity.py), not a model-generation
     # seed -- it's never checked against experiments/config.yaml's
     # defaults.seed (see load_analysis_config's own docstring).
-    cfg = _base_cfg(seed=GOOD_SEED + 1)
+    cfg = _base_cfg(tmp_path, seed=GOOD_SEED + 1)
     path = _write(tmp_path, cfg["id"], cfg)
     loaded = ac.load_analysis_config(path)
     assert loaded["seed"] == GOOD_SEED + 1
 
 
 def test_load_analysis_config_duplicate_experiment_ids_raises(tmp_path):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     cfg["params"]["experiment_ids"] = ["id-a", "id-b", "id-a"]
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="duplicate"):
@@ -103,7 +145,7 @@ def test_load_analysis_config_duplicate_experiment_ids_raises(tmp_path):
 
 
 def test_load_analysis_config_unknown_top_level_param_key_raises(tmp_path):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     cfg["params"]["fuzzy_threshold"] = 0.3  # e.g. a value meant for a section, dropped at top level
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="unexpected top-level key"):
@@ -111,7 +153,7 @@ def test_load_analysis_config_unknown_top_level_param_key_raises(tmp_path):
 
 
 def test_load_analysis_config_known_section_key_is_allowed(tmp_path):
-    cfg = _base_cfg()
+    cfg = _base_cfg(tmp_path)
     cfg["params"]["recovery_validity"] = {"n_resamples": 2000}
     path = _write(tmp_path, cfg["id"], cfg)
     loaded = ac.load_analysis_config(path)
