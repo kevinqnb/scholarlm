@@ -627,7 +627,7 @@ CONFIG = DatasetConfig(
     },
     fuzzy_matching={
         "name": "name",
-        "escosystem_type": "ecosystem_type",
+        "ecosystem_type": "ecosystem_type",
         "substrate_type": "substrate_type",
     },
     fuzzy_threshold=1 / 6,

@@ -517,12 +517,11 @@ CONFIG = DatasetConfig(
     strict_matching={
         "document_id": "document_id",
         "attribute": "attribute",
-        "point_value": "point_value",
         "units": "units",
     },
     fuzzy_matching={
         "name": "name",
+        "value": "value"
     },
-    fuzzy_threshold=1 / 2,
-    numeric_coerce=["point_value"],
+    fuzzy_threshold=0.625,
 )
