@@ -1,0 +1,17 @@
+id: 2026-09-23-pond-extraction-gemma27b-full-01
+project: scholarlm
+description: >
+  Running the experiment with a higher temperature setting (0.6) for the gemma-3-27b model on the pond dataset.
+  This configuration is intended to explore the effects of increased randomness in the model's output, potentially
+  leading to more diverse extraction results. The experiment will utilize the same OCR directory as previous runs, 
+  ensuring consistency in the input data. The walltime has been set to 27 hours to accommodate the expected runtime 
+  based on prior experiments with this model and dataset combination.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b-high-temp
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  resume: true
+  walltime: "27:00:00"

@@ -52,12 +52,16 @@ description: >
   (measeval-extraction-llama8b-full-01 hit the identical step-3c stall
   independently the same day). Walltime bumped to 72:00:00 to actually clear
   this step under the current (probably-pathological) per-call cost rather
-  than re-hit the same wall; resume=true skips the ~1h already checkpointed.
-  Monitor this run.
+  than re-hit the same wall. Monitor this run. UPDATE 2026-09-23: params.resume
+  removed -- resume=true
+  has no effect (and errors) when params.step is given; the runner's own check
+  at run_extraction.py:930-931 fails loud on this combination.
 seed: 342
 params:
   dataset: nfix
   model: llama-3.1-8b
   ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
-  resume: true
+  step: final
+  parse_quantities_context: value_only
+  standardize_context: value_only
   walltime: "72:00:00"

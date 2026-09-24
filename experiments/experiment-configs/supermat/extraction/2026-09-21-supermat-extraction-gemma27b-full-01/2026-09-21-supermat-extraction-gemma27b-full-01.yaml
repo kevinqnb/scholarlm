@@ -28,8 +28,7 @@ description: >
   fields), so its timing doesn't reflect the current per-record call pattern --
   headroom applied per this matrix's graduated multiplier policy (4x under a 3h
   base, 3x under 10h, 2x under 24h, 1.5x above that, floor 2h, ceiling to the
-  next whole hour) -> 12:00:00. resume=true so a walltime kill loses only the
-  steps not yet checkpointed, not the whole run. STAGED-GATES: A rung-1/2/3 pass
+  next whole hour) -> 12:00:00. STAGED-GATES: A rung-1/2/3 pass
   for this exact (dataset, model) pair already exists under the current
   qualifier-field schema (see the tinye2e/seeddet siblings in this directory) --
   this is that sequence's rung-4 step.
@@ -38,5 +37,7 @@ params:
   dataset: supermat
   model: gemma-3-27b
   ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
-  resume: true
+  step: final
+  parse_quantities_context: value_only
+  standardize_context: value_only
   walltime: "12:00:00"
