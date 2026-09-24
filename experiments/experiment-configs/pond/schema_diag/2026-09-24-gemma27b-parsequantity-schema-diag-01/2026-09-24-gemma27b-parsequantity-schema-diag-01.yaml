@@ -1,0 +1,46 @@
+id: 2026-09-24-gemma27b-parsequantity-schema-diag-01
+project: scholarlm
+description: >
+  Cross-model regression/replication check for the gpt-oss-120b
+  _parse_quantities() stall found in
+  2026-09-21-pond-extraction-gptoss120b-full-01 and root-caused in
+  2026-09-24-gptoss120b-parsequantity-schema-diag-01/-02 (a bare-number
+  value fed into a str-typed point_value/lower/upper/tolerance/
+  standard_deviation field stalls gpt-oss-120b's guided JSON decoding;
+  str | float | None fixes it, 100% success on numeric point_value vs 13%
+  under the current schema).
+
+  Before touching the shared ParseQuantityResponse schema (used by every
+  model, not just gpt-oss-120b), two questions: (1) does gemma-3-27b show
+  the same stall under the CURRENT schema at all -- a static check of its
+  own completed full runs (2026-09-21-pond-extraction-gemma27b-full-01,
+  full context, temp 0.2: 0.1% missing-qualifier-fields, 0.0% corrupt
+  point_value; 2026-09-23-pond-extraction-gemma27b-full-01, value_only,
+  temp 0.6: 0.2%/0.0%) already says no, so this is not expected to find a
+  bug to fix; (2) would switching to str | float | None change or regress
+  gemma-3-27b's already-clean behavior at all?
+
+  Runs the exact same 3 sections as
+  2026-09-24-gptoss120b-parsequantity-schema-diag-02 (point_value A/B/C,
+  lower/upper/tolerance/standard_deviation A/D, TextValueExtractionResponse
+  value-field A/C), same runner (experiments/run_schema_diag.py,
+  unmodified), same real-world value/context samples (source_experiment_id
+  still points at the gpt-oss-120b run, only params.model changes to
+  gemma-3-27b) -- so results are directly comparable value-for-value across
+  models, not just model-vs-itself. Manual/composite type, same reasoning
+  as the gpt-oss-120b diagnostics.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  source_experiment_id: 2026-09-21-pond-extraction-gptoss120b-full-01
+  n_numeric_values: 10
+  n_nonnumeric_values: 10
+  n_range_values: 10
+  n_pm_values: 10
+  n_repeats: 3
+  max_tokens: 1024
+  n_value_field_samples: 10
+  n_value_field_repeats: 3
+  value_field_max_tokens: 512
+  walltime: "02:00:00"

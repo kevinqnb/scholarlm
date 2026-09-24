@@ -11,19 +11,31 @@ isn't a permanent pipeline capability.
 Root-causes the gpt-oss-120b _parse_quantities() failure mode found in
 2026-09-21-pond-extraction-gptoss120b-full-01 (see that experiment-config's
 own description, and this script's own config's description for the full
-writeup): replays known-failing (value -> parse_quantities call) pairs
-pulled directly from that run's final.json against 3 ParseQuantityResponse
-schema variants that differ only in point_value's type, holding the
-instructions and every other field/sampling-param identical to the
-production _parse_quantities() call (src/scholarlm/measurementlm.py).
+writeup). Three independent sections, each enabled by the presence of its
+own params key (a config may run any subset):
 
-Writes results.json (one row per (value, variant, repeat) trial) and a
-run_metadata.json to experiments/results/{dataset}/schema_diag/<id>/.
+1. (params.n_numeric_values) point_value schema variants on known-failing
+   records -- the original 2026-09-24-...-diag-01 test.
+2. (params.n_range_values) lower/upper/tolerance/standard_deviation schema
+   variants on records that actually need them (range- and ±-shaped raw
+   values) -- does the same stall hit fields other than point_value?
+3. (params.n_value_field_samples) TextValueExtractionResponse's `value`
+   field (the step *before* standardize/parse_quantities) -- does typing it
+   str | float | None change anything, given it showed near-zero failures
+   in production?
+
+Every section holds instructions/sampling-params/max_tokens identical to the
+corresponding production call (src/scholarlm/measurementlm.py).
+
+Writes results.json (one row per (section, value, variant, repeat) trial,
+tagged by `section`) and a run_metadata.json to
+experiments/results/{dataset}/schema_diag/<id>/.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -34,11 +46,15 @@ from pydantic import BaseModel
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from scholarlm.instruction_prompts import PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS
+from scholarlm.instruction_prompts import (
+    PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS,
+    EXTRACT_TEXT_VALUE_INSTRUCTIONS,
+)
 from scholarlm.measurementlm import response_validator
 
 import utils as paths
 from utils import set_seeds, write_run_metadata
+from run_extraction import load_dataset_config
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +99,53 @@ class VariantC(BaseModel):
     standard_deviation: str | None = None
 
 
+class VariantD(BaseModel):
+    """(d) point_value/lower/upper/tolerance/standard_deviation all
+    str | float | None -- extends (c)'s fix to every scalar quantity field,
+    to test whether the stall also hits lower/upper/tolerance/
+    standard_deviation on records that actually need them (the original
+    2026-09-24-01 diagnostic only sampled plain-point-value records, so the
+    model never got far enough into the response to exercise these fields)."""
+    explanation: str
+    qualifiers: list[str]
+    point_value: str | float | None = None
+    lower: str | float | None = None
+    upper: str | float | None = None
+    list_values: list[str] | None = None
+    tolerance: str | float | None = None
+    standard_deviation: str | float | None = None
+
+
 VARIANTS = {"a_current": VariantA, "b_required_str": VariantB, "c_str_or_float": VariantC}
+MULTIFIELD_VARIANTS = {"a_current": VariantA, "d_all_float": VariantD}
+
+
+# ---------------------------------------------------------------------------
+# value-field variants -- TextValueExtractionResponse (src/scholarlm/
+# measurementlm.py), the step *before* standardize/parse_quantities. Same
+# question as above: does typing `value` as str | float | None change
+# anything, given this step showed only 18 validation errors total across
+# the whole 2026-09-21 gpt-oss-120b pond run (a different error signature
+# from the parse-quantity stall)?
+# ---------------------------------------------------------------------------
+
+class TextValueVariantA(BaseModel):
+    """Current production schema (TextValueExtractionResponse)."""
+    explanation: str
+    has_value: bool
+    value: str | None = None
+    units: str | None = None
+
+
+class TextValueVariantC(BaseModel):
+    """value: str | float | None -- accepts a bare number."""
+    explanation: str
+    has_value: bool
+    value: str | float | None = None
+    units: str | None = None
+
+
+TEXT_VALUE_VARIANTS = {"a_current": TextValueVariantA, "c_str_or_float": TextValueVariantC}
 
 
 def parses_as_float(v) -> bool:
@@ -133,6 +195,96 @@ def build_prompt(value) -> str:
         f"Parse this extracted value into its structured components. "
     )
     return f"## INSTRUCTIONS:\n{PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+
+
+_RANGE_RE = re.compile(r"\d\s*[-–]\s*\d")  # e.g. "3.1-4.5", "8–8.7"
+
+
+def load_range_and_pm_values(source_values_json: Path, n_range: int, n_pm: int) -> dict[str, list]:
+    """Pull real raw `value` strings from a prior run's values.json (the
+    pre-standardize/pre-parse checkpoint -- what _parse_quantities() actually
+    sees) that structurally look like they need lower/upper (a numeric
+    range, e.g. "3.1-4.5") or tolerance/standard_deviation (a "±" pattern,
+    e.g. "60 ± 5") when parsed -- i.e. records where the model has to write
+    a SECOND bare number into a schema-constrained field, not just
+    point_value. Deterministic (first N in file order), same rationale as
+    load_failing_values."""
+    with open(source_values_json) as f:
+        data = json.load(f)
+    range_vals = [
+        d["value"] for d in data
+        if isinstance(d.get("value"), str) and _RANGE_RE.search(d["value"]) and "±" not in d["value"]
+    ][:n_range]
+    pm_vals = [d["value"] for d in data if isinstance(d.get("value"), str) and "±" in d["value"]][:n_pm]
+    if len(range_vals) < n_range or len(pm_vals) < n_pm:
+        raise ValueError(
+            f"{source_values_json}: only found {len(range_vals)} range-like and "
+            f"{len(pm_vals)} ±-pattern records (wanted {n_range}/{n_pm})."
+        )
+    return {"range": range_vals, "plusminus": pm_vals}
+
+
+def load_text_value_samples(source_values_json: Path, n: int) -> list[dict]:
+    """Pull real text-sourced (source='text') numeric-valued records from a
+    prior run's values.json, with enough stored context (attribute, entity
+    fields, page context, event fields) to reconstruct the exact
+    _extract_values_from_text() prompt for the value-field variant test."""
+    with open(source_values_json) as f:
+        data = json.load(f)
+    samples = [
+        d for d in data
+        if d.get("source") == "text" and isinstance(d.get("value"), str)
+        and re.match(r"^-?\d+\.?\d*$", d["value"].strip())
+    ][:n]
+    if len(samples) < n:
+        raise ValueError(f"{source_values_json}: only found {len(samples)} text-sourced numeric records (wanted {n}).")
+    return samples
+
+
+def build_text_value_prompt(record: dict, dataset_config, collect_attribute_terms: bool) -> str:
+    """Exact prompt construction from MeasurementLM._extract_values_from_text()
+    (src/scholarlm/measurementlm.py), reconstructed from a stored values.json
+    record's own fields (context/attribute/entity fields/event fields are all
+    already present on it) plus the dataset config's attribute_info_dict."""
+    entity_fields = list(dataset_config.entity_schema.model_fields.keys())
+    entity_description = {k: v for k, v in record.items() if k in entity_fields}
+    attribute = record["attribute"]
+    attr_description = dataset_config.attribute_info_dict[attribute]["description"]
+    unit_options = dataset_config.attribute_info_dict[attribute].get("units", [])
+    terms = record.get("attribute_terms", [])
+    terms_line = f"Terminology used for the attribute: {terms}\n" if collect_attribute_terms else ""
+
+    event_field_names = (
+        list(dataset_config.measurement_event_schema.model_fields.keys())
+        if dataset_config.measurement_event_schema is not None else []
+    )
+    event = {f: record.get(f) for f in event_field_names}
+    event_context = (
+        f"Measurement event context: {event}\n"
+        if event and any(v is not None for v in event.values()) else ""
+    )
+
+    units_guidance = ""
+    if unit_options:
+        units_guidance = (
+            f"Preferred unit options: {unit_options}. "
+            f"Strongly prioritize choosing the best option from this list. "
+            f"If none of the options fit, specify the unit exactly as it appears in the text.\n"
+        )
+
+    query = (
+        f"Entity description: {entity_description}\n"
+        f"Attribute description: {attr_description}\n"
+        f"{terms_line}"
+        f"{event_context}"
+        f"{units_guidance}\n"
+        f"Does this page contain a measured value for the given entity, attribute, and event? "
+        f"If yes, extract the value and its units.\n\n"
+    )
+    return (
+        f"## INSTRUCTIONS:\n{EXTRACT_TEXT_VALUE_INSTRUCTIONS}\n\n"
+        f"## CONTEXT:\n{record['context']}\n\n## QUERY:\n{query}"
+    )
 
 
 def call_once(client: OpenAI, model_id: str, prompt: str, schema_cls: type[BaseModel],
@@ -193,9 +345,19 @@ def main(argv: list[str] | None = None) -> None:
     config_path = Path(args.config)
     cfg = paths.load_experiment_config(config_path)
     params = cfg["params"]
-    paths.require_params(params, "dataset", "model", "source_experiment_id",
-                          "n_numeric_values", "n_nonnumeric_values", "n_repeats",
-                          "max_tokens", config_path=config_path)
+    paths.require_params(params, "dataset", "model", "source_experiment_id", config_path=config_path)
+    if "n_numeric_values" in params:
+        paths.require_params(params, "n_nonnumeric_values", "n_repeats", "max_tokens", config_path=config_path)
+    if "n_range_values" in params:
+        paths.require_params(params, "n_pm_values", "n_repeats", "max_tokens", config_path=config_path)
+    if "n_value_field_samples" in params:
+        paths.require_params(params, "n_value_field_repeats", "value_field_max_tokens", config_path=config_path)
+    if not any(k in params for k in ("n_numeric_values", "n_range_values", "n_value_field_samples")):
+        raise ValueError(
+            f"{config_path}: no diagnostic section params found -- need at least one of "
+            "n_numeric_values (point_value section), n_range_values (multifield section), "
+            "n_value_field_samples (value_field section)."
+        )
 
     exp_defaults = paths.load_config().get("defaults", {})
     repo_seed = exp_defaults.get("seed")
@@ -211,52 +373,108 @@ def main(argv: list[str] | None = None) -> None:
     model_id = model_config["model_id"]
 
     source_final = paths.result_dir(params["dataset"], "extraction", params["source_experiment_id"]) / "final.json"
-    values = load_failing_values(source_final, params["n_numeric_values"], params["n_nonnumeric_values"])
-
-    print(f"Loaded {len(values['numeric'])} numeric-failing and {len(values['nonnumeric'])} "
-          f"non-numeric-failing values from {source_final}")
+    source_values = paths.result_dir(params["dataset"], "extraction", params["source_experiment_id"]) / "values.json"
 
     client = OpenAI(base_url=args.api_base, api_key=args.api_key)
-
     output_dir = paths.result_dir(params["dataset"], "schema_diag", cfg["id"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
     start_time = time.time()
-    total = len(values["numeric"] + values["nonnumeric"]) * len(VARIANTS) * params["n_repeats"]
-    done = 0
-    for value_type, value_list in values.items():
-        for value in value_list:
-            prompt = build_prompt(value)
-            for variant_name, schema_cls in VARIANTS.items():
-                for repeat in range(params["n_repeats"]):
+    metadata_extra = {}
+
+    # --- Section 1: point_value schema variants on known-failing records ---
+    # (the original 2026-09-24-...-diag-01 test; re-run whenever
+    # n_numeric_values/n_nonnumeric_values are present in this config too.)
+    if "n_numeric_values" in params:
+        values = load_failing_values(source_final, params["n_numeric_values"], params["n_nonnumeric_values"])
+        print(f"[point_value] Loaded {len(values['numeric'])} numeric-failing and "
+              f"{len(values['nonnumeric'])} non-numeric-failing values from {source_final}")
+        total = len(values["numeric"] + values["nonnumeric"]) * len(VARIANTS) * params["n_repeats"]
+        done = 0
+        for value_type, value_list in values.items():
+            for value in value_list:
+                prompt = build_prompt(value)
+                for variant_name, schema_cls in VARIANTS.items():
+                    for repeat in range(params["n_repeats"]):
+                        result = call_once(client, model_id, prompt, schema_cls,
+                                            params["max_tokens"], sampling_params)
+                        results.append({
+                            "section": "point_value", "value_type": value_type, "value": value,
+                            "variant": variant_name, "repeat": repeat, **result,
+                        })
+                        done += 1
+                        if done % 20 == 0:
+                            print(f"  [point_value] {done}/{total} calls done...")
+        metadata_extra["n_numeric_values"] = params["n_numeric_values"]
+        metadata_extra["n_nonnumeric_values"] = params["n_nonnumeric_values"]
+
+    # --- Section 2: lower/upper/tolerance/standard_deviation, on records that
+    # actually need them (range- and ±-shaped raw values), variant (a)
+    # current vs (d) all-scalar-fields-float. ---
+    if "n_range_values" in params:
+        mf_values = load_range_and_pm_values(source_values, params["n_range_values"], params["n_pm_values"])
+        print(f"[multifield] Loaded {len(mf_values['range'])} range-like and "
+              f"{len(mf_values['plusminus'])} ±-pattern values from {source_values}")
+        total = len(mf_values["range"] + mf_values["plusminus"]) * len(MULTIFIELD_VARIANTS) * params["n_repeats"]
+        done = 0
+        for value_type, value_list in mf_values.items():
+            for value in value_list:
+                prompt = build_prompt(value)
+                for variant_name, schema_cls in MULTIFIELD_VARIANTS.items():
+                    for repeat in range(params["n_repeats"]):
+                        result = call_once(client, model_id, prompt, schema_cls,
+                                            params["max_tokens"], sampling_params)
+                        results.append({
+                            "section": "multifield", "value_type": value_type, "value": value,
+                            "variant": variant_name, "repeat": repeat, **result,
+                        })
+                        done += 1
+                        if done % 20 == 0:
+                            print(f"  [multifield] {done}/{total} calls done...")
+        metadata_extra["n_range_values"] = params["n_range_values"]
+        metadata_extra["n_pm_values"] = params["n_pm_values"]
+
+    # --- Section 3: TextValueExtractionResponse's `value` field, current
+    # (str | None) vs str | float | None, on real text-sourced numeric
+    # records replayed with their full production context. ---
+    if "n_value_field_samples" in params:
+        dataset_config = load_dataset_config(params["dataset"])
+        tv_samples = load_text_value_samples(source_values, params["n_value_field_samples"])
+        print(f"[value_field] Loaded {len(tv_samples)} text-sourced numeric records from {source_values}")
+        total = len(tv_samples) * len(TEXT_VALUE_VARIANTS) * params["n_value_field_repeats"]
+        done = 0
+        for record in tv_samples:
+            prompt = build_text_value_prompt(record, dataset_config, dataset_config.collect_attribute_terms)
+            for variant_name, schema_cls in TEXT_VALUE_VARIANTS.items():
+                for repeat in range(params["n_value_field_repeats"]):
                     result = call_once(client, model_id, prompt, schema_cls,
-                                        params["max_tokens"], sampling_params)
+                                        params["value_field_max_tokens"], sampling_params)
                     results.append({
-                        "value_type": value_type,
-                        "value": value,
-                        "variant": variant_name,
-                        "repeat": repeat,
-                        **result,
+                        "section": "value_field", "value_type": "text_numeric", "value": record["value"],
+                        "variant": variant_name, "repeat": repeat, **result,
                     })
                     done += 1
                     if done % 20 == 0:
-                        print(f"  {done}/{total} calls done...")
+                        print(f"  [value_field] {done}/{total} calls done...")
+        metadata_extra["n_value_field_samples"] = params["n_value_field_samples"]
+        metadata_extra["n_value_field_repeats"] = params["n_value_field_repeats"]
+        metadata_extra["value_field_max_tokens"] = params["value_field_max_tokens"]
 
     with open(output_dir / "results.json", "w") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
-    # Summary table: success rate per (value_type, variant).
-    print("\n=== Summary: success rate per (value_type, variant) ===")
+    # Summary table: success rate per (section, value_type, variant).
+    print("\n=== Summary: success rate per (section, value_type, variant) ===")
     summary = {}
     for r in results:
-        key = (r["value_type"], r["variant"])
+        key = (r["section"], r["value_type"], r["variant"])
         summary.setdefault(key, [0, 0])
         summary[key][1] += 1
         if r["ok"]:
             summary[key][0] += 1
-    for (value_type, variant), (ok, n) in sorted(summary.items()):
-        print(f"  {value_type:12s} {variant:16s} {ok}/{n} ({100*ok/n:.0f}%)")
+    for (section, value_type, variant), (ok, n) in sorted(summary.items()):
+        print(f"  {section:11s} {value_type:12s} {variant:16s} {ok}/{n} ({100*ok/n:.0f}%)")
 
     write_run_metadata(
         output_dir,
@@ -265,12 +483,11 @@ def main(argv: list[str] | None = None) -> None:
         model=params["model"],
         model_id=model_id,
         source_experiment_id=params["source_experiment_id"],
-        n_numeric_values=params["n_numeric_values"],
-        n_nonnumeric_values=params["n_nonnumeric_values"],
-        n_repeats=params["n_repeats"],
-        max_tokens=params["max_tokens"],
-        total_calls=total,
+        n_repeats=params.get("n_repeats"),
+        max_tokens=params.get("max_tokens"),
+        total_calls=len(results),
         hostname="localhost",
+        **metadata_extra,
     )
     print(f"\nDone. Results: {output_dir / 'results.json'}")
 
