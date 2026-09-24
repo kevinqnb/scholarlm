@@ -441,7 +441,7 @@ class MeasurementLMChatExtract(MeasurementLM):
             "identifiers": None,
             "location": None,
             "ecosystem": None,   # pond fuzzy-match field (unpopulated by ChatExtract)
-            "site_type": None,   # nfix fuzzy-match field (unpopulated by ChatExtract)
+            "ecosystem_type": None,   # nfix fuzzy-match field (unpopulated by ChatExtract)
             "property": None,    # measeval fuzzy-match field (unpopulated by ChatExtract)
             # measeval entity field under its quantity-first design (column
             # parity only -- ChatExtract never enumerates quantities; see the
