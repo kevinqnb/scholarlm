@@ -248,6 +248,23 @@ _RANGE_RE = re.compile(r'(-?\d+\.?\d*)\s*[-–]\s*(-?\d+\.?\d*)')
 _QUALIFIER_RE = re.compile(r'up to|[<>~∼≈]', re.I)
 _NUMBER_RE = re.compile(r'-?\d+\.?\d*')
 
+# Strips only the unit token itself (K / mK / kelvin(s)), not any inequality,
+# range, or qualifier text around it. No left \b requirement -- "K" in "60K"
+# has no word-boundary on its left (digit and letter are both \w) -- only a
+# right \b, so we don't need a space or punctuation before the unit.
+_VALUE_UNIT_RE = re.compile(r'\s*(?:m?K\b|(?i:kelvins?)\b)')
+
+
+def _strip_value_units(s: str) -> str:
+    """Remove Kelvin-unit tokens from a raw tcValue string, e.g. "36 K" ->
+    "36", "up to 38 K" -> "up to 38", "16K to 26K" -> "16 to 26". Leaves
+    inequality symbols (<, >, ~, ∼, ≈, ...), range dashes, and qualifier
+    words (up to, from ... to, below, above, ...) untouched. The leading
+    \\s* in _VALUE_UNIT_RE already consumes the unit's own preceding space,
+    so no separate whitespace collapse is applied -- adding one would risk
+    touching whitespace unrelated to a unit, beyond what was asked for."""
+    return _VALUE_UNIT_RE.sub('', s).strip()
+
 
 def _parse_tcvalue(raw: object) -> tuple[float | None, str | None]:
     """Returns (value, units). value=None signals the row should be dropped.
@@ -281,6 +298,17 @@ def _raw_tcvalue(raw: object) -> tuple[str | None, str | None]:
     no longer dropped for being a range/approximation/bound/junk-word/
     unparseable. The only drop reason is a genuinely absent tcValue
     (NaN/empty after stripping) -- there is no text to carry over at all.
+
+    Unit tokens (K/mK/kelvin) are stripped from `value` later, in
+    build_ground_truth, *after* page attribution runs -- page attribution's
+    table pass float()-parses `value` and the unstripped text ("36 K")
+    reliably fails that parse the same way a genuinely non-numeric qualifier
+    ("up to 36 K") does, which is what keeps page attribution's behavior
+    unaffected by this stripping. Stripping here instead would make plain
+    values parse as floats and activate a code path that was never exercised
+    for this GT before, silently changing page_number/page_score/
+    page_confidence for hundreds of rows -- see the qualifiers-unit-strip
+    build note for the numbers.
 
     units is still derived the same mK/K way as _parse_tcvalue: `tc` is
     always a temperature for this dataset regardless of the value's shape,
@@ -354,14 +382,17 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
 
     build_qualifiers=True switches to the qualifiers ground truth instead:
     `value` becomes the raw, unparsed tcValue text (via `_raw_tcvalue`
-    instead of `_parse_tcvalue`) so rows are no longer dropped for being a
-    range/approximation/bound/unparseable -- only a genuinely absent tcValue
-    still drops a row. The 7 qualifier/shape fields (`QUALIFIER_FIELDS`) are
-    appended, all null (supermat's raw data carries no shape annotation at
-    all, unlike pond/nfix where `point_value` could at least copy the
-    reviewed `value`). Writes only `ground_truth_qualifiers.json` -- no ten-
-    paper subset for this path. `ground_truth.json`/`ground_truth_ten.json`
-    are untouched by this flag.
+    instead of `_parse_tcvalue`), with unit tokens (K/mK/kelvin) stripped out
+    at the end via `_strip_value_units` -- inequality/range symbols and
+    qualifier words (up to, from ... to, below, above, ...) are left as-is.
+    Rows are no longer dropped for being a range/approximation/bound/
+    unparseable -- only a genuinely absent tcValue still drops a row. The 7
+    qualifier/shape fields (`QUALIFIER_FIELDS`) are appended, all null
+    (supermat's raw data carries no shape annotation at all, unlike
+    pond/nfix where `point_value` could at least copy the reviewed `value`).
+    Writes only `ground_truth_qualifiers.json` -- no ten-paper subset for
+    this path. `ground_truth.json`/`ground_truth_ten.json` are untouched by
+    this flag.
     """
     df = pd.read_csv(raw_path, encoding_errors="ignore")
     df = df.drop(columns=["id"])
@@ -436,6 +467,11 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
               f"(run experiments/run_ocr.py --dataset supermat first)")
 
     if build_qualifiers:
+        # Strip unit tokens (K/mK/kelvin) from `value` only after page
+        # attribution has run against the raw text -- see _raw_tcvalue's
+        # docstring for why the order matters.
+        df_final["value"] = df_final["value"].apply(_strip_value_units)
+        assert (df_final["value"] != "").all(), "unit-stripping left an empty value"
         df_final.to_json(out_dir / "ground_truth_qualifiers.json", orient="records", indent=2)
         print(f"  Saved {len(df_final):,} rows -> ground_truth_qualifiers.json")
         return
