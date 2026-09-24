@@ -207,14 +207,17 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: Literal["measurement"] = "measurement"
     value: str | None
     units: str | None
-    # Qualifier/shape fields
+    # Qualifier/shape fields -- point_value/lower/upper/tolerance/
+    # standard_deviation are str | float | None, matching MeasurementLM's
+    # ParseQuantityResponse fix (see notes/scholarlm/experiments/
+    # 2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}.md).
     qualifiers: list[str]
-    point_value: str | None
-    lower: str | None
-    upper: str | None
+    point_value: str | float | None
+    lower: str | float | None
+    upper: str | float | None
     list_values: list[str] | None
-    tolerance: str | None
-    standard_deviation: str | None
+    tolerance: str | float | None
+    standard_deviation: str | float | None
 
 
 # `from __future__ import annotations` defers every annotation to a string, and

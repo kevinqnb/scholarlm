@@ -40,8 +40,9 @@ from .measurementlm import (
 # check_quantity_consistency() there for the qualifier/field cross-checks,
 # reused unchanged here. Unlike the pre-reconciliation type/quantifier/value
 # scheme this replaces, there's no packed format (e.g. "(lower, upper)") left
-# to validate structurally: every field is already its own string, so
-# inconsistency checking is purely the qualifier-vs-populated-field logging
+# to validate structurally: every field is already its own scalar (str or,
+# since the 2026-09-24 gpt-oss-120b stall fix, float), so inconsistency
+# checking is purely the qualifier-vs-populated-field logging
 # check_quantity_consistency() does -- non-fatal, per-project policy (see
 # MeasurementLM._parse_quantities()'s docstring): a mismatched parse is kept
 # and logged, never dropped or retried.
@@ -49,16 +50,21 @@ from .measurementlm import (
 
 
 class QuantityItem(BaseModel):
-    """A single extracted quantity, pre-standardization and pre-attribution."""
+    """A single extracted quantity, pre-standardization and pre-attribution.
+
+    point_value/lower/upper/tolerance/standard_deviation are str | float |
+    None, matching MeasurementLM's ParseQuantityResponse -- same gpt-oss-120b
+    guided-decoding stall, same fix (see notes/scholarlm/experiments/
+    2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}.md)."""
     value: str
     units: str | None = None
     qualifiers: list[str]
-    point_value: str | None = None
-    lower: str | None = None
-    upper: str | None = None
+    point_value: str | float | None = None
+    lower: str | float | None = None
+    upper: str | float | None = None
     list_values: list[str] | None = None
-    tolerance: str | None = None
-    standard_deviation: str | None = None
+    tolerance: str | float | None = None
+    standard_deviation: str | float | None = None
     table_number: int | None = None
 
 
@@ -108,7 +114,7 @@ def _norm_units(v: str | None) -> str | None:
     return None if v is None else str(v).strip().lower()
 
 
-def _norm_scalar(v: str | None):
+def _norm_scalar(v: str | float | None):
     if v is None:
         return None
     try:

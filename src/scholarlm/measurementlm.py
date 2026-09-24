@@ -121,15 +121,24 @@ class StandardizeResponse(BaseModel):
 class ParseQuantityResponse(BaseModel):
     """Response for parsing an extracted measurement value into its structured
     shape: qualifier tags plus whichever of point_value/lower/upper/list_values/
-    tolerance/standard_deviation the reported value actually has."""
+    tolerance/standard_deviation the reported value actually has.
+
+    point_value/lower/upper/tolerance/standard_deviation accept a bare float
+    in addition to str: a str-only schema forces vLLM's guided decoding to
+    open a quote even when the model wants to emit an unquoted number, which
+    causes gpt-oss-120b to stall mid-token and emit a malformed value on a
+    large fraction of records (see notes/scholarlm/experiments/
+    2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}.md). list_values
+    stays list[str]-only -- untested, and it's a list shape, not a bare
+    scalar."""
     explanation: str
     qualifiers: list[str]
-    point_value: str | None = None
-    lower: str | None = None
-    upper: str | None = None
+    point_value: str | float | None = None
+    lower: str | float | None = None
+    upper: str | float | None = None
     list_values: list[str] | None = None
-    tolerance: str | None = None
-    standard_deviation: str | None = None
+    tolerance: str | float | None = None
+    standard_deviation: str | float | None = None
 
 
 def check_quantity_consistency(parsed: dict) -> list[str]:

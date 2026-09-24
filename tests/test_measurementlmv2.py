@@ -15,6 +15,7 @@ standardize -> contextualize), that page numbers are aggregated across
 duplicate-quantity pages, and that a single deduplicated quantity can expand
 into multiple final records via the contextualization step.
 """
+import json
 import sys
 from pathlib import Path
 
@@ -23,8 +24,10 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from scholarlm.measurementlm import response_validator
 from scholarlm.measurementlmv2 import (
     MeasurementLMv2,
+    QuantityItem,
     _merge_field_schemas,
     _quantity_dedup_key,
     check_quantity_consistency,
@@ -77,6 +80,43 @@ def test_dedup_key_normalizes_range_bounds():
                        lower="3.0", upper="7.0")
     b = _raw_quantity(qualifiers=["IsRange"], value="3-7", point_value=None,
                        lower="3", upper="7")
+    assert _quantity_dedup_key(a) == _quantity_dedup_key(b)
+
+
+def test_quantity_item_schema_matches_parse_quantity_response_scalar_shape():
+    """QuantityItem's scalar quantity fields must be widened the same way as
+    MeasurementLM's ParseQuantityResponse (same gpt-oss-120b guided-decoding
+    stall, same fix -- see tests/test_measurementlm.py's own
+    test_parse_quantity_response_schema_matches_validated_variant_d_shape)."""
+    props = QuantityItem.model_json_schema()["properties"]
+    for field in ("point_value", "lower", "upper", "tolerance", "standard_deviation"):
+        any_of = props[field]["anyOf"]
+        assert [t.get("type") for t in any_of] == ["string", "number", "null"], (
+            f"{field}: expected str | float | None (in that order), got {any_of}"
+        )
+    assert props["list_values"]["anyOf"] == [{"type": "array", "items": {"type": "string"}}, {"type": "null"}]
+
+
+def test_quantity_item_validates_bare_numbers_for_scalar_fields():
+    payload = {
+        "value": "60 ± 5", "units": None, "qualifiers": ["HasTolerance"],
+        "point_value": 60.0, "lower": None, "upper": None, "list_values": None,
+        "tolerance": 5.0, "standard_deviation": None,
+    }
+    result = response_validator(QuantityItem, json.dumps(payload))
+    assert result["point_value"] == 60.0 and isinstance(result["point_value"], float)
+    assert result["tolerance"] == 5.0 and isinstance(result["tolerance"], float)
+
+
+def test_dedup_key_treats_str_and_float_scalars_as_equal():
+    """2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}'s fix widened
+    point_value/lower/upper/tolerance/standard_deviation to str | float |
+    None: a quantity collected as the bare float 3.2 (the new, previously-
+    stalling shape) must dedup-collapse with one collected as the string
+    "3.2" (the old shape) -- _norm_scalar's float(v) round-trips either
+    representation to the same normalized key."""
+    a = _raw_quantity(point_value="3.2")
+    b = _raw_quantity(point_value=3.2)
     assert _quantity_dedup_key(a) == _quantity_dedup_key(b)
 
 
