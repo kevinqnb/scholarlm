@@ -324,6 +324,252 @@ def _raw_tcvalue(raw: object) -> tuple[str | None, str | None]:
 
 
 # ---------------------------------------------------------------------------
+# Qualifier-field parsing (fills point_value/lower/upper/tolerance/etc. from
+# the raw tcValue text the qualifiers pipeline above keeps in `value`)
+# ---------------------------------------------------------------------------
+
+# OCR/typesetting variants seen in raw_data.csv's tcValue column, normalized
+# before pattern matching: unicode minus/dash marks standing in for '-';
+# unicode approx marks standing in for '~'; 'À' standing in for a dash
+# between two digits (a font-mapping corruption specific to this OCR'd
+# corpus -- e.g. "26À28" for "26-28"); and a colon directly between two
+# digits standing in for a decimal point (e.g. "46:5" for "46.5").
+_QUALIFIER_TEXT_TRANSLATION = str.maketrans({
+    "−": "-", "–": "-", "—": "-",
+    "∼": "~", "≃": "~", "≈": "~",
+})
+_OCR_DASH_BETWEEN_DIGITS_RE = re.compile(r'(?<=\d)À(?=\d)')
+_OCR_COLON_DECIMAL_RE = re.compile(r'(?<=\d):(?=\d)')
+
+
+def _normalize_qualifier_text(s: str) -> str:
+    s = s.translate(_QUALIFIER_TEXT_TRANSLATION)
+    s = _OCR_DASH_BETWEEN_DIGITS_RE.sub('-', s)
+    s = _OCR_COLON_DECIMAL_RE.sub('.', s)
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+# Ordered, mutually-exclusive-by-anchor patterns tried in `_parse_qualifiers`;
+# _NUM matches a bare (optionally signed) int/float token.
+_NUM = r'-?\d+\.?\d*'
+_LIST_SPLIT_RE = re.compile(r',\s*|\s+and\s+', re.I)
+_LIST_TOKEN_RE = re.compile(r'^' + _NUM + r'(?:\(\d+\))?$')
+_TOLERANCE_RE = re.compile(r'^(' + _NUM + r')\s*±\s*(' + _NUM + r')$')
+# Compact "value(uncertainty)" notation, e.g. "2.05(5)" == 2.05 ± 0.05,
+# "203(1)" == 203 ± 1 -- the parenthesized digits replace the value's own
+# last len(digits) digits (or, with no decimal point, are a plain integer
+# uncertainty on the ones place).
+_COMPACT_UNCERTAINTY_RE = re.compile(r'^(-?\d+(?:\.(\d+))?)\((\d+)\)$')
+_TILDE_RANGE_RE = re.compile(r'^(' + _NUM + r')\s*~\s*(' + _NUM + r')$')
+_DASH_RANGE_RE = re.compile(r'^(' + _NUM + r')\s*-\s*(' + _NUM + r')$')
+_APPROX_DASH_RANGE_RE = re.compile(r'^~\s*(' + _NUM + r')\s*-\s*(' + _NUM + r')$')
+_FROM_TO_RE = re.compile(r'^(?:from\s+)?(~)?\s*(' + _NUM + r')\s*to\s*(~)?\s*(' + _NUM + r')$', re.I)
+_UPPER_WORD_RE = re.compile(r'^(?:up to|below|less than|as high as)\s*(~)?\s*(' + _NUM + r')$', re.I)
+_LOWER_WORD_RE = re.compile(r'^(?:above|over|exceeds)\s*(' + _NUM + r')$', re.I)
+_APPROX_WORD_RE = re.compile(r'^(?:near|close to|around|about)\s+(' + _NUM + r')$', re.I)
+_LE_LEADING_RE = re.compile(r'^[<≤]\s*(' + _NUM + r')$')
+_GE_LEADING_RE = re.compile(r'^[>≥]\s*(' + _NUM + r')$')
+_LE_TRAILING_RE = re.compile(r'^(' + _NUM + r')\s*≤$')
+_TILDE_SINGLE_RE = re.compile(r'^~\s*(' + _NUM + r')$')
+# A lone trailing ')' or '-' with nothing after it and no matching '(' --
+# a pre-existing raw-data/unit-stripping artifact (see the 2026-09-24
+# qualifiers-unit-strip build note's "orphan punctuation" rows), not range
+# or bound syntax. Hand-verified against the OCR source text for all 4 rows
+# this matches in the current corpus ("18-K"/"54.6-K" -> stray trailing
+# dash; "6.3 K)"/"13 K)" -> stray trailing paren) that the number itself is
+# a plain point value.
+_ORPHAN_PUNCTUATION_RE = re.compile(r'^(' + _NUM + r')[)\-]$')
+
+
+def _ascending_range_fields(num1: str, num2: str, *, approximate: bool = False) -> dict | None:
+    """IsRange qualifier fields for two number tokens, only when reported in
+    ascending order (num1 <= num2) -- returns None otherwise.
+
+    Descending order is a real ambiguity in this corpus, not a formatting
+    quirk to normalize away by sorting: hand-checking every reversed
+    "A-B"/"A to B" pair against the OCR source text found some genuinely are
+    ranges written high-to-low ("...ranging from the maximum Tc≈35 K to 0
+    K"), but others are trend fragments describing two different
+    measurements, not a reported interval (e.g. "the Tc drops... from 12 K
+    to 9 K" after annealing; "the drop in Tc from 4.5 K to 2 K upon
+    decreasing the Na concentration"). Not reliably distinguishable from the
+    bare cell text alone -- so, per CLAUDE.md's fail-loud policy, this
+    function refuses to guess and leaves the row unparsed (returns None)
+    rather than silently picking one reading.
+    """
+    a, b = float(num1), float(num2)
+    if a > b:
+        return None
+    fields = {"qualifiers": ["IsRange"], "lower": num1, "upper": num2}
+    if approximate:
+        fields["qualifiers"].append("IsApproximate")
+    return fields
+
+
+def _parse_qualifiers_text(raw_value: str) -> dict:
+    """Parse one qualifiers-GT `value` string (already unit-stripped) into the
+    7 QUALIFIER_FIELDS, with point_value/lower/upper left as the raw number
+    strings matched (see `_parse_qualifiers`, which converts them to float).
+    Most rows are a plain float (point_value, no tags); the rest are
+    ranges/inequalities/approximations/tolerances/lists/compact
+    parenthetical-uncertainty notation, matched by the ordered patterns above
+    -- first match wins, and each pattern is `^...$`-anchored so there's no
+    cross-pattern ambiguity to arbitrate.
+
+    A row that matches nothing (a bare textual description like "temperature
+    of liquid helium", text too garbled to disambiguate, e.g. "9 0", "range
+    of 3", or a range/tolerance candidate `_ascending_range_fields` refused
+    to guess on) is left all-null, `qualifiers` included -- same as before
+    this function existed. Per the 2026-09-22 qualifier-ground-truth build
+    note's convention, `qualifiers: null` means "shape unannotated" and
+    `qualifiers: []` asserts "confirmed plain"; only a successful parse (of
+    either shape) gets to make that assertion, so the null-everything
+    fallback here leaves `qualifiers` at its None default rather than setting
+    `[]`. Per CLAUDE.md's fail-loud policy, this function never invents a
+    value it isn't confident the source text actually states.
+    """
+    out = {field: None for field in QUALIFIER_FIELDS}
+    s = _normalize_qualifier_text(raw_value)
+
+    try:
+        float(s)
+    except ValueError:
+        pass
+    else:
+        out["qualifiers"] = []
+        out["point_value"] = s
+        return out
+
+    m = _ORPHAN_PUNCTUATION_RE.match(s)
+    if m:
+        out["qualifiers"] = []
+        out["point_value"] = m.group(1)
+        return out
+
+    tokens = _LIST_SPLIT_RE.split(s)
+    if len(tokens) >= 2 and all(_LIST_TOKEN_RE.match(tok) for tok in tokens):
+        out["qualifiers"] = ["IsList"]
+        out["list_values"] = tokens
+        return out
+
+    m = _TOLERANCE_RE.match(s)
+    if m:
+        point, tol = m.group(1), m.group(2)
+        if abs(float(tol)) < abs(float(point)):
+            out["qualifiers"] = ["HasTolerance"]
+            out["point_value"] = point
+            out["tolerance"] = f"± {tol}"
+            return out
+        # A tolerance at least as large as its own point value is physically
+        # implausible for a (positive) Tc. Hand-verified against the OCR
+        # source text (see notes/scholarlm/builds/
+        # 2026-09-24-supermat-qualifiers-parsing-01.md) that every such case
+        # in this corpus is actually an OCR-corrupted range dash ("37 ± 38"
+        # for "37-38 K", "3:0 ± 4:2" for "3.0-4.2 K"), not a real tolerance
+        # -- reinterpret under the same ascending-order range policy as
+        # every other range.
+        fields = _ascending_range_fields(point, tol)
+        if fields:
+            out.update(fields)
+            return out
+
+    m = _COMPACT_UNCERTAINTY_RE.match(s)
+    if m:
+        value_text, frac, unc = m.group(1), m.group(2), m.group(3)
+        frac_digits = len(frac) if frac else 0
+        assert len(unc) <= frac_digits or frac_digits == 0, (
+            f"compact uncertainty {s!r} has more uncertainty digits than "
+            "decimal places -- parsing assumption doesn't hold, check by hand"
+        )
+        tolerance_digits = unc if frac_digits == 0 else "0." + unc.rjust(frac_digits, "0")
+        out["qualifiers"] = ["HasTolerance"]
+        out["point_value"] = value_text
+        out["tolerance"] = f"± {tolerance_digits}"
+        return out
+
+    m = _TILDE_RANGE_RE.match(s) or _DASH_RANGE_RE.match(s)
+    if m:
+        fields = _ascending_range_fields(m.group(1), m.group(2))
+        if fields:
+            out.update(fields)
+            return out
+
+    m = _APPROX_DASH_RANGE_RE.match(s)
+    if m:
+        fields = _ascending_range_fields(m.group(1), m.group(2), approximate=True)
+        if fields:
+            out.update(fields)
+            return out
+
+    m = _FROM_TO_RE.match(s)
+    if m:
+        approx1, num1, approx2, num2 = m.groups()
+        fields = _ascending_range_fields(num1, num2, approximate=bool(approx1 or approx2))
+        if fields:
+            out.update(fields)
+            return out
+
+    m = _UPPER_WORD_RE.match(s)
+    if m:
+        approx, num = m.groups()
+        out["qualifiers"] = ["IsRange", "IsApproximate"] if approx else ["IsRange"]
+        out["upper"] = num
+        return out
+
+    m = _LOWER_WORD_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsRange"]
+        out["lower"] = m.group(1)
+        return out
+
+    m = _APPROX_WORD_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsApproximate"]
+        out["point_value"] = m.group(1)
+        return out
+
+    m = _LE_LEADING_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsRange"]
+        out["upper"] = m.group(1)
+        return out
+
+    m = _GE_LEADING_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsRange"]
+        out["lower"] = m.group(1)
+        return out
+
+    m = _LE_TRAILING_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsRange"]
+        out["lower"] = m.group(1)
+        return out
+
+    m = _TILDE_SINGLE_RE.match(s)
+    if m:
+        out["qualifiers"] = ["IsApproximate"]
+        out["point_value"] = m.group(1)
+        return out
+
+    return out
+
+
+def _parse_qualifiers(raw_value: str) -> dict:
+    """`_parse_qualifiers_text`, with point_value/lower/upper converted to
+    float -- matching pond/nfix's `point_value` convention (copied from
+    their already-numeric `value`). tolerance/list_values stay strings,
+    matching `PARSE_QUANTITY_INSTRUCTIONS`/the supermat NuExtract few-shot
+    examples in `experiments/dataset-configs/supermat.py` ("± 2", not 2.0).
+    """
+    out = _parse_qualifiers_text(raw_value)
+    for field in ("point_value", "lower", "upper"):
+        if out[field] is not None:
+            out[field] = float(out[field])
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Page attribution
 # ---------------------------------------------------------------------------
 
@@ -387,12 +633,15 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
     qualifier words (up to, from ... to, below, above, ...) are left as-is.
     Rows are no longer dropped for being a range/approximation/bound/
     unparseable -- only a genuinely absent tcValue still drops a row. The 7
-    qualifier/shape fields (`QUALIFIER_FIELDS`) are appended, all null
-    (supermat's raw data carries no shape annotation at all, unlike
-    pond/nfix where `point_value` could at least copy the reviewed `value`).
-    Writes only `ground_truth_qualifiers.json` -- no ten-paper subset for
-    this path. `ground_truth.json`/`ground_truth_ten.json` are untouched by
-    this flag.
+    qualifier/shape fields (`QUALIFIER_FIELDS`) are then filled in by
+    `_parse_qualifiers` from that same raw text: a plain point value becomes
+    `point_value`, and ranges/inequalities/approximations/tolerances/
+    parenthetical-uncertainty notation/lists are parsed into the matching
+    fields and tagged in `qualifiers`. A row `_parse_qualifiers` can't
+    confidently parse (free text, or too garbled to disambiguate) is left
+    all-null, same as before this parsing step existed. Writes only
+    `ground_truth_qualifiers.json` -- no ten-paper subset for this path.
+    `ground_truth.json`/`ground_truth_ten.json` are untouched by this flag.
     """
     df = pd.read_csv(raw_path, encoding_errors="ignore")
     df = df.drop(columns=["id"])
@@ -454,6 +703,8 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
         "me_method", "additional_details", "attribute", "value", "units",
     ]
     if build_qualifiers:
+        # Real values are filled in below, after page attribution and unit-
+        # stripping -- these null placeholders only fix column order for now.
         for field in QUALIFIER_FIELDS:
             df[field] = None
         final_cols = final_cols + QUALIFIER_FIELDS
@@ -472,6 +723,17 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
         # docstring for why the order matters.
         df_final["value"] = df_final["value"].apply(_strip_value_units)
         assert (df_final["value"] != "").all(), "unit-stripping left an empty value"
+
+        # Parse the (now unit-stripped) raw text into the qualifier fields.
+        parsed = df_final["value"].apply(_parse_qualifiers)
+        for field in QUALIFIER_FIELDS:
+            df_final[field] = [p[field] for p in parsed]
+        n_plain = sum(1 for p in parsed if not p["qualifiers"] and p["point_value"] is not None)
+        n_tagged = sum(1 for p in parsed if p["qualifiers"])
+        n_unparsed = sum(1 for p in parsed if not p["qualifiers"] and p["point_value"] is None)
+        print(f"  Parsed qualifier fields: {n_plain:,} plain, {n_tagged:,} tagged "
+              f"(range/approximate/tolerance/list), {n_unparsed:,} left unparsed")
+
         df_final.to_json(out_dir / "ground_truth_qualifiers.json", orient="records", indent=2)
         print(f"  Saved {len(df_final):,} rows -> ground_truth_qualifiers.json")
         return
@@ -492,8 +754,9 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--qualifiers", action="store_true",
-        help="Build only ground_truth_qualifiers.json (raw, undropped tcValue text "
-             "plus null qualifier fields); leaves ground_truth.json/ground_truth_ten.json untouched.",
+        help="Build only ground_truth_qualifiers.json (raw, undropped tcValue text, "
+             "parsed into the qualifier/shape fields where confidently parseable); "
+             "leaves ground_truth.json/ground_truth_ten.json untouched.",
     )
     args = parser.parse_args(argv)
 
