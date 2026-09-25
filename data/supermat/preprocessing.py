@@ -44,6 +44,11 @@ from pathlib import Path
 import pandas as pd
 
 from scholarlm.utils.page_attribution import SUPERMAT_WEIGHTS, attribute_page, parse_ocr
+from scholarlm.utils.parsing import (
+    QUALIFIER_FIELDS,
+    normalize_dash_and_approx_marks,
+    parse_quantity_shape,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -328,117 +333,51 @@ def _raw_tcvalue(raw: object) -> tuple[str | None, str | None]:
 # the raw tcValue text the qualifiers pipeline above keeps in `value`)
 # ---------------------------------------------------------------------------
 
-# OCR/typesetting variants seen in raw_data.csv's tcValue column, normalized
-# before pattern matching: unicode minus/dash marks standing in for '-';
-# unicode approx marks standing in for '~'; 'À' standing in for a dash
-# between two digits (a font-mapping corruption specific to this OCR'd
-# corpus -- e.g. "26À28" for "26-28"); and a colon directly between two
-# digits standing in for a decimal point (e.g. "46:5" for "46.5").
-_QUALIFIER_TEXT_TRANSLATION = str.maketrans({
-    "−": "-", "–": "-", "—": "-",
-    "∼": "~", "≃": "~", "≈": "~",
-})
+# OCR/typesetting variants seen in raw_data.csv's tcValue column, on top of
+# the dash/approx-mark unification parse_quantity_shape already does: 'À'
+# standing in for a dash between two digits (a font-mapping corruption
+# specific to this OCR'd corpus -- e.g. "26À28" for "26-28"), and a colon
+# directly between two digits standing in for a decimal point (e.g. "46:5"
+# for "46.5"). Both are narrow enough (only ever between two digits) to be
+# safe here but are NOT part of the shared parser -- they're an artifact of
+# this specific OCR pass, not something real LLM output would produce.
 _OCR_DASH_BETWEEN_DIGITS_RE = re.compile(r'(?<=\d)À(?=\d)')
 _OCR_COLON_DECIMAL_RE = re.compile(r'(?<=\d):(?=\d)')
-
-
-def _normalize_qualifier_text(s: str) -> str:
-    s = s.translate(_QUALIFIER_TEXT_TRANSLATION)
-    s = _OCR_DASH_BETWEEN_DIGITS_RE.sub('-', s)
-    s = _OCR_COLON_DECIMAL_RE.sub('.', s)
-    return re.sub(r'\s+', ' ', s).strip()
-
-
-# Ordered, mutually-exclusive-by-anchor patterns tried in `_parse_qualifiers`;
-# _NUM matches a bare (optionally signed) int/float token.
-_NUM = r'-?\d+\.?\d*'
-_LIST_SPLIT_RE = re.compile(r',\s*|\s+and\s+', re.I)
-_LIST_TOKEN_RE = re.compile(r'^' + _NUM + r'(?:\(\d+\))?$')
-_TOLERANCE_RE = re.compile(r'^(' + _NUM + r')\s*±\s*(' + _NUM + r')$')
-# Compact "value(uncertainty)" notation, e.g. "2.05(5)" == 2.05 ± 0.05,
-# "203(1)" == 203 ± 1 -- the parenthesized digits replace the value's own
-# last len(digits) digits (or, with no decimal point, are a plain integer
-# uncertainty on the ones place).
-_COMPACT_UNCERTAINTY_RE = re.compile(r'^(-?\d+(?:\.(\d+))?)\((\d+)\)$')
-_TILDE_RANGE_RE = re.compile(r'^(' + _NUM + r')\s*~\s*(' + _NUM + r')$')
-_DASH_RANGE_RE = re.compile(r'^(' + _NUM + r')\s*-\s*(' + _NUM + r')$')
-_APPROX_DASH_RANGE_RE = re.compile(r'^~\s*(' + _NUM + r')\s*-\s*(' + _NUM + r')$')
-_FROM_TO_RE = re.compile(r'^(?:from\s+)?(~)?\s*(' + _NUM + r')\s*to\s*(~)?\s*(' + _NUM + r')$', re.I)
-_UPPER_WORD_RE = re.compile(r'^(?:up to|below|less than|as high as)\s*(~)?\s*(' + _NUM + r')$', re.I)
-_LOWER_WORD_RE = re.compile(r'^(?:above|over|exceeds)\s*(' + _NUM + r')$', re.I)
-_APPROX_WORD_RE = re.compile(r'^(?:near|close to|around|about)\s+(' + _NUM + r')$', re.I)
-_LE_LEADING_RE = re.compile(r'^[<≤]\s*(' + _NUM + r')$')
-_GE_LEADING_RE = re.compile(r'^[>≥]\s*(' + _NUM + r')$')
-_LE_TRAILING_RE = re.compile(r'^(' + _NUM + r')\s*≤$')
-_TILDE_SINGLE_RE = re.compile(r'^~\s*(' + _NUM + r')$')
 # A lone trailing ')' or '-' with nothing after it and no matching '(' --
 # a pre-existing raw-data/unit-stripping artifact (see the 2026-09-24
 # qualifiers-unit-strip build note's "orphan punctuation" rows), not range
 # or bound syntax. Hand-verified against the OCR source text for all 4 rows
 # this matches in the current corpus ("18-K"/"54.6-K" -> stray trailing
 # dash; "6.3 K)"/"13 K)" -> stray trailing paren) that the number itself is
-# a plain point value.
-_ORPHAN_PUNCTUATION_RE = re.compile(r'^(' + _NUM + r')[)\-]$')
+# a plain point value. Also corpus-specific -- not part of the shared parser.
+_ORPHAN_PUNCTUATION_RE = re.compile(r'^(-?\d+\.?\d*)[)\-]$')
 
 
-def _ascending_range_fields(num1: str, num2: str, *, approximate: bool = False) -> dict | None:
-    """IsRange qualifier fields for two number tokens, only when reported in
-    ascending order (num1 <= num2) -- returns None otherwise.
-
-    Descending order is a real ambiguity in this corpus, not a formatting
-    quirk to normalize away by sorting: hand-checking every reversed
-    "A-B"/"A to B" pair against the OCR source text found some genuinely are
-    ranges written high-to-low ("...ranging from the maximum Tc≈35 K to 0
-    K"), but others are trend fragments describing two different
-    measurements, not a reported interval (e.g. "the Tc drops... from 12 K
-    to 9 K" after annealing; "the drop in Tc from 4.5 K to 2 K upon
-    decreasing the Na concentration"). Not reliably distinguishable from the
-    bare cell text alone -- so, per CLAUDE.md's fail-loud policy, this
-    function refuses to guess and leaves the row unparsed (returns None)
-    rather than silently picking one reading.
-    """
-    a, b = float(num1), float(num2)
-    if a > b:
-        return None
-    fields = {"qualifiers": ["IsRange"], "lower": num1, "upper": num2}
-    if approximate:
-        fields["qualifiers"].append("IsApproximate")
-    return fields
+def _normalize_qualifier_text(s: str) -> str:
+    s = normalize_dash_and_approx_marks(s)
+    s = _OCR_DASH_BETWEEN_DIGITS_RE.sub('-', s)
+    s = _OCR_COLON_DECIMAL_RE.sub('.', s)
+    return re.sub(r'\s+', ' ', s).strip()
 
 
 def _parse_qualifiers_text(raw_value: str) -> dict:
     """Parse one qualifiers-GT `value` string (already unit-stripped) into the
     7 QUALIFIER_FIELDS, with point_value/lower/upper left as the raw number
     strings matched (see `_parse_qualifiers`, which converts them to float).
-    Most rows are a plain float (point_value, no tags); the rest are
-    ranges/inequalities/approximations/tolerances/lists/compact
-    parenthetical-uncertainty notation, matched by the ordered patterns above
-    -- first match wins, and each pattern is `^...$`-anchored so there's no
-    cross-pattern ambiguity to arbitrate.
 
-    A row that matches nothing (a bare textual description like "temperature
-    of liquid helium", text too garbled to disambiguate, e.g. "9 0", "range
-    of 3", or a range/tolerance candidate `_ascending_range_fields` refused
-    to guess on) is left all-null, `qualifiers` included -- same as before
-    this function existed. Per the 2026-09-22 qualifier-ground-truth build
-    note's convention, `qualifiers: null` means "shape unannotated" and
-    `qualifiers: []` asserts "confirmed plain"; only a successful parse (of
-    either shape) gets to make that assertion, so the null-everything
-    fallback here leaves `qualifiers` at its None default rather than setting
-    `[]`. Per CLAUDE.md's fail-loud policy, this function never invents a
-    value it isn't confident the source text actually states.
+    Applies this corpus's own OCR-artifact fixups (`_normalize_qualifier_text`)
+    and orphan-punctuation check first, then delegates everything else to
+    `scholarlm.utils.parsing.parse_quantity_shape` with
+    `reinterpret_implausible_tolerance=True` (an OCR-corrupted range dash,
+    e.g. "37 ± 38" for "37-38 K" -- hand-verified against the OCR source text,
+    see notes/scholarlm/builds/2026-09-24-supermat-qualifiers-parsing-01.md)
+    and `strict_compact_uncertainty=True` (a parenthesized-uncertainty digit
+    count exceeding the value's own decimal places has always meant a bug
+    worth catching by hand in this corpus, not a row to leave unparsed) --
+    see that function's docstring for why neither is the shared default.
     """
     out = {field: None for field in QUALIFIER_FIELDS}
     s = _normalize_qualifier_text(raw_value)
-
-    try:
-        float(s)
-    except ValueError:
-        pass
-    else:
-        out["qualifiers"] = []
-        out["point_value"] = s
-        return out
 
     m = _ORPHAN_PUNCTUATION_RE.match(s)
     if m:
@@ -446,113 +385,9 @@ def _parse_qualifiers_text(raw_value: str) -> dict:
         out["point_value"] = m.group(1)
         return out
 
-    tokens = _LIST_SPLIT_RE.split(s)
-    if len(tokens) >= 2 and all(_LIST_TOKEN_RE.match(tok) for tok in tokens):
-        out["qualifiers"] = ["IsList"]
-        out["list_values"] = tokens
-        return out
-
-    m = _TOLERANCE_RE.match(s)
-    if m:
-        point, tol = m.group(1), m.group(2)
-        if abs(float(tol)) < abs(float(point)):
-            out["qualifiers"] = ["HasTolerance"]
-            out["point_value"] = point
-            out["tolerance"] = f"± {tol}"
-            return out
-        # A tolerance at least as large as its own point value is physically
-        # implausible for a (positive) Tc. Hand-verified against the OCR
-        # source text (see notes/scholarlm/builds/
-        # 2026-09-24-supermat-qualifiers-parsing-01.md) that every such case
-        # in this corpus is actually an OCR-corrupted range dash ("37 ± 38"
-        # for "37-38 K", "3:0 ± 4:2" for "3.0-4.2 K"), not a real tolerance
-        # -- reinterpret under the same ascending-order range policy as
-        # every other range.
-        fields = _ascending_range_fields(point, tol)
-        if fields:
-            out.update(fields)
-            return out
-
-    m = _COMPACT_UNCERTAINTY_RE.match(s)
-    if m:
-        value_text, frac, unc = m.group(1), m.group(2), m.group(3)
-        frac_digits = len(frac) if frac else 0
-        assert len(unc) <= frac_digits or frac_digits == 0, (
-            f"compact uncertainty {s!r} has more uncertainty digits than "
-            "decimal places -- parsing assumption doesn't hold, check by hand"
-        )
-        tolerance_digits = unc if frac_digits == 0 else "0." + unc.rjust(frac_digits, "0")
-        out["qualifiers"] = ["HasTolerance"]
-        out["point_value"] = value_text
-        out["tolerance"] = f"± {tolerance_digits}"
-        return out
-
-    m = _TILDE_RANGE_RE.match(s) or _DASH_RANGE_RE.match(s)
-    if m:
-        fields = _ascending_range_fields(m.group(1), m.group(2))
-        if fields:
-            out.update(fields)
-            return out
-
-    m = _APPROX_DASH_RANGE_RE.match(s)
-    if m:
-        fields = _ascending_range_fields(m.group(1), m.group(2), approximate=True)
-        if fields:
-            out.update(fields)
-            return out
-
-    m = _FROM_TO_RE.match(s)
-    if m:
-        approx1, num1, approx2, num2 = m.groups()
-        fields = _ascending_range_fields(num1, num2, approximate=bool(approx1 or approx2))
-        if fields:
-            out.update(fields)
-            return out
-
-    m = _UPPER_WORD_RE.match(s)
-    if m:
-        approx, num = m.groups()
-        out["qualifiers"] = ["IsRange", "IsApproximate"] if approx else ["IsRange"]
-        out["upper"] = num
-        return out
-
-    m = _LOWER_WORD_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsRange"]
-        out["lower"] = m.group(1)
-        return out
-
-    m = _APPROX_WORD_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsApproximate"]
-        out["point_value"] = m.group(1)
-        return out
-
-    m = _LE_LEADING_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsRange"]
-        out["upper"] = m.group(1)
-        return out
-
-    m = _GE_LEADING_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsRange"]
-        out["lower"] = m.group(1)
-        return out
-
-    m = _LE_TRAILING_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsRange"]
-        out["lower"] = m.group(1)
-        return out
-
-    m = _TILDE_SINGLE_RE.match(s)
-    if m:
-        out["qualifiers"] = ["IsApproximate"]
-        out["point_value"] = m.group(1)
-        return out
-
-    return out
+    return parse_quantity_shape(
+        s, reinterpret_implausible_tolerance=True, strict_compact_uncertainty=True,
+    )
 
 
 def _parse_qualifiers(raw_value: str) -> dict:
@@ -611,12 +446,10 @@ def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
 # Ground truth builder
 # ---------------------------------------------------------------------------
 
-# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
-# minus `explanation` (a generation-only field, not part of the GT record).
-QUALIFIER_FIELDS = [
-    "qualifiers", "point_value", "lower", "upper",
-    "list_values", "tolerance", "standard_deviation",
-]
+# QUALIFIER_FIELDS is now imported from scholarlm.utils.parsing (see the
+# import block above) -- it must still match ParseQuantityResponse in
+# src/scholarlm/measurementlm.py exactly, minus `explanation` (a
+# generation-only field, not part of the GT record).
 
 
 def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool = False) -> None:
