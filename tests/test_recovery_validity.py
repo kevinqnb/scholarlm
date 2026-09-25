@@ -558,12 +558,16 @@ def e2e_fixture(tmp_path, monkeypatch):
     edges = [(0, 0), (1, 1), (2, 2)]
     edge_weights = [1.0, 1.0, 0.2]
     _write_match_cache(cache_path, edges, edge_weights)
-    # match_cache.meta.json sidecar -- _assert_ground_truth_matches_cache
-    # requires this to confirm the cache was built against gt_path.
+    # match_cache.meta.json sidecar -- _assert_ground_truth_matches_cache/
+    # _assert_extraction_matches_cache require this to confirm the cache was
+    # built against gt_path/final_path (no postprocessed.json in this fixture,
+    # so extraction_path() falls back to final.json).
     meta = {
         "ground_truth_file": match_cache.repo_relative(gt_path),
         "ground_truth_sha256": match_cache.sha256_file(gt_path),
         "n_gt": len(gt_rows),
+        "extraction_file": match_cache.repo_relative(final_path),
+        "extraction_sha256": match_cache.sha256_file(final_path),
     }
     with open(cache_path.with_name("match_cache.meta.json"), "w") as f:
         json.dump(meta, f)
@@ -596,6 +600,8 @@ def test_compute_metrics_for_id_with_validity(e2e_fixture):
     assert row["n_gt"] == 3
     assert row["n_ext"] == 3
     assert row["ground_truth_file"] == match_cache.repo_relative(gt_path)
+    extraction_dir = match_cache.match_cache_path(extraction_id).parent
+    assert row["extraction_file"] == match_cache.repo_relative(extraction_dir / "final.json")
     # gt rows 0,1 recovered (weight 1.0 > 0.5); row 2 not (weight 0.2).
     assert row["recovery"] == pytest.approx(2 / 3)
     assert row["judge_combine_id"] == combine_id
@@ -652,6 +658,54 @@ def test_compute_metrics_for_id_missing_sidecar_raises(e2e_fixture):
     cache_path.with_name("match_cache.meta.json").unlink()
 
     with pytest.raises(FileNotFoundError, match="match_cache.meta.json"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+
+
+def test_compute_metrics_for_id_extraction_edited_in_place_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+
+    # Same path, contents changed after the cache was built (e.g. a later
+    # analysis/postprocessing.py run) -- the sha256 check must catch this
+    # even though final.json is still the file extraction_path() resolves to,
+    # and even though row count/order (and so measurement_id alignment) is
+    # unchanged.
+    final_path = match_cache.match_cache_path(extraction_id).parent / "final.json"
+    rows = json.loads(final_path.read_text())
+    rows[0]["point_value"] = 99.0
+    final_path.write_text(json.dumps(rows))
+
+    with pytest.raises(RuntimeError, match="different extraction file"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+
+
+def test_compute_metrics_for_id_sidecar_missing_extraction_tracking_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+
+    # A match_cache.meta.json written before extraction-file tracking existed
+    # (ground_truth_file/sha256/n_gt only) must not be trusted, exactly like
+    # a missing sidecar -- it says nothing about which extraction file
+    # produced the cache sitting next to it.
+    meta_path = match_cache.match_cache_path(extraction_id).with_name("match_cache.meta.json")
+    meta = json.loads(meta_path.read_text())
+    del meta["extraction_file"]
+    del meta["extraction_sha256"]
+    meta_path.write_text(json.dumps(meta))
+
+    with pytest.raises(FileNotFoundError, match="predates extraction-file tracking"):
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+
+
+def test_compute_metrics_for_id_prefers_postprocessed_json(e2e_fixture):
+    # A postprocessed.json appearing after the cache was built (and the
+    # sidecar still pointing at final.json) must be caught as a mismatch --
+    # load_frames now resolves extraction_path() itself, so this is exactly
+    # the scenario _assert_extraction_matches_cache exists for.
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    extraction_dir = match_cache.match_cache_path(extraction_id).parent
+    rows = json.loads((extraction_dir / "final.json").read_text())
+    (extraction_dir / "postprocessed.json").write_text(json.dumps(rows))
+
+    with pytest.raises(RuntimeError, match="different extraction file"):
         rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
 
 

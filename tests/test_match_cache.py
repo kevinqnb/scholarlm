@@ -184,6 +184,49 @@ def test_sha256_file_differs_when_contents_differ(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# extraction_path -- postprocessed.json preferred over final.json
+# ---------------------------------------------------------------------------
+
+
+def test_extraction_path_prefers_postprocessed_json(tmp_path, monkeypatch):
+    results_root = tmp_path / "results"
+    monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
+    experiment_id = "2026-01-01-testset-model-extraction-01"
+    extraction_dir = results_root / "testset" / "extraction" / experiment_id
+    extraction_dir.mkdir(parents=True)
+    (extraction_dir / "final.json").write_text("[]")
+    (extraction_dir / "postprocessed.json").write_text("[]")
+
+    path, used_fallback = match_cache.extraction_path(experiment_id)
+    assert path == extraction_dir / "postprocessed.json"
+    assert used_fallback is False
+
+
+def test_extraction_path_falls_back_to_final_json_with_warning(tmp_path, monkeypatch, capsys):
+    results_root = tmp_path / "results"
+    monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
+    experiment_id = "2026-01-01-testset-model-extraction-01"
+    extraction_dir = results_root / "testset" / "extraction" / experiment_id
+    extraction_dir.mkdir(parents=True)
+    (extraction_dir / "final.json").write_text("[]")
+
+    path, used_fallback = match_cache.extraction_path(experiment_id)
+    assert path == extraction_dir / "final.json"
+    assert used_fallback is True
+    assert "falling back to final.json" in capsys.readouterr().out
+
+
+def test_extraction_path_raises_when_neither_exists(tmp_path, monkeypatch):
+    results_root = tmp_path / "results"
+    monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
+    experiment_id = "2026-01-01-testset-model-extraction-01"
+    (results_root / "testset" / "extraction" / experiment_id).mkdir(parents=True)
+
+    with pytest.raises(FileNotFoundError, match="postprocessed.json or final.json"):
+        match_cache.extraction_path(experiment_id)
+
+
+# ---------------------------------------------------------------------------
 # build_match_cache -- tiny end-to-end fixture
 # ---------------------------------------------------------------------------
 
@@ -237,6 +280,31 @@ def test_build_match_cache_writes_pkl_and_sidecar(tmp_path, build_cache_fixture)
     assert meta["ground_truth_file"] == match_cache.repo_relative(gt_path)
     assert meta["ground_truth_sha256"] == match_cache.sha256_file(gt_path)
     assert meta["n_gt"] == 2
+    assert meta["extraction_file"] == match_cache.repo_relative(extraction_dir / "final.json")
+    assert meta["extraction_sha256"] == match_cache.sha256_file(extraction_dir / "final.json")
+
+
+def test_build_match_cache_prefers_postprocessed_json(tmp_path, build_cache_fixture):
+    # build_cache_fixture's final.json has 2 rows; a postprocessed.json with a
+    # DIFFERENT row shows up in the sidecar's extraction_file/sha256 only if
+    # build_match_cache actually read postprocessed.json, not final.json.
+    experiment_id, extraction_dir = build_cache_fixture
+    postprocessed_rows = [{"document_id": "d1", "attribute": "ph"}, {"document_id": "d3", "attribute": "tp"}]
+    postprocessed_path = extraction_dir / "postprocessed.json"
+    with open(postprocessed_path, "w") as f:
+        json.dump(postprocessed_rows, f)
+
+    gt_rows = [{"document_id": "d1", "attribute": "ph"}]
+    gt_path = tmp_path / "ground_truth.json"
+    with open(gt_path, "w") as f:
+        json.dump(gt_rows, f)
+
+    match_cache.build_match_cache(experiment_id, gt_path)
+
+    with open(extraction_dir / "match_cache.meta.json") as f:
+        meta = json.load(f)
+    assert meta["extraction_file"] == match_cache.repo_relative(postprocessed_path)
+    assert meta["extraction_sha256"] == match_cache.sha256_file(postprocessed_path)
 
 
 def test_build_match_cache_raises_on_zero_document_id_overlap(tmp_path, build_cache_fixture):

@@ -1,19 +1,23 @@
 """Compute and cache extraction <-> ground-truth matches, by experiment id.
 
 The only job of this script: given a list of experiment ids and an explicit
-ground-truth file, load each run's final.json, that ground truth, and the
-run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
+ground-truth file, load each run's extraction file, that ground truth, and
+the run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
 ``fuzzy_threshold``/``numeric_coerce`` on its ``DatasetConfig``, in
 ``experiments/dataset-configs/{dataset}.py`` -- see ``get_matching_config``
 below and ``DatasetConfig``'s own docstring), run match_datasets, and write
 the result to match_cache.pkl inside that run's own results directory
 (experiments/results/{dataset}/{experiment-type}/<id>/match_cache.pkl), plus
-a match_cache.meta.json sidecar recording exactly which ground truth file it
-was built against (repo-relative path, sha256, row count) -- see
-``build_match_cache``. Always recomputes and overwrites -- this is the point
-where a fresh, authoritative cache gets built, not a read-through cache that
-might silently keep serving a match computed under an older matching
-configuration or a different ground truth file.
+a match_cache.meta.json sidecar recording exactly which ground truth file and
+which extraction file it was built against (repo-relative path + sha256 for
+each, plus the ground truth's row count) -- see ``build_match_cache``. The
+extraction file is ``postprocessed.json`` (analysis/postprocessing.py's
+qualifier-fill/unit-standardization output) when it exists, else
+``final.json`` with a printed warning -- see ``extraction_path``. Always
+recomputes and overwrites -- this is the point where a fresh, authoritative
+cache gets built, not a read-through cache that might silently keep serving a
+match computed under an older matching configuration or a different ground
+truth/extraction file.
 analysis/metrics.py's recovery_rate/validity_rate (via analysis/loaders.py's
 cached_match) read the file this writes; they never write it themselves.
 
@@ -69,7 +73,6 @@ import argparse
 import hashlib
 import json
 import pickle
-import re
 import sys
 from pathlib import Path
 
@@ -82,6 +85,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.data import match_datasets
+from scholarlm.utils.parsing import SCI_NOTATION_RE
 from analysis.analysis_config import get_ground_truth_path, load_analysis_config
 from analysis.loaders import load_ground_truth_file
 from experiments.run_extraction import load_dataset_config
@@ -114,18 +118,13 @@ import utils as paths
 # genuinely new garbage pattern doesn't disappear silently.
 # ---------------------------------------------------------------------------
 
-# Matches "<mantissa> × 10^<exponent>" (also accepts x/X for ×, and a
-# missing ^) -- the one non-plain-float numeric form observed in real
-# point_value output so far.
-_SCI_NOTATION_RE = re.compile(r"^\s*([-+]?\d*\.?\d+)\s*[×xX]\s*10\s*\^?\s*([-+]?\d+)\s*$")
-
-
 def _parse_numeric(x):
     """Parse a value into a float for strict-match coercion.
 
     Handles plain numbers/numeric strings and "<mantissa> × 10^<exponent>"
-    scientific notation. Anything else (None, or a string that is neither)
-    returns NaN.
+    scientific notation (SCI_NOTATION_RE, shared with
+    scholarlm.utils.parsing.parse_quantity_shape's own plain-value check).
+    Anything else (None, or a string that is neither) returns NaN.
     """
     if x is None:
         return np.nan
@@ -138,7 +137,7 @@ def _parse_numeric(x):
         return float(s)
     except ValueError:
         pass
-    m = _SCI_NOTATION_RE.match(s)
+    m = SCI_NOTATION_RE.match(s)
     if m:
         mantissa, exponent = m.groups()
         return float(mantissa) * (10.0 ** int(exponent))
@@ -301,6 +300,40 @@ def load_match_cache(
     return edges_above_threshold(edges, edge_weights, fuzzy_threshold)
 
 
+def extraction_path(experiment_id: str) -> tuple:
+    """Resolve the extraction file to match experiment_id against:
+    postprocessed.json (analysis/postprocessing.py's qualifier-fill/unit-
+    standardization output) if it exists, else final.json, with a printed
+    warning -- the one place this preference is decided, so
+    build_match_cache and analysis/recovery_validity.py's load_frames can't
+    drift apart on it.
+
+    Returns:
+        (path, used_fallback). used_fallback=True means postprocessed.json
+        didn't exist and final.json was used instead (analysis/
+        postprocessing.py hasn't been run for this id yet).
+
+    Raises:
+        FileNotFoundError: neither file exists for this id.
+    """
+    result_dir = paths.find_result_dir(experiment_id)
+    postprocessed_path = result_dir / "postprocessed.json"
+    if postprocessed_path.exists():
+        return postprocessed_path, False
+
+    final_path = result_dir / "final.json"
+    if not final_path.exists():
+        raise FileNotFoundError(
+            f"{experiment_id}: no postprocessed.json or final.json at {result_dir}"
+        )
+    print(
+        f"{experiment_id}: no postprocessed.json at {postprocessed_path} -- falling "
+        f"back to final.json (run `python analysis/postprocessing.py {experiment_id} "
+        f"--ground-truth-file <path>` first for qualifier-fill/unit standardization)"
+    )
+    return final_path, True
+
+
 def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
     """Compute and cache the match for one experiment id against an
     explicitly given ground truth file. Returns the cache path.
@@ -314,8 +347,16 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
     DatasetConfig -- only which ground truth *rows* to match against is
     pinned explicitly now.
 
+    The extraction file itself is resolved via extraction_path() --
+    postprocessed.json when it exists, else final.json with a warning. Which
+    one was actually used (path + sha256) is recorded in the
+    match_cache.meta.json sidecar alongside the ground truth's own, so a
+    cache built against final.json can never be silently scored later as if
+    it reflected a postprocessed.json that didn't exist yet -- see
+    analysis/recovery_validity.py's _assert_extraction_matches_cache.
+
     Raises:
-        FileNotFoundError: no final.json for this id.
+        FileNotFoundError: no postprocessed.json or final.json for this id.
         ValueError: the ground truth and extraction frames share no
             document_id at all -- almost certainly the wrong ground truth
             file for this experiment's dataset, not a real zero-overlap
@@ -324,14 +365,12 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
     result_dir = paths.find_result_dir(experiment_id)
     dataset = result_dir.relative_to(paths.RESULTS_ROOT).parts[0]
 
-    final_path = result_dir / "final.json"
-    if not final_path.exists():
-        raise FileNotFoundError(f"{experiment_id}: no final.json at {final_path}")
+    extraction_file_path, _used_fallback = extraction_path(experiment_id)
 
     dataset_config = load_dataset_config(dataset)
     cfg = get_matching_config(dataset_config)
 
-    with open(final_path) as f:
+    with open(extraction_file_path) as f:
         extraction_records = json.load(f)
     extraction_df = pd.DataFrame(extraction_records).reset_index(drop=True)
 
@@ -342,8 +381,9 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
         if not shared_documents:
             raise ValueError(
                 f"{experiment_id}: ground truth {ground_truth_path} and this run's "
-                f"final.json share zero document_id values -- almost certainly the "
-                f"wrong ground_truth_file for this experiment's dataset ({dataset!r})"
+                f"{extraction_file_path.name} share zero document_id values -- almost "
+                f"certainly the wrong ground_truth_file for this experiment's dataset "
+                f"({dataset!r})"
             )
 
     for gt_col in cfg.get("numeric_coerce", []):
@@ -382,6 +422,8 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
         "ground_truth_file": repo_relative(ground_truth_path),
         "ground_truth_sha256": sha256_file(ground_truth_path),
         "n_gt": len(ground_truth_df),
+        "extraction_file": repo_relative(extraction_file_path),
+        "extraction_sha256": sha256_file(extraction_file_path),
     }
     with open(match_cache_meta_path(experiment_id), "w") as f:
         json.dump(meta, f, indent=2)
@@ -392,8 +434,9 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
 
     print(
         f"{experiment_id}: ground truth {meta['ground_truth_file']} "
-        f"({len(ground_truth_df)} rows), {len(extraction_df)} extraction rows, "
-        f"{len(edges)} candidate edges cached at threshold=0.0 -> {cache_path}\n"
+        f"({len(ground_truth_df)} rows), {meta['extraction_file']} "
+        f"({len(extraction_df)} rows), {len(edges)} candidate edges cached at "
+        f"threshold=0.0 -> {cache_path}\n"
         f"{experiment_id}: at this dataset's selected threshold="
         f"{cfg['fuzzy_threshold']:.4f}: {len(selected)} edges, "
         f"{n_gt_recovered}/{len(ground_truth_df)} ground-truth rows recovered, "
