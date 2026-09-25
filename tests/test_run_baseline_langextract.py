@@ -126,3 +126,58 @@ def test_no_override_leaves_model_configs_temperature_untouched(tmp_path, monkey
     )
 
     assert captured["sampling_params"]["temperature"] == 0.2
+
+
+def test_repetition_penalty_override_sets_sampling_params_and_metadata(tmp_path, monkeypatch):
+    """Mirrors the temperature_override tests above -- repetition_penalty is
+    a property of this baseline's own prompting/chunking (see
+    run_baseline_langextract()'s docstring), not the shared per-model
+    sampling defaults, so it must not mutate model_config.sampling_params in
+    place, and it must show up in run_metadata.json or a run with a penalty
+    would be indistinguishable from one without."""
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    captured = _stub_fit(monkeypatch)
+    output_dir = tmp_path / "out"
+
+    run_baseline_langextract.run_baseline_langextract(
+        dataset_config=dataset_config,
+        model_config=model_config,
+        output_dir=output_dir,
+        max_char_buffer=5000,
+        extraction_passes=1,
+        max_workers=1,
+        batch_length=1,
+        use_schema_constraints=False,
+        fence_output=True,
+        ocr_dir=ocr_dir,
+        repetition_penalty_override=1.3,
+    )
+
+    assert captured["sampling_params"]["repetition_penalty"] == 1.3
+    assert model_config.sampling_params.get("repetition_penalty") is None
+
+    metadata = json.loads((output_dir / "run_metadata.json").read_text())
+    assert metadata["repetition_penalty"] == 1.3
+
+
+def test_no_repetition_penalty_override_leaves_it_absent(tmp_path, monkeypatch):
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    captured = _stub_fit(monkeypatch)
+    output_dir = tmp_path / "out"
+
+    run_baseline_langextract.run_baseline_langextract(
+        dataset_config=dataset_config,
+        model_config=model_config,
+        output_dir=output_dir,
+        max_char_buffer=5000,
+        extraction_passes=1,
+        max_workers=1,
+        batch_length=1,
+        use_schema_constraints=False,
+        fence_output=True,
+        ocr_dir=ocr_dir,
+    )
+
+    assert captured["sampling_params"].get("repetition_penalty") is None
+    metadata = json.loads((output_dir / "run_metadata.json").read_text())
+    assert metadata["repetition_penalty"] is None

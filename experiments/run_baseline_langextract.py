@@ -29,8 +29,8 @@ Usage
 Required params: dataset, model, max_char_buffer, extraction_passes,
 max_workers, batch_length, use_schema_constraints, fence_output.
 Optional params: paper_subset (list), ocr_dir, api_base, api_key,
-max_concurrent (default 32), temperature (per-experiment override of the
-model config's own sampling_params.temperature -- see
+max_concurrent (default 32), temperature, repetition_penalty (per-experiment
+overrides of the model config's own sampling_params -- see
 run_baseline_langextract()'s docstring).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
@@ -82,6 +82,7 @@ def run_baseline_langextract(
     api_key: str = "EMPTY",
     max_concurrent: int = 32,
     temperature_override: float | None = None,
+    repetition_penalty_override: float | None = None,
 ) -> None:
     """Run the langextract baseline for a dataset on a given backbone model.
 
@@ -102,6 +103,19 @@ def run_baseline_langextract(
     it for every other consumer of the file. Same category as
     max_char_buffer/extraction_passes/etc. above: a per-experiment sampling
     parameter (CLAUDE.md), not a per-model default.
+
+    `repetition_penalty_override` works the same way, for the same reason: a
+    penalty tuned to counter LangExtract's own blank-token-repetition failure
+    mode (see the module docstring of measurementlm_langextract.py) is a
+    property of this baseline's prompting/chunking, not of the backbone
+    model, so it does not belong in the shared per-model
+    experiments/model-configs/extraction/<model>.yaml either -- setting it
+    there would silently change every other extraction/ablation/
+    table-cleaning run on that backbone too. Forwarded to vLLM via
+    `extra_body` (see `_build_vllm_openai_model` in
+    measurementlm_langextract.py); with no config change at all, behavior is
+    unchanged, since `sampling_params.get("repetition_penalty")` is `None`
+    for every existing model config.
     """
     data_dir = Path(dataset_config.data_dir)
 
@@ -122,6 +136,12 @@ def run_baseline_langextract(
     if temperature_override is not None:
         print(f"Overriding temperature: {sampling_params.get('temperature')} -> {temperature_override}")
         sampling_params["temperature"] = temperature_override
+    if repetition_penalty_override is not None:
+        print(
+            f"Overriding repetition_penalty: {sampling_params.get('repetition_penalty')} "
+            f"-> {repetition_penalty_override}"
+        )
+        sampling_params["repetition_penalty"] = repetition_penalty_override
 
     mlm = MeasurementLMLangExtract(
         model_name=model_config.model_id,
@@ -174,6 +194,7 @@ def run_baseline_langextract(
         max_workers=max_workers,
         batch_length=batch_length,
         temperature=sampling_params.get("temperature"),
+        repetition_penalty=sampling_params.get("repetition_penalty"),
         use_schema_constraints=use_schema_constraints,
         fence_output=fence_output,
         gpu_compatibility_warnings=gpu_warnings,
@@ -239,6 +260,7 @@ def main(argv: list[str] | None = None) -> None:
         api_key=params.get("api_key", "EMPTY"),
         max_concurrent=params.get("max_concurrent", 32),
         temperature_override=params.get("temperature"),
+        repetition_penalty_override=params.get("repetition_penalty"),
     )
 
 

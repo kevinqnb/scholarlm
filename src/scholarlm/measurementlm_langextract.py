@@ -28,8 +28,13 @@ numbers can be recovered from extraction offsets after the fact.
 
 Known issue: at high concurrency, a run can hang on a single stuck chunk and
 crash with nothing saved (`fit()` has no try/except around `lx.extract()`).
-Not reliably reproduced or root-caused; lower concurrency avoids it, and
-retrying is the current mitigation.
+One observed trigger is the model repeating blank/degenerate tokens until it
+exhausts its token budget without producing a parseable chunk. `sampling_params`
+now supports `repetition_penalty` (forwarded to vLLM via `extra_body` -- see
+`_build_vllm_openai_model`, since langextract's own provider silently drops it
+otherwise) as a mitigation to try; not yet validated against a real run that
+reproduced the hang. Not reliably reproduced or root-caused beyond that; lower
+concurrency also avoids it, and retrying is the current fallback mitigation.
 """
 
 from __future__ import annotations
@@ -215,6 +220,80 @@ def _page_for_offset(context: str, char_pos: int | None) -> int | None:
     return None
 
 
+def _build_vllm_openai_model(
+    *,
+    model_id: str,
+    api_key: str,
+    base_url: str,
+    max_output_tokens: int | None,
+    top_p: float | None,
+    temperature: float | None,
+    seed: int | None,
+    repetition_penalty: float | None,
+):
+    """Build an `OpenAILanguageModel` that forwards `repetition_penalty` to
+    vLLM's server via `extra_body`, for `lx.extract(model=...)`.
+
+    langextract's own `OpenAILanguageModel` (langextract/providers/openai.py)
+    builds its HTTP request through two successive hardcoded key allowlists
+    -- `infer()`'s `config` dict (openai.py:354-365) and
+    `_build_chat_completions_params`'s `api_params` (openai.py:233-243) --
+    neither of which includes `repetition_penalty`, and langextract never
+    uses `extra_body` anywhere in the package. So passing `repetition_penalty`
+    as a plain constructor kwarg (the way `temperature`/`seed`/
+    `max_output_tokens`/`top_p` work) is silently dropped before it ever
+    reaches `self._client.chat.completions.create()` -- langextract raises
+    nothing, vLLM never sees the field, and generation proceeds at whatever
+    repetition_penalty the server was started with. This is exactly the
+    failure this repo's `_acall` already works around for
+    `top_k`/`repetition_penalty`/`seed` (see measurementlm.py) and that bit
+    LangExtract once before for `max_output_tokens`/`temperature` (see
+    test_fit_threads_max_tokens_and_top_p_into_model_config_provider_kwargs's
+    docstring) -- `repetition_penalty` additionally isn't part of the
+    official OpenAI Chat Completions schema at all, so even a code path that
+    *did* forward it as a top-level kwarg would still need vLLM's
+    `extra_body` escape hatch, not a plain field.
+
+    The subclass stores `repetition_penalty` on the instance (rather than
+    relying on `_extra_kwargs`, which by the time `_build_chat_completions_
+    params` runs has already been filtered by `infer()`'s allowlist) and
+    injects it into `extra_body` on every request, covering both the
+    realtime and batch-API paths since both build their request through
+    `_build_chat_completions_params`.
+
+    Returned as a ready-made instance for `lx.extract(model=...)` rather than
+    threaded through `ModelConfig`/`provider=`: `model=` takes precedence
+    over `config=` and langextract applies `output_schema`/`fence_output` to
+    it the same way it would a `config=`-constructed model (see
+    extraction.py), so no provider-router registration is needed -- `model=`
+    is a first-class, documented langextract parameter for exactly this case
+    (a pre-configured language model instance), not a workaround.
+    """
+    from langextract.providers import openai as lx_openai
+
+    class _VLLMOpenAILanguageModel(lx_openai.OpenAILanguageModel):
+        def __init__(self, *args, repetition_penalty: float | None = None, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._repetition_penalty = repetition_penalty
+
+        def _build_chat_completions_params(self, prompt: str, config: dict) -> dict:
+            api_params = super()._build_chat_completions_params(prompt, config)
+            if self._repetition_penalty is not None:
+                api_params["extra_body"] = {"repetition_penalty": self._repetition_penalty}
+            return api_params
+
+    return _VLLMOpenAILanguageModel(
+        model_id=model_id,
+        api_key=api_key,
+        base_url=base_url,
+        max_output_tokens=max_output_tokens,
+        top_p=top_p,
+        temperature=temperature,
+        seed=seed,
+        repetition_penalty=repetition_penalty,
+    )
+
+
 class MeasurementLMLangExtract(MeasurementLM):
     """Baseline extraction via Google's langextract, served through a local
     vLLM OpenAI-compatible endpoint.
@@ -292,34 +371,42 @@ class MeasurementLMLangExtract(MeasurementLM):
         set); it raises its own error otherwise.
         """
         import langextract as lx
-        from langextract.factory import ModelConfig
 
         examples = _build_examples(self.nuextract_examples)
         prompt_description = _prompt_description(self.direct_extraction_prompt)
-        config = ModelConfig(
+
+        # repetition_penalty is a vLLM-only extension (not part of the OpenAI
+        # Chat Completions schema), same category as top_k in MeasurementLM's
+        # own _acall -- gated on use_extra_body so it's never attempted
+        # against a frontier endpoint that doesn't support it.
+        repetition_penalty = (
+            self.sampling_params.get("repetition_penalty") if self.use_extra_body else None
+        )
+        # `lx.extract`'s `config=` path (unlike its `model_id=` path) never
+        # reads `language_model_params`, nor the top-level `temperature=`
+        # kwarg passed to `lx.extract()` below (see extraction.py: that kwarg
+        # is only read in the `model_id=`-only branch) -- every
+        # OpenAILanguageModel constructor kwarg, including `temperature` and
+        # `seed`, must be passed to the model constructor directly, or vLLM
+        # gets no completion budget/sampling control at all. Confirmed by
+        # reading langextract's openai.py: `temperature` is a named
+        # constructor kwarg, `seed` lands in `**kwargs` (`_extra_kwargs`) and
+        # is forwarded from there on every request. Before this fix, every
+        # LangExtract run in this repo sampled at vLLM's server-default
+        # temperature and an unset seed -- `sampling_params["temperature"]`
+        # was silently a no-op, not just unseeded. `repetition_penalty` needs
+        # more than that (see `_build_vllm_openai_model`'s docstring): even a
+        # constructor kwarg would be silently dropped further downstream, so
+        # it's built here rather than through `ModelConfig`/`provider=`.
+        model = _build_vllm_openai_model(
             model_id=self.model_name,
-            provider="openai",
-            # `lx.extract`'s `config=` path (unlike its `model_id=` path) never
-            # reads `language_model_params`, nor the top-level `temperature=`
-            # kwarg passed to `lx.extract()` below (see extraction.py: that
-            # kwarg is only read in the `model_id=`-only branch) -- every
-            # OpenAILanguageModel constructor kwarg, including `temperature`
-            # and `seed`, must go here as provider_kwargs, or vLLM gets no
-            # completion budget/sampling control at all. Confirmed by reading
-            # langextract's openai.py: `temperature` is a named constructor
-            # kwarg, `seed` lands in `**kwargs` (`_extra_kwargs`) and is
-            # forwarded from there on every request. Before this fix, every
-            # LangExtract run in this repo sampled at vLLM's server-default
-            # temperature and an unset seed -- `sampling_params["temperature"]`
-            # was silently a no-op, not just unseeded.
-            provider_kwargs={
-                "api_key": self.client.api_key,
-                "base_url": str(self.client.base_url),
-                "max_output_tokens": self.sampling_params.get("max_tokens"),
-                "top_p": self.sampling_params.get("top_p"),
-                "temperature": self.sampling_params.get("temperature"),
-                "seed": self.sampling_params.get("seed"),
-            },
+            api_key=self.client.api_key,
+            base_url=str(self.client.base_url),
+            max_output_tokens=self.sampling_params.get("max_tokens"),
+            top_p=self.sampling_params.get("top_p"),
+            temperature=self.sampling_params.get("temperature"),
+            seed=self.sampling_params.get("seed"),
+            repetition_penalty=repetition_penalty,
         )
         output_schema = (
             _build_output_schema(self.direct_extraction_schema, self.attribute_info_dict)
@@ -334,7 +421,7 @@ class MeasurementLMLangExtract(MeasurementLM):
                 text_or_documents=context,
                 prompt_description=prompt_description,
                 examples=examples,
-                config=config,
+                model=model,
                 max_char_buffer=self.max_char_buffer,
                 extraction_passes=self.extraction_passes,
                 max_workers=self.max_workers,
