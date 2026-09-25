@@ -11,7 +11,12 @@ Usage
     python experiments/run_ablation.py experiments/experiment-configs/pond/ablation/<id>/<id>.yaml
 
 Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"6").
-Optional params: ocr_dir, paper_subset (list), api_base, api_key.
+Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers
+(bool, default true -- ablation "1" only; false asks the dataset config's
+*_no_qualifiers direct-extraction schema/prompt/instructions instead, dropping the
+qualifier/shape fields from the model's own output so a later parsing step can be
+evaluated on recovering them instead. Fails loud if set false for any other ablation,
+or if the dataset has no no-qualifiers variant defined).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
@@ -44,6 +49,7 @@ _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
+from scholarlm.instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.measurementlm_ablation1 import MeasurementLMAblation1
 from scholarlm.measurementlm_ablation2 import MeasurementLMAblation2
@@ -115,6 +121,7 @@ def run_ablation(
     paper_subset_override: list[str] | None = None,
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
+    include_qualifiers: bool = True,
 ) -> None:
     """Run a single ablation experiment for a dataset / model pair.
 
@@ -138,7 +145,26 @@ def run_ablation(
         paper_subset_override: If provided, overrides ``dataset_config.paper_subset``.
         api_base: Base URL of the vLLM OpenAI-compatible server.
         api_key: API key for the vLLM server (any non-empty string works).
+        include_qualifiers: Ablation 1 only. False asks the dataset config's
+            ``direct_extraction_schema_no_qualifiers``/``_prompt_no_qualifiers``
+            instead of the qualifier-bearing defaults, and
+            ``DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS`` instead of
+            ``DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS``. Raises if set false for
+            any other ablation, or if the dataset has no such variant.
     """
+    if not isinstance(include_qualifiers, bool):
+        raise ValueError(
+            f"include_qualifiers must be a bool, got {include_qualifiers!r} "
+            f"({type(include_qualifiers).__name__}) -- a YAML string like "
+            f"'false' is truthy in Python and would silently run with "
+            f"qualifiers included while claiming otherwise."
+        )
+    if not include_qualifiers and ablation != "1":
+        raise ValueError(
+            f"include_qualifiers=False only applies to ablation '1' (direct "
+            f"extraction) -- got ablation {ablation!r}."
+        )
+
     ablation_class, ablation_desc = ABLATION_REGISTRY[ablation]
     data_dir = Path(dataset_config.data_dir)
     is_frontier = model_config.api_base is not None
@@ -214,8 +240,23 @@ def run_ablation(
         collect_attribute_terms=dataset_config.collect_attribute_terms,
     )
     if ablation == "1":
-        mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema
-        mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt
+        if include_qualifiers:
+            mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema
+            mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt
+        else:
+            if (
+                dataset_config.direct_extraction_schema_no_qualifiers is None
+                or dataset_config.direct_extraction_prompt_no_qualifiers is None
+            ):
+                raise ValueError(
+                    f"include_qualifiers=False requires "
+                    f"'{dataset_config.name}' to define "
+                    f"direct_extraction_schema_no_qualifiers and "
+                    f"direct_extraction_prompt_no_qualifiers -- neither is set."
+                )
+            mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema_no_qualifiers
+            mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt_no_qualifiers
+            mlm_kwargs["direct_extraction_instructions"] = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
     mlm = ablation_class(**mlm_kwargs)
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
@@ -253,6 +294,7 @@ def run_ablation(
         model_id=model_config.model_id,
         hf_revision=model_config.hf_revision,
         ablation=ablation,
+        include_qualifiers=include_qualifiers,
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
         token_usage=mlm.token_usage,
@@ -317,6 +359,7 @@ def main(argv: list[str] | None = None) -> None:
         paper_subset_override=params.get("paper_subset"),
         api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
         api_key=params.get("api_key", "EMPTY"),
+        include_qualifiers=params.get("include_qualifiers", True),
     )
 
 

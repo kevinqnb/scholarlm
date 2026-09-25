@@ -70,6 +70,18 @@ class DatasetConfig:
             describes entities, measurement events, and attributes in a single
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
+        direct_extraction_schema_no_qualifiers: Optional variant of
+            ``direct_extraction_schema`` with the qualifier/shape fields
+            (``qualifiers``, ``point_value``, ``lower``, ``upper``,
+            ``list_values``, ``tolerance``, ``standard_deviation``) removed.
+            Used by Ablation 1 only when an experiment config explicitly sets
+            ``params.include_qualifiers: false`` (see ``run_ablation.py``);
+            ``None`` means this dataset has no such variant defined, which
+            ``run_ablation.py`` fails loud on rather than falling back to the
+            qualifier-bearing schema.
+        direct_extraction_prompt_no_qualifiers: The ``direct_extraction_prompt``
+            counterpart to ``direct_extraction_schema_no_qualifiers`` -- same
+            rules.
         ablation2_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
             Ablation 2 (combined entity-attribute extraction).  Must include all
             normal entity fields plus two reserved fields: ``attribute (str)`` (exact
@@ -214,6 +226,8 @@ class DatasetConfig:
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None
     direct_extraction_prompt: str | None = None
+    direct_extraction_schema_no_qualifiers: type[BaseModel] | None = None
+    direct_extraction_prompt_no_qualifiers: str | None = None
     ablation2_entity_schema: type[BaseModel] | None = None
     ablation2_entity_identification_prompt: str | None = None
     ground_truth_file: str | None = None

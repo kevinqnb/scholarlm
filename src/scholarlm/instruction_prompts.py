@@ -290,6 +290,29 @@ Guidelines:
 """
 
 
+# Ablation 1 variant: direct extraction with the qualifier/shape fields
+# (qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation)
+# removed -- identical to DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS otherwise,
+# including the value-verbatim-extraction guideline below (still needed so
+# analysis/postprocessing.py's parser has a full, unmodified value string to
+# work from). See tests/test_ablation1_no_qualifiers.py for the exact
+# line-level diff this must maintain against DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS.
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of measurement records from a research paper document in a single pass. Each record captures an entity, an attribute for measurement, the conditions of a specific measurement event, and its value.
+
+Guidelines:
+- You will be provided with dataset-specific extraction instructions describing the entities to identify, the target attributes, and the measurement event fields, along with the full document text.
+- Identify all entities of the specified type present in the document, following the entity identification rules in the dataset-specific instructions.
+- For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
+- Return one item per (entity, attribute, event) combination where a direct numerical measurement exists.
+- Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
+- Extract the value exactly as it appears in the document, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- Give the value only in the value field; do not include any units, descriptors, or explanation there.
+- For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
+"""
+
+
 
 # Ablation 2: Combined (entity, attribute) pair provenance
 ENTITY_ATTRIBUTE_PROVENANCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to determine if a single page of text from a research paper contains data for a described (entity, attribute) pair.

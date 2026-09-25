@@ -226,6 +226,26 @@ class DirectExtractionItemSchema(BaseModel):
     standard_deviation: str | float | None
 
 
+class DirectExtractionItemSchemaNoQualifiers(BaseModel):
+    """Ablation-1 no-qualifiers variant of DirectExtractionItemSchema: same
+    entity/event/measurement fields, with the 7 qualifier/shape fields
+    dropped entirely (params.include_qualifiers=false in run_ablation.py --
+    see tests/test_ablation1_no_qualifiers.py for the field-set diff this
+    must maintain)."""
+
+    # Entity fields
+    name: str | None
+    identifiers: str | None
+    ecosystem: str | None
+    # Event fields
+    date: str | None
+    event_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
+
+
 
 _DIRECT_EXTRACTION_PROMPT = """Entity Identification:
 Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar water bodies) mentioned in the document.
@@ -281,6 +301,65 @@ Output format requirements:
       "list_values": [...],
       "tolerance": "...",
       "standard_deviation": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# Ablation-1 no-qualifiers variant of _DIRECT_EXTRACTION_PROMPT: identical
+# except the JSON example under "Output format requirements" drops the 7
+# qualifier/shape keys, matching DirectExtractionItemSchemaNoQualifiers. See
+# tests/test_ablation1_no_qualifiers.py for the exact diff this must maintain.
+_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS = """Entity Identification:
+Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar water bodies) mentioned in the document.
+
+Entity fields:
+- name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
+- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
+- ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
+
+Entity identification rules:
+- Treat ecosystems as separate only if they are clearly distinct physical water bodies.
+- Do NOT create separate items for the same ecosystem because measurements were taken on different dates or conditions — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each ecosystem and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- event_details: A catch-all for any other distinguishing context not captured by date — for example, sample or sensor depth, treatment site, treatment state, or sampling conditions. Two genuinely distinct measurements should end up with different event_details. One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (ecosystem, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. surface_area — Surface area of the water body (NOT watershed, catchment, or littoral zone area). Units: km^2, mi^2, ha, m^2, or acres.
+2. max_depth — Maximum physical water depth (NOT mean depth, average depth, or Secchi depth). Units: m, km, or ft.
+3. vegetation_cover — Fraction or percentage of the ecosystem surface covered by aquatic macrophytes or rooted/floating vegetation (NOT algal cover, periphyton, or phytoplankton). Units: percent or fraction.
+4. ph — pH of the water (dimensionless). NOT soil or sediment pH.
+5. tn — Total nitrogen (TN): the aggregate sum of ALL nitrogen forms — dissolved and particulate. NOT individual species (NO3-, NO2-, NH3, etc.) unless explicitly labeled as total nitrogen. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+6. tp — Total phosphorus (TP): the aggregate sum of ALL phosphorus forms. NOT individual species (SRP, PO4(3-), DRP, PP, etc.) unless explicitly labeled as total phosphorus. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+7. chla — Chlorophyll-a (Chl-a) concentration. NOT total chlorophyll, chlorophyll-b, pheophytin, or other pigments unless explicitly labeled as chlorophyll-a. Units: µg/L, mg/L, or mg/m^3.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "identifiers": "...",
+      "ecosystem": "...",
+      "date": "...",
+      "event_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
     }
   ]
 }
@@ -624,6 +703,8 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    direct_extraction_schema_no_qualifiers=DirectExtractionItemSchemaNoQualifiers,
+    direct_extraction_prompt_no_qualifiers=_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
