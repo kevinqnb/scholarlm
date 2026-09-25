@@ -31,4 +31,4 @@ params:
   model: llama-3.1-8b
   ablation: "1"
   resume: true
-  walltime: "19:00:00"
+  walltime: "48:00:00"

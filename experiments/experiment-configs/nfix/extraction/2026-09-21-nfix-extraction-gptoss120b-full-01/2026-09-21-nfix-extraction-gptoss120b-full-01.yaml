@@ -38,7 +38,7 @@ params:
   dataset: nfix
   model: gpt-oss-120b
   ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
-  step: final
+  step: entity_prov
   parse_quantities_context: value_only
   standardize_context: value_only
   walltime: "08:00:00"

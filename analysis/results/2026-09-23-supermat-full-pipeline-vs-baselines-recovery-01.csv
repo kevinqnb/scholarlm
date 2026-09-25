@@ -1,0 +1,10 @@
+experiment_id,dataset,ground_truth_file,n_gt,n_ext,fuzzy_threshold,n_resamples,seed,bootstrap_unit,recovery,recovery_ci_lo,recovery_ci_hi,judge_combine_id,judge_ids,validity,validity_ci_lo,validity_ci_hi,analysis_config_id
+2026-09-21-supermat-extraction-gemma27b-full-01,supermat,data/supermat/ground_truth.json,1166,4085,0.625,2000,342,paper,0.02144082332761578,0.0022647700570661298,0.04869829486199902,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-21-supermat-extraction-gptoss120b-full-01,supermat,data/supermat/ground_truth.json,1166,1116,0.625,2000,342,paper,0.0274442538593482,0.007345684618411891,0.05617095298650521,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-21-supermat-extraction-llama8b-full-01,supermat,data/supermat/ground_truth.json,1166,5397,0.625,2000,342,paper,0.015437392795883362,0.0017077603885277423,0.037293295623082756,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-21-supermat-ablation1-gemma27b-full-01,supermat,data/supermat/ground_truth.json,1166,716,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-21-supermat-ablation1-gptoss120b-full-01,supermat,data/supermat/ground_truth.json,1166,780,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-22-supermat-langextract-gemma27b-full-01,supermat,data/supermat/ground_truth.json,1166,29,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-22-supermat-gliner-large-full-01,supermat,data/supermat/ground_truth.json,1166,1529,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-22-supermat-nuextract3-full-01,supermat,data/supermat/ground_truth.json,1166,743,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01
+2026-09-22-supermat-chatextract-gemma27b-full-01,supermat,data/supermat/ground_truth.json,1166,1936,0.625,2000,342,paper,0.0,0.0,0.0,,,,,,2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01

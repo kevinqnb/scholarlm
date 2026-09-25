@@ -66,6 +66,7 @@ params:
   extraction_passes: 1
   max_workers: 16
   batch_length: 20
+  repetition_penalty: 1.2
   use_schema_constraints: true
   fence_output: false
   walltime: "48:00:00"

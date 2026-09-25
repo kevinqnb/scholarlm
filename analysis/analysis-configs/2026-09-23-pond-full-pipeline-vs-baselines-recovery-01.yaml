@@ -20,6 +20,8 @@ params:
     - 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
     - 2026-09-21-pond-extraction-gptoss120b-full-01
     - 2026-09-21-pond-extraction-llama8b-full-01
+    - 2026-09-21-pond-ablation1-gemma27b-full-01
+    - 2026-09-21-pond-ablation1-gptoss120b-full-01
     - 2026-09-22-pond-langextract-gemma27b-full-01
     - 2026-09-22-pond-gliner-large-full-01
     - 2026-09-22-pond-nuextract3-full-01

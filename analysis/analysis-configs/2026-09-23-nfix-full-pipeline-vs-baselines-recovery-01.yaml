@@ -25,6 +25,9 @@ params:
   experiment_ids:
     - 2026-09-21-nfix-extraction-gemma27b-full-01
     - 2026-09-21-nfix-extraction-llama8b-full-01
+    - 2026-09-21-nfix-extraction-gptoss120b-full-01
+    - 2026-09-21-nfix-ablation1-gemma27b-full-01
+    - 2026-09-21-nfix-ablation1-gptoss120b-full-01
     - 2026-09-22-nfix-langextract-gemma27b-full-01
     - 2026-09-22-nfix-gliner-large-full-01
     - 2026-09-22-nfix-nuextract3-full-01
