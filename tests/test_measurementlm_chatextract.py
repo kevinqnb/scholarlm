@@ -483,6 +483,54 @@ def test_fit_skips_deduplicate_keeps_duplicate_mentions(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# direct_extraction_schema: fills every dataset-specific entity/event/
+# qualifier field ChatExtract doesn't extract, as an explicit None, so a
+# dataset's strict/fuzzy matching config can reference any of its own fields
+# (e.g. nfix's substrate_type) without match_datasets' column-presence check
+# failing loud on a ChatExtract run for lacking a column it was never going
+# to populate. Regression test for the nfix substrate_type gap found
+# 2026-09-26.
+# ---------------------------------------------------------------------------
+
+
+class _DirectExtractionSchema(BaseModel):
+    name: str | None
+    ecosystem_type: str | None
+    substrate_type: str | None
+    attribute: str
+    value: str | None
+    units: str | None
+    point_value: str | float | None
+
+
+def test_make_record_fills_dataset_schema_fields_with_none_when_absent():
+    mlm = _make_mlm(direct_extraction_schema=_DirectExtractionSchema)
+
+    record = mlm._make_record(0, "max_depth", "Lake A", "3.2", "m", 0)
+
+    # Fields ChatExtract's own conversation actually produced are untouched.
+    assert record["name"] == "Lake A"
+    assert record["attribute"] == "max_depth"
+    assert record["value"] == "3.2"
+    assert record["units"] == "m"
+    # Fields only the dataset's direct_extraction_schema declares (not in
+    # ChatExtract's hardcoded set) are present as an explicit None.
+    assert record["substrate_type"] is None
+    assert record["point_value"] is None
+    # Fields already in ChatExtract's hardcoded set stay None as before.
+    assert record["ecosystem_type"] is None
+
+
+def test_make_record_omits_schema_fields_when_no_schema_given():
+    mlm = _make_mlm()  # direct_extraction_schema defaults to None
+
+    record = mlm._make_record(0, "max_depth", "Lake A", "3.2", "m", 0)
+
+    assert "substrate_type" not in record
+    assert "point_value" not in record
+
+
+# ---------------------------------------------------------------------------
 # Real dataset configs: every attribute must have an explicit ChatExtract
 # property phrase and entity noun -- regression test for the supermat gap
 # (bare "tc" property phrase) found and fixed 2026-09-19.

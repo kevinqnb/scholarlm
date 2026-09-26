@@ -166,10 +166,22 @@ class MeasurementLMChatExtract(MeasurementLM):
         include_single_verification: bool = False,
         extract_tables: bool = True,
         max_concurrent: int = 32,
+        direct_extraction_schema: type[BaseModel] | None = None,
         **kwargs,
     ):
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.attribute_property_names = attribute_property_names or {}
+        # DatasetConfig.direct_extraction_schema (Ablation 1's flat schema) --
+        # None for a dataset that hasn't defined one. Used by _make_record to
+        # fill every dataset-specific entity/event/qualifier field this
+        # dataset's OTHER methods extract but ChatExtract's fixed
+        # Material/Value/Unit conversation never does, as an explicit None
+        # rather than an absent column -- so match_datasets' column-presence
+        # check (src/scholarlm/utils/data.py) never fails loud on a ChatExtract
+        # run purely for lacking a field it was never going to populate, and a
+        # dataset that adds a new strict/fuzzy field later doesn't silently
+        # reintroduce that gap.
+        self.direct_extraction_schema = direct_extraction_schema
         # Replaces the reference script's materials-science "material"/"compound"
         # wording throughout the prompt templates -- see
         # DatasetConfig.chatextract_entity_noun. "material" is the fallback
@@ -431,28 +443,36 @@ class MeasurementLMChatExtract(MeasurementLM):
     def _make_record(self, doc_idx: int, attribute: str, material: str | None, value: str, units: str | None, page_num: int | None) -> dict:
         """Build one extraction record in the standard flat schema.
 
+        The record's field set is read off this dataset's direct_extraction_schema
+        (Ablation 1's flat schema -- entity + event + measurement + qualifier
+        fields combined), the same way NuExtract3/LangExtract/Ablation 1 records
+        do (they hold nothing beyond what that schema declares). Every one of
+        those fields defaults to None here, then ``name``/``attribute``/
+        ``value``/``units`` -- the only four ChatExtract's fixed Material/Value/
+        Unit conversation actually produces -- overwrite their defaults. This
+        isn't because ChatExtract can extract the rest (it can't: no entity/event
+        resolution step, by the method's own design -- see the module
+        docstring), but so a dataset's strict/fuzzy matching config can
+        reference any of its own entity/event fields (e.g. nfix's
+        substrate_type) without match_datasets' column-presence check failing
+        loud on a ChatExtract run for lacking a column it was never going to
+        populate. No schema set (no dataset currently omits one) means no
+        fields beyond those four.
+
         ``entity_id`` keys on the document + normalized material, matching the
         rest of the record schema's ID scheme -- `fit()` skips `_deduplicate`
         (see its docstring), so distinct mentions of the same material+attribute+
         value stay as separate records, one per (sentence or table row).
         """
-        item = {
+        item: dict = {}
+        if self.direct_extraction_schema is not None:
+            item.update({field_name: None for field_name in self.direct_extraction_schema.model_fields})
+        item.update({
             "name": material,
-            "identifiers": None,
-            "location": None,
-            "ecosystem": None,   # pond fuzzy-match field (unpopulated by ChatExtract)
-            "ecosystem_type": None,   # nfix fuzzy-match field (unpopulated by ChatExtract)
-            "property": None,    # measeval fuzzy-match field (unpopulated by ChatExtract)
-            # measeval entity field under its quantity-first design (column
-            # parity only -- ChatExtract never enumerates quantities; see the
-            # ChatExtract note in experiments/dataset-configs/measeval.py).
-            "quantity": None,
-            "date": None,
-            "additional_details": None,
             "attribute": attribute,
             "value": value,
             "units": units,
-        }
+        })
         entity_id = f"doc_{doc_idx}_{attribute}_{self._slug(material)}"
         return {"document_id": doc_idx} | item | {
             "entity_id": entity_id, "attribute_terms": [], "page_number": page_num,
