@@ -404,6 +404,36 @@ def _parse_qualifiers(raw_value: str) -> dict:
     return out
 
 
+def _expand_list_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Split any row whose `list_values` is a non-empty list into one row per
+    entry, each independently re-parsed via `_parse_qualifiers` -- covering
+    both plain numeric entries ("26" -> point_value=26.0, qualifiers=[]) and
+    the rare non-plain entry, e.g. compact-uncertainty "39.08(5)" ->
+    point_value=39.08, tolerance="± 0.05", qualifiers=["HasTolerance"].
+    All 7 QUALIFIER_FIELDS are replaced by that entry's own parse (including
+    `list_values`, which comes back None from a single-entry parse -- no
+    entry has ever contained a nested list in this corpus, asserted rather
+    than assumed). Every other field carries over unchanged. Rows without a
+    list_values are returned as-is.
+    """
+    rows: list[dict] = []
+    for row in df.to_dict(orient="records"):
+        list_values = row["list_values"]
+        if not isinstance(list_values, list) or not list_values:
+            rows.append(row)
+            continue
+        for entry in list_values:
+            parsed = _parse_qualifiers(entry)
+            assert parsed["list_values"] is None, (
+                f"list entry {entry!r} (from {list_values!r}) parsed to a "
+                "nested list_values -- unexpected, check by hand"
+            )
+            new_row = dict(row)
+            new_row.update(parsed)
+            rows.append(new_row)
+    return pd.DataFrame(rows).reset_index(drop=True)
+
+
 # ---------------------------------------------------------------------------
 # Page attribution
 # ---------------------------------------------------------------------------
@@ -472,9 +502,16 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
     parenthetical-uncertainty notation/lists are parsed into the matching
     fields and tagged in `qualifiers`. A row `_parse_qualifiers` can't
     confidently parse (free text, or too garbled to disambiguate) is left
-    all-null, same as before this parsing step existed. Writes only
-    `ground_truth_qualifiers.json` -- no ten-paper subset for this path.
-    `ground_truth.json`/`ground_truth_ten.json` are untouched by this flag.
+    all-null, same as before this parsing step existed. A row tagged as a
+    list (`qualifiers == ["IsList"]`, `list_values` populated) is then split
+    by `_expand_list_values` into one row per list entry -- each entry
+    re-parsed on its own, replacing that row's 7 qualifier fields (so
+    `list_values` ends up None on every resulting row, and `point_value`
+    ends up set for a plain numeric entry); every other field carries over
+    unchanged, and this is the one step in this path that changes row count.
+    Writes only `ground_truth_qualifiers.json` -- no ten-paper subset for
+    this path. `ground_truth.json`/`ground_truth_ten.json` are untouched by
+    this flag.
     """
     df = pd.read_csv(raw_path, encoding_errors="ignore")
     df = df.drop(columns=["id"])
@@ -566,6 +603,10 @@ def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool 
         n_unparsed = sum(1 for p in parsed if not p["qualifiers"] and p["point_value"] is None)
         print(f"  Parsed qualifier fields: {n_plain:,} plain, {n_tagged:,} tagged "
               f"(range/approximate/tolerance/list), {n_unparsed:,} left unparsed")
+
+        n_before_expand = len(df_final)
+        df_final = _expand_list_values(df_final)
+        print(f"  Expanded list_values: {n_before_expand:,} rows -> {len(df_final):,} rows")
 
         df_final.to_json(out_dir / "ground_truth_qualifiers.json", orient="records", indent=2)
         print(f"  Saved {len(df_final):,} rows -> ground_truth_qualifiers.json")

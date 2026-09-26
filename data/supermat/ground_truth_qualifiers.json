@@ -6450,15 +6450,38 @@
     "value":"4.2 and 4.6",
     "units":"K",
     "qualifiers":[
-      "IsList"
+
     ],
-    "point_value":null,
+    "point_value":4.2,
     "lower":null,
     "upper":null,
-    "list_values":[
-      "4.2",
-      "4.6"
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      4
     ],
+    "page_score":0.7917,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"L091217001-CC",
+    "name":"Na x CoO2 \u2022 yH2 O",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"4.2 and 4.6",
+    "units":"K",
+    "qualifiers":[
+
+    ],
+    "point_value":4.6,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
     "tolerance":null,
     "standard_deviation":null,
     "page_number":[
@@ -23088,16 +23111,64 @@
     "value":"86, 88 and 48",
     "units":"K",
     "qualifiers":[
-      "IsList"
+
     ],
-    "point_value":null,
+    "point_value":86.0,
     "lower":null,
     "upper":null,
-    "list_values":[
-      "86",
-      "88",
-      "48"
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      1
     ],
+    "page_score":0.7207,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"P067172501-CC",
+    "name":"x Pr =0.1, 0.25 and 0.43",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"86, 88 and 48",
+    "units":"K",
+    "qualifiers":[
+
+    ],
+    "point_value":88.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      1
+    ],
+    "page_score":0.7207,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"P067172501-CC",
+    "name":"x Pr =0.1, 0.25 and 0.43",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"86, 88 and 48",
+    "units":"K",
+    "qualifiers":[
+
+    ],
+    "point_value":48.0,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
     "tolerance":null,
     "standard_deviation":null,
     "page_number":[
@@ -24272,18 +24343,91 @@
     "value":"39.21, 39.15, 39.23 and 39.08(5)",
     "units":"K",
     "qualifiers":[
-      "IsList"
+
     ],
-    "point_value":null,
+    "point_value":39.21,
     "lower":null,
     "upper":null,
-    "list_values":[
-      "39.21",
-      "39.15",
-      "39.23",
-      "39.08(5)"
-    ],
+    "list_values":null,
     "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      4
+    ],
+    "page_score":0.9189,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"P063224522-CC",
+    "name":"0,1,2 and 4 hr",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"39.21, 39.15, 39.23 and 39.08(5)",
+    "units":"K",
+    "qualifiers":[
+
+    ],
+    "point_value":39.15,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      4
+    ],
+    "page_score":0.9189,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"P063224522-CC",
+    "name":"0,1,2 and 4 hr",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"39.21, 39.15, 39.23 and 39.08(5)",
+    "units":"K",
+    "qualifiers":[
+
+    ],
+    "point_value":39.23,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":null,
+    "standard_deviation":null,
+    "page_number":[
+      4
+    ],
+    "page_score":0.9189,
+    "page_confidence":"high"
+  },
+  {
+    "document_id":"P063224522-CC",
+    "name":"0,1,2 and 4 hr",
+    "identifiers":null,
+    "sample_details":null,
+    "pressure":null,
+    "me_method":null,
+    "additional_details":null,
+    "attribute":"tc",
+    "value":"39.21, 39.15, 39.23 and 39.08(5)",
+    "units":"K",
+    "qualifiers":[
+      "HasTolerance"
+    ],
+    "point_value":39.08,
+    "lower":null,
+    "upper":null,
+    "list_values":null,
+    "tolerance":"\u00b1 0.05",
     "standard_deviation":null,
     "page_number":[
       4
