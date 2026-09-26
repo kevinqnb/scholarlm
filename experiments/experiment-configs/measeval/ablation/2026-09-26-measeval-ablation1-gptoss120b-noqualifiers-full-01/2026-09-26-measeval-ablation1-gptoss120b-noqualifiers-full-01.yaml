@@ -1,0 +1,48 @@
+id: 2026-09-26-measeval-ablation1-gptoss120b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on measeval,
+  model=gpt-oss-120b, with params.include_qualifiers=false: the model's
+  direct-extraction schema/prompt/instructions drop the 7 qualifier/shape
+  fields (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation) entirely, per measeval's
+  DirectExtractionItemSchemaNoQualifiers /
+  _DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS machinery added in
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01
+  (devlog/2026-09-25-ablation1-no-qualifiers-01.md), same as
+  2026-09-25-measeval-ablation1-gemma27b-noqualifiers-full-01 but with
+  model=gpt-oss-120b instead of gemma-3-27b. Every other field (entity, event,
+  attribute, value, units) is unchanged from the qualifier-bearing schema --
+  verified via tests/test_ablation1_no_qualifiers.py's schema-diff test
+  (parametrized to include measeval; measeval's no-qualifiers prompt was
+  hand-verified separately, since the line-by-line prompt-diff test stays
+  scoped to pond/nfix/supermat's single-line-per-field prompt shape). Direct
+  comparison arm to 2026-09-21-measeval-ablation1-gptoss120b-full-01 (same
+  dataset/model/ablation/seed, include_qualifiers=true there implicitly; no
+  ocr_dir override on either side -- measeval has no drop_references run, so
+  this defaults to data/measeval/ocr_output_raw/ same as the baseline).
+
+  walltime copied verbatim from that gptoss120b baseline for an
+  apples-to-apples comparison -- this run's schema is a strict subset of the
+  baseline's, so per-call output size can only be equal to or smaller than
+  what already fit in the baseline's 04:00:00 budget (itself only a doubly
+  extrapolated placeholder per that config's own description -- treat this
+  walltime with the same caution). resume dropped, matching every other
+  no-qualifiers ablation1 config in this repo: run_ablation.py never reads a
+  "resume" key for ablation 1's single-call fit().
+
+  STAGED-GATES: rung 1 (unit tests, including measeval in the parametrized
+  schema-diff test) is done for the no-qualifiers schema/prompt machinery
+  itself, but there is no rung-2/3 pass for ablation1 on measeval under ANY
+  schema (qualifier-bearing or not) -- both the gemma27b and gptoss120b
+  qualifier-bearing measeval/ablation1 baselines were themselves submitted
+  without a smoke/tinye2e per their own configs' descriptions. Do not submit
+  this config before a smoke run and a tiny end-to-end with a predicted
+  result on this specific (dataset, model, ablation) triple.
+seed: 342
+params:
+  dataset: measeval
+  model: gpt-oss-120b
+  ablation: "1"
+  include_qualifiers: false
+  walltime: "04:00:00"
