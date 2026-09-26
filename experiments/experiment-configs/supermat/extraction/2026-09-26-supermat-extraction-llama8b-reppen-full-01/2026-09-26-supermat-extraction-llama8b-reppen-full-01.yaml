@@ -1,0 +1,43 @@
+id: 2026-09-26-supermat-extraction-llama8b-reppen-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the base MeasurementLM pipeline on supermat,
+  model=llama-3.1-8b-reppen -- identical to
+  2026-09-21-supermat-extraction-llama8b-full-01 (that config's own original
+  full-pipeline params, git a52a6e5, before it was later repurposed in place
+  to a step:final-only rerun; llama-3.1-8b-reppen has no prior checkpoints
+  under any id, so a final-only rerun is not an option here regardless) in
+  every respect except model: llama-3.1-8b-reppen, whose only difference from
+  llama-3.1-8b.yaml is sampling_params.repetition_penalty: 1.1. Motivation:
+  notes/scholarlm/experiments/2026-09-26-measeval-llama8b-reppen-tinye2e-01.md
+  found llama-3.1-8b's base pipeline degenerating into a token-repetition
+  loop in _detect_attributes on at least one document (measeval,
+  S0019103512003533-5211), burning 4 full retries and returning zero
+  attributes; repetition_penalty: 1.1 eliminated the loop on that document.
+  That test covered only one step, one document, one dataset (measeval,
+  ablation 7) -- this config extends the fix to the full 7-step pipeline on
+  supermat, unverified beyond the mechanism argument that repetition_penalty
+  can only reduce wasted regeneration, never add cost.
+  ocr_dir pinned to
+  experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01,
+  same corpus as every other supermat extraction/ablation config.
+  Walltime: 24:00:00, reused verbatim from
+  2026-09-21-supermat-extraction-llama8b-full-01's own original value -- that
+  config's real observed cost once it actually ran
+  (experiments/results/supermat/extraction/2026-09-21-supermat-extraction-llama8b-full-01/run_metadata.json,
+  total_step_seconds=56845.5s=15.79h, all 7 steps ran fresh) fit comfortably
+  inside its 24h budget, and repetition_penalty should only lower per-call
+  cost, never raise it. resume=true so a walltime kill loses only steps not
+  yet checkpointed.
+  STAGED-GATES: NO rung-1/2/3 pass exists for llama-3.1-8b-reppen on the
+  full (non-ablation-7) pipeline, on any dataset -- see the pond sibling
+  config's identical caveat. Do not submit this config before a smoke run and
+  a tiny end-to-end with a predicted result on this specific (dataset, model)
+  pair.
+seed: 342
+params:
+  dataset: supermat
+  model: llama-3.1-8b-reppen
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  resume: true
+  walltime: "24:00:00"

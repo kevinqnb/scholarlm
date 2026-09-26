@@ -1,0 +1,47 @@
+id: 2026-09-26-measeval-ablation7-llama8b-reppen-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 7 (no standardization/quantity-parsing/
+  deduplication; steps 1-6 of the base MeasurementLM pipeline unmodified) on
+  measeval, model=llama-3.1-8b-reppen -- identical to
+  2026-09-26-measeval-ablation7-llama8b-full-01 (job 7744571) in every
+  respect except model: llama-3.1-8b-reppen, whose only difference from
+  llama-3.1-8b.yaml is sampling_params.repetition_penalty: 1.1. This is the
+  most directly validated of this batch's four ablation-7 configs: job
+  7744571 is the exact run whose log
+  (notes/scholarlm/experiments/2026-09-26-measeval-llama8b-reppen-tinye2e-01.md)
+  surfaced the degenerate token-repetition loop in _detect_attributes (157/448
+  documents failing Pydantic validation on the first pass, 116/448 permanently
+  after 4 retries, defaulting those documents to "no attribute detected"),
+  and the isolated tiny-e2e reproduction of one of those exact documents
+  (S0019103512003533-5211) on this same dataset confirmed
+  repetition_penalty: 1.1 eliminates it (attributes step 463.2s -> 12.8s, 0 ->
+  10 records, 4/4 retries -> 0). Still only single-document evidence, not a
+  guarantee the other ~115 originally-failing documents behave the same way,
+  or that no new failure mode appears elsewhere in steps 1-6 at full scale.
+  ocr_dir omitted -- defaults to data/measeval/ocr_output_raw/, same corpus
+  as the llama-3.1-8b baseline (448 files, no paper_filter/paper_exclude).
+  Walltime: 31:00:00, reused verbatim from
+  2026-09-26-measeval-ablation7-llama8b-full-01's own committed value.
+  Job 7744571 itself completed (it is no longer in the queue as of this
+  writing) -- its own final recovery numbers are a natural reference point
+  for what this reppen rerun should improve on, once available.
+  repetition_penalty should only lower cost, never raise it, so the
+  baseline's own budget remains a safe ceiling even though the ~26%
+  permanent-failure rate observed in 7744571 suggests the baseline run may
+  have finished well under its own walltime once those documents stopped
+  retrying and defaulted.
+  STAGED-GATES: rung 3 passed for this exact (dataset, ablation, model,
+  mechanism) combination, on one document. Given the higher confidence here
+  relative to the other three ablation-7 configs in this batch (same dataset
+  the fix was diagnosed on), this is the strongest candidate of the twelve
+  for an additional smoke run before submission, but still only n=1 at the
+  document level -- consider re-running the tiny-e2e baseline/reppen pair on
+  one or two of the *other* originally-failing documents from 7744571's log
+  before trusting this at full scale.
+seed: 342
+params:
+  dataset: measeval
+  model: llama-3.1-8b-reppen
+  ablation: "7"
+  walltime: "31:00:00"
