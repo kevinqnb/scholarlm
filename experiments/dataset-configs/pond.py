@@ -13,7 +13,7 @@ import json
 
 from pydantic import BaseModel
 
-from scholarlm.config import DatasetConfig
+from scholarlm.config import DatasetConfig, QUALIFIER_FIELD_NAMES
 
 
 # ---------------------------------------------------------------------------
@@ -35,10 +35,11 @@ class EntitySchema(BaseModel):
     # larger matching-algorithm update is planned separately). Until that
     # lands, pond recovery-rate computation will KeyError on the missing
     # `location` column.
-    # ``identifiers`` is extracted by the real pipeline and its ablations only
-    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
-    # baselines; GLiNER already excludes it structurally (never listed in
-    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # ``identifiers`` is extracted by the real (7-step) pipeline only --
+    # removed 2026-09-25 from every direct-extraction-style method (Ablation
+    # 1, NuExtract, LangExtract; GLiNER already excluded it structurally,
+    # never listed in gliner_field_descriptions, and ChatExtract's flat
+    # schema never included it) per instruction: none of them should extract
     # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
@@ -200,11 +201,13 @@ class DirectExtractionItemSchema(BaseModel):
     """Flat schema for Ablation 1: combines entity, event, attribute, value,
     units, and the qualifier/shape fields (the same shape
     MeasurementLM._parse_quantities() produces via a separate step -- see
-    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS). No ``identifiers`` field
+    (removed 2026-09-25): that's an alias-resolution aid for the real
+    pipeline's entity matching only, never something a direct-extraction-style
+    method should reproduce -- see EntitySchema's own comment above."""
 
     # Entity fields
     name: str | None
-    identifiers: str | None
     ecosystem: str | None
     # Event fields
     date: str | None
@@ -229,13 +232,13 @@ class DirectExtractionItemSchema(BaseModel):
 class DirectExtractionItemSchemaNoQualifiers(BaseModel):
     """Ablation-1 no-qualifiers variant of DirectExtractionItemSchema: same
     entity/event/measurement fields, with the 7 qualifier/shape fields
-    dropped entirely (params.include_qualifiers=false in run_ablation.py --
-    see tests/test_ablation1_no_qualifiers.py for the field-set diff this
-    must maintain)."""
+    dropped entirely (params.include_qualifiers=false in run_ablation.py,
+    run_baseline_nuextract3.py, or run_baseline_langextract.py -- see
+    tests/test_ablation1_no_qualifiers.py for the field-set diff this must
+    maintain)."""
 
     # Entity fields
     name: str | None
-    identifiers: str | None
     ecosystem: str | None
     # Event fields
     date: str | None
@@ -252,7 +255,6 @@ Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar wat
 
 Entity fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
 
 Entity identification rules:
@@ -287,7 +289,6 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
       "ecosystem": "...",
       "date": "...",
       "event_details": "...",
@@ -318,7 +319,6 @@ Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar wat
 
 Entity fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
 
 Entity identification rules:
@@ -353,7 +353,6 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
       "ecosystem": "...",
       "date": "...",
       "event_details": "...",
@@ -383,9 +382,8 @@ other_things = """
 # verbatim-string fields are trained to copy spans rather than paraphrase.
 # Together the three examples touch all 7 pond attributes and all of
 # point_value, lower/upper, list_values, tolerance, and standard_deviation
-# at least once. No `identifiers` key: see DatasetConfig.baseline_filter_fields
-# below -- these examples are baseline-only, so they never show the field a
-# baseline shouldn't reproduce.
+# at least once. No `identifiers` key: direct_extraction_schema doesn't have
+# one (removed 2026-09-25), so these examples never had it to begin with.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -533,6 +531,28 @@ _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
+
+
+def _drop_qualifiers(examples: list[dict]) -> list[dict]:
+    """No-qualifiers counterpart of a `nuextract_examples`-shaped list: same
+    inputs, with QUALIFIER_FIELD_NAMES removed from every output item --
+    the few-shot counterpart of direct_extraction_schema_no_qualifiers, for
+    the NuExtract3/LangExtract baselines' params.include_qualifiers=false.
+    Derived from the qualifier-bearing examples (not hand-duplicated) so the
+    two can never drift apart.
+    """
+    stripped = []
+    for example in examples:
+        items = json.loads(example["output"])["items"]
+        new_items = [
+            {k: v for k, v in item.items() if k not in QUALIFIER_FIELD_NAMES}
+            for item in items
+        ]
+        stripped.append({"input": example["input"], "output": json.dumps({"items": new_items})})
+    return stripped
+
+
+_NUEXTRACT_EXAMPLES_NO_QUALIFIERS = _drop_qualifiers(_NUEXTRACT_EXAMPLES)
 
 
 # ---------------------------------------------------------------------------
@@ -706,13 +726,14 @@ CONFIG = DatasetConfig(
     direct_extraction_schema_no_qualifiers=DirectExtractionItemSchemaNoQualifiers,
     direct_extraction_prompt_no_qualifiers=_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    nuextract_examples_no_qualifiers=_NUEXTRACT_EXAMPLES_NO_QUALIFIERS,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
-    # identifiers is extracted by the real pipeline and its ablations only --
-    # see EntitySchema's comment above; excluded here from the NuExtract
-    # baselines specifically (GLiNER/ChatExtract already never see it).
-    baseline_filter_fields=["identifiers"],
+    # baseline_filter_fields no longer needed for identifiers (removed
+    # 2026-09-25): direct_extraction_schema doesn't have that field at all
+    # any more, so there's nothing left for the NuExtract baselines to filter
+    # out of it -- see EntitySchema's comment above.
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,

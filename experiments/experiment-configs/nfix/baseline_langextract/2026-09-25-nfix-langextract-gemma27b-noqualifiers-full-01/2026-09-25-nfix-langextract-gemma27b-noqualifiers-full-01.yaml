@@ -1,0 +1,33 @@
+id: 2026-09-25-nfix-langextract-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline on nfix, backbone gemma-3-27b,
+  with params.include_qualifiers=false -- see
+  2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01 for the full
+  mechanism. Direct comparison arm to
+  2026-09-22-nfix-langextract-gemma27b-full-01 (same dataset/model/ocr_dir/
+  seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime/chunking knobs copied verbatim from the baseline config --
+  this run's schema is a strict subset of the baseline's, so per-call output
+  size can only be equal to or smaller than what already fit in the
+  baseline's 28:00:00 budget.
+
+  STAGED-GATES: rung 1 (unit tests, parametrized over nfix -- all passing) is
+  done. Rung 2 (smoke) and rung 3 (tiny end-to-end with a predicted result)
+  have NOT been run yet -- no GPU/vLLM available on this login node. Do not
+  submit this config before they pass.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  include_qualifiers: false
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  repetition_penalty: 1.2
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "28:00:00"

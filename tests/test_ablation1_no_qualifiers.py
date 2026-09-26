@@ -41,10 +41,11 @@ _QUALIFIER_FIELDS = {
 # ---------------------------------------------------------------------------
 
 
-def test_pond_no_qualifiers_schema_drops_exactly_the_qualifier_fields():
-    pond = load_dataset_config("pond")
-    with_fields = pond.direct_extraction_schema.model_fields
-    without_fields = pond.direct_extraction_schema_no_qualifiers.model_fields
+@pytest.mark.parametrize("dataset_name", ["pond", "nfix", "supermat", "measeval"])
+def test_no_qualifiers_schema_drops_exactly_the_qualifier_fields(dataset_name):
+    dataset_config = load_dataset_config(dataset_name)
+    with_fields = dataset_config.direct_extraction_schema.model_fields
+    without_fields = dataset_config.direct_extraction_schema_no_qualifiers.model_fields
 
     assert set(with_fields) - set(without_fields) == _QUALIFIER_FIELDS
     for name in without_fields:
@@ -89,15 +90,22 @@ def test_no_qualifiers_instructions_diff_is_exactly_the_qualifier_bullets():
 
 
 # ---------------------------------------------------------------------------
-# Pond's dataset-specific prompt: only the JSON example's qualifier keys
-# differ
+# Each dataset's own direct_extraction_prompt: only the JSON example's
+# qualifier keys differ
 # ---------------------------------------------------------------------------
 
 
-def test_pond_no_qualifiers_prompt_diff_is_exactly_the_json_example_keys():
-    pond = load_dataset_config("pond")
-    with_lines = pond.direct_extraction_prompt.splitlines()
-    without_lines = pond.direct_extraction_prompt_no_qualifiers.splitlines()
+@pytest.mark.parametrize("dataset_name", ["pond", "nfix", "supermat"])
+def test_no_qualifiers_prompt_diff_is_exactly_the_json_example_keys(dataset_name):
+    """Line-shaped diff, tied to pond/nfix/supermat's shared one-bullet-per-field
+    prompt style -- measeval's qualifiers bullet is a multi-line paragraph with
+    its own sub-bullets (tag definitions), so this line-by-line/quoted-key
+    check doesn't generalize to it. measeval's no-qualifiers prompt is instead
+    covered by the schema-diff and examples-diff tests above/below, which are
+    format-agnostic."""
+    dataset_config = load_dataset_config(dataset_name)
+    with_lines = dataset_config.direct_extraction_prompt.splitlines()
+    without_lines = dataset_config.direct_extraction_prompt_no_qualifiers.splitlines()
 
     removed_key_prefixes = tuple(f'      "{f}":' for f in _QUALIFIER_FIELDS)
     expected_without_lines = [
@@ -112,9 +120,33 @@ def test_pond_no_qualifiers_prompt_diff_is_exactly_the_json_example_keys():
     # Independent check via the JSON example's own quoted keys (the example
     # itself isn't strict JSON -- "qualifiers": [...] uses a bare ellipsis --
     # so this greps keys rather than json.loads-ing it).
-    with_keys = set(re.findall(r'"(\w+)":', pond.direct_extraction_prompt))
-    without_keys = set(re.findall(r'"(\w+)":', pond.direct_extraction_prompt_no_qualifiers))
+    with_keys = set(re.findall(r'"(\w+)":', dataset_config.direct_extraction_prompt))
+    without_keys = set(re.findall(r'"(\w+)":', dataset_config.direct_extraction_prompt_no_qualifiers))
     assert with_keys - without_keys == _QUALIFIER_FIELDS
+
+
+# ---------------------------------------------------------------------------
+# Each dataset's nuextract_examples_no_qualifiers: same inputs/attributes,
+# only the 7 qualifier keys removed from every output item
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("dataset_name", ["pond", "nfix", "supermat", "measeval"])
+def test_no_qualifiers_examples_drop_exactly_the_qualifier_keys(dataset_name):
+    dataset_config = load_dataset_config(dataset_name)
+    with_examples = dataset_config.nuextract_examples
+    without_examples = dataset_config.nuextract_examples_no_qualifiers
+
+    assert len(with_examples) == len(without_examples)
+    for with_ex, without_ex in zip(with_examples, without_examples):
+        assert with_ex["input"] == without_ex["input"]
+        with_items = json.loads(with_ex["output"])["items"]
+        without_items = json.loads(without_ex["output"])["items"]
+        assert len(with_items) == len(without_items)
+        for with_item, without_item in zip(with_items, without_items):
+            assert set(with_item) - set(without_item) == _QUALIFIER_FIELDS
+            for key in without_item:
+                assert with_item[key] == without_item[key], (dataset_name, key)
 
 
 # ---------------------------------------------------------------------------

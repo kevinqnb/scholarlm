@@ -31,7 +31,11 @@ max_workers, batch_length, use_schema_constraints, fence_output.
 Optional params: paper_subset (list), ocr_dir, api_base, api_key,
 max_concurrent (default 32), temperature, repetition_penalty (per-experiment
 overrides of the model config's own sampling_params -- see
-run_baseline_langextract()'s docstring).
+run_baseline_langextract()'s docstring), include_qualifiers (bool, default
+true -- false asks the dataset config's *_no_qualifiers direct-extraction
+schema/prompt/examples instead, dropping the qualifier/shape fields, mirroring
+run_ablation.py's own flag. Fails loud if the dataset has no no-qualifiers
+variant defined).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models: any file in experiments/model-configs/extraction/<name>.yaml.
@@ -52,8 +56,16 @@ _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
+from scholarlm.instruction_prompts import (
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS,
+)
 from scholarlm.measurementlm import NumpyEncoder
-from scholarlm.measurementlm_langextract import MeasurementLMLangExtract
+from scholarlm.measurementlm_langextract import (
+    JSON_ENVELOPE_LINE,
+    JSON_ENVELOPE_LINE_NO_QUALIFIERS,
+    MeasurementLMLangExtract,
+)
 
 from run_extraction import load_dataset_config, load_papers, get_model_config
 import utils as paths
@@ -83,6 +95,7 @@ def run_baseline_langextract(
     max_concurrent: int = 32,
     temperature_override: float | None = None,
     repetition_penalty_override: float | None = None,
+    include_qualifiers: bool = True,
 ) -> None:
     """Run the langextract baseline for a dataset on a given backbone model.
 
@@ -116,7 +129,51 @@ def run_baseline_langextract(
     measurementlm_langextract.py); with no config change at all, behavior is
     unchanged, since `sampling_params.get("repetition_penalty")` is `None`
     for every existing model config.
+
+    `include_qualifiers`: False asks the dataset config's
+    ``direct_extraction_schema_no_qualifiers``/``_prompt_no_qualifiers``/
+    ``nuextract_examples_no_qualifiers`` instead of the qualifier-bearing
+    defaults, and ``DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS`` (plus
+    its matching JSON-envelope line) instead of the qualifier-bearing pair --
+    mirrors ``run_ablation.py``'s ``include_qualifiers`` for Ablation 1. Raises
+    if the dataset has no such variant.
     """
+    if not isinstance(include_qualifiers, bool):
+        raise ValueError(
+            f"include_qualifiers must be a bool, got {include_qualifiers!r} "
+            f"({type(include_qualifiers).__name__}) -- a YAML string like "
+            f"'false' is truthy in Python and would silently run with "
+            f"qualifiers included while claiming otherwise."
+        )
+    if dataset_config.direct_extraction_schema is None or dataset_config.direct_extraction_prompt is None:
+        raise ValueError(
+            f"Dataset '{dataset_config.name}' does not define direct_extraction_schema "
+            f"and/or direct_extraction_prompt, both required for the LangExtract baseline "
+            f"(the same values Ablation 1 uses)."
+        )
+    if include_qualifiers:
+        direct_extraction_schema = dataset_config.direct_extraction_schema
+        direct_extraction_prompt = dataset_config.direct_extraction_prompt
+        direct_extraction_instructions = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+        json_envelope_line = JSON_ENVELOPE_LINE
+        nuextract_examples = dataset_config.nuextract_examples
+    else:
+        if (
+            dataset_config.direct_extraction_schema_no_qualifiers is None
+            or dataset_config.direct_extraction_prompt_no_qualifiers is None
+            or dataset_config.nuextract_examples_no_qualifiers is None
+        ):
+            raise ValueError(
+                f"include_qualifiers=False requires '{dataset_config.name}' to define "
+                f"direct_extraction_schema_no_qualifiers, direct_extraction_prompt_no_qualifiers, "
+                f"and nuextract_examples_no_qualifiers -- at least one is unset."
+            )
+        direct_extraction_schema = dataset_config.direct_extraction_schema_no_qualifiers
+        direct_extraction_prompt = dataset_config.direct_extraction_prompt_no_qualifiers
+        direct_extraction_instructions = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
+        json_envelope_line = JSON_ENVELOPE_LINE_NO_QUALIFIERS
+        nuextract_examples = dataset_config.nuextract_examples_no_qualifiers
+
     data_dir = Path(dataset_config.data_dir)
 
     # langextract reads OCR text directly, same convention as ChatExtract: an
@@ -148,9 +205,11 @@ def run_baseline_langextract(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
-        direct_extraction_schema=dataset_config.direct_extraction_schema,
-        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
-        nuextract_examples=dataset_config.nuextract_examples,
+        direct_extraction_schema=direct_extraction_schema,
+        direct_extraction_prompt=direct_extraction_prompt,
+        direct_extraction_instructions=direct_extraction_instructions,
+        json_envelope_line=json_envelope_line,
+        nuextract_examples=nuextract_examples,
         measurement_event_schema=dataset_config.measurement_event_schema,
         sampling_params=sampling_params,
         api_base=api_base,
@@ -197,6 +256,7 @@ def run_baseline_langextract(
         repetition_penalty=sampling_params.get("repetition_penalty"),
         use_schema_constraints=use_schema_constraints,
         fence_output=fence_output,
+        include_qualifiers=include_qualifiers,
         gpu_compatibility_warnings=gpu_warnings,
         # lx.extract() manages its own HTTP calls, bypassing _acall/_call_batch
         # entirely (see module docstring) -- token_usage would be all-zero,
@@ -261,6 +321,7 @@ def main(argv: list[str] | None = None) -> None:
         max_concurrent=params.get("max_concurrent", 32),
         temperature_override=params.get("temperature"),
         repetition_penalty_override=params.get("repetition_penalty"),
+        include_qualifiers=params.get("include_qualifiers", True),
     )
 
 

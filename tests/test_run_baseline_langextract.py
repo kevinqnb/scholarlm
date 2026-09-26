@@ -23,6 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "experiments"))
 
+import pytest
 from pydantic import BaseModel
 
 import run_baseline_langextract
@@ -72,6 +73,7 @@ def _stub_fit(monkeypatch):
 
     def fake_init(self, **kwargs):
         captured["sampling_params"] = kwargs["sampling_params"]
+        captured["kwargs"] = kwargs
         self.data = []
 
     def fake_fit(self, documents):
@@ -181,3 +183,95 @@ def test_no_repetition_penalty_override_leaves_it_absent(tmp_path, monkeypatch):
     assert captured["sampling_params"].get("repetition_penalty") is None
     metadata = json.loads((output_dir / "run_metadata.json").read_text())
     assert metadata["repetition_penalty"] is None
+
+
+# ---------------------------------------------------------------------------
+# include_qualifiers
+# ---------------------------------------------------------------------------
+
+
+class _DirectSchemaNoQualifiers(BaseModel):
+    name: str | None
+    attribute: str
+    value: str | None
+    units: str | None
+
+
+def _add_no_qualifiers_variant(dataset_config):
+    dataset_config.direct_extraction_schema_no_qualifiers = _DirectSchemaNoQualifiers
+    dataset_config.direct_extraction_prompt_no_qualifiers = (
+        "Extract depth measurements, no qualifiers.\n\nOutput format requirements:\n- x"
+    )
+    dataset_config.nuextract_examples_no_qualifiers = []
+    return dataset_config
+
+
+def test_include_qualifiers_non_bool_rejected(tmp_path, monkeypatch):
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    _stub_fit(monkeypatch)
+    with pytest.raises(ValueError, match="must be a bool"):
+        run_baseline_langextract.run_baseline_langextract(
+            dataset_config=dataset_config, model_config=model_config, output_dir=tmp_path / "out",
+            max_char_buffer=5000, extraction_passes=1, max_workers=1, batch_length=1,
+            use_schema_constraints=False, fence_output=True, ocr_dir=ocr_dir,
+            include_qualifiers="false",
+        )
+
+
+def test_include_qualifiers_false_rejected_without_dataset_variant(tmp_path, monkeypatch):
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    _stub_fit(monkeypatch)
+    assert dataset_config.direct_extraction_schema_no_qualifiers is None
+    with pytest.raises(ValueError, match="direct_extraction_schema_no_qualifiers"):
+        run_baseline_langextract.run_baseline_langextract(
+            dataset_config=dataset_config, model_config=model_config, output_dir=tmp_path / "out",
+            max_char_buffer=5000, extraction_passes=1, max_workers=1, batch_length=1,
+            use_schema_constraints=False, fence_output=True, ocr_dir=ocr_dir,
+            include_qualifiers=False,
+        )
+
+
+def test_include_qualifiers_false_selects_no_qualifiers_material(tmp_path, monkeypatch):
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    _add_no_qualifiers_variant(dataset_config)
+    captured = _stub_fit(monkeypatch)
+    output_dir = tmp_path / "out"
+
+    run_baseline_langextract.run_baseline_langextract(
+        dataset_config=dataset_config, model_config=model_config, output_dir=output_dir,
+        max_char_buffer=5000, extraction_passes=1, max_workers=1, batch_length=1,
+        use_schema_constraints=False, fence_output=True, ocr_dir=ocr_dir,
+        include_qualifiers=False,
+    )
+
+    kwargs = captured["kwargs"]
+    assert kwargs["direct_extraction_schema"] is _DirectSchemaNoQualifiers
+    assert kwargs["direct_extraction_prompt"] == dataset_config.direct_extraction_prompt_no_qualifiers
+    assert kwargs["direct_extraction_instructions"] == (
+        run_baseline_langextract.DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
+    )
+    assert kwargs["json_envelope_line"] == run_baseline_langextract.JSON_ENVELOPE_LINE_NO_QUALIFIERS
+    assert kwargs["nuextract_examples"] == []
+
+    metadata = json.loads((output_dir / "run_metadata.json").read_text())
+    assert metadata["include_qualifiers"] is False
+
+
+def test_include_qualifiers_default_true_selects_qualifier_bearing_material(tmp_path, monkeypatch):
+    dataset_config, model_config, ocr_dir = _make_fixture(tmp_path)
+    captured = _stub_fit(monkeypatch)
+    output_dir = tmp_path / "out"
+
+    run_baseline_langextract.run_baseline_langextract(
+        dataset_config=dataset_config, model_config=model_config, output_dir=output_dir,
+        max_char_buffer=5000, extraction_passes=1, max_workers=1, batch_length=1,
+        use_schema_constraints=False, fence_output=True, ocr_dir=ocr_dir,
+    )
+
+    kwargs = captured["kwargs"]
+    assert kwargs["direct_extraction_schema"] is dataset_config.direct_extraction_schema
+    assert kwargs["direct_extraction_instructions"] == run_baseline_langextract.DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+    assert kwargs["json_envelope_line"] == run_baseline_langextract.JSON_ENVELOPE_LINE
+
+    metadata = json.loads((output_dir / "run_metadata.json").read_text())
+    assert metadata["include_qualifiers"] is True

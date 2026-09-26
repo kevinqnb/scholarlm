@@ -1,0 +1,42 @@
+id: 2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline on pond, backbone gemma-3-27b,
+  with params.include_qualifiers=false: run_baseline_langextract.py now
+  selects the no-qualifiers direct-extraction schema/prompt/examples plus a
+  matching DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS/
+  JSON_ENVELOPE_LINE_NO_QUALIFIERS pair (measurementlm_langextract.py's
+  _prompt_description/JSON_ENVELOPE_LINE became explicit params rather than
+  hardcoded globals, so the two must be passed together -- an assertion fires
+  if they're mismatched). Built
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01. Every other knob
+  (max_char_buffer/extraction_passes/max_workers/batch_length/
+  repetition_penalty/use_schema_constraints/fence_output) is unchanged. Direct
+  comparison arm to 2026-09-22-pond-langextract-gemma27b-full-01 (same
+  dataset/model/ocr_dir/seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config for an
+  apples-to-apples comparison -- this run's schema is a strict subset of the
+  baseline's, so per-call output size can only be equal to or smaller than
+  what already fit in the baseline's 36:00:00 budget.
+
+  STAGED-GATES: rung 1 (unit tests --
+  tests/test_measurementlm_langextract.py's no-qualifiers-pair tests and
+  tests/test_run_baseline_langextract.py's include_qualifiers tests -- all
+  passing) is done. Rung 2 (smoke) and rung 3 (tiny end-to-end with a
+  predicted result) have NOT been run yet -- no GPU/vLLM available on this
+  login node. Do not submit this config before they pass.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  repetition_penalty: 1.2
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "36:00:00"

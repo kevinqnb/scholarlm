@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import re
 
+from .config import QUALIFIER_FIELD_NAMES
 from .measurementlm import MeasurementLM
 
 # ---------------------------------------------------------------------------
@@ -94,11 +95,10 @@ _TABLE_RE = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 # qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation
 # (MeasurementLM.ParseQuantityResponse) -- see _build_structure's docstring
 # for why GLiNER2 represents qualifiers/list_values as comma-joined strings
-# rather than JSON lists.
-QUANTITY_FIELD_NAMES = (
-    "qualifiers", "point_value", "lower", "upper",
-    "list_values", "tolerance", "standard_deviation",
-)
+# rather than JSON lists. QUANTITY_FIELD_NAMES is this module's own name for
+# scholarlm.config.QUALIFIER_FIELD_NAMES, the same 7 fields Ablation 1/
+# NuExtract3/LangExtract's *_no_qualifiers schema variants drop.
+QUANTITY_FIELD_NAMES = QUALIFIER_FIELD_NAMES
 
 
 class MeasurementLMGliner(MeasurementLM):
@@ -115,6 +115,7 @@ class MeasurementLMGliner(MeasurementLM):
         batch_size: int = 8,
         chunk_size: int = 384,
         chunk_overlap: int = 64,
+        include_qualifiers: bool = True,
         device: str,
         **kwargs,
     ):
@@ -140,6 +141,7 @@ class MeasurementLMGliner(MeasurementLM):
         self.gliner_field_descriptions = gliner_field_descriptions or {}
         self.threshold = threshold
         self.batch_size = batch_size
+        self.include_qualifiers = include_qualifiers
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
@@ -227,6 +229,11 @@ class MeasurementLMGliner(MeasurementLM):
         qualifiers/point_value/lower/upper/list_values/tolerance/
         standard_deviation shape (MeasurementLM.ParseQuantityResponse), forced
         by GLiNER2's own type system, not an oversight.
+
+        ``self.include_qualifiers=False`` (the GLiNER counterpart of Ablation
+        1/NuExtract3/LangExtract's ``params.include_qualifiers``) skips the 7
+        QUANTITY_FIELD_NAMES fields below entirely, leaving name/value/units
+        and the extra entity/event fields untouched.
         """
         phrase = self._phrase(attr_key)
         info = self.attribute_info_dict.get(attr_key, {})
@@ -259,56 +266,57 @@ class MeasurementLMGliner(MeasurementLM):
             description=f"The unit of the {phrase} value{unit_hint}. "
             f"Leave empty if the quantity is dimensionless or no unit is given.",
         )
-        builder.field(
-            "qualifiers",
-            dtype="str",
-            description="Comma-separated tags describing the shape of the value, drawn only "
-            "from: IsCount (a count of discrete items), IsApproximate (explicitly hedged, e.g. "
-            "'about 50'), IsList (an enumerated list of separate values), IsRange (a reported "
-            "interval or one-sided bound, e.g. '3-7', '< 5'), IsMean (an explicitly stated "
-            "mean/average), IsMedian (an explicitly stated median), HasTolerance (an explicit "
-            "+/- value or confidence interval reported alongside the value), HasSD (an explicit "
-            "standard deviation reported alongside the value). Combine tags freely when the "
-            "text supports it (e.g. 'IsApproximate, IsMean'). Leave empty for a plain, unhedged "
-            "single value.",
-        )
-        builder.field(
-            "point_value",
-            dtype="str",
-            description="The single central value, when one is directly reported -- a plain "
-            "point value, or the stated mean/median/count. Leave empty if no single central "
-            "value is reported.",
-        )
-        builder.field(
-            "lower",
-            dtype="str",
-            description="The lower bound of a reported range or one-sided inequality (e.g. "
-            "'at least 10'). Leave empty if no range or lower bound is reported.",
-        )
-        builder.field(
-            "upper",
-            dtype="str",
-            description="The upper bound of a reported range or one-sided inequality (e.g. "
-            "'< 5'). Leave empty if no range or upper bound is reported.",
-        )
-        builder.field(
-            "list_values",
-            dtype="str",
-            description="If the value is an enumerated list of separate values, the parsed "
-            "items joined by commas, in the order reported. Leave empty otherwise.",
-        )
-        builder.field(
-            "tolerance",
-            dtype="str",
-            description="The confidence interval or +/- value exactly as reported (e.g. "
-            "'± 0.5', '95% CI: 5-9'), if one is given alongside the value. Leave empty otherwise.",
-        )
-        builder.field(
-            "standard_deviation",
-            dtype="str",
-            description="The standard deviation exactly as reported, if one is given "
-            "alongside the value. Leave empty otherwise.",
-        )
+        if self.include_qualifiers:
+            builder.field(
+                "qualifiers",
+                dtype="str",
+                description="Comma-separated tags describing the shape of the value, drawn only "
+                "from: IsCount (a count of discrete items), IsApproximate (explicitly hedged, e.g. "
+                "'about 50'), IsList (an enumerated list of separate values), IsRange (a reported "
+                "interval or one-sided bound, e.g. '3-7', '< 5'), IsMean (an explicitly stated "
+                "mean/average), IsMedian (an explicitly stated median), HasTolerance (an explicit "
+                "+/- value or confidence interval reported alongside the value), HasSD (an explicit "
+                "standard deviation reported alongside the value). Combine tags freely when the "
+                "text supports it (e.g. 'IsApproximate, IsMean'). Leave empty for a plain, unhedged "
+                "single value.",
+            )
+            builder.field(
+                "point_value",
+                dtype="str",
+                description="The single central value, when one is directly reported -- a plain "
+                "point value, or the stated mean/median/count. Leave empty if no single central "
+                "value is reported.",
+            )
+            builder.field(
+                "lower",
+                dtype="str",
+                description="The lower bound of a reported range or one-sided inequality (e.g. "
+                "'at least 10'). Leave empty if no range or lower bound is reported.",
+            )
+            builder.field(
+                "upper",
+                dtype="str",
+                description="The upper bound of a reported range or one-sided inequality (e.g. "
+                "'< 5'). Leave empty if no range or upper bound is reported.",
+            )
+            builder.field(
+                "list_values",
+                dtype="str",
+                description="If the value is an enumerated list of separate values, the parsed "
+                "items joined by commas, in the order reported. Leave empty otherwise.",
+            )
+            builder.field(
+                "tolerance",
+                dtype="str",
+                description="The confidence interval or +/- value exactly as reported (e.g. "
+                "'± 0.5', '95% CI: 5-9'), if one is given alongside the value. Leave empty otherwise.",
+            )
+            builder.field(
+                "standard_deviation",
+                dtype="str",
+                description="The standard deviation exactly as reported, if one is given "
+                "alongside the value. Leave empty otherwise.",
+            )
         for field_name in self._extra_entity_fields() + self._extra_event_fields():
             builder.field(field_name, dtype="str", description=self._field_description(field_name))
         schema.build()  # finalize the active builder on the Schema object
@@ -570,7 +578,15 @@ class MeasurementLMGliner(MeasurementLM):
                     continue  # values are always numeric
                 name = self._clean_field(item.get(self._entity_name_field()))
                 units = self._clean_field(item.get("units"))
-                quantity = {f: self._clean_field(item.get(f)) for f in QUANTITY_FIELD_NAMES}
+                # Omit the 7 quantity keys entirely when include_qualifiers=False,
+                # matching Ablation 1/NuExtract3/LangExtract's no-qualifiers shape
+                # (those schemas simply lack the fields, not None-valued) -- so
+                # every method's final.json has the same column set for a given
+                # include_qualifiers setting, not just the same values.
+                quantity = (
+                    {f: self._clean_field(item.get(f)) for f in QUANTITY_FIELD_NAMES}
+                    if self.include_qualifiers else {}
+                )
                 extra = {f: self._clean_field(item.get(f)) for f in extra_field_names}
                 records.append(
                     self._make_record(doc_idx, attr_key, name, value, units, quantity, page_num, extra)

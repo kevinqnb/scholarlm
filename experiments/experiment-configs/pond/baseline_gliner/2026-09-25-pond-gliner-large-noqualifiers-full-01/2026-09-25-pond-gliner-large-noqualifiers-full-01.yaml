@@ -1,0 +1,46 @@
+id: 2026-09-25-pond-gliner-large-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the GLiNER2 baseline on pond, model=gliner-large-v1, with
+  params.include_qualifiers=false: measurementlm_gliner.py's _build_structure
+  now skips the 7 QUANTITY_FIELD_NAMES structure fields entirely when this is
+  set (GLiNER hardcodes these fields directly rather than deriving them from
+  a dataset-config schema like Ablation 1/NuExtract3/LangExtract, so this
+  needed no dataset-config change -- it works identically for every dataset).
+  Built 2026-09-25-ablation1-no-qualifiers-all-datasets-01. Direct comparison
+  arm to 2026-09-22-pond-gliner-large-full-01 (same dataset/model/ocr_dir/
+  seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config -- GLiNER's base
+  estimate is dominated by fixed overhead (SGE startup, weight loading), not
+  per-structure-field count, so dropping 7 fields per attribute structure
+  shouldn't move this meaningfully. NOTE: run_baseline_gliner.py's main()
+  silently ignored params.ocr_dir before 2026-09-25 (fixed same day, see
+  notes/scholarlm/builds) -- 2026-09-22-pond-gliner-large-full-01 (this run's
+  nominal comparison arm) therefore actually read raw OCR despite its own
+  ocr_dir setting, while THIS run, under the now-fixed code, will really read
+  the table-cleaned corpus its params.ocr_dir names. The two arms are no
+  longer matched on input corpus, only on include_qualifiers -- a corpus
+  confound, not just a qualifier-field one. A true apples-to-apples
+  comparison needs a fresh qualifier-bearing pond/gliner-large-v1 run under
+  the fixed code, which does not exist yet as of this config's authoring.
+
+  STAGED-GATES: rung 1 (unit tests --
+  tests/test_measurementlm_gliner.py's include_qualifiers tests and
+  tests/test_run_baseline_gliner.py -- all passing) is done. Rung 2 (smoke)
+  also done, 2026-09-25, since GLiNER2 is a small CPU-capable encoder (unlike
+  the vLLM-served methods above): ran run_baseline_gliner() directly on one
+  synthetic pond-shaped paper with device="cpu", both include_qualifiers
+  settings -- True produced 7 records each carrying all 7 qualifier keys,
+  False produced 5 records with none of them present, confirming the real
+  fastino/gliner2-large-v1 model accepts the reduced per-attribute structure
+  and the output keys drop as expected. Rung 3 (tiny end-to-end with a
+  predicted result, on the real pond corpus) has NOT been run yet. Do not
+  submit this config before it passes.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "02:00:00"

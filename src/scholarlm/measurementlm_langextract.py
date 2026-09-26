@@ -55,12 +55,21 @@ _PAGE_RE = re.compile(r'<page number="(\d+)">(.*?)</page>', re.DOTALL)
 # The one sentence in DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS that prescribes the
 # direct-extraction-mode ("items" list) output shape -- dropped for langextract,
 # which imposes its own extraction_class/extraction_text/attributes envelope.
-_JSON_ENVELOPE_LINE = (
+JSON_ENVELOPE_LINE = (
     '- Structure your response as a JSON object with an "items" list, where '
     'each item contains the entity fields, event fields, and "attribute", '
     '"value", "units", "qualifiers", "point_value", "lower", "upper", '
     '"list_values", "tolerance", and "standard_deviation" fields as specified '
     'in the dataset-specific instructions.'
+)
+
+# The no-qualifiers counterpart of JSON_ENVELOPE_LINE, exactly matching the
+# corresponding line in DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
+# (see tests/test_ablation1_no_qualifiers.py for the diff this must maintain).
+JSON_ENVELOPE_LINE_NO_QUALIFIERS = (
+    '- Structure your response as a JSON object with an "items" list, where '
+    'each item contains the entity fields, event fields, and "attribute", '
+    '"value", and "units" fields as specified in the dataset-specific instructions.'
 )
 
 _EXTRACTION_CLASS = "measurement"
@@ -72,19 +81,32 @@ _EXTRACTION_CLASS = "measurement"
 _OUTPUT_FORMAT_HEADING = "Output format requirements:"
 
 
-def _prompt_description(direct_extraction_prompt: str) -> str:
+def _prompt_description(
+    direct_extraction_prompt: str,
+    direct_extraction_instructions: str = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+    json_envelope_line: str = JSON_ENVELOPE_LINE,
+) -> str:
     """Build langextract's `prompt_description`: the shared extraction
     guidelines plus the dataset's own instructions, each with its own
     conflicting `{"items": [...]}` output-format text stripped out.
+
+    `direct_extraction_instructions`/`json_envelope_line` default to the
+    qualifier-bearing pair; the no-qualifiers baseline
+    (`run_baseline_langextract.py`'s `include_qualifiers=False`) passes
+    `DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS`/
+    `JSON_ENVELOPE_LINE_NO_QUALIFIERS` instead -- the two must always be
+    passed as a matching pair, which the assertion below enforces.
     """
-    if _JSON_ENVELOPE_LINE not in DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS:
+    if json_envelope_line not in direct_extraction_instructions:
         raise AssertionError(
             "Expected JSON-envelope line not found in "
-            "DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS -- the source text changed; "
-            "update _JSON_ENVELOPE_LINE (and re-check it still conflicts with "
-            "langextract's own output contract) before reusing this blindly."
+            "direct_extraction_instructions -- the source text changed, or "
+            "json_envelope_line/direct_extraction_instructions were passed as "
+            "a mismatched pair; update the envelope-line constant (and "
+            "re-check it still conflicts with langextract's own output "
+            "contract) before reusing this blindly."
         )
-    guidelines = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS.replace(_JSON_ENVELOPE_LINE, "").rstrip()
+    guidelines = direct_extraction_instructions.replace(json_envelope_line, "").rstrip()
 
     if _OUTPUT_FORMAT_HEADING not in direct_extraction_prompt:
         raise AssertionError(
@@ -304,6 +326,8 @@ class MeasurementLMLangExtract(MeasurementLM):
         *args,
         direct_extraction_schema=None,
         direct_extraction_prompt: str | None = None,
+        direct_extraction_instructions: str = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+        json_envelope_line: str = JSON_ENVELOPE_LINE,
         nuextract_examples: list[dict] | None = None,
         max_char_buffer: int,
         extraction_passes: int,
@@ -323,6 +347,8 @@ class MeasurementLMLangExtract(MeasurementLM):
             )
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
+        self.direct_extraction_instructions = direct_extraction_instructions
+        self.json_envelope_line = json_envelope_line
         self.nuextract_examples = nuextract_examples
         self.max_char_buffer = max_char_buffer
         self.extraction_passes = extraction_passes
@@ -373,7 +399,9 @@ class MeasurementLMLangExtract(MeasurementLM):
         import langextract as lx
 
         examples = _build_examples(self.nuextract_examples)
-        prompt_description = _prompt_description(self.direct_extraction_prompt)
+        prompt_description = _prompt_description(
+            self.direct_extraction_prompt, self.direct_extraction_instructions, self.json_envelope_line,
+        )
 
         # repetition_penalty is a vLLM-only extension (not part of the OpenAI
         # Chat Completions schema), same category as top_k in MeasurementLM's

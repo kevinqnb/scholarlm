@@ -233,6 +233,42 @@ def test_fit_calls_call_batch_once_with_one_message_set_per_document(monkeypatch
     assert rec["context"] == "doc text A"
 
 
+def test_instructions_default_to_direct_triple_extraction_instructions(monkeypatch):
+    """Regression guard for the include_qualifiers refactor: with no override,
+    the instructions text sent to the model is unchanged (DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+    + the dataset prompt), byte-identical to before direct_extraction_instructions
+    became a constructor kwarg."""
+    from scholarlm.instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+
+    mlm = _make_mlm()
+    captured = {}
+
+    def fake_call_batch(self, message_sets, extra_body=None, **kwargs):
+        captured["instructions"] = extra_body["chat_template_kwargs"]["instructions"]
+        return ['{"items": []}']
+
+    monkeypatch.setattr(MeasurementLMNuExtract3, "_call_batch", fake_call_batch)
+    mlm.fit(["doc text A"])
+
+    assert captured["instructions"] == f"{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\nExtract all measurements."
+
+
+def test_direct_extraction_instructions_override_is_used_verbatim(monkeypatch):
+    """params.include_qualifiers=false (run_baseline_nuextract3.py) passes
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS here instead."""
+    mlm = _make_mlm(direct_extraction_instructions="CUSTOM INSTRUCTIONS")
+    captured = {}
+
+    def fake_call_batch(self, message_sets, extra_body=None, **kwargs):
+        captured["instructions"] = extra_body["chat_template_kwargs"]["instructions"]
+        return ['{"items": []}']
+
+    monkeypatch.setattr(MeasurementLMNuExtract3, "_call_batch", fake_call_batch)
+    mlm.fit(["doc text A"])
+
+    assert captured["instructions"] == "CUSTOM INSTRUCTIONS\n\nExtract all measurements."
+
+
 def test_call_batch_pinned_to_max_concurrent_one(monkeypatch):
     """Concurrency, not just a missing seed, was named in the determinism
     issue (ISSUE-nuextract-baseline.md #3) -- must be pinned at the call
@@ -488,9 +524,13 @@ def test_builds_schema_and_template_for_every_real_dataset_config(dataset_name):
 
     # entity_identification_schema's fields must all be present on
     # direct_extraction_schema -- MeasurementLMAblation1's own assumption,
-    # inherited here (see module docstring).
-    entity_fields = set(cfg.entity_schema.model_fields.keys())
+    # inherited here (see module docstring) -- except `identifiers`, which
+    # was deliberately removed from every direct-extraction-style method's
+    # schema on 2026-09-25 (it stays real-pipeline-only; see each dataset
+    # config's EntitySchema comment).
+    entity_fields = set(cfg.entity_schema.model_fields.keys()) - {"identifiers"}
     assert entity_fields <= set(cfg.direct_extraction_schema.model_fields.keys())
+    assert "identifiers" not in cfg.direct_extraction_schema.model_fields
 
 
 def test_out_of_vocabulary_attribute_kept_after_retries_exhausted(monkeypatch, capsys):

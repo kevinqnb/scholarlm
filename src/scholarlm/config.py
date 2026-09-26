@@ -15,6 +15,20 @@ from typing import Callable
 from pydantic import BaseModel
 
 
+# The 7 qualifier/shape fields every direct-extraction-style method (Ablation
+# 1, NuExtract3, LangExtract, GLiNER) either asks the model for directly or
+# hardcodes into its own schema -- the same shape MeasurementLM._parse_quantities()
+# produces via a separate step. Single source of truth for "exactly these
+# fields, nothing else" across dataset configs (direct_extraction_schema_no_qualifiers
+# / nuextract_examples_no_qualifiers), measurementlm_gliner.py, and their tests --
+# a drift between independently-hardcoded copies of this set is exactly the
+# silent-wrong-number failure mode CLAUDE.md warns about.
+QUALIFIER_FIELD_NAMES = (
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+)
+
+
 @dataclass
 class DatasetConfig:
     """
@@ -71,14 +85,17 @@ class DatasetConfig:
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
         direct_extraction_schema_no_qualifiers: Optional variant of
-            ``direct_extraction_schema`` with the qualifier/shape fields
-            (``qualifiers``, ``point_value``, ``lower``, ``upper``,
-            ``list_values``, ``tolerance``, ``standard_deviation``) removed.
-            Used by Ablation 1 only when an experiment config explicitly sets
-            ``params.include_qualifiers: false`` (see ``run_ablation.py``);
+            ``direct_extraction_schema`` with ``QUALIFIER_FIELD_NAMES`` removed.
+            Used by Ablation 1, NuExtract3, and LangExtract
+            (``MeasurementLMAblation1``/``MeasurementLMNuExtract3``/
+            ``MeasurementLMLangExtract``) when an experiment config explicitly
+            sets ``params.include_qualifiers: false`` (see ``run_ablation.py``,
+            ``run_baseline_nuextract3.py``, ``run_baseline_langextract.py``);
             ``None`` means this dataset has no such variant defined, which
-            ``run_ablation.py`` fails loud on rather than falling back to the
-            qualifier-bearing schema.
+            those runners fail loud on rather than falling back to the
+            qualifier-bearing schema. The GLiNER2 baseline needs no such
+            variant -- see ``measurementlm_gliner.py``'s own
+            ``include_qualifiers`` constructor flag.
         direct_extraction_prompt_no_qualifiers: The ``direct_extraction_prompt``
             counterpart to ``direct_extraction_schema_no_qualifiers`` -- same
             rules.
@@ -109,6 +126,16 @@ class DatasetConfig:
             ``verbatim-string`` fields are trained to copy spans, not paraphrase).
             Synthetic text, not real paper excerpts — must never overlap with
             ``ground_truth_file`` papers.  Ignored by every other pipeline path.
+        nuextract_examples_no_qualifiers: Optional variant of ``nuextract_examples``
+            with ``QUALIFIER_FIELD_NAMES`` removed from every output item, for the
+            NuExtract3 and LangExtract baselines
+            (``MeasurementLMNuExtract3``/``MeasurementLMLangExtract``) when an
+            experiment config sets ``params.include_qualifiers: false`` — the
+            few-shot counterpart to ``direct_extraction_schema_no_qualifiers``,
+            so the examples shown to the model don't contradict its
+            qualifier-free schema. ``None`` means this dataset has no such
+            variant, which those runners fail loud on rather than falling back
+            to the qualifier-bearing examples.
         chatextract_property_names: Optional mapping from each ``attribute_info_dict``
             key to a short, human-readable *property phrase* for the ChatExtract
             baseline (``MeasurementLMChatExtract``).  ChatExtract is a single-property
@@ -236,6 +263,7 @@ class DatasetConfig:
     judge_filter_fields: list[str] | None = None
     judge_instructions: str | None = None
     nuextract_examples: list[dict] | None = None
+    nuextract_examples_no_qualifiers: list[dict] | None = None
     chatextract_property_names: dict[str, str] | None = None
     chatextract_entity_noun: str | None = None
     gliner_property_names: dict[str, str] | None = None

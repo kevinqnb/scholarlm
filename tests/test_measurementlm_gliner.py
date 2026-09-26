@@ -78,6 +78,11 @@ def _make_gliner(**overrides):
     mlm.gliner_entity_description = None
     mlm.entity_type_description = "a distinct aquatic ecosystem"
     mlm.gliner_field_descriptions = {"location": "the ecosystem's location", "date": "the measurement date"}
+    mlm.include_qualifiers = True
+    mlm.chunk_size = 384
+    mlm.chunk_overlap = 64
+    mlm.threshold = 0.5
+    mlm.batch_size = 8
     for k, v in overrides.items():
         setattr(mlm, k, v)
     return mlm
@@ -123,6 +128,18 @@ def test_build_structure_includes_dataset_configured_extra_fields():
     assert "date" in field_names      # event field from gliner_field_descriptions
 
 
+def test_build_structure_include_qualifiers_false_omits_quantity_fields():
+    """params.include_qualifiers=false (run_baseline_gliner.py) -- the GLiNER
+    counterpart of Ablation 1/NuExtract3/LangExtract's own flag."""
+    mlm = _make_gliner(include_qualifiers=False)
+    _, schema = mlm._build_structure("depth")
+    field_names = [name for name, _, _ in schema.builder.fields]
+    for f in QUANTITY_FIELD_NAMES:
+        assert f not in field_names
+    # name/value/units and dataset-configured extra fields are untouched.
+    assert {"name", "value", "units", "location", "date"} <= set(field_names)
+
+
 # ---------------------------------------------------------------------------
 # _make_record
 # ---------------------------------------------------------------------------
@@ -163,3 +180,53 @@ def test_make_record_defaults_quantity_fields_to_none():
     )
     for f in QUANTITY_FIELD_NAMES:
         assert record[f] is None
+
+
+# ---------------------------------------------------------------------------
+# _extract_records: include_qualifiers gates whether the 7 quantity keys are
+# present at all on the final record, not just whether they're populated --
+# matching Ablation 1/NuExtract3/LangExtract's no-qualifiers shape (missing
+# keys, not None-valued) so every method's final.json has the same column
+# set for a given include_qualifiers setting.
+# ---------------------------------------------------------------------------
+
+
+class _FakeBatchExtractor(_FakeExtractor):
+    def __init__(self, canned_result):
+        self.canned_result = canned_result
+
+    def batch_extract(self, texts, schemas, **kwargs):
+        return [self.canned_result for _ in texts]
+
+
+_CANNED_ITEM = {
+    "name": "Lake A", "value": "3-7", "units": "m",
+    "qualifiers": "IsRange", "point_value": None, "lower": "3", "upper": "7",
+    "list_values": None, "tolerance": None, "standard_deviation": None,
+}
+
+
+def test_extract_records_include_qualifiers_true_keeps_quantity_keys():
+    mlm = _make_gliner(
+        extractor=_FakeBatchExtractor({"depth": [dict(_CANNED_ITEM)]}),
+        include_qualifiers=True,
+    )
+    records = mlm._extract_records(["Lake A has a depth of 3-7 m."])
+    assert len(records) == 1
+    for f in QUANTITY_FIELD_NAMES:
+        assert f in records[0]
+    assert records[0]["lower"] == "3"
+    assert records[0]["upper"] == "7"
+
+
+def test_extract_records_include_qualifiers_false_omits_quantity_keys():
+    mlm = _make_gliner(
+        extractor=_FakeBatchExtractor({"depth": [dict(_CANNED_ITEM)]}),
+        include_qualifiers=False,
+    )
+    records = mlm._extract_records(["Lake A has a depth of 3-7 m."])
+    assert len(records) == 1
+    for f in QUANTITY_FIELD_NAMES:
+        assert f not in records[0]
+    assert records[0]["value"] == "3-7"
+    assert records[0]["name"] == "Lake A"

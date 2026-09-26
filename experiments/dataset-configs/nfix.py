@@ -12,7 +12,7 @@ import json
 
 from pydantic import BaseModel
 
-from scholarlm.config import DatasetConfig
+from scholarlm.config import DatasetConfig, QUALIFIER_FIELD_NAMES
 from scholarlm.instruction_prompts import JUDGE_INSTRUCTIONS
 
 
@@ -29,10 +29,11 @@ class EntitySchema(BaseModel):
     ecosystem_type: str | None
     # ``location`` was removed 2026-09-20: it was never shown to the judge and
     # location is often not explicit in the text anyway.
-    # ``identifiers`` is extracted by the real pipeline and its ablations only
-    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
-    # baselines; GLiNER already excludes it structurally (never listed in
-    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # ``identifiers`` is extracted by the real (7-step) pipeline only --
+    # removed 2026-09-25 from every direct-extraction-style method (Ablation
+    # 1, NuExtract, LangExtract; GLiNER already excluded it structurally,
+    # never listed in gliner_field_descriptions, and ChatExtract's flat
+    # schema never included it) per instruction: none of them should extract
     # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
@@ -187,11 +188,13 @@ class DirectExtractionItemSchema(BaseModel):
     """Flat schema for Ablation 1: combines entity, event, attribute, value,
     units, and the qualifier/shape fields (the same shape
     MeasurementLM._parse_quantities() produces via a separate step -- see
-    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS). No ``identifiers`` field
+    (removed 2026-09-25): that's an alias-resolution aid for the real
+    pipeline's entity matching only, never something a direct-extraction-style
+    method should reproduce -- see EntitySchema's own comment above."""
 
     # Entity fields
     name: str | None
-    identifiers: str | None
     ecosystem_type: str | None
     # Event fields
     date: str | None
@@ -214,13 +217,33 @@ class DirectExtractionItemSchema(BaseModel):
     standard_deviation: str | float | None
 
 
+class DirectExtractionItemSchemaNoQualifiers(BaseModel):
+    """Ablation-1 no-qualifiers variant of DirectExtractionItemSchema: same
+    entity/event/measurement fields, with the 7 qualifier/shape fields
+    dropped entirely (params.include_qualifiers=false in run_ablation.py,
+    run_baseline_nuextract3.py, or run_baseline_langextract.py -- see
+    tests/test_ablation1_no_qualifiers.py for the field-set diff this must
+    maintain)."""
+
+    # Entity fields
+    name: str | None
+    ecosystem_type: str | None
+    # Event fields
+    date: str | None
+    substrate_type: str | None
+    event_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
+
+
 
 _DIRECT_EXTRACTION_PROMPT = """Entity identification:
 Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
 
 Entity fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 
 Entity identification rules:
@@ -256,7 +279,6 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
       "ecosystem_type": "...",
       "date": "...",
       "substrate_type": "...",
@@ -271,6 +293,65 @@ Output format requirements:
       "list_values": [...],
       "tolerance": "...",
       "standard_deviation": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# Ablation-1 no-qualifiers variant of _DIRECT_EXTRACTION_PROMPT: identical
+# except the JSON example under "Output format requirements" drops the 7
+# qualifier/shape keys, matching DirectExtractionItemSchemaNoQualifiers. See
+# tests/test_ablation1_no_qualifiers.py for the exact diff this must maintain.
+_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS = """Entity identification:
+Extract all distinct dinitrogen fixation measurement sites mentioned in the document.
+
+Entity fields:
+- name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
+- ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+
+Entity identification rules:
+- Treat sites as separate only if their geographic location clearly differs.
+- Do NOT create separate items for the same site because measurements were taken on different dates, methods, or depths — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each site and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- substrate_type: The physical substrate the fixation was measured in or on — where the sample was taken from, NOT how the reported rate is normalized (mass/area/volume is a separate choice, captured by the attribute itself, not this field). Must be exactly one of these three values — do not report any other wording:
+  - "benthos": sediment, rock, microbial mat/biofilm, or other bottom/substrate material.
+  - "water column": water samples, filtered seawater, or suspended particulates/plankton not tied to a specific host organism.
+  - "other": fixation tied to a living plant, alga, or colonial organism rather than sediment or bulk water — e.g. seagrass/mangrove leaves or roots, marsh grass (Spartina) stems, macroalgae, epiphytes, or a suspended colonial organism like Trichodesmium.
+  Set to None only if the substrate is genuinely not stated; otherwise always classify into one of the three values above.
+- event_details: A catch-all for any other distinguishing context not captured by date or substrate_type — for example, the dinitrogen-fixation measurement method (e.g., acetylene reduction assay, ARA, 15N2 incorporation), the sample depth (e.g., "surface", "0-5 cm", "0-10 m"), light vs. dark incubation, or a specific treatment condition. Two genuinely distinct measurements should end up with different event_details. One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (site, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. nfix_rate_mass — Rate of dinitrogen fixation per unit mass. NOT rates per area or volume. Units: nmol N g⁻¹ h⁻¹, nmol C2H4 g⁻¹ h⁻¹, nmol N2 g⁻¹ h⁻¹, µg N g⁻¹ d⁻¹, nmol N2 g⁻¹ d⁻¹, µmol N g⁻¹ d⁻¹, nmol C2H4 g⁻¹ d⁻¹, nmol N g⁻¹ d⁻¹, µg N g⁻¹ h⁻¹, µg N kg⁻¹ d⁻¹, µmol N g⁻¹ h⁻¹, fmol N g⁻¹ h⁻¹, ng N g⁻¹ d⁻¹, ng N g⁻¹ h⁻¹, nmol N kg⁻¹ h⁻¹, µmol C2H4 g⁻¹ d⁻¹, µmol N kg⁻¹ h⁻¹, µmol N2 g⁻¹ d⁻¹, or similar mass-normalized rate units.
+2. nfix_rate_areal — Rate of dinitrogen fixation per unit area. NOT rates per mass or volume. Units: µmol N m⁻² h⁻¹, mg N m⁻² d⁻¹, µmol N m⁻² d⁻¹, µmol C2H4 m⁻² h⁻¹, nmol C2H4 cm⁻² h⁻¹, mmol N m⁻² d⁻¹, µg N m⁻² h⁻¹, mg N m⁻² h⁻¹, nmol C2H4 cm⁻² d⁻¹, nmol C2H4 m⁻² h⁻¹, µmol N2 m⁻² h⁻¹, g N m⁻² yr⁻¹, mmol N m⁻² h⁻¹, mmol N2 m⁻² d⁻¹, nmol N cm⁻² h⁻¹, µmol N2 m⁻² d⁻¹, kg N2 ha⁻¹ yr⁻¹, mg N m⁻² yr⁻¹, mg N2 m⁻² h⁻¹, ng N m⁻² h⁻¹, nmol C2H4 m⁻² d⁻¹, µg N cm⁻² h⁻¹, µg N2 m⁻² h⁻¹, or similar area-normalized rate units.
+3. nfix_rate_volumetric — Rate of dinitrogen fixation per unit volume. NOT rates per mass or area. Units: nmol N L⁻¹ d⁻¹, nmol N L⁻¹ h⁻¹, nmol C2H4 L⁻¹ h⁻¹, µg N L⁻¹ h⁻¹, ng N L⁻¹ h⁻¹, mg N m⁻³ d⁻¹, nmol C2H4 cm⁻³ h⁻¹, nmol C2H4 mL⁻¹ h⁻¹, nmol N cm⁻³ d⁻¹, nmol N cm⁻³ h⁻¹, µg N m⁻³ h⁻¹, µmol N2 L⁻¹ d⁻¹, µmol N2 L⁻¹ h⁻¹, mmol C2H4 m⁻³ d⁻¹, nmol C2H4 cm⁻³ d⁻¹, nmol N m⁻³ h⁻¹, nmol N2 cm⁻³ d⁻¹, nmol N2 L⁻¹ d⁻¹, nmol N2 L⁻¹ h⁻¹, µg N L⁻¹ d⁻¹, µg N2 L⁻¹ h⁻¹, µg N2 m⁻³ d⁻¹, µmol C2H4 L⁻¹ d⁻¹, µmol C2H4 mL⁻¹ 3h⁻¹, µmol N L⁻¹ d⁻¹, µmol N L⁻¹ h⁻¹, or similar volume-normalized rate units.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "ecosystem_type": "...",
+      "date": "...",
+      "substrate_type": "...",
+      "event_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
     }
   ]
 }
@@ -414,6 +495,28 @@ _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
+
+
+def _drop_qualifiers(examples: list[dict]) -> list[dict]:
+    """No-qualifiers counterpart of a `nuextract_examples`-shaped list: same
+    inputs, with QUALIFIER_FIELD_NAMES removed from every output item --
+    the few-shot counterpart of direct_extraction_schema_no_qualifiers, for
+    the NuExtract3/LangExtract baselines' params.include_qualifiers=false.
+    Derived from the qualifier-bearing examples (not hand-duplicated) so the
+    two can never drift apart.
+    """
+    stripped = []
+    for example in examples:
+        items = json.loads(example["output"])["items"]
+        new_items = [
+            {k: v for k, v in item.items() if k not in QUALIFIER_FIELD_NAMES}
+            for item in items
+        ]
+        stripped.append({"input": example["input"], "output": json.dumps({"items": new_items})})
+    return stripped
+
+
+_NUEXTRACT_EXAMPLES_NO_QUALIFIERS = _drop_qualifiers(_NUEXTRACT_EXAMPLES)
 
 
 # ---------------------------------------------------------------------------
@@ -591,14 +694,17 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    direct_extraction_schema_no_qualifiers=DirectExtractionItemSchemaNoQualifiers,
+    direct_extraction_prompt_no_qualifiers=_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    nuextract_examples_no_qualifiers=_NUEXTRACT_EXAMPLES_NO_QUALIFIERS,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
-    # identifiers is extracted by the real pipeline and its ablations only --
-    # see EntitySchema's comment above; excluded here from the NuExtract
-    # baselines specifically (GLiNER/ChatExtract already never see it).
-    baseline_filter_fields=["identifiers"],
+    # baseline_filter_fields no longer needed for identifiers (removed
+    # 2026-09-25): direct_extraction_schema doesn't have that field at all
+    # any more, so there's nothing left for the NuExtract baselines to filter
+    # out of it -- see EntitySchema's comment above.
     # paper_subset: uncomment the line below to run only the 10-paper development set.
     # paper_subset=_DEV_SUBSET,
     paper_subset=None,

@@ -37,6 +37,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import scholarlm.measurementlm_langextract as lex_mod
+from scholarlm.instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
 from scholarlm.measurementlm_langextract import (
     MeasurementLMLangExtract,
     _attribute_object_schema,
@@ -125,15 +126,45 @@ def test_prompt_description_drops_json_envelope_line_keeps_rest():
     assert '"items": [...]' not in result
 
 
-def test_prompt_description_raises_if_envelope_line_missing(monkeypatch):
-    monkeypatch.setattr(lex_mod, "DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS", "Some other text entirely.")
+def test_prompt_description_raises_if_envelope_line_missing():
+    # direct_extraction_instructions/json_envelope_line are now explicit
+    # params (include_qualifiers=false passes the no-qualifiers pair -- see
+    # test_prompt_description_no_qualifiers_pair_below), so this simulates a
+    # mismatched pair by passing an envelope line that isn't in the text,
+    # rather than monkeypatching the (now def-time-bound) module default.
     with pytest.raises(AssertionError):
-        _prompt_description(_FAKE_DIRECT_EXTRACTION_PROMPT)
+        _prompt_description(
+            _FAKE_DIRECT_EXTRACTION_PROMPT, "Some other text entirely.", lex_mod.JSON_ENVELOPE_LINE,
+        )
 
 
 def test_prompt_description_raises_if_dataset_prompt_has_no_output_format_heading():
     with pytest.raises(AssertionError):
         _prompt_description("Entity fields:\n- name: the entity name.\n")
+
+
+def test_prompt_description_default_unchanged_by_include_qualifiers_refactor():
+    """Regression guard: direct_extraction_instructions/json_envelope_line
+    becoming explicit params (for include_qualifiers=false) must not change
+    the default (qualifier-bearing) output byte-for-byte."""
+    default_result = _prompt_description(_FAKE_DIRECT_EXTRACTION_PROMPT)
+    explicit_result = _prompt_description(
+        _FAKE_DIRECT_EXTRACTION_PROMPT, lex_mod.DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS, lex_mod.JSON_ENVELOPE_LINE,
+    )
+    assert default_result == explicit_result
+
+
+def test_prompt_description_no_qualifiers_pair_drops_qualifier_fields():
+    """params.include_qualifiers=false (run_baseline_langextract.py) passes
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS/JSON_ENVELOPE_LINE_NO_QUALIFIERS."""
+    result = _prompt_description(
+        _FAKE_DIRECT_EXTRACTION_PROMPT,
+        DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS,
+        lex_mod.JSON_ENVELOPE_LINE_NO_QUALIFIERS,
+    )
+    for field in ("qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation"):
+        assert field not in result
+    assert "expert in data extraction" in result
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +358,30 @@ def test_fit_passes_output_schema_only_when_schema_constraints_enabled(monkeypat
     _make_mlm(use_schema_constraints=True, fence_output=False).fit([context])
     assert captured["output_schema"] is not None
     assert captured["output_schema"] == _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
+
+
+def test_fit_uses_constructor_direct_extraction_instructions_override(monkeypatch):
+    """include_qualifiers=false (run_baseline_langextract.py) passes both
+    direct_extraction_instructions and json_envelope_line at construction
+    time; fit() must thread them into prompt_description, not the defaults."""
+    context = '<page number="0">Lake A depth 3.2 m.</page>'
+    captured = {}
+
+    def fake_extract(*a, **k):
+        captured["prompt_description"] = k.get("prompt_description")
+        return langextract.data.AnnotatedDocument(text=context, extractions=[])
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    custom_instructions = "CUSTOM GUIDELINES.\n- Structure your response with a custom envelope."
+    custom_envelope = "- Structure your response with a custom envelope."
+    _make_mlm(
+        direct_extraction_instructions=custom_instructions,
+        json_envelope_line=custom_envelope,
+    ).fit([context])
+
+    assert "CUSTOM GUIDELINES." in captured["prompt_description"]
+    assert custom_envelope not in captured["prompt_description"]
 
 
 def test_fit_threads_max_tokens_and_top_p_into_model_constructor(monkeypatch):

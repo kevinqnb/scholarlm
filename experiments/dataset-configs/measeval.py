@@ -14,7 +14,8 @@ Subject-first design
 The entity is a general-purpose SUBJECT: the sample, specimen, site, material,
 organism, structure, instrument, population, or similar concrete thing a
 measurement is made on or of (`EntitySchema`: `name` + `identifiers`, the same
-convention as pond/nfix/supermat). What was measured (`property`) and under
+convention as pond/nfix/supermat -- `identifiers` is real-pipeline-only, see
+EntitySchema's own comment below). What was measured (`property`) and under
 what circumstances (`event_details`) are resolved afterwards, per subject, on
 the measurement event -- a subject can have many distinct properties reported
 (age, mass, temperature, ...), so event resolution enumerates all of them
@@ -39,8 +40,15 @@ truth is matched directly (see data/measeval/README.md).
 mirrors pond's field ordering: entity fields, then event fields, then
 attribute/value/units. Every arm's raw output -- main pipeline, Ablation 1,
 NuExtract3, Ablation 2, GLiNER, ChatExtract -- carries the same `name` /
-`identifiers` / `property` / `event_details` / `attribute` / `value` / `units`
-columns, so `process_extraction_df` needs no measeval-specific branch.
+`property` / `event_details` / `attribute` / `value` / `units` columns, so
+`process_extraction_df` needs no measeval-specific branch. `identifiers` is
+the one exception: the main (7-step) pipeline's own `EntitySchema` still
+carries it, but no direct-extraction-style method does (removed 2026-09-25
+from `DirectExtractionItemSchema`/`Ablation2EntitySchema`'s siblings across
+every dataset, per instruction -- it's an alias-resolution aid for the real
+pipeline's entity matching only, never something a baseline should
+reproduce). `process_extraction_df` never reads `identifiers`, so this
+doesn't need a measeval-specific branch either.
 
 NuExtract3 needs nothing beyond what's already here: `run_baseline_nuextract3.py`
 reads `entity_schema`, `attribute_info_dict`, `direct_extraction_schema`,
@@ -56,11 +64,12 @@ See data/measeval/README.md.
 """
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from pydantic import BaseModel
 
-from scholarlm.config import DatasetConfig
+from scholarlm.config import DatasetConfig, QUALIFIER_FIELD_NAMES
 
 
 # ---------------------------------------------------------------------------
@@ -73,12 +82,12 @@ class EntitySchema(BaseModel):
 
     name: str | None
     identifiers: str | None
-    # ``identifiers`` is an alias-resolution aid, extracted by the real
-    # pipeline and its ablations only -- excluded from the NuExtract
-    # baselines (DatasetConfig.baseline_filter_fields, below), never listed
-    # in gliner_field_descriptions (GLiNER never asks for it), never in
-    # ChatExtract's flat schema, and never shown to the judge
-    # (judge_filter_fields, below).
+    # ``identifiers`` is extracted by the real (7-step) pipeline only --
+    # removed 2026-09-25 from every direct-extraction-style method (Ablation
+    # 1, NuExtract, LangExtract; GLiNER already excluded it structurally,
+    # never listed in gliner_field_descriptions, and ChatExtract's flat
+    # schema never included it) per instruction: none of them should extract
+    # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
 ENTITY_IDENTIFICATION_PROMPT = """You are an expert at identifying the subjects of reported measurements in scientific text. Given the provided text (including any tables), find every distinct subject that has at least one directly reported numerical measurement associated with it, and identify it by name.
@@ -192,11 +201,13 @@ class DirectExtractionItemSchema(BaseModel):
     """Flat schema for Ablation 1: combines entity, event, value/units, and
     the qualifier/shape fields (the same shape
     MeasurementLM._parse_quantities() produces via a separate step -- see
-    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS). No ``identifiers`` field
+    (removed 2026-09-25): that's an alias-resolution aid for the real
+    pipeline's entity matching only, never something a direct-extraction-style
+    method should reproduce -- see EntitySchema's own comment above."""
 
     # Entity fields
     name: str | None
-    identifiers: str | None
     # Event fields
     property: str | None
     event_details: str | None
@@ -220,6 +231,25 @@ class DirectExtractionItemSchema(BaseModel):
     standard_deviation: str | float | None
 
 
+class DirectExtractionItemSchemaNoQualifiers(BaseModel):
+    """Ablation-1 no-qualifiers variant of DirectExtractionItemSchema: same
+    entity/event/measurement fields, with the 7 qualifier/shape fields
+    dropped entirely (params.include_qualifiers=false in run_ablation.py,
+    run_baseline_nuextract3.py, or run_baseline_langextract.py -- see
+    tests/test_ablation1_no_qualifiers.py for the field-set diff this must
+    maintain)."""
+
+    # Entity fields
+    name: str | None
+    # Event fields
+    property: str | None
+    event_details: str | None
+    # Measurement fields
+    attribute: Literal["measurement"] = "measurement"
+    value: str | None
+    units: str | None
+
+
 # `from __future__ import annotations` defers every annotation to a string, and
 # `load_dataset_config` (experiments/run_extraction.py) imports this file via
 # importlib WITHOUT registering it in sys.modules -- so pydantic has no module
@@ -228,9 +258,10 @@ class DirectExtractionItemSchema(BaseModel):
 # defined"). Rebuilding here, at module scope, resolves it against this file's
 # own globals while they are still available. Without this, Ablation 1 and the
 # NuExtract3 baseline fail at `create_model(...).model_json_schema()` before
-# issuing a single request. No other config declares a Literal field, so this
-# is the only one that needs it.
+# issuing a single request. No other config declares a Literal field, so these
+# are the only two that need it.
 DirectExtractionItemSchema.model_rebuild()
+DirectExtractionItemSchemaNoQualifiers.model_rebuild()
 
 
 _DIRECT_EXTRACTION_PROMPT = """Subject and Measurement Identification:
@@ -240,7 +271,6 @@ Include statistical quantities -- p-values and significance thresholds, confiden
 
 For each (subject, property) combination found, output one record with:
 - name: the subject's name or identifying description, copied verbatim from the text. Set to None only if the text reports a quantity with no identifiable subject at all.
-- identifiers: every alternate short-form reference to this subject used in the text -- codes, abbreviations, or shortened versions of the name -- joined into a single string with semicolons separating each. Do not include the primary name itself. If no alternatives exist, set to None.
 - property: the specific property or quantity type being measured for that subject (e.g. "mean annual temperature", "grain size", "paleolatitude"), copied verbatim from the text -- not the number itself. If the quantity attaches directly to its subject with no distinct property phrase (e.g. "5318 participants"), set this to None.
 - event_details: any qualifying context for this specific measurement (method, location, condition, date, comparison), copied or closely paraphrased from the text and kept to a short phrase. Set to None if not applicable.
 - value: the reported quantity exactly as written, in full -- including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
@@ -274,7 +304,6 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
       "property": "...",
       "event_details": "...",
       "attribute": "measurement",
@@ -295,6 +324,49 @@ Output format requirements:
 """
 
 
+# Ablation-1 no-qualifiers variant of _DIRECT_EXTRACTION_PROMPT: identical
+# except the JSON example under "Output format requirements" drops the 7
+# qualifier/shape keys, matching DirectExtractionItemSchemaNoQualifiers. See
+# tests/test_ablation1_no_qualifiers.py for the exact diff this must maintain.
+_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS = """Subject and Measurement Identification:
+Find every distinct subject in the document that has at least one directly reported numerical measurement -- a sample, specimen, site, material, organism, structure, instrument, or population, whatever its subject matter (materials science, geology, biology, medicine, or any other domain). Then, for each subject, extract every distinct property reported for it, with its quantity.
+
+Include statistical quantities -- p-values and significance thresholds, confidence and significance levels ("95%"), the numeric bounds of a reported confidence interval, correlations, effect sizes, odds and hazard ratios. Skip only numerals that are structural rather than measured: citation years, reference/figure/table/equation numbers, and page numbers.
+
+For each (subject, property) combination found, output one record with:
+- name: the subject's name or identifying description, copied verbatim from the text. Set to None only if the text reports a quantity with no identifiable subject at all.
+- property: the specific property or quantity type being measured for that subject (e.g. "mean annual temperature", "grain size", "paleolatitude"), copied verbatim from the text -- not the number itself. If the quantity attaches directly to its subject with no distinct property phrase (e.g. "5318 participants"), set this to None.
+- event_details: any qualifying context for this specific measurement (method, location, condition, date, comparison), copied or closely paraphrased from the text and kept to a short phrase. Set to None if not applicable.
+- value: the reported quantity exactly as written, in full -- including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- units: the unit part of the reported quantity as written, or None if it is unitless (e.g. a plain count or dimensionless ratio).
+
+Rules:
+- Output one record per distinct (subject, property) measurement. A subject with several properties measured produces several records. The same measurement restated in prose and in a table is one record.
+- Do NOT infer, guess, or derive any field. Use ONLY information explicitly stated in the text.
+- Do NOT extract vague, qualitative, or non-numeric statements.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "property": "...",
+      "event_details": "...",
+      "attribute": "measurement",
+      "value": "...",
+      "units": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
 # ---------------------------------------------------------------------------
 # NuExtract3 baseline: few-shot synthetic examples
 #
@@ -305,9 +377,9 @@ Output format requirements:
 # science, ecology) and each gives one subject multiple distinct properties,
 # to demonstrate the multi-event case the event prompt above describes.
 # Together they touch all of point_value, lower/upper, list_values,
-# tolerance, and standard_deviation at least once. No `identifiers` key: see
-# DatasetConfig.baseline_filter_fields below -- these examples are
-# baseline-only, so they never show the field a baseline shouldn't reproduce.
+# tolerance, and standard_deviation at least once. No `identifiers` key:
+# direct_extraction_schema doesn't have one (removed 2026-09-25), so these
+# examples never had it to begin with.
 # ---------------------------------------------------------------------------
 
 # _NUEXTRACT_QUANTITY_DEFAULTS_JSON is the qualifier/shape fields' JSON,
@@ -388,6 +460,28 @@ _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
+
+
+def _drop_qualifiers(examples: list[dict]) -> list[dict]:
+    """No-qualifiers counterpart of a `nuextract_examples`-shaped list: same
+    inputs, with QUALIFIER_FIELD_NAMES removed from every output item --
+    the few-shot counterpart of direct_extraction_schema_no_qualifiers, for
+    the NuExtract3/LangExtract baselines' params.include_qualifiers=false.
+    Derived from the qualifier-bearing examples (not hand-duplicated) so the
+    two can never drift apart.
+    """
+    stripped = []
+    for example in examples:
+        items = json.loads(example["output"])["items"]
+        new_items = [
+            {k: v for k, v in item.items() if k not in QUALIFIER_FIELD_NAMES}
+            for item in items
+        ]
+        stripped.append({"input": example["input"], "output": json.dumps({"items": new_items})})
+    return stripped
+
+
+_NUEXTRACT_EXAMPLES_NO_QUALIFIERS = _drop_qualifiers(_NUEXTRACT_EXAMPLES)
 
 
 # ---------------------------------------------------------------------------
@@ -528,14 +622,17 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    direct_extraction_schema_no_qualifiers=DirectExtractionItemSchemaNoQualifiers,
+    direct_extraction_prompt_no_qualifiers=_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    nuextract_examples_no_qualifiers=_NUEXTRACT_EXAMPLES_NO_QUALIFIERS,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
-    # identifiers is extracted by the real pipeline and its ablations only --
-    # see EntitySchema's comment above; excluded here from the NuExtract
-    # baselines specifically (GLiNER/ChatExtract already never see it).
-    baseline_filter_fields=["identifiers"],
+    # baseline_filter_fields no longer needed for identifiers (removed
+    # 2026-09-25): direct_extraction_schema doesn't have that field at all
+    # any more, so there's nothing left for the NuExtract baselines to filter
+    # out of it -- see EntitySchema's comment above.
     # paper_subset: set to a list of document_id codes to restrict the run.
     paper_subset=None,
     # paper_filter: None processes all three splits (train+trial+eval) by default.

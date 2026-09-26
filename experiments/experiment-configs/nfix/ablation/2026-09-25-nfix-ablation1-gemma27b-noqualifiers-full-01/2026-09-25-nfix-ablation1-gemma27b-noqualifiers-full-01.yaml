@@ -1,0 +1,41 @@
+id: 2026-09-25-nfix-ablation1-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on nfix,
+  model=gemma-3-27b, with params.include_qualifiers=false: the model's
+  direct-extraction schema/prompt/instructions drop the 7 qualifier/shape
+  fields (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation) entirely. Built
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01 (extends
+  2026-09-25-ablation1-no-qualifiers-01, which added the pond-only
+  DirectExtractionItemSchemaNoQualifiers/_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS/
+  DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS machinery, to nfix and
+  supermat, and to the NuExtract3/LangExtract/GLiNER baselines). Every other
+  field (entity, event, attribute, value, units) is unchanged from the
+  qualifier-bearing schema -- verified byte-for-byte in
+  tests/test_ablation1_no_qualifiers.py's parametrized (pond/nfix/supermat)
+  schema- and prompt-diff tests. Direct comparison arm to
+  2026-09-21-nfix-ablation1-gemma27b-full-01 (same dataset/model/ablation/
+  ocr_dir/seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config for an
+  apples-to-apples comparison -- this run's schema is a strict subset of the
+  baseline's (same entities/events/attributes, 7 fewer output fields per
+  item), so per-call output size can only be equal to or smaller than what
+  already fit in the baseline's 12:00:00 budget. resume dropped (matches
+  2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01's own precedent:
+  run_ablation.py never reads a "resume" key at all).
+
+  STAGED-GATES: rung 1 (unit tests, tests/test_ablation1_no_qualifiers.py,
+  parametrized over nfix -- all passing) is done. Rung 2 (smoke) and rung 3
+  (tiny end-to-end with a predicted result) have NOT been run yet -- no
+  GPU/vLLM available on this login node. Do not submit this config before
+  they pass.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  ablation: "1"
+  include_qualifiers: false
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "12:00:00"

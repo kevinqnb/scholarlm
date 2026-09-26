@@ -1,0 +1,34 @@
+id: 2026-09-25-pond-nuextract3-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the NuExtract3 baseline on pond, with
+  params.include_qualifiers=false: run_baseline_nuextract3.py now supports the
+  same no-qualifiers direct-extraction schema/prompt/instructions Ablation 1
+  uses, plus a new nuextract_examples_no_qualifiers (the dataset config's
+  qualifier-bearing few-shot examples with the 7 qualifier keys stripped from
+  every output item, derived programmatically from nuextract_examples via
+  pond.py's _drop_qualifiers so the two can never drift apart). Built
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01. Every other field
+  (entity, event, attribute, value, units) and every other baseline knob is
+  unchanged. Direct comparison arm to 2026-09-22-pond-nuextract3-full-01 (same
+  dataset/model/ocr_dir/seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config for an
+  apples-to-apples comparison -- this run's schema is a strict subset of the
+  baseline's, so per-call output size can only be equal to or smaller than
+  what already fit in the baseline's 16:00:00 budget.
+
+  STAGED-GATES: rung 1 (unit tests -- tests/test_measurementlm_nuextract3.py's
+  direct_extraction_instructions tests, tests/test_run_baseline_nuextract3.py's
+  include_qualifiers tests, and tests/test_ablation1_no_qualifiers.py's
+  nuextract_examples_no_qualifiers diff test -- all passing) is done. Rung 2
+  (smoke) and rung 3 (tiny end-to-end with a predicted result) have NOT been
+  run yet -- no GPU/vLLM available on this login node. Do not submit this
+  config before they pass.
+seed: 342
+params:
+  dataset: pond
+  model: nuextract3
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "16:00:00"

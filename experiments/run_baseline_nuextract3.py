@@ -22,7 +22,11 @@ Required params: dataset.
 Optional params: model (default "nuextract3"), paper_subset (list), ocr_dir
     (default "{data_dir}/ocr_output_raw"), api_base, api_key, max_tokens (see
     MeasurementLMNuExtract3's own docstring for its fallback order -- this,
-    then the model config's sampling_params.max_tokens, then 32768).
+    then the model config's sampling_params.max_tokens, then 32768),
+    include_qualifiers (bool, default true -- false asks the dataset config's
+    *_no_qualifiers direct-extraction schema/prompt/examples instead, dropping
+    the qualifier/shape fields, mirroring run_ablation.py's own flag. Fails
+    loud if the dataset has no no-qualifiers variant defined).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 """
@@ -42,6 +46,10 @@ _EXPERIMENTS_DIR = Path(__file__).parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
+from scholarlm.instruction_prompts import (
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS,
+)
 from scholarlm.measurementlm import NumpyEncoder
 from scholarlm.measurementlm_nuextract3 import MeasurementLMNuExtract3
 
@@ -64,6 +72,7 @@ def run_baseline_nuextract3(
     api_base: str = "http://localhost:8081/v1",
     api_key: str = "EMPTY",
     max_tokens: int | None = None,
+    include_qualifiers: bool = True,
 ) -> None:
     """Run the NuExtract3 baseline for a dataset.
 
@@ -86,13 +95,47 @@ def run_baseline_nuextract3(
         api_key: API key for the vLLM server (any non-empty string works).
         max_tokens: Forwarded to `MeasurementLMNuExtract3`; `None` uses its own
             sampling_params/32768 fallback.
+        include_qualifiers: False asks the dataset config's
+            ``direct_extraction_schema_no_qualifiers``/``_prompt_no_qualifiers``/
+            ``nuextract_examples_no_qualifiers`` instead of the qualifier-bearing
+            defaults, and ``DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS``
+            instead of the default instructions -- mirrors
+            ``run_ablation.py``'s ``include_qualifiers`` for Ablation 1. Raises
+            if the dataset has no such variant.
     """
+    if not isinstance(include_qualifiers, bool):
+        raise ValueError(
+            f"include_qualifiers must be a bool, got {include_qualifiers!r} "
+            f"({type(include_qualifiers).__name__}) -- a YAML string like "
+            f"'false' is truthy in Python and would silently run with "
+            f"qualifiers included while claiming otherwise."
+        )
     if dataset_config.direct_extraction_schema is None or dataset_config.direct_extraction_prompt is None:
         raise ValueError(
             f"Dataset '{dataset_config.name}' does not define direct_extraction_schema "
             f"and/or direct_extraction_prompt, both required for the NuExtract3 baseline "
             f"(the same values Ablation 1 uses)."
         )
+    if include_qualifiers:
+        direct_extraction_schema = dataset_config.direct_extraction_schema
+        direct_extraction_prompt = dataset_config.direct_extraction_prompt
+        direct_extraction_instructions = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+        nuextract_examples = dataset_config.nuextract_examples
+    else:
+        if (
+            dataset_config.direct_extraction_schema_no_qualifiers is None
+            or dataset_config.direct_extraction_prompt_no_qualifiers is None
+            or dataset_config.nuextract_examples_no_qualifiers is None
+        ):
+            raise ValueError(
+                f"include_qualifiers=False requires '{dataset_config.name}' to define "
+                f"direct_extraction_schema_no_qualifiers, direct_extraction_prompt_no_qualifiers, "
+                f"and nuextract_examples_no_qualifiers -- at least one is unset."
+            )
+        direct_extraction_schema = dataset_config.direct_extraction_schema_no_qualifiers
+        direct_extraction_prompt = dataset_config.direct_extraction_prompt_no_qualifiers
+        direct_extraction_instructions = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
+        nuextract_examples = dataset_config.nuextract_examples_no_qualifiers
 
     effective_ocr_dir = ocr_dir or str(Path(dataset_config.data_dir) / "ocr_output_raw")
 
@@ -109,9 +152,10 @@ def run_baseline_nuextract3(
         entity_identification_prompt=dataset_config.entity_identification_prompt,
         entity_identification_schema=dataset_config.entity_schema,
         attribute_info_dict=dataset_config.attribute_info_dict,
-        direct_extraction_schema=dataset_config.direct_extraction_schema,
-        direct_extraction_prompt=dataset_config.direct_extraction_prompt,
-        examples=dataset_config.nuextract_examples,
+        direct_extraction_schema=direct_extraction_schema,
+        direct_extraction_prompt=direct_extraction_prompt,
+        direct_extraction_instructions=direct_extraction_instructions,
+        examples=nuextract_examples,
         sampling_params=model_config.sampling_params,
         api_base=api_base,
         api_key=api_key,
@@ -144,6 +188,7 @@ def run_baseline_nuextract3(
         model_id=model_config.model_id,
         hf_revision=model_config.hf_revision,
         baseline="nuextract3",
+        include_qualifiers=include_qualifiers,
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
         token_usage=mlm.token_usage,
@@ -211,6 +256,7 @@ def main(argv: list[str] | None = None) -> None:
         api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
         api_key=params.get("api_key", "EMPTY"),
         max_tokens=params.get("max_tokens"),
+        include_qualifiers=params.get("include_qualifiers", True),
     )
 
 

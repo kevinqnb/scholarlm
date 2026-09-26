@@ -160,6 +160,7 @@ class MeasurementLMNuExtract3(MeasurementLM):
         *args,
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
+        direct_extraction_instructions: str = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
         examples: list[dict] | None = None,
         max_tokens: int | None = None,
         baseline_filter_fields: list[str] | None = None,
@@ -199,6 +200,7 @@ class MeasurementLMNuExtract3(MeasurementLM):
         self.direct_extraction_schema = _filtered_schema(
             direct_extraction_schema, frozenset(baseline_filter_fields or ())
         )
+        self.direct_extraction_instructions = direct_extraction_instructions
         self.examples = examples
         self.max_tokens = max_tokens
         self.validation_failures = 0
@@ -242,7 +244,7 @@ class MeasurementLMNuExtract3(MeasurementLM):
             _build_nuextract_template(self.direct_extraction_schema, attribute_names, unit_names),
             indent=2,
         )
-        instructions = f"{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n{self.direct_extraction_prompt}"
+        instructions = f"{self.direct_extraction_instructions}\n\n{self.direct_extraction_prompt}"
         example_messages = _build_example_messages(self.examples)
 
         extra_body = {"chat_template_kwargs": {"template": template_json, "instructions": instructions}}
