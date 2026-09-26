@@ -1,0 +1,36 @@
+id: 2026-09-26-measeval-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the ChatExtract baseline on measeval, backbone
+  gemma-3-27b. Rerun of 2026-09-21-measeval-chatextract-gemma27b-full-01 (left
+  untouched as the historical record; this is a fresh id, not a replacement)
+  to pick up commit 2d075bd (src/scholarlm/measurementlm_chatextract.py):
+  ChatExtract's output record now reads its field set off
+  dataset_config.direct_extraction_schema instead of a hardcoded placeholder
+  list. measeval's own run already worked under the old hardcoded list
+  (property was on it), and measeval currently has no strict_matching/
+  fuzzy_matching set on its DatasetConfig at all (get_matching_config raises),
+  so match_cache.py can't even be run against it yet -- this rerun isn't
+  fixing a crash, it's bringing measeval's chatextract output in line with
+  the other three datasets' fresh runs under the same code ahead of that
+  matching config being added, and dropping the now-unused quantity/
+  identifiers/location/additional_details placeholder columns the old
+  hardcoded dict also emitted (quantity was measeval's own entity-schema
+  field, never part of direct_extraction_schema -- see the ChatExtract note
+  in experiments/dataset-configs/measeval.py). Same params as the 2026-09-21
+  run otherwise: measeval has no drop_references run, so ocr_dir stays
+  data/measeval/ocr_output_raw explicitly (per the stated measeval
+  exception), same walltime. STAGED-GATES: this is a pure output-schema
+  change to record construction (_make_record) -- no prompts, no model calls,
+  no extraction logic touched, covered by
+  tests/test_measurementlm_chatextract.py (41/41 passing, full suite 956/1
+  passing) -- and this exact baseline+dataset+model recipe already has
+  full-run precedent (2026-09-21-measeval-chatextract-gemma27b-full-01,
+  2026-09-19-measeval-chatextract-gemma27b-{smoke,tinye2e,full}-01), so no
+  fresh smoke/tinye2e beyond what those already validated.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  ocr_dir: data/measeval/ocr_output_raw
+  walltime: "02:00:00"
