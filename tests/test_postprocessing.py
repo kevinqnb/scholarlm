@@ -147,12 +147,12 @@ def test_expand_list_values_one_row_per_entry():
     )
     expanded = pp.expand_list_values(record)
     assert [r["point_value"] for r in expanded] == [1.0, 2.0, 3.0]
-    # every other field copied verbatim, list_values/qualifiers included
+    # every other field copied verbatim except list_values, which is nulled
     for r in expanded:
         assert r["document_id"] == "d1"
         assert r["measurement_id"] == 7
         assert r["qualifiers"] == ["IsList"]
-        assert r["list_values"] == ["1", "2", "3"]
+        assert r["list_values"] is None
 
 
 def test_expand_list_values_keeps_unparseable_entry_as_raw_string():

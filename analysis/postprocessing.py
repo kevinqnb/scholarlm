@@ -13,8 +13,9 @@ handled here.
 A third step, list-value expansion (see expand_list_values), turns any row
 whose `list_values` ends up non-empty (whether the model wrote it directly,
 or this script's own qualifier fill produced it from a comma-separated
-`value`) into one row per list entry, point_value set to that entry and
-every other field copied verbatim -- so each reported value gets its own
+`value`) into one row per list entry, point_value set to that entry,
+list_values set to None on the expanded row, and every other field copied
+verbatim -- so each reported value gets its own
 shot at matching a ground-truth row, instead of the whole list being
 unmatchable as a single row. This is the one step that changes row count:
 match_cache.py's matching is purely positional within postprocessed.json and
@@ -187,8 +188,9 @@ def expand_list_values(record: dict) -> list:
     rare compact "value(uncertainty)" notation, "2.05(5)") is kept as its
     raw string rather than dropped or raising -- match_cache.py's own
     numeric_coerce will correctly leave it unmatched rather than this
-    function guessing at it. Every other field, list_values/qualifiers
-    included, is copied unchanged.
+    function guessing at it. list_values itself is set to None on every
+    expanded row (each row now reports a single point_value, not a list);
+    every other field, qualifiers included, is copied unchanged.
 
     Otherwise returns [record] unchanged -- the overwhelmingly common case.
     """
@@ -202,6 +204,7 @@ def expand_list_values(record: dict) -> list:
             new_record["point_value"] = parsing.to_float(entry)
         except ValueError:
             new_record["point_value"] = entry
+        new_record["list_values"] = None
         expanded.append(new_record)
     return expanded
 
