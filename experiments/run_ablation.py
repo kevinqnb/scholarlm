@@ -10,7 +10,7 @@ Usage
 -----
     python experiments/run_ablation.py experiments/experiment-configs/pond/ablation/<id>/<id>.yaml
 
-Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"6").
+Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"7").
 Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers
 (bool, default true -- ablation "1" only; false asks the dataset config's
 *_no_qualifiers direct-extraction schema/prompt/instructions instead, dropping the
@@ -20,7 +20,7 @@ or if the dataset has no no-qualifiers variant defined).
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
-Available ablations: 1–6 (see ABLATION_REGISTRY below).
+Available ablations: 1–7 (see ABLATION_REGISTRY below).
 
 Notes
 -----
@@ -57,6 +57,7 @@ from scholarlm.measurementlm_ablation3 import MeasurementLMAblation3
 from scholarlm.measurementlm_ablation4 import MeasurementLMAblation4
 from scholarlm.measurementlm_ablation5 import MeasurementLMAblation5
 from scholarlm.measurementlm_ablation6 import MeasurementLMAblation6
+from scholarlm.measurementlm_ablation7 import MeasurementLMAblation7
 
 # Reuse shared utilities from run_extraction (config loading, etc.)
 from run_extraction import (
@@ -102,6 +103,14 @@ ABLATION_REGISTRY: dict[str, tuple[type, str]] = {
         MeasurementLMAblation6,
         "No chain-of-thought explanations; all structured JSON responses drop the "
         "'explanation' field so the model does not produce reasoning traces.",
+    ),
+    "7": (
+        MeasurementLMAblation7,
+        "No standardization/quantity-parsing/deduplication; the extraction pipeline "
+        "(steps 1-6) is unchanged, but units are left exactly as extracted and every "
+        "qualifier/shape field is written null instead of being parsed from the raw "
+        "value, with no duplicate-merging -- analysis/postprocessing.py fills the "
+        "qualifier fields and standardizes units afterward, unmodified.",
     ),
 }
 
