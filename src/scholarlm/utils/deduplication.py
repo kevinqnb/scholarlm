@@ -8,9 +8,11 @@ than imported because ``match_datasets`` keeps them as closures, and refactoring
 would be an eval-logic change. ``tests/test_deduplication.py`` checks parity against
 ``match_datasets`` directly.
 
-The one intentional divergence from ``match_datasets``: when every fuzzy field is null
-on at least one side of a pair, ``match_datasets`` drops the edge, whereas here the pair
-counts as a duplicate if the strict fields match (no fuzzy evidence either way).
+When every fuzzy field is null on at least one side of a pair, both here and in
+``match_datasets`` the pair counts as a match if the strict fields agree (no fuzzy
+evidence either way) -- ``match_datasets`` represents that case with an edge weight
+of ``fuzzy_threshold`` (the minimum passing score) rather than dropping the edge, as
+it used to before 2026-09-26.
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -24,6 +26,8 @@ _FLOAT_RTOL = 0.0
 
 
 def _is_null(x) -> bool:
+    if isinstance(x, str) and not x.strip():
+        return True
     return x is None or (isinstance(x, (float, np.floating)) and np.isnan(x))
 
 
@@ -182,9 +186,9 @@ def deduplicate_records(
     duplicates iff every strict field is equal (null == null; numerics via
     ``np.isclose(atol=1e-3, rtol=0)``; strings case-insensitive and stripped; a
     numeric never equals a string) AND the mean ``rapidfuzz.fuzz.ratio`` / 100 over
-    fuzzy fields non-null on both sides is ``>= fuzzy_threshold``. Divergence from
-    ``match_datasets``: if no fuzzy field is non-null on both sides, the strict match
-    alone makes them duplicates.
+    fuzzy fields non-null on both sides is ``>= fuzzy_threshold``. If no fuzzy field
+    is non-null on both sides, the strict match alone makes them duplicates (matches
+    ``match_datasets``, which assigns that case an edge weight of ``fuzzy_threshold``).
 
     Grouping rule: the pair relation isn't transitive, so rows are walked in
     ``df`` order and each row is compared only against rows already *kept*. A row that

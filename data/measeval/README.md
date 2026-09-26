@@ -152,12 +152,15 @@ pipeline" below). Don't be misled by the module docstring in
 
 Two matching caveats worth knowing before reading the first results table:
 - **~1.1% of ground-truth rows (10/951) have both `name` and `property` null.**
-  `match_datasets` drops a candidate edge outright when every fuzzy field is null on
-  either side (see `src/scholarlm/utils/data.py`), so these rows are structurally
-  unrecoverable regardless of fuzzy threshold — a hard ceiling on recovery, not a
-  bug. (Also: unlike supermat, a null `name` here does *not* fall back to
-  strict-only matching — `property` still has to carry the fuzzy score, or the
-  edge is dropped.)
+  Before 2026-09-26, `match_datasets` dropped a candidate edge outright when every
+  fuzzy field was null on either side, making these rows structurally unrecoverable
+  regardless of fuzzy threshold — a hard ceiling on recovery, not a bug. As of
+  2026-09-26, `match_datasets` instead assigns such an edge weight `fuzzy_threshold`
+  (see `src/scholarlm/utils/data.py`), so these rows can now match on strict fields
+  alone; any recovery number computed before that date undercounts them. (Also:
+  unlike supermat, a null `name` here does *not* fall back to strict-only matching on
+  its own — `property` still has to carry the fuzzy score, or, before 2026-09-26,
+  the edge was dropped.)
 - **Units are strict-matched, but open free text.** `attribute_info_dict["measurement"]["units"]`
   is `[]` (no fixed vocabulary to prompt the model with, unlike pond/nfix/supermat),
   so a model's unit spelling has no vocabulary to converge toward. Treat measeval

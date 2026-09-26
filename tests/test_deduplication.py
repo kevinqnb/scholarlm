@@ -3,7 +3,9 @@
 Fixtures are hand-built so the expected kept/dropped sets can be read off by
 inspection; fuzzy ratios the expectations depend on are asserted as preconditions.
 Pairwise semantics are also checked for parity against ``match_datasets`` (the
-ground-truth matcher), except for the one documented divergence (all-null fuzzy).
+ground-truth matcher), including the all-null-fuzzy case (``match_datasets``
+represents it as an edge weight of ``fuzzy_threshold`` rather than dropping the
+edge, as it used to before 2026-09-26).
 """
 import numpy as np
 import pandas as pd
@@ -104,6 +106,16 @@ def test_null_equals_null_on_strict_fields():
     assert len(_dedup(df, 0.9)[0]) == 1
 
 
+def test_empty_string_equals_null_on_strict_fields():
+    df = pd.DataFrame([_rec("pond a", units=None), _rec("pond a", units="  ")])
+    assert len(_dedup(df, 0.9)[0]) == 1
+
+
+def test_empty_string_does_not_equal_a_real_value_on_strict_fields():
+    df = pd.DataFrame([_rec("pond a", units=""), _rec("pond a", units="mg/L")])
+    assert len(_dedup(df, 0.9)[0]) == 2
+
+
 # ── Fuzzy semantics ────────────────────────────────────────────────────────────
 
 def test_all_null_fuzzy_is_duplicate_when_strict_matches():
@@ -174,7 +186,7 @@ def _random_fixture(seed, n=60):
     names = ["pond 1", "pond 2", "Pond 1 ", "lake a", "lake b", "site x", None]
     ecos = ["pond", "lake", "Pond", None]
     values = [7.0, 7.0004, 7.5, 8, "7.0", "ca. 7", None]
-    units = ["mg/L", "MG/L", None]
+    units = ["mg/L", "MG/L", None, "", "  "]
     rows = []
     for i in range(n):
         rows.append({
@@ -195,19 +207,20 @@ def test_pairwise_parity_with_match_datasets(seed, threshold):
         fuzzy_matching={c: c for c in FUZZY}, fuzzy_threshold=threshold,
     )
     edge_set = set(edges)
-    n_checked = n_diverge = 0
+    n_checked = n_no_evidence = 0
     for i in range(len(df)):
         for j in range(i + 1, len(df)):
             strict_ok, score = pair_score(df.iloc[i], df.iloc[j], strict_fields=STRICT, fuzzy_fields=FUZZY)
             if strict_ok and score is None:
-                # documented divergence: match_datasets drops the edge, we call it a dup
-                assert (i, j) not in edge_set
-                n_diverge += 1
+                # no fuzzy evidence either way: both sides call it a match unconditionally
+                # (match_datasets represents it internally as weight == threshold)
+                assert (i, j) in edge_set
+                n_no_evidence += 1
                 continue
             ours = strict_ok and score >= threshold
             assert ours == ((i, j) in edge_set), (i, j, df.iloc[i].to_dict(), df.iloc[j].to_dict())
             n_checked += 1
-    assert n_checked > 100 and n_diverge > 0  # fixture actually exercises both paths
+    assert n_checked > 100 and n_no_evidence > 0  # fixture actually exercises both paths
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
