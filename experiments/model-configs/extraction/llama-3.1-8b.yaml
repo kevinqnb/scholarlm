@@ -15,4 +15,15 @@ serve:
 resources:
   gpu_memory: 32G
   gpu_capability: 7.0
+  # Pinned 2026-09-26 after job 7747755 (tinye2e-baseline-01) landed on a
+  # Tesla V100S (compute capability 7.0, satisfies the bare floor above) and
+  # vLLM refused to start: "Bfloat16 is only supported on GPUs with compute
+  # capability of at least 8.0." serve.dtype: bfloat16 above needs Ampere+
+  # regardless of the resources floor. Every other 7-8B model-config in this
+  # repo already pins gpu_type for exactly this reason (interp_judge/
+  # llama-3.1-8b.yaml, representation_lm/llama-3.1-8b-base.yaml,
+  # nuextract3.yaml, both gliner-*.yaml) -- this one had not been updated to
+  # match. L40S (sm_89) clears the real bf16 requirement; matches the
+  # existing template used by those siblings.
+  gpu_type: L40S
   omp: 8

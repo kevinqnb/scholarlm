@@ -1,0 +1,44 @@
+id: 2026-09-26-measeval-ablation7-llama8b-tinye2e-baseline-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end, baseline arm of a repetition_penalty A/B (see the
+  paired ...-reppen-01 config). Isolates the exact document that produced a
+  degenerate token-repetition loop in job 7744571
+  (measeval-ablation7-llama8b-full-01): S0019103512003533-5211.txt (1088
+  bytes, 3 lines -- a short MeasEval snippet, not a full paper) is the only
+  file under data/measeval/ocr_output_raw/ containing the phrase "18
+  simulations (R1-R18)", which appeared verbatim in that job's dumped
+  _detect_attributes response (measurementlm.py:779) right before it began
+  repeating. measeval's real attribute list for this call is a single
+  bucket ("1. measurement: ...", from _format_attribute_list against
+  _ATTRIBUTE_INFO_DICT in dataset-configs/measeval.py) -- the failing
+  response instead contained ~15 fabricated attribute names never present in
+  the prompt (number_of_simulations, scale_precision_error, ...), and
+  repeated that entire fabricated block a second time before hitting
+  max_tokens=4096 mid-JSON (measurementlm.py:825, max_retries=4).
+  model=llama-3.1-8b (no repetition_penalty, current production default;
+  see llama-3.1-8b-reppen.yaml for the only diff).
+  PREDICTED RESULT: reproduces the same failure on this document --
+  _detect_attributes emits a fabricated multi-item attribute checklist not
+  present in the prompt, loops back through it a second time, and hits
+  max_tokens=4096 before closing valid JSON, logging "Validation error in
+  batched attribute detection response" and at least one "Retrying N failed
+  responses" line for this single document. If it validates cleanly instead,
+  the repro is documenting the wrong mechanism and the reppen arm's result
+  won't be interpretable as a fix for *this* failure -- stop and re-diagnose
+  rather than proceeding to a full rerun.
+  STAGED-GATES: rung 1 (unit test) not applicable -- this targets a specific
+  document's already-observed live-model failure, not new library code.
+  Rung 2 (smoke): `bash experiments/submit.sh <id> --dry-run` confirms
+  config resolution (GPU need, walltime, resources) before this submission.
+  This is rung 3. No rung-4 change follows automatically -- a full llama8b
+  rerun with repetition_penalty is a separate decision after this pair's
+  results are read (per /debrief), since it changes generation behavior
+  relative to every already-collected llama8b number.
+seed: 342
+params:
+  dataset: measeval
+  model: llama-3.1-8b
+  ablation: "7"
+  paper_subset: ["S0019103512003533-5211"]
+  walltime: "00:45:00"
