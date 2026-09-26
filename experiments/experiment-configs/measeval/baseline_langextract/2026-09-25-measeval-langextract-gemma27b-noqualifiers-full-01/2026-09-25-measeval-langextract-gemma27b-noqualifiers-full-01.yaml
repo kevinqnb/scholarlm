@@ -1,0 +1,42 @@
+id: 2026-09-25-measeval-langextract-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the LangExtract baseline on measeval, backbone
+  gemma-3-27b, with params.include_qualifiers=false -- see
+  2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01 for the full
+  mechanism. Direct comparison arm to
+  2026-09-21-measeval-langextract-gemma27b-full-01 (same dataset/model/
+  ocr_dir/seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/chunking knobs/walltime copied verbatim from the baseline config.
+  Per that config's 2026-09-23 update, this baseline is structurally
+  single-threaded on measeval regardless of max_workers/batch_length
+  (measeval's ~892-byte documents are each exactly one langextract chunk, so
+  there is nothing for its internal pool to parallelize against) -- the
+  48:00:00 walltime already reflects that measured ~24h serial-throughput
+  floor with padding, not a per-field-count estimate, so dropping 7 output
+  fields per record is not expected to move it meaningfully.
+
+  STAGED-GATES: rung 1 (unit tests -- tests/test_no_qualifiers_real_configs.py
+  includes measeval in its stubbed-call LangExtract checks -- all passing) is
+  done. No rung-2/3 pass exists for this exact no-qualifiers arm; the
+  qualifier-bearing baseline this compares against was itself killed once by
+  SGE (job 7701678, wrong throughput assumption) before its current 48h
+  walltime was established, so treat this pairing as inheriting that same
+  unresolved risk, not just an unvalidated placeholder. Do not submit this
+  config before a smoke and a tiny end-to-end with a predicted result pass on
+  this exact pair.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  include_qualifiers: false
+  ocr_dir: data/measeval/ocr_output_raw
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 16
+  batch_length: 20
+  repetition_penalty: 1.2
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "48:00:00"

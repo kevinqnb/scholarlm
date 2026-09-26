@@ -1,0 +1,44 @@
+id: 2026-09-25-measeval-ablation1-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on measeval,
+  model=gemma-3-27b, with params.include_qualifiers=false: the model's
+  direct-extraction schema/prompt/instructions drop the 7 qualifier/shape
+  fields (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation) entirely. Built
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01 -- measeval's
+  DirectExtractionItemSchemaNoQualifiers/_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS
+  were added later in that same session, after a follow-up question about
+  why measeval had been left out of the initial pond/nfix/supermat pass.
+  Every other field (entity, event, attribute, value, units) is unchanged
+  from the qualifier-bearing schema -- verified via
+  tests/test_ablation1_no_qualifiers.py's schema-diff test (parametrized to
+  include measeval; the line-by-line prompt-diff test stays scoped to
+  pond/nfix/supermat, whose single-line-per-field prompt shape it assumes --
+  measeval's own no-qualifiers prompt was hand-verified instead). Direct
+  comparison arm to 2026-09-21-measeval-ablation1-gemma27b-full-01 (same
+  dataset/model/ablation/seed, include_qualifiers=true there implicitly; no
+  ocr_dir override on either side -- measeval has no drop_references run).
+
+  walltime copied verbatim from the baseline config for an apples-to-apples
+  comparison -- this run's schema is a strict subset of the baseline's, so
+  per-call output size can only be equal to or smaller than what already fit
+  in the baseline's 02:00:00 budget (itself only a doubly-extrapolated
+  placeholder per that config's own description -- treat this walltime with
+  the same caution). resume dropped, matching every other no-qualifiers
+  ablation1 config this session (run_ablation.py never reads a "resume" key).
+
+  STAGED-GATES: rung 1 (unit tests, including measeval in the parametrized
+  schema-diff and nuextract_examples-diff tests -- all passing) is done. No
+  rung-2/3 pass exists for ablation1 on gemma-3-27b/measeval at all, under
+  ANY schema (qualifier-bearing or not) -- the baseline config this compares
+  against was itself submitted without a smoke/tinye2e per its own
+  description. Do not submit this config before a smoke and a tiny
+  end-to-end with a predicted result pass on this exact triple.
+seed: 342
+params:
+  dataset: measeval
+  model: gemma-3-27b
+  ablation: "1"
+  include_qualifiers: false
+  walltime: "02:00:00"

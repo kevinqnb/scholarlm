@@ -1,0 +1,33 @@
+id: 2026-09-25-measeval-gliner-large-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the GLiNER2 baseline on measeval, model=gliner-large-v1,
+  with params.include_qualifiers=false -- see
+  2026-09-25-pond-gliner-large-noqualifiers-full-01 for the full mechanism
+  (needs no dataset-config change; GLiNER's quantity fields are hardcoded,
+  not schema-driven). Direct comparison arm to
+  2026-09-21-measeval-gliner-large-full-01 (same dataset/model/ocr_dir/seed,
+  include_qualifiers=true there implicitly). Unlike pond/nfix/supermat,
+  measeval's ocr_dir was already explicit to data/measeval/ocr_output_raw on
+  both this run and its comparison arm (measeval has no drop_references run
+  at all), so the 2026-09-25 run_baseline_gliner.py ocr_dir fix changes
+  nothing about this particular comparison's corpus-matching.
+
+  ocr_dir/walltime copied verbatim from the baseline config -- GLiNER's base
+  estimate is dominated by fixed overhead, not per-structure-field count.
+
+  STAGED-GATES: rung 1 (unit tests -- all passing) is done. Rung 2 (smoke):
+  the 2026-09-25 CPU smoke test that verified include_qualifiers against the
+  real fastino/gliner2-large-v1 model used a synthetic pond-shaped input, not
+  measeval's -- the include_qualifiers gate itself is dataset-independent
+  code (see measurementlm_gliner.py), but measeval's own quantity-first
+  schema/Literal attribute was never exercised through that smoke. Rung 3
+  (tiny end-to-end with a predicted result, on the real measeval corpus) has
+  NOT been run. Do not submit this config before it passes.
+seed: 342
+params:
+  dataset: measeval
+  model: gliner-large-v1
+  include_qualifiers: false
+  ocr_dir: data/measeval/ocr_output_raw
+  walltime: "00:30:00"
