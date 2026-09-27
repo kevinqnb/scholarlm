@@ -1,0 +1,21 @@
+[SIGNOFF cba3ad7]: human comprehension and risk attestation
+
+Signoff-Spec-Version: 1.0
+Signoff-Status: VERIFIED_BY_HUMAN
+Signoff-Timestamp: 2026-09-27T19:27:40Z
+Signoff-Base-SHA: 18e25f24fb7423fc5a22cdaea3682f7de715d5c8
+Signoff-Reviewed-Commit-SHA: cba3ad75dbeb089eb73d5ef25a18d528d52519ce
+Signoff-Reviewed-Tree-SHA: 8c569128056a2ba334829be5f35f3872d02a7f5b
+Signoff-Harness-ID: claude-code
+Signoff-Conversation-ID: 17b1c32a-1a27-42ce-8e3d-9214e16207fb
+Signoff-Transcript-Digest: sha256:1cac6b34bcfbb436a7181526b36501bc3b9a01f0a3c0751b42554eb00ed60b8e
+Signoff-Transcript-Bytes: 967164
+Signoff-Tradeoff: postprocessing.py added as a separate manual step after final.json rather than integrated into the extraction pipeline, to fairly compare baseline methods that lack LLM-driven qualifier/standardization steps
+Signoff-Tradeoff: Ablation 7 relies on manual postprocessing standing in for LLM-based standardize/parse-quantities/dedup steps, to attribute full-pipeline gains to extraction quality rather than postprocessing
+Signoff-Tradeoff: recovery/validity bootstrap CIs cluster-resample by paper rather than by row, trading narrower apparent CIs for statistically honest ones under within-paper correlation
+Signoff-Risk: results/ and analysis/out/ recovery-validity numbers are currently stale repo-wide, pending recompute against the gold-list experiments named in the analysis configs
+Signoff-Risk: plain (qualifiers-on) GLiNER baseline is deprecated rather than rerun under the 2026-09-25 run_baseline_gliner.py ocr_dir fix -- must never be cited as valid going forward
+Signoff-Risk: GLiNER and LangExtract seed-determinism could not be sufficiently controlled despite effort; documented as a known limitation, not resolved (vLLM-served methods tolerate <10% drift as expected nondeterminism)
+Signoff-Risk: eval-logic changes in this range (null-fuzzy matching default in match_datasets, postprocessed.json-over-final.json precedence in match_cache.py) invalidate all prior recovery/validity numbers computed before those commits
+Signoff-Verified-By: quinnk@bu.edu
+Signoff-Agent: harness=claude-code/N/A model=claude-sonnet-5 reasoning=high interview=skeptical/domain-science/sha256:f8508fa3740f
