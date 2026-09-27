@@ -52,11 +52,12 @@ def get_matching_rules(dataset):
         #
         # Threshold 1/6 (as with nfix's 2 fuzzy fields) is deliberately lenient:
         # property is null on ~36% of ground-truth rows, so a real match often
-        # has to carry its score on name alone. Note ~1% of ground-truth rows
-        # have BOTH name and property null -- match_datasets drops an edge
-        # outright when every fuzzy field is null on either side, so those rows
-        # are structurally unrecoverable regardless of threshold (see
-        # data/measeval/README.md).
+        # has to carry its score on name alone. ~1% of ground-truth rows have
+        # BOTH name and property null; since 2026-09-26, match_datasets no longer
+        # drops the edge in that case -- it assigns the edge weight `fuzzy_threshold`
+        # instead, so these rows can match on strict fields alone (see
+        # data/measeval/README.md; this changes any recovery number computed
+        # before that date).
         return (
             {'document_id': 'document_id', 'attribute': 'attribute', 'value': 'converted_value', 'units': 'units'},
             {'name': 'name', 'property': 'property'},

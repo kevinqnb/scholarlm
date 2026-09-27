@@ -29,11 +29,18 @@ def match_datasets(
         strictly equal. Numeric values are compared with np.isclose.
     fuzzy_matching:
         Mapping from column name in df_left -> column name in df_right compared with
-        fuzzy ratios, averaged to produce an edge weight in [0, 1].
+        fuzzy ratios, averaged to produce an edge weight in [0, 1]. A fuzzy field null
+        on either side is excluded from that average (not scored as 0); if every
+        fuzzy field is null on at least one side for a pair, there is no fuzzy
+        evidence at all, and the edge weight defaults to `fuzzy_threshold` -- the
+        minimum score that would pass -- so a pair that agrees on every strict field
+        (including null == null) is never dropped purely for lack of fuzzy evidence,
+        without letting it outscore any pair that has real evidence.
     fuzzy_threshold:
         Minimum average fuzzy score in [0, 1] required for candidate edges to be included
         in the graph and considered for matching. Defaults to 0.0 to include all
-        edges that pass strict criteria.
+        edges that pass strict criteria. Also used as the no-fuzzy-evidence default
+        described above.
 
     Returns
     -------
@@ -66,6 +73,8 @@ def match_datasets(
         raise KeyError(f"Columns missing from df_right (fuzzy): {missing_right_f}")
 
     def _is_null(x) -> bool:
+        if isinstance(x, str) and not x.strip():
+            return True
         return bool(pd.isna(x))
 
     def _normalize_obj(x):
@@ -116,9 +125,7 @@ def match_datasets(
                     s for c_l, c_r in fuzzy_items
                     if (s := _fuzzy_score(row_l[c_l], row_r[c_r])) is not None
                 ]
-                if not scores:
-                    continue
-                score = float(np.mean(scores))
+                score = float(np.mean(scores)) if scores else fuzzy_threshold
 
             if score < fuzzy_threshold:
                 continue

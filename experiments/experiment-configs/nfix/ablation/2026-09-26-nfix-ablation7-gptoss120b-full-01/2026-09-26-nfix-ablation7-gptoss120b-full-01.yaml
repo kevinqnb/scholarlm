@@ -1,0 +1,45 @@
+id: 2026-09-26-nfix-ablation7-gptoss120b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 7 (no standardization/quantity-parsing/
+  deduplication; src/scholarlm/measurementlm_ablation7.py, via run_ablation.py)
+  on nfix, model=gpt-oss-120b. Ablation 7 keeps the extraction pipeline (steps
+  1-6: entities, entity provenance, attributes, attribute provenance, events,
+  values) exactly as the base MeasurementLM does -- only the "final" step
+  changes: units are left exactly as extracted (no LLM standardization call),
+  every qualifier/shape field is written null instead of being parsed from the
+  raw value (no LLM parse-quantities call), and no duplicate-merging happens.
+  Paper count: 98 (265 raw OCR files; 101 pass _nfix_paper_filter (verified:
+  the table-cleaning-based drop_references run this config points at was
+  itself already scoped to exactly those 101 files -- confirmed by set
+  comparison against dataset-configs/nfix.py's paper_filter, not assumed);
+  minus 3 more from paper_exclude = 98). ocr_dir pinned to
+  experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  -- the same table-cleaning-based drop_references corpus as this dataset's
+  other extraction/ablation siblings. NO ablation7 run of any kind exists yet,
+  for any dataset or model -- this ablation is brand new, so there is no
+  historical runtime to ground against directly. Walltime instead uses the max
+  of this exact (dataset, model) pair's own ablation 2/3/4/6 walltimes (nfix +
+  gpt-oss-120b: 11:00:00 / 12:00:00 / 29:00:00 / 07:00:00 -> max 29:00:00, from
+  ablation 4), all of which are genuine full 7-step-pipeline runs via
+  run_ablation.py (that runner has no step/resume/final_only partial-rerun
+  machinery, unlike run_extraction.py -- several of whose own committed
+  extraction/*-full-01 configs have since been repurposed into step:
+  final-only reruns and no longer reflect full-pipeline cost; confirmed
+  against experiments/results/pond/extraction/2026-09-21-pond-extraction-llama8b-full-01/run_metadata.json's
+  real per-step breakdown, where "final" is only 859.7s of a 72282.3s total).
+  Ablation 7 runs the identical steps 1-6 as ablations 2/3/4/6, and its own
+  final step (null-fill, no dedup) is strictly cheaper than any of theirs
+  (still a full standardize+parse_quantities+dedup, or a more expensive
+  modified step elsewhere in the pipeline) -- so this max is a safe upper
+  bound, not a measurement -> 29:00:00. STAGED-GATES: NO rung-1/2/3 pass exists
+  for ablation 7 anywhere -- this is its first use at any scale. Per
+  CLAUDE.md's staged-gate ladder, run a smoke and a tiny end-to-end with a
+  predicted result on this exact triple before submitting this config.
+seed: 342
+params:
+  dataset: nfix
+  model: gpt-oss-120b
+  ablation: "7"
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "29:00:00"

@@ -1,0 +1,25 @@
+id: 2026-09-21-pond-extractionv2-gemma27b-qualifiers-seeddet-01
+project: scholarlm
+description: >
+  Seed-determinism sanity control for MeasurementLMv2 (CLAUDE.md's
+  sanity-controls list). Paired with sibling config
+  2026-09-21-pond-extractionv2-gemma27b-qualifiers-seeddet-02: same seed
+  (342), same params, same code, same input (trophic_status_and_threats.txt
+  via ocr_dir), both run today. NOT compared against the original
+  2026-09-20-pond-extractionv2-gemma27b-qualifiers-tinye2e-01 -- see the v1
+  sibling seeddet config for the three intervening commits (533d684, d40846c,
+  bda4bee) that touch run_extraction_v2.py/measurementlmv2.py and would
+  confound a diff against that stale output. Hypothesis (verbatim): "results
+  will be 90-95% similar, but there may be some room for noise/randomness
+  given the nature of the models we are running." Comparison: this run's
+  final.json diffed record-for-record against seeddet-02's. Same gemma-3-27b
+  sampling caveat as the v1 sibling: seed=342 fixes the sampler, but vLLM
+  continuous-batching/AWQ-marlin kernel nondeterminism can still perturb
+  output under a fixed seed.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

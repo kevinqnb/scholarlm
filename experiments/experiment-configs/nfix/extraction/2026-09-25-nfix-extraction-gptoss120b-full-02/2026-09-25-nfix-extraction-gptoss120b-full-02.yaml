@@ -1,0 +1,73 @@
+id: 2026-09-25-nfix-extraction-gptoss120b-full-02
+project: scholarlm
+description: >
+  Clean rerun of 2026-09-21-nfix-extraction-gptoss120b-full-01, superseding it
+  rather than resuming it -- that id's checkpoint chain is broken (its
+  committed config ended up pinned to params.step: entity_prov from a later
+  diagnostic-only rerun on a dirty tree, 2026-09-25T00:58, whose output
+  attribute_prov.json/events.json/values.json/final.json never picked up)
+  and its final.json predates both of the following fixes.
+
+  Two independent gpt-oss-120b-specific bugs, both diagnosed off full-01's own
+  job log, are now fixed in code but have never been exercised end-to-end
+  together on nfix:
+  - f0f1895 (2026-09-24T22:06): raised max_tokens 512->2048 on the
+    entity_prov/attribute_prov/text-value/table-value calls -- full-01's log
+    showed 100/19/102/725 of those calls respectively still failing JSON
+    validation after 2 retries and being silently dropped
+    (`except: print(...); continue` in measurementlm.py), driven by
+    gpt-oss-120b's reasoning_effort burning the 512-token budget on hidden
+    CoT before ever emitting has_value/value.
+  - 732f584 (2026-09-24T18:45, predates f0f1895): widened
+    point_value/lower/upper/tolerance/standard_deviation to
+    `str | float | None` across ParseQuantityResponse, QuantityItem, and
+    every dataset config's DirectExtractionItemSchema (nfix included) --
+    fixes a separate vLLM guided-decoding stall (diag-01/02 on pond:
+    73-88% of parse-quantity calls corrupted pre-fix, 100% success on the
+    validated variant). This one WAS already in effect for full-01's own
+    final.json (its last "final"-step rerun ran after 18:45 that day), so
+    it's carried forward here for correctness, not as new coverage.
+
+  Net effect measured against full-01's own artifacts: entity_prov calls
+  went from 250 initial failures / 138 permanent (pre-fix, original
+  09-22 run_pipeline invocation) to 0 retries at all in the post-fix
+  entity_prov-only rerun (2026-09-25T00:58) -- but that rerun's output was
+  never propagated downstream, which is the reason this is a fresh id and
+  not a --resume of full-01.
+
+  Same corpus as every other nfix full-01 (98 papers via paper_filter, 101
+  raw OCR minus 3 paper_exclude), same ocr_dir (drop_references, not the
+  plain table_cleaning dir), same value_only context modes as the
+  gemma-3-27b/llama-3.1-8b full-01 siblings for comparability.
+
+  Walltime: full-01's original run_pipeline invocation (before any step-by-step
+  rerunning) completed all 7 steps end-to-end in ~1.42h even while burning
+  cycles on the ~950 doomed-to-fail truncated calls above
+  (run_metadata.json step_seconds, summed pre- and post-fix entries:
+  5117.9s). Post-fix, fewer calls are wasted on truncation but the ones that
+  succeed generate more tokens (2048 vs 512 cap) -- no reason to expect a
+  step-order-of-magnitude change either direction, so 08:00:00 (full-01's own
+  ceiling, which that run never got close to needing) would already have been
+  generous. Bumped to 24:00:00 anyway, per instruction -- extra headroom
+  against SGE queue contention on the H200 pin.
+
+  STAGED-GATES: rung 1 (unit tests) exists for both fixes --
+  tests/test_measurementlm.py, tests/test_dataset_config_quantity_fields.py
+  (added in 732f584) cover the schema widening; no dedicated unit test for
+  the max_tokens change itself (a plain constant bump). No rung-2/3
+  (smoke run / tiny e2e) pass exists yet for (nfix, gpt-oss-120b) under
+  *both* fixes together -- per CLAUDE.md's ladder, this config should not be
+  submitted as a full run before at least a one-paper smoke run confirms no
+  truncation/stall warnings on the four previously-affected call sites, and
+  a tiny end-to-end pass with a predicted result (expect: most/all 98 papers
+  yielding >=1 record, versus full-01's 69/98; values-per-event recovering
+  toward gemma-3-27b/llama-3.1-8b's range rather than full-01's ~0.55).
+seed: 342
+params:
+  dataset: nfix
+  model: gpt-oss-120b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  resume: true
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "24:00:00"

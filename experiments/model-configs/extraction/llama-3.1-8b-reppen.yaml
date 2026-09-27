@@ -1,0 +1,39 @@
+model_id: meta-llama/Llama-3.1-8B-Instruct
+sampling_params:
+  temperature: 0.2
+  top_p: 0.95
+  top_k: 20
+  max_tokens: 8192
+  seed: 342
+  enable_thinking: false
+  # Tiny-e2e probe (2026-09-26, notes/scholarlm/experiments/2026-09-26-...):
+  # llama-3.1-8b's own _acall (measurementlm.py:272-273) already forwards
+  # repetition_penalty via extra_body whenever it's present in
+  # sampling_params -- no code change needed, this is the only diff from
+  # llama-3.1-8b.yaml. Targets a degenerate token-repetition loop observed in
+  # job 7744571 (measeval-ablation7-llama8b-full-01): _detect_attributes
+  # (measurementlm.py:779) hallucinated a long attribute checklist not
+  # present in the prompt (measeval's real attribute list is the single
+  # "measurement" bucket) and looped back through it a second time before
+  # hitting max_tokens=4096 mid-JSON. 1.1 is a conservative, commonly-used
+  # starting value (1.0 = off) -- not measured against this repo's own data,
+  # chosen to avoid over-penalizing tokens JSON structure legitimately
+  # repeats (quotes, commas, braces, field names).
+  repetition_penalty: 1.1
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  dtype: bfloat16
+  sif_image: vllm-openai_v0.24.0.sif
+resources:
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # gpu_type: L40S pinned same as llama-3.1-8b.yaml, same day -- job 7747755
+  # (this file's own tinye2e-baseline-01 sibling run) landed on a Tesla V100S
+  # (capability 7.0, satisfies the bare floor) and vLLM refused to start
+  # serve.dtype: bfloat16 there ("Bfloat16 is only supported on GPUs with
+  # compute capability of at least 8.0"). See llama-3.1-8b.yaml's own comment
+  # for the full incident.
+  gpu_type: L40S
+  omp: 8

@@ -1,0 +1,36 @@
+id: 2026-09-25-measeval-nuextract3-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the NuExtract3 baseline on measeval, with
+  params.include_qualifiers=false -- see
+  2026-09-25-pond-nuextract3-noqualifiers-full-01 for the full mechanism.
+  measeval.py gained its own DirectExtractionItemSchemaNoQualifiers (with
+  its own model_rebuild() call, needed because of the Literal["measurement"]
+  attribute field -- see the build note) /
+  _DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS / nuextract_examples_no_qualifiers
+  triple, added later in the same session as pond/nfix/supermat's, after a
+  follow-up question about why measeval had been left out. Direct comparison
+  arm to 2026-09-21-measeval-nuextract3-full-01 (same dataset/model/ocr_dir/
+  seed, include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config -- this run's
+  schema is a strict subset of the baseline's, so per-call output size can
+  only be equal to or smaller than what already fit in the baseline's
+  03:00:00 budget (itself an unvalidated placeholder per that config's own
+  description, since no walltime precedent existed for this baseline+dataset
+  pair at all).
+
+  STAGED-GATES: rung 1 (unit tests -- tests/test_no_qualifiers_real_configs.py
+  includes measeval in its stubbed-call NuExtract3 checks -- all passing) is
+  done. No rung-2/3 pass exists for NuExtract3 on measeval at all, under ANY
+  schema -- the baseline config this compares against was itself submitted
+  without a smoke/tinye2e per its own description. Do not submit this config
+  before a smoke and a tiny end-to-end with a predicted result pass on this
+  exact pair.
+seed: 342
+params:
+  dataset: measeval
+  model: nuextract3
+  include_qualifiers: false
+  ocr_dir: data/measeval/ocr_output_raw
+  walltime: "03:00:00"

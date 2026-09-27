@@ -1,0 +1,28 @@
+id: 2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end, treatment half, for the value-only parse_quantities
+  hypothesis (see sibling 2026-09-22-pond-extraction-gemma27b-parseqty-full-tinye2e-01,
+  the control half, for the full rationale). Same copied-in values.json
+  checkpoint (from 2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02),
+  same seed/paper/model, params.step=final -- only parse_quantities_context
+  differs: "value_only" instead of the default "full". Predicted outcome:
+  the 4 rows where seeddet-02's own final.json left point_value null despite
+  an unambiguous central value (surface_area "0.34" with empty qualifiers;
+  ph "8.4±0.4a", tp "0.109±0.069", chla "15.3±11.1ab", all IsMean+HasTolerance)
+  should get their point_value populated (0.34 / 8.4 / 0.109 / 15.3
+  respectively) under value-only parsing. The several genuine "X and Y"
+  two-number range rows (ph "7.1 and 9.2", tn "0.7 and 6.1") have no single
+  reported central value and should stay point_value=null even here -- this
+  isn't the same failure mode and value-only parsing isn't expected to
+  invent one. If the 4 target rows don't resolve, or the range rows spuriously
+  gain a point_value, stop before the full run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  step: final
+  parse_quantities_context: value_only
+  walltime: "01:00:00"

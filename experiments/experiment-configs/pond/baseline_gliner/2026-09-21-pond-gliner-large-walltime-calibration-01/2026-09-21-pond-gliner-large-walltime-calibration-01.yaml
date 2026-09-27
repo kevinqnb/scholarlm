@@ -1,0 +1,40 @@
+id: 2026-09-21-pond-gliner-large-walltime-calibration-01
+project: scholarlm
+description: >
+  Walltime calibration for the pond GLiNER2 baseline full run, not itself a
+  full run. 2026-09-19-pond-gliner-large-full-01 (115 papers, walltime
+  02:00:00, budgeted as 3x the pre-rework 9.57s/paper rate) was killed at
+  its walltime with zero output (job 7671533). The existing tinye2e single-
+  paper timings (337.7s pre-qualifier, 573.0s with qualifiers, both on the
+  hand-picked table-heavy trophic_status_and_threats paper) can't be
+  extrapolated to a 115-paper full run with confidence: nfix's comparable
+  single-paper tinye2e (292.3s) and supermat's (17.3s) differ by 17x despite
+  similar field-count multipliers, meaning per-paper cost is dominated by
+  paper content, not field count, and every existing timing used a
+  deliberately complex paper, not a representative one.
+  This config runs an 8-paper sample drawn by `random.Random(342).sample()`
+  over the same eligible-paper list `load_papers()` would produce for pond
+  (dataset_config.paper_exclude applied first, matching the full run) --
+  seeded, not hand-picked, so the resulting per-paper rate is usable to set
+  2026-09-19-pond-gliner-large-full-01's walltime for its next resubmission.
+  Papers: carbon_pools_and_fluxes, characterizing_ponds, comparative_analysis,
+  content_of_selected, dry_habitats_sustain, natural_variability,
+  production_of_fish, summer_fluxes.
+  Walltime here is deliberately generous (2h for 8 papers) since the point is
+  to observe real per-paper cost, not to fit a tight budget -- read
+  run_metadata.json's runtime_seconds / 8 for the calibration number
+  regardless of how much of the 2h it actually uses.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  paper_subset:
+    - carbon_pools_and_fluxes
+    - characterizing_ponds
+    - comparative_analysis
+    - content_of_selected
+    - dry_habitats_sustain
+    - natural_variability
+    - production_of_fish
+    - summer_fluxes
+  walltime: "02:00:00"

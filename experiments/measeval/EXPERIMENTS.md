@@ -136,8 +136,11 @@ matching rules, so a rule change silently won't take effect otherwise.
 
 - Fuzzy threshold `1/6` is chosen by analogy to nfix's 2-fuzzy-field case; unvalidated
   against measeval itself, revisit once these runs land.
-- ~1.1% of ground-truth rows (10/951) have both `name` and `property` null and are
-  structurally unrecoverable by this matching scheme -- a hard ceiling on recovery.
+- ~1.1% of ground-truth rows (10/951) have both `name` and `property` null. Before
+  2026-09-26 these were structurally unrecoverable by this matching scheme (a hard
+  ceiling on recovery); `match_datasets` now matches them on strict fields alone
+  (see `data/measeval/README.md`) -- any recovery number computed before that date
+  undercounts them.
 - Units are strict-matched but open free text for measeval (no fixed per-attribute
   vocabulary to prompt the model with, unlike pond/nfix/supermat) -- treat recovery/validity
   as a conservative lower bound until unit normalization is revisited.

@@ -1,0 +1,56 @@
+id: 2026-09-26-pond-ablation1-llama8b-reppen-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on pond,
+  model=llama-3.1-8b-reppen, with params.include_qualifiers=false: the
+  model's direct-extraction schema/prompt/instructions drop the 7
+  qualifier/shape fields (qualifiers, point_value, lower, upper, list_values,
+  tolerance, standard_deviation) entirely, in the style of
+  2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01
+  (devlog/2026-09-25-ablation1-no-qualifiers-01.md) -- same
+  DirectExtractionItemSchemaNoQualifiers / _DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS /
+  DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS machinery, just with
+  model=llama-3.1-8b-reppen instead of gemma-3-27b. Two things differ from
+  the qualifier-bearing llama-3.1-8b baseline
+  (2026-09-21-pond-ablation1-llama8b-full-01) at once here:
+  include_qualifiers=false AND repetition_penalty: 1.1 (llama-3.1-8b-reppen
+  vs. llama-3.1-8b) -- not a clean single-variable comparison against that
+  baseline the way the gemma27b noqualifiers arm was against its own
+  qualifier-bearing gemma27b baseline. Motivation for the repetition_penalty
+  half: notes/scholarlm/experiments/2026-09-26-measeval-llama8b-reppen-tinye2e-01.md
+  found llama-3.1-8b degenerating into a token-repetition loop in a batched
+  JSON-schema call (ablation 7's _detect_attributes) on at least one
+  document; repetition_penalty: 1.1 eliminated it there. Ablation 1 is a
+  different call shape (single-call direct triple extraction, one schema
+  covering every field at once) -- untested for this specific failure mode at
+  any scale, with or without qualifiers.
+  ocr_dir pinned to
+  experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01,
+  same corpus as the qualifier-bearing baseline. Walltime: 31:00:00, reused
+  verbatim from 2026-09-21-pond-ablation1-llama8b-full-01's own committed
+  value -- per the gemma27b noqualifiers precedent's own reasoning, the
+  no-qualifiers schema is a strict subset of the qualifier-bearing one (same
+  entity/event/attribute/value/units fields, 7 fewer output fields per item),
+  so per-call output size can only be equal to or smaller, and
+  repetition_penalty can only lower cost further, never raise it -- the
+  qualifier-bearing baseline's own budget is a safe (if generous, since it
+  was never itself tightened against llama-3.1-8b's real observed cost) upper
+  bound. resume dropped, matching every no-qualifiers ablation1 config in
+  this repo: run_ablation.py never reads a "resume" key for ablation 1's
+  single-call fit() (checked directly, not assumed).
+  STAGED-GATES: NO rung-1/2/3 pass exists for this exact (llama-3.1-8b-reppen,
+  no-qualifiers, ablation 1) combination on any dataset. The no-qualifiers
+  schema/prompt machinery itself has unit-test coverage
+  (tests/test_ablation1_no_qualifiers.py) but no live-model tiny-e2e run on
+  any model; the repetition_penalty fix has tiny-e2e evidence only for a
+  different call shape (ablation 7's batched attribute detection). Do not
+  submit this config before a smoke run and a tiny end-to-end with a
+  predicted result on this specific (dataset, model, ablation) triple.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "1"
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "31:00:00"

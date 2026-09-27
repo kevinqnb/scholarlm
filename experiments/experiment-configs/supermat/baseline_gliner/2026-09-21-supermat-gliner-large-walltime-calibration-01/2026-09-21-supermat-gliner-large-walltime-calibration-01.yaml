@@ -1,0 +1,41 @@
+id: 2026-09-21-supermat-gliner-large-walltime-calibration-01
+project: scholarlm
+description: >
+  Walltime calibration for the supermat GLiNER2 baseline full run, not
+  itself a full run. 2026-09-19-supermat-gliner-large-full-01 (142 papers,
+  walltime 00:45:00, budgeted as 3x the pre-rework 0.51s/paper rate, padded
+  to 45min for fixed-overhead headroom) was killed at its walltime with zero
+  output (job 7671545). The existing tinye2e single-paper timing (17.3s,
+  pre-qualifier field-scope rework only, never re-measured with yesterday's
+  qualifier fields on top) can't be extrapolated to a 142-paper full run
+  with confidence: pond's comparable single-paper tinye2e (337.7s) and
+  nfix's (292.3s) differ from supermat's by 17-20x despite similar
+  field-count multipliers, meaning per-paper cost is dominated by paper
+  content, not field count, and the existing supermat timing used a paper
+  that wasn't picked to be representative.
+  This config runs an 8-paper sample drawn by `random.Random(342).sample()`
+  over the same eligible-paper list `load_papers()` would produce for
+  supermat (no paper_exclude/paper_filter defined for this dataset, so the
+  full 142-paper pool) -- seeded, not hand-picked, so the resulting
+  per-paper rate is usable to set 2026-09-19-supermat-gliner-large-full-01's
+  walltime for its next resubmission.
+  Papers: JPS0731123-CC, JPS0731131-CC, L088167005-CC, L091217001-CC,
+  P066024503-CC, P072104504-CC, SSC1270493-CC, ivanovskii2008newHigh.
+  Walltime here is deliberately generous (2h for 8 papers) since the point is
+  to observe real per-paper cost, not to fit a tight budget -- read
+  run_metadata.json's runtime_seconds / 8 for the calibration number
+  regardless of how much of the 2h it actually uses.
+seed: 342
+params:
+  dataset: supermat
+  model: gliner-large-v1
+  paper_subset:
+    - JPS0731123-CC
+    - JPS0731131-CC
+    - L088167005-CC
+    - L091217001-CC
+    - P066024503-CC
+    - P072104504-CC
+    - SSC1270493-CC
+    - ivanovskii2008newHigh
+  walltime: "02:00:00"

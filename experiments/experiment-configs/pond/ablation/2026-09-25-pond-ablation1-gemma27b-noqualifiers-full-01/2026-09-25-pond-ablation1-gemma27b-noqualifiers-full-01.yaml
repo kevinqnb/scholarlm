@@ -1,0 +1,81 @@
+id: 2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on pond,
+  model=gemma-3-27b, with params.include_qualifiers=false: the model's
+  direct-extraction schema/prompt/instructions drop the 7 qualifier/shape
+  fields (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation) entirely -- built 2026-09-25-ablation1-no-qualifiers-01
+  (devlog/2026-09-25-ablation1-no-qualifiers-01.md), threaded through
+  run_ablation.py/MeasurementLMAblation1/pond.py's new
+  DirectExtractionItemSchemaNoQualifiers /
+  _DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS /
+  DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS. Every other field
+  (entity, event, attribute, value, units) is unchanged from the
+  qualifier-bearing schema -- verified byte-for-byte in
+  tests/test_ablation1_no_qualifiers.py. Direct comparison arm to
+  2026-09-21-pond-ablation1-gemma27b-full-01 (same dataset/model/ablation/
+  ocr_dir/seed, include_qualifiers=true there implicitly).
+
+  Hypothesis (mine, to test): running analysis/postprocessing.py's
+  best-effort qualifier-field parser (parsing.parse_quantity_shape_numeric)
+  against this run's raw `value` strings recovers point_value/lower/upper/
+  etc. more completely than asking gemma-3-27b to populate all 15 fields
+  (7 entity/event + attribute/value/units + 7 qualifier) in the same single
+  call -- predicted recovery gain vs. the qualifier-bearing baseline: >25
+  percentage points.
+
+  Pre-flight diligence (2026-09-25, before this config was drafted):
+  baseline recovery (2026-09-21-pond-ablation1-gemma27b-full-01, against its
+  own postprocessed.json) is currently 10.11% -- a >25pp gain means >=~35%,
+  roughly 3.5x. Simulating this experiment's mechanism against the
+  baseline's own final.json (stripping its model-filled qualifier fields and
+  re-deriving point_value from the raw value string via
+  analysis.postprocessing.postprocess_record) shows the parser agrees with
+  what the model already extracted 96.6% of the time it applies at all
+  (disagrees 0.2%, unfillable 3.2%, mostly non-numeric placeholder values
+  like "measured"/"<"). Parsing-recovers-what-the-model-missed is therefore
+  NOT a plausible mechanism for a 25pp gain on its own -- if the hypothesis
+  holds, it's most likely because the simpler single-call schema improves
+  the model's own entity/attribute/value/units extraction accuracy (the
+  fields recovery actually joins on), not because postprocessing parses
+  better than the model already does. Known, unfixed parser gap: comma-decimal
+  values (e.g. this dataset's own known-answer case, pH "8,4±0,4" in
+  trophic_status_and_threats.txt) are not parsed -- the comma reads as a
+  list/thousands separator, not a decimal point -- so that row is predicted
+  to remain unmatchable in this arm too. Not patched: postprocessing.py is
+  eval-path code, off-limits per CLAUDE.md's guarding-evaluation-code rule.
+
+  No code-drift confound: baseline ran at commit d292f61 (dirty), already
+  past the temp/seed-forwarding fix (6dec7bb, 2026-09-21) -- git log
+  d292f61..HEAD on every file in the model-call path (measurementlm.py,
+  measurementlm_ablation1.py, instruction_prompts.py, run_ablation.py,
+  dataset-configs/pond.py) shows no changes affecting ablation 1's call
+  itself; the only touches are analysis-side (postprocessing.py's addition,
+  match_cache's preference for it) and apply identically to both arms.
+
+  ocr_dir/seed copied verbatim from the baseline config for an
+  apples-to-apples comparison. Baseline's own params.resume=true is dropped
+  here -- checked run_ablation.py; it never reads a "resume" key at all (a
+  no-op left over from the base-pipeline's checkpointed-step convention,
+  which ablation 1's single-call fit() doesn't use). walltime kept at the
+  baseline's own proven
+  04:00:00 (actual observed runtime there: 9787.5s = 2.72h, commit d292f61,
+  run_metadata.json) rather than recomputed from scratch -- this run's
+  schema is a strict subset of the baseline's (same entities/events/
+  attributes, 7 fewer output fields per item), so per-call output size can
+  only be equal to or smaller than what already fit comfortably in 4h.
+
+  STAGED-GATES: rung 1 (unit tests, tests/test_ablation1_no_qualifiers.py,
+  9/9 passing) and rung 2 (stubbed model-call capture in the same test file
+  -- no GPU/vLLM available on this login node for a live smoke run) are
+  done. Rung 3 (tiny end-to-end, predicted result written down first) has
+  NOT been run yet -- do not submit this config before it passes.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "1"
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "04:00:00"

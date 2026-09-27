@@ -22,7 +22,7 @@ class EntitySchema(BaseModel):
 
     name: str | None
     identifiers: str | None
-    site_type: str | None
+    ecosystem_type: str | None
     location: str | None
 
 
@@ -35,7 +35,7 @@ Response schema:
 Site identifying information includes the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides (e.g. "Site 3", "L1") as the name.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
+- ecosystem_type: the type of site (e.g. continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy, etc.). This must be explicitly stated or clearly described in the text; do NOT infer it from the entity name alone.
 - location: the general geographic location of the site.
 
 
@@ -47,7 +47,7 @@ Strict rules about missing information:
 - Do NOT infer, guess, or derive any identifying information.
 - Use ONLY information explicitly stated in the text.
 - If a field is not explicitly given, set its value to None.
-- Do NOT infer site_type from the entity name.
+- Do NOT infer ecosystem_type from the entity name.
 
 
 Extraction procedure:
@@ -67,7 +67,7 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
+      "ecosystem_type": "...",
       "location": "..."
     }
   ]
@@ -197,7 +197,7 @@ class DirectExtractionItemSchema(BaseModel):
     # Entity fields
     name: str | None
     identifiers: str | None
-    site_type: str | None
+    ecosystem_type: str | None
     location: str | None
     # Event fields
     date: str | None
@@ -218,7 +218,7 @@ Extract all distinct dinitrogen fixation measurement sites mentioned in the docu
 Entity fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 - location: the general geographic location of the site.
 
 Entity identification rules:
@@ -253,7 +253,7 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
+      "ecosystem_type": "...",
       "location": "...",
       "date": "...",
       "nfix_method": "...",
@@ -281,7 +281,7 @@ class Ablation2ObservationSchema(BaseModel):
     # Entity fields (same as ObservationSchema)
     name: str | None
     identifiers: str | None
-    site_type: str | None
+    ecosystem_type: str | None
     location: str | None
     # Reserved fields required by Ablation 2
     attribute: str
@@ -299,7 +299,7 @@ Response schema:
 For each (site, attribute) pair, output one item with the following fields:
 - name: the name of the site (e.g. "Lake Mendota", "Chesapeake Bay", "Plot A3"). If no full name is given, use whatever primary identifier the paper provides.
 - identifiers: every alternate short-form reference to this site used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "L1; Lake M.; Mend."). Collect these whenever the text uses them for the same site, even if the linkage is introduced only once (e.g. "Lake Mendota (LM)"). Do not include the primary name itself. If no alternatives exist, set to None.
-- site_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
+- ecosystem_type: the type of site (e.g., continental shelf, estuary, lake, freshwater wetland, salt marsh, mangrove, river, tidal flat, seagrass meadow, soil, cryptobiotic crust, tree canopy). Must be explicitly stated; do NOT infer from the site name.
 - location: the general geographic location of the site.
 - attribute: the exact attribute name from the list below.
 - attribute_terms: any terminology or abbreviations used in the document to refer to that attribute. Pay close attention to tables and figure captions. Do not infer, guess, or fabricate terms not explicitly present.
@@ -326,7 +326,7 @@ Output format requirements:
     {
       "name": "...",
       "identifiers": "...",
-      "site_type": "...",
+      "ecosystem_type": "...",
       "location": "...",
       "attribute": "...",
       "attribute_terms": [...]
@@ -383,10 +383,10 @@ CONFIG = DatasetConfig(
     ablation2_entity_identification_prompt=_ABLATION2_IDENTIFICATION_PROMPT,
     # Judge sees only: name, date, additional_details (+ attribute, value, units).
     # location / nfix_method / substrate_type throw off the judgement (ground-truth
-    # formatting mismatch); identifiers, site_type and sample_depth are dropped too so
+    # formatting mismatch); identifiers, ecosystem_type and sample_depth are dropped too so
     # the judge evaluates the minimal entity/event context.
     judge_filter_fields=[
-        "identifiers", "site_type", "location",
+        "identifiers", "ecosystem_type", "location",
         "nfix_method", "substrate_type", "sample_depth",
     ], 
     ground_truth_file="data/nfix/ground_truth_ten_review.json",

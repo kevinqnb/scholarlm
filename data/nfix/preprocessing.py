@@ -6,9 +6,40 @@ Pipeline
     raw_data/aquatic_N2fix_rates.csv  (raw database export)
         ↓  filter to text/table-extractable papers
         ↓  reshape: one row per nfix_rate measurement
-        ↓  page attribution via OCR scoring
+        ↓  page attribution via OCR scoring (attribute field still the
+           'nfix_rate' placeholder here, so NFIX_WEIGHTS scoring against
+           page text is unaffected by the classification step below)
+        ↓  add qualifier/shape fields (all null except point_value=value --
+           see QUALIFIER_FIELDS)
+        ↓  classify attribute into nfix_rate_mass/areal/volumetric from the
+           normalized units, per experiments/dataset-configs/nfix.py's
+           attribute_info_dict unit lists (see classify_attribute())
     ground_truth.json                 (all registered text/table papers)
     ground_truth_ten.json             (top-10 paper development subset)
+
+ground_truth_review.json / ground_truth_ten_review.json are produced
+afterwards by apply_review.py from page_review.csv corrections, and are the
+file DatasetConfig.ground_truth_file actually points at -- the qualifier
+fields added here flow through unchanged, except point_value, which
+apply_review.py resyncs to any corrected value; corrected_units is passed
+through normalize_units() below (apply_review.py resolves it dynamically by
+dataset, see its own docstring), so a manual units correction is formatted
+the same way as every other row's units, not left as raw shorthand.
+apply_review.py does NOT resync attribute to a corrected_units value, so a
+units correction that crosses a mass/areal/volumetric boundary would leave a
+stale attribute in ground_truth_review.json -- see classify_attribute()'s
+call site check before trusting a review file after such a correction.
+
+This function deliberately does not sort/reorder its output: page_review.csv's
+gt_row_index is a row *position*, and unlike pond this dataset's row order is
+stable as-is. Do not add a canonicalizing sort here without re-deriving
+page_review.csv's alignment first -- several distinct R163 rows report the
+identical value for the identical site (real replicate measurements a human
+reviewer told apart by reading the source PDF, not from anything in
+ground_truth.json's own fields), so a fresh sort's tie-breaking cannot be
+safely content-matched back to the existing review corrections. See
+notes/scholarlm/builds/2026-09-22-qualifier-ground-truth-01.md for the
+verification behind this.
 
 Paper inclusion filter
 ----------------------
@@ -23,9 +54,12 @@ original reported values.
 
 Output columns
 --------------
-document_id, name, identifiers, location, site_type, date, nfix_method,
+document_id, name, identifiers, location, ecosystem_type, date, nfix_method,
 substrate_type, sample_depth, additional_details, attribute, value, units,
-page, page_score, page_confidence.
+page, page_score, page_confidence, plus QUALIFIER_FIELDS (qualifiers,
+point_value, lower, upper, list_values, tolerance, standard_deviation).
+attribute is one of nfix_rate_mass, nfix_rate_areal, nfix_rate_volumetric
+(not a generic "nfix_rate") -- see classify_attribute().
 
 Usage
 -----
@@ -39,6 +73,7 @@ Or from data/nfix/:
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 from collections import Counter
@@ -57,6 +92,19 @@ from scholarlm.utils.page_attribution import (
 logger = logging.getLogger(__name__)
 
 BASE = Path(__file__).parent  # data/nfix/
+REPO_ROOT = BASE.parent.parent  # repo root
+
+# experiments/dataset-configs/ has a hyphen, so it can't be a dotted-import
+# package name -- load the file directly, same approach
+# data/nfix/create_probe_dataset.py uses. Anchored to REPO_ROOT (derived from
+# __file__), not cwd, since apply_review.py executes this module by file path
+# from data/apply_review.py, which may run from a different cwd.
+_config_spec = importlib.util.spec_from_file_location(
+    "_dataset_config_nfix", REPO_ROOT / "experiments" / "dataset-configs" / "nfix.py"
+)
+_config_mod = importlib.util.module_from_spec(_config_spec)
+_config_spec.loader.exec_module(_config_mod)
+_NFIX_CONFIG = _config_mod.CONFIG
 
 # ---------------------------------------------------------------------------
 # Unit normalization
@@ -67,7 +115,7 @@ _CHEMICAL_MAP = {'n': 'N', 'n2': 'N2', 'c2h4': 'C2H4'}
 _DENOM_MAP = {'l': 'L', 'ml': 'mL', 'y': 'yr'}
 
 
-def _normalize_units(s: str) -> str | None:
+def normalize_units(s: str) -> str | None:
     """Normalize a raw CSV unit string to LLM-friendly Unicode format.
 
     Converts e.g. 'nmol-n g-1 h-1' → 'nmol N g⁻¹ h⁻¹'.
@@ -110,9 +158,60 @@ def _normalize_units(s: str) -> str | None:
 
     return ' '.join(result)
 
+
+def _build_unit_to_attribute() -> dict[str, str]:
+    """Invert experiments/dataset-configs/nfix.py's attribute_info_dict into a
+    units -> attribute lookup.
+
+    That dict's three unit lists (nfix_rate_mass/areal/volumetric) are meant
+    to partition every valid nfix rate unit; assert none is claimed twice
+    rather than silently letting the later attribute win.
+    """
+    mapping: dict[str, str] = {}
+    for attribute, info in _NFIX_CONFIG.attribute_info_dict.items():
+        for unit in info["units"]:
+            if unit in mapping:
+                raise ValueError(
+                    f"Unit {unit!r} appears under both {mapping[unit]!r} and "
+                    f"{attribute!r} in nfix.py's attribute_info_dict -- the "
+                    "three unit lists must be disjoint."
+                )
+            mapping[unit] = attribute
+    return mapping
+
+
+_UNIT_TO_ATTRIBUTE = _build_unit_to_attribute()
+
+
+def classify_attribute(units: str) -> str:
+    """Map a normalized units string to nfix_rate_mass/areal/volumetric.
+
+    Every unit reaching this dataset's ground truth must appear in exactly
+    one of nfix.py's three unit lists -- an unrecognized unit is a hard
+    error, not a fallback to a generic bucket (see CLAUDE.md: no silent
+    fallbacks).
+    """
+    if units not in _UNIT_TO_ATTRIBUTE:
+        raise ValueError(
+            f"Unrecognized nfix rate unit {units!r} -- not present in any of "
+            "nfix.py's attribute_info_dict unit lists (nfix_rate_mass/areal/"
+            "volumetric). Add it there before regenerating ground truth."
+        )
+    return _UNIT_TO_ATTRIBUTE[units]
+
 _TOP_PAPERS = [
     "R163", "R164", "R172", "R248", "R124",
     "R51", "R59", "R114", "R43", "R103",
+]
+
+# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
+# minus `explanation` (a generation-only field, not part of the GT record).
+# nfix's raw data has no shape annotation beyond a single reported value, so
+# every field is null except `point_value`, which copies `value` -- the only
+# shape fact this ground truth has: a plain point value was reported.
+QUALIFIER_FIELDS = [
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
 ]
 
 
@@ -209,12 +308,17 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
     """Build ground_truth.csv and ground_truth_ten.csv from the raw nfix database.
 
     Filters to papers with text/table-extractable data, constructs the output
-    columns, assigns attribute='nfix_rate' with value=nfix_rate_original and
-    units=nfix_unit_original, and writes two output files.
+    columns with value=nfix_rate_original and units=nfix_unit_original, and
+    writes two output files. attribute is set to a placeholder
+    ('nfix_rate') through page attribution -- so scoring against page text
+    (NFIX_WEIGHTS) is unaffected by this change -- then reclassified into
+    nfix_rate_mass/areal/volumetric from the normalized units via
+    classify_attribute() immediately before writing.
 
-    Output schema: document_id, name, identifiers, location, site_type, date,
+    Output schema: document_id, name, identifiers, location, ecosystem_type, date,
     nfix_method, substrate_type, sample_depth, additional_details, attribute,
-    value, units.
+    value, units, plus QUALIFIER_FIELDS (qualifiers, point_value, lower,
+    upper, list_values, tolerance, standard_deviation).
 
     Args:
         raw_path: Path to ``raw_data/aquatic_N2fix_rates.csv``.
@@ -246,7 +350,7 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "name":               df["site_name"],
         "identifiers":        None,
         "location":           df["_location"],
-        "site_type":          df["habitat"],
+        "ecosystem_type":     df["habitat"],
         "date":               df["_date"],
         "nfix_method":        df["nfix_method"],
         "substrate_type":     df["substrate"],
@@ -254,10 +358,19 @@ def build_ground_truth(raw_path: Path, directory_path: Path, out_dir: Path) -> N
         "additional_details": None,
         "attribute":          "nfix_rate",
         "value":              df["nfix_rate_original"],
-        "units":              df["nfix_unit_original"].map(_normalize_units),
+        "units":              df["nfix_unit_original"].map(normalize_units),
     }).dropna(subset=["value"]).reset_index(drop=True)
 
+    for field in QUALIFIER_FIELDS:
+        gt[field] = None
+    gt["point_value"] = gt["value"]
+
     gt = _add_page_attribution(gt, paper_info, BASE / "ocr_output_raw")
+
+    # Reclassify the placeholder 'nfix_rate' attribute into its specific
+    # mass/areal/volumetric sub-type now that page attribution (which scored
+    # against the literal placeholder string via NFIX_WEIGHTS) is done.
+    gt["attribute"] = gt["units"].map(classify_attribute)
 
     gt.to_json(out_dir / "ground_truth.json", orient="records", indent=2)
     print(f"  Saved {len(gt):,} rows → ground_truth.json")

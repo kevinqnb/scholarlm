@@ -1,0 +1,45 @@
+id: 2026-09-24-gptoss120b-parsequantity-schema-diag-01
+project: scholarlm
+description: >
+  Rung-2/3 diagnostic, not a formal experiment-type -- manual/composite (run
+  by hand, not through experiments/submit.sh's EXPERIMENT_TYPES dispatch;
+  see notes/hub/conventions.md's "composite/manual experiment-types" carve-out
+  and this repo's existing drop_references/probe_calibration precedent).
+
+  Root-causes the ~88% _parse_quantities() failure rate found in
+  2026-09-21-pond-extraction-gptoss120b-full-01's final.json (3555/4861 records
+  missing all qualifier fields, another 704/4861 with a corrupted point_value
+  string). That failure rate was shown to be independent of the
+  parse_quantities_context flag (near-identical failure counts in the run's
+  full-context and value_only sections, 3561 vs 3557) and strongly dependent on
+  whether the record's `value` parses as a bare number (92% failure, 4208/4555)
+  vs. not (17%, 51/306). The stall consistently breaks the response stream
+  immediately after emitting the "point_value" key (1990/2000 sampled
+  failures). Hypothesis (mine and the user's, recorded before running): the
+  model wants to emit a bare unquoted number into a field the schema types as
+  `str | None`, and vLLM's guided/constrained JSON decoding for gpt-oss-120b
+  stalls at that boundary; variant (c) below (point_value: str | float | None)
+  should fix it for numeric values specifically.
+
+  Replays ~20 of the real failing (value, missing-or-corrupt-parse) records
+  pulled directly from that run's final.json (10 whose `value` parses as a
+  float, 10 that don't) through the exact PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS
+  prompt _parse_quantities() uses in value_only mode, at 3 repeats each, against
+  3 ParseQuantityResponse schema variants that differ only in point_value's
+  type -- (a) current (str | None = None), (b) required str (no Optional/anyOf),
+  (c) str | float | None -- holding every other field, the instructions, and
+  the sampling params identical to the production call.
+
+  Source run: experiments/results/pond/extraction/
+  2026-09-21-pond-extraction-gptoss120b-full-01/final.json (commit 1fb3867,
+  dirty=true at run time -- see that run's own run_metadata.json).
+seed: 342
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  source_experiment_id: 2026-09-21-pond-extraction-gptoss120b-full-01
+  n_numeric_values: 10
+  n_nonnumeric_values: 10
+  n_repeats: 3
+  max_tokens: 1024
+  walltime: "02:00:00"

@@ -1,0 +1,40 @@
+id: 2026-09-26-measeval-ablation7-llama8b-tinye2e-reppen-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end, treatment arm of a repetition_penalty A/B (see the
+  paired ...-baseline-01 config for the full failure writeup this targets).
+  Identical to the baseline config in every respect -- same document
+  (S0019103512003533-5211, the confirmed source of job 7744571's
+  degenerate-loop failure in _detect_attributes), same ablation, same seed,
+  same walltime -- except model=llama-3.1-8b-reppen, whose only difference
+  from llama-3.1-8b.yaml is sampling_params.repetition_penalty: 1.1 (forwarded
+  automatically via measurementlm.py:272-273's existing extra_body handling;
+  no code change).
+  HYPOTHESIS (mine, transcribed verbatim from the session): "a small
+  repetition penalty fixes an issue where llama becomes stuck in a
+  repetitive loop upon generating a structured response."
+  PREDICTED RESULT: on this same document, _detect_attributes no longer
+  repeats the same attribute block a second time -- whether or not it still
+  fabricates attribute names outside the prompt's single "measurement"
+  bucket is a separate question this test does not resolve, since
+  repetition_penalty penalizes token recurrence, not topical drift. The
+  specific, falsifiable claim: no verbatim repeat of an already-emitted
+  item block, no "Validation error in batched attribute detection response"
+  and no "Retrying" line for this document, where the baseline arm has both.
+  If the reppen arm still loops, the hypothesis is wrong at this value and a
+  higher value (or a different fix -- e.g. instrumenting finish_reason,
+  fixing guided-decoding stop behavior) is the next step, not a larger
+  rerun with 1.1.
+  STAGED-GATES: same rung-3 tiny e2e as the paired baseline config, run
+  together as one comparison. A full llama8b rerun with repetition_penalty
+  is a separate decision after both results are read (per /debrief) --
+  changing generation behavior invalidates comparability with every
+  already-collected llama8b number, so nothing beyond this pair gets
+  submitted without that explicit call.
+seed: 342
+params:
+  dataset: measeval
+  model: llama-3.1-8b-reppen
+  ablation: "7"
+  paper_subset: ["S0019103512003533-5211"]
+  walltime: "00:45:00"

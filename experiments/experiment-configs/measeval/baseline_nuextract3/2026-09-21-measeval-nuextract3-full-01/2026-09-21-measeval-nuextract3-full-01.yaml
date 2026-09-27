@@ -1,0 +1,25 @@
+id: 2026-09-21-measeval-nuextract3-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the NuExtract3 baseline (MeasurementLMNuExtract3) on
+  measeval. No NuExtract3 run of any kind exists yet for measeval (the
+  deprecated nuextract-2.0-8b baseline was never run on it either) -- first time
+  this adapter's prompt/schema wiring is exercised against measeval's
+  quantity-first schema. Per instruction, baselines use the ocr-based (not
+  table-cleaning-based) drop_references corpus at
+  experiments/results/{dataset}/drop_references/<ocr-id> -- but measeval has no
+  drop_references run at all (unlike pond/nfix/supermat, which each have one),
+  so ocr_dir is set explicitly to data/measeval/ocr_output_raw/ (448 documents,
+  no paper_filter/paper_exclude) per the stated measeval exception, matching
+  every other measeval baseline in this batch. No walltime precedent exists for
+  this baseline on this dataset -- budgeted a flat, heavily-padded ceiling given
+  measeval's very short per-document text (mean ~892 bytes) but large document
+  count (448), rather than extrapolating a number that would look more grounded
+  than it is. STAGED-GATES: no rung-1/2/3 pass exists for this baseline on this
+  dataset -- run a smoke and a tiny end-to-end before submitting.
+seed: 342
+params:
+  dataset: measeval
+  model: nuextract3
+  ocr_dir: data/measeval/ocr_output_raw
+  walltime: "03:00:00"

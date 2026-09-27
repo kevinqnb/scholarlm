@@ -34,6 +34,7 @@ Or from data/supermat/:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import re
@@ -43,6 +44,11 @@ from pathlib import Path
 import pandas as pd
 
 from scholarlm.utils.page_attribution import SUPERMAT_WEIGHTS, attribute_page, parse_ocr
+from scholarlm.utils.parsing import (
+    QUALIFIER_FIELDS,
+    normalize_dash_and_approx_marks,
+    parse_quantity_shape,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +253,23 @@ _RANGE_RE = re.compile(r'(-?\d+\.?\d*)\s*[-–]\s*(-?\d+\.?\d*)')
 _QUALIFIER_RE = re.compile(r'up to|[<>~∼≈]', re.I)
 _NUMBER_RE = re.compile(r'-?\d+\.?\d*')
 
+# Strips only the unit token itself (K / mK / kelvin(s)), not any inequality,
+# range, or qualifier text around it. No left \b requirement -- "K" in "60K"
+# has no word-boundary on its left (digit and letter are both \w) -- only a
+# right \b, so we don't need a space or punctuation before the unit.
+_VALUE_UNIT_RE = re.compile(r'\s*(?:m?K\b|(?i:kelvins?)\b)')
+
+
+def _strip_value_units(s: str) -> str:
+    """Remove Kelvin-unit tokens from a raw tcValue string, e.g. "36 K" ->
+    "36", "up to 38 K" -> "up to 38", "16K to 26K" -> "16 to 26". Leaves
+    inequality symbols (<, >, ~, ∼, ≈, ...), range dashes, and qualifier
+    words (up to, from ... to, below, above, ...) untouched. The leading
+    \\s* in _VALUE_UNIT_RE already consumes the unit's own preceding space,
+    so no separate whitespace collapse is applied -- adding one would risk
+    touching whitespace unrelated to a unit, beyond what was asked for."""
+    return _VALUE_UNIT_RE.sub('', s).strip()
+
 
 def _parse_tcvalue(raw: object) -> tuple[float | None, str | None]:
     """Returns (value, units). value=None signals the row should be dropped.
@@ -272,6 +295,143 @@ def _parse_tcvalue(raw: object) -> tuple[float | None, str | None]:
 
     units = "mK" if re.search(r'\bmk\b', s, re.I) else "K"
     return numeric, units
+
+
+def _raw_tcvalue(raw: object) -> tuple[str | None, str | None]:
+    """Returns (value, units) for the qualifiers ground truth: value is the
+    raw reported tcValue text, verbatim -- no numeric parsing, and rows are
+    no longer dropped for being a range/approximation/bound/junk-word/
+    unparseable. The only drop reason is a genuinely absent tcValue
+    (NaN/empty after stripping) -- there is no text to carry over at all.
+
+    Unit tokens (K/mK/kelvin) are stripped from `value` later, in
+    build_ground_truth, *after* page attribution runs -- page attribution's
+    table pass float()-parses `value` and the unstripped text ("36 K")
+    reliably fails that parse the same way a genuinely non-numeric qualifier
+    ("up to 36 K") does, which is what keeps page attribution's behavior
+    unaffected by this stripping. Stripping here instead would make plain
+    values parse as floats and activate a code path that was never exercised
+    for this GT before, silently changing page_number/page_score/
+    page_confidence for hundreds of rows -- see the qualifiers-unit-strip
+    build note for the numbers.
+
+    units is still derived the same mK/K way as _parse_tcvalue: `tc` is
+    always a temperature for this dataset regardless of the value's shape,
+    so this is units bookkeeping for the attribute, not value parsing.
+    """
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return None, None
+    s = str(raw).strip()
+    if not s:
+        return None, None
+    units = "mK" if re.search(r'\bmk\b', s, re.I) else "K"
+    return s, units
+
+
+# ---------------------------------------------------------------------------
+# Qualifier-field parsing (fills point_value/lower/upper/tolerance/etc. from
+# the raw tcValue text the qualifiers pipeline above keeps in `value`)
+# ---------------------------------------------------------------------------
+
+# OCR/typesetting variants seen in raw_data.csv's tcValue column, on top of
+# the dash/approx-mark unification parse_quantity_shape already does: 'À'
+# standing in for a dash between two digits (a font-mapping corruption
+# specific to this OCR'd corpus -- e.g. "26À28" for "26-28"), and a colon
+# directly between two digits standing in for a decimal point (e.g. "46:5"
+# for "46.5"). Both are narrow enough (only ever between two digits) to be
+# safe here but are NOT part of the shared parser -- they're an artifact of
+# this specific OCR pass, not something real LLM output would produce.
+_OCR_DASH_BETWEEN_DIGITS_RE = re.compile(r'(?<=\d)À(?=\d)')
+_OCR_COLON_DECIMAL_RE = re.compile(r'(?<=\d):(?=\d)')
+# A lone trailing ')' or '-' with nothing after it and no matching '(' --
+# a pre-existing raw-data/unit-stripping artifact (see the 2026-09-24
+# qualifiers-unit-strip build note's "orphan punctuation" rows), not range
+# or bound syntax. Hand-verified against the OCR source text for all 4 rows
+# this matches in the current corpus ("18-K"/"54.6-K" -> stray trailing
+# dash; "6.3 K)"/"13 K)" -> stray trailing paren) that the number itself is
+# a plain point value. Also corpus-specific -- not part of the shared parser.
+_ORPHAN_PUNCTUATION_RE = re.compile(r'^(-?\d+\.?\d*)[)\-]$')
+
+
+def _normalize_qualifier_text(s: str) -> str:
+    s = normalize_dash_and_approx_marks(s)
+    s = _OCR_DASH_BETWEEN_DIGITS_RE.sub('-', s)
+    s = _OCR_COLON_DECIMAL_RE.sub('.', s)
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def _parse_qualifiers_text(raw_value: str) -> dict:
+    """Parse one qualifiers-GT `value` string (already unit-stripped) into the
+    7 QUALIFIER_FIELDS, with point_value/lower/upper left as the raw number
+    strings matched (see `_parse_qualifiers`, which converts them to float).
+
+    Applies this corpus's own OCR-artifact fixups (`_normalize_qualifier_text`)
+    and orphan-punctuation check first, then delegates everything else to
+    `scholarlm.utils.parsing.parse_quantity_shape` with
+    `reinterpret_implausible_tolerance=True` (an OCR-corrupted range dash,
+    e.g. "37 ± 38" for "37-38 K" -- hand-verified against the OCR source text,
+    see notes/scholarlm/builds/2026-09-24-supermat-qualifiers-parsing-01.md)
+    and `strict_compact_uncertainty=True` (a parenthesized-uncertainty digit
+    count exceeding the value's own decimal places has always meant a bug
+    worth catching by hand in this corpus, not a row to leave unparsed) --
+    see that function's docstring for why neither is the shared default.
+    """
+    out = {field: None for field in QUALIFIER_FIELDS}
+    s = _normalize_qualifier_text(raw_value)
+
+    m = _ORPHAN_PUNCTUATION_RE.match(s)
+    if m:
+        out["qualifiers"] = []
+        out["point_value"] = m.group(1)
+        return out
+
+    return parse_quantity_shape(
+        s, reinterpret_implausible_tolerance=True, strict_compact_uncertainty=True,
+    )
+
+
+def _parse_qualifiers(raw_value: str) -> dict:
+    """`_parse_qualifiers_text`, with point_value/lower/upper converted to
+    float -- matching pond/nfix's `point_value` convention (copied from
+    their already-numeric `value`). tolerance/list_values stay strings,
+    matching `PARSE_QUANTITY_INSTRUCTIONS`/the supermat NuExtract few-shot
+    examples in `experiments/dataset-configs/supermat.py` ("± 2", not 2.0).
+    """
+    out = _parse_qualifiers_text(raw_value)
+    for field in ("point_value", "lower", "upper"):
+        if out[field] is not None:
+            out[field] = float(out[field])
+    return out
+
+
+def _expand_list_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Split any row whose `list_values` is a non-empty list into one row per
+    entry, each independently re-parsed via `_parse_qualifiers` -- covering
+    both plain numeric entries ("26" -> point_value=26.0, qualifiers=[]) and
+    the rare non-plain entry, e.g. compact-uncertainty "39.08(5)" ->
+    point_value=39.08, tolerance="± 0.05", qualifiers=["HasTolerance"].
+    All 7 QUALIFIER_FIELDS are replaced by that entry's own parse (including
+    `list_values`, which comes back None from a single-entry parse -- no
+    entry has ever contained a nested list in this corpus, asserted rather
+    than assumed). Every other field carries over unchanged. Rows without a
+    list_values are returned as-is.
+    """
+    rows: list[dict] = []
+    for row in df.to_dict(orient="records"):
+        list_values = row["list_values"]
+        if not isinstance(list_values, list) or not list_values:
+            rows.append(row)
+            continue
+        for entry in list_values:
+            parsed = _parse_qualifiers(entry)
+            assert parsed["list_values"] is None, (
+                f"list entry {entry!r} (from {list_values!r}) parsed to a "
+                "nested list_values -- unexpected, check by hand"
+            )
+            new_row = dict(row)
+            new_row.update(parsed)
+            rows.append(new_row)
+    return pd.DataFrame(rows).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -316,13 +476,42 @@ def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
 # Ground truth builder
 # ---------------------------------------------------------------------------
 
+# QUALIFIER_FIELDS is now imported from scholarlm.utils.parsing (see the
+# import block above) -- it must still match ParseQuantityResponse in
+# src/scholarlm/measurementlm.py exactly, minus `explanation` (a
+# generation-only field, not part of the GT record).
 
-def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
+
+def build_ground_truth(raw_path: Path, out_dir: Path, *, build_qualifiers: bool = False) -> None:
     """Build ground_truth.json and ground_truth_ten.json from raw_data.csv.
 
     Output schema: document_id, name, identifiers, sample_details, pressure,
     me_method, additional_details, attribute, value, units[, page_number,
     page_score, page_confidence].
+
+    build_qualifiers=True switches to the qualifiers ground truth instead:
+    `value` becomes the raw, unparsed tcValue text (via `_raw_tcvalue`
+    instead of `_parse_tcvalue`), with unit tokens (K/mK/kelvin) stripped out
+    at the end via `_strip_value_units` -- inequality/range symbols and
+    qualifier words (up to, from ... to, below, above, ...) are left as-is.
+    Rows are no longer dropped for being a range/approximation/bound/
+    unparseable -- only a genuinely absent tcValue still drops a row. The 7
+    qualifier/shape fields (`QUALIFIER_FIELDS`) are then filled in by
+    `_parse_qualifiers` from that same raw text: a plain point value becomes
+    `point_value`, and ranges/inequalities/approximations/tolerances/
+    parenthetical-uncertainty notation/lists are parsed into the matching
+    fields and tagged in `qualifiers`. A row `_parse_qualifiers` can't
+    confidently parse (free text, or too garbled to disambiguate) is left
+    all-null, same as before this parsing step existed. A row tagged as a
+    list (`qualifiers == ["IsList"]`, `list_values` populated) is then split
+    by `_expand_list_values` into one row per list entry -- each entry
+    re-parsed on its own, replacing that row's 7 qualifier fields (so
+    `list_values` ends up None on every resulting row, and `point_value`
+    ends up set for a plain numeric entry); every other field carries over
+    unchanged, and this is the one step in this path that changes row count.
+    Writes only `ground_truth_qualifiers.json` -- no ten-paper subset for
+    this path. `ground_truth.json`/`ground_truth_ten.json` are untouched by
+    this flag.
     """
     df = pd.read_csv(raw_path, encoding_errors="ignore")
     df = df.drop(columns=["id"])
@@ -358,7 +547,10 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
     df["me_method"] = df["me_method"].apply(_normalize_me_method)
     df["pressure"] = df["pressure"].apply(_normalize_pressure)
 
-    parsed_tc = df["tcValue"].apply(_parse_tcvalue)
+    if build_qualifiers:
+        parsed_tc = df["tcValue"].apply(_raw_tcvalue)
+    else:
+        parsed_tc = df["tcValue"].apply(_parse_tcvalue)
     df["value"] = [t[0] for t in parsed_tc]
     df["units"] = [t[1] for t in parsed_tc]
     # raw_data.csv has no separate Tc-criterion column; additional_details is an
@@ -367,8 +559,12 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
 
     n_before = len(df)
     df = df.dropna(subset=["value"]).reset_index(drop=True)
-    print(f"  Dropped {n_before - len(df):,} rows with unparseable, junk, or "
-          f"qualified (range/approximate/bounded) tcValue")
+    if build_qualifiers:
+        print(f"  Dropped {n_before - len(df):,} rows with a genuinely absent tcValue "
+              f"(ranges/approximates/bounds/junk kept verbatim)")
+    else:
+        print(f"  Dropped {n_before - len(df):,} rows with unparseable, junk, or "
+              f"qualified (range/approximate/bounded) tcValue")
 
     df["attribute"] = "tc"
 
@@ -376,6 +572,12 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
         "document_id", "name", "identifiers", "sample_details", "pressure",
         "me_method", "additional_details", "attribute", "value", "units",
     ]
+    if build_qualifiers:
+        # Real values are filled in below, after page attribution and unit-
+        # stripping -- these null placeholders only fix column order for now.
+        for field in QUALIFIER_FIELDS:
+            df[field] = None
+        final_cols = final_cols + QUALIFIER_FIELDS
     df_final = df[final_cols].reset_index(drop=True)
 
     ocr_dir = BASE / "ocr_output_raw"
@@ -384,6 +586,31 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
     else:
         print(f"  Skipping page attribution: {ocr_dir} not found "
               f"(run experiments/run_ocr.py --dataset supermat first)")
+
+    if build_qualifiers:
+        # Strip unit tokens (K/mK/kelvin) from `value` only after page
+        # attribution has run against the raw text -- see _raw_tcvalue's
+        # docstring for why the order matters.
+        df_final["value"] = df_final["value"].apply(_strip_value_units)
+        assert (df_final["value"] != "").all(), "unit-stripping left an empty value"
+
+        # Parse the (now unit-stripped) raw text into the qualifier fields.
+        parsed = df_final["value"].apply(_parse_qualifiers)
+        for field in QUALIFIER_FIELDS:
+            df_final[field] = [p[field] for p in parsed]
+        n_plain = sum(1 for p in parsed if not p["qualifiers"] and p["point_value"] is not None)
+        n_tagged = sum(1 for p in parsed if p["qualifiers"])
+        n_unparsed = sum(1 for p in parsed if not p["qualifiers"] and p["point_value"] is None)
+        print(f"  Parsed qualifier fields: {n_plain:,} plain, {n_tagged:,} tagged "
+              f"(range/approximate/tolerance/list), {n_unparsed:,} left unparsed")
+
+        n_before_expand = len(df_final)
+        df_final = _expand_list_values(df_final)
+        print(f"  Expanded list_values: {n_before_expand:,} rows -> {len(df_final):,} rows")
+
+        df_final.to_json(out_dir / "ground_truth_qualifiers.json", orient="records", indent=2)
+        print(f"  Saved {len(df_final):,} rows -> ground_truth_qualifiers.json")
+        return
 
     df_final.to_json(out_dir / "ground_truth.json", orient="records", indent=2)
     print(f"  Saved {len(df_final):,} rows -> ground_truth.json")
@@ -398,9 +625,22 @@ def build_ground_truth(raw_path: Path, out_dir: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        "--qualifiers", action="store_true",
+        help="Build only ground_truth_qualifiers.json (raw, undropped tcValue text, "
+             "parsed into the qualifier/shape fields where confidently parseable); "
+             "leaves ground_truth.json/ground_truth_ten.json untouched.",
+    )
+    args = parser.parse_args(argv)
+
     raw_path = BASE / "raw_data.csv"
-    print("Building ground truth JSONs ...")
-    build_ground_truth(raw_path, BASE)
+    if args.qualifiers:
+        print("Building qualifiers ground truth JSON ...")
+        build_ground_truth(raw_path, BASE, build_qualifiers=True)
+    else:
+        print("Building ground truth JSONs ...")
+        build_ground_truth(raw_path, BASE)
 
 
 if __name__ == "__main__":

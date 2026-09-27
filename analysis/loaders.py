@@ -154,6 +154,32 @@ def load_human_judgements(
     return records, resolved_date
 
 
+def load_ground_truth_file(path: Path) -> "pd.DataFrame":
+    """Load a manual ground-truth CSV/JSON from an explicit path.
+
+    The path-based counterpart to ``load_ground_truth`` -- used by
+    analysis/match_cache.py and analysis/recovery_validity.py, which resolve
+    the ground truth file from an analysis config's own
+    ``params.ground_truth_file`` (see analysis/analysis_config.py) rather
+    than from a DatasetConfig, so an analysis run's ground truth is pinned
+    explicitly and doesn't silently drift if the DatasetConfig's own
+    ``ground_truth_file`` is later repointed.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the file's suffix isn't ``.csv`` or ``.json``.
+    """
+    import pandas as pd
+
+    if not path.exists():
+        raise FileNotFoundError(f"Ground truth file not found: {path}")
+    if path.suffix == ".csv":
+        return pd.read_csv(path)
+    if path.suffix == ".json":
+        return pd.read_json(path, orient="records")
+    raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
+
+
 def load_ground_truth(config) -> "pd.DataFrame":
     """Load the manual ground-truth dataset using ``config.ground_truth_file``.
 
@@ -167,8 +193,6 @@ def load_ground_truth(config) -> "pd.DataFrame":
         ValueError: If ``config.ground_truth_file`` is ``None``.
         FileNotFoundError: If the file does not exist.
     """
-    import pandas as pd
-
     if config.ground_truth_file is None:
         raise ValueError(
             f"DatasetConfig for '{config.name}' has no ground_truth_file set."
@@ -176,13 +200,7 @@ def load_ground_truth(config) -> "pd.DataFrame":
     path = Path(config.ground_truth_file)
     if not path.is_absolute():
         path = Path(__file__).parent.parent / path
-    if not path.exists():
-        raise FileNotFoundError(f"Ground truth file not found: {path}")
-    if path.suffix == ".csv":
-        return pd.read_csv(path)
-    if path.suffix == ".json":
-        return pd.read_json(path, orient="records")
-    raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
+    return load_ground_truth_file(path)
 
 
 def load_activations(

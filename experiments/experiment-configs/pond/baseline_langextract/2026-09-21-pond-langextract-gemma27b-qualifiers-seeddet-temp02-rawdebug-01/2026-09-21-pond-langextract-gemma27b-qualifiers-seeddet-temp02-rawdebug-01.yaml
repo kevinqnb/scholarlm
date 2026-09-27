@@ -1,0 +1,25 @@
+id: 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-rawdebug-01
+project: scholarlm
+description: >
+  One-off diagnostic, not a sanity control: same params/seed/input as
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-01/-02
+  (which both came back with 0 records, 4/5 chunks failing to parse at
+  identical/near-identical line-column positions), run with
+  run_baseline_langextract.py's absl logging temporarily bumped to DEBUG
+  (reverted afterward) so the log captures each chunk's raw pre-parse model
+  completion via resolver.py's `resolve()`, not just the parse-error
+  message. Goal: see what gemma-3-27b actually produced for the 4 chunks
+  that fail to parse, to characterize the recurring
+  "Expecting ',' delimiter" failure signature.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  walltime: "00:30:00"

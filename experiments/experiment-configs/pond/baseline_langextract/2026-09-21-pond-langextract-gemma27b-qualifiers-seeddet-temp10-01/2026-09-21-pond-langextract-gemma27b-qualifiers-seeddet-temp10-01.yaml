@@ -1,0 +1,42 @@
+id: 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-01
+project: scholarlm
+description: >
+  Follow-up to 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-01/-02
+  (both 0 records: raw pre-parse output showed a reproducible repetition
+  collapse -- a well-formed extraction record followed by an unbounded run
+  of blank lines until max_tokens=8192 truncation, same collapse point in
+  both runs -- see the diagnostic run
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp02-rawdebug-01).
+  Testing whether higher sampling entropy avoids the collapse: temperature
+  raised to 1.0 via the new `params.temperature` override in
+  run_baseline_langextract.py (does not move gemma-3-27b.yaml's shared 0.2
+  default used by extraction v1/v2/ablations/table_cleaning -- LangExtract
+  only). 1.0 is not an arbitrary guess: it's the exact value this baseline
+  was accidentally sampling at before this session's provider_kwargs fix
+  (vLLM's server-side default when temperature is omitted from the request,
+  confirmed by reading vllm 0.24.0's actual
+  ChatCompletionRequest/_DEFAULT_SAMPLING_PARAMS) -- the same regime that
+  produced the original round's 41-vs-0 swing on this paper. This pair tests
+  whether that swing was ever really "OK at 1.0, sometimes lucky" or whether
+  even the original effective temperature reliably hits this same collapse
+  once sampling is otherwise controlled (seed forwarded, single evaluation
+  target). seed=342, same input (trophic_status_and_threats.txt), same
+  chunking/schema params as every prior seeddet round this session.
+  Paired with sibling config
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-02: same
+  seed, same params, same code, both run today. Comparison: this run's
+  final.json diffed record-for-record against temp10-02's, and both logs'
+  chunk-level parse-failure counts checked against the temp02 pair's.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  temperature: 1.0
+  walltime: "00:30:00"

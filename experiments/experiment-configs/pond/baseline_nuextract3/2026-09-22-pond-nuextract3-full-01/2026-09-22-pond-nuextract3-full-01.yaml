@@ -1,0 +1,24 @@
+id: 2026-09-22-pond-nuextract3-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the NuExtract3 baseline on pond. Per instruction
+  (2026-09-22): baselines now use the same table-cleaning-based drop_references
+  corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01)
+  their extraction/ablation siblings use, replacing the *ocr-based*
+  drop_references dir
+  (experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01)
+  the 2026-09-19-pond-nuextract3-full-01 sibling pointed at (already run, left
+  untouched; this is a fresh id). pond/supermat have no paper_filter, so file
+  count is unchanged (128 files) -- only the table markup differs. Walltime
+  carried over unchanged from the 2026-09-19 sibling (16:00:00) -- same 128-file
+  scope either way, only the table markup differs. STAGED-GATES: this
+  baseline+dataset pair already has a full-run precedent under the
+  pre-table-cleaning-switch code (2026-09-19); the changes here are ocr_dir and
+  (for nfix) walltime.
+seed: 342
+params:
+  dataset: pond
+  model: nuextract3
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "16:00:00"

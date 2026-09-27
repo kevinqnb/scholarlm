@@ -13,7 +13,7 @@ import json
 
 from pydantic import BaseModel
 
-from scholarlm.config import DatasetConfig
+from scholarlm.config import DatasetConfig, QUALIFIER_FIELD_NAMES
 
 
 # ---------------------------------------------------------------------------
@@ -35,10 +35,11 @@ class EntitySchema(BaseModel):
     # larger matching-algorithm update is planned separately). Until that
     # lands, pond recovery-rate computation will KeyError on the missing
     # `location` column.
-    # ``identifiers`` is extracted by the real pipeline and its ablations only
-    # -- see DatasetConfig.baseline_filter_fields (below) for the NuExtract
-    # baselines; GLiNER already excludes it structurally (never listed in
-    # gliner_field_descriptions) and ChatExtract's flat schema never included
+    # ``identifiers`` is extracted by the real (7-step) pipeline only --
+    # removed 2026-09-25 from every direct-extraction-style method (Ablation
+    # 1, NuExtract, LangExtract; GLiNER already excluded it structurally,
+    # never listed in gliner_field_descriptions, and ChatExtract's flat
+    # schema never included it) per instruction: none of them should extract
     # it. It is also never shown to the judge (judge_filter_fields, below).
 
 
@@ -200,11 +201,13 @@ class DirectExtractionItemSchema(BaseModel):
     """Flat schema for Ablation 1: combines entity, event, attribute, value,
     units, and the qualifier/shape fields (the same shape
     MeasurementLM._parse_quantities() produces via a separate step -- see
-    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS)."""
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS). No ``identifiers`` field
+    (removed 2026-09-25): that's an alias-resolution aid for the real
+    pipeline's entity matching only, never something a direct-extraction-style
+    method should reproduce -- see EntitySchema's own comment above."""
 
     # Entity fields
     name: str | None
-    identifiers: str | None
     ecosystem: str | None
     # Event fields
     date: str | None
@@ -213,14 +216,37 @@ class DirectExtractionItemSchema(BaseModel):
     attribute: str
     value: str | None
     units: str | None
-    # Qualifier/shape fields
+    # Qualifier/shape fields -- point_value/lower/upper/tolerance/
+    # standard_deviation are str | float | None, matching MeasurementLM's
+    # ParseQuantityResponse fix (see notes/scholarlm/experiments/
+    # 2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}.md).
     qualifiers: list[str]
-    point_value: str | None
-    lower: str | None
-    upper: str | None
+    point_value: str | float | None
+    lower: str | float | None
+    upper: str | float | None
     list_values: list[str] | None
-    tolerance: str | None
-    standard_deviation: str | None
+    tolerance: str | float | None
+    standard_deviation: str | float | None
+
+
+class DirectExtractionItemSchemaNoQualifiers(BaseModel):
+    """Ablation-1 no-qualifiers variant of DirectExtractionItemSchema: same
+    entity/event/measurement fields, with the 7 qualifier/shape fields
+    dropped entirely (params.include_qualifiers=false in run_ablation.py,
+    run_baseline_nuextract3.py, or run_baseline_langextract.py -- see
+    tests/test_ablation1_no_qualifiers.py for the field-set diff this must
+    maintain)."""
+
+    # Entity fields
+    name: str | None
+    ecosystem: str | None
+    # Event fields
+    date: str | None
+    event_details: str | None
+    # Measurement fields
+    attribute: str
+    value: str | None
+    units: str | None
 
 
 
@@ -229,7 +255,6 @@ Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar wat
 
 Entity fields:
 - name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
-- identifiers: every alternate short-form reference to this ecosystem used in the text — site codes, numeric tags, or shortened versions of the name — joined into a single string with semicolons separating each (e.g. "X1; Lake A.; Abv."). Collect these whenever the text uses them for the same ecosystem, even if the linkage is introduced only once (e.g. "Lake Example (X1)"). Do not include the primary name itself. If no alternatives exist, set to None.
 - ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
 
 Entity identification rules:
@@ -264,7 +289,6 @@ Output format requirements:
   "items": [
     {
       "name": "...",
-      "identifiers": "...",
       "ecosystem": "...",
       "date": "...",
       "event_details": "...",
@@ -278,6 +302,63 @@ Output format requirements:
       "list_values": [...],
       "tolerance": "...",
       "standard_deviation": "..."
+    }
+  ]
+}
+- If no measurements are found, output exactly:
+{ "items": [] }
+"""
+
+
+# Ablation-1 no-qualifiers variant of _DIRECT_EXTRACTION_PROMPT: identical
+# except the JSON example under "Output format requirements" drops the 7
+# qualifier/shape keys, matching DirectExtractionItemSchemaNoQualifiers. See
+# tests/test_ablation1_no_qualifiers.py for the exact diff this must maintain.
+_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS = """Entity Identification:
+Extract all distinct aquatic ecosystems (ponds, lakes, wetlands, and similar water bodies) mentioned in the document.
+
+Entity fields:
+- name: the name of the ecosystem (e.g. "Lake Mendota", "Beaver Pond"). If no full name is given, use whatever primary identifier the paper provides.
+- ecosystem: the ecosystem type ("pond", "lake", "wetland", or "other").
+
+Entity identification rules:
+- Treat ecosystems as separate only if they are clearly distinct physical water bodies.
+- Do NOT create separate items for the same ecosystem because measurements were taken on different dates or conditions — those distinctions are captured as measurement events.
+- Do NOT infer, guess, or derive any field value. Use ONLY information explicitly stated in the text. If a field is not explicitly given, set it to None.
+
+
+Measurement event fields:
+For each ecosystem and each detected attribute measurement, also identify the measurement event context:
+- date: The date of the measurement. Formats: "dd-mm-yyyy", "mm-yyyy", "Spring/Summer/Fall/Winter yyyy", or "yyyy". Set to None if not stated.
+- event_details: A catch-all for any other distinguishing context not captured by date — for example, sample or sensor depth, treatment site, treatment state, or sampling conditions. Two genuinely distinct measurements should end up with different event_details. One sentence or fewer. Set to None if not applicable.
+
+
+Attributes to extract:
+For each (ecosystem, measurement event) combination, extract values for any of the following attributes if directly measured and reported:
+
+1. surface_area — Surface area of the water body (NOT watershed, catchment, or littoral zone area). Units: km^2, mi^2, ha, m^2, or acres.
+2. max_depth — Maximum physical water depth (NOT mean depth, average depth, or Secchi depth). Units: m, km, or ft.
+3. vegetation_cover — Fraction or percentage of the ecosystem surface covered by aquatic macrophytes or rooted/floating vegetation (NOT algal cover, periphyton, or phytoplankton). Units: percent or fraction.
+4. ph — pH of the water (dimensionless). NOT soil or sediment pH.
+5. tn — Total nitrogen (TN): the aggregate sum of ALL nitrogen forms — dissolved and particulate. NOT individual species (NO3-, NO2-, NH3, etc.) unless explicitly labeled as total nitrogen. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+6. tp — Total phosphorus (TP): the aggregate sum of ALL phosphorus forms. NOT individual species (SRP, PO4(3-), DRP, PP, etc.) unless explicitly labeled as total phosphorus. Units: µg/L, mg/L, μmol/L, ppm, or ppb.
+7. chla — Chlorophyll-a (Chl-a) concentration. NOT total chlorophyll, chlorophyll-b, pheophytin, or other pigments unless explicitly labeled as chlorophyll-a. Units: µg/L, mg/L, or mg/m^3.
+
+
+Output format requirements:
+- Output must be valid, strictly parseable JSON.
+- Do NOT include markdown, comments, or explanatory text.
+- The top-level object must have this form:
+{
+  "items": [
+    {
+      "name": "...",
+      "ecosystem": "...",
+      "date": "...",
+      "event_details": "...",
+      "attribute": "...",
+      "value": "...",
+      "units": "..."
     }
   ]
 }
@@ -301,9 +382,8 @@ other_things = """
 # verbatim-string fields are trained to copy spans rather than paraphrase.
 # Together the three examples touch all 7 pond attributes and all of
 # point_value, lower/upper, list_values, tolerance, and standard_deviation
-# at least once. No `identifiers` key: see DatasetConfig.baseline_filter_fields
-# below -- these examples are baseline-only, so they never show the field a
-# baseline shouldn't reproduce.
+# at least once. No `identifiers` key: direct_extraction_schema doesn't have
+# one (removed 2026-09-25), so these examples never had it to begin with.
 # ---------------------------------------------------------------------------
 
 _NUEXTRACT_EXAMPLE_1_INPUT = (
@@ -451,6 +531,28 @@ _NUEXTRACT_EXAMPLES = [
     {"input": _NUEXTRACT_EXAMPLE_2_INPUT, "output": _NUEXTRACT_EXAMPLE_2_OUTPUT},
     {"input": _NUEXTRACT_EXAMPLE_3_INPUT, "output": _NUEXTRACT_EXAMPLE_3_OUTPUT},
 ]
+
+
+def _drop_qualifiers(examples: list[dict]) -> list[dict]:
+    """No-qualifiers counterpart of a `nuextract_examples`-shaped list: same
+    inputs, with QUALIFIER_FIELD_NAMES removed from every output item --
+    the few-shot counterpart of direct_extraction_schema_no_qualifiers, for
+    the NuExtract3/LangExtract baselines' params.include_qualifiers=false.
+    Derived from the qualifier-bearing examples (not hand-duplicated) so the
+    two can never drift apart.
+    """
+    stripped = []
+    for example in examples:
+        items = json.loads(example["output"])["items"]
+        new_items = [
+            {k: v for k, v in item.items() if k not in QUALIFIER_FIELD_NAMES}
+            for item in items
+        ]
+        stripped.append({"input": example["input"], "output": json.dumps({"items": new_items})})
+    return stripped
+
+
+_NUEXTRACT_EXAMPLES_NO_QUALIFIERS = _drop_qualifiers(_NUEXTRACT_EXAMPLES)
 
 
 # ---------------------------------------------------------------------------
@@ -621,14 +723,17 @@ CONFIG = DatasetConfig(
     measurement_event_prompt=_MEASUREMENT_EVENT_PROMPT,
     direct_extraction_schema=DirectExtractionItemSchema,
     direct_extraction_prompt=_DIRECT_EXTRACTION_PROMPT,
+    direct_extraction_schema_no_qualifiers=DirectExtractionItemSchemaNoQualifiers,
+    direct_extraction_prompt_no_qualifiers=_DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS,
     nuextract_examples=_NUEXTRACT_EXAMPLES,
+    nuextract_examples_no_qualifiers=_NUEXTRACT_EXAMPLES_NO_QUALIFIERS,
     chatextract_property_names=_CHATEXTRACT_PROPERTY_NAMES,
     chatextract_entity_noun=_CHATEXTRACT_ENTITY_NOUN,
     gliner_field_descriptions=_GLINER_FIELD_DESCRIPTIONS,
-    # identifiers is extracted by the real pipeline and its ablations only --
-    # see EntitySchema's comment above; excluded here from the NuExtract
-    # baselines specifically (GLiNER/ChatExtract already never see it).
-    baseline_filter_fields=["identifiers"],
+    # baseline_filter_fields no longer needed for identifiers (removed
+    # 2026-09-25): direct_extraction_schema doesn't have that field at all
+    # any more, so there's nothing left for the NuExtract baselines to filter
+    # out of it -- see EntitySchema's comment above.
     # paper_subset: set to a list of paper codes to restrict the run, e.g.:
     #   paper_subset=["physical_and_chemical_limnological", "prairie_wetland"]
     paper_subset=None,
@@ -654,4 +759,21 @@ CONFIG = DatasetConfig(
         "chla":             {"µg/L": 1.0, "mg/L": 1000.0, "mg/m^3": 1.0},
         "ph":               {},
     },
+    # Matching rules for the id-addressed evaluation path (analysis/match_cache.py,
+    # analysis/recovery_validity.py) -- see DatasetConfig's docstring for scope
+    # and why these are allowed to diverge from analysis/ablation.py's own
+    # get_matching_rules (converted_value, not point_value; no legacy history
+    # here to stay comparable with).
+    strict_matching={
+        "document_id": "document_id",
+        "attribute": "attribute",
+        "point_value": "point_value",
+        "units": "units",
+    },
+    fuzzy_matching={
+        "name": "name",
+        "ecosystem": "ecosystem",
+    },
+    fuzzy_threshold=0.25,
+    numeric_coerce=["point_value"],
 )

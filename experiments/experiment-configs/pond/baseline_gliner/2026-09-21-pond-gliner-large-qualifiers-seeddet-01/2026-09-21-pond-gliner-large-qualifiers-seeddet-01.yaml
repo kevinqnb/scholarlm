@@ -1,0 +1,29 @@
+id: 2026-09-21-pond-gliner-large-qualifiers-seeddet-01
+project: scholarlm
+description: >
+  Seed-determinism sanity control for the GLiNER2 baseline (CLAUDE.md's
+  sanity-controls list). Paired with sibling config
+  2026-09-21-pond-gliner-large-qualifiers-seeddet-02: same seed (342), same
+  params, same code, same input (trophic_status_and_threats.txt), both run
+  today. NOT compared against the original
+  2026-09-20-pond-gliner-large-qualifiers-tinye2e-01 -- commit 5092cf0
+  (today, 13:35) fixed MeasurementLMGliner silently loading weights on CPU
+  regardless of GPU allocation ("this predates the qualifier-field work",
+  per its own message), meaning the original -01 run executed on CPU under
+  old code; this pair runs on GPU under current code. Diffing against -01
+  would confound a real bug fix and a CPU/GPU hardware change with sampling
+  noise. Hypothesis (verbatim): "results will be 90-95% similar, but there
+  may be some room for noise/randomness given the nature of the models we
+  are running." Comparison: this run's final.json diffed record-for-record
+  against seeddet-02's. Unlike the gemma-3-27b generative methods, GLiNER2
+  has no sampling temperature (gliner-large-v1.yaml's sampling_params is
+  empty) -- it's a directly-loaded, thresholded span/attribute encoder, so
+  this is the closest thing in the batch to a should-be-exact-match case;
+  any diff here would point to GPU floating-point nondeterminism rather than
+  sampling.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:20:00"

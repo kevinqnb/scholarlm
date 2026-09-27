@@ -109,7 +109,7 @@ _MADE_UP_NAMES: list[str] = [
 ]
 
 _GT_COLS = [
-    "document_id", "name", "identifiers", "location", "site_type",
+    "document_id", "name", "identifiers", "location", "ecosystem_type",
     "date", "nfix_method", "substrate_type", "sample_depth",
     "additional_details", "attribute", "value", "units", "page_number",
 ]
@@ -239,7 +239,7 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
     """Convert ground-truth records to probe record dicts.
 
     Output schema matches ground_truth.json (document_id, name, identifiers,
-    location, site_type, date, nfix_method, substrate_type, sample_depth,
+    location, ecosystem_type, date, nfix_method, substrate_type, sample_depth,
     additional_details, attribute, value, units, page_number) plus internal
     bookkeeping fields prefixed with '_'.
 
@@ -287,7 +287,7 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
             "name":               _clean(row.get("name")),
             "identifiers":        None,
             "location":           _clean(row.get("location")),
-            "site_type":          _clean(row.get("site_type")),
+            "ecosystem_type":     _clean(row.get("ecosystem_type")),
             "date":               _clean(row.get("date")),
             "nfix_method":        _clean(row.get("nfix_method")),
             "substrate_type":     _clean(row.get("substrate_type")),
@@ -673,7 +673,7 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         name="nfix",
         entity_name_field="name",
         entity_noun="site",
-        # nfix's fabricated names don't cleanly map to the site_type catalogue,
+        # nfix's fabricated names don't cleanly map to the ecosystem_type catalogue,
         # so there's no per-type pool and no name→type check — every swap draws
         # from the flat fallback.
         fabricated_names_by_type={},

@@ -1,0 +1,20 @@
+id: 2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-02
+project: scholarlm
+description: >
+  Second half of the temperature-1.0 pair for LangExtract -- see
+  2026-09-21-pond-langextract-gemma27b-qualifiers-seeddet-temp10-01 for the
+  full rationale (identical params/seed/code, run today). Comparison: this
+  run's final.json diffed record-for-record against temp10-01's.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  max_char_buffer: 5000
+  extraction_passes: 1
+  max_workers: 4
+  batch_length: 4
+  use_schema_constraints: true
+  fence_output: false
+  temperature: 1.0
+  walltime: "00:30:00"

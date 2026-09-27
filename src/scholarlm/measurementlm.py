@@ -18,7 +18,9 @@ from .instruction_prompts import (
     EXTRACT_TEXT_VALUE_INSTRUCTIONS,
     EXTRACT_TABLE_VALUE_INSTRUCTIONS,
     STANDARDIZE_MEASUREMENTS_INSTRUCTIONS,
+    STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS,
     PARSE_QUANTITY_INSTRUCTIONS,
+    PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS,
     DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
 )
 
@@ -119,15 +121,24 @@ class StandardizeResponse(BaseModel):
 class ParseQuantityResponse(BaseModel):
     """Response for parsing an extracted measurement value into its structured
     shape: qualifier tags plus whichever of point_value/lower/upper/list_values/
-    tolerance/standard_deviation the reported value actually has."""
+    tolerance/standard_deviation the reported value actually has.
+
+    point_value/lower/upper/tolerance/standard_deviation accept a bare float
+    in addition to str: a str-only schema forces vLLM's guided decoding to
+    open a quote even when the model wants to emit an unquoted number, which
+    causes gpt-oss-120b to stall mid-token and emit a malformed value on a
+    large fraction of records (see notes/scholarlm/experiments/
+    2026-09-24-gptoss120b-parsequantity-schema-diag-{01,02}.md). list_values
+    stays list[str]-only -- untested, and it's a list shape, not a bare
+    scalar."""
     explanation: str
     qualifiers: list[str]
-    point_value: str | None = None
-    lower: str | None = None
-    upper: str | None = None
+    point_value: str | float | None = None
+    lower: str | float | None = None
+    upper: str | float | None = None
     list_values: list[str] | None = None
-    tolerance: str | None = None
-    standard_deviation: str | None = None
+    tolerance: str | float | None = None
+    standard_deviation: str | float | None = None
 
 
 def check_quantity_consistency(parsed: dict) -> list[str]:
@@ -260,6 +271,22 @@ class BatchLLMBase:
                 extra["top_k"] = self.sampling_params["top_k"]
             if "repetition_penalty" in self.sampling_params:
                 extra["repetition_penalty"] = self.sampling_params["repetition_penalty"]
+            if "seed" in self.sampling_params:
+                # Chat Completions has no top-level `seed` field for vLLM's
+                # server; it must ride in extra_body like top_k/repetition_penalty.
+                # Previously never forwarded here at all -- a configured seed
+                # was silently a no-op for every caller of this base _acall
+                # (extraction v1, ablations 1-6, NuExtract-v1, ChatExtract).
+                # MeasurementLMv2 and NuExtract3 noticed and worked around it
+                # locally (_seed_extra_body/extra_body["seed"]); fixing it here
+                # covers everyone else instead of requiring the same patch
+                # per subclass. Does not by itself restore run-to-run
+                # determinism -- MeasurementLMv2 already forwarded seed this
+                # way and still diverged (see 2026-09-21-qualifiers-seeddet-01);
+                # the residual cause is temperature-amplified vLLM float noise
+                # compounding across a chained multi-step pipeline, not a
+                # missing seed.
+                extra["seed"] = self.sampling_params["seed"]
             chat_template_kwargs = {}
             if "enable_thinking" in self.sampling_params:
                 # Disable thinking by default for extraction tasks
@@ -434,6 +461,23 @@ class MeasurementLM(BatchLLMBase):
         direct_extraction_prompt (str | None): Dataset-specific prompt describing
             entities, events, and attributes for the single direct-extraction call;
             used only when `extraction_mode="direct"`.
+        parse_quantities_context ("full" | "value_only"): Controls what
+            `_parse_quantities()` shows the model. "full" (default) is
+            unchanged: source-text context, entity description, attribute
+            description, units, and the extracted value. "value_only" gives
+            it nothing but the extracted value string -- see
+            PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS and
+            2026-09-22-pond-parsequantities-valueonly-01.
+        standardize_context ("full" | "value_only"): Controls what
+            `_standardize()` shows the model. "full" (default) is unchanged:
+            source-text context, entity description, attribute description,
+            attribute terminology, available units, and the extracted
+            measurement/units. "value_only" gives it only the available
+            units list and the extracted measurement/units -- no source
+            text, entity description, attribute description, or
+            terminology. The standardization decision rule itself (best-
+            matching notational variant, else unchanged, else null) is the
+            same in both modes -- see STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS.
     """
     def __init__(
         self,
@@ -452,6 +496,8 @@ class MeasurementLM(BatchLLMBase):
         extraction_mode: str = "pipeline",
         direct_extraction_schema: BaseModel | None = None,
         direct_extraction_prompt: str | None = None,
+        parse_quantities_context: str = "full",
+        standardize_context: str = "full",
     ):
         super().__init__(
             model_name=model_name,
@@ -474,6 +520,16 @@ class MeasurementLM(BatchLLMBase):
         self.extraction_mode = extraction_mode
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
+        if parse_quantities_context not in ("full", "value_only"):
+            raise ValueError(
+                f"parse_quantities_context must be 'full' or 'value_only', got {parse_quantities_context!r}."
+            )
+        self.parse_quantities_context = parse_quantities_context
+        if standardize_context not in ("full", "value_only"):
+            raise ValueError(
+                f"standardize_context must be 'full' or 'value_only', got {standardize_context!r}."
+            )
+        self.standardize_context = standardize_context
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -663,7 +719,7 @@ class MeasurementLM(BatchLLMBase):
             messages,
             response_format=response_format,
             max_retries=2,
-            max_tokens=512,
+            max_tokens=2048,
             max_concurrent=32,
             timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
@@ -891,7 +947,7 @@ class MeasurementLM(BatchLLMBase):
             messages,
             response_format=response_format,
             max_retries=2,
-            max_tokens=512,
+            max_tokens=2048,
             max_concurrent=32,
             timeout=120,
             validator=lambda r: response_validator(ProvenanceResponse, r),
@@ -1158,7 +1214,7 @@ class MeasurementLM(BatchLLMBase):
             messages,
             response_format=response_format,
             max_retries=2,
-            max_tokens=512,
+            max_tokens=2048,
             max_concurrent=32,
             timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),
@@ -1350,7 +1406,7 @@ class MeasurementLM(BatchLLMBase):
             messages,
             response_format=response_format,
             max_retries=2,
-            max_tokens=512,
+            max_tokens=2048,
             max_concurrent=32,
             timeout=120,
             validator=lambda r: response_validator(TableValueExtractionResponse, r),
@@ -1545,38 +1601,59 @@ class MeasurementLM(BatchLLMBase):
         untouched here -- parsing its shape (range/list/mean/tolerance/etc.) is
         a separate step, _parse_quantities().
 
+        In the default ``standardize_context="full"`` mode, this is grounded
+        against the source text the value was extracted from (entity/attribute
+        description, attribute terminology, page/table context). In
+        ``"value_only"`` mode, the model sees nothing but the available units
+        list and the extracted measurement/units -- see
+        STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS. The standardization
+        decision rule (best-matching notational variant, else unchanged, else
+        null) is identical in both modes.
+
         Reads from self.data and returns the standardized list.
         """
         entity_fields = list(self.entity_identification_schema.model_fields.keys())
         messages = []
         message_data_ids = []
         for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
             attribute = datapoint.get('attribute')
-            attr_description = self.attribute_info_dict[attribute]['description']
-            attr_terms = datapoint.get('attribute_terms', [])
             unit_options = self.attribute_info_dict[attribute].get('units', [])
-            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
             measurement_units = datapoint.get('units')
 
-            terms_line = (
-                f"Terminology used for the attribute: {attr_terms}\n"
-                if self.collect_attribute_terms else ""
-            )
-            query = (
-                f"Entity description: {entity_description}\n"
-                f"Attribute description: {attr_description}\n"
-                f"{terms_line}"
-                f"Available units for the attribute: {unit_options}\n\n"
-                f"Extracted measurement: {measurement_val}\n"
-                f"Extracted units: {measurement_units}\n"
-                f"Standardize the units for the extracted data point. "
-            )
-            prompt = (
-                f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
-                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
-            )
+            if self.standardize_context == "value_only":
+                query = (
+                    f"Available units for the attribute: {unit_options}\n\n"
+                    f"Extracted measurement: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Standardize the units for the extracted data point. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+                )
+            else:
+                context = datapoint['context']
+                attr_description = self.attribute_info_dict[attribute]['description']
+                attr_terms = datapoint.get('attribute_terms', [])
+                entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
+
+                terms_line = (
+                    f"Terminology used for the attribute: {attr_terms}\n"
+                    if self.collect_attribute_terms else ""
+                )
+                query = (
+                    f"Entity description: {entity_description}\n"
+                    f"Attribute description: {attr_description}\n"
+                    f"{terms_line}"
+                    f"Available units for the attribute: {unit_options}\n\n"
+                    f"Extracted measurement: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Standardize the units for the extracted data point. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+                )
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 
@@ -1621,7 +1698,13 @@ class MeasurementLM(BatchLLMBase):
         LLM-based quantity parsing: decomposes each extracted (already
         unit-standardized) value into qualifier tags plus whichever of
         point_value/lower/upper/list_values/tolerance/standard_deviation the
-        reported value has, grounded against the source text it was extracted from.
+        reported value has.
+
+        In the default ``parse_quantities_context="full"`` mode, this is
+        grounded against the source text the value was extracted from
+        (entity/attribute description, units, page/table context). In
+        ``"value_only"`` mode, the model sees nothing but the extracted value
+        string itself -- see PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS.
 
         Non-fatal by design: a response that fails validation, or whose
         qualifier tags don't match its populated fields, is kept with a
@@ -1634,24 +1717,34 @@ class MeasurementLM(BatchLLMBase):
         messages = []
         message_data_ids = []
         for i, datapoint in enumerate(self.data):
-            context = datapoint['context']
-            attribute = datapoint.get('attribute')
-            attr_description = self.attribute_info_dict[attribute]['description']
-            entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
             measurement_val = datapoint['value']
-            measurement_units = datapoint.get('units')
 
-            query = (
-                f"Entity description: {entity_description}\n"
-                f"Attribute description: {attr_description}\n\n"
-                f"Extracted value: {measurement_val}\n"
-                f"Extracted units: {measurement_units}\n"
-                f"Parse this extracted value into its structured components. "
-            )
-            prompt = (
-                f"## INSTRUCTIONS:\n{PARSE_QUANTITY_INSTRUCTIONS}\n\n"
-                f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
-            )
+            if self.parse_quantities_context == "value_only":
+                query = (
+                    f"Extracted value: {measurement_val}\n"
+                    f"Parse this extracted value into its structured components. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+                )
+            else:
+                context = datapoint['context']
+                attribute = datapoint.get('attribute')
+                attr_description = self.attribute_info_dict[attribute]['description']
+                entity_description = {k: v for k, v in datapoint.items() if k in entity_fields}
+                measurement_units = datapoint.get('units')
+
+                query = (
+                    f"Entity description: {entity_description}\n"
+                    f"Attribute description: {attr_description}\n\n"
+                    f"Extracted value: {measurement_val}\n"
+                    f"Extracted units: {measurement_units}\n"
+                    f"Parse this extracted value into its structured components. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{PARSE_QUANTITY_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
+                )
             messages.append([{"role": "user", "content": prompt}])
             message_data_ids.append(i)
 

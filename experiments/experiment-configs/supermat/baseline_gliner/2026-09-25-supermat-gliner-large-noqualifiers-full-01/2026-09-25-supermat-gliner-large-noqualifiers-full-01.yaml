@@ -1,0 +1,35 @@
+id: 2026-09-25-supermat-gliner-large-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the GLiNER2 baseline on supermat, model=gliner-large-v1,
+  with params.include_qualifiers=false -- see
+  2026-09-25-pond-gliner-large-noqualifiers-full-01 for the full mechanism
+  (needs no dataset-config change). Direct comparison arm to
+  2026-09-22-supermat-gliner-large-full-01 (same dataset/model/ocr_dir/seed,
+  include_qualifiers=true there implicitly).
+
+  ocr_dir/walltime copied verbatim from the baseline config -- GLiNER's base
+  estimate is dominated by fixed overhead, not per-structure-field count.
+  NOTE: run_baseline_gliner.py's main() silently ignored params.ocr_dir
+  before 2026-09-25 (fixed same day) --
+  2026-09-22-supermat-gliner-large-full-01 (this run's nominal comparison
+  arm) therefore actually read raw OCR despite its own ocr_dir setting, while
+  THIS run, under the now-fixed code, will really read the table-cleaned
+  corpus its params.ocr_dir names. See
+  2026-09-25-pond-gliner-large-noqualifiers-full-01 for the full note -- the
+  two arms are no longer matched on input corpus, only on include_qualifiers.
+
+  STAGED-GATES: rung 1 (unit tests -- all passing) is done. Rung 2 (smoke)
+  also done, 2026-09-25 -- see
+  2026-09-25-pond-gliner-large-noqualifiers-full-01 for the CPU smoke run
+  that verified this against the real fastino/gliner2-large-v1 model (a
+  dataset-independent code path, so pond's smoke covers supermat too). Rung 3
+  (tiny end-to-end with a predicted result, on the real supermat corpus) has
+  NOT been run yet. Do not submit this config before it passes.
+seed: 342
+params:
+  dataset: supermat
+  model: gliner-large-v1
+  include_qualifiers: false
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  walltime: "00:45:00"

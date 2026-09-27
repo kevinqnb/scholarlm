@@ -1,0 +1,4 @@
+experiment_id,dataset,n_gt,n_ext,fuzzy_threshold,n_resamples,seed,bootstrap_unit,recovery,recovery_ci_lo,recovery_ci_hi,judge_combine_id,judge_ids,validity,validity_ci_lo,validity_ci_hi
+2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-01,pond,3333,11023,0.3333333333333333,2000,0,paper,0.5835583558355836,0.4906349629297207,0.6690787523746504,,,,,
+2026-09-21-pond-ablation1-gptoss120b-full-01,pond,3333,4424,0.3333333333333333,2000,0,paper,0.6684668466846685,0.579234921492874,0.751163145308624,,,,,
+2026-09-22-pond-nuextract3-full-01,pond,3333,1506,0.3333333333333333,2000,0,paper,0.1266126612661266,0.06802581919726716,0.20377240558912868,,,,,

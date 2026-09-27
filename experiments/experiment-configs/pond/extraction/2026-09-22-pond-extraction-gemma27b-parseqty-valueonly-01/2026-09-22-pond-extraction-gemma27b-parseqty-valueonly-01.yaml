@@ -1,0 +1,35 @@
+id: 2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-01
+project: scholarlm
+description: >
+  Full-scale rung-4 run of the value-only parse_quantities hypothesis (see
+  the tiny rung-3 pair, 2026-09-22-pond-extraction-gemma27b-parseqty-{full,
+  valueonly}-tinye2e-01, which passed cleanly: the value-only treatment
+  showed 0/16 null point_value on unambiguous rows vs. 4/16 for both the
+  original run AND a same-code control rerun, i.e. real signal above
+  ordinary re-run noise, not just noise resolving in our favor). params.step
+  =final re-runs only standardize + _parse_quantities + deduplicate against
+  values.json copied in from 2026-09-21-pond-extraction-gemma27b-full-01 (the
+  real full run, 115 papers, 11022 values.json rows) -- same ocr_dir, no
+  paper_subset override, so document_id's positional indexing into the paper
+  list stays aligned with that run's. By explicit instruction, this is the
+  treatment only -- no paired full-mode control at full scale, unlike the
+  tiny pair. The rung-3 control showed the same-code rerun's null rate is
+  noisy (differs row-by-row, same aggregate rate) rather than trending in any
+  particular direction, so any change in the full-scale number relative to
+  2026-09-21-pond-extraction-gemma27b-full-01's own final.json is not
+  independently separated from that noise here -- comparison is against that
+  original run directly, per instruction, not against a fresh same-code
+  rerun. Hypothesis (verbatim, from the initiating /experiment session):
+  "recovery performance with threshold 1/3 will be >= 0.7" (custom matching
+  rule: strict on document_id/attribute/point_value/units, fuzzy on
+  name+ecosystem averaged @ threshold 1/3 -- see the preliminary
+  recovery-rate analysis in this session, not analysis/ablation.py's
+  get_matching_rules, which is broken for pond independent of this).
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  step: final
+  parse_quantities_context: value_only
+  walltime: "05:00:00"

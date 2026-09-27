@@ -1,0 +1,24 @@
+id: 2026-09-22-pond-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the ChatExtract baseline on pond, backbone gemma-3-27b. Per
+  instruction (2026-09-22): baselines now use the same table-cleaning-based
+  drop_references corpus their extraction/ablation siblings use
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01),
+  not the implicit raw-OCR default the
+  2026-09-19-pond-chatextract-gemma27b-full-01 sibling used (that config,
+  already run, is left untouched as the historical record; this is a fresh id,
+  not a replacement). pond/supermat have no paper_filter, so the file count is
+  unchanged (128 files either way) -- only the table markup in the text itself
+  differs (cleaned vs. raw). Walltime carried over unchanged from the 2026-09-19
+  sibling (16:00:00) -- same paper count either way, table-cleaned text isn't
+  expected to meaningfully change runtime, but this is an assumption, not a
+  re-measurement. STAGED-GATES: this baseline+dataset pair already has a
+  full-run precedent under the pre-table-cleaning-switch code (2026-09-19); the
+  only change here is ocr_dir.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "16:00:00"

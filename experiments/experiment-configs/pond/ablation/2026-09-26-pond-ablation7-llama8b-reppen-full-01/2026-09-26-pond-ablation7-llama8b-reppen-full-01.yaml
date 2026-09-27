@@ -1,0 +1,41 @@
+id: 2026-09-26-pond-ablation7-llama8b-reppen-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 7 (no standardization/quantity-parsing/
+  deduplication; steps 1-6 of the base MeasurementLM pipeline unmodified) on
+  pond, model=llama-3.1-8b-reppen -- identical to
+  2026-09-26-pond-ablation7-llama8b-full-01 in every respect except model:
+  llama-3.1-8b-reppen, whose only difference from llama-3.1-8b.yaml is
+  sampling_params.repetition_penalty: 1.1. This is the ablation/step
+  (_detect_attributes) the fix was directly validated against:
+  notes/scholarlm/experiments/2026-09-26-measeval-llama8b-reppen-tinye2e-01.md
+  isolated the exact document (measeval, S0019103512003533-5211) behind job
+  7744571's (2026-09-26-measeval-ablation7-llama8b-full-01) degenerate
+  token-repetition loop and confirmed repetition_penalty: 1.1 eliminates it
+  on that document (attributes step 463.2s -> 12.8s, 0 -> 10 records, 4/4
+  retries -> 0). That test was single-document and on a different dataset
+  (measeval); this config is the first full-scale test of the fix on the
+  same ablation/step it was diagnosed against, on pond.
+  ocr_dir pinned to
+  experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01,
+  same corpus as the llama-3.1-8b baseline. Walltime: 66:00:00, reused
+  verbatim from 2026-09-26-pond-ablation7-llama8b-full-01's own committed
+  value -- repetition_penalty should only lower cost (fewer/no retry storms),
+  never raise it, so the baseline's own budget is a safe, and here
+  specifically likely generous, ceiling.
+  STAGED-GATES: rung 3 exists for this exact mechanism (_detect_attributes,
+  repetition_penalty: 1.1) but only as a single-document, single-dataset
+  (measeval) test -- no tiny-e2e on pond specifically, and no confirmation
+  that repetition_penalty doesn't introduce a different failure mode
+  elsewhere in ablation 7's steps 1-6 (entities, provenance, events, values)
+  at pond's scale/document style. A pond-specific tiny end-to-end with a
+  predicted result is the more defensible next rung before this config is
+  submitted, even though the mechanism itself already has rung-3 evidence on
+  a sibling dataset.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "7"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "66:00:00"

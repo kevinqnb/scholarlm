@@ -8,10 +8,15 @@
 # experiments/gen_serve_script.py's role (one place that knows how to build
 # a vLLM launch command from a model-config, including extra_vllm_args and
 # the gemma-3-27b/A100 guard) -- waits for it to answer /health, then calls
-# the resolved runner directly with the experiment's own config path. If a
-# server is already answering on the model's port, it's reused instead of
-# starting a second one. NNsight-direct and no-model experiment types skip
-# the server dance entirely.
+# the resolved runner directly with the experiment's own config path.
+#
+# Every job always starts and owns its own server, on a port derived from its
+# own SGE $JOB_ID -- never reuses one from another job on the same physical
+# node, even for the same model (see the comment above the server-launch
+# block for the two real bugs this replaced: a different-model reuse serving
+# 404s to every call, and a same-model reuse getting its server killed out
+# from under it when the owning job exited first). NNsight-direct and
+# no-model experiment types skip the server dance entirely.
 #
 # SUBMIT_JOB_DRY_RUN=1 prints the vLLM launch command (if any) and the final
 # runner invocation without actually running either -- for local testing of
@@ -73,81 +78,95 @@ if [ "$GPU_NEED" = "vllm_server" ]; then
         fi
     fi
 
-    HEALTH_URL="http://localhost:${SERVE_PORT}/health"
+    # Every job always starts and owns its own server -- never reuses one
+    # from another job on the same node, even for the same model. Two real
+    # bugs came from sharing: (1) a different-model job can land on the same
+    # host and blindly reuse a server that isn't serving its model at all --
+    # a pond/llama-3.1-8b job reused a gemma-3-27b server this way, got 404s
+    # on every call, and the pipeline still exited 0 with an empty final.json
+    # (2026-09-21); (2) even for the *same* model, the job that started the
+    # server kills it (see cleanup() above) when it exits, regardless of
+    # whether another job sharing it is still mid-run -- a measeval/nfix
+    # llama-3.1-8b pair hit exactly this live on the same day. Both go away
+    # if a server is never shared: port is derived from SGE's own $JOB_ID, so
+    # concurrent jobs on the same host never collide, and each job's cleanup
+    # only ever kills the server it itself started.
+    # JOB_ID is set by SGE for every real qsub'd job; only a local dry-run
+    # (SUBMIT_JOB_DRY_RUN=1, invoked directly per this script's own docstring)
+    # runs without it, so fall back to $$ there rather than hard-failing --
+    # no real submission ever takes this fallback branch.
+    JOB_PORT=$((20000 + (${JOB_ID:-$$} % 20000)))
+    HEALTH_URL="http://localhost:${JOB_PORT}/health"
 
-    if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
-        echo "vLLM server already answering on port ${SERVE_PORT}; reusing it."
+    SIF_PATH="${VLLM_SIF_DIR:?VLLM_SIF_DIR is not set}/${SIF_IMAGE}"
+    HF_CACHE_DIR="${HF_CACHE:?HF_CACHE is not set}"
+
+    # Built as an interpolated string, not a bash array run through exec:
+    # extra_vllm_args entries (e.g. nuextract-2.0-8b's --limit-mm-per-prompt
+    # '{"image": 2}') carry their own embedded shell quoting, meant to be
+    # re-parsed by the inner `bash -c` below -- treating an entry as one
+    # opaque argv token would break that quoting instead of preserving it.
+    # Mirrors gen_serve_script.py's (and the hand-written serve_*.sh
+    # scripts') approach exactly.
+    VLLM_CMD="/usr/bin/python3 -m vllm.entrypoints.openai.api_server \
+        --model ${MODEL_ID} \
+        --max-model-len ${MAX_MODEL_LEN} \
+        --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION} \
+        --dtype ${DTYPE} \
+        --host 0.0.0.0 \
+        --port ${JOB_PORT} \
+        --seed 342 \
+        --trust-remote-code"
+    if [ -n "$QUANTIZATION" ]; then
+        VLLM_CMD="$VLLM_CMD --quantization ${QUANTIZATION}"
+    fi
+    for arg in "${EXTRA_VLLM_ARGS[@]}"; do
+        VLLM_CMD="$VLLM_CMD $arg"
+    done
+
+    # extra_env: model-config-driven env vars exported before the vLLM
+    # launch itself (e.g. gpt-oss-120b's VLLM_USE_FLASHINFER_MOE_MXFP4_BF16
+    # workaround) -- same source-of-truth rule as extra_vllm_args above,
+    # just for the process environment instead of CLI flags.
+    EXTRA_ENV_EXPORTS=""
+    for kv in "${EXTRA_ENV[@]}"; do
+        EXTRA_ENV_EXPORTS="${EXTRA_ENV_EXPORTS}export ${kv} && "
+    done
+
+    LAUNCH_CMD="export TMPDIR=${TMPDIR:-/tmp} && export HF_HOME=${HF_CACHE_DIR} && ${EXTRA_ENV_EXPORTS}$VLLM_CMD"
+
+    if [ "$DRY_RUN" = "1" ]; then
+        echo "[dry-run] would run: singularity exec --nv --bind \$SINGULARITY_BIND $SIF_PATH bash -c \"$LAUNCH_CMD\""
     else
-        SIF_PATH="${VLLM_SIF_DIR:?VLLM_SIF_DIR is not set}/${SIF_IMAGE}"
-        HF_CACHE_DIR="${HF_CACHE:?HF_CACHE is not set}"
+        echo "Starting vLLM server for ${MODEL_ID} on port ${JOB_PORT} (job ${JOB_ID:-$$}, exclusive to this job)..."
+        singularity exec --nv \
+            --bind "${SINGULARITY_BIND:?SINGULARITY_BIND is not set}" \
+            "$SIF_PATH" \
+            bash -c "$LAUNCH_CMD" &
+        SERVER_PID=$!
 
-        # Built as an interpolated string, not a bash array run through
-        # exec: extra_vllm_args entries (e.g. nuextract-2.0-8b's
-        # --limit-mm-per-prompt '{"image": 2}') carry their own embedded
-        # shell quoting, meant to be re-parsed by the inner `bash -c` below
-        # -- treating an entry as one opaque argv token would break that
-        # quoting instead of preserving it. Mirrors gen_serve_script.py's
-        # (and the hand-written serve_*.sh scripts') approach exactly.
-        VLLM_CMD="/usr/bin/python3 -m vllm.entrypoints.openai.api_server \
-            --model ${MODEL_ID} \
-            --max-model-len ${MAX_MODEL_LEN} \
-            --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION} \
-            --dtype ${DTYPE} \
-            --host 0.0.0.0 \
-            --port ${SERVE_PORT} \
-            --seed 342 \
-            --trust-remote-code"
-        if [ -n "$QUANTIZATION" ]; then
-            VLLM_CMD="$VLLM_CMD --quantization ${QUANTIZATION}"
-        fi
-        for arg in "${EXTRA_VLLM_ARGS[@]}"; do
-            VLLM_CMD="$VLLM_CMD $arg"
-        done
-
-        # extra_env: model-config-driven env vars exported before the vLLM
-        # launch itself (e.g. gpt-oss-120b's VLLM_USE_FLASHINFER_MOE_MXFP4_BF16
-        # workaround) -- same source-of-truth rule as extra_vllm_args above,
-        # just for the process environment instead of CLI flags.
-        EXTRA_ENV_EXPORTS=""
-        for kv in "${EXTRA_ENV[@]}"; do
-            EXTRA_ENV_EXPORTS="${EXTRA_ENV_EXPORTS}export ${kv} && "
-        done
-
-        LAUNCH_CMD="export TMPDIR=${TMPDIR:-/tmp} && export HF_HOME=${HF_CACHE_DIR} && ${EXTRA_ENV_EXPORTS}$VLLM_CMD"
-
-        if [ "$DRY_RUN" = "1" ]; then
-            echo "[dry-run] would run: singularity exec --nv --bind \$SINGULARITY_BIND $SIF_PATH bash -c \"$LAUNCH_CMD\""
-        else
-            echo "Starting vLLM server for ${MODEL_ID} on port ${SERVE_PORT}..."
-            singularity exec --nv \
-                --bind "${SINGULARITY_BIND:?SINGULARITY_BIND is not set}" \
-                "$SIF_PATH" \
-                bash -c "$LAUNCH_CMD" &
-            SERVER_PID=$!
-
-            echo "Waiting for ${HEALTH_URL} to come up (up to 30 minutes)..."
-            READY=0
-            for _ in $(seq 1 120); do
-                if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-                    echo "vLLM server process exited before becoming healthy." >&2
-                    break
-                fi
-                if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
-                    READY=1
-                    break
-                fi
-                sleep 15
-            done
-
-            if [ "$READY" != "1" ]; then
-                echo "vLLM server never became healthy; aborting without running the experiment." >&2
-                exit 1
+        echo "Waiting for ${HEALTH_URL} to come up (up to 30 minutes)..."
+        READY=0
+        for _ in $(seq 1 120); do
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+                echo "vLLM server process exited before becoming healthy." >&2
+                break
             fi
-            echo "vLLM server is healthy."
+            if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
+                READY=1
+                break
+            fi
+            sleep 15
+        done
+
+        if [ "$READY" != "1" ]; then
+            echo "vLLM server never became healthy; aborting without running the experiment." >&2
+            exit 1
         fi
+        echo "vLLM server is healthy."
     fi
 
-    RUNNER_ARGS+=(--api-base "http://localhost:${SERVE_PORT}/v1")
+    RUNNER_ARGS+=(--api-base "http://localhost:${JOB_PORT}/v1")
 fi
 
 echo "[submit_job] ${ID}: experiments/${RUNNER} ${CONFIG_PATH} ${RUNNER_ARGS[*]:-}"

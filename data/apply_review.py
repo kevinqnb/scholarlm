@@ -9,8 +9,14 @@ Correction columns handled:
   corrected_page    – integer or comma-separated list → updates page_number,
                       sets page_confidence to "manual"
   corrected_name    – non-empty string → updates name
-  corrected_value   – numeric string → updates value
-  corrected_units   – non-empty string → updates units
+  corrected_value   – numeric string → updates value (and point_value, if the
+                      record has one -- see QUALIFIER_FIELDS in preprocessing.py)
+  corrected_units   – non-empty string → updates units, passed through the
+                      dataset's own preprocessing.normalize_units() first if
+                      it defines one (nfix's raw units are free-text
+                      shorthand like "g-n m-2 y-1" that needs the same
+                      Unicode reformatting every other row gets; pond has no
+                      such function since its units are already clean)
   excluded          – "True" / "true" / "1" / "yes" → record omitted from output
   excluded_reason   – informational only, not written to output
 
@@ -31,6 +37,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 
@@ -39,6 +46,18 @@ import pandas as pd
 DATA_DIR = Path(__file__).parent
 
 _EXCLUDED_VALUES = {"true", "1", "yes"}
+
+
+def _load_units_normalizer(dataset: str):
+    """Return dataset/preprocessing.py's normalize_units, or None if it
+    doesn't define one. Loaded by file path, not import, so this works
+    regardless of how apply_review.py itself was invoked.
+    """
+    path = DATA_DIR / dataset / "preprocessing.py"
+    spec = importlib.util.spec_from_file_location(f"_{dataset}_preprocessing", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, "normalize_units", None)
 
 
 def _parse_page_list(raw: str) -> list[int] | None:
@@ -62,6 +81,8 @@ def apply_review(dataset: str) -> None:
 
     with open(gt_path) as f:
         records: list[dict] = json.load(f)
+
+    normalize_units = _load_units_normalizer(dataset)
 
     df = pd.read_csv(review_path, dtype=str, keep_default_na=False)
 
@@ -110,7 +131,13 @@ def apply_review(dataset: str) -> None:
         corrected_value = row.get("corrected_value", "").strip()
         if corrected_value:
             try:
-                records[idx]["value"] = float(corrected_value)
+                new_value = float(corrected_value)
+                records[idx]["value"] = new_value
+                # point_value (added by preprocessing.py -- see QUALIFIER_FIELDS
+                # there) is a copy of the plain point value; if present, a
+                # corrected value must resync it or it goes stale.
+                if "point_value" in records[idx]:
+                    records[idx]["point_value"] = new_value
                 n_value += 1
             except (ValueError, TypeError):
                 print(f"  Warning: invalid corrected_value {corrected_value!r} at gt_row_index={idx} — skipped")
@@ -119,7 +146,9 @@ def apply_review(dataset: str) -> None:
         # Units correction
         corrected_units = row.get("corrected_units", "").strip()
         if corrected_units:
-            records[idx]["units"] = corrected_units
+            records[idx]["units"] = (
+                normalize_units(corrected_units) if normalize_units is not None else corrected_units
+            )
             n_units += 1
 
     reviewed = [rec for i, rec in enumerate(records) if i not in excluded_indices]

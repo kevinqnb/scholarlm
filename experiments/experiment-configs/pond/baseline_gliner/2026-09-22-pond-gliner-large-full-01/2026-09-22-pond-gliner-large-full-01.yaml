@@ -1,0 +1,22 @@
+id: 2026-09-22-pond-gliner-large-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the GLiNER2 baseline on pond, model=gliner-large-v1. Per
+  instruction (2026-09-22): baselines now use the same table-cleaning-based
+  drop_references corpus their extraction/ablation siblings use
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01),
+  not the implicit raw-OCR default the 2026-09-19-pond-gliner-large-full-01
+  sibling used (already run, left untouched; this is a fresh id). pond/supermat
+  have no paper_filter, so file count is unchanged (128 files either way) --
+  only the table markup differs. Walltime carried over unchanged from the
+  2026-09-19 sibling (02:00:00) -- GLiNER's base estimate was already dominated
+  by fixed overhead (SGE startup, weight loading), not per-paper text volume, so
+  a table-cleaning text-quality change shouldn't move this much. STAGED-GATES:
+  this baseline+dataset pair already has a full-run precedent under the
+  pre-table-cleaning-switch code (2026-09-19); the only change here is ocr_dir.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "02:00:00"

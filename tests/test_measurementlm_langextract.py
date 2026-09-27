@@ -37,11 +37,13 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import scholarlm.measurementlm_langextract as lex_mod
+from scholarlm.instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
 from scholarlm.measurementlm_langextract import (
     MeasurementLMLangExtract,
     _attribute_object_schema,
     _build_examples,
     _build_output_schema,
+    _build_vllm_openai_model,
     _page_for_offset,
     _prompt_description,
 )
@@ -124,15 +126,45 @@ def test_prompt_description_drops_json_envelope_line_keeps_rest():
     assert '"items": [...]' not in result
 
 
-def test_prompt_description_raises_if_envelope_line_missing(monkeypatch):
-    monkeypatch.setattr(lex_mod, "DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS", "Some other text entirely.")
+def test_prompt_description_raises_if_envelope_line_missing():
+    # direct_extraction_instructions/json_envelope_line are now explicit
+    # params (include_qualifiers=false passes the no-qualifiers pair -- see
+    # test_prompt_description_no_qualifiers_pair_below), so this simulates a
+    # mismatched pair by passing an envelope line that isn't in the text,
+    # rather than monkeypatching the (now def-time-bound) module default.
     with pytest.raises(AssertionError):
-        _prompt_description(_FAKE_DIRECT_EXTRACTION_PROMPT)
+        _prompt_description(
+            _FAKE_DIRECT_EXTRACTION_PROMPT, "Some other text entirely.", lex_mod.JSON_ENVELOPE_LINE,
+        )
 
 
 def test_prompt_description_raises_if_dataset_prompt_has_no_output_format_heading():
     with pytest.raises(AssertionError):
         _prompt_description("Entity fields:\n- name: the entity name.\n")
+
+
+def test_prompt_description_default_unchanged_by_include_qualifiers_refactor():
+    """Regression guard: direct_extraction_instructions/json_envelope_line
+    becoming explicit params (for include_qualifiers=false) must not change
+    the default (qualifier-bearing) output byte-for-byte."""
+    default_result = _prompt_description(_FAKE_DIRECT_EXTRACTION_PROMPT)
+    explicit_result = _prompt_description(
+        _FAKE_DIRECT_EXTRACTION_PROMPT, lex_mod.DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS, lex_mod.JSON_ENVELOPE_LINE,
+    )
+    assert default_result == explicit_result
+
+
+def test_prompt_description_no_qualifiers_pair_drops_qualifier_fields():
+    """params.include_qualifiers=false (run_baseline_langextract.py) passes
+    DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS/JSON_ENVELOPE_LINE_NO_QUALIFIERS."""
+    result = _prompt_description(
+        _FAKE_DIRECT_EXTRACTION_PROMPT,
+        DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS,
+        lex_mod.JSON_ENVELOPE_LINE_NO_QUALIFIERS,
+    )
+    for field in ("qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation"):
+        assert field not in result
+    assert "expert in data extraction" in result
 
 
 # ---------------------------------------------------------------------------
@@ -328,33 +360,216 @@ def test_fit_passes_output_schema_only_when_schema_constraints_enabled(monkeypat
     assert captured["output_schema"] == _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
 
 
-def test_fit_threads_max_tokens_and_top_p_into_model_config_provider_kwargs(monkeypatch):
-    """`lx.extract`'s `config=` path (the one `fit()` uses) never reads
-    `language_model_params` -- only the `model_id=` path does (see
-    langextract's extraction.py: `language_model_params` is applied in the
-    `else` branch, never in the `elif config:` branch). max_output_tokens and
-    top_p must go into the ModelConfig's own `provider_kwargs` instead, or
-    vLLM gets no completion budget and a chunk can generate unbounded (this
-    is what actually happened in 2026-09-19-pond-langextract-gemma27b-full-01:
-    no max_tokens ever reached the request, so one stuck chunk ran until the
-    client's own read timeout killed it, taking the whole run down)."""
+def test_fit_uses_constructor_direct_extraction_instructions_override(monkeypatch):
+    """include_qualifiers=false (run_baseline_langextract.py) passes both
+    direct_extraction_instructions and json_envelope_line at construction
+    time; fit() must thread them into prompt_description, not the defaults."""
     context = '<page number="0">Lake A depth 3.2 m.</page>'
     captured = {}
 
     def fake_extract(*a, **k):
-        captured["config"] = k.get("config")
-        captured["language_model_params"] = k.get("language_model_params")
+        captured["prompt_description"] = k.get("prompt_description")
         return langextract.data.AnnotatedDocument(text=context, extractions=[])
 
     monkeypatch.setattr(langextract, "extract", fake_extract)
 
-    _make_mlm(sampling_params={"temperature": 0.6, "max_tokens": 8192, "top_p": 0.95}).fit([context])
+    custom_instructions = "CUSTOM GUIDELINES.\n- Structure your response with a custom envelope."
+    custom_envelope = "- Structure your response with a custom envelope."
+    _make_mlm(
+        direct_extraction_instructions=custom_instructions,
+        json_envelope_line=custom_envelope,
+    ).fit([context])
 
-    # Not the ignored kwarg.
+    assert "CUSTOM GUIDELINES." in captured["prompt_description"]
+    assert custom_envelope not in captured["prompt_description"]
+
+
+def test_fit_threads_max_tokens_and_top_p_into_model_constructor(monkeypatch):
+    """`lx.extract`'s `config=` path (which `fit()` used to use) never reads
+    `language_model_params` -- only the `model_id=` path does (see
+    langextract's extraction.py: `language_model_params` is applied in the
+    `else` branch, never in the `elif config:` branch). `fit()` now passes a
+    pre-built `model=` instance instead, sidestepping that blind spot
+    entirely -- max_output_tokens/top_p/temperature/seed go straight into the
+    model's own constructor. (Historical context: this blind spot is what
+    actually caused 2026-09-19-pond-langextract-gemma27b-full-01: no
+    max_tokens ever reached the request, so one stuck chunk ran until the
+    client's own read timeout killed it, taking the whole run down; the same
+    blind spot silently swallowed `temperature=`/`seed` too.)"""
+    context = '<page number="0">Lake A depth 3.2 m.</page>'
+    captured = {}
+
+    def fake_extract(*a, **k):
+        captured["model"] = k.get("model")
+        captured["config"] = k.get("config")
+        captured["language_model_params"] = k.get("language_model_params")
+        captured["temperature"] = k.get("temperature")
+        return langextract.data.AnnotatedDocument(text=context, extractions=[])
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    _make_mlm(
+        use_extra_body=True,  # repetition_penalty is gated on this -- see below
+        sampling_params={
+            "temperature": 0.6, "max_tokens": 8192, "top_p": 0.95, "seed": 342,
+            "repetition_penalty": 1.3,
+        },
+    ).fit([context])
+
+    # Not the ignored kwargs, and not routed through config= at all anymore.
     assert captured["language_model_params"] is None
-    # The kwarg langextract's config= path actually reads.
-    assert captured["config"].provider_kwargs["max_output_tokens"] == 8192
-    assert captured["config"].provider_kwargs["top_p"] == 0.95
+    assert captured["temperature"] is None
+    assert captured["config"] is None
+    model = captured["model"]
+    assert model._extra_kwargs["max_output_tokens"] == 8192
+    assert model._extra_kwargs["top_p"] == 0.95
+    assert model.temperature == 0.6
+    assert model._extra_kwargs["seed"] == 342
+    # provider="openai" (langextract's stock provider) silently drops
+    # repetition_penalty -- see _build_vllm_openai_model's docstring -- so it
+    # must be forwarded through this repo's own subclass instead.
+    assert model._repetition_penalty == 1.3
+
+
+def test_fit_omits_repetition_penalty_when_use_extra_body_false(monkeypatch):
+    """Same category as top_k in MeasurementLM's own _acall: a vLLM-only
+    extension, never attempted against a frontier endpoint."""
+    context = '<page number="0">Lake A depth 3.2 m.</page>'
+    captured = {}
+
+    def fake_extract(*a, **k):
+        captured["model"] = k.get("model")
+        return langextract.data.AnnotatedDocument(text=context, extractions=[])
+
+    monkeypatch.setattr(langextract, "extract", fake_extract)
+
+    _make_mlm(
+        use_extra_body=False,
+        sampling_params={"repetition_penalty": 1.3},
+    ).fit([context])
+
+    assert captured["model"]._repetition_penalty is None
+
+
+# ---------------------------------------------------------------------------
+# repetition_penalty actually reaching the HTTP request (extra_body)
+# ---------------------------------------------------------------------------
+
+
+class _FakeChoice:
+    def __init__(self, content):
+        self.message = type("Msg", (), {"content": content, "refusal": None})()
+        self.finish_reason = "stop"
+
+
+class _FakeChatCompletion:
+    def __init__(self, content):
+        self.choices = [_FakeChoice(content)]
+
+
+class _FakeChatCompletions:
+    def __init__(self, captured_calls):
+        self._captured_calls = captured_calls
+
+    def create(self, **kwargs):
+        self._captured_calls.append(kwargs)
+        return _FakeChatCompletion('{"extractions": []}')
+
+
+class _FakeChat:
+    def __init__(self, captured_calls):
+        self.completions = _FakeChatCompletions(captured_calls)
+
+
+class _FakeOpenAIClient:
+    def __init__(self, *a, **k):
+        self.chat = _FakeChat(_FAKE_CLIENT_CAPTURED_CALLS)
+
+
+_FAKE_CLIENT_CAPTURED_CALLS: list[dict] = []
+
+
+def test_repetition_penalty_reaches_extra_body_of_actual_request(monkeypatch):
+    """Drives the request through `model.infer()` directly -- the same
+    method `lx.extract(model=...)` calls -- with the real `openai` client
+    swapped for a fake that records what it was called with. Proves
+    `repetition_penalty` survives both of langextract's internal key
+    allowlists (openai.py's `infer()` config-builder and
+    `_build_chat_completions_params`) and lands in the one field
+    (`extra_body`) the OpenAI SDK actually forwards unvalidated to vLLM --
+    calling `_build_chat_completions_params` directly, as a lighter test
+    would, exercises neither allowlist and would pass even if the fix were
+    wrong."""
+    import openai
+
+    monkeypatch.setattr(openai, "OpenAI", _FakeOpenAIClient)
+    _FAKE_CLIENT_CAPTURED_CALLS.clear()
+
+    model = _build_vllm_openai_model(
+        model_id="test-model", api_key="EMPTY", base_url="http://localhost:0/v1",
+        max_output_tokens=None, top_p=None, temperature=None, seed=None,
+        repetition_penalty=1.3,
+    )
+    list(model.infer(["extract something"]))
+
+    assert len(_FAKE_CLIENT_CAPTURED_CALLS) == 1
+    assert _FAKE_CLIENT_CAPTURED_CALLS[0]["extra_body"] == {"repetition_penalty": 1.3}
+
+
+def test_no_repetition_penalty_omits_extra_body_entirely(monkeypatch):
+    """No config sets repetition_penalty today (see fit()'s gating on
+    self.use_extra_body and sampling_params), so this proves the switch to
+    this repo's own model subclass changes nothing about the request for
+    every existing LangExtract config -- prior LangExtract numbers are
+    unaffected by this change."""
+    import openai
+
+    monkeypatch.setattr(openai, "OpenAI", _FakeOpenAIClient)
+    _FAKE_CLIENT_CAPTURED_CALLS.clear()
+
+    model = _build_vllm_openai_model(
+        model_id="test-model", api_key="EMPTY", base_url="http://localhost:0/v1",
+        max_output_tokens=None, top_p=None, temperature=None, seed=None,
+        repetition_penalty=None,
+    )
+    list(model.infer(["extract something"]))
+
+    assert len(_FAKE_CLIENT_CAPTURED_CALLS) == 1
+    assert "extra_body" not in _FAKE_CLIENT_CAPTURED_CALLS[0]
+
+
+def test_repetition_penalty_reaches_extra_body_with_schema_constraints(monkeypatch):
+    """Same as above but driven through `lx.extract(model=...)` itself with
+    `output_schema` set -- the exact call `fit()` makes when
+    `use_schema_constraints=True`. `apply_output_schema` (called by
+    `lx.extract` on our pre-built model, see extraction.py) configures
+    `self.openai_schema` and `response_format`; proves that doesn't disturb
+    the `extra_body` injection, which happens after
+    `super()._build_chat_completions_params()` regardless."""
+    import langextract as lx
+    import openai
+
+    monkeypatch.setattr(openai, "OpenAI", _FakeOpenAIClient)
+    _FAKE_CLIENT_CAPTURED_CALLS.clear()
+
+    output_schema = _build_output_schema(_DirectSchema, _ATTRIBUTE_INFO)
+    model = _build_vllm_openai_model(
+        model_id="test-model", api_key="EMPTY", base_url="http://localhost:0/v1",
+        max_output_tokens=None, top_p=None, temperature=None, seed=None,
+        repetition_penalty=1.3,
+    )
+    lx.extract(
+        text_or_documents="Lake A depth 3.2 m.",
+        prompt_description="Extract depth measurements.",
+        examples=_build_examples(_NUEXTRACT_EXAMPLES),
+        model=model,
+        output_schema=output_schema,
+        fence_output=False,
+        show_progress=False,
+    )
+
+    assert len(_FAKE_CLIENT_CAPTURED_CALLS) == 1
+    assert _FAKE_CLIENT_CAPTURED_CALLS[0]["extra_body"] == {"repetition_penalty": 1.3}
 
 
 def test_fit_does_not_merge_duplicate_mentions(monkeypatch):

@@ -1,6 +1,6 @@
 model_id: ibnzterrell/Meta-Llama-3.3-70B-Instruct-AWQ-INT4
 sampling_params:
-  temperature: 0.6
+  temperature: 0.2
   top_p: 0.95
   top_k: 20
   max_tokens: 8192

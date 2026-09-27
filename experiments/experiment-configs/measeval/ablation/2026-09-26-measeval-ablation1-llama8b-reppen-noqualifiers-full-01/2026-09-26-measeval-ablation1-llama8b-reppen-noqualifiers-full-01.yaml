@@ -1,0 +1,43 @@
+id: 2026-09-26-measeval-ablation1-llama8b-reppen-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on measeval,
+  model=llama-3.1-8b-reppen, with params.include_qualifiers=false -- same
+  DirectExtractionItemSchemaNoQualifiers machinery as
+  2026-09-25-measeval-ablation1-gemma27b-noqualifiers-full-01
+  (devlog/2026-09-25-ablation1-no-qualifiers-01.md), just with
+  model=llama-3.1-8b-reppen instead of gemma-3-27b. Two things differ from
+  the qualifier-bearing llama-3.1-8b baseline
+  (2026-09-21-measeval-ablation1-llama8b-full-01) at once here:
+  include_qualifiers=false AND repetition_penalty: 1.1 -- see the pond
+  sibling config's identical caveat about this not being a clean
+  single-variable comparison. Motivation for the repetition_penalty half:
+  notes/scholarlm/experiments/2026-09-26-measeval-llama8b-reppen-tinye2e-01.md
+  found llama-3.1-8b degenerating into a token-repetition loop in a batched
+  JSON-schema call (ablation 7's _detect_attributes, on this exact dataset,
+  document S0019103512003533-5211); repetition_penalty: 1.1 eliminated it
+  there. Ablation 1 is a different call shape (single-call direct triple
+  extraction, one schema per document rather than a batched per-document
+  attribute checklist) -- untested for this failure mode at any scale,
+  despite sharing the dataset.
+  ocr_dir omitted -- defaults to data/measeval/ocr_output_raw/, same corpus
+  as the qualifier-bearing baseline; measeval has no drop_references run.
+  Walltime: 48:00:00, reused verbatim from
+  2026-09-21-measeval-ablation1-llama8b-full-01's own committed value. The
+  no-qualifiers schema is a strict subset of the qualifier-bearing one, so
+  per-call output size can only be equal or smaller, and repetition_penalty
+  can only lower cost further. resume dropped, matching every no-qualifiers
+  ablation1 config in this repo: run_ablation.py never reads a "resume" key
+  for ablation 1's single-call fit().
+  STAGED-GATES: NO rung-1/2/3 pass exists for this exact (llama-3.1-8b-reppen,
+  no-qualifiers, ablation 1) combination on any dataset -- see the pond
+  sibling config's identical caveat. Do not submit this config before a smoke
+  run and a tiny end-to-end with a predicted result on this specific
+  (dataset, model, ablation) triple.
+seed: 342
+params:
+  dataset: measeval
+  model: llama-3.1-8b-reppen
+  ablation: "1"
+  include_qualifiers: false
+  walltime: "48:00:00"

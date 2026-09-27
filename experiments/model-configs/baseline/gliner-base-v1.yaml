@@ -1,5 +1,8 @@
 model_id: fastino/gliner2-base-v1
 sampling_params: {}
+# See gliner-large-v1.yaml's `device:` comment -- GLiNER2 loads weights
+# directly in-process and never auto-detects the GPU; required, not defaulted.
+device: cuda
 resources:
   # GLiNER2-base is a 205M-param DeBERTa-v3-base encoder loaded directly
   # in-process (no vLLM server) -- far smaller than the smallest model class

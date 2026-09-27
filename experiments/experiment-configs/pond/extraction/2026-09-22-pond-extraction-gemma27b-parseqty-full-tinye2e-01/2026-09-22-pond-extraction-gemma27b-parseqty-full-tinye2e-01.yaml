@@ -1,0 +1,31 @@
+id: 2026-09-22-pond-extraction-gemma27b-parseqty-full-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end, control half, for the value-only parse_quantities
+  hypothesis (see 2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-tinye2e-01,
+  the treatment half). params.step=final re-runs only standardize +
+  _parse_quantities + deduplicate against a copied-in values.json checkpoint
+  from 2026-09-21-pond-extraction-gemma27b-qualifiers-seeddet-02 (same paper,
+  same seed, schema-compatible with the current pipeline -- unlike the stale
+  2026-09-20 tinye2e-01/-02 checkpoints, which predate 3 schema-changing
+  commits per that pair's own description). parse_quantities_context left at
+  its default ("full") -- this run measures ordinary re-run noise alone
+  (gemma-3-27b's AWQ-marlin/vLLM continuous-batching nondeterminism under a
+  fixed seed, same caveat seeddet-01/-02 documented), so any difference the
+  valueonly sibling shows can be attributed to the prompt change rather than
+  confounded with noise. seeddet-02's final.json has 4 rows where the model's
+  own response left point_value null despite an unambiguous central value in
+  `value` (a plain "0.34" with empty qualifiers, and three IsMean+HasTolerance
+  rows like "8.4±0.4a") plus several genuine "X and Y" range rows correctly
+  left null -- predicted outcome for THIS (full-mode) run: materially
+  unchanged from seeddet-02's own final.json (same 4 rows still null or only
+  flipped by ordinary noise), since nothing about the prompt changed.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  step: final
+  parse_quantities_context: full
+  walltime: "01:00:00"

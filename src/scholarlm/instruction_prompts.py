@@ -108,6 +108,39 @@ Units standardization guidelines:
 """
 
 
+# 2026-09-23-standardize-valueonly-01: value-only variant of
+# STANDARDIZE_MEASUREMENTS_INSTRUCTIONS above -- no source-text grounding, no
+# entity/attribute description, no attribute terminology. Tests the hypothesis
+# that unit standardization doesn't need (and may be hurt by) the surrounding
+# page/table context _standardize() otherwise supplies -- mirrors
+# PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS's rationale for the sibling
+# _parse_quantities() step. The decision rule itself (best-matching notational
+# variant, else unchanged, else null for null) is unchanged from the full-context
+# version -- only the context shown to the model differs.
+#
+# The basis/component-annotation bullet below was added after rung-3-01's tiny
+# end-to-end: without page context, gemma-3-27b was inconsistent on whether a
+# substance-qualified compound unit (e.g. "mg N/L") counts as a notational
+# variant of the plain unit on the list ("mg/L") -- it correctly dropped an
+# analogous phosphorus annotation but kept the nitrogen one, on structurally
+# identical inputs. The added bullet makes explicit, with dataset-independent
+# examples, exactly the distinction the model needs and evidently wasn't
+# getting reliably from the unit string alone: an annotation is safe to drop
+# only when doing so requires no numeric conversion.
+STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to assist in the data collection process by standardizing the units of a measurement value extracted from a research paper. You will be given a list of available (preferred) units for the attribute, and an extracted measurement value with units -- no other context is provided or needed. Your task is to standardize the units only, according to the following guidelines.
+
+Units standardization guidelines:
+- If the extracted units are a notational variant of one of the available units (e.g., "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"), return the best matching entry from the available units list. You may infer notational variants based on common scientific usage.
+- If the extracted units carry an additional basis or component annotation that the best-matching available unit omits (e.g., "kg (dry matter)/ha" when the available unit is "kg/ha", or "counts (viable)/mL" when the available unit is "counts/mL"), it is fine to use the more generic available unit, as long as no numeric conversion is required -- only the annotation is being dropped, not the measured quantity. If the annotation instead names a genuinely different substance or basis that would require converting the value (not just relabeling it), leave the units unchanged.
+- If the extracted units are not a notational variant of any available unit (i.e., they would require unit conversion to match, or there are no available units listed), return the extracted units unchanged.
+- If the extracted units are null (not reported), return null.
+- Do NOT modify, standardize, round, or reformat the extracted measurement value in any way -- it is not part of this task and is handled separately.
+
+- Provide a brief explanation of what unit standardization was applied (or why none was needed).
+- Structure your response as a JSON object with "explanation" and "units" fields.
+"""
+
+
 PARSE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to parse a single already-extracted measurement value into its structured components, using the source text it was extracted from as ground truth.
 
 You will be given: the source text (a page or table) the value was extracted from, a description of the measurement attribute, and the extracted value and units as originally reported.
@@ -120,6 +153,28 @@ Guidelines:
 - tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
 - standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 - Do NOT infer, guess, or derive any field. Use ONLY what is explicitly stated in the source text.
+- Provide a brief explanation of your parsing decisions.
+- Structure your response as a JSON object with "explanation", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields.
+"""
+
+
+# 2026-09-22-pond-parsequantities-valueonly-01: value-only variant of
+# PARSE_QUANTITY_INSTRUCTIONS above -- no source-text grounding, no entity/
+# attribute description, no units. Tests the hypothesis that this purely
+# textual parsing task doesn't need (and may be hurt by) the surrounding
+# page/table context _parse_quantities() otherwise supplies.
+PARSE_QUANTITY_VALUE_ONLY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to parse a single already-extracted measurement value into its structured components, using only the value string itself -- no other context is provided or needed.
+
+You will be given: the extracted value, exactly as reported.
+
+Guidelines:
+- qualifiers: a list of zero or more tags describing the shape of the reported quantity. Use only tags from this set: "IsCount" (a count of discrete items, not a continuous measurement), "IsApproximate" (explicitly hedged, e.g. "~12", "about 50", "approximately"), "IsList" (an enumerated list of separate values, not a single number or range), "IsRange" (a reported interval or one-sided bound, e.g. "3-7", "< 5", "at least 10"), "IsMean" (an explicitly stated mean/average), "IsMedian" (an explicitly stated median), "HasTolerance" (an explicit +/- value or confidence interval is reported alongside the value), "HasSD" (an explicit standard deviation is reported alongside the value). These tags are independent and may combine freely when the text supports it (e.g. an approximate mean is ["IsApproximate", "IsMean"]; a mean reported together with a range, e.g. "5.2 (3.1-7.4)", is ["IsMean", "IsRange"]). Use an empty list for a plain, unhedged single value with no other qualifier.
+- point_value: the single central value, when one is directly reported -- a plain point value, or the stated mean/median/count. Leave null if no single central value is reported (e.g. a bare range or list with no central value given). A plain number with no qualifying text (e.g. "2.4") IS its own point_value.
+- lower / upper: the bounds of a reported range or one-sided inequality. For a two-sided range, populate both. For a one-sided bound (e.g. "< 5", "at least 10"), populate only the reported side and leave the other null. Leave both null if no range or bound is reported.
+- list_values: the parsed items of an enumerated list, in the order reported. Leave null unless "IsList" applies.
+- tolerance: the confidence interval or +/- value exactly as reported (e.g. "± 0.5", "95% CI: 5-9"), as a freeform string. Leave null unless "HasTolerance" applies.
+- standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
+- Do NOT infer, guess, or derive anything beyond what the value string itself states.
 - Provide a brief explanation of your parsing decisions.
 - Structure your response as a JSON object with "explanation", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields.
 """
@@ -232,6 +287,29 @@ Guidelines:
 - standard_deviation: the standard deviation exactly as reported, as a freeform string. Leave null unless "HasSD" applies.
 - Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
 - Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", "units", "qualifiers", "point_value", "lower", "upper", "list_values", "tolerance", and "standard_deviation" fields as specified in the dataset-specific instructions.
+"""
+
+
+# Ablation 1 variant: direct extraction with the qualifier/shape fields
+# (qualifiers/point_value/lower/upper/list_values/tolerance/standard_deviation)
+# removed -- identical to DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS otherwise,
+# including the value-verbatim-extraction guideline below (still needed so
+# analysis/postprocessing.py's parser has a full, unmodified value string to
+# work from). See tests/test_ablation1_no_qualifiers.py for the exact
+# line-level diff this must maintain against DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS.
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to extract a complete list of measurement records from a research paper document in a single pass. Each record captures an entity, an attribute for measurement, the conditions of a specific measurement event, and its value.
+
+Guidelines:
+- You will be provided with dataset-specific extraction instructions describing the entities to identify, the target attributes, and the measurement event fields, along with the full document text.
+- Identify all entities of the specified type present in the document, following the entity identification rules in the dataset-specific instructions.
+- For each identified entity, identify all distinct measurement events and all attributes for which a direct numerical measurement is reported.
+- Return one item per (entity, attribute, event) combination where a direct numerical measurement exists.
+- Only include items where a direct numerical measurement is reported — omit absent data, model parameters, goodness-of-fit statistics, and qualitative descriptions.
+- Extract the value exactly as it appears in the document, in full — including any range, list, inequality, mean/median/count label, or uncertainty measure (± value, confidence interval, standard deviation) reported alongside it. Do not convert, round, drop, or otherwise modify any part of it.
+- Give the value only in the value field; do not include any units, descriptors, or explanation there.
+- For units, use the best fitting option from the attribute's listed preferred units if possible; otherwise specify the unit exactly as it appears in the text. Set units to null if no units are reported.
+- Do NOT infer, guess, or derive any field value. If a field is not explicitly stated in the document, set it to null.
+- Structure your response as a JSON object with an "items" list, where each item contains the entity fields, event fields, and "attribute", "value", and "units" fields as specified in the dataset-specific instructions.
 """
 
 

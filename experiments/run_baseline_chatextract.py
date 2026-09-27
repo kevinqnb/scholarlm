@@ -125,6 +125,7 @@ def run_baseline_chatextract(
         include_single_verification=include_single_verification,
         extract_tables=extract_tables,
         measurement_event_schema=dataset_config.measurement_event_schema,
+        direct_extraction_schema=dataset_config.direct_extraction_schema,
         sampling_params=model_config.sampling_params,
         api_base=effective_api_base,
         api_key=api_key,

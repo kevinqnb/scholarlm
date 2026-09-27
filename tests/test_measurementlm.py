@@ -18,6 +18,7 @@ network calls, no vLLM/frontier endpoint required. Verifies:
     stubbed _call_batch, since the retry loop itself is what's under test.
 """
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -31,8 +32,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from scholarlm.measurementlm import (
     ContextLengthExceededError,
     MeasurementLM,
+    ParseQuantityResponse,
     check_quantity_consistency,
+    response_validator,
 )
+from scholarlm.instruction_prompts import STANDARDIZE_MEASUREMENTS_INSTRUCTIONS
 
 
 class _EntitySchema(BaseModel):
@@ -595,6 +599,36 @@ def test_parse_quantities_populates_all_shapes(monkeypatch):
         assert by_doc[doc_id]["units"] == "m"
 
 
+def test_parse_quantities_stores_float_scalar_values_and_stays_consistent(monkeypatch):
+    """2026-09-24-gptoss120b-parsequantity-schema-diag-02's fix: a response
+    that emits bare (unquoted) JSON numbers for point_value/lower/upper/
+    tolerance/standard_deviation -- the exact shape gpt-oss-120b stalls on
+    under the old str-only schema -- must validate, and the raw float must
+    land unmodified in the record. check_quantity_consistency must not flag
+    it: none of its checks are string-specific, only `is not None`/truthiness."""
+    mlm = _make_mlm()
+    mlm.data = [_base_datapoint(0, "60 ± 5")]
+
+    fake_response = (
+        '{"explanation": "point with tolerance", "qualifiers": ["HasTolerance"], '
+        '"point_value": 60.0, "lower": null, "upper": null, "list_values": null, '
+        '"tolerance": 5.0, "standard_deviation": null}'
+    )
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        return fake_response
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+
+    assert parsed[0]["point_value"] == 60.0 and isinstance(parsed[0]["point_value"], float)
+    assert parsed[0]["tolerance"] == 5.0 and isinstance(parsed[0]["tolerance"], float)
+    assert check_quantity_consistency(parsed[0]) == []
+
+
 def test_parse_quantities_isolates_context_length_exceeded_document(monkeypatch):
     """Mirrors test_standardize_isolates_context_length_exceeded_document: a
     context-length failure on one record must record its document_id and leave
@@ -649,6 +683,235 @@ def test_parse_quantities_logs_but_keeps_inconsistent_record(monkeypatch, capsys
     assert parsed[0]["lower"] is None and parsed[0]["upper"] is None
     out = capsys.readouterr().out
     assert "IsRange tagged but lower/upper both null" in out
+
+
+# ---------------------------------------------------------------------------
+# _parse_quantities() -- parse_quantities_context ("full" vs "value_only")
+# ---------------------------------------------------------------------------
+
+_PARSE_QTY_FAKE_RESPONSE = (
+    '{"explanation": "plain point", "qualifiers": [], "point_value": "12.3", '
+    '"lower": null, "upper": null, "list_values": null, "tolerance": null, '
+    '"standard_deviation": null}'
+)
+
+
+def test_parse_quantities_full_mode_prompt_unchanged_by_default(monkeypatch):
+    """Default construction (no parse_quantities_context override) must build
+    the exact same prompt as before this flag existed: CONTEXT block with the
+    datapoint's context text, entity description, attribute description, and
+    units all present."""
+    mlm = _make_mlm()
+    assert mlm.parse_quantities_context == "full"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _PARSE_QTY_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    mlm._parse_quantities()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" in prompt
+    assert "DOC0 text" in prompt
+    assert "Entity description:" in prompt
+    assert "Attribute description:" in prompt
+    assert "Extracted units: m" in prompt
+    assert "Extracted value: 12.3" in prompt
+
+
+def test_parse_quantities_value_only_mode_prompt_excludes_everything_but_value(monkeypatch):
+    """parse_quantities_context='value_only' must strip the CONTEXT block,
+    entity description, attribute description, and units entirely -- the
+    prompt should contain nothing but the extracted value."""
+    mlm = _make_mlm(parse_quantities_context="value_only")
+    assert mlm.parse_quantities_context == "value_only"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _PARSE_QTY_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    parsed = mlm._parse_quantities()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" not in prompt
+    assert "DOC0 text" not in prompt
+    assert "Entity description:" not in prompt
+    assert "Attribute description:" not in prompt
+    assert "Extracted units:" not in prompt
+    assert "Extracted value: 12.3" in prompt
+
+    # The response is still parsed into the record exactly as in full mode --
+    # only the prompt construction differs.
+    assert parsed[0]["point_value"] == "12.3"
+    assert parsed[0]["qualifiers"] == []
+
+
+def test_parse_quantities_context_rejects_unknown_value():
+    """Fail loud on a typo'd mode rather than silently falling back to 'full'."""
+    with pytest.raises(ValueError, match="parse_quantities_context"):
+        _make_mlm(parse_quantities_context="valueonly")  # missing underscore
+
+
+# ---------------------------------------------------------------------------
+# _standardize() -- standardize_context ("full" vs "value_only")
+# ---------------------------------------------------------------------------
+
+_STANDARDIZE_FAKE_RESPONSE = '{"explanation": "ok", "units": "m"}'
+
+
+def test_standardize_full_mode_prompt_unchanged_by_default(monkeypatch):
+    """Default construction (no standardize_context override) must build the
+    exact same prompt as before this flag existed. Pinned by exact string
+    equality rather than substring checks alone, so a reordered terms_line or
+    silently dropped field is caught."""
+    mlm = _make_mlm()
+    assert mlm.standardize_context == "full"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _STANDARDIZE_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    mlm._standardize()
+
+    expected_query = (
+        "Entity description: {'name': 'Lake A', 'location': 'WI'}\n"
+        "Attribute description: Maximum depth\n"
+        "Terminology used for the attribute: []\n"
+        "Available units for the attribute: ['m']\n\n"
+        "Extracted measurement: 12.3\n"
+        "Extracted units: m\n"
+        "Standardize the units for the extracted data point. "
+    )
+    expected_prompt = (
+        f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_INSTRUCTIONS}\n\n"
+        f"## CONTEXT:\nDOC0 text\n\n## QUERY:\n{expected_query}"
+    )
+    assert captured["prompt"] == expected_prompt
+
+
+def test_standardize_value_only_mode_prompt_excludes_context_but_keeps_unit_list(monkeypatch):
+    """standardize_context='value_only' must strip the CONTEXT block, entity
+    description, attribute description, and terminology -- but still give the
+    model the available-units list and the extracted measurement/units, since
+    the task is choosing the best-fitting entry from that list, not parsing
+    the value out of source text."""
+    mlm = _make_mlm(standardize_context="value_only")
+    assert mlm.standardize_context == "value_only"
+    mlm.data = [_base_datapoint(0, "12.3")]
+
+    captured = {}
+
+    async def fake_acall(self, messages, response_format=None, temperature=None,
+                          max_tokens=None, timeout=600.0, extra_body=None):
+        captured["prompt"] = messages[0]["content"]
+        return _STANDARDIZE_FAKE_RESPONSE
+
+    monkeypatch.setattr(MeasurementLM, "_acall", fake_acall)
+    monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+
+    standardized = mlm._standardize()
+
+    prompt = captured["prompt"]
+    assert "## CONTEXT:" not in prompt
+    assert "DOC0 text" not in prompt
+    assert "Entity description:" not in prompt
+    assert "Attribute description:" not in prompt
+    assert "Terminology" not in prompt
+    assert "Available units for the attribute: ['m']" in prompt
+    assert "Extracted measurement: 12.3" in prompt
+    assert "Extracted units: m" in prompt
+
+    # Response is still applied exactly as in full mode -- only the prompt
+    # construction differs; value is untouched by _standardize either way.
+    assert standardized[0]["units"] == "m"
+    assert standardized[0]["value"] == "12.3"
+
+
+def test_standardize_context_rejects_unknown_value():
+    """Fail loud on a typo'd mode rather than silently falling back to 'full'."""
+    with pytest.raises(ValueError, match="standardize_context"):
+        _make_mlm(standardize_context="valueonly")  # missing underscore
+
+
+# ---------------------------------------------------------------------------
+# ParseQuantityResponse schema -- 2026-09-24-gptoss120b-parsequantity-
+# schema-diag-{01,02}'s str|float|None fix, matched against VariantD from
+# experiments/run_schema_diag.py (the exact schema those diagnostics
+# validated).
+# ---------------------------------------------------------------------------
+
+_QUANTITY_SCALAR_FIELDS = ("point_value", "lower", "upper", "tolerance", "standard_deviation")
+
+
+def test_parse_quantity_response_schema_matches_validated_variant_d_shape():
+    """Each scalar quantity field must decode as string-or-number-or-null
+    (str listed first, matching VariantD's declared str | float | None
+    order); qualifiers/list_values/explanation must be untouched -- widening
+    those wasn't validated (list_values is a list shape; qualifiers/
+    explanation showed no failures)."""
+    props = ParseQuantityResponse.model_json_schema()["properties"]
+    for field in _QUANTITY_SCALAR_FIELDS:
+        any_of = props[field]["anyOf"]
+        assert [t.get("type") for t in any_of] == ["string", "number", "null"], (
+            f"{field}: expected str | float | None (in that order), got {any_of}"
+        )
+    assert props["list_values"]["anyOf"] == [{"type": "array", "items": {"type": "string"}}, {"type": "null"}]
+    assert props["qualifiers"]["type"] == "array" and props["qualifiers"]["items"] == {"type": "string"}
+    assert props["explanation"]["type"] == "string"
+
+
+@pytest.mark.parametrize("raw_value", [3.2, 12, -0.5, 1.5e8])
+def test_parse_quantity_response_validates_bare_numbers_for_scalar_fields(raw_value):
+    """The specific fix under test: a bare (unquoted) JSON number -- the
+    shape that stalled gpt-oss-120b's guided decoding under the old str-only
+    schema -- must validate and come back as a Python float, not a string."""
+    payload = {
+        "explanation": "ok", "qualifiers": [], "point_value": raw_value,
+        "lower": raw_value, "upper": raw_value, "list_values": None,
+        "tolerance": raw_value, "standard_deviation": raw_value,
+    }
+    result = response_validator(ParseQuantityResponse, json.dumps(payload))
+    for field in _QUANTITY_SCALAR_FIELDS:
+        assert result[field] == raw_value
+        assert isinstance(result[field], float)
+
+
+def test_parse_quantity_response_still_validates_quoted_strings_for_scalar_fields():
+    """Backward compatibility: a quoted numeric string -- what every
+    completed run produced under the old schema, and what the model still
+    emits most of the time -- must still come back as a str, not get
+    silently upgraded to float (smart-mode union resolution picks str for a
+    JSON string literal even when float is also a valid member)."""
+    payload = {
+        "explanation": "ok", "qualifiers": ["IsRange"], "point_value": None,
+        "lower": "3.1", "upper": "4.5", "list_values": None,
+        "tolerance": "± 0.5", "standard_deviation": None,
+    }
+    result = response_validator(ParseQuantityResponse, json.dumps(payload))
+    assert result["lower"] == "3.1" and isinstance(result["lower"], str)
+    assert result["upper"] == "4.5" and isinstance(result["upper"], str)
+    assert result["tolerance"] == "± 0.5" and isinstance(result["tolerance"], str)
 
 
 # ---------------------------------------------------------------------------

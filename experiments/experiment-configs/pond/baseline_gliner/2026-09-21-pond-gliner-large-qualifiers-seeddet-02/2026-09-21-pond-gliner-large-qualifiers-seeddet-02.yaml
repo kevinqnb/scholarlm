@@ -1,0 +1,15 @@
+id: 2026-09-21-pond-gliner-large-qualifiers-seeddet-02
+project: scholarlm
+description: >
+  Second half of the seed-determinism pair for the GLiNER2 baseline -- see
+  2026-09-21-pond-gliner-large-qualifiers-seeddet-01 for the full rationale
+  (identical params/seed/code, run today on GPU under commit 5092cf0's
+  device fix; not compared against the stale 2026-09-20 tinye2e output,
+  which ran on CPU under pre-fix code). Comparison: this run's final.json
+  diffed record-for-record against seeddet-01's.
+seed: 342
+params:
+  dataset: pond
+  model: gliner-large-v1
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "00:20:00"

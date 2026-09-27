@@ -1,0 +1,29 @@
+id: 2026-09-26-pond-chatextract-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of the ChatExtract baseline on pond, backbone gemma-3-27b.
+  Rerun of 2026-09-22-pond-chatextract-gemma27b-full-01 (left untouched as the
+  historical record; this is a fresh id, not a replacement) to pick up
+  commit 2d075bd (src/scholarlm/measurementlm_chatextract.py): ChatExtract's
+  output record now reads its field set off dataset_config.direct_extraction_schema
+  instead of a hardcoded placeholder list -- pond's own run already worked
+  under the old hardcoded list (ecosystem was on it), so this rerun isn't
+  fixing a crash for pond specifically, it's just bringing pond's chatextract
+  output back in line with the other three datasets' fresh runs under the
+  same code, and dropping the now-unused identifiers/location/additional_details
+  placeholder columns the old hardcoded dict also emitted. Same params as the
+  2026-09-22 run otherwise: same ocr_dir (table-cleaning drop_references
+  corpus), same walltime. STAGED-GATES: this is a pure output-schema change to
+  record construction (_make_record) -- no prompts, no model calls, no
+  extraction logic touched, covered by tests/test_measurementlm_chatextract.py
+  (41/41 passing, full suite 956/1 passing) -- and this exact
+  baseline+dataset+model recipe already has full-run precedent
+  (2026-09-22-pond-chatextract-gemma27b-full-01,
+  2026-09-19-pond-chatextract-gemma27b-{smoke,tinye2e,full}-01), so no fresh
+  smoke/tinye2e beyond what those already validated.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "16:00:00"

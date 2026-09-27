@@ -1,0 +1,43 @@
+id: 2026-09-23-pond-extraction-gemma27b-standardize-valueonly-tinye2e-02
+project: scholarlm
+description: >
+  Rung-3 retest of STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS after
+  adding the basis/component-annotation bullet (commit TBD, see
+  src/scholarlm/instruction_prompts.py) -- byte-identical params to
+  2026-09-23-pond-extraction-gemma27b-standardize-valueonly-tinye2e-01, same
+  copied-in values.json checkpoint, same seed 342. Only the prompt wording
+  changed.
+
+  rung-3-01 (old wording) found 15/19 matched rows landing exactly where the
+  full-context control
+  (2026-09-22-pond-extraction-gemma27b-parseqty-valueonly-tinye2e-01) put
+  them, but the 4 tn "mg N/L" rows diverged (value-only kept "mg N/L"
+  unchanged; control collapsed it to "mg/L"), while the structurally
+  identical 4 tp "mg P/L" rows did not diverge (both modes collapsed to
+  "mg/L"). Checked against the actual attribute definitions
+  (experiments/dataset-configs/pond.py): tn/tp are defined as aggregate
+  elemental-basis concentrations, so "mg N/L" vs "mg/L" for tn (and "mg P/L"
+  vs "mg/L" for tp) is a pure relabeling with no conversion -- the control's
+  collapse was correct, and old-wording value-only's inconsistency between
+  the two structurally identical cases looked like a genuine gap in the
+  instructions, not principled behavior.
+
+  Predicted outcome under the new wording: all 4 tn "mg N/L" rows now also
+  collapse to "mg/L", bringing value-only to 19/19 agreement with control on
+  this checkpoint (matching tp's existing 4/4). No other row should change
+  from rung-3-01's output -- the new bullet only adds permission for a
+  specific class of annotation-dropping, it doesn't touch the null/unitless
+  ph rows, chla's Greek-mu notational variant, or surface_area's superscript
+  variant, none of which involve a basis annotation. If any of those
+  unrelated rows change, or the tn rows still don't collapse, stop before
+  the full run.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  step: final
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "01:00:00"

@@ -1,0 +1,47 @@
+id: 2026-09-26-pond-ablation1-gptoss120b-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction) on pond,
+  model=gpt-oss-120b, with params.include_qualifiers=false: the model's
+  direct-extraction schema/prompt/instructions drop the 7 qualifier/shape
+  fields (qualifiers, point_value, lower, upper, list_values, tolerance,
+  standard_deviation) entirely, per the DirectExtractionItemSchemaNoQualifiers
+  / _DIRECT_EXTRACTION_PROMPT_NO_QUALIFIERS /
+  DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS machinery built
+  2026-09-25-ablation1-no-qualifiers-01 /
+  2026-09-25-ablation1-no-qualifiers-all-datasets-01
+  (devlog/2026-09-25-ablation1-no-qualifiers-01.md), same as
+  2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01 but with
+  model=gpt-oss-120b instead of gemma-3-27b. Every other field (entity, event,
+  attribute, value, units) is unchanged from the qualifier-bearing schema --
+  verified byte-for-byte in tests/test_ablation1_no_qualifiers.py. Direct
+  comparison arm to 2026-09-21-pond-ablation1-gptoss120b-full-01 (same
+  dataset/model/ablation/ocr_dir/seed, include_qualifiers=true there
+  implicitly).
+
+  ocr_dir/walltime copied verbatim from that gptoss120b baseline for an
+  apples-to-apples comparison -- this run's schema is a strict subset of the
+  baseline's (same entity/event/attribute/value/units fields, 7 fewer output
+  fields per item), so per-call output size can only be equal to or smaller
+  than what already fit in the baseline's 07:00:00 budget, per the same
+  reasoning as the gemma27b/llama8b-reppen noqualifiers precedents. resume
+  dropped, matching every other no-qualifiers ablation1 config in this repo:
+  run_ablation.py never reads a "resume" key for ablation 1's single-call
+  fit().
+
+  STAGED-GATES: rung 1 (unit tests, tests/test_ablation1_no_qualifiers.py) is
+  done for the no-qualifiers schema/prompt machinery itself, but there is no
+  rung-2/3 pass for this exact (gpt-oss-120b, no-qualifiers, ablation 1,
+  pond) combination -- the qualifier-bearing gpt-oss-120b/pond/ablation1
+  baseline this compares against was itself submitted without a smoke/tinye2e
+  per its own config's description. Do not submit this config before a smoke
+  run and a tiny end-to-end with a predicted result on this specific
+  (dataset, model, ablation) triple.
+seed: 342
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  ablation: "1"
+  include_qualifiers: false
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "07:00:00"

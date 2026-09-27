@@ -27,7 +27,22 @@ Usage
 
 Required params: dataset.
 Optional params: model (default: gliner-large-v1; also: gliner-base-v1),
-paper_subset (list), threshold (default 0.5), batch_size (default 8), device.
+paper_subset (list), ocr_dir (default "{data_dir}/ocr_output_raw" -- until
+2026-09-25 this param was silently ignored; see run_baseline_gliner()'s
+docstring), threshold (default 0.5), batch_size (default 8),
+include_qualifiers (bool, default true -- false drops the 7 qualifier/shape
+fields from every per-attribute GLiNER structure entirely, mirroring
+run_ablation.py's own flag. Unlike Ablation 1/NuExtract3/LangExtract, GLiNER's
+quantity fields are hardcoded in measurementlm_gliner.py rather than driven by
+a dataset-config schema, so this works for every dataset with no config
+changes required).
+
+`device` is NOT a params key -- GLiNER2 loads weights directly in-process (no
+vLLM server), so the device to load them onto is a fixed per-model value, not
+something that varies between experiments; it lives in the model config
+(`experiments/model-configs/baseline/<model>.yaml`'s `device:` key, e.g.
+`cuda`) alongside that file's `resources:` block. Missing it is a hard error,
+not a CPU fallback -- see measurementlm_gliner.py's `__init__`.
 
 Requires the optional `gliner2[local]` dependency (installed via the `gpu` extra:
 `uv sync --extra gpu`, or `pip install "gliner2[local]"`).
@@ -70,25 +85,51 @@ def run_baseline_gliner(
     model_config,
     output_dir: Path,
     paper_subset_override: list[str] | None = None,
+    ocr_dir: str | None = None,
     threshold: float = 0.5,
     batch_size: int = 8,
-    device: str | None = None,
+    include_qualifiers: bool = True,
+    *,
+    device: str,
 ) -> None:
     """Run the GLiNER2 baseline for a dataset with a given GLiNER model.
 
     Writes a single `final.json` to `output_dir`, in the standard extraction
     record schema (same fields as MeasurementLM/ablation final.json output), so
     it can be loaded via `analysis.loaders.load_extraction` unmodified.
+
+    ocr_dir: If provided, overrides the default `{data_dir}/ocr_output_raw`
+        (same override convention as run_baseline_nuextract3.py/
+        run_baseline_langextract.py's `ocr_dir`, e.g. a table-cleaning-based
+        `experiments/results/{dataset}/drop_references/<id>/` directory).
+        Until 2026-09-25 this runner accepted `params.ocr_dir` in its
+        experiment configs but silently never read it -- every full run
+        before that date read raw OCR regardless of what its config claimed;
+        see notes/scholarlm/builds for the fix.
+    include_qualifiers: False drops the 7 qualifier/shape fields
+        (qualifiers/point_value/lower/upper/list_values/tolerance/
+        standard_deviation) from every per-attribute GLiNER structure --
+        mirrors run_ablation.py's own flag, but needs no dataset-config
+        variant (see MeasurementLMGliner's own docstring).
     """
+    if not isinstance(include_qualifiers, bool):
+        raise ValueError(
+            f"include_qualifiers must be a bool, got {include_qualifiers!r} "
+            f"({type(include_qualifiers).__name__}) -- a YAML string like "
+            f"'false' is truthy in Python and would silently run with "
+            f"qualifiers included while claiming otherwise."
+        )
     data_dir = Path(dataset_config.data_dir)
+
+    # GLiNER reads OCR text directly (same input as MeasurementLM / ChatExtract).
+    effective_ocr_dir = ocr_dir or str(data_dir / "ocr_output_raw")
 
     print(f"\nDataset   : {dataset_config.name}")
     print(f"Model     : {model_config.name} ({model_config.model_id})")
+    print(f"OCR dir   : {effective_ocr_dir}")
     print(f"Output    : {output_dir}\n")
 
-    # GLiNER reads OCR text directly (same input as MeasurementLM / ChatExtract).
-    ocr_dir = str(data_dir / "ocr_output_raw")
-    text, text_info = load_papers(dataset_config, ocr_dir, paper_subset_override)
+    text, text_info = load_papers(dataset_config, effective_ocr_dir, paper_subset_override)
     print(f"Loaded {len(text_info)} papers.\n")
 
     mlm = MeasurementLMGliner(
@@ -107,6 +148,7 @@ def run_baseline_gliner(
         sampling_params=model_config.sampling_params,
         threshold=threshold,
         batch_size=batch_size,
+        include_qualifiers=include_qualifiers,
         device=device,
     )
 
@@ -135,8 +177,10 @@ def run_baseline_gliner(
         model_id=model_config.model_id,
         hf_revision=model_config.hf_revision,
         baseline="gliner",
+        ocr_dir=effective_ocr_dir,
         threshold=threshold,
         batch_size=batch_size,
+        include_qualifiers=include_qualifiers,
         # GLiNER2.from_pretrained is a local model, no OpenAI-compatible calls
         # (see module docstring) -- token_usage would be all-zero, indistinguishable
         # from "forgot to record", so it's marked n/a rather than omitted.
@@ -176,14 +220,25 @@ def main(argv: list[str] | None = None) -> None:
     model_config = paths.get_model_config("baseline", model_name)
     output_dir = paths.result_dir(params["dataset"], "baseline_gliner", cfg["id"])
 
+    if model_config.device is None:
+        raise ValueError(
+            f"Model config 'baseline/{model_name}.yaml' has no 'device' key. "
+            f"MeasurementLMGliner loads weights directly in-process (no vLLM "
+            f"server) -- without an explicit device it silently stays on "
+            f"whatever nn.Module defaults to (CPU), even inside a GPU job. "
+            f"Add e.g. `device: cuda` to that model config."
+        )
+
     run_baseline_gliner(
         dataset_config=dataset_config,
         model_config=model_config,
         output_dir=output_dir,
         paper_subset_override=params.get("paper_subset"),
+        ocr_dir=params.get("ocr_dir"),
         threshold=params.get("threshold", 0.5),
         batch_size=params.get("batch_size", 8),
-        device=params.get("device"),
+        include_qualifiers=params.get("include_qualifiers", True),
+        device=model_config.device,
     )
 
 

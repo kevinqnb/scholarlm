@@ -1,0 +1,51 @@
+id: 2026-09-24-gptoss120b-parsequantity-schema-diag-02
+project: scholarlm
+description: >
+  Follow-on to 2026-09-24-gptoss120b-parsequantity-schema-diag-01, which
+  confirmed gpt-oss-120b's _parse_quantities() stall is fixed for numeric
+  values by typing point_value: str | float | None (100% success vs 13%
+  under the current str | None). Answers two follow-up questions raised
+  while discussing that result's blast radius:
+
+  (1) Does the same stall hit lower/upper/tolerance/standard_deviation, or
+  did diag-01 only look "point_value-specific" because it sampled plain
+  point-value records (no range/mean+-sd), so the model never got far
+  enough into the response to reach those fields? Tests point_value's
+  current schema (a) vs a variant (d) where point_value/lower/upper/
+  tolerance/standard_deviation are ALL str | float | None, on real
+  range-shaped ("3.1-4.5") and +/--shaped ("60 +/- 5") raw values pulled
+  from 2026-09-21-pond-extraction-gptoss120b-full-01/values.json -- i.e.
+  records that actually need those fields populated with a second bare
+  number, unlike diag-01's sample.
+
+  (2) Would the same str | float | None treatment help
+  TextValueExtractionResponse's `value` field (the step *before*
+  standardize/parse_quantities, src/scholarlm/measurementlm.py)? That step
+  showed only 18 validation errors across the entire 2026-09-21
+  gpt-oss-120b pond run (a different error signature from the
+  parse-quantity stall -- 'NoneType' object is not iterable, not a
+  point_value-style whitespace stall), so the expectation going in is a
+  ceiling effect (little room to improve) rather than a real fix -- this
+  section exists to confirm that rather than assume it. Replays real
+  text-sourced numeric records with their full production context
+  (attribute/entity description, page text, event fields, all pulled
+  directly from values.json) through the exact _extract_values_from_text()
+  prompt, current schema vs value: str | float | None.
+
+  Same runner as diag-01 (experiments/run_schema_diag.py, extended in place
+  with 2 new sections gated on these params' presence -- diag-01's own
+  params/behavior are unchanged). Manual/composite type, not wired into
+  submit.sh's EXPERIMENT_TYPES (same reasoning as diag-01).
+seed: 342
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  source_experiment_id: 2026-09-21-pond-extraction-gptoss120b-full-01
+  n_range_values: 10
+  n_pm_values: 10
+  n_repeats: 3
+  max_tokens: 1024
+  n_value_field_samples: 10
+  n_value_field_repeats: 3
+  value_field_max_tokens: 512
+  walltime: "02:00:00"

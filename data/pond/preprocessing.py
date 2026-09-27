@@ -6,8 +6,26 @@ Pipeline
     raw_data/pond_data_corrected.csv
         ↓  filter to registered papers, add document_id + units
         ↓  page attribution via OCR scoring
+        ↓  add qualifier/shape fields (all null except point_value=value --
+           see QUALIFIER_FIELDS)
     ground_truth.json                  (all registered papers)
     ground_truth_ten.json              (top-10 paper development subset)
+
+ground_truth_review.json / ground_truth_ten_review.json are produced
+afterwards by apply_review.py from page_review.csv corrections, and are the
+file DatasetConfig.ground_truth_file actually points at -- the qualifier
+fields added here flow through unchanged, except point_value, which
+apply_review.py resyncs to any corrected value.
+
+Row order is NOT guaranteed stable across reruns -- it depends on
+pond_data_corrected.csv's own on-disk row order, which this function does not
+canonicalize. page_review.csv's gt_row_index is a row *position*, so if
+pond_data_corrected.csv or this function's construction logic changes, that
+alignment must be re-verified by hand (e.g. a content-key match against the
+previously-committed ground_truth.json) before trusting page_review.csv
+against a fresh build -- nothing here re-derives it automatically. See
+notes/scholarlm/builds/2026-09-22-qualifier-ground-truth-01.md for the one
+time this bit and how it was recovered.
 
 Note on entity assignment
 --------------------------
@@ -97,6 +115,16 @@ _EXCLUDED_FROM_GT: frozenset[str] = frozenset({
     "summer_assessment",  # data only in supplemental text
 })
 
+# Must match ParseQuantityResponse in src/scholarlm/measurementlm.py exactly,
+# minus `explanation` (a generation-only field, not part of the GT record).
+# pond's raw data has no shape annotation beyond a single reported value, so
+# every field is null except `point_value`, which copies `value` -- the only
+# shape fact this ground truth has: a plain point value was reported.
+QUALIFIER_FIELDS = [
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+]
+
 
 def _add_page_attribution(gt: pd.DataFrame, ocr_dir: Path) -> pd.DataFrame:
     """Append page_number, page_score, and page_confidence columns to *gt*.
@@ -151,7 +179,8 @@ def build_ground_truth(corrected_path: Path, out_dir: Path) -> None:
 
     Output schema: document_id, name, identifiers, location, ecosystem, date,
     additional_details, attribute, value, units, page_number, page_score,
-    page_confidence.
+    page_confidence, plus QUALIFIER_FIELDS (qualifiers, point_value, lower,
+    upper, list_values, tolerance, standard_deviation).
 
     Args:
         corrected_path: Path to ``pond_data_corrected.csv``.
@@ -195,10 +224,14 @@ def build_ground_truth(corrected_path: Path, out_dir: Path) -> None:
     ]
     df["value"] = df["value"] * factors
 
+    for field in QUALIFIER_FIELDS:
+        df[field] = None
+    df["point_value"] = df["value"]
+
     final_cols = [
         "document_id", "name", "identifiers", "location", "ecosystem",
         "date", "additional_details", "attribute", "value", "units",
-    ]
+    ] + QUALIFIER_FIELDS
     df_final = df[final_cols].reset_index(drop=True)
 
     df_final = _add_page_attribution(df_final, BASE / "ocr_output_raw")

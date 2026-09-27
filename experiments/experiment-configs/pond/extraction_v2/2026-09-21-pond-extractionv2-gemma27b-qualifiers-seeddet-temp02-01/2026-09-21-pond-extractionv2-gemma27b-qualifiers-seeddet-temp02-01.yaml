@@ -1,0 +1,38 @@
+id: 2026-09-21-pond-extractionv2-gemma27b-qualifiers-seeddet-temp02-01
+project: scholarlm
+description: >
+  Rerun of the MeasurementLMv2 seed-determinism pair
+  (2026-09-21-pond-extractionv2-gemma27b-qualifiers-seeddet-01/-02, see
+  notes/scholarlm/experiments/2026-09-21-qualifiers-seeddet-01.md) after
+  lowering experiments/model-configs/extraction/gemma-3-27b.yaml's
+  temperature 0.6 -> 0.2 repo-wide. v2 already forwarded `seed` correctly
+  via its own `_seed_extra_body()` workaround in the original round and
+  still diverged (13 vs 19 records), so this pair isolates temperature as
+  the remaining variable -- v2's seed-forwarding code is unchanged here.
+  Testing hypothesis: comparing the original seeddet round's four
+  gemma-3-27b runs (NuExtract3: 1 call, temp 0.2, seeded -> identical;
+  ChatExtract: 915 calls, temp 0.0 -> identical; v1: temp 0.6, seed dropped
+  -> diverged; v2: temp 0.6, seed forwarded -> still diverged) is
+  *consistent with* temperature-amplified vLLM float noise compounding
+  across a chained multi-step pipeline being the dominant driver, rather
+  than batching/AWQ-marlin nondeterminism -- but this pair is what actually
+  tests that prediction, not a confirmed conclusion; if it still diverges at
+  0.2 the hypothesis is wrong or incomplete, not the run. Lowering to 0.2
+  (not 0.0, per user decision) tests whether that closes most of the gap
+  without fully collapsing to ChatExtract's greedy regime. This changes the
+  sampling method from every prior v2 run
+  and invalidates their numbers for direct comparison -- flagged explicitly
+  per CLAUDE.md's eval-adjacent-parameter caution, even though this is
+  pipeline (not eval) code.
+  Paired with sibling config
+  2026-09-21-pond-extractionv2-gemma27b-qualifiers-seeddet-temp02-02: same
+  seed (342), same params, same code, same input
+  (trophic_status_and_threats.txt via ocr_dir), both run today. Comparison:
+  this run's final.json diffed record-for-record against temp02-02's.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ocr_dir: data/pond/ocr_output_cleaned_gemma-3-27b
+  paper_subset: ["trophic_status_and_threats"]
+  walltime: "01:00:00"

@@ -15,6 +15,20 @@ from typing import Callable
 from pydantic import BaseModel
 
 
+# The 7 qualifier/shape fields every direct-extraction-style method (Ablation
+# 1, NuExtract3, LangExtract, GLiNER) either asks the model for directly or
+# hardcodes into its own schema -- the same shape MeasurementLM._parse_quantities()
+# produces via a separate step. Single source of truth for "exactly these
+# fields, nothing else" across dataset configs (direct_extraction_schema_no_qualifiers
+# / nuextract_examples_no_qualifiers), measurementlm_gliner.py, and their tests --
+# a drift between independently-hardcoded copies of this set is exactly the
+# silent-wrong-number failure mode CLAUDE.md warns about.
+QUALIFIER_FIELD_NAMES = (
+    "qualifiers", "point_value", "lower", "upper",
+    "list_values", "tolerance", "standard_deviation",
+)
+
+
 @dataclass
 class DatasetConfig:
     """
@@ -70,6 +84,21 @@ class DatasetConfig:
             describes entities, measurement events, and attributes in a single
             combined block.  Required when ``direct_extraction_schema`` is set;
             ignored otherwise.
+        direct_extraction_schema_no_qualifiers: Optional variant of
+            ``direct_extraction_schema`` with ``QUALIFIER_FIELD_NAMES`` removed.
+            Used by Ablation 1, NuExtract3, and LangExtract
+            (``MeasurementLMAblation1``/``MeasurementLMNuExtract3``/
+            ``MeasurementLMLangExtract``) when an experiment config explicitly
+            sets ``params.include_qualifiers: false`` (see ``run_ablation.py``,
+            ``run_baseline_nuextract3.py``, ``run_baseline_langextract.py``);
+            ``None`` means this dataset has no such variant defined, which
+            those runners fail loud on rather than falling back to the
+            qualifier-bearing schema. The GLiNER2 baseline needs no such
+            variant -- see ``measurementlm_gliner.py``'s own
+            ``include_qualifiers`` constructor flag.
+        direct_extraction_prompt_no_qualifiers: The ``direct_extraction_prompt``
+            counterpart to ``direct_extraction_schema_no_qualifiers`` -- same
+            rules.
         ablation2_entity_schema: Optional Pydantic ``BaseModel`` subclass used by
             Ablation 2 (combined entity-attribute extraction).  Must include all
             normal entity fields plus two reserved fields: ``attribute (str)`` (exact
@@ -97,6 +126,16 @@ class DatasetConfig:
             ``verbatim-string`` fields are trained to copy spans, not paraphrase).
             Synthetic text, not real paper excerpts — must never overlap with
             ``ground_truth_file`` papers.  Ignored by every other pipeline path.
+        nuextract_examples_no_qualifiers: Optional variant of ``nuextract_examples``
+            with ``QUALIFIER_FIELD_NAMES`` removed from every output item, for the
+            NuExtract3 and LangExtract baselines
+            (``MeasurementLMNuExtract3``/``MeasurementLMLangExtract``) when an
+            experiment config sets ``params.include_qualifiers: false`` — the
+            few-shot counterpart to ``direct_extraction_schema_no_qualifiers``,
+            so the examples shown to the model don't contradict its
+            qualifier-free schema. ``None`` means this dataset has no such
+            variant, which those runners fail loud on rather than falling back
+            to the qualifier-bearing examples.
         chatextract_property_names: Optional mapping from each ``attribute_info_dict``
             key to a short, human-readable *property phrase* for the ChatExtract
             baseline (``MeasurementLMChatExtract``).  ChatExtract is a single-property
@@ -163,6 +202,41 @@ class DatasetConfig:
             structurally via ``gliner_field_descriptions``, and ChatExtract's flat
             schema never included it, so this is currently only load-bearing for
             the two NuExtract baselines). ``None`` applies no filtering.
+        strict_matching: Optional column mapping (ground-truth column name ->
+            extraction column name) for exact-match comparison, passed to
+            ``scholarlm.utils.data.match_datasets`` by
+            ``analysis/match_cache.py`` and ``analysis/recovery_validity.py``
+            (via ``analysis.match_cache.get_matching_config``) — the single
+            centralized source of matching rules for that id-addressed
+            evaluation path. Not read by the legacy, pre-id-addressing
+            ``analysis/ablation.py``/``analysis/baselines.py`` (their own
+            ``get_matching_rules`` predates this field and scores a different
+            column shape — ``converted_value`` rather than ``point_value`` —
+            against an earlier extraction/judge era; the two are allowed to
+            diverge, see ``analysis/match_cache.py``'s module docstring).
+            Required (raises) if unset when a dataset is used through
+            ``match_cache.py``/``recovery_validity.py``.
+        fuzzy_matching: Optional column mapping (ground-truth -> extraction)
+            for fuzzy-score comparison, same consumer as ``strict_matching``.
+            Required (raises) if unset when a dataset is used through
+            ``match_cache.py``/``recovery_validity.py``; ``fuzzy_threshold``
+            must also be set whenever this is.
+        fuzzy_threshold: Optional selected/default operating threshold for
+            ``fuzzy_matching`` scores, same consumer as ``strict_matching``.
+            Applied on top of a match cache built at ``fuzzy_threshold=0.0``
+            (every cache is built at 0.0 regardless of this value — see
+            ``analysis/match_cache.py``'s module docstring) via
+            ``analysis.match_cache.edges_above_threshold``/
+            ``load_match_cache(..., fuzzy_threshold=...)``, never passed to
+            the cache-building call itself. Required (raises) if unset
+            whenever ``fuzzy_matching`` is.
+        numeric_coerce: Optional subset of ``strict_matching``'s keys
+            (ground-truth column names) that must be coerced to float on both
+            sides before strict matching — see
+            ``analysis/match_cache.py``'s ``_parse_numeric``/module docstring
+            for why (a strict-match column can be numeric in the ground truth
+            but a raw string in extraction output). ``None``/``[]`` applies no
+            coercion.
     """
 
     name: str
@@ -179,6 +253,8 @@ class DatasetConfig:
     measurement_event_prompt: str | None = None
     direct_extraction_schema: type[BaseModel] | None = None
     direct_extraction_prompt: str | None = None
+    direct_extraction_schema_no_qualifiers: type[BaseModel] | None = None
+    direct_extraction_prompt_no_qualifiers: str | None = None
     ablation2_entity_schema: type[BaseModel] | None = None
     ablation2_entity_identification_prompt: str | None = None
     ground_truth_file: str | None = None
@@ -187,12 +263,17 @@ class DatasetConfig:
     judge_filter_fields: list[str] | None = None
     judge_instructions: str | None = None
     nuextract_examples: list[dict] | None = None
+    nuextract_examples_no_qualifiers: list[dict] | None = None
     chatextract_property_names: dict[str, str] | None = None
     chatextract_entity_noun: str | None = None
     gliner_property_names: dict[str, str] | None = None
     gliner_entity_description: str | None = None
     gliner_field_descriptions: dict[str, str] | None = None
     baseline_filter_fields: list[str] | None = None
+    strict_matching: dict[str, str] | None = None
+    fuzzy_matching: dict[str, str] | None = None
+    fuzzy_threshold: float | None = None
+    numeric_coerce: list[str] | None = None
 
 
 @dataclass
@@ -216,6 +297,12 @@ class ModelConfig:
             ``"https://api.openai.com/v1"``).  When ``None``, the model is
             assumed to be a vLLM instance and runners use their ``--api-base``
             CLI argument instead.
+        device: Torch device to load weights onto directly (e.g. ``"cuda"``),
+            for models a runner loads in-process rather than through a served
+            API/vLLM endpoint (currently only the GLiNER baseline). ``None``
+            for every other kind, which never reads this field. A runner that
+            does load weights directly must fail loud if this is ``None``
+            rather than falling back to CPU -- see measurementlm_gliner.py.
     """
 
     name: str
@@ -230,3 +317,4 @@ class ModelConfig:
         }
     )
     api_base: str | None = None
+    device: str | None = None

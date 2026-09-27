@@ -27,6 +27,14 @@ Changes from the baseline MeasurementLM:
    provenance fields (page_number, table_number, etc.) are produced.
 
 Unchanged from baseline: save().
+
+direct_extraction_instructions defaults to DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
+but can be overridden -- run_ablation.py passes
+DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS along with a dataset's
+*_no_qualifiers schema/prompt when params.include_qualifiers is explicitly
+false, to test whether a later parsing step (analysis/postprocessing.py) can
+recover the qualifier/shape fields as well as asking the model for them
+directly (see point 2/3 above).
 """
 
 from functools import partial
@@ -50,11 +58,13 @@ class MeasurementLMAblation1(MeasurementLM):
         max_concurrent: int = 1,
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
+        direct_extraction_instructions: str = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
         **kwargs,
     ):
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
+        self.direct_extraction_instructions = direct_extraction_instructions
 
     # -----------------------------------------------------------------------
     # Single extraction step: extract all records directly
@@ -87,7 +97,7 @@ class MeasurementLMAblation1(MeasurementLM):
             context = datapoint['context']
             query = "Extract all measurement records from this document as described in the instructions."
             prompt = (
-                f"## INSTRUCTIONS:\n{DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS}\n\n"
+                f"## INSTRUCTIONS:\n{self.direct_extraction_instructions}\n\n"
                 f"## DATASET SPECIFIC INSTRUCTIONS:\n{self.direct_extraction_prompt}\n\n"
                 f"## CONTEXT:\n{context}\n\n## QUERY:\n{query}"
             )
