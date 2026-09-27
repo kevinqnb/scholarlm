@@ -36,4 +36,4 @@ params:
   ablation: "1"
   ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
   resume: true
-  walltime: "23:00:00"
+  walltime: "72:00:00"

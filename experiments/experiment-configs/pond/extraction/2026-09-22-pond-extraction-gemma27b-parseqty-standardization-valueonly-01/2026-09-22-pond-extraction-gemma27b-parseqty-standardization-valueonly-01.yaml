@@ -68,7 +68,7 @@ params:
   dataset: pond
   model: gemma-3-27b
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
-  step: final
+  resume: true
   parse_quantities_context: value_only
   standardize_context: value_only
   walltime: "05:00:00"

@@ -607,7 +607,7 @@ CONFIG = DatasetConfig(
     # catch-all for distinguishing measurements from each other, not the main
     # extraction interest, so it's kept out of the judge prompt too.
     judge_filter_fields=["identifiers", "event_details"],
-    ground_truth_file="data/supermat/ground_truth.json",
+    ground_truth_file="data/supermat/ground_truth_qualifiers.json",
     # Matching rules for the id-addressed evaluation path (analysis/match_cache.py,
     # analysis/recovery_validity.py) -- see DatasetConfig's docstring for scope
     # and why these are allowed to diverge from analysis/ablation.py's own
@@ -616,11 +616,15 @@ CONFIG = DatasetConfig(
     strict_matching={
         "document_id": "document_id",
         "attribute": "attribute",
+        "point_value": "point_value",
         "units": "units",
+        "upper": "upper",
+        "lower": "lower",
+        "tolerance": "tolerance",
+        "standard_deviation": "standard_deviation"
     },
     fuzzy_matching={
         "name": "name",
-        "value": "value"
     },
-    fuzzy_threshold=0.625,
+    fuzzy_threshold=0.5,
 )

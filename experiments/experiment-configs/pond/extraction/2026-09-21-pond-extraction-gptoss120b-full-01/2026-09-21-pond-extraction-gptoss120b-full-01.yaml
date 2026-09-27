@@ -40,7 +40,7 @@ params:
   dataset: pond
   model: gpt-oss-120b
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
-  step: final
+  resume: true
   parse_quantities_context: value_only
   standardize_context: value_only
   walltime: "30:00:00"

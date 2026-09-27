@@ -37,7 +37,7 @@ params:
   dataset: supermat
   model: gemma-3-27b
   ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
-  step: final
+  resume: true
   parse_quantities_context: value_only
   standardize_context: value_only
   walltime: "12:00:00"
