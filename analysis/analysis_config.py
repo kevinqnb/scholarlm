@@ -40,7 +40,7 @@ ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
 # can reject a stray top-level key (e.g. a value meant for
 # params.recovery_validity dropped at the top level instead) instead of
 # silently ignoring it. Add a script's section name here when it grows one.
-KNOWN_PARAM_SECTIONS = {"recovery_validity"}
+KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation"}
 
 
 def _resolve_ground_truth_path(ground_truth_file: str) -> Path:

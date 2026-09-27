@@ -89,6 +89,7 @@ sys.path.insert(0, str(REPO_ROOT))
 import pandas as pd
 
 import utils as paths
+from analysis.analysis_config import get_section, load_analysis_config
 from experiments.run_extraction import load_dataset_config
 
 MEASEVAL_ROOT = REPO_ROOT / "data" / "measeval"
@@ -591,16 +592,7 @@ def evaluate(
     }
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--experiment-id", required=True)
-    parser.add_argument("--dev", action="store_true",
-                         help="Plumbing-only mode for non-eval-split runs. Not a comparable score.")
-    parser.add_argument("--out-dir", type=Path, default=None)
-    args = parser.parse_args(argv)
-
-    result = evaluate(args.experiment_id, dev=args.dev, out_dir=args.out_dir)
-
+def _print_result(result: dict) -> None:
     print(f"experiment_id: {result['experiment_id']}")
     print(f"dev mode: {result['dev']}" + (" (NOT a comparable score)" if result["dev"] else ""))
     print(f"documents: {result['documents']}")
@@ -618,6 +610,97 @@ def main(argv: list[str] | None = None) -> None:
         for metric, value in metrics.items():
             print(f"  {metric}: {value}")
         print()
+
+
+# Maps the official scorer's verbose metric names (as parse_class_scores keys
+# them) onto the flat snake_case columns a config-loop CSV row uses.
+_METRIC_COLUMNS = {
+    "True positives (matching rows)": "true_positives",
+    "False positives (submission only)": "false_positives",
+    "False negatives (gold only)": "false_negatives",
+    "Precision": "precision",
+    "Recall": "recall",
+    "F-measure": "f_measure",
+    "Exact Match Score": "exact_match_score",
+    "F1 (Overlap) Score": "f1_overlap_score",
+}
+
+
+def _result_rows(result: dict, analysis_config_id: str) -> list[dict]:
+    """Flatten one evaluate() result into one CSV row per scored annotation type."""
+    coverage = result["coverage"]
+    excluded = result["excluded_non_eval"]
+    rows = []
+    for annot_type, metrics in result["scores"].items():
+        row = {
+            "experiment_id": result["experiment_id"],
+            "dataset": "measeval",
+            "dev": result["dev"],
+            "annot_type": annot_type,
+            "n_documents_scored": len(result["documents"]),
+            "n_documents_excluded_non_eval": len(excluded["documents"]),
+            "n_records_excluded_non_eval": excluded["records"],
+            "n_records_total": coverage["total_records"],
+            "n_quantity_located": coverage["quantity_located"],
+            "n_entity_located": coverage["entity_located"],
+            "analysis_config_id": analysis_config_id,
+        }
+        for metric_name, column in _METRIC_COLUMNS.items():
+            row[column] = metrics.get(metric_name)
+        rows.append(row)
+    return rows
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--experiment-id", default=None,
+                         help="A single measeval run to score. Mutually exclusive with --config.")
+    parser.add_argument("--dev", action="store_true",
+                         help="Plumbing-only mode for non-eval-split runs. Not a comparable score. "
+                              "Ignored with --config, which requires params.measeval_evaluation.dev explicit.")
+    parser.add_argument("--out-dir", type=Path, default=None,
+                         help="Ignored with --config -- each id writes to its own default "
+                              "analysis/out/measeval/<id>/ directory.")
+    parser.add_argument(
+        "--config", type=Path, default=None,
+        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+             "params.measeval_evaluation (dev, output) -- mutually exclusive with "
+             "--experiment-id/--dev/--out-dir. Scores every id in the list and writes "
+             "one combined CSV to params.measeval_evaluation.output.",
+    )
+    args = parser.parse_args(argv)
+
+    cli_flags_given = args.experiment_id is not None or args.dev or args.out_dir is not None
+    if args.config and cli_flags_given:
+        parser.error("--config is mutually exclusive with --experiment-id/--dev/--out-dir")
+    if not args.config and args.experiment_id is None:
+        parser.error("--experiment-id is required unless --config is given")
+
+    if args.config:
+        cfg = load_analysis_config(args.config)
+        experiment_ids = cfg["params"]["experiment_ids"]
+        section = get_section(cfg, "measeval_evaluation", required_keys=("dev", "output"))
+        dev = section["dev"]
+        if not isinstance(dev, bool):
+            raise ValueError(
+                f"{args.config}: params.measeval_evaluation.dev must be a bool, got {dev!r}"
+            )
+        output = Path(section["output"])
+        if not output.is_absolute():
+            output = REPO_ROOT / output
+
+        rows = []
+        for experiment_id in experiment_ids:
+            result = evaluate(experiment_id, dev=dev)
+            _print_result(result)
+            rows.extend(_result_rows(result, analysis_config_id=cfg["id"]))
+
+        output.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_csv(output, index=False)
+        print(f"wrote {len(rows)} rows ({len(experiment_ids)} experiment_ids) to {output}")
+    else:
+        result = evaluate(args.experiment_id, dev=args.dev, out_dir=args.out_dir)
+        _print_result(result)
 
 
 if __name__ == "__main__":
