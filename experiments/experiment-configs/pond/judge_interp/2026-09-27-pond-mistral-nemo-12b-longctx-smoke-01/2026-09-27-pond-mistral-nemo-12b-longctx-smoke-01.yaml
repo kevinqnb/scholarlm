@@ -1,0 +1,44 @@
+id: 2026-09-27-pond-mistral-nemo-12b-longctx-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke test for the mistral-nemo-12b.yaml interp-judge model-config
+  (2026-09-27, replaces mistral-7b) before any of the 39 real 2026-09-27 judge
+  batch configs that use it are submitted. params.synthetic_file points at a
+  hand-picked 2-row fixture
+  (scratchpad/mistral_nemo_longctx_fixture.json, rows 2671 and 3064 of
+  data/pond/probe_dataset_test_v2.json verbatim, 130879 and 102038 chars of
+  context_override respectively -- the two longest real full-paper contexts
+  in that file) run through the REAL run_judge_interp.py path (NNsight load +
+  activation capture), not a standalone plain-generate() proxy: an earlier
+  needle-in-a-haystack diagnostic
+  (experiments/mistral_nemo_needle_test.py, uncommitted, superseded) was
+  dropped after re-deriving mistral-nemo-12b's memory footprint from its real
+  HF config (40 layers, GQA 8 kv-heads, head_dim 128: weights ~22.8GiB bf16 +
+  KV cache ~10.4GiB at ~68k context) and noticing that qwen-2.5-7b.yaml's own
+  observed 44.4GiB figure is ~26.6GiB above ITS weights+KV total (17.8GiB) --
+  almost certainly NNsight's per-layer attention/residual activation capture,
+  which a plain-generate() script never exercises. This config's own peak
+  memory (once run) is the only apples-to-apples data point for the
+  resources: block's currently-UNVALIDATED 80G/H200 guess.
+  PREDICTED RESULT: completes without OOM or crash; writes responses.json
+  with 2 rows, each judgement in {true, false} and judgement_prob in [0, 1];
+  writes non-empty attention_outputs.npz and layer_outputs.npz. This predicts
+  PLUMBING only (loads, fits, produces well-typed output) -- it makes no
+  claim about whether either judgement is semantically correct (both fixture
+  rows carry label: valid from the probe-augmentation pipeline, but that
+  label is about a different, unrelated modification-detection task, not a
+  ground-truth judge verdict; do not compare against it).
+  STAGED-GATES: rung 1 (unit test) not applicable -- no new library code,
+  this exercises the existing synthetic_file path already covered by
+  tests/test_run_judge_interp_synthetic.py. This IS rung 2 (smoke: one
+  step, smallest available input that still exercises full-paper-length
+  context, run through submit.sh rather than a raw qsub since
+  params.synthetic_file makes this a real, if minimal, experiment config).
+  Rung 3 (tiny end-to-end with the real 2026-09-27 batch's actual extraction
+  ids) and rung 4 (full batch) both remain blocked on this passing.
+seed: 342
+params:
+  dataset: pond
+  judge: mistral-nemo-12b
+  synthetic_file: /projectnb/mcnet/kevin/tmp/claude-294603/-projectnb-mcnet-kevin-coastal-scholarlm/7ee3f717-a61e-43f1-9641-94a30fe80366/scratchpad/mistral_nemo_longctx_fixture.json
+  walltime: "01:00:00"
