@@ -503,10 +503,18 @@ def evaluate(
 ) -> dict:
     """Export an extraction run to MeasEval TSVs and score it with the official scorer.
 
-    dev=False (default): every document in the run must belong to the official
-    `eval` split (raw/data/eval/tsv/) -- scored against the FULL eval gold set,
-    for a number that is actually comparable to published results. Raises if any
-    document isn't in `eval`, rather than silently mixing splits.
+    dev=False (default): filters the run's predictions down to documents in
+    the official `eval` split before scoring, then scores against the FULL
+    eval gold set, for a number that is actually comparable to published
+    results. This filtering is required, not just a convenience: the official
+    scorer loads every submission docId unconditionally (never passed
+    -l/--limit -- see run_official_eval) and joins it to gold on docId with no
+    fallback, so a submission-only docId (i.e. a train/trial document with no
+    corresponding eval-split gold row) doesn't get skipped -- it silently
+    becomes a guaranteed false positive for every Quantity/Unit/MeasuredEntity
+    row on that document, deflating precision. Excluded documents/records are
+    counted and returned under "excluded_non_eval", never silently dropped.
+    Raises if filtering leaves zero eval-split documents -- nothing to score.
 
     dev=True: plumbing-only mode for runs against train/trial documents (e.g.
     the tinye2e smoke configs). Gold is restricted to exactly the documents
@@ -521,15 +529,21 @@ def evaluate(
 
     if dev:
         gold_source_dirs = {doc_id: RAW_DATA_DIR / split / "tsv" for doc_id, split in splits.items()}
+        excluded_non_eval = {"documents": [], "records": 0}
     else:
-        non_eval = {doc_id: split for doc_id, split in splits.items() if split != "eval"}
-        if non_eval:
+        eval_doc_ids = [doc_id for doc_id in doc_ids if splits[doc_id] == "eval"]
+        non_eval_doc_ids = [doc_id for doc_id in doc_ids if splits[doc_id] != "eval"]
+        if not eval_doc_ids:
             raise ValueError(
-                f"evaluate(dev=False) requires every document to be in the official "
-                f"`eval` split for a leaderboard-comparable number; found non-eval "
-                f"documents: {non_eval}. Pass dev=True for a plumbing-only check."
+                f"{experiment_id!r} has no documents in the official `eval` split "
+                f"(all {len(doc_ids)} documents are train/trial) -- nothing to score "
+                f"against the leaderboard-comparable gold set. Pass dev=True for a "
+                f"plumbing-only check instead."
             )
-        gold_source_dirs = {doc_id: RAW_DATA_DIR / "eval" / "tsv" for doc_id in doc_ids}
+        excluded_records = int((~df["document_id"].isin(eval_doc_ids)).sum())
+        excluded_non_eval = {"documents": non_eval_doc_ids, "records": excluded_records}
+        df = df[df["document_id"].isin(eval_doc_ids)].copy()
+        doc_ids = eval_doc_ids
 
     out_dir = Path(out_dir) if out_dir else REPO_ROOT / "analysis" / "out" / "measeval" / experiment_id
     submission_dir = out_dir / "submission"
@@ -569,6 +583,7 @@ def evaluate(
         "experiment_id": experiment_id,
         "dev": dev,
         "documents": doc_ids,
+        "excluded_non_eval": excluded_non_eval,
         "coverage": coverage.as_dict(),
         "scores": scores,
         "raw_scores_including_calibration_doc": raw_scores,
@@ -589,6 +604,11 @@ def main(argv: list[str] | None = None) -> None:
     print(f"experiment_id: {result['experiment_id']}")
     print(f"dev mode: {result['dev']}" + (" (NOT a comparable score)" if result["dev"] else ""))
     print(f"documents: {result['documents']}")
+    excluded = result["excluded_non_eval"]
+    if excluded["documents"]:
+        print(f"excluded (non-eval-split, dropped before scoring): "
+              f"{excluded['records']} records across {len(excluded['documents'])} documents: "
+              f"{excluded['documents']}")
     print(f"coverage: {result['coverage']}")
     print("(Quantity/Unit below have the calibration placeholder doc's 1 known "
           "true positive subtracted out -- see module docstring.)")
