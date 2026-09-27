@@ -1,0 +1,27 @@
+id: 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over supermat extraction
+  (2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01): 3 voting
+  judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) + 3 non-voting NNsight
+  interp judges (llama-3.1-8b, qwen-2.5-7b, mistral-nemo-12b). voting_threshold
+  pinned explicitly (VOTING_JUDGE_KEYS ignores the three interp entries
+  regardless of threshold, but this repo avoids inferred defaults). NOTE:
+  2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01 finished
+  (final.json exists) after
+  analysis/analysis-configs/2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01.yaml
+  was drafted -- still commented out there as of 2026-09-27. This judge config
+  is runnable now; uncomment it upstream when picking up these results in
+  analysis.
+seed: 342
+params:
+  dataset: supermat
+  judge_ids:
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-gptoss120b-judge-local-01
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-qwen72b-judge-local-01
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-llama70b-judge-local-01
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-llama8b-judge-interp-01
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-qwen7b-judge-interp-01
+    - 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-mistralnemo12b-judge-interp-01
+  voting_threshold: 2
+  walltime: "00:30:00"

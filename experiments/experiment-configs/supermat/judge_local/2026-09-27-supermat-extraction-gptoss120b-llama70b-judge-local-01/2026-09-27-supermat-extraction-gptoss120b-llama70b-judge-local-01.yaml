@@ -1,0 +1,15 @@
+id: 2026-09-27-supermat-extraction-gptoss120b-llama70b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (llama-3.3-70b) over supermat extraction
+  (2026-09-21-supermat-extraction-gptoss120b-full-01). Full-paper context
+  against the non-table-cleaned, reference-dropped OCR corpus
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01)
+  -- ocr_dir pinned explicitly rather than relying on the default.
+seed: 342
+params:
+  dataset: supermat
+  judge: llama-3.3-70b
+  extraction_id: 2026-09-21-supermat-extraction-gptoss120b-full-01
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01
+  walltime: "48:00:00"

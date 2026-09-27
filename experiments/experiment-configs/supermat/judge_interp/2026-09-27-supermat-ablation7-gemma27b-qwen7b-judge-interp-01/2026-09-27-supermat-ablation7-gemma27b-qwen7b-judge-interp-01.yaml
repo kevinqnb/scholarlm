@@ -1,0 +1,22 @@
+id: 2026-09-27-supermat-ablation7-gemma27b-qwen7b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (qwen-2.5-7b) over supermat extraction
+  (2026-09-26-supermat-ablation7-gemma27b-full-01), collecting attention/layer
+  activations. Full-paper context against the non-table-cleaned,
+  reference-dropped OCR corpus
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01)
+  -- ocr_dir pinned explicitly. CAVEAT (see interp_judge/qwen-2.5-7b.yaml's own
+  2026-09-16 comment): the YaRN rope_scaling override is validated for
+  long-range retrieval (needle test), but judge-TASK correctness on real
+  long-document content is still open -- a known real GT-valid case was judged
+  invalid on the longest supermat document, cause unresolved. Don't trust this
+  judge's output on long documents in isolation; the combine step's majority
+  vote is the safety net.
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  extraction_id: 2026-09-26-supermat-ablation7-gemma27b-full-01
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-ocr-drop-references-01
+  walltime: "24:00:00"

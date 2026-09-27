@@ -1,0 +1,19 @@
+id: 2026-09-27-pond-langextract-gemma27b-noqualifiers-mistralnemo12b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (mistral-nemo-12b) over pond extraction
+  (2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01), collecting
+  attention/layer activations. Full-paper context against the non-table-cleaned,
+  reference-dropped OCR corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01)
+  -- ocr_dir pinned explicitly. CAVEAT: mistral-nemo-12b.yaml's resources: block
+  is UNVALIDATED (inferred H200 headroom, no real run exists yet) -- per
+  CLAUDE.md's staged-gate ladder, do not submit this config before a smoke run
+  confirms it fits and produces sane output.
+seed: 342
+params:
+  dataset: pond
+  judge: mistral-nemo-12b
+  extraction_id: 2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  walltime: "24:00:00"

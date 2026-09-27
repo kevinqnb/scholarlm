@@ -1,0 +1,15 @@
+id: 2026-09-27-pond-chatextract-gemma27b-gptoss120b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (gpt-oss-120b) over pond extraction
+  (2026-09-26-pond-chatextract-gemma27b-full-01). Full-paper context against the
+  non-table-cleaned, reference-dropped OCR corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01)
+  -- ocr_dir pinned explicitly rather than relying on the default.
+seed: 342
+params:
+  dataset: pond
+  judge: gpt-oss-120b
+  extraction_id: 2026-09-26-pond-chatextract-gemma27b-full-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  walltime: "24:00:00"

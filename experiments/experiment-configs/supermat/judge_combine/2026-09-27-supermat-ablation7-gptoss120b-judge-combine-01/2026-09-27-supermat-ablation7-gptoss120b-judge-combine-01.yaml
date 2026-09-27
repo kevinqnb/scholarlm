@@ -1,0 +1,21 @@
+id: 2026-09-27-supermat-ablation7-gptoss120b-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over supermat extraction
+  (2026-09-26-supermat-ablation7-gptoss120b-full-01): 3 voting judges
+  (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) + 3 non-voting NNsight interp
+  judges (llama-3.1-8b, qwen-2.5-7b, mistral-nemo-12b). voting_threshold pinned
+  explicitly (VOTING_JUDGE_KEYS ignores the three interp entries regardless of
+  threshold, but this repo avoids inferred defaults).
+seed: 342
+params:
+  dataset: supermat
+  judge_ids:
+    - 2026-09-27-supermat-ablation7-gptoss120b-gptoss120b-judge-local-01
+    - 2026-09-27-supermat-ablation7-gptoss120b-qwen72b-judge-local-01
+    - 2026-09-27-supermat-ablation7-gptoss120b-llama70b-judge-local-01
+    - 2026-09-27-supermat-ablation7-gptoss120b-llama8b-judge-interp-01
+    - 2026-09-27-supermat-ablation7-gptoss120b-qwen7b-judge-interp-01
+    - 2026-09-27-supermat-ablation7-gptoss120b-mistralnemo12b-judge-interp-01
+  voting_threshold: 2
+  walltime: "00:30:00"

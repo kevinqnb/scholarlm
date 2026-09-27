@@ -1,0 +1,50 @@
+model_id: mistralai/Mistral-Nemo-Instruct-2407
+# Replaces mistral-7b.yaml as the third non-voting interp judge (2026-09-27):
+# mistral-7b.yaml (Mistral-7B-Instruct-v0.3, native 32768) was dropped for the
+# same reason qwen-2.5-7b.yaml originally needed a YaRN override -- full-paper
+# judge context (judge_prompts.prepare_chat_entries) reaches ~68k tokens on
+# the longest real documents (supermat, per qwen-2.5-7b.yaml's own measured
+# figure), well past a 32k window, and NNsight/nnterp has no admission check:
+# it would not error, it would silently run position ids past the trained
+# range and still emit a plausible p_true/p_false. Mistral-Nemo-Instruct-2407
+# (12B) is a same-family drop-in with a native 128k window and no rope
+# override needed (rotary theta=1M per its README) -- 68k tokens fits inside
+# native range with headroom, unlike mistral-7b.
+#
+# model_id is deliberately mistralai/Mistral-Nemo-Instruct-2407, NOT
+# nvidia/Mistral-NeMo-12B-Instruct: checked both repos' file listings via the
+# HF API (2026-09-27) -- the nvidia repo ships a single
+# Mistral-NeMo-12B-Instruct.nemo file (NVIDIA NeMo-framework format, not
+# loadable by transformers.AutoModelForCausalLM / nnterp.StandardizedTransformer),
+# while mistralai/Mistral-Nemo-Instruct-2407 ships config.json + sharded
+# safetensors, the same shape every other interp_judge model_id here uses.
+# Same weights, jointly released by Mistral AI and NVIDIA -- this is a
+# checkpoint-format substitution, not a different model.
+nnsight_kwargs:
+  torch_dtype: bfloat16
+sampling_params:
+  do_sample: false
+  max_new_tokens: 1
+resources:
+  # UNVALIDATED (2026-09-27) -- no real run of this model-config exists yet,
+  # on this or any other repo, so this is inferred headroom, not an observed
+  # figure, unlike llama-3.1-8b.yaml/qwen-2.5-7b.yaml's resources blocks. The
+  # existing 7-8B interp judges already observed 44.4 GiB on a 48G L40S at
+  # full-paper length (qwen-2.5-7b.yaml's own comment); this is a 12B dense
+  # model (~1.6x the params, ~1.6x the weight memory, plus proportionally
+  # more per-layer activation memory for NNsight's hidden-state capture at
+  # the same ~68k-token sequence lengths), which would not comfortably fit
+  # the 32G/L40S floor the smaller models use. Pinning the largest card on
+  # this cluster instead of guessing a tighter number, same reasoning
+  # vllm_judge/gpt-oss-120b.yaml used for its own H200 pin. gpu_capability
+  # 8.0 (not the smaller models' 7.0 floor) since bfloat16 needs Ampere+ on
+  # this cluster's torch build regardless of framework (see
+  # extraction/llama-3.1-8b.yaml's job-7747755 finding). Per CLAUDE.md's
+  # staged-gate ladder, do NOT submit any experiment config using this
+  # model-config before a smoke run confirms it actually fits -- if the H200
+  # pin also OOMs, that is real information, not a config bug to silently
+  # patch around.
+  gpu_memory: 80G
+  gpu_capability: 8.0
+  gpu_type: H200
+  omp: 8
