@@ -53,4 +53,4 @@ params:
   ablation: "1"
   include_qualifiers: false
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
-  walltime: "31:00:00"
+  walltime: "48:00:00"
