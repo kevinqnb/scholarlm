@@ -86,13 +86,23 @@ def discover(dataset: str) -> dict[str, dict]:
                 continue
             by_extraction.setdefault(eid, []).append((etype, cfg["id"]))
 
+    # Match each combine config to its extraction id by SUBSET, not exact
+    # equality: a combine's judge_ids is <= the config files that exist for
+    # that id, never more -- but may be fewer, since 2026-09-27 scope
+    # narrowing trimmed ablation/baseline combines to 3 voting judge_ids
+    # while their (now-unused) judge_interp config files still exist on
+    # disk. Reported judge status reflects combine's own judge_ids (what's
+    # actually needed now), not every config file that happens to exist.
     combine_by_extraction: dict[str, str] = {}
+    judges_to_report: dict[str, list[tuple[str, str]]] = {}
     for cfg_path in sorted(combine_dir.glob("2026-09-27-*/2026-09-27-*.yaml")):
         cfg = yaml.safe_load(cfg_path.read_text())
         judge_ids = set(cfg["params"]["judge_ids"])
         for eid, entries in by_extraction.items():
-            if judge_ids == {cid for _, cid in entries}:
+            available = {cid for _, cid in entries}
+            if judge_ids <= available:
                 combine_by_extraction[eid] = cfg["id"]
+                judges_to_report[eid] = [(t, c) for t, c in entries if c in judge_ids]
                 break
 
     result = {}
@@ -103,7 +113,7 @@ def discover(dataset: str) -> dict[str, dict]:
         except FileNotFoundError:
             extraction_exists = False
         result[eid] = {
-            "judges": sorted(entries),
+            "judges": sorted(judges_to_report.get(eid, entries)),
             "combine": combine_by_extraction.get(eid),
             "extraction_exists": extraction_exists,
         }
