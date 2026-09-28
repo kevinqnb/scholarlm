@@ -3,10 +3,12 @@ project: scholarlm
 description: >-
   Majority-vote combine over supermat extraction
   (2026-09-25-supermat-gliner-large-noqualifiers-full-01): 3 voting judges
-  (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) + 3 non-voting NNsight interp
-  judges (llama-3.1-8b, qwen-2.5-7b, mistral-nemo-12b). voting_threshold pinned
-  explicitly (VOTING_JUDGE_KEYS ignores the three interp entries regardless of
-  threshold, but this repo avoids inferred defaults).
+  (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) only -- no interp judges. Scope
+  narrowed 2026-09-27: interp judges (llama-3.1-8b, qwen-2.5-7b,
+  mistral-nemo-12b) only run for full-pipeline (extraction-type) ids, not
+  ablations or baselines, so this ablation/baseline id's combine never had
+  interp judge_ids to begin with as of this config version. voting_threshold
+  pinned explicitly (this repo avoids inferred defaults).
 seed: 342
 params:
   dataset: supermat
@@ -14,8 +16,5 @@ params:
     - 2026-09-27-supermat-gliner-large-noqualifiers-gptoss120b-judge-local-01
     - 2026-09-27-supermat-gliner-large-noqualifiers-qwen72b-judge-local-01
     - 2026-09-27-supermat-gliner-large-noqualifiers-llama70b-judge-local-01
-    - 2026-09-27-supermat-gliner-large-noqualifiers-llama8b-judge-interp-01
-    - 2026-09-27-supermat-gliner-large-noqualifiers-qwen7b-judge-interp-01
-    - 2026-09-27-supermat-gliner-large-noqualifiers-mistralnemo12b-judge-interp-01
   voting_threshold: 2
   walltime: "00:30:00"
