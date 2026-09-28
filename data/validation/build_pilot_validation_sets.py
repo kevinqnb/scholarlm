@@ -18,20 +18,32 @@ every row in the output is ``sampled: true``. That fixpoint exists to give a
 validator full context on a *shared page*; at this pilot's scale (<=100 rows
 per method) it isn't needed and would balloon file size for no benefit.
 
-Pilot methods (both pond, both pinned 2026-09-27):
+Pilot methods (all pond, all pinned 2026-09-27):
   - pilot-gemma27b-full: full MeasurementLM pipeline, gemma-3-27b
     (experiments/results/pond/extraction/2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01/final.json)
   - pilot-nuextract3: NuExtract3 baseline, no qualifiers
     (experiments/results/pond/baseline_nuextract3/2026-09-25-pond-nuextract3-noqualifiers-full-01/final.json)
+  - pilot-langextract-gemma27b: LangExtract baseline, gemma-3-27b, no
+    qualifiers
+    (experiments/results/pond/baseline_langextract/2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01/final.json)
 
-Both experiments were run against the same OCR dir (verified against each
-run's run_metadata.json / experiment yaml 2026-09-27):
+All three experiments were run against the same OCR dir (verified against
+each run's run_metadata.json / experiment yaml 2026-09-27):
     experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
 
-nuextract3's final.json carries no ``page_number`` key at all (one API call
-per whole document -- see run_baseline_nuextract3.py's docstring), so it
-gets the same sentinel-page-(-1) treatment build_method_validation_sets.py
-uses for ablation1 rows: the whole document stands in as "the page".
+``page_number`` shape varies by method -- confirmed by inspection, not
+assumed:
+  - pilot-gemma27b-full: always a non-empty list[int >= 0].
+  - pilot-nuextract3: the key is absent from every row (one API call per
+    whole document -- see run_baseline_nuextract3.py's docstring).
+  - pilot-langextract-gemma27b: a bare int >= 0 on most rows (6040/6204 in
+    the full final.json), but ``None`` on a minority (164/6204) where
+    LangExtract couldn't localize the span to one page.
+``_normalize_page_number`` below handles all three per-row, not per-config:
+int/list[int] rows keep their real page(s); everything else (missing key,
+None, or a None inside what would otherwise be a list) gets the same
+sentinel-page-(-1) treatment build_method_validation_sets.py uses for
+ablation1 rows, where the whole document stands in as "the page".
 
 Fail-loud throughout, matching the other two builders.
 
@@ -69,7 +81,6 @@ class PilotConfig:
     extraction_model: str
     final_json: Path
     ocr_dir: str
-    has_page_provenance: bool
 
     @property
     def extraction_date(self) -> str:
@@ -87,7 +98,6 @@ def _configs() -> list[PilotConfig]:
             final_json=results / "pond" / "extraction"
             / "2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01" / "final.json",
             ocr_dir=_OCR_DIR,
-            has_page_provenance=True,
         ),
         PilotConfig(
             dataset="pond",
@@ -97,9 +107,34 @@ def _configs() -> list[PilotConfig]:
             final_json=results / "pond" / "baseline_nuextract3"
             / "2026-09-25-pond-nuextract3-noqualifiers-full-01" / "final.json",
             ocr_dir=_OCR_DIR,
-            has_page_provenance=False,
+        ),
+        PilotConfig(
+            dataset="pond",
+            method_key="pilot-langextract-gemma27b",
+            method_label="Pilot: LangExtract (gemma-3-27b)",
+            extraction_model="gemma-3-27b",
+            final_json=results / "pond" / "baseline_langextract"
+            / "2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01" / "final.json",
+            ocr_dir=_OCR_DIR,
         ),
     ]
+
+
+def _normalize_page_number(pn, *, method_key: str, measurement_id: int) -> list[int]:
+    """A row's page_number, normalized to a non-empty list[int] -- real page(s)
+    if we have them, else [NO_PROVENANCE_PAGE] (see module docstring for the
+    three shapes this collapses: list[int], bare int, or missing/None)."""
+    if pn is None:
+        return [NO_PROVENANCE_PAGE]
+    if isinstance(pn, int):
+        assert pn >= 0, f"{method_key}: measurement_id={measurement_id} has negative page_number={pn!r}"
+        return [pn]
+    if isinstance(pn, list):
+        assert pn and all(isinstance(p, int) and p >= 0 for p in pn), (
+            f"{method_key}: measurement_id={measurement_id} has malformed page_number={pn!r}"
+        )
+        return pn
+    raise AssertionError(f"{method_key}: measurement_id={measurement_id} has unrecognized page_number={pn!r}")
 
 
 def _load_split_doc_ids(path: Path) -> set[str]:
@@ -152,18 +187,9 @@ def build(
     working: list[dict] = []
     for r in final:
         row = dict(r)
-        pn = row.get("page_number")
-        if cfg.has_page_provenance:
-            assert isinstance(pn, list) and pn and all(isinstance(p, int) and p >= 0 for p in pn), (
-                f"{cfg.method_key}: expected page-provenance row but "
-                f"measurement_id={row['measurement_id']} has page_number={pn!r}"
-            )
-        else:
-            assert pn is None, (
-                f"{cfg.method_key}: expected no-provenance row (page_number=None) but "
-                f"measurement_id={row['measurement_id']} has page_number={pn!r}"
-            )
-            row["page_number"] = [NO_PROVENANCE_PAGE]
+        row["page_number"] = _normalize_page_number(
+            row.get("page_number"), method_key=cfg.method_key, measurement_id=row["measurement_id"]
+        )
         working.append(row)
 
     paper_id_set = set(paper_ids)
