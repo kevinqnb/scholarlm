@@ -486,15 +486,14 @@ Your task: decide whether this extraction is correct — that is, whether the ex
 
 Respond 'true' ONLY if ALL of the following hold:
 (A) The entity is referenced within the context and is relevant to the specified entity type.
-(B) The value is explicitly present within the context. Numerical identity is required: only trivial surface formatting differences are acceptable (e.g., 10 vs 10.0, 1,000 vs 1000, 1e-3 vs 0.001). Do not accept values that differ by rounding, averaging, unit conversion, or any other transformation.
+(B) The value, as a whole, matches what is explicitly reported in the document. `value` may be a plain number, or a string carrying a range, list, inequality, mean/median/count label, or an uncertainty measure (± value, confidence interval, standard deviation). Compare the full string, not just its numeric part. Accept only trivial formatting differences (e.g., 10 vs 10.0, 1,000 vs 1000, "3-7" vs "3 to 7"). Reject any difference from rounding, averaging, unit conversion, or from dropping, adding, or altering a range, list, or uncertainty component.
 (C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity, not to a different site, condition, subgroup, or an aggregate that includes other entities.
 (D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
-(E) The value is a direct measurement. It is a raw measurement or descriptive summary statistic of measurements (mean, median, SD, min, max, count, proportion, total) — not a model output (coefficient, odds ratio, p-value, CI bound, test statistic, goodness-of-fit metric, or correlation). It must appear as a standalone quantity: do not accept a value found only as an endpoint of a reported range (e.g., "ranged from 6.5 to 7.2") unless the target attribute specifically describes that endpoint.
-(F) The units are correct. The units match those reported in the document for that value. Accept notational variants, including:
+(E) The units are correct. The units match those reported in the document for that value. Accept notational variants, including:
    - Standard formatting differences: "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"
    - Chemical species qualifiers that may be stated explicitly or implied by context: for measurements of a specific element or molecule, the species label (e.g., "N" for nitrogen, "P" for phosphorus, "C" for carbon, "C₂H₄" for ethylene) may appear in the units or be omitted when the attribute and context make the intended species unambiguous. For example, "nmol L⁻¹ h⁻¹" and "nmol N L⁻¹ h⁻¹" are equivalent for a nitrogen fixation rate measurement.
    Do not accept units that would require numerical conversion to match (e.g., mg/L vs g/L, ha vs m², nmol vs µmol).
-(G) If the context reports multiple values for the same entity and attribute (e.g. at different dates or times), the value extracted corresponds to the measurement event specified in the QUERY.
+(F) If the context reports multiple values for the same entity and attribute (e.g. at different dates or times), the value extracted corresponds to the measurement event specified in the QUERY.
 
 Respond 'false' if ANY criterion is not met, or if the evidence is ambiguous.
 
