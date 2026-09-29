@@ -3,13 +3,13 @@ project: scholarlm
 description: >-
   Voting judge (llama-3.3-70b) over pond extraction
   (2026-09-26-pond-ablation7-gemma27b-full-01). Full-paper context against the
-  non-table-cleaned, reference-dropped OCR corpus
-  (experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01)
+  table-cleaned, reference-dropped OCR corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01)
   -- ocr_dir pinned explicitly rather than relying on the default.
 seed: 342
 params:
   dataset: pond
   judge: llama-3.3-70b
   extraction_id: 2026-09-26-pond-ablation7-gemma27b-full-01
-  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
   walltime: "48:00:00"

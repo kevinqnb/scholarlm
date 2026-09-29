@@ -3,13 +3,13 @@ project: scholarlm
 description: >-
   Voting judge (qwen-2.5-72b) over pond extraction
   (2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01). Full-paper context
-  against the non-table-cleaned, reference-dropped OCR corpus
-  (experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01)
+  against the table-cleaned, reference-dropped OCR corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01)
   -- ocr_dir pinned explicitly rather than relying on the default.
 seed: 342
 params:
   dataset: pond
   judge: qwen-2.5-72b
   extraction_id: 2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01
-  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
   walltime: "48:00:00"

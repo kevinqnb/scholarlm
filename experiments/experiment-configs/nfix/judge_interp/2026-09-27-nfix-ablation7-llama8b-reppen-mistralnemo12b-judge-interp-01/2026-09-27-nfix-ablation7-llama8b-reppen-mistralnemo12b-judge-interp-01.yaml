@@ -2,12 +2,12 @@ id: 2026-09-27-nfix-ablation7-llama8b-reppen-mistralnemo12b-judge-interp-01
 project: scholarlm
 description: >-
   Interpretable judge (mistral-nemo-12b) over nfix extraction
-  (2026-09-26-nfix-ablation7-llama8b-reppen-full-01), collecting attention/layer
-  activations. Full-paper context against the non-table-cleaned,
+  (2026-09-26-nfix-ablation7-llama8b-reppen-full-01), collecting
+  attention/layer activations. Full-paper context against the table-cleaned,
   reference-dropped OCR corpus
-  (experiments/results/nfix/drop_references/2026-09-18-nfix-ocr-drop-references-01)
-  -- ocr_dir pinned explicitly. CAVEAT: mistral-nemo-12b.yaml's resources: block
-  is UNVALIDATED (inferred H200 headroom, no real run exists yet) -- per
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly. CAVEAT: mistral-nemo-12b.yaml's resources:
+  block is UNVALIDATED (inferred H200 headroom, no real run exists yet) -- per
   CLAUDE.md's staged-gate ladder, do not submit this config before a smoke run
   confirms it fits and produces sane output.
 seed: 342
@@ -15,5 +15,5 @@ params:
   dataset: nfix
   judge: mistral-nemo-12b
   extraction_id: 2026-09-26-nfix-ablation7-llama8b-reppen-full-01
-  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-ocr-drop-references-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
   walltime: "24:00:00"
