@@ -8,18 +8,19 @@ judge_local/judge_interp/judge_combine configs, reports:
     pond/nfix ablation1-llama8b-reppen-noqualifiers ids are the known
     still-pending case as of 2026-09-27)
   - per-judge status: NOT_STARTED / STALE (responses.json predates the
-    JUDGE_INSTRUCTIONS value-matching fix, commit db9b97d) / DONE (at or
-    after db9b97d)
+    ocr_dir fix, commit 18b6df7, which also supersedes the earlier
+    JUDGE_INSTRUCTIONS value-matching fix db9b97d) / DONE (at or after
+    18b6df7)
   - combine status: NOT_STARTED / DONE / "STALE (inputs not all fresh)" --
-    derived from its 6 input judges' freshness, since run_judge_combine.py
+    derived from its judges' freshness, since run_judge_combine.py
     never writes run_metadata.json itself (observed, not fixed here, same
     reason judge_prompts.py's silent document_id skip wasn't touched --
     see notes/scholarlm/experiments/2026-09-27-judge-batch-01.md).
 
 "Stale" is determined by comparing run_metadata.json's recorded commit
-against db9b97d via `git merge-base --is-ancestor`. Bump PROMPT_FIX_COMMIT
-here if a later commit changes judge-scoring logic again in a way that
-should invalidate prior runs.
+against PROMPT_FIX_COMMIT via `git merge-base --is-ancestor`. Bump
+PROMPT_FIX_COMMIT here if a later commit changes judge-scoring or
+ocr_dir logic again in a way that should invalidate prior runs.
 
 Usage: python experiments/judge_batch_status.py [--json]
 """
@@ -36,7 +37,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 import utils as paths  # noqa: E402
 
-PROMPT_FIX_COMMIT = "db9b97d"
+PROMPT_FIX_COMMIT = "18b6df7"  # ocr_dir fix (2026-09-28), supersedes db9b97d
 DATASETS = ["pond", "nfix", "supermat"]
 
 
