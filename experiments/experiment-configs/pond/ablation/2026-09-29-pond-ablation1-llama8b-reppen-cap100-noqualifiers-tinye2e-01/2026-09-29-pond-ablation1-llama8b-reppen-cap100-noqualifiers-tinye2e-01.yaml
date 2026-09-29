@@ -1,0 +1,27 @@
+id: 2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-3 tiny end-to-end for
+  2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-full-01: same
+  model/schema/prompt/cap, three papers -- carbon_dioxide_efflux (gemma-27b
+  found 1 record; small), fish_production_in_lakes (gemma: 100, the largest
+  pond count) and sediment_organic_carbon_distribution (gemma: 80). No pond
+  paper has been probed for llama looping, so this checks plumbing on pond's
+  own corpus/schema and the cap's bookkeeping rather than a looper.
+  Predicted result: (a) the run completes with no error and every call
+  finishes well inside the 600 s timeout; (b) failed_papers is empty; (c)
+  carbon_dioxide_efflux is not capped and has a handful of records at most;
+  (d) capped_papers is exactly the set of papers whose record count in
+  final.json equals 100 (this is a consistency check on the bookkeeping, not
+  a prediction about which papers those are); (e) no paper has more than 100
+  records. Any violation of (a), (b), (d) or (e) -> stop and report.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "1"
+  include_qualifiers: false
+  max_items: 100
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  paper_subset: ["carbon_dioxide_efflux", "fish_production_in_lakes", "sediment_organic_carbon_distribution"]
+  walltime: "01:00:00"

@@ -1,0 +1,30 @@
+id: 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-tinye2e-01
+project: scholarlm
+description: >
+  Rung-2/3 tiny end-to-end for
+  2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01: same
+  model/schema/prompt/cap, five papers. R102 is a control that finished
+  normally in every earlier probe (~6-12 records); R79, R109, R164, R203 are
+  the papers that never closed their array at repetition_penalty 1.0/1.2 in
+  the L40S probes (2026-09-29 session). Rung-2 smoke = this config's runner
+  invoked on the R102-only subset first (plumbing only).
+  Predicted result (repetition_penalty 1.1, cap 100 -- a setting not itself
+  probed uncapped, so the looper half is the real test): (a) the run
+  completes with no error and every call finishes well inside the 600 s
+  timeout; (b) failed_papers is empty; (c) R102 is not capped (<100 records,
+  not in capped_papers); (d) at least 3 of {R79, R109, R164, R203} come back
+  with exactly 100 records and are listed in capped_papers, with heavy
+  duplication (R79/R109 << 100 distinct records). If the loopers instead
+  close on their own well under 100, or any call times out, or capped_papers
+  disagrees with the per-paper record counts in final.json, stop and report;
+  do not scale up.
+seed: 342
+params:
+  dataset: nfix
+  model: llama-3.1-8b-reppen
+  ablation: "1"
+  include_qualifiers: false
+  max_items: 100
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  paper_subset: ["R102", "R79", "R109", "R164", "R203"]
+  walltime: "01:00:00"

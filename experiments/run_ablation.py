@@ -11,12 +11,16 @@ Usage
     python experiments/run_ablation.py experiments/experiment-configs/pond/ablation/<id>/<id>.yaml
 
 Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"7").
-Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers
+Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers, max_items
 (bool, default true -- ablation "1" only; false asks the dataset config's
 *_no_qualifiers direct-extraction schema/prompt/instructions instead, dropping the
 qualifier/shape fields from the model's own output so a later parsing step can be
 evaluated on recovering them instead. Fails loud if set false for any other ablation,
 or if the dataset has no no-qualifiers variant defined).
+max_items (positive int; ablation "1" only; absent = uncapped) caps the number of
+records the model may emit per document via a JSON-Schema maxItems; papers that hit it
+are recorded in run_metadata.json's capped_papers, and papers whose response failed
+validation (zero records contributed) in failed_papers.
 
 Available datasets: any file in experiments/dataset-configs/<name>.py that exports CONFIG.
 Available models:   any file in experiments/model-configs/extraction/<name>.yaml.
@@ -131,6 +135,7 @@ def run_ablation(
     api_base: str = "http://localhost:8000/v1",
     api_key: str = "EMPTY",
     include_qualifiers: bool = True,
+    max_items: int | None = None,
 ) -> None:
     """Run a single ablation experiment for a dataset / model pair.
 
@@ -174,6 +179,8 @@ def run_ablation(
             f"extraction) -- got ablation {ablation!r}."
         )
 
+    if max_items is not None and ablation != "1":
+        raise ValueError(f"max_items only applies to ablation '1' -- got ablation {ablation!r}.")
     ablation_class, ablation_desc = ABLATION_REGISTRY[ablation]
     data_dir = Path(dataset_config.data_dir)
     is_frontier = model_config.api_base is not None
@@ -266,6 +273,8 @@ def run_ablation(
             mlm_kwargs["direct_extraction_schema"] = dataset_config.direct_extraction_schema_no_qualifiers
             mlm_kwargs["direct_extraction_prompt"] = dataset_config.direct_extraction_prompt_no_qualifiers
             mlm_kwargs["direct_extraction_instructions"] = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS
+    if ablation == "1":
+        mlm_kwargs["max_items"] = max_items
     mlm = ablation_class(**mlm_kwargs)
 
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
@@ -304,6 +313,14 @@ def run_ablation(
         hf_revision=model_config.hf_revision,
         ablation=ablation,
         include_qualifiers=include_qualifiers,
+        **(
+            {
+                "max_items": max_items,
+                "capped_papers": [text_info[i]["document_id"] for i in mlm.capped_document_ids],
+                "failed_papers": [text_info[i]["document_id"] for i in mlm.failed_document_ids],
+            }
+            if ablation == "1" else {}
+        ),
         gpu_compatibility_warnings=gpu_warnings,
         max_prompt_tokens=mlm.max_prompt_tokens,
         token_usage=mlm.token_usage,
@@ -369,6 +386,7 @@ def main(argv: list[str] | None = None) -> None:
         api_base=args.api_base or params.get("api_base") or "http://localhost:8081/v1",
         api_key=params.get("api_key", "EMPTY"),
         include_qualifiers=params.get("include_qualifiers", True),
+        max_items=params.get("max_items"),
     )
 
 
