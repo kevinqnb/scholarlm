@@ -129,6 +129,25 @@ def _configs() -> list[PilotConfig]:
     ]
 
 
+def _configs_other() -> list[PilotConfig]:
+    """nfix/supermat pilots (added 2026-09-29): full pipeline, gemma-3-27b, run
+    2026-09-21 against each dataset's table-cleaned OCR (verified from each
+    run's run_metadata.json ``ocr_dir``)."""
+    results = _REPO_ROOT / "experiments" / "results"
+    return [
+        PilotConfig(
+            dataset=ds,
+            method_key="pilot-gemma27b-full",
+            method_label="Pilot: full pipeline (gemma-3-27b)",
+            extraction_model="gemma-3-27b",
+            final_json=results / ds / "extraction"
+            / f"2026-09-21-{ds}-extraction-gemma27b-full-01" / "final.json",
+            ocr_dir=f"experiments/results/{ds}/drop_references/2026-09-18-{ds}-table-cleaning-drop-references-01",
+        )
+        for ds in ("nfix", "supermat")
+    ]
+
+
 def _normalize_page_number(pn, *, method_key: str, measurement_id: int) -> list[int]:
     """A row's page_number, normalized to a non-empty list[int] -- real page(s)
     if we have them, else [NO_PROVENANCE_PAGE] (see module docstring for the
@@ -298,25 +317,32 @@ def build(
 
 
 def main() -> None:
-    configs = _configs()
-    assert len({c.dataset for c in configs}) == 1, "this script assumes a single dataset (pond) for now"
-    dataset = configs[0].dataset
-    ds_dir = _REPO_ROOT / "data" / dataset
-    paper_ids, test_ids, train_ids = sample_papers(ds_dir, n_papers=N_PAPERS, seed=SEED)
-    print(f"[{dataset}] sampled {N_PAPERS} papers (seed={SEED}): {paper_ids}")
+    import sys
 
-    for cfg in configs:
-        ocr_dir = _REPO_ROOT / cfg.ocr_dir
-        assert ocr_dir.is_dir(), f"{cfg.method_key}: OCR dir does not exist: {ocr_dir}"
-        out_path = ds_dir / f"validation_set_{cfg.method_key}.json"
-        build(
-            cfg,
-            paper_ids=paper_ids,
-            test_ids=test_ids,
-            train_ids=train_ids,
-            ocr_dir=ocr_dir,
-            out_path=out_path,
-        )
+    # Default (no args) = the original pond builds. Pass dataset names
+    # (e.g. ``nfix supermat``) to build only those; each dataset draws its own
+    # 20 papers with SEED from its own test split.
+    wanted = sys.argv[1:] or ["pond"]
+    all_configs = _configs() + _configs_other()
+    for dataset in wanted:
+        configs = [c for c in all_configs if c.dataset == dataset]
+        assert configs, f"no pilot configs for dataset {dataset!r}"
+        ds_dir = _REPO_ROOT / "data" / dataset
+        paper_ids, test_ids, train_ids = sample_papers(ds_dir, n_papers=N_PAPERS, seed=SEED)
+        print(f"[{dataset}] sampled {N_PAPERS} papers (seed={SEED}): {paper_ids}")
+
+        for cfg in configs:
+            ocr_dir = _REPO_ROOT / cfg.ocr_dir
+            assert ocr_dir.is_dir(), f"{cfg.method_key}: OCR dir does not exist: {ocr_dir}"
+            out_path = ds_dir / f"validation_set_{cfg.method_key}.json"
+            build(
+                cfg,
+                paper_ids=paper_ids,
+                test_ids=test_ids,
+                train_ids=train_ids,
+                ocr_dir=ocr_dir,
+                out_path=out_path,
+            )
 
 
 if __name__ == "__main__":
