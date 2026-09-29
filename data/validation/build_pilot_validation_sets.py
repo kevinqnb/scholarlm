@@ -27,9 +27,20 @@ Pilot methods (all pond, all pinned 2026-09-27):
     qualifiers
     (experiments/results/pond/baseline_langextract/2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01/final.json)
 
-All three experiments were run against the same OCR dir (verified against
-each run's run_metadata.json / experiment yaml 2026-09-27):
+All three experiments were run against the same table-cleaned OCR dir
+(verified against each run's run_metadata.json / experiment yaml
+2026-09-27):
     experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+
+The validation site shows validators the **raw** OCR instead (2026-09-28
+decision), not the table-cleaned text the extraction actually ran against:
+    experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+Confirmed 2026-09-28: same `<page number="N">` set on all 128 pond docs in
+both dirs (`source_id` differs -- `2026-02-20-pond-ocr-01` vs
+`2026-04-07-pond-table-cleaning-01` -- but reference-dropping ran against
+both, so page numbering lines up). Only the OCR dir used to fetch page/full
+text for display changes; sampling and every extracted field are unaffected
+(text content plays no part in `sample_papers`/`build`'s `rng.sample` calls).
 
 ``page_number`` shape varies by method -- confirmed by inspection, not
 assumed:
@@ -70,7 +81,10 @@ TRAIN_SPLIT_FILE = "probe_dataset.json"
 # collides. Mirrors build_method_validation_sets.py's NO_PROVENANCE_PAGE.
 NO_PROVENANCE_PAGE = -1
 
-_OCR_DIR = "experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01"
+# Raw OCR (references dropped), not the table-cleaned text extraction ran
+# against -- validators should read the paper as OCR'd, not as normalized
+# for the extraction pipeline. See module docstring.
+_OCR_DIR = "experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01"
 
 
 @dataclass(frozen=True)
