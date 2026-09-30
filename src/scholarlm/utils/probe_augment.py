@@ -921,6 +921,118 @@ def perturb_value(value_str: str, rng: random.Random, *, lo: float = 0.05, hi: f
 
 
 # ---------------------------------------------------------------------------
+# Surface-form recovery from the paper (names, unambiguous value spans)
+# ---------------------------------------------------------------------------
+
+
+class UnknownUnit(KeyError):
+    """A unit string a dataset's equivalence table has no entry for. Raised
+    rather than guessed: an unknown unit cannot be shown to differ from another,
+    so ``make_typed_negative`` skips that source instead of risking a "wrong
+    units" negative that is actually the same quantity."""
+
+
+def numeric_forms(value: float) -> list[str]:
+    """Surface forms a paper may print ``value`` in, longest first: the float
+    repr ("45.0"), the shortest form ("45"), and the thousands-comma form."""
+    forms = {repr(float(value)), f"{value:g}"}
+    if float(value).is_integer():
+        forms |= {str(int(value)), f"{int(value):,}"}
+    else:
+        forms.add(f"{value:,}")
+    return sorted(forms, key=lambda f: (-len(f), f))
+
+
+def _numeric_token_re(form: str) -> "re.Pattern[str]":
+    # Not part of a longer number: no digit / separator-digit on either side.
+    return re.compile(r"(?<![\d.,])" + re.escape(form) + r"(?!\d|[.,]\d)")
+
+
+def numeric_value_in_context(value_str: str, context: str) -> bool:
+    """Does ``context`` print this numeric value in *any* of its surface forms?
+    Non-numeric strings fall back to a plain substring test. Used as the
+    mislabel guard for ``bad_value``: a pool value "45.0" is not "absent from the
+    paper" if the paper prints "45"."""
+    try:
+        v = float(value_str.replace(",", ""))
+    except ValueError:
+        return value_str in context
+    return any(_numeric_token_re(f).search(context) for f in numeric_forms(v))
+
+
+_NAME_SEP = r"[ \-_.]{0,2}"     # flexible match: "pool1" ~ "Pool 1" ~ "Pool-1"
+
+
+def find_surface_form(name: str, text: str) -> tuple[str, str] | None:
+    """Recover how the paper prints ``name`` (GT names are lower-cased).
+
+    Returns ``(surface_form, how)`` with ``how`` in ``{"verbatim", "flexible"}``,
+    or ``None`` when the paper never prints the name. When several casings occur
+    the most frequent wins (ties: lexicographically first, so the result is
+    deterministic). Matches must not be inside a longer alphanumeric run
+    ("long" does not match inside "along"). The flexible pass tolerates a
+    space / hyphen / underscore / dot between letter and digit runs but never
+    crosses a newline or markup.
+    """
+    if not name or not name.strip():
+        raise ValueError("find_surface_form: empty name")
+    edge_l, edge_r = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
+    forms = Counter(m.group(0) for m in re.finditer(
+        edge_l + re.escape(name) + edge_r, text, flags=re.IGNORECASE))
+    how = "verbatim"
+    if not forms:
+        toks = re.findall(r"[a-z]+|\d+", name.lower())
+        if not toks:
+            return None
+        pat = edge_l + _NAME_SEP.join(re.escape(t) for t in toks) + edge_r
+        forms = Counter(m.group(0) for m in re.finditer(pat, text, flags=re.IGNORECASE))
+        how = "flexible"
+    if not forms:
+        return None
+    best = max(sorted(forms), key=lambda f: forms[f])
+    return best, how
+
+
+_UNCERT_AFTER_RE = re.compile(
+    r"[ \t]*(?:(?:±|\+/-|&plusmn;)[ \t]*\d+(?:\.\d+)?"
+    r"|\([ \t]*(?:±|SD|SE|s\.d\.|s\.e\.)[ \t]*[=:]?[ \t]*\d+(?:\.\d+)?[ \t]*\))"
+)
+
+
+def find_unambiguous_uncertainty_span(text: str, value: float) -> str | None:
+    """The verbatim span ``"<number> ± <u>"`` / ``"<number> (SD <u>)"`` the paper
+    prints for ``value``, or ``None``.
+
+    Deliberately conservative — the GT ``value`` is a bare number, and a text
+    span replaces it only when the paper leaves no doubt what was reported:
+    EVERY occurrence of the number (first surface form that occurs at all) must
+    be immediately followed, on the same line and outside markup, by an
+    uncertainty term, and all those occurrences must print the identical span.
+    A number that also appears bare anywhere (a mean quoted alone in the
+    abstract) is ambiguous and yields ``None``.
+    """
+    occ: list = []
+    for form in numeric_forms(value):
+        occ = list(_numeric_token_re(form).finditer(text))
+        if occ:
+            break
+    if not occ:
+        return None
+    spans: set[str] = set()
+    for m in occ:
+        um = _UNCERT_AFTER_RE.match(text, m.end())
+        if um is None:
+            return None
+        spans.add(text[m.start():um.end()])
+    if len(spans) != 1:
+        return None
+    span = spans.pop()
+    if "\n" in span or "<" in span:
+        return None
+    return span
+
+
+# ---------------------------------------------------------------------------
 # measurement_id bookkeeping
 # ---------------------------------------------------------------------------
 
@@ -1074,6 +1186,19 @@ class DatasetAugmentRules:
                                                # unstated pressure means "ambient")
     # --- output schema --------------------------------------------------
     gt_cols: list[str]
+    # --- optional: numerically-equivalent units --------------------------------
+    # ``(attribute, unit_a, unit_b) -> bool``: are the two units the same
+    # quantity (ppb / µg/L, ha / x10^-2 km^2)? A ``bad_units`` alternative that is
+    # equivalent to the source's units is not an error, so it is excluded from
+    # the pool. Must raise ``UnknownUnit`` for a unit it has no entry for (the
+    # source is then skipped, never guessed). ``None`` = no check (nfix,
+    # supermat: behaviour unchanged).
+    units_equivalent: Callable[[str, str, str], bool] | None = None
+    # --- optional: numeric-aware ``bad_value`` collision guard ------------------
+    # False (default; nfix, supermat: behaviour unchanged) = a pool value is
+    # "absent from the paper" if it is not a plain substring. True = it must also
+    # not appear in any other numeric surface form ("45.0" vs the paper's "45").
+    numeric_value_guard: bool = False
 
     def __post_init__(self) -> None:
         # A dataset with no event field must also carry no event pool and disallow
@@ -1136,10 +1261,25 @@ _INTERNAL_DERIVED_KEYS = (_CTX_EDIT_KEY, "measurement_id",
                           "_unverified_span", "_augment_edits", "augment_attempt")
 
 
-def _prep_base_valid(src: dict, rules: DatasetAugmentRules) -> dict:
-    """A verbatim GT valid, carried through as a positive row (every file)."""
+# Optional verbatim paper span a source record MAY print its value as (see
+# ``find_unambiguous_uncertainty_span``). Applied only where ``_prep_base_valid``
+# is asked to — never for the primary test.
+_VALUE_SPAN_KEY = "_value_span"
+
+
+def _prep_base_valid(src: dict, rules: DatasetAugmentRules, *,
+                     use_value_spans: bool = False) -> dict:
+    """A GT valid, carried through as a positive row. With ``use_value_spans``
+    and a recorded ``_value_span``, ``value`` becomes that verbatim paper span
+    (asserted present in the source paper); otherwise it is the GT value as-is."""
     row = dict(src)
     row.pop(_CTX_EDIT_KEY, None)
+    span = src.get(_VALUE_SPAN_KEY)
+    if use_value_spans and span:
+        assert span in src[_CTX_ORIG_KEY], (
+            f"value span {span!r} is not a verbatim substring of the paper "
+            f"(gt_row_index {src['gt_row_index']})")
+        row["value"] = span
     row["label"] = "valid"
     row["modification_type"] = None
     row["augment_axis"] = None
@@ -1189,11 +1329,16 @@ def _dedup_rows(rows: list[dict], gt_cols: list[str]) -> list[dict]:
     return out
 
 
-def _draw_alt(pool, current, rng: random.Random, context: str) -> str | None:
+def _draw_alt(pool, current, rng: random.Random, context: str,
+              present: Callable[[str, str], bool] | None = None) -> str | None:
     """Pick a pool entry that differs from ``current`` and does not already
     occur verbatim in ``context`` (the mislabel guard — a "wrong" value that the
-    page happens to state elsewhere is not wrong). Deterministic given ``rng``."""
-    cands = sorted({str(x) for x in pool if str(x) != str(current) and str(x) not in context})
+    page happens to state elsewhere is not wrong). ``present(x, context)``
+    overrides the plain substring test (``bad_value`` passes a numeric-aware one
+    so "45.0" is caught by a paper that prints "45"). Deterministic given ``rng``."""
+    is_present = present or (lambda x, ctx: x in ctx)
+    cands = sorted({str(x) for x in pool
+                    if str(x) != str(current) and not is_present(str(x), context)})
     return rng.choice(cands) if cands else None
 
 
@@ -1390,16 +1535,23 @@ def make_typed_negative(
     elif err_type == "value":
         cur = str(src.get("value"))
         pool = rules.value_pool_by_attr.get(src.get("attribute"), [])
-        alt = _draw_alt([v for v in pool if v != cur], cur, rng, ctx)
+        alt = _draw_alt([v for v in pool if v != cur], cur, rng, ctx,
+                        present=numeric_value_in_context if rules.numeric_value_guard else None)
         if alt is None:
             return None
         row = _new_derived_row(src, label="invalid", mod_type="bad_value", axis=None)
         row["value"] = alt
     elif err_type == "units":
         cur = src.get("units")
-        pool = rules.attr_units.get(src.get("attribute"), [])
-        alt = _draw_alt([u for u in pool if not cur or u.lower() != cur.lower()],
-                        cur, rng, ctx)
+        attr = src.get("attribute")
+        cands = [u for u in rules.attr_units.get(attr, [])
+                 if not cur or u.lower() != cur.lower()]
+        if rules.units_equivalent is not None and cur:
+            try:
+                cands = [u for u in cands if not rules.units_equivalent(attr, cur, u)]
+            except UnknownUnit:
+                return None                # cannot show the alternatives differ
+        alt = _draw_alt(cands, cur, rng, ctx)
         if alt is None:
             return None
         row = _new_derived_row(src, label="invalid", mod_type="bad_units", axis=None)
@@ -1592,8 +1744,12 @@ def build_augmented_files(
         clean = strip_internal_fields(rows, rules.gt_cols, _EXTRA_KEEP + [_CTX_PUBLIC_KEY])
         return clean, rows
 
-    train_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_train], rules.gt_cols)
-    dtest_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_test], rules.gt_cols)
+    # Value spans go on train + diagnostic only; the primary test keeps the GT
+    # value untouched.
+    train_gt = _dedup_rows([_prep_base_valid(v, rules, use_value_spans=True)
+                            for v in xv_train], rules.gt_cols)
+    dtest_gt = _dedup_rows([_prep_base_valid(v, rules, use_value_spans=True)
+                            for v in xv_test], rules.gt_cols)
     ptest_gt = _dedup_rows([_prep_base_valid(v, rules) for v in xv_test], rules.gt_cols)
     _say(f"  GT valids after dedup: train {len(train_gt)}, test {len(dtest_gt)} "
          f"(from {len(xv_train)} / {len(xv_test)})")

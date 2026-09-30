@@ -137,7 +137,8 @@ def test_main_dispatches_with_resolved_params_and_output_dir(tmp_path, monkeypat
     monkeypatch.setattr(rpa.paths, "RESULTS_ROOT", tmp_path / "results")
     cfg_path = _write_cfg(
         tmp_path, "2026-09-12-test-augment-01", 42,
-        {"dataset": "pond", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 3},
+        {"dataset": "pond", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 3,
+         "ocr_dir": "some/ocr/dir"},
     )
     with patch("run_probe_augment.run_probe_augment") as m:
         rpa.main([str(cfg_path)])
@@ -176,8 +177,35 @@ def test_main_does_not_enforce_repo_seed_consistency(tmp_path, monkeypatch):
     monkeypatch.setattr(rpa.paths, "RESULTS_ROOT", tmp_path / "results")
     cfg_path = _write_cfg(
         tmp_path, "2026-09-12-test-augment-04", 42,
-        {"dataset": "pond", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 1},
+        {"dataset": "pond", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 1,
+         "ocr_dir": "some/ocr/dir"},
     )
     with patch("run_probe_augment.run_probe_augment") as m:
         rpa.main([str(cfg_path)])  # must not raise
         assert m.call_args.kwargs["seed"] == 42
+
+
+def test_main_pond_requires_ocr_dir(tmp_path):
+    cfg_path = _write_cfg(
+        tmp_path, "2026-09-29-test-augment-05", 42,
+        {"dataset": "pond", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 1},
+    )
+    with pytest.raises(ValueError, match=r"missing required params key.*ocr_dir"):
+        rpa.main([str(cfg_path)])
+
+
+def test_main_nfix_does_not_require_ocr_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(utils, "RESULTS_ROOT", tmp_path / "results")
+    monkeypatch.setattr(rpa.paths, "RESULTS_ROOT", tmp_path / "results")
+    cfg_path = _write_cfg(
+        tmp_path, "2026-09-29-test-augment-06", 42,
+        {"dataset": "nfix", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 1},
+    )
+    with patch("run_probe_augment.run_probe_augment"):
+        rpa.main([str(cfg_path)])  # must not raise
+
+
+def test_argv_passes_ocr_dir_through():
+    argv = rpa.build_augment_argv("pond", 42, True, 2, "http://x/v1",
+                                  {"ocr_dir": "experiments/results/pond/drop_references/X"})
+    assert _flagset(argv)["--ocr-dir"] == ["experiments/results/pond/drop_references/X"]

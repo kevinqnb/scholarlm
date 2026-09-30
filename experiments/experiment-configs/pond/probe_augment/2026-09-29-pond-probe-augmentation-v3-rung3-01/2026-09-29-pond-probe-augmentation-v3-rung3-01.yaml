@@ -1,0 +1,50 @@
+id: 2026-09-29-pond-probe-augmentation-v3-rung3-01
+project: scholarlm
+description: >-
+  Rung 3 (tiny real-gpt-oss yield check) of the pond v3 probe-dataset rebuild,
+  via run_probe_augment.py. v3 vs the v2 files: (1) rows carry only the fields
+  the pond judge sees (document_id, name, ecosystem, date, attribute, value,
+  units) -- location/identifiers/additional_details/page_number are dropped;
+  (2) `ecosystem` is mapped onto the extraction vocabulary (pond/lake/wetland/
+  other); GT names get the paper's own casing (GT is lower-cased; fabricated
+  names are Title Case) and, in train + diagnostic ONLY, the 3 GT values whose
+  every occurrence in the paper carries the same "± u" / "(SE u)" uncertainty
+  take that verbatim span as `value` (never in the primary test); (3) the
+  papers -- and every row's context_override -- are the table-cleaned,
+  reference-dropped OCR the judge is given
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01),
+  not ocr_output_raw; (4) bad_units never draws a numerically equivalent unit
+  (ppb/ug/L, ppm/mg/L, mg/m^3/ug/L, ha/x10^-2 km^2, m^2/x10^-6 km^2), and
+  bad_value's collision guard now also rejects a pool value the paper prints in
+  another numeric form ("45.0" vs "45"). Output suffix _v3_rung3 (gitignored),
+  80 GT valids sampled per split, round 0 only (prompt_budget_multiple 1,
+  floors 0): the per-axis distinct-yield read that sets the full run's
+  prompt_budget_multiple. Every gpt-oss prompt differs from v2's (different
+  context text), so nothing is served from the v2 cache.
+
+  PREDICTION (written before the run). The seed-42 80-row samples are
+  deterministic; per-axis ceilings, counted from the data: train pos_entity 80,
+  pos_value 80, pos_event 46 (pos_event injects a date next to str(value), so it
+  needs that string verbatim in the cleaned paper) = 206/240 attempts possible;
+  diagnostic 80 / 80 / 55 = 215/240. v2's measured round-0 distinct yield on
+  raw OCR was 137/240 (57%). Expect 100-145 distinct per split (42-60% of 240),
+  pos_event the lowest axis (<= ~35). If a split lands under ~90, or any axis
+  exceeds its ceiling, stop and investigate before any full run.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  reviewed: true
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  prompt_budget_multiple: 1
+  sample_gt: 80
+  valid_floor: 0
+  diag_valid_floor: 0
+  out_suffix: _v3_rung3
+  # v3 gets its own cache file so the committed v2 cache (a determinant of the
+  # v2 files) is never appended to, and rung 4 can reuse these entries.
+  cache: data/pond/probe_augment_cache_v3.json
+  # Prior rung-3 job (o7501531, same 80-row sample x 3 axes) ran 674 s wall-clock
+  # (qacct ru_wallclock) including server start; ~3x headroom.
+  walltime: "00:40:00"

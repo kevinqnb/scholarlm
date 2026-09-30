@@ -1421,3 +1421,170 @@ def test_find_synthetic_carries_name_through(tmp_path, monkeypatch):
     assert got == run / "responses.json"
     with pytest.raises(FileNotFoundError):
         paths.find_synthetic_responses("pond", "mistral-7b", "2026_09_10")
+
+
+# ─── surface-form recovery: numbers, names, unambiguous value spans ──────────
+#
+# Added with the pond v3 probe rebuild. Each expected result below is readable
+# straight off the fixture text.
+
+
+def test_numeric_forms_cover_float_repr_short_and_thousands():
+    assert set(pa.numeric_forms(45.0)) == {"45.0", "45"}
+    assert set(pa.numeric_forms(3820.0)) == {"3820.0", "3820", "3,820"}
+    assert set(pa.numeric_forms(0.66)) == {"0.66"}
+
+
+@pytest.mark.parametrize("val, ctx, expect", [
+    ("45.0", "depth was 45 m", True),           # GT float repr vs paper's "45"
+    ("45.0", "depth was 145 m", False),         # inside a longer number: no
+    ("45.0", "depth was 45.5 m", False),
+    ("3820.0", "TN 3,820 ug/L", True),          # thousands comma
+    ("0.66", "value 0.66", True),
+    ("0.66", "value 10.66", False),
+])
+def test_numeric_value_in_context(val, ctx, expect):
+    assert pa.numeric_value_in_context(val, ctx) is expect
+
+
+def test_find_surface_form_prefers_most_frequent_casing():
+    text = "Lake P1 ... P1 again ... P1 ... and p1 once"
+    assert pa.find_surface_form("p1", text) == ("P1", "verbatim")
+
+
+def test_find_surface_form_respects_word_boundaries():
+    assert pa.find_surface_form("long", "the road runs along the shore") is None
+    assert pa.find_surface_form("long", "Long Pond") == ("Long", "verbatim")
+
+
+def test_find_surface_form_flexible_tolerates_separator_but_not_markup():
+    assert pa.find_surface_form("pool1", "Site Pool 1 had") == ("Pool 1", "flexible")
+    assert pa.find_surface_form("karst1", "cell Karst</td><td>1") is None
+    assert pa.find_surface_form("karst1", "Karst\n1") is None
+
+
+def test_find_surface_form_absent_and_empty():
+    assert pa.find_surface_form("rkl2", "nothing here") is None
+    with pytest.raises(ValueError):
+        pa.find_surface_form("  ", "text")
+
+
+@pytest.mark.parametrize("text, value, expect", [
+    ("<td>77 ± 28</td>", 77.0, "77 ± 28"),                       # table cell
+    ("pH was 7.9 (SE 1.64) overall", 7.9, "7.9 (SE 1.64)"),
+    ("15.3 ± 6.1 \\( \\mu \\)g P", 15.3, "15.3 ± 6.1"),
+    ("mean 77 ± 28 and again 77 ± 28", 77.0, "77 ± 28"),         # occurrences agree
+    ("mean 77 ± 28 but abstract says 77 m", 77.0, None),         # bare elsewhere
+    ("77 ± 28 here and 77 ± 30 there", 77.0, None),              # spans disagree
+    ("value 177 ± 5", 77.0, None),                               # inside a longer number
+    ("TN 3,820 ± 12 ug/L", 3820.0, "3,820 ± 12"),                # thousands comma form
+    ("no uncertainty 77 here", 77.0, None),
+    ("absent entirely", 77.0, None),
+    ("77\n± 28", 77.0, None),                                    # newline: not the same span
+    ("<td>77</td><td>± 28</td>", 77.0, None),                    # next cell, not this one
+])
+def test_find_unambiguous_uncertainty_span(text, value, expect):
+    assert pa.find_unambiguous_uncertainty_span(text, value) == expect
+
+
+def _span_record(i=0, ctx_val="10.0 ± 2.0"):
+    r = _valid_record(i, f"Site {i}", "pond", "tp", "10.0", "µg/L")
+    r[pa._CTX_ORIG_KEY] = f'The site "Site {i}" reported tp of "{ctx_val}" µg/L.'
+    r[pa._VALUE_SPAN_KEY] = "10.0 ± 2.0"
+    return r
+
+
+def test_prep_base_valid_span_only_when_asked():
+    rules = _rules()
+    plain = pa._prep_base_valid(_span_record(), rules)
+    spanned = pa._prep_base_valid(_span_record(), rules, use_value_spans=True)
+    assert plain["value"] == "10.0"
+    assert spanned["value"] == "10.0 ± 2.0"
+
+
+def test_prep_base_valid_span_must_be_verbatim_in_paper():
+    bad = _span_record(ctx_val="10.0")               # span not in the paper
+    with pytest.raises(AssertionError, match="verbatim substring"):
+        pa._prep_base_valid(bad, _rules(), use_value_spans=True)
+
+
+def test_build_uses_spans_in_train_and_diag_never_in_primary_test():
+    rules = _rules()
+    tr = [_span_record(0), *_fixture_valids(6)[1:]]
+    te = [_span_record(1), *_fixture_valids(6)[2:]]
+    out = pa.build_augmented_files(
+        xv_train=[dict(v) for v in tr], xv_test=[dict(v) for v in te],
+        rng=random.Random(3), client=pa.StubAugmentClient(), rules=rules,
+        flags=pa.AugmentFlags(pos_axes=("pos_entity",), valid_floor=0,
+                              diag_valid_floor=0, prompt_budget_multiple=1))
+    def has_span(rows, gt):
+        return any(r["label"] == "valid" and r["gt_row_index"] == gt
+                   and r["value"] == "10.0 ± 2.0" for r in rows)
+    assert has_span(out["train"][0], 0)
+    assert has_span(out["diagnostic_test"][0], 1)
+    ptest = out["primary_test"][0]
+    assert not any("±" in str(r["value"]) for r in ptest), "span leaked into the primary test"
+    assert any(r["label"] == "valid" and r["gt_row_index"] == 1 and r["value"] == "10.0"
+               for r in ptest)
+
+
+# ─── units_equivalent hook ───────────────────────────────────────────────────
+
+
+def _equiv_rules(equivalent_pairs, known):
+    """toy rules whose equivalence hook treats ``equivalent_pairs`` as the same
+    quantity and raises UnknownUnit for anything outside ``known``."""
+    def eq(attr, a, b):
+        for u in (a, b):
+            if u not in known:
+                raise pa.UnknownUnit(u)
+        return a == b or frozenset((a, b)) in equivalent_pairs
+    return pa.DatasetAugmentRules(**{**_rules().__dict__, "units_equivalent": eq})
+
+
+def test_bad_units_never_draws_an_equivalent_unit():
+    rules = _equiv_rules({frozenset(("µg/L", "ppb"))}, known={"µg/L", "mg/L", "ppb"})
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tn", "10.0", "µg/L"), rules)
+    seen = set()
+    for seed in range(300):
+        neg = pa.make_typed_negative(src, "units", rules, random.Random(seed))
+        assert neg is not None
+        seen.add(neg["units"])
+    assert seen == {"mg/L"}, seen                    # ppb is the same quantity: never drawn
+
+
+def test_bad_units_without_hook_still_draws_every_other_unit():
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tn", "10.0", "µg/L"), _rules())
+    seen = {pa.make_typed_negative(src, "units", _rules(), random.Random(s))["units"]
+            for s in range(300)}
+    assert seen == {"mg/L", "ppb"}                   # nfix/supermat behaviour unchanged
+
+
+def test_bad_units_unknown_source_unit_is_skipped_not_guessed():
+    rules = _equiv_rules(set(), known={"µg/L", "mg/L", "ppb"})
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tn", "10.0", "4.00"), rules)
+    assert pa.make_typed_negative(src, "units", rules, random.Random(0)) is None
+
+
+# ─── bad_value collision guard is numeric-aware ──────────────────────────────
+
+
+def test_bad_value_rejects_pool_value_the_paper_prints_in_another_form():
+    rules = _rules()
+    rules.numeric_value_guard = True
+    rules.value_pool_by_attr = {"tp": ["10.0", "20.0"], "tn": []}
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tp", "10.0", "µg/L"), rules)
+    src[pa._CTX_ORIG_KEY] += " Elsewhere the paper lists 20 as another site's tp."
+    # "20.0" is not a substring of the paper, but the paper prints 20: not a safe "wrong" value.
+    assert pa.make_typed_negative(src, "value", rules, random.Random(0)) is None
+
+
+def test_bad_value_numeric_guard_is_off_by_default():
+    """nfix / supermat build rules without the flag: their negatives must not change."""
+    rules = _rules()
+    assert rules.numeric_value_guard is False and rules.units_equivalent is None
+    rules.value_pool_by_attr = {"tp": ["10.0", "20.0"], "tn": []}
+    src = pa._prep_base_valid(_valid_record(0, "Site 0", "pond", "tp", "10.0", "µg/L"), rules)
+    src[pa._CTX_ORIG_KEY] += " Elsewhere the paper lists 20 as another site's tp."
+    neg = pa.make_typed_negative(src, "value", rules, random.Random(0))
+    assert neg is not None and neg["value"] == "20.0"      # plain-substring guard only
