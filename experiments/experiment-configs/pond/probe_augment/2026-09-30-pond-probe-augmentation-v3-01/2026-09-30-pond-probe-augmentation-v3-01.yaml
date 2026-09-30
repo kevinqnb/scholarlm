@@ -1,0 +1,44 @@
+id: 2026-09-30-pond-probe-augmentation-v3-01
+project: scholarlm
+description: >-
+  Rung 4 (full generation) of the pond v3 probe-dataset rebuild, via
+  run_probe_augment.py. Writes probe_dataset_v3.json / probe_dataset_test_v3.json /
+  probe_dataset_test_v3_diag.json under data/pond/ (gitignored; the cache is the
+  committed determinant). v3 changes vs v2 are those of the rung-3 config
+  (2026-09-29-pond-probe-augmentation-v3-rung3-01, whose real-gpt-oss yield check
+  passed: 116/240 train, 121/240 diagnostic): judge-visible columns only,
+  ecosystem in the extraction vocabulary, paper casing for names, verbatim
+  uncertainty spans in train + diagnostic only (3 GT rows), table-cleaned OCR
+  context, equivalence-aware bad_units, numeric-aware bad_value guard. Same
+  cache file as rung 3, so its 406 responses are reused where prompts match.
+  prompt_budget_multiple 3 is v2's value; v3's round-0 yield (~48%) is a little
+  below v2's (57%), so the extra headroom is kept rather than reduced.
+
+  PREDICTION (written before the run). Deterministic GT counts after de-dup:
+  train 1782, test 1540 (diagnostic 1540, primary 1540). Attempts per round:
+  train 5346, diagnostic 4620 (3 axes); budgets 16038 / 13860, i.e. ~30k
+  gpt-oss calls (the recording pass walks the whole budget). Round 0 at the
+  rung-3 rate (~48-50%) gives ~2,600 train synthetic vs the 3,218 the 5000 floor
+  needs, so a resample round must close the gap; the diagnostic floor (1000) is
+  already met by its 1540 carried GT valids, so it is round 0 only (~2,300
+  synthetic). Expected files if the floor is met: train ~10,000 rows (5000 valid
+  + 5000 invalid, 5 error types x 1000); primary test 3,080 rows (1540 valid +
+  4 error types x 385, no edited papers); diagnostic ~7,700 rows (v2: 8,206).
+  If the run stops with 'positive floor not met: X/5000', resubmit with
+  valid_floor just under X (the cache persists, only the shortfall regenerates);
+  do not raise the multiple blindly.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  reviewed: true
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  prompt_budget_multiple: 3
+  valid_floor: 5000
+  diag_valid_floor: 1000
+  out_suffix: _v3
+  cache: data/pond/probe_augment_cache_v3.json
+  # v2 used a 24h ceiling for this step. ~30k gpt-oss calls at the rung-3 rate
+  # (406 calls in 859 s incl. server start) would take ~10 h if not batched better.
+  walltime: "24:00:00"
