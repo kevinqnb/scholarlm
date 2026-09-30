@@ -194,15 +194,22 @@ def test_main_pond_requires_ocr_dir(tmp_path):
         rpa.main([str(cfg_path)])
 
 
-def test_main_nfix_does_not_require_ocr_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(utils, "RESULTS_ROOT", tmp_path / "results")
-    monkeypatch.setattr(rpa.paths, "RESULTS_ROOT", tmp_path / "results")
+@pytest.mark.parametrize("dataset", ["nfix", "supermat"])
+def test_main_nfix_and_supermat_require_ocr_dir(tmp_path, dataset):
     cfg_path = _write_cfg(
-        tmp_path, "2026-09-29-test-augment-06", 42,
-        {"dataset": "nfix", "model": "gpt-oss-120b", "reviewed": True, "prompt_budget_multiple": 1},
+        tmp_path, f"2026-09-29-test-augment-06-{dataset}", 42,
+        {"dataset": dataset, "model": "gpt-oss-120b", "reviewed": dataset == "nfix",
+         "prompt_budget_multiple": 1},
     )
-    with patch("run_probe_augment.run_probe_augment"):
-        rpa.main([str(cfg_path)])  # must not raise
+    with pytest.raises(ValueError, match=r"missing required params key.*ocr_dir"):
+        rpa.main([str(cfg_path)])
+
+
+def test_argv_supermat_qualifiers_flag():
+    argv = rpa.build_augment_argv("supermat", 42, False, 2, "http://x/v1",
+                                  {"ocr_dir": "d", "qualifiers": True})
+    fs = _flagset(argv)
+    assert "--qualifiers" in fs and "--reviewed" not in fs and fs["--ocr-dir"] == ["d"]
 
 
 def test_argv_passes_ocr_dir_through():

@@ -1,0 +1,43 @@
+id: 2026-09-29-supermat-probe-augmentation-v3-rung3-01
+project: scholarlm
+description: >-
+  Rung 3 (tiny real-gpt-oss yield check) of the supermat v3 probe-dataset rebuild,
+  via run_probe_augment.py; mirrors the pond v3 rebuild
+  (2026-09-29-pond-probe-v3-rebuild-01). v3 vs the v2 files: (1) built from the
+  dataset config's ground truth, data/supermat/ground_truth_qualifiers.json
+  (1290 rows, string value incl. ranges / bounds / approximations / tolerances,
+  every value kept verbatim in every file, primary test included) -- v2 used the
+  older float-only ground_truth.json (1166 rows); (2) rows carry only the fields
+  the supermat judge sees (document_id, name, attribute, value, units) --
+  identifiers / sample_details / pressure / me_method / additional_details /
+  page_number are dropped; (3) papers -- and every row's context_override -- are
+  the table-cleaned, reference-dropped OCR the judge is given
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01),
+  not ocr_output_raw; (4) bad_units stays K <-> mK only (never equivalent); the
+  bad_value collision guard now also rejects a pool value the paper prints in
+  another numeric form. pos_event is unavailable (no judge-visible event field);
+  pos_value skips string-valued rows (only plain numeric values are perturbed).
+  Output suffix _v3_rung3 (gitignored), 80 GT valids sampled per split, round 0
+  only (multiple 1, floors 0). Own cache file (v2's is untouched).
+
+  PREDICTION (written before the run). Seed-42 80-row sample ceilings, counted
+  from the data: train pos_entity 76 / pos_value 68 = 144/160; diagnostic 75 / 68
+  = 143/160 (2 axes). v2's round-0 distinct yield was 74/154 (48%, an earlier
+  sample size). Expect 55-95 distinct per split. If a split lands under ~40, or
+  any axis exceeds its ceiling, stop and investigate before any full run.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  reviewed: false
+  qualifiers: true
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  prompt_budget_multiple: 1
+  sample_gt: 80
+  valid_floor: 0
+  diag_valid_floor: 0
+  out_suffix: _v3_rung3
+  cache: data/supermat/probe_augment_cache_v3.json
+  # pond's rung-3 (same sample size, 3 axes) took 859 s wall-clock incl. server start.
+  walltime: "01:00:00"

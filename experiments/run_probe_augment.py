@@ -36,8 +36,9 @@ never duplicates a default create_probe_dataset.py already declares, to
 avoid the two silently drifting apart): pos_axes (list), valid_floor,
 diag_valid_floor, sample_gt, out_suffix, rewrite_temperature,
 prewarm_max_retries, prewarm_drop_ceiling, cache, stub (bool -- deterministic
-stub client, no LLM, smoke-test only). Also: api_base. pond additionally
-REQUIRES ocr_dir (the OCR corpus the judge reads; no default).
+stub client, no LLM, smoke-test only). Also: api_base. pond, nfix and
+supermat additionally REQUIRE ocr_dir (the OCR corpus the judge reads; no default);
+supermat also takes qualifiers (bool) to build from ground_truth_qualifiers.json.
 """
 from __future__ import annotations
 
@@ -74,12 +75,13 @@ _VALUE_FLAGS: dict[str, str] = {
 }
 # Datasets whose create_probe_dataset.py --augment takes a required --ocr-dir
 # (no default there either); params.ocr_dir is then a required config key.
-_OCR_DIR_REQUIRED = ("pond",)
+_OCR_DIR_REQUIRED = ("pond", "nfix", "supermat")
 _LIST_FLAGS: dict[str, str] = {
     "pos_axes": "--augment-pos-axes",
 }
 _BOOL_FLAGS: dict[str, str] = {
     "stub": "--augment-stub",
+    "qualifiers": "--qualifiers",     # supermat only: build from ground_truth_qualifiers.json
 }
 
 
