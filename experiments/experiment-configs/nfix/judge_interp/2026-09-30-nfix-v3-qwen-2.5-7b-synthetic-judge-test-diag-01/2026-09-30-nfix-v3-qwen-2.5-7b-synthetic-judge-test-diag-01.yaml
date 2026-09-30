@@ -1,0 +1,20 @@
+id: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (qwen-2.5-7b: Qwen2.5-7B-Instruct (YaRN x3.0 override)) over nfix's diagnostic v3 test split (built like train on held-out valids; edited-vs-unedited leakage check)
+  (data/nfix/probe_dataset_test_v3_diag.json), collecting attention/layer activations. v3 rows carry
+  only judge-visible fields and a context_override drawn from the table-cleaned,
+  reference-dropped OCR; ocr_dir is pinned to that same corpus. DRAFT: the
+  synthetic_file name is the expected full-run output, not yet on disk (only the
+  _v3_rung3 files exist as of 2026-09-30) -- confirm the suffix and file
+  existence after the full probe augmentation runs. Not comparable to any v2
+  synthetic judge run. Per CLAUDE.md's ladder, smoke-run before submitting.
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-7b
+  synthetic_file: data/nfix/probe_dataset_test_v3_diag.json
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  # PLACEHOLDER ceiling, no v3 runtime observed yet. v2 qwen-7b actuals on pond:
+  # train 8.6h, test-primary 2.5h, test-diag 6.5h. Tighten after the tiny e2e run.
+  walltime: "24:00:00"

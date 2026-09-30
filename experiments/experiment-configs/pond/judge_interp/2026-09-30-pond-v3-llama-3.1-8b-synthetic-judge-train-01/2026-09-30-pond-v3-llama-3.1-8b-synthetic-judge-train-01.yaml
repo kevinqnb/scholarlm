@@ -1,0 +1,20 @@
+id: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-train-01
+project: scholarlm
+description: >-
+  NNsight interp-judge pass (llama-3.1-8b: Llama-3.1-8B-Instruct) over pond's augmented v3 training corpus (fits the head probe + NTP calibrator)
+  (data/pond/probe_dataset_v3.json), collecting attention/layer activations. v3 rows carry
+  only judge-visible fields and a context_override drawn from the table-cleaned,
+  reference-dropped OCR; ocr_dir is pinned to that same corpus. DRAFT: the
+  synthetic_file name is the expected full-run output, not yet on disk (only the
+  _v3_rung3 files exist as of 2026-09-30) -- confirm the suffix and file
+  existence after the full probe augmentation runs. Not comparable to any v2
+  synthetic judge run. Per CLAUDE.md's ladder, smoke-run before submitting.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.1-8b
+  synthetic_file: data/pond/probe_dataset_v3.json
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  # PLACEHOLDER ceiling, no v3 runtime observed yet. v2 qwen-7b actuals on pond:
+  # train 8.6h, test-primary 2.5h, test-diag 6.5h. Tighten after the tiny e2e run.
+  walltime: "24:00:00"
