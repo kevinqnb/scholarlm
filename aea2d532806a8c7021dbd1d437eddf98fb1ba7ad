@@ -1,0 +1,20 @@
+Add judge configs for pond/nfix ablation1-llama8b-reppen-cap100
+
+The 2026-09-26 ...-noqualifiers-full-01 extraction ids the 2026-09-27
+judge batch was drafted against never finished (llama-3.1-8b's
+json_schema decoding looped on a large fraction of papers under the
+repetition_penalty 1.1 arm). They were replaced by a capped rerun
+(...-cap100-noqualifiers-full-01, params.max_items=100) which finished
+2026-09-29 for both datasets. No judge configs existed yet for the new
+ids -- drafted 3 judge_local (voting only, no interp, per the
+full-pipeline-only interp-scoping rule) + 1 judge_combine per dataset,
+mirroring the existing ablation7-llama8b-reppen pattern. ocr_dir
+confirmed table-cleaned (matches what the extraction itself used).
+
+Note: per the cap100 extraction config's own description, capped papers
+(53/112 for pond, több for nfix) are truncated/padded and flagged
+suspect -- not a blocker for judging, but worth remembering when
+interpreting this arm's recovery/validity numbers.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01B9sh14qHRKfuwk8WiabPkM
