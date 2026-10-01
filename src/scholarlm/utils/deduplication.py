@@ -8,11 +8,11 @@ than imported because ``match_datasets`` keeps them as closures, and refactoring
 would be an eval-logic change. ``tests/test_deduplication.py`` checks parity against
 ``match_datasets`` directly.
 
-When every fuzzy field is null on at least one side of a pair, both here and in
-``match_datasets`` the pair counts as a match if the strict fields agree (no fuzzy
-evidence either way) -- ``match_datasets`` represents that case with an edge weight
-of ``fuzzy_threshold`` (the minimum passing score) rather than dropping the edge, as
-it used to before 2026-09-26.
+Null semantics are the matcher's, strict and fuzzy alike: null == null agrees (a fuzzy
+field null on both sides scores 1.0); null vs non-null never matches (any fuzzy field
+null on exactly one side makes the pair ineligible, it is not averaged away). This
+replaced the pre-2026-09-30 rule (one-sided fuzzy nulls skipped, strict fields deciding
+alone when no fuzzy field was comparable) in lockstep with ``match_datasets``.
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -56,6 +56,9 @@ def _strict_equal(a, b) -> bool:
 
 
 def _fuzzy_score(a, b) -> Optional[float]:
+    """1.0 if both null; None (pair can never match) if exactly one is null."""
+    if _is_null(a) and _is_null(b):
+        return 1.0
     if _is_null(a) or _is_null(b):
         return None
     s_a = _normalize_obj(a)
@@ -74,24 +77,21 @@ def pair_score(
 ) -> Tuple[bool, Optional[float]]:
     """Score one pair of records.
 
-    Returns ``(strict_ok, fuzzy_score)``. ``fuzzy_score`` is the mean fuzzy ratio in
-    [0, 1] over the fuzzy fields that are non-null on both sides, or ``None`` if there
-    is no such field (or if ``strict_ok`` is False, in which case it is not computed).
+    Returns ``(eligible, fuzzy_score)``. ``eligible`` is False if any strict field
+    differs or any fuzzy field is null on exactly one side; then ``fuzzy_score`` is
+    ``None``. Otherwise ``fuzzy_score`` is the mean fuzzy ratio in [0, 1] over all
+    fuzzy fields (null on both sides counts as 1.0).
     """
     if not all(_strict_equal(row_a[c], row_b[c]) for c in strict_fields):
         return False, None
-    scores = [s for c in fuzzy_fields if (s := _fuzzy_score(row_a[c], row_b[c])) is not None]
-    if not scores:
-        return True, None
+    scores = [_fuzzy_score(row_a[c], row_b[c]) for c in fuzzy_fields]
+    if any(s is None for s in scores):
+        return False, None
     return True, float(np.mean(scores))
 
 
-def _is_duplicate(strict_ok: bool, score: Optional[float], fuzzy_threshold: float) -> bool:
-    if not strict_ok:
-        return False
-    if score is None:  # all fuzzy fields null on one side: strict match alone decides
-        return True
-    return score >= fuzzy_threshold
+def _is_duplicate(eligible: bool, score: Optional[float], fuzzy_threshold: float) -> bool:
+    return eligible and score >= fuzzy_threshold
 
 
 def _block_key(row: pd.Series, strict_fields: Sequence[str]) -> tuple:
@@ -185,16 +185,14 @@ def deduplicate_records(
     Pair rule (mirrors ``match_datasets`` edge semantics): rows ``a`` and ``b`` are
     duplicates iff every strict field is equal (null == null; numerics via
     ``np.isclose(atol=1e-3, rtol=0)``; strings case-insensitive and stripped; a
-    numeric never equals a string) AND the mean ``rapidfuzz.fuzz.ratio`` / 100 over
-    fuzzy fields non-null on both sides is ``>= fuzzy_threshold``. If no fuzzy field
-    is non-null on both sides, the strict match alone makes them duplicates (matches
-    ``match_datasets``, which assigns that case an edge weight of ``fuzzy_threshold``).
+    numeric never equals a string) AND no fuzzy field is null on exactly one side AND the
+    mean ``rapidfuzz.fuzz.ratio`` / 100 over the fuzzy fields (null on both sides
+    scoring 1.0) is ``>= fuzzy_threshold``.
 
     Grouping rule: the pair relation isn't transitive, so rows are walked in
     ``df`` order and each row is compared only against rows already *kept*. A row that
     is a duplicate of one or more kept rows is dropped and assigned to the kept row
-    with the highest fuzzy score (a pair with no fuzzy evidence ranks below any scored
-    pair), ties broken by earliest kept row. There is no chaining: with A~B, B~C and
+    with the highest fuzzy score, ties broken by earliest kept row. There is no chaining: with A~B, B~C and
     A!~C, A is kept, B is merged into A, and C is kept. Consequently the result
     depends on row order.
 
@@ -223,7 +221,7 @@ def deduplicate_records(
         deduped: the kept rows, in original order with original index labels, with
             merged provenance lists.
         duplicates: one row per dropped record, columns ``dropped_label``,
-            ``kept_label``, ``score`` (NaN when no fuzzy field was comparable).
+            ``kept_label``, ``score``.
     """
     _validate(df, strict_fields, fuzzy_fields, fuzzy_threshold, provenance_fields)
 
@@ -234,22 +232,21 @@ def deduplicate_records(
 
     for label, row in df.iterrows():
         kept_in_block = blocks.setdefault(_block_key(row, strict_fields), [])
-        best_label, best_rank, best_score = None, None, None
+        best_label, best_score = None, None
         for k_label in kept_in_block:
-            strict_ok, score = pair_score(
+            eligible, score = pair_score(
                 df.loc[k_label], row, strict_fields=strict_fields, fuzzy_fields=fuzzy_fields
             )
-            if not _is_duplicate(strict_ok, score, fuzzy_threshold):
+            if not _is_duplicate(eligible, score, fuzzy_threshold):
                 continue
-            # scored pairs outrank unscored ones; strict '>' keeps the earliest on ties
-            rank = (1, score) if score is not None else (0, 0.0)
-            if best_rank is None or rank > best_rank:
-                best_label, best_rank, best_score = k_label, rank, score
+            # strict '>' keeps the earliest kept row on ties
+            if best_score is None or score > best_score:
+                best_label, best_score = k_label, score
         if best_label is None:
             kept_in_block.append(label)
             kept_labels.append(label)
         else:
-            duplicate_rows.append((label, best_label, np.nan if best_score is None else best_score))
+            duplicate_rows.append((label, best_label, best_score))
             merged_into.setdefault(best_label, []).append(label)
 
     deduped = df.loc[kept_labels].copy()
