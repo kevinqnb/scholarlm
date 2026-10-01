@@ -25,7 +25,7 @@ params:
     - 2026-09-26-supermat-extraction-llama8b-reppen-full-01
     - 2026-09-21-supermat-extraction-gemma27b-full-01
     - 2026-09-21-supermat-extraction-gptoss120b-full-01
-    #- 2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01
+    - 2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01
     - 2026-09-25-supermat-ablation1-gemma27b-noqualifiers-full-01
     - 2026-09-26-supermat-ablation1-gptoss120b-noqualifiers-full-01
     - 2026-09-25-supermat-langextract-gemma27b-noqualifiers-full-01

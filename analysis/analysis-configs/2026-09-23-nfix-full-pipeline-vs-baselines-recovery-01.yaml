@@ -35,7 +35,7 @@ params:
     - 2026-09-26-nfix-extraction-llama8b-reppen-full-01
     - 2026-09-21-nfix-extraction-gemma27b-full-01
     - 2026-09-25-nfix-extraction-gptoss120b-full-02
-    #- 2026-09-26-nfix-ablation1-llama8b-reppen-noqualifiers-full-01
+    - 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
     - 2026-09-25-nfix-ablation1-gemma27b-noqualifiers-full-01
     - 2026-09-26-nfix-ablation1-gptoss120b-noqualifiers-full-01
     - 2026-09-25-nfix-langextract-gemma27b-noqualifiers-full-01
