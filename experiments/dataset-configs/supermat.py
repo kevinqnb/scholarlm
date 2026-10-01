@@ -19,6 +19,7 @@ import json
 from pydantic import BaseModel
 
 from scholarlm.config import DatasetConfig, QUALIFIER_FIELD_NAMES
+from scholarlm.utils.normalization import canonical_formula_name
 
 
 # ---------------------------------------------------------------------------
@@ -627,4 +628,10 @@ CONFIG = DatasetConfig(
         "name": "name",
     },
     fuzzy_threshold=0.5,
+    numeric_coerce=["point_value"],
+    # Material names are chemical formulas whose notation (LaTeX, unicode
+    # subscripts, spacing) varies by system; fuzz.ratio on the raw strings
+    # scored the same compound below threshold. Abbreviations/aliases (LSCO
+    # vs La_{2-x}Sr_xCuO_4) are deliberately NOT handled -- out of scope.
+    fuzzy_normalizers={"name": canonical_formula_name},
 )

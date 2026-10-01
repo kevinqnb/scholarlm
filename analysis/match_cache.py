@@ -177,6 +177,7 @@ def get_matching_config(dataset_config) -> dict:
         "fuzzy": dataset_config.fuzzy_matching,
         "fuzzy_threshold": dataset_config.fuzzy_threshold,
         "numeric_coerce": dataset_config.numeric_coerce or [],
+        "fuzzy_normalizers": dataset_config.fuzzy_normalizers or {},
     }
 
 
@@ -187,6 +188,7 @@ def cached_match(
     strict_matching: dict,
     fuzzy_matching: dict | None,
     cache_path: Path,
+    fuzzy_normalizers: dict | None = None,
 ) -> tuple:
     """Run match_datasets at fuzzy_threshold=0.0 and write the result to
     cache_path, overwriting any existing cache there.
@@ -202,6 +204,7 @@ def cached_match(
         strict_matching=strict_matching,
         fuzzy_matching=fuzzy_matching or {},
         fuzzy_threshold=0.0,
+        fuzzy_normalizers=fuzzy_normalizers,
     )
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with open(cache_path, "wb") as f:
@@ -416,6 +419,7 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
         strict_matching=cfg["strict"],
         fuzzy_matching=cfg["fuzzy"],
         cache_path=cache_path,
+        fuzzy_normalizers=cfg["fuzzy_normalizers"],
     )
 
     meta = {

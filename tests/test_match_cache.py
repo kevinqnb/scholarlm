@@ -59,6 +59,7 @@ def test_get_matching_config_happy_path():
         "fuzzy": {"name": "name"},
         "fuzzy_threshold": 1 / 3,
         "numeric_coerce": ["point_value"],
+        "fuzzy_normalizers": {},
     }
 
 

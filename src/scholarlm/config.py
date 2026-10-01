@@ -237,6 +237,12 @@ class DatasetConfig:
             for why (a strict-match column can be numeric in the ground truth
             but a raw string in extraction output). ``None``/``[]`` applies no
             coercion.
+        fuzzy_normalizers: Optional ``{fuzzy_matching key: str -> str}``
+            canonicaliser applied to both sides of that fuzzy column (after the
+            null check, before the matcher's own lowercase/strip) -- for
+            fields whose notation varies by system (supermat's chemical
+            formulas). Keys must be ``fuzzy_matching`` keys. ``None`` applies
+            none.
     """
 
     name: str
@@ -274,6 +280,7 @@ class DatasetConfig:
     fuzzy_matching: dict[str, str] | None = None
     fuzzy_threshold: float | None = None
     numeric_coerce: list[str] | None = None
+    fuzzy_normalizers: dict[str, Callable[[str], str]] | None = None
 
 
 @dataclass
