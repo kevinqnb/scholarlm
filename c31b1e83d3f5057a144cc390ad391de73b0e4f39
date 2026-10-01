@@ -1,0 +1,25 @@
+[SIGNOFF c31b1e8]: human comprehension and risk attestation
+
+Signoff-Spec-Version: 1.0
+Signoff-Status: VERIFIED_BY_HUMAN
+Signoff-Timestamp: 2026-10-01T15:22:08Z
+Signoff-Base-SHA: fa41df8969d0882a324a47e9a947063b8b964721
+Signoff-Reviewed-Commit-SHA: c31b1e83d3f5057a144cc390ad391de73b0e4f39
+Signoff-Reviewed-Tree-SHA: aea2d532806a8c7021dbd1d437eddf98fb1ba7ad
+Signoff-Harness-ID: claude-code
+Signoff-Conversation-ID: 70ec42ad-b185-40d7-9c65-bf46672b190e
+Signoff-Transcript-Digest: sha256:7582fa1d3398dd877ce3b4beb98d1932ae8b57eb7c17f648be2019a21af290e8
+Signoff-Transcript-Bytes: 528434
+Signoff-Tradeoff: Matcher scores null==null as 1.0 and rejects one-sided fuzzy nulls (4417672); supersedes all prior recovery numbers
+Signoff-Tradeoff: Judge criterion B rewritten and E deleted for string-valued value fields (db9b97d); invalidates all earlier judge scores
+Signoff-Tradeoff: Failed ablation-1 papers count as zero recovery and stay in the denominator by design
+Signoff-Risk: Null==null padding can lift weak fuzzy matches past threshold (effective threshold t(k+1)-k for k all-null columns); no mechanical guard yet, deferred until null handling is redesigned; all current matcher numbers stale
+Signoff-Risk: Extraction prompt still excludes coefficients and p-values while judge no longer enforces it; safe only while no target attribute is model-output type and nothing checks that
+Signoff-Risk: Ablation 1 except Exception substitutes empty list; recorded in failed_papers and capped_papers but nothing forces review before analysis
+Signoff-Risk: analysis recovery CSVs from 174429e are stale and do not record matcher or judge version
+Signoff-Risk: probe v3 code, pilot builders, judge_batch_status.py and data churn were not probed in depth
+Signoff-Risk: attestation commit is unsigned (SSH signing failed; user explicitly approved unsigned)
+Signoff-Verified-By: quinnk@bu.edu
+Signoff-Agent: harness=claude-code/N/A model=claude-sonnet-5-5 reasoning=medium interview=skeptical/domain-science/sha256:f8508fa3740f
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
