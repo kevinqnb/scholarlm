@@ -255,6 +255,8 @@ data/*/probe_dataset*_rung[0-9]*.json
 # Previously committed (30 files, ~120MB across pond/nfix/supermat) and
 # untracked 2026-09-27; they remain in git history.
 data/*/validation_set*.json
+# Backups written by data/validation/topup_pilot_validation_sets.py
+data/*/validation_set*.json.pre-topup
 
 .batch_state.json
 .batch_state_openai.json
