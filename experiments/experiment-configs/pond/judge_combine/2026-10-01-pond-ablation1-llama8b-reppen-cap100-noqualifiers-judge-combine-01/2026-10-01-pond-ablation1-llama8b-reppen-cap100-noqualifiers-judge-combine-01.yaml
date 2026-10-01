@@ -1,0 +1,18 @@
+id: 2026-10-01-pond-ablation1-llama8b-reppen-cap100-noqualifiers-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over pond extraction
+  (2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-full-01): 3
+  voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) only -- no interp
+  judges, per the full-pipeline-only interp-scoping rule (ablation1 is not full
+  pipeline). voting_threshold pinned explicitly (this repo avoids inferred
+  defaults).
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+    - 2026-10-01-pond-ablation1-llama8b-reppen-cap100-noqualifiers-gptoss120b-judge-local-01
+    - 2026-10-01-pond-ablation1-llama8b-reppen-cap100-noqualifiers-qwen72b-judge-local-01
+    - 2026-10-01-pond-ablation1-llama8b-reppen-cap100-noqualifiers-llama70b-judge-local-01
+  voting_threshold: 2
+  walltime: "00:30:00"

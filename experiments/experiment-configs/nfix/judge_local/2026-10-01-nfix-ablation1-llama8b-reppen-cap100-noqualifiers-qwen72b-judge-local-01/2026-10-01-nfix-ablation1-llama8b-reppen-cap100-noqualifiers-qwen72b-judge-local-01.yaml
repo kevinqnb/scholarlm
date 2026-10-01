@@ -1,0 +1,22 @@
+id: 2026-10-01-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-qwen72b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (qwen-2.5-72b) over nfix extraction
+  (2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01).
+  Full-paper context against the table-cleaned, reference-dropped OCR corpus
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly rather than relying on the default. This
+  extraction replaced the original ...-noqualifiers-full-01 id (never finished
+  -- llama-3.1-8b's json_schema decoding looped on a large fraction of papers);
+  the cap100 run bounds output size per document (params.max_items=100) but
+  does not make capped papers' records correct -- see the extraction config's
+  own description for capped_papers/failed_papers caveats before treating this
+  arm's judged numbers as directly comparable to the uncapped gemma/gpt-oss
+  ablation1 arms.
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-72b
+  extraction_id: 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "48:00:00"
