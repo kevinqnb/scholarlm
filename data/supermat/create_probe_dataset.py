@@ -112,6 +112,55 @@ _GT_COLS = [
 
 
 # ---------------------------------------------------------------------------
+# Augment path only: judge-visible schema, unit equivalence. None of this
+# touches the default (v1) path.
+# ---------------------------------------------------------------------------
+
+# What the judge sees for supermat (supermat.py: EntitySchema.name only --
+# identifiers / event_details filtered, no date) plus attribute / value / units,
+# and ``document_id`` (names the paper). sample_details / pressure / me_method /
+# identifiers / additional_details / page_number are not judge-visible, so the
+# augmented files do not carry them (``gt_row_index`` links back to the GT row).
+# Also the columns ``_row_signature`` dedups on.
+_AUGMENT_GT_COLS = ["document_id", "name", "attribute", "value", "units"]
+
+# tc units: K and mK are different quantities (factor 1000), so nothing but a
+# spelling variant of the same unit is ever equivalent. Explicit rather than
+# implied: an unlisted unit raises.
+_UNIT_SCALE: dict[str, float] = {"k": 1.0, "mk": 1e-3}
+
+
+def units_equivalent(attr: str, a: str, b: str) -> bool:
+    for u in (a, b):
+        if u.strip().lower() not in _UNIT_SCALE:
+            raise _aug.UnknownUnit(u)
+    return math.isclose(_UNIT_SCALE[a.strip().lower()], _UNIT_SCALE[b.strip().lower()],
+                        rel_tol=1e-9)
+
+
+def prepare_augment_records(records: list[dict], ocr_dir: Path) -> dict:
+    """Checks only; supermat needs no field remapping (the judge sees the formula
+    in ``name`` as-is, and the config's qualifier ground truth already carries the
+    string ``value`` -- kept verbatim in every file). Asserts every paper's OCR
+    file is present and non-empty, and reports rows the augment path cannot build
+    a ``bad_units`` negative from."""
+    seen: set[str] = set()
+    unknown_unit_rows: list[int] = []
+    n_span = 0
+    for r in records:
+        code = r["_paper_code"]
+        if code not in seen:
+            path = Path(ocr_dir) / f"{code}.txt"
+            assert path.read_text(encoding="utf-8").strip(), f"OCR file is empty: {path}"
+            seen.add(code)
+        if r.get("units") is not None and r["units"].strip().lower() not in _UNIT_SCALE:
+            unknown_unit_rows.append(r["gt_row_index"])
+        if not re.match(r"^-?\d+(\.\d+)?$", r["value"]):
+            n_span += 1
+    return {"unknown_unit_rows": unknown_unit_rows, "n_non_plain_value": n_span}
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -210,7 +259,7 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(gt_records: list[dict]) -> list[dict]:
+def build_gt_records(gt_records: list[dict], ocr_dir: Path) -> list[dict]:
     """Convert ground-truth records to probe record dicts.
 
     Output schema matches ground_truth.json (document_id, name, identifiers,
@@ -222,15 +271,17 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
 
     Args:
         gt_records: List of ground-truth record dicts loaded from ground_truth.json.
+        ocr_dir: Directory of ``<paper_code>.txt`` OCR files (v1 path: a missing
+            directory means no records; the augment path asserts none were dropped).
 
     Returns:
         List of record dicts ready for synthetic modification.
     """
     ocr_codes = {
         f.removesuffix(".txt")
-        for f in os.listdir(_OCR_DIR)
+        for f in os.listdir(ocr_dir)
         if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
-    } if _OCR_DIR.exists() else set()
+    } if ocr_dir.exists() else set()
 
     records: list[dict] = []
     for i, row in enumerate(gt_records):
@@ -617,7 +668,7 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
     written = _aug.run_and_write(
         base_dir=BASE,
         out_suffix=args.augment_out_suffix,
-        ocr_dir=_OCR_DIR,
+        ocr_dir=Path(args.ocr_dir),
         xv_train=xv_train,
         xv_test=xv_test,
         rules=rules,
@@ -661,7 +712,7 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
             "Keep every measured quantity — the critical temperature and the "
             "conditions it was measured under — identical."
         ),
-        entity_swap_clear_fields=("identifiers",),
+        entity_swap_clear_fields=(),   # `identifiers` is no longer in the output schema
         attr_units=attr_units,
         attribute_pool=sorted(_ATTR_DICT.keys()),   # single measurand (tc) -> no attribute error
         value_pool_by_attr=_value_pool_by_attr(all_records),
@@ -673,7 +724,9 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         event_noun="applied pressure",   # unused while event_field is None
         event_pool=[],
         event_allow_inject=False,
-        gt_cols=list(_GT_COLS),
+        gt_cols=list(_AUGMENT_GT_COLS),
+        units_equivalent=units_equivalent,
+        numeric_value_guard=True,
     )
 
 
@@ -694,6 +747,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--reviewed", action="store_true",
         help="Use ground_truth_review.json instead of ground_truth.json.",
+    )
+    parser.add_argument(
+        "--qualifiers", action="store_true",
+        help="Use ground_truth_qualifiers.json (string `value`, with range / "
+             "approximate / tolerance qualifiers) -- the dataset config's ground truth. "
+             "Required with --augment.",
     )
     ag = parser.add_argument_group("augmentation (opt-in; default OFF reproduces "
                                    "the current probe_dataset{,_test}.json byte-for-byte)")
@@ -736,14 +795,27 @@ def main(argv: list[str] | None = None) -> None:
     ag.add_argument("--augment-sample-gt", type=int, default=0,
                     help="Rung 3: randomly sample this many GT valids (train and test each) "
                          "before augmenting, for a quick per-axis yield read. 0 = all.")
-    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--ocr-dir", default=None,
+                    help="REQUIRED with --augment: directory of <paper>.txt OCR files the "
+                         "papers (and every row's context_override) are read from -- the "
+                         "text the judge is given. No default.")
+    ag.add_argument("--augment-out-suffix", default="_v3")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
                     default=str(BASE / "probe_augment_cache.json"),
                     help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
+    if args.augment and not args.ocr_dir:
+        parser.error("--augment requires --ocr-dir (no default)")
+    if args.reviewed and args.qualifiers:
+        parser.error("--reviewed and --qualifiers select different ground-truth files")
 
-    gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
+    gt_file = BASE / ("ground_truth_qualifiers.json" if args.qualifiers
+                      else "ground_truth_review.json" if args.reviewed
+                      else "ground_truth.json")
+    if args.augment and gt_file.resolve() != (REPO_ROOT / CONFIG.ground_truth_file).resolve():
+        parser.error(f"--augment must build from the dataset config's ground truth "
+                     f"({CONFIG.ground_truth_file}); got {gt_file.name} (pass --qualifiers?)")
     rng = random.Random(args.seed)
     print(f"Seed: {args.seed}")
 
@@ -752,8 +824,16 @@ def main(argv: list[str] | None = None) -> None:
         gt_records = json.load(f)
     print(f"Loaded {len(gt_records):,} GT rows from {gt_file.name}")
 
-    all_records = build_gt_records(gt_records)
+    all_records = build_gt_records(gt_records, Path(args.ocr_dir) if args.augment else _OCR_DIR)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
+    if args.augment:
+        assert len(all_records) == len(gt_records), (
+            f"{len(gt_records) - len(all_records)} GT rows have no OCR file in {args.ocr_dir}: "
+            f"{sorted({str(r['document_id']) for r in gt_records} - {r['_paper_code'] for r in all_records})}")
+        report = prepare_augment_records(all_records, Path(args.ocr_dir))
+        print(f"AUGMENT PREP: {report['n_non_plain_value']} non-plain GT value string(s) kept "
+              f"verbatim in every file; {len(report['unknown_unit_rows'])} GT row(s) with an "
+              f"unknown `units` string (no bad_units built from them)")
 
     if not all_records:
         print("No records with matching OCR files -- run experiments/run_ocr.py "

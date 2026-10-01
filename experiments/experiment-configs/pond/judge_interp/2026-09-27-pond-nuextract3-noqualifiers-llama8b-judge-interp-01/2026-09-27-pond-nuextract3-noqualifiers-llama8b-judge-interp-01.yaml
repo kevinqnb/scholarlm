@@ -1,0 +1,16 @@
+id: 2026-09-27-pond-nuextract3-noqualifiers-llama8b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (llama-3.1-8b) over pond extraction
+  (2026-09-25-pond-nuextract3-noqualifiers-full-01), collecting attention/layer
+  activations. Full-paper context against the table-cleaned, reference-dropped
+  OCR corpus
+  (experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly.
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.1-8b
+  extraction_id: 2026-09-25-pond-nuextract3-noqualifiers-full-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "24:00:00"

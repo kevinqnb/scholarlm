@@ -1,0 +1,54 @@
+id: 2026-09-30-supermat-probe-augmentation-v3-01
+project: scholarlm
+description: >-
+  Rung 4 (full generation) of the supermat v3 probe-dataset rebuild, via
+  run_probe_augment.py. Writes probe_dataset_v3.json / probe_dataset_test_v3.json /
+  probe_dataset_test_v3_diag.json under data/supermat/ (gitignored; the cache is
+  the committed determinant). Built from the dataset config's
+  ground_truth_qualifiers.json (--qualifiers), string values verbatim in every
+  file. v3 changes vs v2 are those of the rung-3 config
+  (2026-09-29-supermat-probe-augmentation-v3-rung3-01, job 7793034, exit 0). Same
+  cache file as rung 3, so its 258 responses are reused where prompts match.
+
+  PARAMETERS RE-DERIVED FROM RUNG 3 (2026-09-30). Rung-3 round-0 distinct yield:
+  train 44/158 (28%), diagnostic 48/150 (32%) -- BELOW the predicted 55-95 (v2:
+  48%), though above the stop line and no ceiling exceeded; per axis
+  (train / diagnostic) pos_entity 27/30, pos_value 17/18. Checked, not a bug and
+  not the OCR switch: GT names/values are printed in the cleaned and raw OCR at
+  the same rate (name verbatim 19 vs 21 train, 30 vs 30 diagnostic), only 24-38%
+  of GT formulas are a verbatim paper span (caps pos_entity), and ~15% of
+  pos_value attempts are structurally inapplicable (12 of 80 rows per split have
+  range / bound values). The remainder of the gap to v2 is not attributed (v2's
+  log is gone; different sample). Floors are the v2 values (1200 / 1000).
+  prompt_budget_multiple is set from the rounds the floors need with ~2x
+  headroom, not carried from v2: train needs 1200 - 486 carried = 714 synthetic
+  at ~270 per round -> ~2.6 rounds; diagnostic needs 1000 - 478 = 522 at ~305
+  -> ~1.7 rounds; multiple 6 (v2's 12 was sized for a different yield). The
+  recording pass walks the WHOLE budget, so the multiple sets the call count:
+  6 x (972 + 956) ~ 11.6k gpt-oss calls (~0.8 s/call at rung 3).
+
+  PREDICTION (written before the run). Deterministic GT counts after de-dup:
+  train 486 (of 647: rows identical on the five judge-visible columns collapse),
+  test 478 (diagnostic 478, primary 478); 2 axes. Expected files: primary test
+  956 rows (478 valid + 478 invalid, 3 error types, no edited papers); train
+  ~2,400 rows and diagnostic ~2,000 rows IF the floors are met. Real risk: the
+  projection assumes resample rounds keep yielding new DISTINCT rows at the
+  round-0 rate; pos_value perturbations of short integer Tc values (e.g. 39) have
+  few distinct outcomes and may saturate. On 'positive floor not met:
+  X/<floor>', resubmit with the floor just under X (the cache persists).
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  reviewed: false
+  qualifiers: true
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  prompt_budget_multiple: 6
+  valid_floor: 1200
+  diag_valid_floor: 1000
+  out_suffix: _v3
+  cache: data/supermat/probe_augment_cache_v3.json
+  # ~11.6k calls at ~0.8 s/call (rung 3: 258 calls in 505 s incl. server start) ~ 2.5-3 h;
+  # ~4x margin.
+  walltime: "12:00:00"

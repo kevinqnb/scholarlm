@@ -1,0 +1,44 @@
+id: 2026-09-30-nfix-probe-augmentation-v3-01
+project: scholarlm
+description: >-
+  Rung 4 (full generation) of the nfix v3 probe-dataset rebuild, via
+  run_probe_augment.py. Writes probe_dataset_v3.json / probe_dataset_test_v3.json /
+  probe_dataset_test_v3_diag.json under data/nfix/ (gitignored; the cache is the
+  committed determinant). v3 changes vs v2 are those of the rung-3 config
+  (2026-09-29-nfix-probe-augmentation-v3-rung3-01, job 7793033, exit 0). Same
+  cache file as rung 3, so its 357 responses are reused where prompts match.
+
+  PARAMETERS RE-DERIVED FROM RUNG 3 (2026-09-30). Rung-3 round-0 distinct yield:
+  train 80/237 (34%), diagnostic 97/240 (40%) -- inside the predicted 55-100;
+  per axis (train / diagnostic) pos_entity 26/43, pos_value 40/37, pos_event
+  14/17 (pos_event weakest, as predicted). Floors are the v2 values (1200 /
+  650: nfix is material-limited, the pond default of 5000 is unreachable).
+  prompt_budget_multiple is set from the rounds the floor needs, with ~2x
+  headroom, not carried from v2: train needs 1200 - 526 carried = 674 synthetic
+  at ~530 per round -> ~1.3 rounds -> multiple 3 (v2's 10 was sized for a lower
+  yield). The recording pass walks the WHOLE budget, so the multiple sets the
+  call count: 3 x (1578 + 1092) ~ 8.0k gpt-oss calls (~1.1 s/call at rung 3).
+
+  PREDICTION (written before the run). Deterministic GT counts after de-dup:
+  train 526, test 364 (diagnostic 364, primary 364); 3 axes. Expected files:
+  primary test 728 rows (364 valid + 364 invalid, 5 error types, no edited
+  papers); train ~2,400 rows (1200 valid + 1200 invalid: round 0 keeps all ~530
+  synthetic, resampling stops at the floor); diagnostic ~1,600 rows (364 carried
+  + ~440 round-0 synthetic = ~800 valid; its floor needs only 286 so no
+  resampling). On 'positive floor not met: X/1200', resubmit with valid_floor
+  just under X (the cache persists); do not raise the multiple blindly.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: nfix
+  model: gpt-oss-120b
+  reviewed: true
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  prompt_budget_multiple: 3
+  valid_floor: 1200
+  diag_valid_floor: 650
+  out_suffix: _v3
+  cache: data/nfix/probe_augment_cache_v3.json
+  # ~8.0k calls at ~1.1 s/call (rung 3: 357 calls in 706 s incl. server start) ~ 2.5 h;
+  # ~4x margin.
+  walltime: "12:00:00"

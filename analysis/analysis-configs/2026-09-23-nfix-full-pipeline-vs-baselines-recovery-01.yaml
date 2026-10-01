@@ -19,21 +19,30 @@ description: >
   their final.json has no point_value/units columns in the current
   strict_matching shape (chatextract emits property/quantity instead; the
   gpt-oss-120b run predates the qualifiers/point_value pipeline schema).
+  2026-09-27: experiment_ids' llama8b-reppen extraction/ablation7 entries had
+  been copy-pasted from the pond analysis config (pointed at
+  2026-09-26-pond-extraction-llama8b-reppen-full-01 and
+  2026-09-26-pond-ablation7-llama8b-reppen-full-01, i.e. pond output under an
+  nfix config) -- corrected to their real nfix equivalents
+  (2026-09-26-nfix-extraction-llama8b-reppen-full-01,
+  2026-09-26-nfix-ablation7-llama8b-reppen-full-01), found while drafting
+  judge configs off this file's experiment_ids. match_cache.pkl for this
+  config needs rebuilding again given the id change.
 seed: 342
 params:
   ground_truth_file: data/nfix/ground_truth_review.json
   experiment_ids:
-    - 2026-09-26-pond-extraction-llama8b-reppen-full-01
+    - 2026-09-26-nfix-extraction-llama8b-reppen-full-01
     - 2026-09-21-nfix-extraction-gemma27b-full-01
     - 2026-09-25-nfix-extraction-gptoss120b-full-02
-    #- 2026-09-26-nfix-ablation1-llama8b-reppen-noqualifiers-full-01
+    - 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
     - 2026-09-25-nfix-ablation1-gemma27b-noqualifiers-full-01
     - 2026-09-26-nfix-ablation1-gptoss120b-noqualifiers-full-01
     - 2026-09-25-nfix-langextract-gemma27b-noqualifiers-full-01
     - 2026-09-25-nfix-gliner-large-noqualifiers-full-01
     - 2026-09-25-nfix-nuextract3-noqualifiers-full-01
     - 2026-09-26-nfix-chatextract-gemma27b-full-01
-    - 2026-09-26-pond-ablation7-llama8b-reppen-full-01
+    - 2026-09-26-nfix-ablation7-llama8b-reppen-full-01
     - 2026-09-26-nfix-ablation7-gemma27b-full-01
     - 2026-09-26-nfix-ablation7-gptoss120b-full-01
   recovery_validity:

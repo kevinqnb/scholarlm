@@ -59,6 +59,8 @@ import os
 import random
 import re
 import sys
+import unicodedata
+from collections import Counter
 from pathlib import Path
 
 
@@ -121,6 +123,183 @@ _GT_COLS = [
     "document_id", "name", "identifiers", "location", "ecosystem",
     "date", "additional_details", "attribute", "value", "units", "page_number",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Augment path only: judge-visible schema, extraction-vocabulary ecosystem,
+# unit equivalence. None of this touches the default (v1) path.
+# ---------------------------------------------------------------------------
+
+# What the judge sees (pond.py: EntitySchema + MeasurementEventSchema minus
+# ``judge_filter_fields`` = identifiers, event_details) plus ``document_id``,
+# which names the paper. ``location`` / ``identifiers`` / ``additional_details``
+# / ``page_number`` are not judge-visible, so the augmented files do not carry
+# them (``gt_row_index`` still links each row back to the GT row). Also the
+# columns ``_row_signature`` dedups on, so rows that differ only in a hidden
+# field collapse to one example.
+_AUGMENT_GT_COLS = [
+    "document_id", "name", "ecosystem", "date", "attribute", "value", "units",
+]
+
+# Extraction's ``ecosystem`` vocabulary (pond.py _DIRECT_EXTRACTION_PROMPT:
+# "pond", "lake", "wetland", or "other"). GT ecosystem is free text; this maps
+# every distinct GT value onto that vocabulary. Rule applied: a string naming
+# exactly one canonical type (pond / lake / wetland), however modified, maps to
+# it; one offering alternative canonical types ("wetland vs. lake"), or naming
+# none (pothole, pool, reservoir, kettle hole), is "other" -- the prompt's own
+# instruction is not to infer the type when it is unclear. Explicit, not a
+# regex, so a GT value nobody has looked at raises instead of being guessed.
+_ECOSYSTEM_GROUPS: dict[str, list[str]] = {
+    "pond": [
+        "pond", "ponds", "karst pond", "karst ponds", "temporary pond",
+        "permenant pond", "urban ponds", "stormwater pond", "zbiornik(pond)",
+        "meteorite crater ponds", "dune ponds", "pond/tundra pond", "farm pond",
+        "farm pond; small impoundment", "residential pond", "in-field pond",
+        "near-natural ponds", "small water bodies or ponds",
+        "pools and ponds; bodri (italian term)", "pond or reservoir",
+    ],
+    "lake": [
+        "lake", "lakes", "shallow lake", "shallow lakes", "small lake",
+        "small lakes", "subtropical shallow lake", "shallow subtropical lake",
+        "peat lake", "small acidic bog lake", "small humic lakes",
+        "small (< 10 km2) seasonally ice-covered arctic lakes",
+        "high planktivory lake", "small tropical lake", "coastal plain shallow lake",
+        "temporary lake", "permanent lake", "deep refuge lake",
+        "lakes and reservoirs (broken into small and large)", "lagoon; shallow lake",
+    ],
+    "wetland": [
+        "wetland", "mediterranean wetland", "treatment cells in constructed wetlands",
+    ],
+    "other": [
+        "other", "pothole", "pool", "vernal pool", "kettle hole", "reservoir",
+        "agricultural water reservoir", "small impoundment", "aquatic environment",
+        "lentic small water bodies", "wetland vs. lake", "wetland/lake",
+        "wetland; pond", "lake/pond", "pond or small lake", "temporary lake/seasonal pond",
+    ],
+}
+_ECOSYSTEM_MAP: dict[str, str] = {}
+for _target, _srcs in _ECOSYSTEM_GROUPS.items():
+    for _src in _srcs:
+        assert _src not in _ECOSYSTEM_MAP, f"ecosystem {_src!r} mapped twice"
+        _ECOSYSTEM_MAP[_src] = _target
+ECOSYSTEM_VOCAB = tuple(_ECOSYSTEM_GROUPS)
+
+
+_ECO_RAW_KEY = "_ecosystem_raw"
+
+
+def _augment_type_token(record: dict) -> str | None:
+    """Coarse ecosystem type for fabricated-name selection, from the RAW GT
+    ecosystem string (``record["ecosystem"]`` is the mapped, judge-facing value)."""
+    return _pond_type_token({"ecosystem": record[_ECO_RAW_KEY]})
+
+
+def map_ecosystem(raw: str | None) -> str:
+    """GT free-text ecosystem -> extraction vocabulary. Raises on a value not in
+    the table (including ``None``: every pond GT row has an ecosystem)."""
+    if raw is None or raw not in _ECOSYSTEM_MAP:
+        raise KeyError(f"pond GT ecosystem {raw!r} has no entry in _ECOSYSTEM_GROUPS")
+    return _ECOSYSTEM_MAP[raw]
+
+
+# Unit -> (dimension class, factor to that class's base). Keys are NFKC-
+# normalised + lower-cased (folds the two micro signs, U+00B5 / U+03BC, that
+# pond.py mixes). Two units are equivalent iff same class and equal factor.
+# ppm / ppb are mg/L / µg/L (dilute water), as in pond.py's unit_conversion_table.
+# "x10^-2 km^2" / "x10^-6 km^2" read as the unit 1e-2 / 1e-6 km^2 (= ha / m^2).
+# Molar and areal units (µmol/L, µg/cm^2) carry element/area-specific factors,
+# so each is a class of its own: equivalent only to itself.
+_UNIT_CLASS_RAW: dict[str, tuple[str, float]] = {
+    "µg/l": ("mass_conc", 1.0), "ppb": ("mass_conc", 1.0), "mg/m^3": ("mass_conc", 1.0),
+    "mg/l": ("mass_conc", 1000.0), "ppm": ("mass_conc", 1000.0),
+    "μmol/l": ("molar", 1.0), "µg/cm^2": ("areal_mass", 1.0),
+    "m^2": ("area", 1.0), "x10^-6 km^2": ("area", 1.0),
+    "ha": ("area", 1e4), "x10^-2 km^2": ("area", 1e4),
+    "km^2": ("area", 1e6), "mi^2": ("area", 2589988.110336),
+    "acres": ("area", 4046.8564224),
+    "m": ("length", 1.0), "km": ("length", 1000.0), "cm": ("length", 0.01),
+    "ft": ("length", 0.3048), "feet": ("length", 0.3048),
+    "percent": ("cover", 0.01), "fraction": ("cover", 1.0),
+}
+
+
+def _unit_key(u: str) -> str:
+    return unicodedata.normalize("NFKC", u).strip().lower()
+
+
+# Keys go through the same normaliser as lookups, so the micro sign a key is
+# typed with cannot matter.
+_UNIT_CLASS = {_unit_key(k): v for k, v in _UNIT_CLASS_RAW.items()}
+assert len(_UNIT_CLASS) == len(_UNIT_CLASS_RAW), "two _UNIT_CLASS_RAW keys normalise to one"
+
+
+def units_equivalent(attr: str, a: str, b: str) -> bool:
+    """Are units ``a`` and ``b`` the same quantity? Raises ``UnknownUnit`` for
+    a unit not in ``_UNIT_CLASS`` (the GT carries a few non-unit strings, e.g.
+    "4.00" in ``fish_production_in_lakes``)."""
+    ka, kb = _unit_key(a), _unit_key(b)
+    for k, raw in ((ka, a), (kb, b)):
+        if k not in _UNIT_CLASS:
+            raise _aug.UnknownUnit(raw)
+    (ca, fa), (cb, fb) = _UNIT_CLASS[ka], _UNIT_CLASS[kb]
+    return ca == cb and math.isclose(fa, fb, rel_tol=1e-9)
+
+
+def prepare_augment_records(records: list[dict], ocr_dir: Path) -> dict:
+    """In place: bring GT-derived records to what the judge would see from a real
+    extraction. Returns a report dict (counts, plus the row lists that need a
+    human look).
+
+      * ``ecosystem``  -> extraction vocabulary (``map_ecosystem``; raises on unknown).
+      * ``name``       -> the paper's own casing where the paper prints the name
+                          (GT is lower-cased, fabricated names are Title Case, so
+                          casing alone would otherwise separate the classes). A name
+                          the paper never prints keeps a consistent convention:
+                          ``str.title()``, counted under ``name_fallback_title``.
+      * ``_value_span``-> the verbatim ``"77 ± 28"`` span, ONLY where the paper is
+                          unambiguous (see ``find_unambiguous_uncertainty_span``);
+                          ``value`` itself is untouched here -- whether a file uses
+                          the span is decided per file in ``build_augmented_files``.
+    """
+    texts: dict[str, str] = {}
+    name_cache: dict[tuple[str, str], tuple[str, str]] = {}
+    how = Counter()
+    span_rows: list[int] = []
+    unknown_unit_rows: list[int] = []
+    for r in records:
+        code = r["_paper_code"]
+        if code not in texts:
+            path = Path(ocr_dir) / f"{code}.txt"
+            text = path.read_text(encoding="utf-8")
+            assert text.strip(), f"OCR file is empty: {path}"
+            texts[code] = text
+        # The raw string is kept for fabricated-name TYPE preservation: a
+        # "wetland vs. lake" source maps to "other" for the judge, but a rename
+        # must still draw a wetland-type name, not "Bluebell Pond".
+        r[_ECO_RAW_KEY] = r["ecosystem"]
+        r["ecosystem"] = map_ecosystem(r["ecosystem"])
+        if r.get("name") is not None:
+            key = (code, r["name"])
+            if key not in name_cache:
+                hit = _aug.find_surface_form(r["name"], texts[code])
+                name_cache[key] = hit if hit else (r["name"].title(), "fallback_title")
+            r["name"], h = name_cache[key]
+            how[h] += 1
+        else:
+            how["null"] += 1
+        try:
+            num = float(r["value"])
+        except ValueError:
+            num = None
+        span = _aug.find_unambiguous_uncertainty_span(texts[code], num) if num is not None else None
+        if span:
+            r[_aug._VALUE_SPAN_KEY] = span
+            span_rows.append(r["gt_row_index"])
+        u = r.get("units")
+        if u is not None and _unit_key(u) not in _UNIT_CLASS:
+            unknown_unit_rows.append(r["gt_row_index"])
+    return {"name_how": dict(how), "value_span_rows": span_rows,
+            "unknown_unit_rows": unknown_unit_rows}
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +401,7 @@ def _format_noisy_value(original_str: str, new_val: float) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(gt_records: list[dict]) -> list[dict]:
+def build_gt_records(gt_records: list[dict], ocr_dir: Path) -> list[dict]:
     """Convert ground-truth records to probe record dicts.
 
     Output schema matches ground_truth.json (document_id, name, identifiers,
@@ -230,17 +409,18 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
     page_number) plus internal bookkeeping fields prefixed with '_'.
 
     Rows whose paper has no OCR file are skipped (the judge requires document
-    access to verify each record).
+    access to verify each record). The augment path asserts none were skipped.
 
     Args:
         gt_records: List of ground-truth record dicts loaded from ground_truth.json.
+        ocr_dir: Directory of ``<paper_code>.txt`` OCR files.
 
     Returns:
         List of record dicts ready for synthetic modification.
     """
     ocr_codes = {
         f.removesuffix(".txt")
-        for f in os.listdir(_OCR_DIR)
+        for f in os.listdir(ocr_dir)
         if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
     }
 
@@ -669,7 +849,7 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
     written = _aug.run_and_write(
         base_dir=BASE,
         out_suffix=args.augment_out_suffix,
-        ocr_dir=_OCR_DIR,
+        ocr_dir=Path(args.ocr_dir),
         xv_train=xv_train,
         xv_test=xv_test,
         rules=rules,
@@ -698,7 +878,7 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         entity_noun="water body",
         fabricated_names_by_type=_fabricated_names_by_type(),
         fabricated_names_any=[*_MADE_UP_NAMES, *_WETLAND_NAMES],
-        entity_type_token=_pond_type_token,
+        entity_type_token=_augment_type_token,
         name_suffix_to_type=dict(_NAME_SUFFIX_TO_TYPE),
         entity_preserve_clause=(
             "Keep the ecosystem type and every measured quantity — value, units, "
@@ -712,7 +892,9 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         event_noun="measurement date",
         event_pool=list(_POND_DATE_POOL),
         event_allow_inject=True,       # GT date is null everywhere -> must inject
-        gt_cols=list(_GT_COLS),
+        gt_cols=list(_AUGMENT_GT_COLS),
+        units_equivalent=units_equivalent,
+        numeric_value_guard=True,
     )
 
 
@@ -767,12 +949,18 @@ def main(argv: list[str] | None = None) -> None:
     ag.add_argument("--augment-sample-gt", type=int, default=0,
                     help="Rung 3: randomly sample this many GT valids (train and test each) "
                          "before augmenting, for a quick per-axis yield read. 0 = all.")
-    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--ocr-dir", default=None,
+                    help="REQUIRED with --augment: directory of <paper>.txt OCR files the "
+                         "papers (and every row's context_override) are read from -- the "
+                         "text the judge is given. No default.")
+    ag.add_argument("--augment-out-suffix", default="_v3")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
                     default=str(BASE / "probe_augment_cache.json"),
                     help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
+    if args.augment and not args.ocr_dir:
+        parser.error("--augment requires --ocr-dir (no default)")
 
     gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
     rng = random.Random(args.seed)
@@ -783,8 +971,18 @@ def main(argv: list[str] | None = None) -> None:
         gt_records = json.load(f)
     print(f"Loaded {len(gt_records):,} GT rows from {gt_file.name}")
 
-    all_records = build_gt_records(gt_records)
+    all_records = build_gt_records(gt_records, _OCR_DIR if not args.augment else Path(args.ocr_dir))
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
+    if args.augment:
+        assert len(all_records) == len(gt_records), (
+            f"{len(gt_records) - len(all_records)} GT rows have no OCR file in "
+            f"{args.ocr_dir}: "
+            f"{sorted({str(r['document_id']) for r in gt_records} - {r['_paper_code'] for r in all_records})}")
+        report = prepare_augment_records(all_records, Path(args.ocr_dir))
+        print(f"AUGMENT PREP: names {report['name_how']}; "
+              f"{len(report['value_span_rows'])} unambiguous value span(s) "
+              f"(train/diagnostic only); {len(report['unknown_unit_rows'])} GT row(s) "
+              f"with a non-unit `units` string (no bad_units built from them)")
 
     # Build full paper index (used by both splits for same-paper candidate lookup)
     by_paper: dict[str, list[dict]] = {}

@@ -1,0 +1,20 @@
+id: 2026-09-27-supermat-langextract-gemma27b-noqualifiers-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over supermat extraction
+  (2026-09-25-supermat-langextract-gemma27b-noqualifiers-full-01): 3 voting
+  judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) only -- no interp judges.
+  Scope narrowed 2026-09-27: interp judges (llama-3.1-8b, qwen-2.5-7b,
+  mistral-nemo-12b) only run for full-pipeline (extraction-type) ids, not
+  ablations or baselines, so this ablation/baseline id's combine never had
+  interp judge_ids to begin with as of this config version. voting_threshold
+  pinned explicitly (this repo avoids inferred defaults).
+seed: 342
+params:
+  dataset: supermat
+  judge_ids:
+    - 2026-09-27-supermat-langextract-gemma27b-noqualifiers-gptoss120b-judge-local-01
+    - 2026-09-27-supermat-langextract-gemma27b-noqualifiers-qwen72b-judge-local-01
+    - 2026-09-27-supermat-langextract-gemma27b-noqualifiers-llama70b-judge-local-01
+  voting_threshold: 2
+  walltime: "00:30:00"

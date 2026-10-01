@@ -247,6 +247,15 @@ data/*/probe_dataset*_rung[0-9]*.json
 !data/experiments/pond/extraction/gemma-3-27b/2026_05_05/final.json
 !data/experiments/nfix/extraction/gemma-3-27b/2026_05_06/final.json
 
+# validation_set*.json (phase-1/phase-2 manual-validation-site inputs, built by
+# data/validation/{build_pilot,build_main}_validation_sets.py; see data/validation/README.md)
+# embed full-paper context per measurement and run several MB to tens of MB
+# each -- too large to track, and fully reproducible from the committed
+# builder scripts + the pinned experiment final.json + the committed seed.
+# Previously committed (30 files, ~120MB across pond/nfix/supermat) and
+# untracked 2026-09-27; they remain in git history.
+data/*/validation_set*.json
+
 .batch_state.json
 .batch_state_openai.json
 .batch_state_gemini.json

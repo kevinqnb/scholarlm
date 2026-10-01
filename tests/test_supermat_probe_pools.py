@@ -40,7 +40,10 @@ def test_augment_rules_target_name_not_sample_details():
     assert rules.entity_name_field == "name"
     assert rules.entity_noun == "material formula"
     assert rules.fabricated_names_any == list(cpd._MADE_UP_NAMES)
-    assert rules.entity_swap_clear_fields == ("identifiers",)
+    # `identifiers` is not judge-visible and no longer in the augmented output
+    # schema, so a rename has nothing to clear.
+    assert rules.entity_swap_clear_fields == ()
+    assert "identifiers" not in rules.gt_cols
     assert rules.name_suffix_to_type == {}
     assert not hasattr(cpd, "_SUPERMAT_SAMPLE_DETAILS")
 
@@ -93,22 +96,25 @@ def _stub_src(name="YBa2Cu3O7", identifiers="YBCO; Y-123"):
     return rules, src
 
 
-def test_pos_entity_swaps_name_edits_page_and_nulls_identifiers():
+def test_pos_entity_swaps_name_edits_page_and_drops_identifiers_from_output():
     rules, src = _stub_src()
     row = pa.make_axis2_positive(src, "pos_entity", rules, pa.StubAugmentClient(),
                                  random.Random(0))
     assert row is not None and row["augment_axis"] == "pos_entity"
     assert row["name"] in cpd._MADE_UP_NAMES
-    assert row["identifiers"] is None
+    out = pa.strip_internal_fields([row], _rules().gt_cols, pa._EXTRA_KEEP)[0]
+    assert "identifiers" not in out                      # not a judge-visible field
     assert row["name"] in row[pa._CTX_EDIT_KEY] and "YBa2Cu3O7" not in row[pa._CTX_EDIT_KEY]
     assert row["value"] == "92" and row["units"] == "K"
 
 
-def test_typed_negative_entity_fires_on_name_and_nulls_identifiers():
+def test_typed_negative_entity_fires_on_name_and_output_has_no_identifiers():
     rules, src = _stub_src(identifiers="YBCO; Y-123")
     neg = pa.make_typed_negative(src, "entity", rules, random.Random(0))
     assert neg is not None and neg["modification_type"] == "bad_entity"
-    assert neg["name"] in cpd._MADE_UP_NAMES and neg["identifiers"] is None
+    assert neg["name"] in cpd._MADE_UP_NAMES
+    out = pa.strip_internal_fields([neg], _rules().gt_cols, pa._EXTRA_KEEP)[0]
+    assert "identifiers" not in out
 
 
 def test_typed_negative_attribute_is_none_for_supermat():
@@ -122,4 +128,3 @@ def test_matched_negative_on_synthetic_positive_carries_edited_page():
                                  random.Random(0))
     neg = pa.make_typed_negative(pos, "value", rules, random.Random(1))
     assert neg[pa._CTX_EDIT_KEY] == pos[pa._CTX_EDIT_KEY]
-    assert neg["identifiers"] is None

@@ -1,0 +1,55 @@
+model_id: mistralai/Mistral-Nemo-Instruct-2407
+# Replaces mistral-7b.yaml as the third non-voting interp judge (2026-09-27):
+# mistral-7b.yaml (Mistral-7B-Instruct-v0.3, native 32768) was dropped for the
+# same reason qwen-2.5-7b.yaml originally needed a YaRN override -- full-paper
+# judge context (judge_prompts.prepare_chat_entries) reaches ~68k tokens on
+# the longest real documents (supermat, per qwen-2.5-7b.yaml's own measured
+# figure), well past a 32k window, and NNsight/nnterp has no admission check:
+# it would not error, it would silently run position ids past the trained
+# range and still emit a plausible p_true/p_false. Mistral-Nemo-Instruct-2407
+# (12B) is a same-family drop-in with a native 128k window and no rope
+# override needed (rotary theta=1M per its README) -- 68k tokens fits inside
+# native range with headroom, unlike mistral-7b.
+#
+# model_id is deliberately mistralai/Mistral-Nemo-Instruct-2407, NOT
+# nvidia/Mistral-NeMo-12B-Instruct: checked both repos' file listings via the
+# HF API (2026-09-27) -- the nvidia repo ships a single
+# Mistral-NeMo-12B-Instruct.nemo file (NVIDIA NeMo-framework format, not
+# loadable by transformers.AutoModelForCausalLM / nnterp.StandardizedTransformer),
+# while mistralai/Mistral-Nemo-Instruct-2407 ships config.json + sharded
+# safetensors, the same shape every other interp_judge model_id here uses.
+# Same weights, jointly released by Mistral AI and NVIDIA -- this is a
+# checkpoint-format substitution, not a different model.
+nnsight_kwargs:
+  torch_dtype: bfloat16
+sampling_params:
+  do_sample: false
+  max_new_tokens: 1
+resources:
+  # VALIDATED 2026-09-27 (job 7760662, experiment id
+  # 2026-09-27-pond-mistral-nemo-12b-longctx-smoke-01): real run_judge_interp.py
+  # pass (NNsight load + attention/layer activation capture, not a bare
+  # generate() proxy) on the two longest real full-paper contexts in
+  # data/pond/probe_dataset_test_v2.json (up to 45745 prompt tokens) --
+  # qacct reports maxvmem=65.532G on an H200 NVL (139.8 GiB total). This
+  # replaces an earlier same-day estimate that WAS wrong: naively scaling
+  # qwen-2.5-7b.yaml's observed 44.4 GiB by parameter-count ratio predicted
+  # ~70 GiB, but that conflates weights (linear in params: mistral-nemo-12b
+  # is ~22.8 GiB bf16 vs qwen-2.5-7b's ~14.2 GiB) with KV-cache (depends on
+  # num_kv_heads/head_dim, not total params: ~10.4 GiB here at 68k context vs
+  # qwen's ~3.6 GiB) and with NNsight's activation-capture overhead (the
+  # ~26.6 GiB of qwen's 44.4 GiB not accounted for by its own weights+KV,
+  # which a naive per-param scaling smears across the wrong term). The
+  # observed 65.5 GiB stands on its own regardless of that arithmetic. gpu_c
+  # 8.0 (not the smaller models' 7.0 floor) since bfloat16 needs Ampere+ on
+  # this cluster's torch build regardless of framework (see
+  # extraction/llama-3.1-8b.yaml's job-7747755 finding). gpu_memory kept at
+  # 80G rather than tightened to the observed figure -- it's a floor/request
+  # on this cluster's H200 (144 GiB physical), not a ceiling, and the two
+  # fixture rows are pond's longest but not necessarily longer than every
+  # real document across all three datasets; revisit if a real batch run
+  # OOMs above this floor.
+  gpu_memory: 80G
+  gpu_capability: 8.0
+  gpu_type: H200
+  omp: 8

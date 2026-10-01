@@ -3,9 +3,8 @@
 Fixtures are hand-built so the expected kept/dropped sets can be read off by
 inspection; fuzzy ratios the expectations depend on are asserted as preconditions.
 Pairwise semantics are also checked for parity against ``match_datasets`` (the
-ground-truth matcher), including the all-null-fuzzy case (``match_datasets``
-represents it as an edge weight of ``fuzzy_threshold`` rather than dropping the
-edge, as it used to before 2026-09-26).
+ground-truth matcher), including its null rules: fuzzy null == null scores 1.0, and
+a fuzzy field null on exactly one side makes the pair never match.
 """
 import numpy as np
 import pandas as pd
@@ -118,34 +117,45 @@ def test_empty_string_does_not_equal_a_real_value_on_strict_fields():
 
 # ── Fuzzy semantics ────────────────────────────────────────────────────────────
 
-def test_all_null_fuzzy_is_duplicate_when_strict_matches():
-    df = pd.DataFrame([_rec("pond a", eco=None), _rec(None, eco="pond")])
-    # name null on row 1, ecosystem null on row 0: no comparable fuzzy field
-    kept, dups = _dedup(df, 0.9, fuzzy=FUZZY)
+def test_fuzzy_null_equals_null_is_duplicate():
+    df = pd.DataFrame([_rec(None, eco=None), _rec(None, eco=None)])
+    kept, dups = _dedup(df, 1.0, fuzzy=FUZZY)
     assert kept.index.tolist() == [0]
-    assert np.isnan(dups.score.iloc[0])
+    assert dups.score.tolist() == [1.0]
 
 
-def test_all_null_fuzzy_still_needs_strict_match():
+def test_fuzzy_one_sided_null_never_duplicates():
+    # name null on row 1 only, even though ecosystem agrees perfectly and threshold is 0.
+    df = pd.DataFrame([_rec("pond a", eco="pond"), _rec(None, eco="pond")])
+    assert len(_dedup(df, 0.0, fuzzy=FUZZY)[0]) == 2
+    # and in the other direction / on the second field
+    df = pd.DataFrame([_rec("pond a", eco=None), _rec("pond a", eco="pond")])
+    assert len(_dedup(df, 0.0, fuzzy=FUZZY)[0]) == 2
+
+
+def test_fuzzy_null_still_needs_strict_match():
     df = pd.DataFrame([_rec(None), _rec(None, value=8.0)])
     assert len(_dedup(df, 0.9)[0]) == 2
 
 
-def test_scored_match_outranks_unscored():
-    # X=(aaaa, None), Y=(zzzz, pond): name comparable, ratio 0 -> both kept.
-    # D=(None, pond): vs X nothing comparable (unscored dup); vs Y ecosystem 1.0.
-    # D must go to Y even though X is earlier.
-    df = pd.DataFrame([_rec("aaaa", eco=None), _rec("zzzz", eco="pond"), _rec(None, eco="pond")])
-    kept, dups = _dedup(df, 0.7, fuzzy=FUZZY)
+def test_merge_goes_to_highest_scoring_eligible_kept_row():
+    # X=(aaaa, pond), Y=(zzzz, pond) kept. D=(aaab, pond): X scores (0.75+1)/2,
+    # Y scores (0+1)/2 -> D merges into X. Threshold 0.6 keeps Y apart from X (0.5).
+    df = pd.DataFrame([_rec("aaaa", eco="pond"), _rec("zzzz", eco="pond"), _rec("aaab", eco="pond")])
+    kept, dups = _dedup(df, 0.6, fuzzy=FUZZY)
     assert kept.index.tolist() == [0, 1]
-    assert dups[["dropped_label", "kept_label"]].values.tolist() == [[2, 1]]
-    assert dups.score.tolist() == [1.0]
+    assert dups[["dropped_label", "kept_label"]].values.tolist() == [[2, 0]]
 
 
-def test_partial_null_fuzzy_averages_over_comparable_fields_only():
+def test_fuzzy_null_null_field_counts_as_one_in_the_mean():
+    a, b = _rec("aaaa", eco=None), _rec("aaab", eco=None)
+    eligible, score = pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY)
+    assert eligible and score == 0.875  # (0.75 + 1.0) / 2
+
+
+def test_one_sided_null_pair_is_ineligible_with_no_score():
     a, b = _rec("aaaa", eco="pond"), _rec("aaab", eco=None)
-    strict_ok, score = pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY)
-    assert strict_ok and score == 0.75  # ecosystem skipped, not counted as 0
+    assert pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY) == (False, None)
 
 
 def test_fuzzy_mean_over_fields():
@@ -207,20 +217,21 @@ def test_pairwise_parity_with_match_datasets(seed, threshold):
         fuzzy_matching={c: c for c in FUZZY}, fuzzy_threshold=threshold,
     )
     edge_set = set(edges)
-    n_checked = n_no_evidence = 0
+    n_edge = n_non_edge = n_one_sided_null = 0
     for i in range(len(df)):
         for j in range(i + 1, len(df)):
-            strict_ok, score = pair_score(df.iloc[i], df.iloc[j], strict_fields=STRICT, fuzzy_fields=FUZZY)
-            if strict_ok and score is None:
-                # no fuzzy evidence either way: both sides call it a match unconditionally
-                # (match_datasets represents it internally as weight == threshold)
-                assert (i, j) in edge_set
-                n_no_evidence += 1
-                continue
-            ours = strict_ok and score >= threshold
+            eligible, score = pair_score(df.iloc[i], df.iloc[j], strict_fields=STRICT, fuzzy_fields=FUZZY)
+            ours = eligible and score >= threshold
             assert ours == ((i, j) in edge_set), (i, j, df.iloc[i].to_dict(), df.iloc[j].to_dict())
-            n_checked += 1
-    assert n_checked > 100 and n_no_evidence > 0  # fixture actually exercises both paths
+            n_edge += ours
+            n_non_edge += not ours
+            n_one_sided_null += any(
+                pd.isna(df.iloc[i][c]) != pd.isna(df.iloc[j][c]) for c in FUZZY
+            ) and all(
+                (df.iloc[i][c] == df.iloc[j][c]) or (pd.isna(df.iloc[i][c]) and pd.isna(df.iloc[j][c]))
+                for c in STRICT
+            )
+    assert (n_edge > 0 or threshold == 1.0) and n_non_edge > 100 and n_one_sided_null > 0  # fixture exercises every path
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])

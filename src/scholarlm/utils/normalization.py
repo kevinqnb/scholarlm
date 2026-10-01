@@ -203,3 +203,47 @@ def canonical_units(u) -> str | None:
     return " ".join(sorted(
         name if exp == 1 else f"{name}{exp}" for name, exp in tokens
     ))
+
+
+# LaTeX commands that occur in extracted material names and denote a single glyph.
+_LATEX_GLYPHS = {
+    r"\delta": "δ", r"\gamma": "γ", r"\alpha": "α", r"\beta": "β",
+    r"\epsilon": "ε", r"\nu": "ν", r"\cdot": ".",
+}
+# Layout-only commands: dropped, keeping whatever they wrap.
+_LATEX_LAYOUT = re.compile(r"\\(?:mathrm|textrm|text|rm)(?![A-Za-z])|\\[(),;:!_]")
+# Dot-like glyphs used between a formula and its hydrate/dopant (``CuO·2H2O``).
+_DOTS = "·•⋅∙․"
+
+
+def canonical_formula_name(name: str) -> str:
+    """Canonical spelling of a chemical-formula/material name, for fuzzy matching.
+
+    Same rule as the rest of this module: change **how** a name is written, never
+    **what** it says. Folded: Unicode form (NFKC: ``Rb₂Cr₃As₃`` -> ``Rb2Cr3As3``),
+    LaTeX/markdown scaffolding (``$``, ``_``, ``^``, ``{}``, ``\\(``, ``\\mathrm``),
+    single-glyph LaTeX commands (``\\delta`` -> ``δ``), minus/dash and dot-glyph
+    variants, and all whitespace (``Rb2 Cr3 As3`` -> ``Rb2Cr3As3``).
+
+    Not folded, deliberately: case (the matcher lowercases itself), abbreviations
+    and aliases (``LSCO`` stays ``LSCO``), doping variables vs numbers
+    (``x`` vs ``0.5``), and any LaTeX command not listed above -- it stays as
+    literal text, which can only make two names look *less* alike, never invent
+    a match.
+
+    Raises:
+        TypeError: ``name`` is not a str.
+    """
+    if not isinstance(name, str):
+        raise TypeError(f"canonical_formula_name expects str, got {type(name).__name__}: {name!r}")
+    s = unicodedata.normalize("NFKC", name)
+    for cmd, glyph in _LATEX_GLYPHS.items():
+        s = re.sub(re.escape(cmd) + r"(?![A-Za-z])", glyph, s)
+    s = _LATEX_LAYOUT.sub("", s)
+    for glyph in _MINUS:
+        s = s.replace(glyph, "-")
+    s = s.replace("\u2010", "-")  # hyphen (NFKC also rewrites U+2011 non-breaking hyphen to this)
+    for dot in _DOTS:
+        s = s.replace(dot, ".")
+    s = re.sub(r"[$_^{}]", "", s)
+    return re.sub(r"\s+", "", s)

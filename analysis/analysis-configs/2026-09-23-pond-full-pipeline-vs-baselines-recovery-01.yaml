@@ -18,7 +18,7 @@ params:
     - 2026-09-26-pond-extraction-llama8b-reppen-full-01
     - 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
     - 2026-09-21-pond-extraction-gptoss120b-full-01
-    #- 2026-09-26-pond-ablation1-llama8b-reppen-noqualifiers-full-01
+    - 2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
     - 2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01
     - 2026-09-26-pond-ablation1-gptoss120b-noqualifiers-full-01
     - 2026-09-25-pond-langextract-gemma27b-noqualifiers-full-01

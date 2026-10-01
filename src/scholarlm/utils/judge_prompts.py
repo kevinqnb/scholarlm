@@ -81,7 +81,6 @@ def extract_page_text(document: str, page_numbers: list[int]) -> str:
 def build_judge_query(
     *,
     attribute_description: str,
-    attribute_terms: list[Any],
     entity_type_description: str,
     entity_description: dict[str, Any],
     measurement_val: Any,
@@ -96,7 +95,6 @@ def build_judge_query(
 
     Args:
         attribute_description: Full attribute description string.
-        attribute_terms: List of terminology strings for the attribute.
         entity_type_description: One-sentence entity type description.
         entity_description: Dict of entity field values (entity fields only;
             event fields are passed separately via ``event_description``).
@@ -118,8 +116,6 @@ def build_judge_query(
     )
 
     attribute_section = f"Target attribute: {attribute_description}"
-    if attribute_terms:
-        attribute_section += f"\nAttribute terminology: {attribute_terms}"
 
     value_section = (
         f"Extracted value: {measurement_val}\n"
@@ -218,7 +214,6 @@ def prepare_chat_entries(
             print(f"Attribute '{attribute}' not found in dataset_config.attribute_info_dict")
             continue
 
-        attribute_terms = entry.get("attribute_terms", [])
         entity_description = {k: entry.get(k) for k in _entity_fields}
         event_description = (
             {k: entry.get(k) for k in _event_fields}
@@ -239,7 +234,6 @@ def prepare_chat_entries(
 
         query = build_judge_query(
             attribute_description=attribute_description,
-            attribute_terms=attribute_terms,
             entity_type_description=_entity_type_desc,
             entity_description=entity_description,
             measurement_val=measurement_val,

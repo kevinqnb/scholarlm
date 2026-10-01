@@ -1,0 +1,25 @@
+id: 2026-09-27-supermat-ablation1-llama8b-reppen-noqualifiers-mistralnemo12b-judge-interp-01
+project: scholarlm
+description: >-
+  Interpretable judge (mistral-nemo-12b) over supermat extraction
+  (2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01),
+  collecting attention/layer activations. Full-paper context against the
+  table-cleaned, reference-dropped OCR corpus
+  (experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly. CAVEAT: mistral-nemo-12b.yaml's resources:
+  block is UNVALIDATED (inferred H200 headroom, no real run exists yet) -- per
+  CLAUDE.md's staged-gate ladder, do not submit this config before a smoke run
+  confirms it fits and produces sane output. NOTE:
+  2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01 finished
+  (final.json exists) after
+  analysis/analysis-configs/2026-09-23-supermat-full-pipeline-vs-baselines-recovery-01.yaml
+  was drafted -- still commented out there as of 2026-09-27. This judge config
+  is runnable now; uncomment it upstream when picking up these results in
+  analysis.
+seed: 342
+params:
+  dataset: supermat
+  judge: mistral-nemo-12b
+  extraction_id: 2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  walltime: "24:00:00"

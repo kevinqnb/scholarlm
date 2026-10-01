@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
@@ -13,6 +13,7 @@ def match_datasets(
     strict_matching: Dict[str, str],
     fuzzy_matching: Optional[Dict[str, str]] = None,
     fuzzy_threshold: float = 0.0,
+    fuzzy_normalizers: Optional[Dict[str, Callable[[str], str]]] = None,
 ) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[float]]:
     """Match rows across two dataframes using strict and optional fuzzy criteria.
 
@@ -29,18 +30,20 @@ def match_datasets(
         strictly equal. Numeric values are compared with np.isclose.
     fuzzy_matching:
         Mapping from column name in df_left -> column name in df_right compared with
-        fuzzy ratios, averaged to produce an edge weight in [0, 1]. A fuzzy field null
-        on either side is excluded from that average (not scored as 0); if every
-        fuzzy field is null on at least one side for a pair, there is no fuzzy
-        evidence at all, and the edge weight defaults to `fuzzy_threshold` -- the
-        minimum score that would pass -- so a pair that agrees on every strict field
-        (including null == null) is never dropped purely for lack of fuzzy evidence,
-        without letting it outscore any pair that has real evidence.
+        fuzzy ratios, averaged to produce an edge weight in [0, 1]. Null semantics
+        match the strict fields: null on BOTH sides scores 1.0 for that field; null on
+        exactly one side rejects the candidate edge outright (it is never averaged
+        away or rescued by other fuzzy fields).
     fuzzy_threshold:
         Minimum average fuzzy score in [0, 1] required for candidate edges to be included
         in the graph and considered for matching. Defaults to 0.0 to include all
-        edges that pass strict criteria. Also used as the no-fuzzy-evidence default
-        described above.
+        edges that pass strict criteria.
+
+    fuzzy_normalizers:
+        Optional mapping from a df_left fuzzy column -> str-to-str canonicaliser,
+        applied to both sides' non-null values of that field before scoring
+        (e.g. ``scholarlm.utils.normalization.canonical_formula_name``). Keys must
+        be keys of ``fuzzy_matching``. Non-string values are not passed to it.
 
     Returns
     -------
@@ -54,6 +57,10 @@ def match_datasets(
 
     if fuzzy_matching is None:
         fuzzy_matching = {}
+    fuzzy_normalizers = fuzzy_normalizers or {}
+    unknown_norm = [c for c in fuzzy_normalizers if c not in fuzzy_matching]
+    if unknown_norm:
+        raise KeyError(f"fuzzy_normalizers keys not in fuzzy_matching: {unknown_norm}")
 
     if not isinstance(strict_matching, dict) or len(strict_matching) == 0:
         raise ValueError("strict_matching must be a non-empty dict mapping left_col -> right_col")
@@ -98,9 +105,17 @@ def match_datasets(
             return bool(np.isclose(float(v_left), float(v_right), atol=float_atol, rtol=float_rtol))
         return _normalize_obj(v_left) == _normalize_obj(v_right)
 
-    def _fuzzy_score(v_left, v_right) -> Optional[float]:
+    def _fuzzy_score(v_left, v_right, normalizer=None) -> Optional[float]:
+        """None means exactly one side is null: the pair can never match."""
+        if _is_null(v_left) and _is_null(v_right):
+            return 1.0
         if _is_null(v_left) or _is_null(v_right):
             return None
+        if normalizer is not None:
+            if isinstance(v_left, str):
+                v_left = normalizer(v_left)
+            if isinstance(v_right, str):
+                v_right = normalizer(v_right)
         s_left = _normalize_obj(v_left)
         s_right = _normalize_obj(v_right)
         if not isinstance(s_left, str) or not isinstance(s_right, str):
@@ -122,10 +137,12 @@ def match_datasets(
                 score = 1.0
             else:
                 scores = [
-                    s for c_l, c_r in fuzzy_items
-                    if (s := _fuzzy_score(row_l[c_l], row_r[c_r])) is not None
+                    _fuzzy_score(row_l[c_l], row_r[c_r], fuzzy_normalizers.get(c_l))
+                    for c_l, c_r in fuzzy_items
                 ]
-                score = float(np.mean(scores)) if scores else fuzzy_threshold
+                if any(s is None for s in scores):
+                    continue
+                score = float(np.mean(scores))
 
             if score < fuzzy_threshold:
                 continue

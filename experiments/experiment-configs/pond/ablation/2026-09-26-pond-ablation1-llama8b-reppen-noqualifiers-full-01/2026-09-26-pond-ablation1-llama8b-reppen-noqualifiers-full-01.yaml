@@ -49,8 +49,8 @@ description: >
 seed: 342
 params:
   dataset: pond
-  model: llama-3.1-8b-reppen
+  model: llama-3.1-8b-reppen-2
   ablation: "1"
   include_qualifiers: false
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
-  walltime: "31:00:00"
+  walltime: "48:00:00"

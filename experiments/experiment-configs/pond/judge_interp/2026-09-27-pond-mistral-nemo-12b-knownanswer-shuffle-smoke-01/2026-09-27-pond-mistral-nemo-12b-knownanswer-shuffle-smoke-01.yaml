@@ -1,0 +1,46 @@
+id: 2026-09-27-pond-mistral-nemo-12b-knownanswer-shuffle-smoke-01
+project: scholarlm
+description: >
+  Phase 2 rung-3 tiny end-to-end for the 2026-09-27 judge batch: known-answer
+  + shuffled-label/permutation sanity controls for mistral-nemo-12b, per
+  CLAUDE.md's staged-gate ladder. Unlike Phase 1's smoke test
+  (2026-09-27-pond-mistral-nemo-12b-longctx-smoke-01), which used
+  context_override (bypassing ocr_dir entirely), this fixture has NO
+  context_override on any row -- it exercises the actual ocr_dir lookup
+  path (judge_prompts.load_documents_for_dataset ->
+  prepare_chat_entries's documents.get(document_id)) that every real
+  2026-09-27 batch config uses, since real extraction final.json rows never
+  carry context_override.
+  params.synthetic_file:
+  scratchpad/phase2_known_answer_fixture.json, 3 hand-built rows against
+  real pond documents under the pinned
+  drop_references/2026-09-18-pond-ocr-drop-references-01 corpus:
+    - measurement_id 90001 (known_true): document_id=agricultural_freshwater,
+      max_depth=3.35m -- verbatim in the document ("maximum depth of ca.
+      3.35 meters", line 34). PREDICTED judgement=true.
+    - measurement_id 90002 (known_false): same document/entity,
+      max_depth=99.9m -- fabricated, never appears. PREDICTED
+      judgement=false.
+    - measurement_id 90003 (shuffled_permutation_control): the TRUE value
+      from 90001 (max_depth=3.35m) shuffled onto an unrelated document
+      (document_id=assessment_of_methane), which reports its OWN real
+      max_depth values (5.6/4.5/4.2m per an HTML table in the OCR text) but
+      never 3.35m. PREDICTED judgement=false -- if this instead comes back
+      true, the judge is not grounding in the specific document's content
+      (matching on value plausibility/format alone), which would undermine
+      trusting ANY of its verdicts on the real batch, not just this row.
+  If any of the three predictions doesn't match, STOP per CLAUDE.md -- do
+  not proceed to Phase 3's full submission until understood.
+  Seed determinism: rerun with an identical config (only the id changed,
+  same seed 342) as
+  2026-09-27-pond-mistral-nemo-12b-knownanswer-shuffle-smoke-02; the two
+  responses.json outputs must be identical on every judgement/probability
+  field (run_metadata.json's timestamp/runtime fields will differ, that's
+  expected and not part of the comparison).
+seed: 342
+params:
+  dataset: pond
+  judge: mistral-nemo-12b
+  synthetic_file: /projectnb/mcnet/kevin/tmp/claude-294603/-projectnb-mcnet-kevin-coastal-scholarlm/7ee3f717-a61e-43f1-9641-94a30fe80366/scratchpad/phase2_known_answer_fixture.json
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-ocr-drop-references-01
+  walltime: "00:30:00"

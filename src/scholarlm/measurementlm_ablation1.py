@@ -35,10 +35,20 @@ DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS_NO_QUALIFIERS along with a dataset's
 false, to test whether a later parsing step (analysis/postprocessing.py) can
 recover the qualifier/shape fields as well as asking the model for them
 directly (see point 2/3 above).
+
+max_items (default None = uncapped) puts a JSON-Schema maxItems on the response's
+top-level "items" list, which vLLM's grammar backend enforces by forcing "]" after
+the max_items-th record. It exists because llama-3.1-8b under json_schema
+decoding can fail to ever close the array (an unbounded, largely repetitive record
+list that hits the client timeout). It bounds output size; it does not make the
+records correct. Documents that reach exactly max_items records are listed in
+self.capped_document_ids and must be treated as suspect (truncated or padded); a
+response that fails validation is still replaced by an empty list, as before, but
+is now recorded in self.failed_document_ids instead of vanishing.
 """
 
 from functools import partial
-from pydantic import create_model
+from pydantic import Field, create_model
 from .measurementlm import MeasurementLM, response_validator
 from .instruction_prompts import DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS
 
@@ -59,9 +69,17 @@ class MeasurementLMAblation1(MeasurementLM):
         direct_extraction_schema=None,
         direct_extraction_prompt=None,
         direct_extraction_instructions: str = DIRECT_TRIPLE_EXTRACTION_INSTRUCTIONS,
+        max_items: int | None = None,
         **kwargs,
     ):
         super().__init__(*args, max_concurrent=max_concurrent, **kwargs)
+        if max_items is not None and (
+            isinstance(max_items, bool) or not isinstance(max_items, int) or max_items < 1
+        ):
+            raise ValueError(f"max_items must be None or a positive int, got {max_items!r}.")
+        self.max_items = max_items
+        self.capped_document_ids: list[int] = []
+        self.failed_document_ids: list[int] = []
         self.direct_extraction_schema = direct_extraction_schema
         self.direct_extraction_prompt = direct_extraction_prompt
         self.direct_extraction_instructions = direct_extraction_instructions
@@ -88,7 +106,10 @@ class MeasurementLMAblation1(MeasurementLM):
 
         DirectExtractionList = create_model(
             "DirectExtractionList",
-            items=(list[self.direct_extraction_schema], ...),
+            items=(
+                list[self.direct_extraction_schema],
+                ... if self.max_items is None else Field(..., max_length=self.max_items),
+            ),
         )
         direct_extraction_list_json = DirectExtractionList.model_json_schema()
 
@@ -121,13 +142,18 @@ class MeasurementLMAblation1(MeasurementLM):
         )
 
         triple_data = []
+        self.capped_document_ids = []
+        self.failed_document_ids = []
         for i, r in enumerate(response_texts):
             try:
                 resp_validated = response_validator(DirectExtractionList, r)
             except Exception as e:
                 print(f"Validation error in direct extraction response: {e}")
                 print(f"Response text: {r}")
+                self.failed_document_ids.append(i)
                 resp_validated = {'items': []}
+            if self.max_items is not None and len(resp_validated['items']) == self.max_items:
+                self.capped_document_ids.append(i)
 
             for j, item in enumerate(resp_validated['items']):
                 if item.get('value') is None:
@@ -140,6 +166,12 @@ class MeasurementLMAblation1(MeasurementLM):
                     }
                 )
 
+        if self.failed_document_ids:
+            print(f"WARNING: {len(self.failed_document_ids)} document(s) failed extraction "
+                  f"and contributed zero records: {self.failed_document_ids}")
+        if self.capped_document_ids:
+            print(f"WARNING: {len(self.capped_document_ids)} document(s) hit max_items="
+                  f"{self.max_items} (truncated or padded): {self.capped_document_ids}")
         return triple_data
 
     # -----------------------------------------------------------------------

@@ -1,0 +1,46 @@
+id: 2026-09-29-nfix-probe-augmentation-v3-rung3-01
+project: scholarlm
+description: >-
+  Rung 3 (tiny real-gpt-oss yield check) of the nfix v3 probe-dataset rebuild, via
+  run_probe_augment.py; mirrors the pond v3 rebuild (2026-09-29-pond-probe-v3-rebuild-01).
+  v3 vs the v2 files: (1) rows carry only the fields the nfix judge sees
+  (document_id, name, ecosystem_type, date, substrate_type, attribute, value,
+  units) -- location / nfix_method / sample_depth / identifiers /
+  additional_details / page_number are dropped; (2) substrate_type "wc" is
+  written "water column" and ISO dates in the extraction prompt's format
+  (mm-yyyy, dd-mm-yyyy, yyyy) -- ecosystem_type plurals are left as in GT; in
+  train + diagnostic ONLY, the GT values whose every occurrence in the paper
+  carries the same "± u" uncertainty take that verbatim span as value (never in
+  the primary test); (3) papers -- and every row's context_override -- are the
+  table-cleaned, reference-dropped OCR the judge is given
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01),
+  not ocr_output_raw; (4) bad_units never draws a numerically equivalent unit
+  (nmol C2H4 mL-1 h-1 / cm-3 h-1, nmol N g-1 / umol N kg-1, mg N m-3 / ug N L-1
+  ...) or an N / N2 variant of the same amount (judge-ambiguous), and bad_value's
+  collision guard also rejects a pool value the paper prints in another numeric
+  form. Output suffix _v3_rung3 (gitignored), 80 GT valids sampled per split,
+  round 0 only (multiple 1, floors 0): the per-axis distinct-yield read that sets
+  the full run's prompt_budget_multiple. Own cache file (v2's is untouched).
+
+  PREDICTION (written before the run). Seed-42 80-row sample ceilings, counted
+  from the data: train pos_entity 80 / pos_value 79 / pos_event 80 = 239/240;
+  diagnostic 80 / 79 / 80 = 239/240. v2's measured round-0 distinct yield was
+  80/240 (33%). Expect 55-100 distinct per split, pos_event the weakest axis
+  (ISO-style GT dates rarely appear verbatim in the papers; inherited). If a
+  split lands under ~40, or any axis exceeds its ceiling, stop and investigate
+  before any full run.
+seed: 42  # deliberate deviation from the repo-global 342 (experiments/config.yaml);
+          # probe augmentation historically uses 42 -- same as the v2 build.
+params:
+  dataset: nfix
+  model: gpt-oss-120b
+  reviewed: true
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  prompt_budget_multiple: 1
+  sample_gt: 80
+  valid_floor: 0
+  diag_valid_floor: 0
+  out_suffix: _v3_rung3
+  cache: data/nfix/probe_augment_cache_v3.json
+  # pond's rung-3 (same sample size) took 859 s wall-clock incl. server start.
+  walltime: "01:00:00"

@@ -59,6 +59,7 @@ import os
 import random
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 
@@ -113,6 +114,135 @@ _GT_COLS = [
     "date", "nfix_method", "substrate_type", "sample_depth",
     "additional_details", "attribute", "value", "units", "page_number",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Augment path only: judge-visible schema, extraction-format fields, unit
+# equivalence. None of this touches the default (v1) path.
+# ---------------------------------------------------------------------------
+
+# What the pond-style judge sees for nfix (nfix.py: EntitySchema +
+# MeasurementEventSchema minus ``judge_filter_fields`` = identifiers,
+# event_details) plus attribute / value / units, and ``document_id`` (names the
+# paper). location / nfix_method / sample_depth / identifiers /
+# additional_details / page_number are not judge-visible, so the augmented files
+# do not carry them (``gt_row_index`` links a row back to its GT row). These are
+# also the columns ``_row_signature`` dedups on.
+_AUGMENT_GT_COLS = [
+    "document_id", "name", "ecosystem_type", "date", "substrate_type",
+    "attribute", "value", "units",
+]
+
+# GT stores substrate_type as "wc"; the extraction prompt (and every real
+# extraction) says "water column". Explicit table -- an unlisted value raises.
+_SUBSTRATE_MAP: dict[str, str] = {"benthos": "benthos", "wc": "water column", "other": "other"}
+
+
+def map_substrate(raw: str | None) -> str:
+    if raw is None or raw not in _SUBSTRATE_MAP:
+        raise KeyError(f"nfix GT substrate_type {raw!r} has no entry in _SUBSTRATE_MAP")
+    return _SUBSTRATE_MAP[raw]
+
+
+_ISO_DATE_RES = (
+    (re.compile(r"^(\d{4})$"), lambda m: m[1]),
+    (re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$"), lambda m: f"{m[2]}-{m[1]}"),
+    (re.compile(r"^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"),
+     lambda m: f"{m[3]}-{m[2]}-{m[1]}"),
+)
+
+
+def to_prompt_date(raw: str | None) -> str | None:
+    """GT ISO date -> the extraction prompt's format ("dd-mm-yyyy", "mm-yyyy",
+    "yyyy"). ``None`` stays ``None``; any other shape raises."""
+    if raw is None:
+        return None
+    for rx, fmt in _ISO_DATE_RES:
+        m = rx.match(str(raw))
+        if m:
+            return fmt(m)
+    raise ValueError(f"nfix GT date {raw!r} is not yyyy / yyyy-mm / yyyy-mm-dd")
+
+
+# Unit equivalence. An nfix unit is "<amount> <species> <denominator> <time>",
+# e.g. "nmol N g⁻¹ h⁻¹". Two units are treated as the same quantity when amount
+# kind (mol vs mass), species, denominator kind (mass / volume / area) and the
+# per-hour scale factor all agree:  nmol C2H4 mL⁻¹ h⁻¹ == nmol C2H4 cm⁻³ h⁻¹,
+# nmol N g⁻¹ h⁻¹ == µmol N kg⁻¹ h⁻¹, mg N m⁻³ d⁻¹ == µg N L⁻¹ d⁻¹.
+# N and N2 are deliberately collapsed to one species: "nmol N2" vs "nmol N"
+# differ by a factor of 2, but the judge is told species labels are notational
+# (units criterion), so such a pair is AMBIGUOUS, not a clear error -- it is
+# treated as equivalent so it is never used as a "wrong units" negative.
+# C2H4 (acetylene-reduction proxy) stays a separate species.
+_UNIT_RE = re.compile(
+    r"^(?P<a>fmol|nmol|\u03bcmol|mmol|ng|\u03bcg|mg|kg|g) (?P<sp>N2|N|C2H4) "
+    r"(?P<d>g|kg|L|mL|cm|m|ha)⁻(?P<e>[¹²³]) (?P<t>h|d|yr)⁻¹$"
+)
+_AMOUNT = {"fmol": ("mol", 1e-15), "nmol": ("mol", 1e-9), "\u03bcmol": ("mol", 1e-6),
+           "mmol": ("mol", 1e-3), "ng": ("mass", 1e-9), "\u03bcg": ("mass", 1e-6),
+           "mg": ("mass", 1e-3), "g": ("mass", 1.0), "kg": ("mass", 1e3)}
+_DENOM = {("g", "¹"): ("mass", 1.0), ("kg", "¹"): ("mass", 1e3),
+          ("L", "¹"): ("volume", 1e-3), ("mL", "¹"): ("volume", 1e-6),
+          ("cm", "³"): ("volume", 1e-6), ("m", "³"): ("volume", 1.0),
+          ("m", "²"): ("area", 1.0), ("cm", "²"): ("area", 1e-4),
+          ("ha", "¹"): ("area", 1e4)}
+_HOURS = {"h": 1.0, "d": 24.0, "yr": 8760.0}
+
+
+def _parse_unit(u: str) -> tuple[tuple[str, str, str], float]:
+    m = _UNIT_RE.match(u.strip().replace("\u00b5", "\u03bc"))     # micro sign -> Greek mu
+    if m is None or (m["d"], m["e"]) not in _DENOM:
+        raise _aug.UnknownUnit(u)
+    a_kind, a_fac = _AMOUNT[m["a"]]
+    d_kind, d_fac = _DENOM[(m["d"], m["e"])]
+    species = "C2H4" if m["sp"] == "C2H4" else "N"
+    return (a_kind, species, d_kind), a_fac / d_fac / _HOURS[m["t"]]
+
+
+def units_equivalent(attr: str, a: str, b: str) -> bool:
+    """Are units ``a`` and ``b`` the same (or judge-ambiguously the same)
+    quantity? Raises ``UnknownUnit`` for a string that is not a parseable rate."""
+    (ka, fa), (kb, fb) = _parse_unit(a), _parse_unit(b)
+    return ka == kb and math.isclose(fa, fb, rel_tol=1e-9)
+
+
+def prepare_augment_records(records: list[dict], ocr_dir: Path) -> dict:
+    """In place: bring GT-derived records to what the judge would see from a real
+    extraction. Returns a report dict.
+
+      * ``substrate_type`` -> "water column" for GT's "wc" (``map_substrate``).
+      * ``date``           -> the extraction prompt's format (``to_prompt_date``).
+      * ``attribute``      -> asserted equal to the GT's own stored attribute
+                              (the script's units-based inference must agree).
+      * ``_value_span``    -> the verbatim ``"245 ± 127"`` span, ONLY where every
+                              occurrence in the paper agrees (train/diagnostic
+                              only -- decided per file in ``build_augmented_files``).
+    """
+    texts: dict[str, str] = {}
+    span_rows: list[int] = []
+    unknown_unit_rows: list[int] = []
+    for r in records:
+        code = r["_paper_code"]
+        if code not in texts:
+            path = Path(ocr_dir) / f"{code}.txt"
+            text = path.read_text(encoding="utf-8")
+            assert text.strip(), f"OCR file is empty: {path}"
+            texts[code] = text
+        assert r["attribute"] == r["_gt_attribute"], (
+            f"row {r['gt_row_index']}: units-inferred attribute {r['attribute']!r} != "
+            f"GT attribute {r['_gt_attribute']!r}")
+        r["substrate_type"] = map_substrate(r["substrate_type"])
+        r["date"] = to_prompt_date(r["date"])
+        span = _aug.find_unambiguous_uncertainty_span(texts[code], float(r["value"]))
+        if span:
+            r[_aug._VALUE_SPAN_KEY] = span
+            span_rows.append(r["gt_row_index"])
+        if r.get("units") is not None:
+            try:
+                _parse_unit(r["units"])
+            except _aug.UnknownUnit:
+                unknown_unit_rows.append(r["gt_row_index"])
+    return {"value_span_rows": span_rows, "unknown_unit_rows": unknown_unit_rows}
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +365,7 @@ def _unit_candidates(attribute: str, current_units: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def build_gt_records(gt_records: list[dict]) -> list[dict]:
+def build_gt_records(gt_records: list[dict], ocr_dir: Path) -> list[dict]:
     """Convert ground-truth records to probe record dicts.
 
     Output schema matches ground_truth.json (document_id, name, identifiers,
@@ -252,13 +382,14 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
 
     Args:
         gt_records: List of ground-truth record dicts loaded from ground_truth.json.
+        ocr_dir: Directory of ``<paper_code>.txt`` OCR files.
 
     Returns:
         List of record dicts ready for synthetic modification.
     """
     ocr_codes = {
         f.removesuffix(".txt")
-        for f in os.listdir(_OCR_DIR)
+        for f in os.listdir(ocr_dir)
         if f.endswith(".txt") and f not in {".DS_Store", ".gitkeep"}
     }
 
@@ -300,6 +431,7 @@ def build_gt_records(gt_records: list[dict]) -> list[dict]:
             "gt_row_index":       i,
             "donor_gt_row_index": None,
             "_orig_idx":          i,
+            "_gt_attribute":      row.get("attribute"),
             "_paper_code":        ref_id,
             "_page_numbers":      page_numbers,
         }
@@ -645,7 +777,7 @@ def _run_augment(args, xv_train: list[dict], xv_test: list[dict],
     written = _aug.run_and_write(
         base_dir=BASE,
         out_suffix=args.augment_out_suffix,
-        ocr_dir=_OCR_DIR,
+        ocr_dir=Path(args.ocr_dir),
         xv_train=xv_train,
         xv_test=xv_test,
         rules=rules,
@@ -693,7 +825,9 @@ def _build_augment_rules(all_records: list[dict]) -> "_aug.DatasetAugmentRules":
         event_noun="measurement date",
         event_pool=gt_dates,
         event_allow_inject=True,
-        gt_cols=list(_GT_COLS),
+        gt_cols=list(_AUGMENT_GT_COLS),
+        units_equivalent=units_equivalent,
+        numeric_value_guard=True,
     )
 
 
@@ -748,14 +882,23 @@ def main(argv: list[str] | None = None) -> None:
     ag.add_argument("--augment-sample-gt", type=int, default=0,
                     help="Rung 3: randomly sample this many GT valids (train and test each) "
                          "before augmenting, for a quick per-axis yield read. 0 = all.")
-    ag.add_argument("--augment-out-suffix", default="_v2")
+    ag.add_argument("--ocr-dir", default=None,
+                    help="REQUIRED with --augment: directory of <paper>.txt OCR files the "
+                         "papers (and every row's context_override) are read from -- the "
+                         "text the judge is given. No default.")
+    ag.add_argument("--augment-out-suffix", default="_v3")
     ag.add_argument("--gpt-oss-api-base", default="http://localhost:8081/v1")
     ag.add_argument("--augment-cache",
                     default=str(BASE / "probe_augment_cache.json"),
                     help="gpt-oss response cache (reproducibility). Set to '' to disable.")
     args = parser.parse_args(argv)
+    if args.augment and not args.ocr_dir:
+        parser.error("--augment requires --ocr-dir (no default)")
 
     gt_file = BASE / ("ground_truth_review.json" if args.reviewed else "ground_truth.json")
+    if args.augment and gt_file.resolve() != (REPO_ROOT / CONFIG.ground_truth_file).resolve():
+        parser.error(f"--augment must build from the dataset config's ground truth "
+                     f"({CONFIG.ground_truth_file}); got {gt_file.name} (pass --reviewed?)")
     rng = random.Random(args.seed)
     print(f"Seed: {args.seed}")
 
@@ -764,8 +907,16 @@ def main(argv: list[str] | None = None) -> None:
         gt_records = json.load(f)
     print(f"Loaded {len(gt_records):,} GT rows from {gt_file.name}")
 
-    all_records = build_gt_records(gt_records)
+    all_records = build_gt_records(gt_records, Path(args.ocr_dir) if args.augment else _OCR_DIR)
     print(f"Converted {len(all_records):,} records (with matching OCR files)")
+    if args.augment:
+        assert len(all_records) == len(gt_records), (
+            f"{len(gt_records) - len(all_records)} GT rows have no OCR file in {args.ocr_dir}: "
+            f"{sorted({str(r['document_id']) for r in gt_records} - {r['_paper_code'] for r in all_records})}")
+        report = prepare_augment_records(all_records, Path(args.ocr_dir))
+        print(f"AUGMENT PREP: {len(report['value_span_rows'])} unambiguous value span(s) "
+              f"(train/diagnostic only); {len(report['unknown_unit_rows'])} GT row(s) with an "
+              f"unparseable `units` string (no bad_units built from them)")
 
     # Attribute distribution after inference
     attr_counts: dict[str, int] = {}

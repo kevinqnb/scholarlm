@@ -36,7 +36,9 @@ never duplicates a default create_probe_dataset.py already declares, to
 avoid the two silently drifting apart): pos_axes (list), valid_floor,
 diag_valid_floor, sample_gt, out_suffix, rewrite_temperature,
 prewarm_max_retries, prewarm_drop_ceiling, cache, stub (bool -- deterministic
-stub client, no LLM, smoke-test only). Also: api_base.
+stub client, no LLM, smoke-test only). Also: api_base. pond, nfix and
+supermat additionally REQUIRE ocr_dir (the OCR corpus the judge reads; no default);
+supermat also takes qualifiers (bool) to build from ground_truth_qualifiers.json.
 """
 from __future__ import annotations
 
@@ -69,12 +71,17 @@ _VALUE_FLAGS: dict[str, str] = {
     "prewarm_max_retries": "--augment-prewarm-max-retries",
     "prewarm_drop_ceiling": "--augment-prewarm-drop-ceiling",
     "cache": "--augment-cache",
+    "ocr_dir": "--ocr-dir",
 }
+# Datasets whose create_probe_dataset.py --augment takes a required --ocr-dir
+# (no default there either); params.ocr_dir is then a required config key.
+_OCR_DIR_REQUIRED = ("pond", "nfix", "supermat")
 _LIST_FLAGS: dict[str, str] = {
     "pos_axes": "--augment-pos-axes",
 }
 _BOOL_FLAGS: dict[str, str] = {
     "stub": "--augment-stub",
+    "qualifiers": "--qualifiers",     # supermat only: build from ground_truth_qualifiers.json
 }
 
 
@@ -205,6 +212,9 @@ def main(argv: list[str] | None = None) -> None:
             f"{config_path}: params.dataset {dataset!r} has no create_probe_dataset.py "
             f"--augment support (choices: {_SUPPORTED_DATASETS})"
         )
+
+    if dataset in _OCR_DIR_REQUIRED:
+        paths.require_params(params, "ocr_dir", config_path=config_path)
 
     output_dir = paths.result_dir(dataset, "probe_augment", cfg["id"])
     api_base = args.api_base or params.get("api_base") or "http://localhost:8081/v1"

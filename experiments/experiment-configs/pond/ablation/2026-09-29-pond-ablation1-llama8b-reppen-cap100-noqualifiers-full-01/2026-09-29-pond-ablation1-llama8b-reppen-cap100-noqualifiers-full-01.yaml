@@ -1,0 +1,42 @@
+id: 2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
+project: scholarlm
+description: >
+  Rung-4 full run of Ablation 1 (direct triple extraction, no qualifiers) on
+  pond with llama-3.1-8b-reppen (repetition_penalty 1.1), with a per-document
+  cap of 100 records (params.max_items, a JSON-Schema maxItems enforced by
+  vLLM's grammar backend). Replaces
+  2026-09-26-pond-ablation1-llama8b-reppen-noqualifiers-full-01 (job 7776579),
+  which was found stalling in the same way as its nfix sibling after ~8 h:
+  305 responses vs 309 requests that hit the 600 s client timeout, out of 571
+  logged. See the nfix sibling
+  (2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01) for
+  the diagnosis and for what was tried and ruled out (repetition/presence/
+  frequency penalties, temperature 0). The cap bounds output size; it does NOT
+  make the records correct: a document that reaches exactly 100 records is
+  truncated or padded with repeats, is recorded in run_metadata.json's
+  capped_papers, and must be treated as suspect. Documents whose response
+  failed validation contribute zero records and are recorded in
+  failed_papers. Cap value: gemma-27b's no-qualifiers pond run produced up to
+  100 records for one paper (fish_production_in_lakes; next 96, 80, 79, 76),
+  so 100 is the smallest round cap that does not truncate a paper the
+  strongest model legitimately fills to that level -- note that one gemma
+  paper sits exactly at 100, so expect it (and any paper llama fills to 100)
+  to appear in capped_papers regardless of whether it looped. ocr_dir pinned
+  to the same table-cleaned, references-dropped corpus as the gemma/gpt-oss
+  arms. Walltime 12:00:00: 112 papers x <=~5 min worst case (every paper
+  capped) = ~9.3 h, plus server start-up and margin. Not a clean single-
+  variable comparison against any uncapped run (include_qualifiers=false,
+  repetition_penalty 1.1 and the cap all differ from the qualifier-bearing
+  2026-09-21-pond-ablation1-llama8b-full-01).
+  STAGED-GATES: rung 1 = tests/test_ablation1_max_items.py; rungs 2-3 =
+  2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-tinye2e-01.
+  Do not submit before that matches its prediction.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "1"
+  include_qualifiers: false
+  max_items: 100
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  walltime: "12:00:00"
