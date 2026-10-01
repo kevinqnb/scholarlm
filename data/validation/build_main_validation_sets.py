@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import random
-import sys
+from pathlib import Path
 
 from build_pilot_validation_sets import (
     NO_PROVENANCE_PAGE,
@@ -47,10 +47,11 @@ TARGET_TOTAL = 500
 PER_PAPER = {"pond": (3, 8), "supermat": (2, 7)}
 
 
-def build(dataset: str) -> None:
+def build(dataset: str, data_dir: Path = _REPO_ROOT / "data") -> None:
     cfg = next(c for c in _configs() + _configs_other() if c.dataset == dataset and c.method_key == PILOT_METHOD_KEY)
-    ds_dir = _REPO_ROOT / "data" / dataset
-    pilot = json.loads((ds_dir / f"validation_set_{PILOT_METHOD_KEY}.json").read_text())
+    ds_dir = _REPO_ROOT / "data" / dataset  # split files
+    out_dir = data_dir / dataset  # pilot set read from / main set written to
+    pilot = json.loads((out_dir / f"validation_set_{PILOT_METHOD_KEY}.json").read_text())
     assert pilot["extraction_final_json"] == str(cfg.final_json.resolve().relative_to(_REPO_ROOT.resolve())), (
         "pilot file was built from a different extraction than the config"
     )
@@ -142,7 +143,7 @@ def build(dataset: str) -> None:
         "documents": documents,
         "measurements": measurements,
     }
-    out = ds_dir / f"validation_set_{METHOD_KEY}.json"
+    out = out_dir / f"validation_set_{METHOD_KEY}.json"
     with open(out, "w") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=True)
         f.write("\n")
@@ -156,5 +157,13 @@ def build(dataset: str) -> None:
 
 
 if __name__ == "__main__":
-    for ds in sys.argv[1:]:
-        build(ds)
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("datasets", nargs="+", choices=sorted(PER_PAPER))
+    ap.add_argument("--data-dir", type=Path, default=_REPO_ROOT / "data",
+                    help="root holding <dataset>/validation_set_pilot-*.json (read) and receiving "
+                         "validation_set_main-*.json (default: the repo's data/)")
+    args = ap.parse_args()
+    for ds in args.datasets:
+        build(ds, args.data_dir)
