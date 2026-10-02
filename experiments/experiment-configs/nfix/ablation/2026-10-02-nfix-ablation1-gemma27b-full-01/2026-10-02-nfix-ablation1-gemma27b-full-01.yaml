@@ -1,0 +1,21 @@
+id: 2026-10-02-nfix-ablation1-gemma27b-full-01
+project: scholarlm
+description: >
+  Rung-4 full run, nfix, model=gemma-3-27b. Replaces the 2026-09-21 qualifier-
+  bearing ablation 1 run (stale: pond/nfix dataset-config direct-extraction
+  schemas were reworked 2026-09-25, d614549) and turns qualifiers back ON
+  (include_qualifiers omitted = true) after the 2026-09-25/26/29 noqualifiers
+  gold runs. No max_items cap, as in the noqualifiers gold arm. Walltime from
+  the measured 2026-09-21 qualifier-bearing runtime under the matrix headroom
+  policy. ocr_dir = the table-cleaned, references-dropped corpus used by the
+  gold runs. STAGED-GATES: rung 1 =
+  tests/test_run_ablation_value_only_context.py (+ existing ablation tests);
+  rungs 2-3 (smoke, tiny e2e with a predicted result) on this ablation/model
+  have NOT been run -- do not submit until they pass.
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  ablation: "1"
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "08:00:00"

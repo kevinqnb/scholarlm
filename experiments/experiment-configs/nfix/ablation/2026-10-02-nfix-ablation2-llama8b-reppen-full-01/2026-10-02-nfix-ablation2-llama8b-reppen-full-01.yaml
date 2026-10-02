@@ -1,0 +1,24 @@
+id: 2026-10-02-nfix-ablation2-llama8b-reppen-full-01
+project: scholarlm
+description: >
+  Rung-4 full run, nfix, model=llama-3.1-8b-reppen. Ablation 2
+  (src/scholarlm/measurementlm_ablation2.py, via run_ablation.py), regenerated
+  2026-10-02 from 2026-09-21-nfix-ablation2-llama8b-full-01 to match the gold
+  full-pipeline settings: model llama-3.1-8b-reppen (repetition_penalty 1.1) and
+  parse_quantities_context/standardize_context left at the default 'full', as in
+  the gold llama extraction run. Qualifiers are on (ablations 2-6 always run
+  _parse_quantities()). Includes the 2026-10-02 fix raising ablation 4/5/6
+  override max_tokens 512->2048. Walltime copied unchanged from the 09-21 config
+  (extrapolated from pre-restructure May runs, not measured under the current
+  schema); resume key dropped because run_ablation.py never reads it. ocr_dir =
+  the table-cleaned, references-dropped corpus used by the gold runs. STAGED-
+  GATES: rung 1 = tests/test_run_ablation_value_only_context.py (+ existing
+  ablation tests); rungs 2-3 (smoke, tiny e2e with a predicted result) on this
+  ablation/model have NOT been run -- do not submit until they pass.
+seed: 342
+params:
+  dataset: nfix
+  model: llama-3.1-8b-reppen
+  ablation: "2"
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "21:00:00"
