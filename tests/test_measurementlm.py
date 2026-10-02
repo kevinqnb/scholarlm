@@ -960,3 +960,35 @@ def test_check_quantity_consistency_flags_mismatches_without_raising():
         "IsRange tagged but lower/upper both null",
         "HasSD tagged but standard_deviation null",
     }
+
+
+def test_acall_failure_logs_exception_chain_and_in_flight_without_changing_behavior(monkeypatch, capsys):
+    """A connection failure must still be swallowed to "" and counted as failed (unchanged),
+    but the log must now carry the underlying transport error (__cause__), not just
+    openai's generic "Connection error.", and the in-flight counter must return to 0.
+
+    Predicted: result == "", failed_calls == 1, in-flight == 0, stdout contains the original
+    "API call failed: Connection error." line plus an [api-diag] line naming APIConnectionError
+    and the httpx.ConnectError cause."""
+    import httpx
+    from openai import APIConnectionError
+
+    mlm = _make_mlm()
+
+    async def raise_conn(*args, **kwargs):
+        request = httpx.Request("POST", "http://localhost:0/v1/chat/completions")
+        try:
+            raise httpx.ConnectError("All connection attempts failed", request=request)
+        except httpx.ConnectError as inner:
+            raise APIConnectionError(request=request) from inner
+
+    monkeypatch.setattr(mlm.async_client.chat.completions, "create", raise_conn)
+    result = asyncio.run(mlm._acall([{"role": "user", "content": "hello"}]))
+    out = capsys.readouterr().out
+
+    assert result == ""
+    assert mlm.token_usage["failed_calls"] == 1
+    assert mlm._in_flight_calls == 0
+    assert "API call failed: Connection error." in out
+    assert "[api-diag]" in out and "APIConnectionError" in out and "ConnectError" in out
+    assert "in_flight=1" in out and "prompt_chars=5" in out

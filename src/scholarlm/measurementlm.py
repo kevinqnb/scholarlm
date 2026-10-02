@@ -219,6 +219,8 @@ class BatchLLMBase:
         self.max_concurrent = max_concurrent
         self.use_extra_body = use_extra_body
         self.max_prompt_tokens: int = 0
+        # Calls currently inside _acall's request, for the failure diagnostics below.
+        self._in_flight_calls = 0
         self.token_usage: dict[str, int] = {
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -307,6 +309,8 @@ class BatchLLMBase:
                         extra[key] = value
             if extra:
                 kwargs["extra_body"] = extra
+        call_start = time.monotonic()
+        self._in_flight_calls += 1
         try:
             response = await self.async_client.chat.completions.create(
                 **kwargs, timeout=timeout
@@ -329,9 +333,27 @@ class BatchLLMBase:
             self.token_usage["failed_calls"] += 1
             return ""
         except Exception as e:
+            # Diagnostics only -- behavior is unchanged (still returns "").
+            # openai wraps the real transport error (httpx ConnectError /
+            # ReadError / RemoteProtocolError / timeout ...) as __cause__, which
+            # str(e) ("Connection error.") hides.
+            chain = []
+            exc = e
+            while exc is not None and len(chain) < 5:
+                chain.append(f"{type(exc).__name__}: {exc!r}")
+                exc = exc.__cause__ or exc.__context__
             print(f"API call failed: {e}")
+            print(
+                f"  [api-diag] at={time.strftime('%H:%M:%S')} "
+                f"elapsed={time.monotonic() - call_start:.2f}s timeout={timeout} "
+                f"in_flight={self._in_flight_calls} "
+                f"prompt_chars={sum(len(str(m.get('content', ''))) for m in messages)} "
+                f"max_tokens={token_value} chain={' <- '.join(chain)}"
+            )
             self.token_usage["failed_calls"] += 1
             return ""
+        finally:
+            self._in_flight_calls -= 1
 
     def _call_batch(
         self,
