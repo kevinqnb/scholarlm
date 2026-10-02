@@ -1,0 +1,33 @@
+id: 2026-10-02-pond-ablation2-gemma27b-tinye2e-01
+project: scholarlm
+description: >
+  Tiny end-to-end for Ablation 2 on pond, gemma-3-27b: ONE paper
+  (trophic_status_and_threats, the same paper as the 2026-09-20 qualifiers
+  tinye2e precedents), same settings as the 2026-10-02 full configs: value_only
+  parse_quantities/standardize context, drop_references corpus, ablation 4/5
+  max_tokens 2048. Scope: plumbing plus qualitative inspection of final.json --
+  no recovery numbers. No separate smoke run: it needs a vLLM server, which
+  cannot run in the login shell, so this job serves as rungs 2+3. PREDICTION
+  (written before the run): (1) job exits cleanly and writes final.json and
+  run_metadata.json; (2) run_metadata.json records
+  parse_quantities_context=value_only and standardize_context=value_only,
+  include_qualifiers=true; (3) final.json is non-empty, roughly 10-100 records
+  (precedents on this paper: 26 base pipeline, 71 ablation 3), attributes drawn
+  from {ph, chla, tn, tp, surface_area}; (4) every record has the
+  qualifier/shape keys (qualifiers, point_value, lower, upper, list_values,
+  tolerance, standard_deviation); (5) at least one ph record whose value
+  includes 8.4 (corpus Table 1 row: pH, 0 m, 8.4, 0.4); (6) no validation-
+  failure/truncation warnings in the log, in particular none from the raised
+  2048 max_tokens sites. If any of (1)-(4) or (6) fails, stop and report; do not
+  scale up. (5) failing alone is informative, not a stop, since the extractor
+  may split or drop that row.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "2"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  paper_subset: ["trophic_status_and_threats"]
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "02:00:00"
