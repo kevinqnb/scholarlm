@@ -992,3 +992,60 @@ def test_acall_failure_logs_exception_chain_and_in_flight_without_changing_behav
     assert "API call failed: Connection error." in out
     assert "[api-diag]" in out and "APIConnectionError" in out and "ConnectError" in out
     assert "in_flight=1" in out and "prompt_chars=5" in out
+
+
+def _start_keepalive_stub_server(idle_timeout=None):
+    """Local HTTP/1.1 keep-alive server returning a canned chat completion."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    body = json.dumps({
+        "id": "x", "object": "chat.completion", "created": 0, "model": "m",
+        "choices": [{"index": 0, "finish_reason": "stop",
+                     "message": {"role": "assistant", "content": '{"a": 1}'}}],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+    }).encode()
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+        timeout = idle_timeout
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def test_call_batch_uses_a_fresh_client_per_batch_and_closes_it(capsys):
+    """Each _call_batch runs in its own asyncio.run() event loop, so it must not share the
+    previous batch's AsyncOpenAI client (and its keep-alive pool bound to a closed loop --
+    the cause of 'RuntimeError: Event loop is closed' connection failures in the 2026-10-02
+    ablation 4 tiny e2e runs). Could not be reproduced against a local stub server, so this
+    checks the property directly.
+
+    Predicted: three batches use three distinct clients, each closed once its batch finishes,
+    all calls succeed against the keep-alive stub server."""
+    server = _start_keepalive_stub_server()
+    try:
+        mlm = _make_mlm(api_base=f"http://127.0.0.1:{server.server_address[1]}/v1", max_concurrent=4)
+        messages = [[{"role": "user", "content": "x"}] for _ in range(4)]
+        clients = []
+        for _ in range(3):
+            assert mlm._call_batch(messages, max_retries=0) == ['{"a": 1}'] * 4
+            clients.append(mlm.async_client)
+    finally:
+        server.shutdown()
+    assert len({id(c) for c in clients}) == 3
+    assert all(c.is_closed() for c in clients)
+    assert mlm.token_usage["failed_calls"] == 0
+    assert "API call failed" not in capsys.readouterr().out

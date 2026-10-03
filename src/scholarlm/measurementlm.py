@@ -230,7 +230,12 @@ class BatchLLMBase:
         self.step_seconds: dict[str, float] = {}
         self.context_length_exceeded_docs: set[int] = set()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
+        self._api_key = api_key
+        self._api_base = api_base
+        self.async_client = self._new_async_client()
+
+    def _new_async_client(self) -> AsyncOpenAI:
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._api_base, timeout=2400.0)
 
     # -----------------------------------------------------------------------
     # Core API call helpers
@@ -383,6 +388,20 @@ class BatchLLMBase:
         still propagates and crashes loudly.
         """
         async def _run():
+            # Fresh client per batch: each _call_batch runs in its own asyncio.run()
+            # event loop, and an AsyncOpenAI client's keep-alive pool holds
+            # connections bound to the loop that opened them. Reusing one client
+            # across batches let a later batch pick a connection from an already
+            # closed loop and fail with "RuntimeError: Event loop is closed" ->
+            # APIConnectionError, without the request ever reaching the server
+            # (2026-10-02-pond-ablation4-gemma27b-tinye2e-01/-02).
+            self.async_client = self._new_async_client()
+            try:
+                return await _batch()
+            finally:
+                await self.async_client.close()
+
+        async def _batch():
             sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
