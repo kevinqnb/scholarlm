@@ -27,17 +27,28 @@ def match_datasets(
         Dataframes to match. Call reset_index(drop=True) beforehand for stable positional indices.
     strict_matching:
         Mapping from column name in df_left -> column name in df_right that must be
-        strictly equal. Numeric values are compared with np.isclose.
+        strictly equal. Numeric values are compared with np.isclose. Nulls (None, NaN,
+        pd.NA, and empty/whitespace-only strings): null on BOTH sides is equal; null on
+        exactly one side is not equal, so the candidate pair is dropped. A NaN produced
+        by upstream coercion (e.g. analysis/match_cache.py's numeric_coerce turning an
+        unparseable string into NaN) is indistinguishable from a real null here, so it
+        strict-matches a null on the other side.
     fuzzy_matching:
         Mapping from column name in df_left -> column name in df_right compared with
-        fuzzy ratios, averaged to produce an edge weight in [0, 1]. Null semantics
-        match the strict fields: null on BOTH sides scores 1.0 for that field; null on
-        exactly one side rejects the candidate edge outright (it is never averaged
-        away or rescued by other fuzzy fields).
+        fuzzy ratios, averaged to produce an edge weight in [0, 1]. Per field:
+        null on BOTH sides -> the field abstains: it is not scored and does not enter
+        the average at all; null on exactly one side -> the field scores 0.0 and IS
+        included in the average (the edge is not rejected; the threshold decides).
+        If every fuzzy field abstains (null on both sides for all of them) there is
+        nothing to average and the edge weight is 1.0 (vacuous agreement; strict
+        fields alone decided the pair). Nulls are judged after ``fuzzy_normalizers``
+        runs, so a string a normalizer reduces to empty counts as null.
     fuzzy_threshold:
-        Minimum average fuzzy score in [0, 1] required for candidate edges to be included
-        in the graph and considered for matching. Defaults to 0.0 to include all
-        edges that pass strict criteria.
+        Minimum average fuzzy score in [0, 1] for a candidate edge to be included in the
+        graph: edges with score >= fuzzy_threshold are kept (inclusive). Callers that
+        re-apply a threshold to the returned weights must also use >= (see
+        analysis/match_cache.py's edges_above_threshold). Defaults to 0.0 to include
+        all edges that pass strict criteria.
 
     fuzzy_normalizers:
         Optional mapping from a df_left fuzzy column -> str-to-str canonicaliser,
@@ -105,19 +116,24 @@ def match_datasets(
             return bool(np.isclose(float(v_left), float(v_right), atol=float_atol, rtol=float_rtol))
         return _normalize_obj(v_left) == _normalize_obj(v_right)
 
-    def _fuzzy_score(v_left, v_right, normalizer=None) -> Optional[float]:
-        """None means exactly one side is null: the pair can never match."""
-        if _is_null(v_left) and _is_null(v_right):
-            return 1.0
-        if _is_null(v_left) or _is_null(v_right):
+    def _fuzzy_prep(v, normalizer):
+        """Normalized comparison value for one side, or None if null (judged after
+        the normalizer, so a string it empties out counts as null)."""
+        if _is_null(v):
             return None
-        if normalizer is not None:
-            if isinstance(v_left, str):
-                v_left = normalizer(v_left)
-            if isinstance(v_right, str):
-                v_right = normalizer(v_right)
-        s_left = _normalize_obj(v_left)
-        s_right = _normalize_obj(v_right)
+        if normalizer is not None and isinstance(v, str):
+            v = normalizer(v)
+        return _normalize_obj(v)
+
+    def _fuzzy_score(v_left, v_right, normalizer=None) -> Optional[float]:
+        """None means both sides are null: the field abstains and is left out of the
+        average. Exactly one null side scores 0.0 (and is averaged in)."""
+        s_left = _fuzzy_prep(v_left, normalizer)
+        s_right = _fuzzy_prep(v_right, normalizer)
+        if s_left is None and s_right is None:
+            return None
+        if s_left is None or s_right is None:
+            return 0.0
         if not isinstance(s_left, str) or not isinstance(s_right, str):
             return 1.0 if s_left == s_right else 0.0
         return float(fuzz.ratio(s_left, s_right)) / 100.0
@@ -140,9 +156,10 @@ def match_datasets(
                     _fuzzy_score(row_l[c_l], row_r[c_r], fuzzy_normalizers.get(c_l))
                     for c_l, c_r in fuzzy_items
                 ]
-                if any(s is None for s in scores):
-                    continue
-                score = float(np.mean(scores))
+                scored = [x for x in scores if x is not None]
+                # All fields abstained (null on both sides everywhere): no evidence
+                # either way, strict fields alone decided -> weight 1.0.
+                score = float(np.mean(scored)) if scored else 1.0
 
             if score < fuzzy_threshold:
                 continue

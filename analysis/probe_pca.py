@@ -146,7 +146,7 @@ def main():
 
     ex_edge_exists = np.zeros(len(ext_df), dtype=bool)
     for (gt_idx, ex_idx), w in zip(edges, edge_weights):
-        if w > fuzzy_threshold:
+        if w >= fuzzy_threshold:
             ex_edge_exists[int(ex_idx)] = True
     judge_labels = real_df['judgement_combined'].to_numpy(dtype=bool)
     combined_labels = judge_labels | ex_edge_exists

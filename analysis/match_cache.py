@@ -35,7 +35,8 @@ dataset's configured "selected" threshold -- this is the same convention
 every existing caller of cached_match already uses (recovery_rate,
 validity_rate, per_paper_metrics, calibration*.py, probe_pca.py: every one
 of them hardcodes fuzzy_threshold=0.0 in its own cached_match call and then
-filters the returned edges/edge_weights by `w > threshold` itself). A
+filters the returned edges/edge_weights by `w >= threshold` itself; before
+2026-10-03 that compare was a strict `w > threshold`). A
 threshold only decides which strict-matched candidate edges count as a
 match; it never changes which candidates exist. Baking a non-zero threshold
 into match_datasets' own edge construction would permanently discard every
@@ -111,11 +112,14 @@ import utils as paths
 # real point_value output includes unicode scientific notation ("1.5 ×
 # 10^8", observed in pond's 2026-09-21-pond-extraction-gemma27b-full-01)
 # that float() can't parse on its own. Values _parse_numeric can't make
-# sense of at all (label-echo garbage like "pH", "TN") become NaN --
-# match_datasets treats NaN as null on both sides, so those rows simply
-# never strict-match, which is correct: they have no valid value to match
-# on. build_match_cache prints every value that fell through to NaN, so a
-# genuinely new garbage pattern doesn't disappear silently.
+# sense of at all (label-echo garbage like "pH", "TN") become NaN, and
+# match_datasets treats NaN as null. Strict null semantics are: null on one
+# side only never matches, but null on BOTH sides matches. So a garbage
+# extraction value never strict-matches a ground-truth row that has a real
+# value in that column, but it DOES strict-match a ground-truth row whose
+# value in that column is itself null/NaN (the other strict fields must then
+# carry the match). build_match_cache prints every value that fell through to
+# NaN, so a genuinely new garbage pattern doesn't disappear silently.
 # ---------------------------------------------------------------------------
 
 def _parse_numeric(x):
@@ -216,19 +220,19 @@ def edges_above_threshold(
     edges: list[tuple[int, int]], edge_weights: list[float], fuzzy_threshold: float,
 ) -> list[tuple[int, int]]:
     """Filter a 0.0-threshold-cached edge list down to the edges some
-    fuzzy_threshold selects, mirroring the `w > fuzzy_threshold` convention
-    every existing cached_match caller applies post-hoc (analysis/metrics.py,
-    calibration*.py, probe_pca.py) -- strictly greater-than, so an edge whose
-    score exactly equals fuzzy_threshold is excluded here even though
-    match_datasets' own `score < fuzzy_threshold` construction-time filter
-    would have kept it. That boundary inconsistency predates this script and
-    isn't this function's to fix (see CLAUDE.md's eval-code guard); this
-    function only reproduces the existing convention, not a new one.
+    fuzzy_threshold selects: ``w >= fuzzy_threshold`` (inclusive), the same
+    boundary as match_datasets' own construction-time filter (it drops
+    ``score < fuzzy_threshold``) and as every post-hoc caller (analysis/
+    metrics.py, calibration*.py, probe_pca.py, validity_evaluation.py). Before
+    2026-10-03 the post-hoc callers used strict ``>`` while match_datasets
+    kept ``>=``, so an edge scoring exactly the threshold was dropped by them
+    but not by it; that is fixed, and it invalidates any recovery/validity
+    number computed with the old strict-greater-than compare.
     """
     return [
         (gt_idx, ex_idx)
         for (gt_idx, ex_idx), w in zip(edges, edge_weights)
-        if w > fuzzy_threshold
+        if w >= fuzzy_threshold
     ]
 
 

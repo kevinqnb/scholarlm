@@ -56,7 +56,7 @@ def recovery_rate(
 
     gt_edge_exists = np.zeros(len(ground_truth_df), dtype = bool)
     for i, (gt_idx, ex_idx) in enumerate(edges):
-        if edge_weights[i] > fuzzy_threshold:
+        if edge_weights[i] >= fuzzy_threshold:
             gt_edge_exists[gt_idx] = True
 
     rate = float(np.mean(gt_edge_exists))
@@ -150,7 +150,7 @@ def validity_rate(
 
     ex_edge_exists = np.zeros(len(extraction_df), dtype = bool)
     for i, (gt_idx, ex_idx) in enumerate(edges):
-        if edge_weights[i] > fuzzy_threshold:
+        if edge_weights[i] >= fuzzy_threshold:
             ex_edge_exists[ex_idx] = True
 
     if judged_df is not None:
@@ -254,7 +254,7 @@ def per_paper_metrics(
     ex_edge_exists = np.zeros(len(extraction_df), dtype = bool)
     gt_edge_exists = np.zeros(len(ground_truth_df), dtype = bool)
     for i, (gt_idx, ex_idx) in enumerate(edges):
-        if edge_weights[i] > fuzzy_threshold:
+        if edge_weights[i] >= fuzzy_threshold:
             ex_edge_exists[ex_idx] = True
             gt_edge_exists[gt_idx] = True
 

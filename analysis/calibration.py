@@ -403,7 +403,7 @@ for ds in DATASETS:
     ex_edge_exists = np.zeros(len(ext_df), dtype=bool)
     filtered_edges = []
     for (gt_idx, ex_idx), w in zip(edges, edge_weights):
-        if w > EDGE_THRESHOLD:
+        if w >= EDGE_THRESHOLD:
             ex_edge_exists[int(ex_idx)] = True
             filtered_edges.append((int(gt_idx), int(ex_idx)))
     jlabels     = real_df['judgement_combined'].to_numpy(dtype=bool)

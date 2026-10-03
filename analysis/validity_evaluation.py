@@ -163,7 +163,7 @@ def evaluate_human(
             _, edges, edge_weights = cached_match(gt_df, ext_df, strict_matching=strict, fuzzy_matching=fuzzy)
             match_labels = np.zeros(len(ext_df), dtype=bool)
             for i, (_, ex_idx) in enumerate(edges):
-                if edge_weights[i] > threshold:
+                if edge_weights[i] >= threshold:
                     match_labels[ex_idx] = True
             rows.append({"dataset": dataset, "extraction_model": extraction_model, "method": "match",
                          **_binary_metrics(y_human, match_labels)})

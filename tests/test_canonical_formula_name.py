@@ -101,13 +101,20 @@ def test_normalizer_does_not_rescue_a_genuinely_different_name():
     assert edges == []
 
 
-def test_normalizer_not_called_on_null_and_null_rules_unchanged():
-    def boom(_):
-        raise AssertionError("normalizer must not see nulls")
-    _, edges, weights = _one_pair(None, np.nan, {"name": boom})
-    assert edges == [(0, 0)] and weights == [1.0]       # null == null
-    _, edges, _ = _one_pair("MgB2", None, {"name": boom})
-    assert edges == []                                  # null vs non-null never matches
+def test_normalizer_never_sees_a_null_and_null_rules_follow_the_matcher():
+    seen = []
+    def spy(x):
+        assert isinstance(x, str) and x.strip(), f"normalizer must not see a null: {x!r}"
+        seen.append(x)
+        return x
+    _, edges, weights = _one_pair(None, np.nan, {"name": spy})
+    assert edges == [(0, 0)] and weights == [1.0]       # null on both sides: all fields abstain
+    assert seen == []
+    _, edges, weights = _one_pair("MgB2", None, {"name": spy}, threshold=0.0)
+    assert edges == [(0, 0)] and weights == [0.0]       # one-sided null scores 0.0
+    assert seen == ["MgB2"]                             # only the non-null side is normalized
+    _, edges, _ = _one_pair("MgB2", None, {"name": spy})  # default threshold 0.5
+    assert edges == []
 
 
 def test_normalizer_key_must_be_a_fuzzy_column():
