@@ -367,7 +367,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     print(f"  Recall    : {recall_score(y_train, y_pred):.4f}")
     print(f"  F1-Score  : {f1_score(y_train, y_pred):.4f}")
     print(f"  AUROC     : {roc_auc_score(y_train, y_probs):.4f}")
-    print(f"  ECE       : {compute_ece(y_train, y_probs):.4f}")
+    print(f"  ECE       : {compute_ece(y_probs, y_train):.4f}")
 
     # Save probe + metadata for use in synthetic_probe_test.ipynb
     probe_dir.mkdir(parents=True, exist_ok=True)
@@ -514,7 +514,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         print(f"  Recall    : {recall_score(y_train_lo, y_pred_lo):.4f}")
         print(f"  F1-Score  : {f1_score(y_train_lo, y_pred_lo):.4f}")
         print(f"  AUROC     : {roc_auc_score(y_train_lo, y_probs_lo):.4f}")
-        print(f"  ECE       : {compute_ece(y_train_lo, y_probs_lo):.4f}")
+        print(f"  ECE       : {compute_ece(y_probs_lo, y_train_lo):.4f}")
 
         # Save probe + metadata for use in synthetic_probe_test.ipynb
         probe_dir.mkdir(parents=True, exist_ok=True)
