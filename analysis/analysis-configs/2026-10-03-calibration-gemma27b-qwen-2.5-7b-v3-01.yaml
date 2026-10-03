@@ -1,0 +1,52 @@
+id: 2026-10-03-calibration-gemma27b-qwen-2.5-7b-v3-01
+project: scholarlm
+description: >
+  DRAFT. Calibration analysis (analysis/calibration_updated.py) of the qwen-2.5-7b
+  head probe + NTP calibrator, trained on the v3 synthetic corpus, applied to the
+  main gemma-3-27b full-pipeline extraction on pond / nfix / supermat, judged by
+  the 2026-09-27 qwen-2.5-7b interp-judge runs (labels from the matching
+  judge_combine runs).
+  pi_te_estimate 0.5 is carried over from the old gemma-3-27b-extraction setting
+  in calibration_ids.SETTINGS -- confirm it, or set null to switch label-shift
+  rescaling off.
+  Known caveat: the supermat qualifier-pipeline run has ~43% unmatchable `value`
+  (units-in-value bug + unused point_value/lower/upper), which depresses the
+  matching-derived labels and recovery for supermat.
+  Run: python analysis/calibration_updated.py analysis/analysis-configs/2026-10-03-calibration-gemma27b-qwen-2.5-7b-v3-01.yaml
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  pi_te_estimate: 0.4
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: false
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: false
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: false
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01

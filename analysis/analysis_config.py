@@ -211,3 +211,116 @@ def load_synthetic_probe_config(path: Path) -> dict:
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     return cfg
+
+
+# Params keys for analysis/calibration_updated.py. Per-dataset blocks must
+# carry exactly CALIBRATION_DATASET_KEYS for each of CALIBRATION_DATASETS.
+CALIBRATION_DATASETS = ("pond", "nfix", "supermat")
+CALIBRATION_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "pi_te_estimate", "datasets")
+CALIBRATION_DATASET_KEYS = (
+    "extraction_id", "judge_interp_id", "judge_combine_id", "ground_truth_file",
+    "synthetic_probe_config", "syn_test_ids", "use_matching_labels",
+)
+CALIBRATION_SYN_SPLITS = ("primary", "diag")
+
+
+def load_calibration_config(path: Path) -> dict:
+    """Load analysis/calibration_updated.py's analysis-configs/<id>.yaml.
+
+    Same envelope as load_analysis_config, but params carries exactly
+    CALIBRATION_TOP_KEYS. ``params.datasets`` has exactly one block per
+    CALIBRATION_DATASETS entry (pond, nfix, supermat), each with exactly
+    CALIBRATION_DATASET_KEYS:
+
+      - extraction_id / judge_interp_id / judge_combine_id: the real extraction
+        run, the qwen interp-judge run over it, and the judge_combine run
+        holding its labels.
+      - ground_truth_file: the ground-truth CSV/JSON this extraction is scored
+        against (must exist; repo-root-relative if not absolute).
+      - synthetic_probe_config: the id of the analysis-configs/ yaml (loadable
+        by load_synthetic_probe_config) whose cached probe is applied.
+      - syn_test_ids: {primary: <id>, diag: <id>}, this dataset's synthetic
+        judge_interp test runs. Both are required; ``params.syn_split``
+        names which one the synthetic evaluation uses.
+      - use_matching_labels: bool. True labels a real extraction valid if the
+        judge said so OR it matched a ground-truth row (``judgement_combined |
+        has_matching_edge``); False uses ``judgement_combined`` alone. Matching
+        is still computed either way, since recovery uses its edges.
+
+    ``pi_te_estimate`` is required: a float in (0, 1), or null to switch the
+    label-shift rescaling off explicitly. ``probe_type`` is 'head' or 'layer',
+    ``probe_variant`` 'platt' or 'noplatt', ``syn_split`` 'primary' or 'diag'. ``seed`` seeds the bootstrap CIs
+    and the random-baseline curve.
+
+    Cross-run consistency (ids really are what they claim, judge model
+    agreement, corpus-version agreement) is checked by
+    analysis/calibration_ids.py, which has the experiment-config lookups.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+    """
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+
+    if set(params) != set(CALIBRATION_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_TOP_KEYS)}"
+        )
+    if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
+        raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
+    if params["probe_type"] not in ("head", "layer"):
+        raise ValueError(f"{path}: params.probe_type must be 'head' or 'layer', got {params['probe_type']!r}")
+    if params["probe_variant"] not in ("platt", "noplatt"):
+        raise ValueError(
+            f"{path}: params.probe_variant must be 'platt' or 'noplatt', got {params['probe_variant']!r}"
+        )
+    if params["syn_split"] not in CALIBRATION_SYN_SPLITS:
+        raise ValueError(
+            f"{path}: params.syn_split must be one of {list(CALIBRATION_SYN_SPLITS)}, got {params['syn_split']!r}"
+        )
+    pi = params["pi_te_estimate"]
+    if pi is not None and (isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1):
+        raise ValueError(f"{path}: params.pi_te_estimate must be null or a float in (0, 1), got {pi!r}")
+
+    datasets = params["datasets"]
+    if not isinstance(datasets, dict) or set(datasets) != set(CALIBRATION_DATASETS):
+        raise ValueError(
+            f"{path}: params.datasets must have exactly the keys {list(CALIBRATION_DATASETS)}, "
+            f"got {sorted(datasets) if isinstance(datasets, dict) else datasets!r}"
+        )
+    for ds, block in datasets.items():
+        if not isinstance(block, dict) or set(block) != set(CALIBRATION_DATASET_KEYS):
+            raise ValueError(
+                f"{path}: params.datasets.{ds} keys "
+                f"{sorted(block) if isinstance(block, dict) else block!r} must be exactly "
+                f"{sorted(CALIBRATION_DATASET_KEYS)}"
+            )
+        for k in CALIBRATION_DATASET_KEYS:
+            if k in ("syn_test_ids", "use_matching_labels"):
+                continue
+            v = block[k]
+            if not isinstance(v, str) or not v:
+                raise ValueError(f"{path}: params.datasets.{ds}.{k} must be a non-empty string, got {v!r}")
+        gt_path = _resolve_ground_truth_path(block["ground_truth_file"])
+        if not gt_path.exists():
+            raise ValueError(
+                f"{path}: params.datasets.{ds}.ground_truth_file "
+                f"{block['ground_truth_file']!r} does not exist at {gt_path}"
+            )
+        if not isinstance(block["use_matching_labels"], bool):
+            raise ValueError(
+                f"{path}: params.datasets.{ds}.use_matching_labels must be a bool, "
+                f"got {block['use_matching_labels']!r}"
+            )
+        syn = block["syn_test_ids"]
+        if not isinstance(syn, dict) or set(syn) != set(CALIBRATION_SYN_SPLITS):
+            raise ValueError(
+                f"{path}: params.datasets.{ds}.syn_test_ids must have exactly the keys "
+                f"{list(CALIBRATION_SYN_SPLITS)}, got {sorted(syn) if isinstance(syn, dict) else syn!r}"
+            )
+        for split, v in syn.items():
+            if not isinstance(v, str) or not v:
+                raise ValueError(
+                    f"{path}: params.datasets.{ds}.syn_test_ids.{split} must be a non-empty string, got {v!r}"
+                )
+    return cfg
