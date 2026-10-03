@@ -1,0 +1,10 @@
+id: 2026-10-02-nfix-synthetic-probe-mistral-nemo-12b-v3-01
+project: scholarlm
+description: >
+  Head probe + NTP calibrator training for mistral-nemo-12b on the nfix v3 synthetic corpus,
+  from judge_interp run 2026-09-30-nfix-v3-mistral-nemo-12b-synthetic-judge-train-01.
+  Run: python analysis/synthetic_probe_train.py analysis/analysis-configs/2026-10-02-nfix-synthetic-probe-mistral-nemo-12b-v3-01.yaml
+seed: 342
+params:
+  dataset: nfix
+  judge_interp_id: 2026-09-30-nfix-v3-mistral-nemo-12b-synthetic-judge-train-01

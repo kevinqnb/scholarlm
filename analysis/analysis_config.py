@@ -42,6 +42,10 @@ ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
 # silently ignoring it. Add a script's section name here when it grows one.
 KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation"}
 
+# Params keys for analysis/synthetic_probe_train.py, which trains on one
+# judge_interp run and so has no experiment_ids / ground_truth_file.
+SYNTHETIC_PROBE_PARAM_KEYS = ("dataset", "judge_interp_id")
+
 
 def _resolve_ground_truth_path(ground_truth_file: str) -> Path:
     path = Path(ground_truth_file)
@@ -60,6 +64,24 @@ def get_ground_truth_path(cfg: dict) -> Path:
     freshness/hash check) without re-parsing the YAML.
     """
     return _resolve_ground_truth_path(cfg["params"]["ground_truth_file"])
+
+
+def _load_envelope(path: Path) -> dict:
+    """Parse path and check the id/project/description/seed/params envelope
+    (id == filename stem, params a mapping). Shared by every loader here."""
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+
+    missing = [k for k in ("id", "project", "description", "seed", "params") if k not in cfg]
+    if missing:
+        raise ValueError(f"{path}: missing required key(s): {missing}")
+    if cfg["id"] != path.stem:
+        raise ValueError(
+            f"{path}: id {cfg['id']!r} does not match filename stem {path.stem!r}"
+        )
+    if not isinstance(cfg["params"], dict):
+        raise ValueError(f"{path}: params must be a mapping")
+    return cfg
 
 
 def load_analysis_config(path: Path) -> dict:
@@ -90,18 +112,7 @@ def load_analysis_config(path: Path) -> dict:
             missing/empty/non-list/duplicate experiment_ids, or a missing/
             empty/non-string/nonexistent ground_truth_file.
     """
-    with open(path) as f:
-        cfg = yaml.safe_load(f)
-
-    missing = [k for k in ("id", "project", "description", "seed", "params") if k not in cfg]
-    if missing:
-        raise ValueError(f"{path}: missing required key(s): {missing}")
-    if cfg["id"] != path.stem:
-        raise ValueError(
-            f"{path}: id {cfg['id']!r} does not match filename stem {path.stem!r}"
-        )
-    if not isinstance(cfg["params"], dict):
-        raise ValueError(f"{path}: params must be a mapping")
+    cfg = _load_envelope(path)
 
     experiment_ids = cfg["params"].get("experiment_ids")
     if not isinstance(experiment_ids, list) or not experiment_ids or not all(
@@ -170,3 +181,33 @@ def get_section(
             f"missing required: {sorted(missing)}, unexpected: {sorted(unexpected)}"
         )
     return section
+
+
+def load_synthetic_probe_config(path: Path) -> dict:
+    """Load analysis/synthetic_probe_train.py's analysis-configs/<id>.yaml.
+
+    Same envelope as load_analysis_config, but params carries exactly
+    ``dataset`` (pond / nfix / supermat) and ``judge_interp_id`` (the
+    judge_interp run on the synthetic corpus to train on) -- no
+    experiment_ids / ground_truth_file, which belong to the scoring
+    consumers. Any other params key is an error.
+
+    Raises:
+        ValueError: malformed envelope, or params keys != SYNTHETIC_PROBE_PARAM_KEYS,
+            either value not a non-empty string, or seed not an int.
+    ``seed`` seeds every split and LogisticRegression in synthetic_probe_train.py.
+    """
+    cfg = _load_envelope(path)
+    keys = set(cfg["params"])
+    if keys != set(SYNTHETIC_PROBE_PARAM_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(keys)} must be exactly "
+            f"{sorted(SYNTHETIC_PROBE_PARAM_KEYS)}"
+        )
+    for k in SYNTHETIC_PROBE_PARAM_KEYS:
+        v = cfg["params"][k]
+        if not isinstance(v, str) or not v:
+            raise ValueError(f"{path}: params.{k} must be a non-empty string, got {v!r}")
+    if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
+        raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
+    return cfg

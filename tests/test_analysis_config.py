@@ -211,3 +211,41 @@ def test_get_section_optional_key_allowed_but_not_required():
         cfg2, "recovery_validity", ("n_resamples",), optional_keys=("judge_combine_ids",)
     )
     assert section2 == {"n_resamples": 2000, "judge_combine_ids": {"a": "b"}}
+
+
+# ── load_synthetic_probe_config ───────────────────────────────────────────
+
+def _probe_cfg(**params_override):
+    params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01"}
+    params.update(params_override)
+    return {"id": "probe-01", "project": "scholarlm", "description": "d", "seed": GOOD_SEED, "params": params}
+
+
+def test_synthetic_probe_config_loads(tmp_path):
+    cfg = ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", _probe_cfg()))
+    assert cfg["params"]["dataset"] == "pond"
+
+
+def test_synthetic_probe_config_rejects_extra_key(tmp_path):
+    path = _write(tmp_path, "probe-01", _probe_cfg(experiment_ids=["x"]))
+    with pytest.raises(ValueError, match="must be exactly"):
+        ac.load_synthetic_probe_config(path)
+
+
+def test_synthetic_probe_config_rejects_missing_key(tmp_path):
+    cfg = _probe_cfg()
+    del cfg["params"]["dataset"]
+    with pytest.raises(ValueError, match="must be exactly"):
+        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+
+
+def test_synthetic_probe_config_rejects_id_mismatch(tmp_path):
+    with pytest.raises(ValueError, match="does not match filename stem"):
+        ac.load_synthetic_probe_config(_write(tmp_path, "other-name", _probe_cfg()))
+
+
+def test_synthetic_probe_config_rejects_non_int_seed(tmp_path):
+    cfg = _probe_cfg()
+    cfg["seed"] = "342"
+    with pytest.raises(ValueError, match="seed must be an int"):
+        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
