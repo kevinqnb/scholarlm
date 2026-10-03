@@ -272,3 +272,6 @@ analysis/out/*.txt
 notes
 CLAUDE.local.md
 ISSUE-*.md
+
+# Match caches (analysis/match_cache.py): derived pickles + sidecars, rebuilt on demand, never committed.
+analysis/results/match_cache/
