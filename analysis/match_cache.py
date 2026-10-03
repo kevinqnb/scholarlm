@@ -6,11 +6,16 @@ the run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
 ``fuzzy_threshold``/``numeric_coerce`` on its ``DatasetConfig``, in
 ``experiments/dataset-configs/{dataset}.py`` -- see ``get_matching_config``
 below and ``DatasetConfig``'s own docstring), run match_datasets, and write
-the result to match_cache.pkl inside that run's own results directory
-(experiments/results/{dataset}/{experiment-type}/<id>/match_cache.pkl), plus
-a match_cache.meta.json sidecar recording exactly which ground truth file and
-which extraction file it was built against (repo-relative path + sha256 for
-each, plus the ground truth's row count) -- see ``build_match_cache``. The
+the result to analysis/results/match_cache/<id>/match_cache.pkl (see
+``MATCH_CACHE_ROOT`` / ``match_cache_path`` -- one flat directory per
+experiment id, deliberately NOT inside the run's own experiments/results/
+directory: a cache is an analysis artifact derived from a run plus a ground
+truth file, not run output), plus a match_cache.meta.json sidecar next to it
+recording exactly which ground truth file and which extraction file it was
+built against (repo-relative path + sha256 for each, plus the ground truth's
+row count) -- see ``build_match_cache``. Caches written to the old per-run
+location (experiments/results/.../<id>/match_cache.pkl) are never read; there
+is no fallback to it. The
 extraction file is ``postprocessed.json`` (analysis/postprocessing.py's
 qualifier-fill/unit-standardization output) when it exists, else
 ``final.json`` with a printed warning -- see ``extraction_path``. Always
@@ -91,6 +96,12 @@ from analysis.analysis_config import get_ground_truth_path, load_analysis_config
 from analysis.loaders import load_ground_truth_file
 from experiments.run_extraction import load_dataset_config
 import utils as paths
+
+# Where every match cache lives: MATCH_CACHE_ROOT/<experiment id>/{match_cache.pkl,
+# match_cache.meta.json}. A per-id directory (not a flat <id>.pkl) because
+# analysis/recovery_validity.py locates the sidecar as
+# ``cache_path.with_name("match_cache.meta.json")``.
+MATCH_CACHE_ROOT = _REPO_ROOT / "analysis" / "results" / "match_cache"
 
 # ---------------------------------------------------------------------------
 # Per-dataset matching configuration
@@ -237,11 +248,13 @@ def edges_above_threshold(
 
 
 def match_cache_path(experiment_id: str) -> Path:
-    """The match_cache.pkl path for an experiment id, whether or not it has
-    been built yet. The one place this path gets constructed -- other
-    scripts should call this rather than hand-building result_dir / 'match_cache.pkl'.
+    """The match_cache.pkl path for an experiment id
+    (``MATCH_CACHE_ROOT/<id>/match_cache.pkl``), whether or not it has been
+    built yet. The one place this path gets constructed -- other scripts should
+    call this rather than hand-building it. Does not check that the id names a
+    real run; the build step (``build_match_cache``) does that.
     """
-    return paths.find_result_dir(experiment_id) / "match_cache.pkl"
+    return MATCH_CACHE_ROOT / experiment_id / "match_cache.pkl"
 
 
 def match_cache_meta_path(experiment_id: str) -> Path:
@@ -279,8 +292,9 @@ def load_match_cache(
 ) -> tuple | list[tuple[int, int]]:
     """Load an already-built match_cache.pkl for use in another script.
 
-    Never computes anything -- raises if build_match_cache hasn't been run
-    for this experiment_id yet, rather than silently building one inline (a
+    Reads only from ``match_cache_path(experiment_id)`` under MATCH_CACHE_ROOT --
+    never from the old per-run location. Never computes anything -- raises if
+    build_match_cache hasn't been run for this experiment_id yet, rather than silently building one inline (a
     fresh build takes O(n_gt * n_extraction) strict+fuzzy scoring, tens of
     minutes for a real run; see analysis/match_cache.sh).
 
@@ -410,7 +424,7 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
                 )
             df[col] = parsed
 
-    cache_path = result_dir / "match_cache.pkl"  # == match_cache_path(experiment_id); result_dir already resolved above
+    cache_path = match_cache_path(experiment_id)
     # Delete any stale sidecar before writing a new pkl -- if this call is
     # interrupted between the pkl write and the sidecar write below, a leftover
     # sidecar from a PREVIOUS (different) ground truth file would otherwise

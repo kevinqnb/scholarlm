@@ -507,6 +507,7 @@ def e2e_fixture(tmp_path, monkeypatch):
     results_root = tmp_path / "results"
     monkeypatch.setattr(paths, "EXPERIMENT_CONFIGS_ROOT", exp_root)
     monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
+    monkeypatch.setattr(match_cache, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
 
     dataset = "testset"
     extraction_id = "2026-01-01-testset-model-extraction-01"
@@ -554,7 +555,7 @@ def e2e_fixture(tmp_path, monkeypatch):
     # Cache built at threshold 0.0: gt row 2 / ext row 2's candidate edge
     # scores 0.2, below the 0.5 fuzzy_threshold above -- excluded once
     # load_match_cache(..., fuzzy_threshold=0.5) filters it.
-    cache_path = extraction_dir / "match_cache.pkl"
+    cache_path = match_cache.match_cache_path(extraction_id)
     edges = [(0, 0), (1, 1), (2, 2)]
     edge_weights = [1.0, 1.0, 0.2]
     _write_match_cache(cache_path, edges, edge_weights)
@@ -600,7 +601,7 @@ def test_compute_metrics_for_id_with_validity(e2e_fixture):
     assert row["n_gt"] == 3
     assert row["n_ext"] == 3
     assert row["ground_truth_file"] == match_cache.repo_relative(gt_path)
-    extraction_dir = match_cache.match_cache_path(extraction_id).parent
+    extraction_dir = paths.find_result_dir(extraction_id)
     assert row["extraction_file"] == match_cache.repo_relative(extraction_dir / "final.json")
     # gt rows 0,1 recovered (weight 1.0 > 0.5); row 2 not (weight 0.2).
     assert row["recovery"] == pytest.approx(2 / 3)
@@ -669,7 +670,7 @@ def test_compute_metrics_for_id_extraction_edited_in_place_raises(e2e_fixture):
     # even though final.json is still the file extraction_path() resolves to,
     # and even though row count/order (and so measurement_id alignment) is
     # unchanged.
-    final_path = match_cache.match_cache_path(extraction_id).parent / "final.json"
+    final_path = paths.find_result_dir(extraction_id) / "final.json"
     rows = json.loads(final_path.read_text())
     rows[0]["point_value"] = 99.0
     final_path.write_text(json.dumps(rows))
@@ -701,7 +702,7 @@ def test_compute_metrics_for_id_prefers_postprocessed_json(e2e_fixture):
     # load_frames now resolves extraction_path() itself, so this is exactly
     # the scenario _assert_extraction_matches_cache exists for.
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
-    extraction_dir = match_cache.match_cache_path(extraction_id).parent
+    extraction_dir = paths.find_result_dir(extraction_id)
     rows = json.loads((extraction_dir / "final.json").read_text())
     (extraction_dir / "postprocessed.json").write_text(json.dumps(rows))
 
