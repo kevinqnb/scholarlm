@@ -21,4 +21,6 @@ params:
   model: llama-3.1-8b-reppen
   ablation: "5"
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
-  walltime: "26:00:00"
+  # Raised from 26:00:00 on 2026-10-02 before any run: measured pond llama-3.1-8b full pipeline is
+  # 17.9-20.1h and ablation 7 13.6h; ablation 5 is estimated above that (see commit message).
+  walltime: "48:00:00"
