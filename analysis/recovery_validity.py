@@ -875,6 +875,144 @@ def compute_metrics_for_id(
 
 
 # ---------------------------------------------------------------------------
+# Validity/recovery operating curves
+#
+# Ported verbatim-in-behavior from analysis/calibration_updated.py's
+# plot_validity_recovery (2026-10-03), where recovery had no business being
+# computed. Purely additive: nothing above this section calls into it, and
+# main()/compute_metrics_for_id are unchanged. It takes already-computed score
+# arrays rather than reading anything: ``edges`` must be threshold-filtered
+# (match_cache.load_match_cache(id, fuzzy_threshold=...)) and indexed into the
+# same row space as ``probs``/``labels`` -- nothing here checks that, because
+# nothing here has the frames to check it against. Imports are inside the
+# functions so importing this module stays as light as before.
+# ---------------------------------------------------------------------------
+
+
+def validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds):
+    """(validity, recovery, thresholds) of ``probs > t`` for each t in
+    ``thresholds``, skipping thresholds with no predicted positives.
+
+    validity = analysis.metrics.validity_rate_from_labels(labels, preds);
+    recovery = analysis.metrics.recovery_rate_from_labels(n_ground_truth,
+    edges, preds). ``edges`` are (gt_idx, ex_idx) already filtered by the
+    desired fuzzy threshold, ex_idx indexing into ``probs``.
+    """
+    from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
+
+    probs = np.asarray(probs)
+    labels = np.asarray(labels, dtype=bool)
+    v, r, ts = [], [], []
+    for t in thresholds:
+        preds = probs > t
+        if preds.sum() == 0:
+            continue
+        v.append(validity_rate_from_labels(labels, preds))
+        r.append(recovery_rate_from_labels(n_ground_truth, edges, preds))
+        ts.append(t)
+    return np.array(v), np.array(r), np.array(ts)
+
+
+def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, thresholds, n_random, seed):
+    """Save one validity-vs-recovery operating-curve figure to ``out_path``.
+
+    ``curves`` is a list of (probs, linestyle) drawn in order, later ones on
+    top (calibration drew NTP '--' first, then probe '-'). Each curve is a grey
+    line with points coloured by threshold (coolwarm, 0..1) and the point
+    nearest threshold 0.5 ringed. A dotted grey line is the random baseline:
+    validity/recovery averaged over ``n_random`` uniform-random score draws,
+    seeded by ``seed``. ``thresholds``, ``n_random`` and ``seed`` have no
+    defaults (they change the plotted numbers). The x-axis is recovery, y is
+    validity.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
+
+    cmap = plt.cm.coolwarm
+    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
+    labels = np.asarray(labels, dtype=bool)
+    thresholds = np.asarray(thresholds)
+
+    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+
+    def plot_vr_curve(probs, linestyle, zorder_base):
+        v, r, ts = validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds)
+        if len(ts) == 0:
+            return
+        ax.plot(r, v, linestyle, color='grey', lw=3.0, zorder=zorder_base)
+        n = len(ts)
+        stride = max(1, n // 10)
+        idx = sorted({0, n - 1} | set(range(0, n, stride)))
+        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=45, zorder=zorder_base + 1)
+        idx0 = int(np.argmin(np.abs(ts - 0.5)))
+        ax.scatter([r[idx0]], [v[idx0]], s=60, c='none',
+                   edgecolors='k', linewidths=1.1, zorder=zorder_base + 2, marker='o')
+
+    # Each curve sits 3 above the previous, so the last-listed is on top.
+    for i, (probs, linestyle) in enumerate(curves):
+        plot_vr_curve(np.asarray(probs), linestyle, zorder_base=3 + 3 * i)
+
+    # Random baseline: average validity/recovery over repeated uniform draws.
+    rng = np.random.default_rng(seed)
+    n_items = len(labels)
+    rand_v = np.full((n_random, len(thresholds)), np.nan)
+    rand_r = np.full((n_random, len(thresholds)), np.nan)
+    for i in range(n_random):
+        rand_probs_i = rng.uniform(0, 1, n_items)
+        for j, t in enumerate(thresholds):
+            preds = rand_probs_i > t
+            if preds.sum() > 0:
+                rand_v[i, j] = validity_rate_from_labels(labels, preds)
+                rand_r[i, j] = recovery_rate_from_labels(n_ground_truth, edges, preds)
+    avg_v = np.nanmean(rand_v, axis=0)
+    avg_r = np.nanmean(rand_r, axis=0)
+    valid_rand = ~(np.isnan(avg_v) | np.isnan(avg_r))
+    if valid_rand.any():
+        ax.plot(avg_r[valid_rand], avg_v[valid_rand], ':', color='grey', lw=2.0, zorder=2)
+
+    ax.set_xlim(left=-0.02)
+    ax.set_ylim(top=1.02)
+    ax.set_xlabel('Recovery')
+    ax.set_ylabel('Validity')
+    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+def save_validity_recovery_colorbar(out_path):
+    """Save the shared 0..1 threshold colorbar for plot_validity_recovery figures."""
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm, norm=mcolors.Normalize(vmin=0.0, vmax=1.0))
+    sm.set_array([])
+    fig, ax = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax, label='Threshold')
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+def save_validity_recovery_legend(out_path):
+    """Save the standalone Probe (solid) / NTP (dashed) / Random (dotted) legend."""
+    import matplotlib.lines as mlines
+    import matplotlib.pyplot as plt
+
+    handles = [
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='-', label='Probe'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='--', label='NTP'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle=':', label='Random'),
+    ]
+    fig, ax = plt.subplots(figsize=(4.0, 0.35))
+    ax.axis('off')
+    ax.legend(handles=handles, loc='center', ncol=3, fontsize=13, frameon=False, handlelength=2.0)
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
