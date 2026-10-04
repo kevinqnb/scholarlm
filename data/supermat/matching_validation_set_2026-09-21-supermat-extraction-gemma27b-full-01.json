@@ -1,0 +1,7406 @@
+{
+  "dataset": "supermat__matching-gemma27b",
+  "experiment_id": "2026-09-21-supermat-extraction-gemma27b-full-01",
+  "extraction_file": "experiments/results/supermat/extraction/2026-09-21-supermat-extraction-gemma27b-full-01/postprocessed.json",
+  "extraction_sha256": "2e11e4167f42fe8ecf39eed0059583bf6deca8d23e57dc15ffd95ba427259211",
+  "fuzzy_fields": [
+    {
+      "extraction": "name",
+      "gt": "name"
+    }
+  ],
+  "fuzzy_threshold": 0.5,
+  "ground_truth_file": "data/supermat/ground_truth_qualifiers.json",
+  "ground_truth_sha256": "596a24478517b32a2b076c972fcb2a5ddf3055410f7e23f94d73751d4ada1226",
+  "match_cache": "analysis/results/match_cache/2026-09-21-supermat-extraction-gemma27b-full-01/match_cache.pkl",
+  "match_cache_sha256": "de89af235b1ddef17301404dd67950a2822d83ce3abf1fa96f4f6b26ae094aa1",
+  "method_key": "matching-gemma27b",
+  "method_label": "Matching: gemma27b full pipeline",
+  "n_edges": 3566,
+  "n_edges_above_threshold": 2198,
+  "n_sample": 100,
+  "pairs": [
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "critical temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR05713422-CC",
+        "entity_id": "doc_105_entity_0",
+        "event_details": "onset of superconductivity occurs in the ac susceptibility data; measuring field H_{ac} = 3 G rms and frequency f = 333 Hz; δ = 0.43; Tc = 56 K",
+        "identifiers": "YBCO; YBCO₇; YBCO₆.₇; YBCO₆.₅₇",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2028,
+        "name": "YBa₂Cu₃O₇−δ",
+        "page_number": [
+          0
+        ],
+        "point_value": 56.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "56"
+      },
+      "extraction_index": 2030,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR05713422-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "YBCO6.57",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.782,
+        "point_value": 56.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "56"
+      },
+      "gt_index": 18,
+      "in_matching": false,
+      "pair_id": 1,
+      "weight": 0.5263157894736843
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "60 K",
+          "96 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR06103808-CC",
+        "entity_id": "doc_115_entity_1",
+        "event_details": "96K; samples with high values of Tc; corresponds to significantly lower doping levels where the normal state gap comes into play",
+        "identifiers": "Hg-1201",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2172,
+        "name": "HgBa_2CuO_{4+x}",
+        "page_number": [
+          1
+        ],
+        "point_value": 96.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "96K"
+      },
+      "extraction_index": 2175,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR06103808-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "opti- mally doped HgBa2 CuO4+x",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8973,
+        "point_value": 96.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "nearly",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "96"
+      },
+      "gt_index": 29,
+      "in_matching": false,
+      "pair_id": 2,
+      "weight": 0.5945945945945945
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "60 K",
+          "96 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR06103808-CC",
+        "entity_id": "doc_115_entity_3",
+        "event_details": "HgBa_2CuO_{4+x} (\t_c = 96K); ac-susceptibility; None; x = 0.10, i.e., p = 0.09",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2180,
+        "name": "mercury",
+        "page_number": [
+          0
+        ],
+        "point_value": 96.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "96K"
+      },
+      "extraction_index": 2183,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR06103808-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Hg-1201",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.9189,
+        "point_value": 96.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "96"
+      },
+      "gt_index": 35,
+      "in_matching": false,
+      "pair_id": 3,
+      "weight": 0.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "critical temperature",
+          "superconducting transition"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR05914099-CC",
+        "entity_id": "doc_109_entity_0",
+        "event_details": "Tc = 16 K; onset",
+        "identifiers": "Ru-1212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2085,
+        "name": "RuSr$_2$GdCu$_2$O$_8",
+        "page_number": [
+          3
+        ],
+        "point_value": "16",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "extraction_index": 2088,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR05914099-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "RuSr2GdCu2O8",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          3,
+          5,
+          7,
+          8
+        ],
+        "page_score": 0.805,
+        "point_value": 16.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "gt_index": 62,
+      "in_matching": true,
+      "pair_id": 4,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "critical temperature",
+          "superconducting transition"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR05914099-CC",
+        "entity_id": "doc_109_entity_0",
+        "event_details": "Tc = 16 K; onset",
+        "identifiers": "Ru-1212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2085,
+        "name": "RuSr$_2$GdCu$_2$O$_8",
+        "page_number": [
+          3
+        ],
+        "point_value": "16",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "extraction_index": 2088,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR05914099-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "RuSr2 GdCu2 O8",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          2,
+          3,
+          5,
+          7,
+          8
+        ],
+        "page_score": 0.7529,
+        "point_value": 16.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "gt_index": 63,
+      "in_matching": false,
+      "pair_id": 5,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "critical temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PR05907184-CC",
+        "entity_id": "doc_108_entity_0",
+        "event_details": "approximately 40 K at x = 0.17; optimally doped",
+        "identifiers": "LSCO; La1.8Sr0.13CuO4; La1.96Sr0.04CuO4; La_{1.86}Sr_{0.14}CuO_4; La_{1.87}Sr_{0.13}CuO_4",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2057,
+        "name": "La2-xSrxCuO4",
+        "page_number": [
+          0
+        ],
+        "point_value": "40",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "≈ 40"
+      },
+      "extraction_index": 2059,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PR05907184-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": null,
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8108,
+        "point_value": 40.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.17",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "40"
+      },
+      "gt_index": 67,
+      "in_matching": false,
+      "pair_id": 6,
+      "weight": 0.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "56 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "EPL0580589",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "bulk Tc = 56 K; overdoped Bi-2212",
+        "identifiers": "Bi-2212; Bi$_2$Sr$_2$CaCu$_2$O$_{8+\\delta}$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 263,
+        "name": "Bi$_2$Sr$_2$CaCu$_2$O$_{8+\\delta}$",
+        "page_number": [
+          3
+        ],
+        "point_value": 56.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "56"
+      },
+      "extraction_index": 263,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "EPL0580589",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "and overdoped Bi-2212",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8571,
+        "point_value": 56.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "underdoped",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "56"
+      },
+      "gt_index": 103,
+      "in_matching": false,
+      "pair_id": 7,
+      "weight": 0.2941176470588235
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "L088227002-CC",
+        "entity_id": "doc_25_entity_6",
+        "event_details": "Δ was found to completely vanish above Tc; no apparent energy scale associated with any depression of the density of states (DOS) at T > Tc; tunneling spectra were nearly temperature independent from just above Tc to ~110 K.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 508,
+        "name": "Bi2Sr2Ca(Cu1-xNix)2O8+x",
+        "page_number": [
+          2
+        ],
+        "point_value": null,
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~110"
+      },
+      "extraction_index": 508,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "L088227002-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "YBa2 Cu3 O72d",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.7173,
+        "point_value": null,
+        "pressure": null,
+        "qualifiers": null,
+        "sample_details": "doped",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "92.5 6 0.5"
+      },
+      "gt_index": 159,
+      "in_matching": true,
+      "pair_id": 8,
+      "weight": 0.2941176470588235
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "diamagnetic signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0732912-CC",
+        "entity_id": "doc_20_entity_6",
+        "event_details": "2 GPa; resistivity; onset; K",
+        "identifiers": "AOs$_2$O$_6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 434,
+        "name": "AOs$_2$O$_6$",
+        "page_number": [
+          6
+        ],
+        "point_value": "10",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "10"
+      },
+      "extraction_index": 434,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0732912-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "AOs2 O6 (A = Cs, Rb, K)",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          3,
+          5
+        ],
+        "page_score": 0.7354,
+        "point_value": 10.0,
+        "pressure": "0.6 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "10"
+      },
+      "gt_index": 174,
+      "in_matching": false,
+      "pair_id": 9,
+      "weight": 0.5217391304347826
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "diamagnetic signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0732912-CC",
+        "entity_id": "doc_20_entity_6",
+        "event_details": "ambient; magnetic susceptibility; None; RbOs$_2$O$_6$ shows superconductivity at Tc = 6.3 K",
+        "identifiers": "AOs$_2$O$_6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 421,
+        "name": "AOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": 6.3,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3 K"
+      },
+      "extraction_index": 421,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0732912-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "AOs2 O6 (A = Cs, Rb, K)",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8531,
+        "point_value": 6.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3"
+      },
+      "gt_index": 190,
+      "in_matching": false,
+      "pair_id": 10,
+      "weight": 0.5217391304347826
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "diamagnetic signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0732912-CC",
+        "entity_id": "doc_20_entity_1",
+        "event_details": "Tc = 9.6 K; ambient; None",
+        "identifiers": "KOs$_2$O$_6; K-123",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 356,
+        "name": "KOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": "9.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9.6"
+      },
+      "extraction_index": 356,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0732912-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "AOs2 O6 (A = Cs, Rb, K)",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.745,
+        "point_value": 9.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9.6"
+      },
+      "gt_index": 191,
+      "in_matching": false,
+      "pair_id": 11,
+      "weight": 0.43478260869565216
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "L094037007-CC",
+        "entity_id": "doc_34_entity_1",
+        "event_details": "At $P = 2.1$ GPa, $T_c$ increases to $T_c = 0.8$ K that is twice $T_c(P = 0$ GPa), in the background of Fermi liquid state.",
+        "identifiers": "CeRhIn5; CeRhIn",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 574,
+        "name": "CeRhIn$_5$",
+        "page_number": [
+          0
+        ],
+        "point_value": "0.8",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "0.8"
+      },
+      "extraction_index": 574,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "L094037007-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "CeIrIn5",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.8514,
+        "point_value": 0.8,
+        "pressure": "2.1 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "0.8"
+      },
+      "gt_index": 198,
+      "in_matching": false,
+      "pair_id": 12,
+      "weight": 0.8571428571428572
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance temperature",
+          "Meissner signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "L094047006-CC",
+        "entity_id": "doc_36_entity_6",
+        "event_details": "x = 0.15; Tc = 32 K; Measurement method: resistivity; Criterion used to define this Tc value: onset",
+        "identifiers": "x = 0.15",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 611,
+        "name": "Bi2Sr2−xLaxCuO6+δ (x = 0.15)",
+        "page_number": [
+          0
+        ],
+        "point_value": "32",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "extraction_index": 611,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "L094047006-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": null,
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8108,
+        "point_value": 32.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x=0.40",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "gt_index": 232,
+      "in_matching": false,
+      "pair_id": 13,
+      "weight": 0.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance temperature",
+          "Meissner signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "L094047006-CC",
+        "entity_id": "doc_36_entity_5",
+        "event_details": "x = 0.40; Measurement method: resistivity; Tc = 32 K",
+        "identifiers": "x = 0.25",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 608,
+        "name": "Bi2Sr2−xLaxCuO6+δ (x = 0.25)",
+        "page_number": [
+          0
+        ],
+        "point_value": "32",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "extraction_index": 608,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "L094047006-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Bi2 Sr2 CuO6.36",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8324,
+        "point_value": 32.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x=0.4",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "gt_index": 234,
+      "in_matching": false,
+      "pair_id": 14,
+      "weight": 0.5789473684210527
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "40 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "SSC1270493-CC",
+        "entity_id": "doc_123_entity_9",
+        "event_details": "with 100 mol-% Ag$_2$O$_2$ peaks due to Ag$_2$O appeared in the XRD pattern; superconductivity with a lower Tc value of 20 K than that of the HPO annealed product with 50 mol-% of Ag$_2$O$_2$ (Tc ≈ 35 K).",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2278,
+        "name": "Ag",
+        "page_number": [
+          5
+        ],
+        "point_value": "20",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "20"
+      },
+      "extraction_index": 2281,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "SSC1270493-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "x = 0.4 sample using25 and 100 mol-% Ag2 O2",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8988,
+        "point_value": 20.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "20"
+      },
+      "gt_index": 251,
+      "in_matching": true,
+      "pair_id": 15,
+      "weight": 0.11111111111111116
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "superconducting"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "EPJ0290369-CC",
+        "entity_id": "doc_7_entity_0",
+        "event_details": "ambient; resistivity; onset; T_c = 2.4 K",
+        "identifiers": "La_{2-x}Sr_xCuO_4; La_2SrCuO_4; La_{1.955}Sr_{0.045}CuO_4; La_{1.95}Sr_{0.05}CuO_4; La_{1.945}Sr_{0.055}CuO_4; La_{1.94}Sr_{0.06}CuO_4; La_{1.9}Sr_{0.1}CuO_4; La_{1.8}Sr_{0.2}CuO_4; La_{1.75}Sr_{0.25}CuO_4; La_{1.73}Sr_{0.27}CuO_4",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 132,
+        "name": "La_{2-x}Sr_xCuO_4",
+        "page_number": [
+          4
+        ],
+        "point_value": "2.4",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.4"
+      },
+      "extraction_index": 132,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "EPJ0290369-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "La1.94 Sr0.06 CuO4",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          4,
+          5,
+          7,
+          15
+        ],
+        "page_score": 0.7508,
+        "point_value": 2.4,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.4"
+      },
+      "gt_index": 273,
+      "in_matching": true,
+      "pair_id": 16,
+      "weight": 0.5714285714285714
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "resistive transition",
+          "specific heat measurements",
+          "1.50 K",
+          "2.48 K"
+        ],
+        "column_index": [
+          null,
+          null
+        ],
+        "document_id": "Liu_2018_Supercond._Sci._Technol._31_125011-CC",
+        "entity_id": "doc_40_entity_0",
+        "event_details": "resistivity; Tc defined as onset; T_c^{\\rho} = 2.48 K; low residual resistivity ratio (\\rho_{300K}/\\rho_{3K} = 2.6) suggests significant disorder scattering due to antisite occupation between Sn and Sb; zero field measurement",
+        "identifiers": "SnSb; SnSb",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 676,
+        "name": "SnSb",
+        "page_number": [
+          2,
+          2
+        ],
+        "point_value": "2.48",
+        "qualifiers": [],
+        "row_index": [
+          null,
+          null
+        ],
+        "source": [
+          "text",
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null,
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.48"
+      },
+      "extraction_index": 676,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "Liu_2018_Supercond._Sci._Technol._31_125011-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "SnSb",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          6
+        ],
+        "page_score": 0.9595,
+        "point_value": 2.48,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.48"
+      },
+      "gt_index": 282,
+      "in_matching": false,
+      "pair_id": 17,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "1609.04957-CC",
+        "entity_id": "doc_0_entity_4",
+        "event_details": "x = 0.20 marks a high Tc of 48 K upon applying pressure without the influence of AF Fluctuations",
+        "identifiers": "La1111 series",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 21,
+        "name": "LaFeAsO_{1-x}F_x",
+        "page_number": [
+          3
+        ],
+        "point_value": "48",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48"
+      },
+      "extraction_index": 21,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "1609.04957-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "K y Fe2−x Se2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          3
+        ],
+        "page_score": 0.843,
+        "point_value": 48.0,
+        "pressure": "3.0 GPa",
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.20",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48"
+      },
+      "gt_index": 296,
+      "in_matching": false,
+      "pair_id": 18,
+      "weight": 0.36363636363636365
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "1609.04957-CC",
+        "entity_id": "doc_0_entity_4",
+        "event_details": "Circles represent the data for x = 0.14 (F doping); Open marks represent the measurements at 0.1 MPa",
+        "identifiers": "La1111 series",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 18,
+        "name": "LaFeAsO_{1-x}F_x",
+        "page_number": [
+          3
+        ],
+        "point_value": "48",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48"
+      },
+      "extraction_index": 18,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "1609.04957-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "LaFeAsO1−xHx",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9459,
+        "point_value": 48.0,
+        "pressure": "3.0 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48"
+      },
+      "gt_index": 299,
+      "in_matching": false,
+      "pair_id": 19,
+      "weight": 0.9166666666666665
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "1.7 K",
+          "2.4 K",
+          "2.6 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "1903.04321-CC",
+        "entity_id": "doc_3_entity_1",
+        "event_details": "Tc = 2.6 K; measured in susceptibility versus temperature data.",
+        "identifiers": "Cu-PdTe₂; CuPdTe₂; Cu-intercalated PdTe",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 93,
+        "name": "Cu-intercalated PdTe₂",
+        "page_number": [
+          0
+        ],
+        "point_value": "2.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.6"
+      },
+      "extraction_index": 93,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "1903.04321-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Cu-intercalated PdTe2 with 4% Cu",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8234,
+        "point_value": 2.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "2.6"
+      },
+      "gt_index": 302,
+      "in_matching": true,
+      "pair_id": 20,
+      "weight": 0.8333333333333335
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "Tc1",
+          "Tc2"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "L091087001-CC",
+        "entity_id": "doc_29_entity_3",
+        "event_details": "ambient; resistivity; None; Films were prepared by MBE on SrTiO$_3$ substrates; Tc ≈ 24 K.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 520,
+        "name": "SrTiO$_3$",
+        "page_number": [
+          0
+        ],
+        "point_value": "24",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "≈ 24"
+      },
+      "extraction_index": 520,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "L091087001-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "PCCO films onto Pr2 CuO4 (PCO)/SrTiO 3",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.7496,
+        "point_value": 24.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "24"
+      },
+      "gt_index": 332,
+      "in_matching": false,
+      "pair_id": 21,
+      "weight": 0.3157894736842105
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset superconducting transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS081113707-CC",
+        "entity_id": "doc_22_entity_1",
+        "event_details": "None; resistivity; None; T_c = 53 K",
+        "identifiers": "FeSe; K$_{0.8}$Fe$_2$Se$_2; (LiNH$_2$)$_x$Fe$_2$Se$_2$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 482,
+        "name": "FeSe",
+        "page_number": [
+          1
+        ],
+        "point_value": 53.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "53 K"
+      },
+      "extraction_index": 482,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS081113707-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "FeSe monolayer synthesized by MBE method",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.9189,
+        "point_value": 53.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "53"
+      },
+      "gt_index": 337,
+      "in_matching": true,
+      "pair_id": 22,
+      "weight": 0.20512820512820518
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{\text{onset}}",
+          "T_c^{\text{zero}}",
+          "onset superconducting transition temperature",
+          "zero-resistivity temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "Suzuki_etal_2015-CC",
+        "entity_id": "doc_127_entity_0",
+        "event_details": "above 0.7 GPa; increasing applied pressure shows a maximum value around 8.6 K at 1.8 GPa; resistivity",
+        "identifiers": "EuFBiS$_2$; EuFBiS\\_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2325,
+        "name": "BiS$_2$-based EuFBiS$_2$",
+        "page_number": [
+          0
+        ],
+        "point_value": "8.6",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "around 8.6 K"
+      },
+      "extraction_index": 2328,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "Suzuki_etal_2015-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "EuFBiS2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2,
+          3
+        ],
+        "page_score": 0.9691,
+        "point_value": 8.6,
+        "pressure": "0.7 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8.6"
+      },
+      "gt_index": 345,
+      "in_matching": false,
+      "pair_id": 23,
+      "weight": 0.5833333333333333
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{\text{onset}}",
+          "T_c^{\text{zero}}",
+          "onset superconducting transition temperature",
+          "zero-resistivity temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "Suzuki_etal_2015-CC",
+        "entity_id": "doc_127_entity_7",
+        "event_details": "Pressure-induced superconductivity above 0.7 GPa; maximum value around 8.6 K at 1.8 GPa; resistivity",
+        "identifiers": "RE(O,F)BiS_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2330,
+        "name": "RE(O,F)BiS_2",
+        "page_number": [
+          0
+        ],
+        "point_value": "8.6",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "around 8.6 K"
+      },
+      "extraction_index": 2333,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "Suzuki_etal_2015-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "EuFBiS2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2,
+          3
+        ],
+        "page_score": 0.9691,
+        "point_value": 8.6,
+        "pressure": "1.8 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8.6"
+      },
+      "gt_index": 351,
+      "in_matching": false,
+      "pair_id": 24,
+      "weight": 0.6666666666666667
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{\text{onset}}",
+          "T_c^{\text{zero}}",
+          "onset superconducting transition temperature",
+          "zero-resistivity temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "Suzuki_etal_2015-CC",
+        "entity_id": "doc_127_entity_0",
+        "event_details": "Pressure: 1.8 GPa; Measurement method: resistivity; Criterion used to define this Tc value: onset superconducting transition; Tc onset: 8.6 K",
+        "identifiers": "EuFBiS$_2$; EuFBiS\\_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2327,
+        "name": "BiS$_2$-based EuFBiS$_2$",
+        "page_number": [
+          2
+        ],
+        "point_value": "8.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8.6"
+      },
+      "extraction_index": 2330,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "Suzuki_etal_2015-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "EuFBiS2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2,
+          3
+        ],
+        "page_score": 0.9691,
+        "point_value": 8.6,
+        "pressure": "0.7 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8.6"
+      },
+      "gt_index": 355,
+      "in_matching": false,
+      "pair_id": 25,
+      "weight": 0.5833333333333333
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "kotegawa2008abrupt-CC",
+        "entity_id": "doc_133_entity_2",
+        "event_details": "Pressure: up to 13 GPa; Measurement method: resistivity; Criterion used to define this Tc value: zero resistance",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2673,
+        "name": "BaFe2As2",
+        "page_number": [
+          0
+        ],
+        "point_value": "34.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "extraction_index": 2676,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "kotegawa2008abrupt-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          2
+        ],
+        "page_score": 0.9407,
+        "point_value": 34.1,
+        "pressure": "3.6 - 3.7 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "gt_index": 371,
+      "in_matching": false,
+      "pair_id": 26,
+      "weight": 0.75
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "kotegawa2008abrupt-CC",
+        "entity_id": "doc_133_entity_0",
+        "event_details": "Pressure: None; Measurement method: resistivity; Criterion used to define this Tc value: onset; Tc value: 34.1 K",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2666,
+        "name": "SrFe2As2",
+        "page_number": [
+          2
+        ],
+        "point_value": "34.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "extraction_index": 2669,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "kotegawa2008abrupt-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "SrFe2 As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          2
+        ],
+        "page_score": 0.9573,
+        "point_value": 34.1,
+        "pressure": "3.6 - 3.7 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "gt_index": 380,
+      "in_matching": false,
+      "pair_id": 27,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "kotegawa2008abrupt-CC",
+        "entity_id": "doc_133_entity_0",
+        "event_details": "Pressure: ambient; Measurement method: resistivity; Criterion used to define this Tc value: None; structural and antiferromagnetic transition temperature T0 = 198 K",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2650,
+        "name": "SrFe2As2",
+        "page_number": [
+          0
+        ],
+        "point_value": "34.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "extraction_index": 2653,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "kotegawa2008abrupt-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "SrFe2 As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          2
+        ],
+        "page_score": 0.9354,
+        "point_value": 34.1,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doped systems",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "gt_index": 385,
+      "in_matching": true,
+      "pair_id": 28,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero resistance"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "kotegawa2008abrupt-CC",
+        "entity_id": "doc_133_entity_0",
+        "event_details": "Pressure: 3.47 GPa; Measurement method: resistivity; Criterion used to define this Tc value: zero resistance",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2656,
+        "name": "SrFe2As2",
+        "page_number": [
+          1
+        ],
+        "point_value": "34.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "extraction_index": 2659,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "kotegawa2008abrupt-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "SrFe2 As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          2
+        ],
+        "page_score": 0.976,
+        "point_value": 34.1,
+        "pressure": "8 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34.1"
+      },
+      "gt_index": 386,
+      "in_matching": false,
+      "pair_id": 29,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_C",
+          "onset Tc",
+          "critical temperature",
+          "superconducting transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "sun2012re-emerging-CC",
+        "entity_id": "doc_138_entity_0",
+        "event_details": "SC-II region; maximum Tc of 48.0 K",
+        "identifiers": "Tl(0.6)Rb(0.4)Fe(1.67)Se_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2832,
+        "name": "Tl_{0.6}Rb_{0.4}Fe_{1.67}Se_2",
+        "page_number": [
+          4
+        ],
+        "point_value": "48.0",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48.0"
+      },
+      "extraction_index": 2835,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "sun2012re-emerging-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Tl0.6 Rb0.4 Fe1.67 Se2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4
+        ],
+        "page_score": 0.8501,
+        "point_value": 48.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "48.0"
+      },
+      "gt_index": 396,
+      "in_matching": true,
+      "pair_id": 30,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_C",
+          "onset Tc",
+          "critical temperature",
+          "superconducting transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "sun2012re-emerging-CC",
+        "entity_id": "doc_138_entity_0",
+        "event_details": "Pressure: 12.2 GPa; Measurement method: magnetic susceptibility; Tc reaches 40.2 K.",
+        "identifiers": "Tl(0.6)Rb(0.4)Fe(1.67)Se_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2828,
+        "name": "Tl_{0.6}Rb_{0.4}Fe_{1.67}Se_2",
+        "page_number": [
+          3
+        ],
+        "point_value": "40.2",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "40.2 K"
+      },
+      "extraction_index": 2831,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "sun2012re-emerging-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "K0.8 Fe1.7 Se2",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8903,
+        "point_value": 40.2,
+        "pressure": "1 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "40.2"
+      },
+      "gt_index": 402,
+      "in_matching": true,
+      "pair_id": 31,
+      "weight": 0.6451612903225806
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{max}",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "piva2015combined-CC",
+        "entity_id": "doc_137_entity_4",
+        "event_details": "ambient; resistivity; None; x=0.02, T_c = None",
+        "identifiers": "BaCu$_2$As$_2$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2807,
+        "name": "BaCu$_2$As$_2$",
+        "page_number": [
+          2
+        ],
+        "point_value": "30",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "extraction_index": 2810,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "piva2015combined-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "BaFe2−x Cu x As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4,
+          5
+        ],
+        "page_score": 0.8649,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.02",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 405,
+      "in_matching": false,
+      "pair_id": 32,
+      "weight": 0.6666666666666667
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{max}",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "piva2015combined-CC",
+        "entity_id": "doc_137_entity_5",
+        "event_details": "ambient pressure; resistivity; onset; optimal concentration ($x_{optd} = 0.11$); substantial increase of $T_c$ as a function of pressure",
+        "identifiers": "Cu",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2813,
+        "name": "Cu",
+        "page_number": [
+          1
+        ],
+        "point_value": "8",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8"
+      },
+      "extraction_index": 2816,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "piva2015combined-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Cu-substituted BaFe2 As2 single crystals",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          5
+        ],
+        "page_score": 0.9135,
+        "point_value": 8.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "8"
+      },
+      "gt_index": 410,
+      "in_matching": false,
+      "pair_id": 33,
+      "weight": 0.10526315789473684
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{max}",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "piva2015combined-CC",
+        "entity_id": "doc_137_entity_1",
+        "event_details": "Low concentration sample x = 0.02; maximum pressure induced Tc of about 30 K; comparable to the maximum Tc's found in the pure compound under external pressure; magnetic pair-breaking effect can be completely suppressed by applying pressure in the low concentration regime.",
+        "identifiers": "BaFe$_{2-x}$Cu$_x$As$_2$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2796,
+        "name": "BaFe$_{2-x}$Cu$_x$As$_2$",
+        "page_number": [
+          5
+        ],
+        "point_value": "30",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "about 30 K"
+      },
+      "extraction_index": 2799,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "piva2015combined-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Cu-substituted BaFe2 As2 single crystals",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          5
+        ],
+        "page_score": 0.9135,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.02",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 411,
+      "in_matching": false,
+      "pair_id": 34,
+      "weight": 0.326530612244898
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{max}",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "piva2015combined-CC",
+        "entity_id": "doc_137_entity_3",
+        "event_details": "Pressure induced Tc maximum of about 30 K; x = 0.02 concentration; comparable to pure compound under external pressure; low concentration regime",
+        "identifiers": "BaFe$_{1.98}$Cu$_{0.02}$As$_2$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2806,
+        "name": "BaFe$_{1.98}$Cu$_{0.02}$As$_2$",
+        "page_number": [
+          5
+        ],
+        "point_value": "30",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "about 30 K"
+      },
+      "extraction_index": 2809,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "piva2015combined-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "BaFe2−x Cu x As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4,
+          5
+        ],
+        "page_score": 0.8707,
+        "point_value": 30.0,
+        "pressure": "3.4 GPa",
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.02",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 415,
+      "in_matching": false,
+      "pair_id": 35,
+      "weight": 0.6
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{max}",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "piva2015combined-CC",
+        "entity_id": "doc_137_entity_5",
+        "event_details": "ambient pressure; resistivity; onset; under-doped regime ($x = 0.02$); maximum pressure induced $T_c \textbackslash \textasciigrave}\textbackslash \textasciigrave}30$ K",
+        "identifiers": "Cu",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2815,
+        "name": "Cu",
+        "page_number": [
+          1
+        ],
+        "point_value": "30",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "extraction_index": 2818,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "piva2015combined-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "BaFe2−x Cu x As2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4,
+          5
+        ],
+        "page_score": 0.8707,
+        "point_value": 30.0,
+        "pressure": "3.4 GPa",
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.02",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 415,
+      "in_matching": false,
+      "pair_id": 36,
+      "weight": 0.2666666666666667
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "critical temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ivanovskii2008newHigh",
+        "entity_id": "doc_132_entity_6",
+        "event_details": "Sr substitution; measurement method: resistivity; criterion: None; SmO$_{1-x}$FeAs",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2644,
+        "name": "SmOFeAs",
+        "page_number": [
+          2
+        ],
+        "point_value": 55.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "55"
+      },
+      "extraction_index": 2647,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ivanovskii2008newHigh",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SmO1Àx FeAs",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8403,
+        "point_value": 55.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "55"
+      },
+      "gt_index": 456,
+      "in_matching": false,
+      "pair_id": 37,
+      "weight": 0.8235294117647058
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{onset}",
+          "onset temperature",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ying2011pressure-CC",
+        "entity_id": "doc_141_entity_1",
+        "event_details": "ambient pressure; resistivity; onset; Cs_xFe_2Se_2 composition: Cs_{0.86}Fe_{1.66}Se_2; superconductivity at about 30 K; broad hump centered at around 285 K",
+        "identifiers": "YBCO; Y-123; K_xFe_2Se_2-1; K_xFe_2Se_2-2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2977,
+        "name": "K_xFe_2Se_2",
+        "page_number": [
+          2
+        ],
+        "point_value": "30",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "about 30"
+      },
+      "extraction_index": 2980,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ying2011pressure-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Fe-Se",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4,
+          7
+        ],
+        "page_score": 0.8757,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 537,
+      "in_matching": false,
+      "pair_id": 38,
+      "weight": 0.6153846153846154
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{onset}",
+          "onset temperature",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ying2011pressure-CC",
+        "entity_id": "doc_141_entity_0",
+        "event_details": "ambient pressure; resistivity; onset; composition: K_{0.85}Fe_{2}Se_{1.80} (K_xFe_2Se_2-1)",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2955,
+        "name": "A_xFe_2Se_2",
+        "page_number": [
+          2
+        ],
+        "point_value": "32.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.6"
+      },
+      "extraction_index": 2958,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ying2011pressure-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "K0.85 Fe2 Se1.80",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2
+        ],
+        "page_score": 0.8378,
+        "point_value": 32.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.6"
+      },
+      "gt_index": 542,
+      "in_matching": false,
+      "pair_id": 39,
+      "weight": 0.4545454545454546
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{onset}",
+          "onset temperature",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ying2011pressure-CC",
+        "entity_id": "doc_141_entity_1",
+        "event_details": "0.82 GPa; resistivity; dome-like behavior; maximum T_c = 31.1 K",
+        "identifiers": "YBCO; Y-123; K_xFe_2Se_2-1; K_xFe_2Se_2-2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2973,
+        "name": "K_xFe_2Se_2",
+        "page_number": [
+          1
+        ],
+        "point_value": "31.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "31.1 K"
+      },
+      "extraction_index": 2976,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ying2011pressure-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "Cs x Fe2 Se2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          4
+        ],
+        "page_score": 0.9459,
+        "point_value": 31.1,
+        "pressure": "0.82 GPa",
+        "qualifiers": [],
+        "sample_details": "single crystal",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "31.1"
+      },
+      "gt_index": 546,
+      "in_matching": false,
+      "pair_id": 40,
+      "weight": 0.8235294117647058
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{onset}",
+          "onset temperature",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ying2011pressure-CC",
+        "entity_id": "doc_141_entity_0",
+        "event_details": "0.48 GPa; resistivity; onset; composition: K_{0.86}Fe_{2}Se_{1.82} (K_xFe_2Se_2-2)",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2957,
+        "name": "A_xFe_2Se_2",
+        "page_number": [
+          2
+        ],
+        "point_value": "32.7",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.7"
+      },
+      "extraction_index": 2960,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ying2011pressure-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "K x Fe2 Se2 -2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          6
+        ],
+        "page_score": 0.9382,
+        "point_value": 32.7,
+        "pressure": "0.48 GPa",
+        "qualifiers": [],
+        "sample_details": "single crystal",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.7"
+      },
+      "gt_index": 549,
+      "in_matching": false,
+      "pair_id": 41,
+      "weight": 0.7777777777777779
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c^{onset}",
+          "onset temperature",
+          "transition temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "ying2011pressure-CC",
+        "entity_id": "doc_141_entity_1",
+        "event_details": "0.48 GPa; resistivity; dome-like behavior; maximum T_c = 32.7 K",
+        "identifiers": "YBCO; Y-123; K_xFe_2Se_2-1; K_xFe_2Se_2-2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2972,
+        "name": "K_xFe_2Se_2",
+        "page_number": [
+          1
+        ],
+        "point_value": "32.7",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.7 K"
+      },
+      "extraction_index": 2975,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "ying2011pressure-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "K x Fe2 Se2 -2",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          6
+        ],
+        "page_score": 0.9382,
+        "point_value": 32.7,
+        "pressure": "0.48 GPa",
+        "qualifiers": [],
+        "sample_details": "single crystal",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32.7"
+      },
+      "gt_index": 549,
+      "in_matching": false,
+      "pair_id": 42,
+      "weight": 0.8888888888888888
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "YBCO",
+          "Bi-2212",
+          "Bi-2223",
+          "Hg-1201",
+          "Hg-1223"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "hott2013review-CC",
+        "entity_id": "doc_131_entity_14",
+        "event_details": "Tc = 0.9 K; high Tc class; non-Fermi-liquid state",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2587,
+        "name": "UBe₁₃",
+        "page_number": [
+          41
+        ],
+        "point_value": "0.9",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "0.9"
+      },
+      "extraction_index": 2590,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "hott2013review-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "UBe13",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          41,
+          43
+        ],
+        "page_score": 0.712,
+        "point_value": 0.9,
+        "pressure": null,
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 0.9"
+      },
+      "gt_index": 634,
+      "in_matching": true,
+      "pair_id": 43,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "YBCO",
+          "Bi-2212",
+          "Bi-2223",
+          "Hg-1201",
+          "Hg-1223"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "hott2013review-CC",
+        "entity_id": "doc_131_entity_15",
+        "event_details": "T_c = 1.85 K; multiphase superconductivity; onset",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2591,
+        "name": "PrOs₄Sb₁₂",
+        "page_number": [
+          42
+        ],
+        "point_value": "1.85",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "1.85"
+      },
+      "extraction_index": 2594,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "hott2013review-CC",
+        "identifiers": "x = 0",
+        "list_values": null,
+        "lower": null,
+        "me_method": "specific heat",
+        "name": "PrOs4 Sb12",
+        "page_confidence": "high",
+        "page_number": [
+          42
+        ],
+        "page_score": 0.8477,
+        "point_value": 1.85,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "1.85"
+      },
+      "gt_index": 642,
+      "in_matching": true,
+      "pair_id": 44,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_0",
+        "event_details": "ambient; resistivity; onset; x = 0.05 sample",
+        "identifiers": "La1111; La(O_{1-x}F_x)FeAs",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2396,
+        "name": "LaOFeAs",
+        "page_number": [
+          9
+        ],
+        "point_value": 9.0,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9 K"
+      },
+      "extraction_index": 2399,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "x = 0.11 and 0.05",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          9,
+          11
+        ],
+        "page_score": 0.9595,
+        "point_value": 9.0,
+        "pressure": "30 GPa",
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.11",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9"
+      },
+      "gt_index": 702,
+      "in_matching": false,
+      "pair_id": 45,
+      "weight": 0.09999999999999998
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_0",
+        "event_details": "30 GPa; resistivity; onset; x = 0.11 sample; drops off slowly to 9 K",
+        "identifiers": "La1111; La(O_{1-x}F_x)FeAs",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2398,
+        "name": "LaOFeAs",
+        "page_number": [
+          9
+        ],
+        "point_value": "9",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9"
+      },
+      "extraction_index": 2401,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "x = 0.11 and 0.05",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          9,
+          11
+        ],
+        "page_score": 0.9595,
+        "point_value": 9.0,
+        "pressure": "30 GPa",
+        "qualifiers": [],
+        "sample_details": "doping: x = 0.11",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9"
+      },
+      "gt_index": 702,
+      "in_matching": false,
+      "pair_id": 46,
+      "weight": 0.09999999999999998
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_8",
+        "event_details": "ambient pressure; resistivity; ~ 5.8 K",
+        "identifiers": "A122",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2507,
+        "name": "AFe_2As_2",
+        "page_number": [
+          11
+        ],
+        "point_value": 5.8,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "5.8 K"
+      },
+      "extraction_index": 2510,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "LaOFeP",
+        "page_confidence": "high",
+        "page_number": [
+          11
+        ],
+        "page_score": 0.9189,
+        "point_value": 5.8,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "5.8"
+      },
+      "gt_index": 713,
+      "in_matching": false,
+      "pair_id": 47,
+      "weight": 0.4615384615384615
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_7",
+        "event_details": "further increasing pressure; resistivity; ~ 7 K",
+        "identifiers": "Ae122",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2490,
+        "name": "AeFe_2As_2",
+        "page_number": [
+          11
+        ],
+        "point_value": "7 K",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 7 K"
+      },
+      "extraction_index": 2493,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2 As2",
+        "page_confidence": "high",
+        "page_number": [
+          19
+        ],
+        "page_score": 0.8709,
+        "point_value": null,
+        "pressure": null,
+        "qualifiers": null,
+        "sample_details": "single crystal of",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "superconducting state ceases to exist"
+      },
+      "gt_index": 729,
+      "in_matching": false,
+      "pair_id": 48,
+      "weight": 0.75
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_1",
+        "event_details": "T_c of these O-deficient samples were observed to reach its maximum at ~ 50 K rapidly although at a slightly lower pressure of ~ 2 GPa similar to that observed in the F-doped R1111",
+        "identifiers": "Sm1111; Sm(O_{1-x}F_x)FeAs",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2412,
+        "name": "SmOFeAs",
+        "page_number": [
+          4
+        ],
+        "point_value": null,
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 50 K"
+      },
+      "extraction_index": 2415,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2 As2",
+        "page_confidence": "high",
+        "page_number": [
+          19
+        ],
+        "page_score": 0.9114,
+        "point_value": null,
+        "pressure": "3.7 GPa",
+        "qualifiers": null,
+        "sample_details": "single crystal of",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "superconducting state ceases to exist"
+      },
+      "gt_index": 730,
+      "in_matching": false,
+      "pair_id": 49,
+      "weight": 0.6666666666666667
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_2",
+        "event_details": "induce superconductivity in the undoped parent R1111 with a rapid T_c up to ~ 25 K",
+        "identifiers": "Nd1111; Nd(O_{1-x}F_x)FeAs",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2430,
+        "name": "NdOFeAs",
+        "page_number": [
+          4
+        ],
+        "point_value": "25 K",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 25 K"
+      },
+      "extraction_index": 2433,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2 As2",
+        "page_confidence": "high",
+        "page_number": [
+          19
+        ],
+        "page_score": 0.9114,
+        "point_value": null,
+        "pressure": "3.7 GPa",
+        "qualifiers": null,
+        "sample_details": "single crystal of",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "superconducting state ceases to exist"
+      },
+      "gt_index": 730,
+      "in_matching": false,
+      "pair_id": 50,
+      "weight": 0.5333333333333333
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_7",
+        "event_details": "ambient pressure; resistivity; 29 K; optimally doped (x = 0.11)",
+        "identifiers": "Ae122",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2486,
+        "name": "AeFe_2As_2",
+        "page_number": [
+          11
+        ],
+        "point_value": "29 K",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 29 K"
+      },
+      "extraction_index": 2489,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2 As2",
+        "page_confidence": "high",
+        "page_number": [
+          19
+        ],
+        "page_score": 0.9114,
+        "point_value": null,
+        "pressure": "3.7 GPa",
+        "qualifiers": null,
+        "sample_details": "single crystal of",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "superconducting state ceases to exist"
+      },
+      "gt_index": 730,
+      "in_matching": false,
+      "pair_id": 51,
+      "weight": 0.75
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset T_c",
+          "26 K",
+          "43 K",
+          "55 K",
+          "38 K",
+          "12 K",
+          "9 K",
+          "27 K",
+          "8 K",
+          "10 K",
+          "164 K",
+          "134 K",
+          "20 K",
+          "29 K",
+          "34 K",
+          "18 K",
+          "12 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "chu2009high-CC",
+        "entity_id": "doc_130_entity_8",
+        "event_details": "ambient pressure; resistivity; 29 K; optimally doped (x = 0.11)",
+        "identifiers": "A122",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2505,
+        "name": "AFe_2As_2",
+        "page_number": [
+          11
+        ],
+        "point_value": "29 K",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 29 K"
+      },
+      "extraction_index": 2508,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "chu2009high-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "SrFe2 As2",
+        "page_confidence": "high",
+        "page_number": [
+          19
+        ],
+        "page_score": 0.9114,
+        "point_value": null,
+        "pressure": "3.7 GPa",
+        "qualifiers": null,
+        "sample_details": "single crystal of",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "superconducting state ceases to exist"
+      },
+      "gt_index": 730,
+      "in_matching": false,
+      "pair_id": 52,
+      "weight": 0.8
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset",
+          "midpoint",
+          "zero resistance"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "1802.03907-CC",
+        "entity_id": "doc_1_entity_11",
+        "event_details": "onset; Ca₂AlFeAsO₃₋y",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 63,
+        "name": "Ca₂AlFeAsO₃₋y",
+        "page_number": [
+          2
+        ],
+        "point_value": "17.1",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "17.1"
+      },
+      "extraction_index": 63,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "1802.03907-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Ca2 AlFePO3-y",
+        "page_confidence": "high",
+        "page_number": [
+          25
+        ],
+        "page_score": 0.8191,
+        "point_value": 17.1,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "17.1"
+      },
+      "gt_index": 785,
+      "in_matching": false,
+      "pair_id": 53,
+      "weight": 0.88
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "superconducting transition temperature",
+          "4.5 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "1802.09882-CC",
+        "entity_id": "doc_2_entity_2",
+        "event_details": "In-doped SnTe nanoplates; low bulk mobility",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 83,
+        "name": "In",
+        "page_number": [
+          7
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5 K"
+      },
+      "extraction_index": 83,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "1802.09882-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Sn1−x In x Te",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8358,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "gt_index": 791,
+      "in_matching": false,
+      "pair_id": 54,
+      "weight": 0.33333333333333337
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "superconducting critical temperature",
+          "6.1 K",
+          "4.8 K"
+        ],
+        "column_index": [
+          "Tc_K"
+        ],
+        "document_id": "Rb2Cr3As3_quasi1D_SC1412.2596-CC",
+        "entity_id": "doc_120_entity_7",
+        "event_details": "Tc = 6.1 K; measurement method: resistivity; criterion used to define this Tc value: midpoint of resistive transition [Δ T_c = T(90% ρ_n) - T(10% ρ_n), where ρ_n refers to the extrapolated normal-state resistivity at the superconducting transition midpoint].",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3928,
+        "name": "K₂Cr₃As₃",
+        "page_number": [
+          2
+        ],
+        "point_value": "6.1",
+        "qualifiers": [],
+        "row_index": [
+          "1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 6.1
+      },
+      "extraction_index": 3931,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "Rb2Cr3As3_quasi1D_SC1412.2596-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "K2 Cr3 As3",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8324,
+        "point_value": 6.1,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.1"
+      },
+      "gt_index": 793,
+      "in_matching": false,
+      "pair_id": 55,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "4.3 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "MAT0305503-CC",
+        "entity_id": "doc_42_entity_3",
+        "event_details": "At 4.3 K, specific heat anomalies can be seen, which is ascribed to the superconducting transition; the specific heat jump at the Tc under zero field, ΔCobs, is 6.9 mJ/K⋅mol-f.u., further confirming the bulk superconductivity.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 704,
+        "name": "Na_{0.5}CoO_2",
+        "page_number": [
+          2
+        ],
+        "point_value": "4.3",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.3"
+      },
+      "extraction_index": 704,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "MAT0305503-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Na0.31CoO2•1.3H2O",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.9467,
+        "point_value": 4.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.3"
+      },
+      "gt_index": 808,
+      "in_matching": false,
+      "pair_id": 56,
+      "weight": 0.6153846153846154
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "4.3 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "MAT0305503-CC",
+        "entity_id": "doc_42_entity_0",
+        "event_details": "At 4.3 K, specific heat anomalies can be seen, which is ascribed to the superconducting transition; the specific heat jump at the Tc under zero field, ΔCobs, is 6.9 mJ/K⋅mol-f.u., further confirming the bulk superconductivity.",
+        "identifiers": "cobalt oxyhydrate; NaCoO_2·H_2O; Na_{0.35}CoO_2; Na_{0.74}CoO_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 701,
+        "name": "Na_{0.31}CoO_2·1.3H_2O",
+        "page_number": [
+          2
+        ],
+        "point_value": "4.3",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.3"
+      },
+      "extraction_index": 701,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "MAT0305503-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "thermal",
+        "name": "Na0.31CoO2•1.3H2O",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.9236,
+        "point_value": 4.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.3"
+      },
+      "gt_index": 811,
+      "in_matching": false,
+      "pair_id": 57,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P066132510-CC",
+        "entity_id": "doc_55_entity_4",
+        "event_details": "Measured on powder sample wih Tc = 84 K of Fig. 1; isobaric specific heat; relaxation rate method; jump at Tc",
+        "identifiers": "(Cu,Mo)1212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 906,
+        "name": "Cu0.75Mo0.25Sr2YCu2O7+\\delta",
+        "page_number": [
+          1
+        ],
+        "point_value": "84",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "84"
+      },
+      "extraction_index": 906,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P066132510-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "specific heat",
+        "name": "Cu1−x Mo x Sr2 YCu2 O7+δ",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2
+        ],
+        "page_score": 0.8604,
+        "point_value": 84.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "84"
+      },
+      "gt_index": 833,
+      "in_matching": false,
+      "pair_id": 58,
+      "weight": 0.7142857142857143
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "93 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P066020501-CC",
+        "entity_id": "doc_50_entity_1",
+        "event_details": "T_c observed in constant energy scans at 39 meV diminishing drastically above T_c; None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 839,
+        "name": "YBa2Cu3O7",
+        "page_number": [
+          2
+        ],
+        "point_value": "93",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "extraction_index": 839,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P066020501-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "oxydised superconducting YBa2 Cu3 O7",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.9009,
+        "point_value": 93.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "fully",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "gt_index": 841,
+      "in_matching": false,
+      "pair_id": 59,
+      "weight": 0.4390243902439024
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "superconducting",
+          "18 K",
+          "16 K",
+          "5 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "NAT3500600",
+        "entity_id": "doc_44_entity_4",
+        "event_details": "onset of superconductivity at 18 K; bulk polycrystalline sample",
+        "identifiers": "K_xC_{60}; K_3C_{60}",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 731,
+        "name": "potassium-doped C_{60}",
+        "page_number": [
+          0
+        ],
+        "point_value": "18",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "18 K"
+      },
+      "extraction_index": 731,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "NAT3500600",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "potassium-doped C60 both as films and bulk",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.9035,
+        "point_value": 18.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "18"
+      },
+      "gt_index": 863,
+      "in_matching": true,
+      "pair_id": 60,
+      "weight": 0.6666666666666667
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset temperature",
+          "Meissner effect",
+          "16 K",
+          "26 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "MPL0150497-CC",
+        "entity_id": "doc_43_entity_7",
+        "event_details": "Tc = 26 K; measurement method: resistivity; criterion used to define this Tc value: superconducting transition",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 720,
+        "name": "Tl_2Ba_2CuO_{6+\\delta}",
+        "page_number": [
+          6
+        ],
+        "point_value": "26",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "26"
+      },
+      "extraction_index": 720,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "MPL0150497-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "δ = 0.032",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          4,
+          5,
+          6,
+          8,
+          9
+        ],
+        "page_score": 0.7598,
+        "point_value": 26.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "26"
+      },
+      "gt_index": 911,
+      "in_matching": false,
+      "pair_id": 61,
+      "weight": 0.10526315789473684
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset temperature",
+          "Meissner effect",
+          "16 K",
+          "26 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "MPL0150497-CC",
+        "entity_id": "doc_43_entity_0",
+        "event_details": "Tc ~ 30 K; right at the last transition region from a Tc ~ 15K state to a Tc ~ 30K state; resistivity",
+        "identifiers": "La2−xSrxCuO4+δ; La_{2-x}Sr_xCuO_{4+δ}; La_{1.985}Sr_{0.015}CuO_{4+\\delta}",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 709,
+        "name": "La1.985Sr0.015CuO4+δ",
+        "page_number": [
+          6
+        ],
+        "point_value": "30",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "extraction_index": 709,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "MPL0150497-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "δ = 0.032",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          5,
+          6,
+          8,
+          9
+        ],
+        "page_score": 0.8949,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 919,
+      "in_matching": false,
+      "pair_id": 62,
+      "weight": 0.2222222222222222
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset temperature",
+          "Meissner effect",
+          "16 K",
+          "26 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "MPL0150497-CC",
+        "entity_id": "doc_43_entity_0",
+        "event_details": "T_c = 30 K (HT_c phase); calculated from the real part of the conductivity by fitting with a symmetric Gaussian function.",
+        "identifiers": "La2−xSrxCuO4+δ; La_{2-x}Sr_xCuO_{4+δ}; La_{1.985}Sr_{0.015}CuO_{4+\\delta}",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 712,
+        "name": "La1.985Sr0.015CuO4+δ",
+        "page_number": [
+          9
+        ],
+        "point_value": "30",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30 K"
+      },
+      "extraction_index": 712,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "MPL0150497-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "δ = 0.024",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          5,
+          6,
+          8,
+          9
+        ],
+        "page_score": 0.8949,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 921,
+      "in_matching": false,
+      "pair_id": 63,
+      "weight": 0.2962962962962963
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P068214517-CC",
+        "entity_id": "doc_63_entity_1",
+        "event_details": "T_c=4.5 K; composition Na_{0.31(3)}CoO_2•1.25(2)D_2O",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1059,
+        "name": "Na_{0.31}CoO_2•1.25D_2O",
+        "page_number": [
+          0
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "extraction_index": 1059,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P068214517-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "x≈0.3",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          9
+        ],
+        "page_score": 0.9189,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "gt_index": 933,
+      "in_matching": false,
+      "pair_id": 64,
+      "weight": 0.26086956521739135
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P068214517-CC",
+        "entity_id": "doc_63_entity_0",
+        "event_details": "onset at 4.5 K; post-diffraction measurement",
+        "identifiers": "NaCoO_2•yD_2O; Na_xCoO_2•1.3H_2O; Na_xCoO_2•yD_2O; Na_{0.3}CoO_2•1.4H_2O; Na_{0.3}CoO_2•0.6H_2O; Na_{0.31}CoO_2•1.25D_2O; Na_{0.61}CoO_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1055,
+        "name": "Na_xCoO_2•4xD_2O",
+        "page_number": [
+          3
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "extraction_index": 1055,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P068214517-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Na0.31 CoO2 •1.25D2 O",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          3,
+          7
+        ],
+        "page_score": 0.8662,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "gt_index": 934,
+      "in_matching": false,
+      "pair_id": 65,
+      "weight": 0.6451612903225806
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null,
+          null
+        ],
+        "document_id": "P068214517-CC",
+        "entity_id": "doc_63_entity_3",
+        "event_details": null,
+        "identifiers": "H_2O",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1066,
+        "name": "D_2O",
+        "page_number": [
+          1,
+          9
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null,
+          null
+        ],
+        "source": [
+          "text",
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null,
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5 K"
+      },
+      "extraction_index": 1066,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P068214517-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Na x CoO2 •yD2 O",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          7,
+          9
+        ],
+        "page_score": 0.8649,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "gt_index": 938,
+      "in_matching": false,
+      "pair_id": 66,
+      "weight": 0.4
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "52.4 mK"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P072180504-CC",
+        "entity_id": "doc_80_entity_0",
+        "event_details": "ambient; resistivity; onset; hysteretic behavior attributable to residual magnetic field",
+        "identifiers": "Ag5Pb2O6; Ag5Pb2O6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1584,
+        "name": "Ag$_5$Pb$_2$O$_6",
+        "page_number": [
+          0
+        ],
+        "point_value": "52.4",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "mK",
+        "upper": null,
+        "value": "52.4 mK"
+      },
+      "extraction_index": 1586,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P072180504-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Ag5 Pb2 O6",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.8951,
+        "point_value": 52.4,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mK",
+        "upper": null,
+        "value": "52.4"
+      },
+      "gt_index": 973,
+      "in_matching": true,
+      "pair_id": 67,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset",
+          "zero"
+        ],
+        "column_index": [
+          null,
+          null
+        ],
+        "document_id": "P069014507-CC",
+        "entity_id": "doc_64_entity_3",
+        "event_details": "T_c ~ 60K; annealed in air step by step at 210, 290, 400, 500, 700, 900 and 950°C; superconductivity destroyed completely after annealed under as low as 290°C; superconducting transition temperature decreases rapidly with increase of annealing temperature; became non-superconducting when annealing temperature were higher than 500°C; measurement method: magnetic susceptibility",
+        "identifiers": "(Fe_xCu_{1-x})Ba_2YCu_2O_{7+\\delta}; YBa_2Cu_3O_{7-\\delta}",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1144,
+        "name": "YBa_2(Cu_{1-x}M_x)_3O_{6+\\delta}",
+        "page_number": [
+          5,
+          5
+        ],
+        "point_value": "60",
+        "qualifiers": [],
+        "row_index": [
+          null,
+          null
+        ],
+        "source": [
+          "text",
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null,
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "60"
+      },
+      "extraction_index": 1144,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P069014507-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "F eSr2 Y Cu2 O7+δ",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8553,
+        "point_value": 60.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "60"
+      },
+      "gt_index": 985,
+      "in_matching": false,
+      "pair_id": 68,
+      "weight": 0.3870967741935484
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "T_c(p)",
+          "T_{cmax}"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P071184510-CC",
+        "entity_id": "doc_74_entity_1",
+        "event_details": "resistivity; p = 0.183 GPa; onset",
+        "identifiers": "Y123",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1491,
+        "name": "YBa_2Cu_3O_{7-δ}",
+        "page_number": [
+          15
+        ],
+        "point_value": "93",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "extraction_index": 1491,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P071184510-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Y123",
+        "page_confidence": "high",
+        "page_number": [
+          14
+        ],
+        "page_score": 0.9189,
+        "point_value": 93.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "pure",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "gt_index": 1002,
+      "in_matching": true,
+      "pair_id": 69,
+      "weight": 0.4
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "Tc = 89 K",
+          "Tc = 75 K",
+          "Tc = 56 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P069184513-CC",
+        "entity_id": "doc_66_entity_1",
+        "event_details": "y = 0.77 (\\( T_c = 75 \\) K); doping level or fraction: x ≈ 1%; oxygen content: y = 0.77",
+        "identifiers": "Gd$_x$Y$_{1-x}$Ba$_2$Cu$_3$O$_{6+y}$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1205,
+        "name": "Gd₃Y₁-xBa₂Cu₃O₆+y",
+        "page_number": [
+          0
+        ],
+        "point_value": "75",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "75"
+      },
+      "extraction_index": 1205,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P069184513-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": null,
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          3,
+          10,
+          11,
+          13
+        ],
+        "page_score": 0.6757,
+        "point_value": 75.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: y = 0.77",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "75"
+      },
+      "gt_index": 1028,
+      "in_matching": false,
+      "pair_id": 70,
+      "weight": 0.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P070052502-CC",
+        "entity_id": "doc_68_entity_1",
+        "event_details": "Tc = 4.5 K; indicated by an arrow",
+        "identifiers": "Na_{0.75}CoO_2; Na_xCoO_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1244,
+        "name": "Na₀.₇₅CoO₂",
+        "page_number": [
+          10
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "extraction_index": 1244,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P070052502-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Na x CoO2 ⋅yH2 O",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.7432,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "gt_index": 1033,
+      "in_matching": true,
+      "pair_id": 71,
+      "weight": 0.5454545454545454
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P070052502-CC",
+        "entity_id": "doc_68_entity_0",
+        "event_details": "Tc = 4.5 K; arrow indicates Tc",
+        "identifiers": "Na_xCoO_2·yH_2O; NaₓCoO₂ᵧH₂O; Na_xCoO_2",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1239,
+        "name": "NaₓCoO₂ᵧH₂O",
+        "page_number": [
+          10
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.5"
+      },
+      "extraction_index": 1239,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P070052502-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Na x CoO2 ⋅yH2 O",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.7117,
+        "point_value": 4.5,
+        "pressure": null,
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~4.5"
+      },
+      "gt_index": 1036,
+      "in_matching": false,
+      "pair_id": 72,
+      "weight": 0.8695652173913043
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P071100502-CC",
+        "entity_id": "doc_71_entity_11",
+        "event_details": "16 K crystal obtained by annealing as-grown sample in pure Ar at 915 °C for 1 week; magnetic susceptibility",
+        "identifiers": "PCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1388,
+        "name": "Pr_2CuO_4",
+        "page_number": [
+          8
+        ],
+        "point_value": "16",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "extraction_index": 1388,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P071100502-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "PLCCO",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          3,
+          4
+        ],
+        "page_score": 0.9189,
+        "point_value": 16.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "gt_index": 1043,
+      "in_matching": false,
+      "pair_id": 73,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P071100502-CC",
+        "entity_id": "doc_71_entity_7",
+        "event_details": "21 K sample obtained by annealing as-grown single crystals in pure Ar at 940 °C for 24 hours; magnetic susceptibility",
+        "identifiers": "PCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1333,
+        "name": "Pr_2CuO_4",
+        "page_number": [
+          8
+        ],
+        "point_value": "21",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "21"
+      },
+      "extraction_index": 1333,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P071100502-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "PLCCO",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          3,
+          7,
+          8
+        ],
+        "page_score": 0.9189,
+        "point_value": 21.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "21"
+      },
+      "gt_index": 1044,
+      "in_matching": false,
+      "pair_id": 74,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P071100502-CC",
+        "entity_id": "doc_71_entity_4",
+        "event_details": "Tc = 16 K; obtained by annealing as-grown sample in pure Ar at 915 °C for 1 week",
+        "identifiers": "PCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1298,
+        "name": "Pr_2CuO_4",
+        "page_number": [
+          8
+        ],
+        "point_value": "16",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "extraction_index": 1298,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P071100502-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "PLCCO",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          3,
+          4
+        ],
+        "page_score": 0.9189,
+        "point_value": 16.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "16"
+      },
+      "gt_index": 1046,
+      "in_matching": false,
+      "pair_id": 75,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "13 K",
+          "13.5 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P072064520-CC",
+        "entity_id": "doc_76_entity_1",
+        "event_details": "18 K; reported by Amano et al. and Nakane et al.; under high pressure conditions (~5 GPa)",
+        "identifiers": "YBCO; Y-123",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1508,
+        "name": "Y$_2$C$_3$",
+        "page_number": [
+          0
+        ],
+        "point_value": "18",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "18 K"
+      },
+      "extraction_index": 1510,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P072064520-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "binary Y2 C3",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8649,
+        "point_value": 18.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "18"
+      },
+      "gt_index": 1061,
+      "in_matching": false,
+      "pair_id": 76,
+      "weight": 0.5714285714285714
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P070054519-CC",
+        "entity_id": "doc_69_entity_0",
+        "event_details": "ambient; resistivity; None; None",
+        "identifiers": "LiTi2O4; LiTi2O4 spinel",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1256,
+        "name": "LiTi2O4",
+        "page_number": [
+          2
+        ],
+        "point_value": "11.4",
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~ 11.4"
+      },
+      "extraction_index": 1256,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P070054519-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "specific heat",
+        "name": "LiTi2 O4",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8552,
+        "point_value": 11.4,
+        "pressure": null,
+        "qualifiers": [
+          "IsApproximate"
+        ],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "~11.4"
+      },
+      "gt_index": 1076,
+      "in_matching": false,
+      "pair_id": 77,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_C"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P068132507-CC",
+        "entity_id": "doc_61_entity_0",
+        "event_details": "T_C determined by simple straight line fit; H = 40 kOe",
+        "identifiers": "Na_{0.35}CoO_2·1.3H_2O; Co oxide",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1034,
+        "name": "Na_{0.35}CoO_2·1.3H_2O",
+        "page_number": [
+          0
+        ],
+        "point_value": "4.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.6"
+      },
+      "extraction_index": 1034,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P068132507-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "Na0.35CoO2•1.3H2O",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2
+        ],
+        "page_score": 0.8005,
+        "point_value": 4.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.6"
+      },
+      "gt_index": 1104,
+      "in_matching": false,
+      "pair_id": 78,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_C"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P068132507-CC",
+        "entity_id": "doc_61_entity_0",
+        "event_details": "T_C determined by simple straight line fit; H = 7 kOe",
+        "identifiers": "Na_{0.35}CoO_2·1.3H_2O; Co oxide",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1029,
+        "name": "Na_{0.35}CoO_2·1.3H_2O",
+        "page_number": [
+          0
+        ],
+        "point_value": "4.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.6"
+      },
+      "extraction_index": 1029,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P068132507-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Na0.35 CoO2 •1.3H2 O",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          2
+        ],
+        "page_score": 0.7459,
+        "point_value": 4.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "4.6"
+      },
+      "gt_index": 1108,
+      "in_matching": false,
+      "pair_id": 79,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "43 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "P069174506-CC",
+        "entity_id": "doc_65_entity_4",
+        "event_details": "T_c = 43 K, close to the temperature at which the excess specific heat is observed; None",
+        "identifiers": "La$_2$CuO$_4$+y",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1190,
+        "name": "La2CuO4+y",
+        "page_number": [
+          5
+        ],
+        "point_value": "43",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "43"
+      },
+      "extraction_index": 1190,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P069174506-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "specific heat",
+        "name": "La2 CuO4.11 single crystal",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          2,
+          3
+        ],
+        "page_score": 0.9179,
+        "point_value": 43.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "43"
+      },
+      "gt_index": 1120,
+      "in_matching": false,
+      "pair_id": 80,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero temperature"
+        ],
+        "column_index": [
+          "tc_k"
+        ],
+        "document_id": "P072014504-CC",
+        "entity_id": "doc_75_entity_3",
+        "event_details": "onset of the ac susceptibility curve; x = 0.33",
+        "identifiers": "LSCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3564,
+        "name": "La2-xSrxCuO4",
+        "page_number": [
+          2
+        ],
+        "point_value": "34",
+        "qualifiers": [],
+        "row_index": [
+          "0.36"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 34
+      },
+      "extraction_index": 3567,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P072014504-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "additional Pb doping with x = 0.36",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          3
+        ],
+        "page_score": 0.8045,
+        "point_value": 34.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34"
+      },
+      "gt_index": 1123,
+      "in_matching": false,
+      "pair_id": 81,
+      "weight": 0.09999999999999998
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero temperature"
+        ],
+        "column_index": [
+          "tc_k"
+        ],
+        "document_id": "P072014504-CC",
+        "entity_id": "doc_75_entity_0",
+        "event_details": "5 K; onset of ac susceptibility",
+        "identifiers": "BSLCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3525,
+        "name": "Bi2Sr2-xLaxCuO6+δ",
+        "page_number": [
+          2
+        ],
+        "point_value": "6.0",
+        "qualifiers": [],
+        "row_index": [
+          "0.0"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 6.0
+      },
+      "extraction_index": 3528,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P072014504-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "additional Pb doping with x = 0.36",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.7387,
+        "point_value": 6.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "Samples without La",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6"
+      },
+      "gt_index": 1124,
+      "in_matching": true,
+      "pair_id": 82,
+      "weight": 0.1777777777777778
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "zero temperature"
+        ],
+        "column_index": [
+          "tc_k"
+        ],
+        "document_id": "P072014504-CC",
+        "entity_id": "doc_75_entity_2",
+        "event_details": "34 K; y = 0.30; x = 0.36",
+        "identifiers": "BSCCO",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3549,
+        "name": "Bi2Sr2CaCu2O8+δ",
+        "page_number": [
+          2
+        ],
+        "point_value": "34",
+        "qualifiers": [],
+        "row_index": [
+          "0.36"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 34
+      },
+      "extraction_index": 3552,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P072014504-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Pb- doped",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8949,
+        "point_value": 34.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "34"
+      },
+      "gt_index": 1128,
+      "in_matching": false,
+      "pair_id": 83,
+      "weight": 0.17391304347826086
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c"
+        ],
+        "column_index": [
+          "t_c_k"
+        ],
+        "document_id": "P070214505-CC",
+        "entity_id": "doc_70_entity_3",
+        "event_details": "12.0 K; doping level p=0.069; fitted to eq.2; onset",
+        "identifiers": "YBCO; Y-123",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3499,
+        "name": "YBa_2Cu_3O_7-δ",
+        "page_number": [
+          2
+        ],
+        "point_value": "12.0",
+        "qualifiers": [],
+        "row_index": [
+          "0.069"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 12.0
+      },
+      "extraction_index": 3502,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "P070214505-CC",
+        "identifiers": "p = 0.069",
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "La2−x Sr x CuO4",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          10
+        ],
+        "page_score": 0.8451,
+        "point_value": 12.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "12"
+      },
+      "gt_index": 1139,
+      "in_matching": false,
+      "pair_id": 84,
+      "weight": 0.43478260869565216
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "86 K",
+          "91 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PHC3200009-CC",
+        "entity_id": "doc_88_entity_0",
+        "event_details": "Pressure: ambient; Measurement method: magnetic susceptibility; Doping level or fraction, crystal form, substrate, growth/treatment qualifiers, or any other distinguishing context: crystals synthesized using a different technique; Tc = 86 K",
+        "identifiers": "Tl-2201",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1668,
+        "name": "Tl2Ba2CuO6",
+        "page_number": [
+          1
+        ],
+        "point_value": "86",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "86"
+      },
+      "extraction_index": 1670,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC3200009-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Bi-2212",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          2,
+          4
+        ],
+        "page_score": 0.9189,
+        "point_value": 86.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "86"
+      },
+      "gt_index": 1150,
+      "in_matching": false,
+      "pair_id": 85,
+      "weight": 0.23529411764705888
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "86 K",
+          "91 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PHC3200009-CC",
+        "entity_id": "doc_88_entity_5",
+        "event_details": "Pressure: ambient; Measurement method: magnetic susceptibility; Doping level or fraction, crystal form, substrate, growth/treatment qualifiers, or any other distinguishing context: optimally-doped crystals; Tc = 91 K",
+        "identifiers": "Tl-2201",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1684,
+        "name": "Tl2Ba2CuO6",
+        "page_number": [
+          1
+        ],
+        "point_value": "91",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "91"
+      },
+      "extraction_index": 1686,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC3200009-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Tl-2201",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          1,
+          4
+        ],
+        "page_score": 0.9189,
+        "point_value": 91.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "91"
+      },
+      "gt_index": 1151,
+      "in_matching": false,
+      "pair_id": 86,
+      "weight": 0.4705882352941176
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "onset",
+          "midpoint",
+          "zero-resistance"
+        ],
+        "column_index": [
+          "tc_K"
+        ],
+        "document_id": "PHC4210001-CC",
+        "entity_id": "doc_98_entity_0",
+        "event_details": "co2_concentration_ppm = 400; Tc = 93 K",
+        "identifiers": "Y-123; YBa₂Cu₃Oₐ",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3892,
+        "name": "YBa₂Cu₃Oₐ",
+        "page_number": [
+          14
+        ],
+        "point_value": "93",
+        "qualifiers": [],
+        "row_index": [
+          "C2"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "extraction_index": 3895,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4210001-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "A1",
+        "page_confidence": "high",
+        "page_number": [
+          4
+        ],
+        "page_score": 0.9189,
+        "point_value": 93.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "Sample",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "93"
+      },
+      "gt_index": 1171,
+      "in_matching": false,
+      "pair_id": 87,
+      "weight": 0.18181818181818177
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "transition temperature",
+          "superconducting temperature"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PHC4200023-CC",
+        "entity_id": "doc_97_entity_10",
+        "event_details": "high pressure; apical oxygen doping",
+        "identifiers": "Sr₂CuO₂₊δCl₂₋ᵧ",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1960,
+        "name": "Sr₂CuO₂₊δCl₂₋ᵧ",
+        "page_number": [
+          2
+        ],
+        "point_value": "30",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30 K"
+      },
+      "extraction_index": 1962,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4200023-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "oxygen doped Cl-0201 phase Sr2 CuO2+ Cl2-y",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8829,
+        "point_value": 30.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "30"
+      },
+      "gt_index": 1183,
+      "in_matching": false,
+      "pair_id": 88,
+      "weight": 0.48
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset",
+          "K"
+        ],
+        "column_index": [
+          "t_c_onset_k"
+        ],
+        "document_id": "PHC4020152-CC",
+        "entity_id": "doc_94_entity_1",
+        "event_details": "Sr content y = 1.0; Tc onset = 42 K",
+        "identifiers": "Hg-2212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3614,
+        "name": "Hg2(Ba1−ySr y)2YCu2O8−δ",
+        "page_number": [
+          5
+        ],
+        "point_value": "42",
+        "qualifiers": [],
+        "row_index": [
+          "('y', '1.0')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 42
+      },
+      "extraction_index": 3617,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4020152-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Hg2 Sr2 YCu2 O8−δ",
+        "page_confidence": "high",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.8808,
+        "point_value": 42.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "42"
+      },
+      "gt_index": 1191,
+      "in_matching": false,
+      "pair_id": 89,
+      "weight": 0.7777777777777779
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset",
+          "K"
+        ],
+        "column_index": [
+          "tc_onset_k"
+        ],
+        "document_id": "PHC4020152-CC",
+        "entity_id": "doc_94_entity_2",
+        "event_details": "Sr content y=0.0; measurement method resistivity; criterion onset",
+        "identifiers": "Hg-2212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3626,
+        "name": "Hg2(Ba1−ySr y)2(Y0.80Ca0.20)Cu2O8−δ",
+        "page_number": [
+          6
+        ],
+        "point_value": "21.0",
+        "qualifiers": [],
+        "row_index": [
+          "('y=0.0', 'Sr content')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 21.0
+      },
+      "extraction_index": 3629,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4020152-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Hg2 Ba2 (Y0.80 Ca0.20 )Cu2 O8−δ",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          8
+        ],
+        "page_score": 0.884,
+        "point_value": 21.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "21"
+      },
+      "gt_index": 1194,
+      "in_matching": false,
+      "pair_id": 90,
+      "weight": 0.8666666666666667
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "onset",
+          "K"
+        ],
+        "column_index": [
+          "t_c_onset_k"
+        ],
+        "document_id": "PHC4020152-CC",
+        "entity_id": "doc_94_entity_29",
+        "event_details": "Sr content y = 0.0; Tc onset = 0 K",
+        "identifiers": "Hg-2212",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3823,
+        "name": "Hg2Ba2YCu2O8−δ",
+        "page_number": [
+          5
+        ],
+        "point_value": 0.0,
+        "qualifiers": [],
+        "row_index": [
+          "('y', '0.0')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": 0
+      },
+      "extraction_index": 3826,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4020152-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Hg2 Ba2 (Y0.80 Ca0.20 )Cu2 O8−δ",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1,
+          8
+        ],
+        "page_score": 0.884,
+        "point_value": 0.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: y = 0",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "0"
+      },
+      "gt_index": 1197,
+      "in_matching": false,
+      "pair_id": 91,
+      "weight": 0.7
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "T_c^{onset}",
+          "T_c^{R=0}"
+        ],
+        "column_index": [
+          "t_c_onset_k"
+        ],
+        "document_id": "PHC4170033-CC",
+        "entity_id": "doc_96_entity_1",
+        "event_details": "onset; x = 1.0; measurement method = resistivity; Tc onset = 32 K",
+        "identifiers": "Pr:123",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3870,
+        "name": "PrBa_2Cu_3O_7",
+        "page_number": [
+          7
+        ],
+        "point_value": "32",
+        "qualifiers": [],
+        "row_index": [
+          "1.0"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "extraction_index": 3873,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC4170033-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": null,
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8108,
+        "point_value": 32.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "doping: x = 1.00",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "32"
+      },
+      "gt_index": 1210,
+      "in_matching": false,
+      "pair_id": 92,
+      "weight": 0.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "43 K"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "PHC3660299-CC",
+        "entity_id": "doc_91_entity_0",
+        "event_details": "Onset at 43 K; measured using a SQUID magnetometer (MPMSXL, Quantum Design) to measure magnetization curves M(T) and M(H); sample B.",
+        "identifiers": "La-112",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1699,
+        "name": "Sr_{0.9}La_{0.1}CuO_2",
+        "page_number": [
+          1
+        ],
+        "point_value": "43",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "43"
+      },
+      "extraction_index": 1701,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "PHC3660299-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "(Sr1−x Nd x )CuO2 film",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.86,
+        "point_value": 43.0,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "43"
+      },
+      "gt_index": 1213,
+      "in_matching": false,
+      "pair_id": 93,
+      "weight": 0.4375
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "transition",
+          "superconductivity"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0730819-CC",
+        "entity_id": "doc_16_entity_0",
+        "event_details": "ambient; resistivity; onset; third superconductor in the family of β-pyrochlore oxides, following KOs$_2$O$_6$ with $T_c = 9.6$ K and RbOs$_2$O$_6$ with $T_c = 6.3$ K",
+        "identifiers": "CsOsO6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 309,
+        "name": "CsOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": "3.3",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "3.3"
+      },
+      "extraction_index": 309,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0730819-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "CsOs2 O6",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8378,
+        "point_value": 3.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "3.3"
+      },
+      "gt_index": 1232,
+      "in_matching": false,
+      "pair_id": 94,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "transition",
+          "superconductivity"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0730819-CC",
+        "entity_id": "doc_16_entity_2",
+        "event_details": "6.3 K; RbOs$_2$O$_6$",
+        "identifiers": "RbOsO6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 315,
+        "name": "RbOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": "6.3",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3"
+      },
+      "extraction_index": 315,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0730819-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "RbOs2 O6",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.8378,
+        "point_value": 6.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3"
+      },
+      "gt_index": 1236,
+      "in_matching": false,
+      "pair_id": 95,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "transition",
+          "superconductivity"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0730819-CC",
+        "entity_id": "doc_16_entity_1",
+        "event_details": "9.6 K; Tc defined as midpoint temperature of transition; measured on powdered sample in MPMS; magnetic field of 10 Oe; zero-field cooling experiment",
+        "identifiers": "KO2O6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 314,
+        "name": "KOs$_2$O$_6$",
+        "page_number": [
+          1
+        ],
+        "point_value": 9.6,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9.6 K"
+      },
+      "extraction_index": 314,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0730819-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "KOs2 O6",
+        "page_confidence": "ambiguous",
+        "page_number": [
+          0,
+          1
+        ],
+        "page_score": 0.8263,
+        "point_value": 9.6,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "9.6"
+      },
+      "gt_index": 1237,
+      "in_matching": false,
+      "pair_id": 96,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "critical temperature",
+          "transition",
+          "superconductivity"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0730819-CC",
+        "entity_id": "doc_16_entity_0",
+        "event_details": "ambient; resistivity; onset; third superconductor in the family of β-pyrochlore oxides, following KOs$_2$O$_6$ with $T_c = 9.6$ K and RbOs$_2$O$_6$ with $T_c = 6.3$ K",
+        "identifiers": "CsOsO6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 309,
+        "name": "CsOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": "3.3",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "3.3"
+      },
+      "extraction_index": 309,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0730819-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "resistivity",
+        "name": "CsOs2 O6",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8784,
+        "point_value": 3.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "3.3"
+      },
+      "gt_index": 1246,
+      "in_matching": false,
+      "pair_id": 97,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "87",
+          "90",
+          "88.5"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "EPL0490086-CC",
+        "entity_id": "doc_9_entity_0",
+        "event_details": "midpoint of resistive transition; Bi$_2$Sr$_{1.9}$CaCu$_{1.8}$O$_{8+x}$",
+        "identifiers": "Bi2212; Bi2212 single crystals; Bi$_2$Sr$_{1.9}$CaCu$_{1.8}$O$_{8+x}$",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 160,
+        "name": "Bi$_2$Sr$_2$CaCu$_2$O$_{8+x}$",
+        "page_number": [
+          11
+        ],
+        "point_value": "88.5",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "88.5"
+      },
+      "extraction_index": 160,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "EPL0490086-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "Bi2212 single crystal",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8288,
+        "point_value": 88.5,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": "overdoped",
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "88.5"
+      },
+      "gt_index": 1269,
+      "in_matching": false,
+      "pair_id": 98,
+      "weight": 0.3529411764705882
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "diamagnetic signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0732912-CC",
+        "entity_id": "doc_20_entity_6",
+        "event_details": "ambient; magnetic susceptibility; None; RbOs$_2$O$_6$ shows superconductivity at Tc = 6.3 K",
+        "identifiers": "AOs$_2$O$_6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 421,
+        "name": "AOs$_2$O$_6$",
+        "page_number": [
+          0
+        ],
+        "point_value": 6.3,
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3 K"
+      },
+      "extraction_index": 421,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0732912-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": null,
+        "name": "AOs2 O6 (A = K, Rb, Cs)",
+        "page_confidence": "high",
+        "page_number": [
+          0
+        ],
+        "page_score": 0.8813,
+        "point_value": 6.3,
+        "pressure": null,
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "6.3"
+      },
+      "gt_index": 1276,
+      "in_matching": true,
+      "pair_id": 99,
+      "weight": 0.5217391304347826
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tc",
+        "attribute_terms": [
+          "Tc",
+          "T_c",
+          "onset temperature",
+          "diamagnetic signal"
+        ],
+        "column_index": [
+          null
+        ],
+        "document_id": "JPS0732912-CC",
+        "entity_id": "doc_20_entity_3",
+        "event_details": "5 GPa; resistivity; onset; K",
+        "identifiers": "CsOs$_2$O$_6",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 404,
+        "name": "CsOs$_2$O$_6$",
+        "page_number": [
+          6
+        ],
+        "point_value": "10",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "10"
+      },
+      "extraction_index": 404,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tc",
+        "document_id": "JPS0732912-CC",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "me_method": "magnetic susceptibility",
+        "name": "KOs2 O6",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.9073,
+        "point_value": 10.0,
+        "pressure": "0.56 GPa",
+        "qualifiers": [],
+        "sample_details": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "K",
+        "upper": null,
+        "value": "10.0"
+      },
+      "gt_index": 1281,
+      "in_matching": false,
+      "pair_id": 100,
+      "weight": 0.7692307692307692
+    }
+  ],
+  "probe_dataset": "supermat",
+  "seed": 20261004,
+  "strict_fields": [
+    {
+      "extraction": "document_id",
+      "gt": "document_id"
+    },
+    {
+      "extraction": "attribute",
+      "gt": "attribute"
+    },
+    {
+      "extraction": "point_value",
+      "gt": "point_value"
+    },
+    {
+      "extraction": "units",
+      "gt": "units"
+    },
+    {
+      "extraction": "upper",
+      "gt": "upper"
+    },
+    {
+      "extraction": "lower",
+      "gt": "lower"
+    },
+    {
+      "extraction": "tolerance",
+      "gt": "tolerance"
+    },
+    {
+      "extraction": "standard_deviation",
+      "gt": "standard_deviation"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ reproduces the deployed files byte-for-byte.
 | `pond__pilot-gemma27b-full`, `nfix__pilot-gemma27b-full`, `supermat__pilot-gemma27b-full` | `data/<ds>/validation_set_pilot-gemma27b-full.json` | `build_pilot_validation_sets.py` |
 | `pond__pilot-langextract-gemma27b` | `data/pond/validation_set_pilot-langextract-gemma27b.json` | `build_pilot_validation_sets.py` |
 | `pond__main-gemma27b-full`, `supermat__main-gemma27b-full` | `data/<ds>/validation_set_main-gemma27b-full.json` | `build_main_validation_sets.py` |
+| `<ds>__matching-gemma27b` (Matching section: 100 GT<->extraction candidate pairs each) | `data/<ds>/matching_validation_set_<experiment_id>.json` | `build_matching_validation_sets.py` |
 
 How many judges each dataset needs is configured on the site (`judges_required`),
 not in these files. The main set is disjoint from the pilot set of the same dataset, so
@@ -43,6 +44,7 @@ Run from the repo root. Order matters: the main sets read the pilot sets.
 ```bash
 python data/validation/build_pilot_validation_sets.py              # pond, nfix, supermat
 python data/validation/build_main_validation_sets.py pond supermat
+python data/validation/build_matching_validation_sets.py           # reads analysis/results/match_cache/<id>/
 ```
 
 Both accept an output root so you can build into a scratch directory and
