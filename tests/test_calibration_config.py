@@ -253,3 +253,51 @@ def test_edges_reject_out_of_range_edge():
     judged, ext = _frames()
     with pytest.raises(ValueError, match="out of range"):
         cids.edges_to_judged_rows([(0, 4)], ext, judged)
+
+
+# ── load_calibration_v2_config: per-dataset pi_te_estimate ───────────────────
+def _to_v2(cfg, pi=0.5):
+    cfg["params"].pop("pi_te_estimate")
+    for block in cfg["params"]["datasets"].values():
+        block["pi_te_estimate"] = pi
+    return cfg
+
+
+def _load_v2(cfg, tmp_path):
+    p = tmp_path / f"{cfg['id']}.yaml"
+    p.write_text(yaml.safe_dump(cfg))
+    return ac.load_calibration_v2_config(p)
+
+
+def test_v2_happy_path_per_dataset_pi(world, tmp_path):
+    cfg, _ = world
+    _to_v2(cfg)
+    for pi, ds in zip((0.2, 0.5, 0.9), ("pond", "nfix", "supermat")):
+        cfg["params"]["datasets"][ds]["pi_te_estimate"] = pi
+    out = _load_v2(cfg, tmp_path)
+    assert [out["params"]["datasets"][d]["pi_te_estimate"] for d in ("pond", "nfix", "supermat")] == [0.2, 0.5, 0.9]
+    cids.resolve_calibration_inputs(out)  # extra per-dataset key must not trip id resolution
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda c: c["params"].update(pi_te_estimate=0.5),                       # v1 global key not allowed
+    lambda c: c["params"]["datasets"]["pond"].pop("pi_te_estimate"),        # missing per-dataset
+    lambda c: c["params"]["datasets"]["nfix"].update(pi_te_estimate=None),  # null/off not allowed
+    lambda c: c["params"]["datasets"]["nfix"].update(pi_te_estimate=1.0),
+    lambda c: c["params"]["datasets"]["supermat"].update(pi_te_estimate=0),
+    lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate=True),
+    lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate="0.5"),
+])
+def test_v2_loader_rejects_malformed(world, tmp_path, mutate):
+    cfg, _ = world
+    _to_v2(cfg)
+    mutate(cfg)
+    with pytest.raises(ValueError):
+        _load_v2(cfg, tmp_path)
+
+
+def test_v1_loader_rejects_v2_config(world, tmp_path):
+    cfg, _ = world
+    _to_v2(cfg)
+    with pytest.raises(ValueError):
+        _load(cfg, tmp_path)

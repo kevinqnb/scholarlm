@@ -266,6 +266,19 @@ def load_calibration_config(path: Path) -> dict:
         raise ValueError(
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_TOP_KEYS)}"
         )
+    pi = params["pi_te_estimate"]
+    if pi is not None and (isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1):
+        raise ValueError(f"{path}: params.pi_te_estimate must be null or a float in (0, 1), got {pi!r}")
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS)
+    return cfg
+
+
+def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple) -> None:
+    """Checks shared by the v1 and v2 calibration loaders: seed, probe_type/
+    probe_variant/syn_split, and every per-dataset block against ``dataset_keys``
+    (the keys of CALIBRATION_DATASET_KEYS plus whatever the caller adds, which
+    it validates itself)."""
+    params = cfg["params"]
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     if params["probe_type"] not in ("head", "layer"):
@@ -278,10 +291,6 @@ def load_calibration_config(path: Path) -> dict:
         raise ValueError(
             f"{path}: params.syn_split must be one of {list(CALIBRATION_SYN_SPLITS)}, got {params['syn_split']!r}"
         )
-    pi = params["pi_te_estimate"]
-    if pi is not None and (isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1):
-        raise ValueError(f"{path}: params.pi_te_estimate must be null or a float in (0, 1), got {pi!r}")
-
     datasets = params["datasets"]
     if not isinstance(datasets, dict) or set(datasets) != set(CALIBRATION_DATASETS):
         raise ValueError(
@@ -289,13 +298,13 @@ def load_calibration_config(path: Path) -> dict:
             f"got {sorted(datasets) if isinstance(datasets, dict) else datasets!r}"
         )
     for ds, block in datasets.items():
-        if not isinstance(block, dict) or set(block) != set(CALIBRATION_DATASET_KEYS):
+        if not isinstance(block, dict) or set(block) != set(dataset_keys):
             raise ValueError(
                 f"{path}: params.datasets.{ds} keys "
                 f"{sorted(block) if isinstance(block, dict) else block!r} must be exactly "
-                f"{sorted(CALIBRATION_DATASET_KEYS)}"
+                f"{sorted(dataset_keys)}"
             )
-        for k in CALIBRATION_DATASET_KEYS:
+        for k in CALIBRATION_DATASET_KEYS:  # v2's extra pi_te_estimate is validated by its own loader
             if k in ("syn_test_ids", "use_matching_labels"):
                 continue
             v = block[k]
@@ -323,4 +332,39 @@ def load_calibration_config(path: Path) -> dict:
                 raise ValueError(
                     f"{path}: params.datasets.{ds}.syn_test_ids.{split} must be a non-empty string, got {v!r}"
                 )
+
+
+# analysis/calibration_updated_v2.py: same schema as v1 except the single global
+# pi_te_estimate is replaced by one required estimate per dataset block -- the
+# assumed prevalence of valid rows in that dataset's real extraction, applied
+# whenever any probe is tested on that dataset.
+CALIBRATION_V2_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "datasets")
+CALIBRATION_V2_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("pi_te_estimate",)
+
+
+def load_calibration_v2_config(path: Path) -> dict:
+    """Load analysis/calibration_updated_v2.py's analysis-configs/<id>.yaml.
+
+    Identical to load_calibration_config (see its docstring for every shared
+    key) except there is no top-level ``pi_te_estimate``: each
+    ``params.datasets.<ds>`` block instead carries a required
+    ``pi_te_estimate``, a float strictly in (0, 1). No null/off value -- v2
+    rescales to the test dataset's prevalence for every real-data cell.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+    """
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+    if set(params) != set(CALIBRATION_V2_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V2_TOP_KEYS)}"
+        )
+    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS)
+    for ds, block in params["datasets"].items():
+        pi = block["pi_te_estimate"]
+        if isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1:
+            raise ValueError(
+                f"{path}: params.datasets.{ds}.pi_te_estimate must be a float in (0, 1), got {pi!r}"
+            )
     return cfg
