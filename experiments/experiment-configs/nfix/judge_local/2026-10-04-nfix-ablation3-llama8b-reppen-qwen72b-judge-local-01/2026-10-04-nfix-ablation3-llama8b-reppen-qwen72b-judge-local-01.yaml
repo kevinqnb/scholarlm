@@ -1,0 +1,17 @@
+id: 2026-10-04-nfix-ablation3-llama8b-reppen-qwen72b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (qwen-2.5-72b) over nfix ablation 3 extraction
+  (2026-10-02-nfix-ablation3-llama8b-reppen-full-01; extraction model llama8b-reppen).
+  Full-paper context against the table-cleaned, reference-dropped OCR corpus
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly rather than relying on the default. No interp
+  judge for this arm (interp judges are scoped to full-pipeline extractions
+  only).
+seed: 342
+params:
+  dataset: nfix
+  judge: qwen-2.5-72b
+  extraction_id: 2026-10-02-nfix-ablation3-llama8b-reppen-full-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "48:00:00"

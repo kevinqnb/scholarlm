@@ -1,0 +1,17 @@
+id: 2026-10-04-nfix-ablation2-gemma27b-llama70b-judge-local-01
+project: scholarlm
+description: >-
+  Voting judge (llama-3.3-70b) over nfix ablation 2 extraction
+  (2026-10-02-nfix-ablation2-gemma27b-full-01; extraction model gemma27b).
+  Full-paper context against the table-cleaned, reference-dropped OCR corpus
+  (experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01)
+  -- ocr_dir pinned explicitly rather than relying on the default. No interp
+  judge for this arm (interp judges are scoped to full-pipeline extractions
+  only).
+seed: 342
+params:
+  dataset: nfix
+  judge: llama-3.3-70b
+  extraction_id: 2026-10-02-nfix-ablation2-gemma27b-full-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  walltime: "48:00:00"
