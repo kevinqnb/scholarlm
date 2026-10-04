@@ -368,3 +368,33 @@ def load_calibration_v2_config(path: Path) -> dict:
                 f"{path}: params.datasets.{ds}.pi_te_estimate must be a float in (0, 1), got {pi!r}"
             )
     return cfg
+
+
+# analysis/calibration_updated_v3.py: v2 minus pi_te_estimate. Real-extraction
+# cells are instead Platt-scaled on platt_n rows sampled from the test
+# dataset's own probe-training documents (labelled by judge_combine, plus
+# matching if that dataset's use_matching_labels is on).
+CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n",)
+
+
+def load_calibration_v3_config(path: Path) -> dict:
+    """Load analysis/calibration_updated_v3.py's analysis-configs/<id>.yaml.
+
+    Same as load_calibration_config's per-dataset blocks (no pi_te_estimate
+    anywhere) plus a required top-level ``params.platt_n``: a positive int, the
+    number of real rows per dataset used to fit each Platt scaler.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+    """
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+    if set(params) != set(CALIBRATION_V3_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V3_TOP_KEYS)}"
+        )
+    n = params["platt_n"]
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS)
+    return cfg

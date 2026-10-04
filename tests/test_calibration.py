@@ -272,3 +272,60 @@ def test_matches_uncertainty_calibration_package_if_installed():
     binned = cal.bin(list(zip(probs, labels)), cal.get_equal_bins(probs, num_bins=k))
     assert compute_ece(probs, labels, k, binning="equal_mass", p=2, debiased=True) == \
         pytest.approx(cal.unbiased_l2_ce(binned), abs=1e-9)
+
+
+# ── Platt scaling ────────────────────────────────────────────────────────────
+from scholarlm.utils.calibration import fit_platt, apply_platt  # noqa: E402
+
+
+def test_platt_recovers_known_logistic_map():
+    # Labels drawn exactly from P(y=1) = expit(2*logit(p) - 1) at the sample level:
+    # fit on a large deterministic-quantile sample and check the recovered params.
+    from scipy.special import expit, logit
+    rng = np.random.default_rng(0)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < expit(2.0 * logit(p) - 1.0)
+    coef, icpt = fit_platt(p, y)
+    assert abs(coef - 2.0) < 0.1 and abs(icpt + 1.0) < 0.1
+
+
+def test_platt_identity_when_already_calibrated():
+    rng = np.random.default_rng(1)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < p
+    coef, icpt = fit_platt(p, y)
+    assert abs(coef - 1.0) < 0.07 and abs(icpt) < 0.07
+
+
+def test_platt_apply_hand_computed():
+    out = apply_platt(np.array([0.5]), coef=3.0, intercept=0.0)
+    assert out[0] == pytest.approx(0.5)  # logit(0.5)=0
+    out = apply_platt(np.array([0.5]), coef=3.0, intercept=np.log(3.0))
+    assert out[0] == pytest.approx(0.75)  # odds 3 -> 0.75
+
+
+def test_platt_shuffled_labels_collapse_to_base_rate():
+    rng = np.random.default_rng(2)
+    p = rng.uniform(0.02, 0.98, 5000)
+    y = rng.permutation(rng.uniform(size=p.size) < p)  # labels independent of p
+    coef, _ = fit_platt(p, y)
+    assert abs(coef) < 0.15
+
+
+def test_platt_monotone_for_positive_coef():
+    coef, icpt = fit_platt(np.array([0.1, 0.2, 0.4, 0.6, 0.8, 0.9]), np.array([0, 0, 1, 0, 1, 1]))
+    assert coef > 0
+    out = apply_platt(np.linspace(0.01, 0.99, 50), coef, icpt)
+    assert (np.diff(out) > 0).all()
+
+
+@pytest.mark.parametrize("probs,labels", [
+    (np.array([0.2, 0.8]), np.array([1, 1])),      # one class
+    (np.array([0.2, 0.8]), np.array([0, 0])),
+    (np.array([0.2, 1.2]), np.array([0, 1])),      # out of range
+    (np.array([0.2, np.nan]), np.array([0, 1])),
+    (np.array([0.2]), np.array([0, 1])),           # shape mismatch
+])
+def test_platt_fit_fails_loud(probs, labels):
+    with pytest.raises(ValueError):
+        fit_platt(probs, labels)

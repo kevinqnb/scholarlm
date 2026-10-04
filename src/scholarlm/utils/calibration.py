@@ -26,6 +26,41 @@ import numpy as np
 from scipy.special import logit, expit
 
 
+def fit_platt(probs: np.ndarray, labels: np.ndarray, eps: float = 1e-6):
+    """Fit a Platt scaler (1-D logistic regression on logit(probs)), unregularized.
+
+    Args:
+        probs: Raw predicted P(valid), shape ``(n,)``, each in ``[0, 1]``.
+        labels: Binary labels, shape ``(n,)``. Both classes must be present.
+        eps: probs are clipped to ``[eps, 1 - eps]`` before the logit (a probe/NTP
+            output of exactly 0 or 1 would otherwise be +-inf).
+    Returns:
+        ``(coef, intercept)`` such that the scaled probability is
+        ``expit(coef * logit(clip(p)) + intercept)``.
+    """
+    from sklearn.linear_model import LogisticRegression
+
+    probs = np.asarray(probs, dtype=float)
+    labels = np.asarray(labels, dtype=bool)
+    if probs.ndim != 1 or probs.shape != labels.shape or len(probs) == 0:
+        raise ValueError(f"probs/labels must be equal-length 1-D, got {probs.shape} / {labels.shape}")
+    if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
+        raise ValueError("probs must be finite and in [0, 1]")
+    if labels.all() or not labels.any():
+        raise ValueError(f"Platt fit needs both classes; got {int(labels.sum())}/{len(labels)} positive")
+    x = logit(np.clip(probs, eps, 1 - eps)).reshape(-1, 1)
+    lr = LogisticRegression(C=np.inf, max_iter=1000).fit(x, labels.astype(int))
+    return float(lr.coef_[0, 0]), float(lr.intercept_[0])
+
+
+def apply_platt(probs: np.ndarray, coef: float, intercept: float, eps: float = 1e-6):
+    """Apply a scaler from ``fit_platt``; same clipping as the fit."""
+    probs = np.asarray(probs, dtype=float)
+    if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
+        raise ValueError("probs must be finite and in [0, 1]")
+    return expit(coef * logit(np.clip(probs, eps, 1 - eps)) + intercept)
+
+
 def intercept_adjustment(
     probs: np.ndarray,
     pi_tr: float,

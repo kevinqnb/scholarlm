@@ -301,3 +301,41 @@ def test_v1_loader_rejects_v2_config(world, tmp_path):
     _to_v2(cfg)
     with pytest.raises(ValueError):
         _load(cfg, tmp_path)
+
+
+# ── load_calibration_v3_config: platt_n, no pi_te ────────────────────────────
+def _to_v3(cfg, n=100):
+    cfg["params"].pop("pi_te_estimate")
+    cfg["params"]["platt_n"] = n
+    return cfg
+
+
+def _load_v3(cfg, tmp_path):
+    p = tmp_path / f"{cfg['id']}.yaml"
+    p.write_text(yaml.safe_dump(cfg))
+    return ac.load_calibration_v3_config(p)
+
+
+def test_v3_happy_path(world, tmp_path):
+    cfg, _ = world
+    _to_v3(cfg, 7)
+    out = _load_v3(cfg, tmp_path)
+    assert out["params"]["platt_n"] == 7
+    cids.resolve_calibration_inputs(out)
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda c: c["params"].pop("platt_n"),
+    lambda c: c["params"].update(platt_n=0),
+    lambda c: c["params"].update(platt_n=-5),
+    lambda c: c["params"].update(platt_n=True),
+    lambda c: c["params"].update(platt_n=10.0),
+    lambda c: c["params"].update(pi_te_estimate=0.5),                      # v1 key not allowed
+    lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate=0.5),  # v2 key not allowed
+])
+def test_v3_loader_rejects_malformed(world, tmp_path, mutate):
+    cfg, _ = world
+    _to_v3(cfg)
+    mutate(cfg)
+    with pytest.raises(ValueError):
+        _load_v3(cfg, tmp_path)
