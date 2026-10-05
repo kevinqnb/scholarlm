@@ -1260,7 +1260,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--output", type=Path, default=None,
-        help="CSV path to write (default: results/recovery_validity.csv, matching "
+        help="CSV path to write (default: analysis/results/recovery-validity/recovery_validity.csv, matching "
              "analysis/ablation.py's/baselines.py's own results/ output convention; "
              "ignored with --config, which requires params.recovery_validity.output explicit).",
     )
@@ -1355,7 +1355,7 @@ def main(argv: list[str] | None = None) -> None:
         compute_validity = not args.skip_validity
         if edge_filter == "judge" and not compute_validity:
             parser.error("--edge-filter judge needs judge coverage and cannot be combined with --skip-validity")
-        output = args.output if args.output is not None else Path("results/recovery_validity.csv")
+        output = args.output if args.output is not None else _REPO_ROOT / "analysis" / "results" / "recovery-validity" / "recovery_validity.csv"
         analysis_config_id = None
 
     rows = []
