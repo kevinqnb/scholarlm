@@ -1,0 +1,63 @@
+{
+  "dataset": "supermat",
+  "judge_model": "qwen-2.5-7b",
+  "seed": 342,
+  "n_train": 2400,
+  "n_folds": 5,
+  "top_k": 10,
+  "top_k_heads": [
+    [
+      20,
+      3
+    ],
+    [
+      21,
+      2
+    ],
+    [
+      19,
+      13
+    ],
+    [
+      18,
+      12
+    ],
+    [
+      21,
+      21
+    ],
+    [
+      20,
+      14
+    ],
+    [
+      19,
+      11
+    ],
+    [
+      15,
+      27
+    ],
+    [
+      21,
+      22
+    ],
+    [
+      19,
+      23
+    ]
+  ],
+  "train_prevalence": 0.5,
+  "use_platt_scaling": true,
+  "head_probe_train": {
+    "accuracy": 0.9958333333333333,
+    "precision": 0.9917355371900827,
+    "recall": 1.0,
+    "f1": 0.995850622406639,
+    "auroc": 0.9999854166666666,
+    "ece": 0.12197271830052267
+  },
+  "ntp_calibrator_train_ece": 0.02741510674780447,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/supermat/judge_interp/2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/head_probe.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/supermat/judge_interp/2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/ntp_calibrator.pkl"
+}

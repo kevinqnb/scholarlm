@@ -26,7 +26,7 @@ params:
       judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
       ground_truth_file: data/pond/ground_truth_review.json
       synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
-      use_matching_labels: false
+      use_matching_labels: true
       syn_test_ids:
         primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
         diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
@@ -36,7 +36,7 @@ params:
       judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
       ground_truth_file: data/nfix/ground_truth_review.json
       synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
-      use_matching_labels: false
+      use_matching_labels: true
       syn_test_ids:
         primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
         diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01

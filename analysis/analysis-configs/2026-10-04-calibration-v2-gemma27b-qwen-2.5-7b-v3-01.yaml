@@ -37,7 +37,7 @@ params:
       judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
       ground_truth_file: data/nfix/ground_truth_review.json
       synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
-      pi_te_estimate: 0.4  # PLACEHOLDER, see description
+      pi_te_estimate: 0.25  # PLACEHOLDER, see description
       use_matching_labels: true
       syn_test_ids:
         primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
@@ -48,7 +48,7 @@ params:
       judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
       ground_truth_file: data/supermat/ground_truth_qualifiers.json
       synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
-      pi_te_estimate: 0.4  # PLACEHOLDER, see description
+      pi_te_estimate: 0.25  # PLACEHOLDER, see description
       use_matching_labels: false
       syn_test_ids:
         primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01

@@ -1,0 +1,63 @@
+{
+  "dataset": "pond",
+  "judge_model": "qwen-2.5-7b",
+  "seed": 342,
+  "n_train": 9462,
+  "n_folds": 5,
+  "top_k": 10,
+  "top_k_heads": [
+    [
+      18,
+      15
+    ],
+    [
+      20,
+      13
+    ],
+    [
+      20,
+      5
+    ],
+    [
+      25,
+      15
+    ],
+    [
+      20,
+      6
+    ],
+    [
+      23,
+      2
+    ],
+    [
+      20,
+      9
+    ],
+    [
+      20,
+      2
+    ],
+    [
+      22,
+      23
+    ],
+    [
+      21,
+      3
+    ]
+  ],
+  "train_prevalence": 0.4985203973789896,
+  "use_platt_scaling": true,
+  "head_probe_train": {
+    "accuracy": 0.9661805115197633,
+    "precision": 0.9375124378109453,
+    "recall": 0.9987280050879797,
+    "f1": 0.9671525354136727,
+    "auroc": 0.9980020252732477,
+    "ece": 0.14188155165410674
+  },
+  "ntp_calibrator_train_ece": 0.05115163379276428,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/pond/judge_interp/2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/head_probe.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/pond/judge_interp/2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/ntp_calibrator.pkl"
+}
