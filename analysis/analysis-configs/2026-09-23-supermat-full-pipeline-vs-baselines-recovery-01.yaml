@@ -36,6 +36,7 @@ params:
     - 2026-09-26-supermat-ablation7-gemma27b-full-01
     - 2026-09-26-supermat-ablation7-gptoss120b-full-01
   recovery_validity:
+    edge_filter: threshold
     n_resamples: 2000
     alpha: 0.05
     compute_validity: false
