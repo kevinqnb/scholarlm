@@ -16,6 +16,18 @@ This is the centralized replacement for the recovery/validity halves of
     ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
     mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
     -- see analysis/analysis_config.py's module docstring for why;
+  - REPORTED RECOVERY IS A MAXIMUM-WEIGHT MATCHING COUNT (changed 2026-10-05):
+    the raw threshold-0 cache edges are first filtered one of two explicit ways
+    (``edge_filter``) -- ``threshold`` (``w >= fuzzy_threshold``) or ``judge``
+    (drop edges to extractions the combined judges marked invalid) -- then a
+    max-weight 1-1 matching is solved over only the surviving edges and every
+    ground truth row in it counts as recovered (see
+    ``max_weight_matching_recovered``). This is NOT ``analysis.metrics.
+    recovery_rate``'s any-surviving-edge count, which can only be >= it; that
+    older value is still emitted as ``recovery_any_edge`` and cross-checked
+    against metrics.py (``_verify_recovery``) to guard the edge filtering. Every
+    recovery number computed by this script before this change is invalid.
+    Validity is unchanged (dataset-threshold edges OR judged valid);
   - reads a match cache instead of computing one (never recomputes -- run
     ``python analysis/match_cache.py <id>`` first for any id that doesn't
     have one yet, and refuses a cache that predates its own extraction file
@@ -58,10 +70,10 @@ Usage
 -----
     python analysis/recovery_validity.py <id> [<id> ...] \\
         --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
-        [--alpha 0.05] [--skip-validity] [--output PATH]
+        --edge-filter {threshold,judge} [--alpha 0.05] [--skip-validity] [--output PATH]
     python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
 
-``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
+``--n-resamples``, ``--seed``, ``--ground-truth-file`` and ``--edge-filter`` are required, not
 defaulted (CLAUDE.md: no inferred defaults for a value that changes the
 reported numbers) -- pass the repo's own ``experiments/config.yaml``
 ``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
@@ -70,7 +82,7 @@ corresponding ``match_cache.py`` run used (its match_cache.meta.json sidecar
 is checked against it -- see ``_assert_ground_truth_matches_cache``).
 
 ``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
-and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
+and a ``params.recovery_validity`` section (``edge_filter``/``n_resamples``/``alpha``/
 ``compute_validity``/``output``, all required with no defaults, plus an
 optional ``judge_combine_ids`` id-to-id override map) from an
 analysis-configs/<id>.yaml -- see analysis/analysis_config.py. Mutually
@@ -515,20 +527,27 @@ def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[s
 
 
 def load_validity_labels(judge_combine_id: str, extraction_df: pd.DataFrame) -> np.ndarray:
-    """Load combined.json for judge_combine_id, joined by measurement_id and
-    aligned positionally to extraction_df.
+    """Load combined.json for judge_combine_id and return one bool judgement
+    per extraction_df row, joined on ``(document_id, measurement_id)``.
 
-    Never assumes combined.json's row order matches extraction_df's -- joins
-    explicitly by measurement_id and asserts the join is exact (a permutation
-    of range(n), both sides agreeing on document_id/attribute at each id) so
-    an extraction re-run after judging is caught rather than silently
-    mislabeling rows.
+    ``measurement_id`` is unique per row in final.json, but
+    analysis/postprocessing.py can split one multi-value row (e.g. ``"3,4"``)
+    into several postprocessed.json rows that all keep the parent's
+    measurement_id. The judges only ever saw the parent, so every split child
+    INHERITS its parent's judgement -- including a child the judges never saw
+    on its own (a decimal-comma value split into two bogus values inherits the
+    parent's label). Use ``count_split_rows`` to report how many rows that is.
+
+    The join is exact: combined.json's keys must be unique and must equal
+    extraction_df's key set (no judged measurement missing from the extraction,
+    no extracted measurement unjudged), and ``attribute`` must agree between the
+    two sides at every key. Row order in either file is irrelevant.
 
     Raises:
         FileNotFoundError: no combined.json for judge_combine_id.
-        ValueError: row-count mismatch, a non-permutation measurement_id set
-            on either side, a document_id/attribute disagreement at some
-            shared measurement_id, or a non-bool judgement_combined value.
+        ValueError: duplicate keys in combined.json, a missing measurement_id
+            column, a key set mismatch between the two sides, an attribute
+            disagreement at a shared key, or a non-bool judgement_combined.
     """
     combined_path = paths.find_result_dir(judge_combine_id) / "combined.json"
     if not combined_path.exists():
@@ -536,53 +555,57 @@ def load_validity_labels(judge_combine_id: str, extraction_df: pd.DataFrame) -> 
     with open(combined_path) as f:
         combined = json.load(f)
 
-    n_ext = len(extraction_df)
-    if len(combined) != n_ext:
-        raise ValueError(
-            f"{judge_combine_id}: combined.json has {len(combined)} record(s), "
-            f"extraction has {n_ext} row(s) -- not the same run"
-        )
-
-    combined_mids = sorted(r["measurement_id"] for r in combined)
-    if combined_mids != list(range(n_ext)):
-        raise ValueError(
-            f"{judge_combine_id}: combined.json measurement_id set is not "
-            f"exactly range({n_ext}) ({len(set(combined_mids))} distinct of "
-            f"{len(combined_mids)} records) -- cannot align positionally"
-        )
-
     if "measurement_id" not in extraction_df.columns:
         raise ValueError(f"{judge_combine_id}: extraction data has no measurement_id column")
-    ext_mids = extraction_df["measurement_id"].tolist()
-    if ext_mids != list(range(n_ext)):
-        raise ValueError(
-            f"{judge_combine_id}: extraction's own measurement_id is not "
-            f"range({n_ext}) in row order -- cannot align positionally"
-        )
 
-    by_mid = {r["measurement_id"]: r for r in combined}
-    ordered = [by_mid[i] for i in range(n_ext)]
-
-    mismatched = [
-        i for i, (ext_row, judge_row) in enumerate(zip(extraction_df.itertuples(), ordered))
-        if ext_row.document_id != judge_row["document_id"] or ext_row.attribute != judge_row["attribute"]
-    ]
-    if mismatched:
-        raise ValueError(
-            f"{judge_combine_id}: {len(mismatched)} row(s) disagree with the "
-            f"extraction's own data on document_id/attribute at the same "
-            f"measurement_id (extraction likely re-run after judging) -- first "
-            f"mismatch at measurement_id={mismatched[0]}"
-        )
-
-    non_bool = [r["measurement_id"] for r in ordered if not isinstance(r["judgement_combined"], bool)]
+    non_bool = [r["measurement_id"] for r in combined if not isinstance(r["judgement_combined"], bool)]
     if non_bool:
         raise ValueError(
             f"{judge_combine_id}: judgement_combined is not a bool for "
             f"measurement_id(s) {non_bool[:10]}"
         )
 
-    return np.array([r["judgement_combined"] for r in ordered], dtype=bool)
+    by_key = {(r["document_id"], r["measurement_id"]): r for r in combined}
+    if len(by_key) != len(combined):
+        raise ValueError(
+            f"{judge_combine_id}: combined.json has {len(combined)} record(s) but only "
+            f"{len(by_key)} distinct (document_id, measurement_id) key(s)"
+        )
+
+    ext_keys = list(zip(extraction_df["document_id"], extraction_df["measurement_id"]))
+    ext_key_set = set(ext_keys)
+    unjudged = ext_key_set - set(by_key)
+    judged_but_absent = set(by_key) - ext_key_set
+    if unjudged or judged_but_absent:
+        raise ValueError(
+            f"{judge_combine_id}: the judged and extracted (document_id, measurement_id) "
+            f"keys disagree -- not the same run: {len(unjudged)} extracted key(s) have no "
+            f"judgement (e.g. {sorted(unjudged, key=str)[:3]}), {len(judged_but_absent)} judged "
+            f"key(s) are absent from the extraction (e.g. {sorted(judged_but_absent, key=str)[:3]}); "
+            f"extraction likely re-run, or postprocessed, after judging in a way that is not "
+            f"a pure split of judged rows"
+        )
+
+    mismatched = [
+        i for i, (key, attribute) in enumerate(zip(ext_keys, extraction_df["attribute"]))
+        if by_key[key]["attribute"] != attribute
+    ]
+    if mismatched:
+        raise ValueError(
+            f"{judge_combine_id}: {len(mismatched)} row(s) disagree with the judged data on "
+            f"attribute at the same (document_id, measurement_id) -- first mismatch at "
+            f"extraction row {mismatched[0]}"
+        )
+
+    return np.array([by_key[key]["judgement_combined"] for key in ext_keys], dtype=bool)
+
+
+def count_split_rows(extraction_df: pd.DataFrame) -> int:
+    """Number of extraction rows that share their (document_id, measurement_id)
+    with another row -- i.e. the rows whose judgement ``load_validity_labels``
+    inherited from a parent rather than received directly (0 when the
+    extraction has not been split, e.g. a final.json)."""
+    return int(extraction_df.duplicated(["document_id", "measurement_id"], keep=False).sum())
 
 
 # ---------------------------------------------------------------------------
@@ -606,6 +629,133 @@ def ext_matched_mask(n_ext: int, edges: list[tuple[int, int]]) -> np.ndarray:
     return mask
 
 
+EDGE_FILTERS = ("threshold", "judge")
+
+# Exact-integer scaling for max_weight_matching_recovered: weights are rounded
+# to 1e-6, then each edge gets +1 after multiplying by a constant larger than
+# any possible matching size, so cardinality only ever breaks ties between
+# matchings of equal (rounded) total weight.
+_WEIGHT_SCALE = 10**6
+
+
+def filter_edges_by_threshold(
+    edges: list[tuple[int, int]], edge_weights: list[float], fuzzy_threshold: float,
+) -> tuple[list[tuple[int, int]], list[float]]:
+    """(edges, weights) with ``w >= fuzzy_threshold`` -- the same inclusive
+    boundary as ``match_cache.edges_above_threshold``, but keeping the weights
+    (which the matching needs) aligned with the surviving edges.
+    """
+    if len(edges) != len(edge_weights):
+        raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
+    kept = [(e, w) for e, w in zip(edges, edge_weights) if w >= fuzzy_threshold]
+    return [e for e, _ in kept], [w for _, w in kept]
+
+
+def filter_edges_by_judgement(
+    edges: list[tuple[int, int]], edge_weights: list[float], judged_labels: np.ndarray,
+) -> tuple[list[tuple[int, int]], list[float]]:
+    """(edges, weights) whose extracted measurement (``ex_idx``) the combined
+    judges labelled valid; an edge to a judged-invalid extraction is dropped.
+    ``judged_labels`` is ``load_validity_labels``' output, one bool per
+    extraction row.
+    """
+    if len(edges) != len(edge_weights):
+        raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
+    kept = [(e, w) for e, w in zip(edges, edge_weights) if judged_labels[e[1]]]
+    return [e for e, _ in kept], [w for _, w in kept]
+
+
+def max_weight_matching_recovered(
+    n_gt: int, n_ext: int, edges: list[tuple[int, int]], edge_weights: list[float],
+) -> tuple[np.ndarray, list[tuple[int, int]]]:
+    """Maximum-weight 1-1 matching over (already filtered) edges; every ground
+    truth row in the matching is recovered.
+
+    Same solver call as ``match_datasets`` (``nx.max_weight_matching``,
+    ``maxcardinality=False``), on a fresh graph of only the surviving edges --
+    the cached ``matching`` was solved over ALL threshold-0 edges and is not
+    reused. Weight comes first; cardinality only breaks ties between equal-
+    weight matchings (so a surviving edge of weight 0.0 can still recover its
+    ground truth row, but never displaces a positive-weight one). See
+    ``_WEIGHT_SCALE`` for the exact-integer encoding.
+
+    Returns:
+        (recovered mask over n_gt, matching as sorted (gt_idx, ex_idx) pairs).
+
+    Raises:
+        ValueError: duplicate (gt_idx, ex_idx) edge, weight outside [0, 1], or
+            an edge index out of range.
+    """
+    import networkx as nx
+
+    if len(edges) != len(edge_weights):
+        raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
+    if len(set(edges)) != len(edges):
+        raise ValueError("duplicate (gt_idx, ex_idx) edges -- the graph would silently keep only one weight")
+    multiplier = min(n_gt, n_ext) + 1
+
+    G = nx.Graph()
+    for (gt_idx, ex_idx), w in zip(edges, edge_weights):
+        if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
+            raise ValueError(f"edge ({gt_idx}, {ex_idx}) out of range for n_gt={n_gt}, n_ext={n_ext}")
+        if not (0.0 <= w <= 1.0):
+            raise ValueError(f"edge ({gt_idx}, {ex_idx}) has weight {w!r} outside [0, 1]")
+        # Namespaced nodes: bare ints would merge gt row 0 with extraction row 0.
+        G.add_edge(f"L_{gt_idx}", f"R_{ex_idx}", weight=round(w * _WEIGHT_SCALE) * multiplier + 1)
+
+    matching: list[tuple[int, int]] = []
+    for u, v in nx.max_weight_matching(G, maxcardinality=False):
+        left, right = (u, v) if u.startswith("L_") else (v, u)
+        matching.append((int(left[2:]), int(right[2:])))
+    matching.sort()
+
+    recovered = np.zeros(n_gt, dtype=bool)
+    for gt_idx, _ex_idx in matching:
+        recovered[gt_idx] = True
+    return recovered, matching
+
+
+def _verify_matching(
+    matching: list[tuple[int, int]],
+    edges: list[tuple[int, int]],
+    recovered: np.ndarray,
+    any_edge_recovered: np.ndarray,
+    ground_truth_df: pd.DataFrame,
+    extraction_df: pd.DataFrame,
+) -> None:
+    """Assert the matching is a valid 1-1 selection from ``edges``, recovers a
+    subset of what any-surviving-edge recovery would, and decomposes per paper
+    (every edge joins rows of one document_id -- the paper-clustered bootstrap
+    resamples whole papers after a single global matching, which is only
+    sound if no edge, hence no matching, crosses papers).
+
+    Raises:
+        AssertionError: any of the above fails.
+    """
+    gts = [g for g, _ in matching]
+    exs = [e for _, e in matching]
+    if len(set(gts)) != len(gts) or len(set(exs)) != len(exs):
+        raise AssertionError("matching uses a ground truth or extraction row more than once")
+    edge_set = set(edges)
+    not_edges = [m for m in matching if m not in edge_set]
+    if not_edges:
+        raise AssertionError(f"matching contains pair(s) not among the filtered edges: {not_edges[:5]}")
+    if int(recovered.sum()) != len(matching):
+        raise AssertionError(f"recovered count {int(recovered.sum())} != matching size {len(matching)}")
+    if (recovered & ~any_edge_recovered).any():
+        raise AssertionError("matching recovers a ground truth row with no surviving edge")
+
+    gt_docs = ground_truth_df["document_id"].astype(str).to_numpy()
+    ex_docs = extraction_df["document_id"].astype(str).to_numpy()
+    cross = [(g, e) for g, e in edges if gt_docs[g] != ex_docs[e]]
+    if cross:
+        raise AssertionError(
+            f"{len(cross)} edge(s) join different document_ids (first: {cross[0]}) -- "
+            f"the matching no longer decomposes per paper, so the paper-clustered "
+            f"bootstrap over it is not valid"
+        )
+
+
 def _verify_recovery(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
@@ -614,8 +764,15 @@ def _verify_recovery(
     cache_path: Path,
     recovered: np.ndarray,
 ) -> None:
-    """Assert this script's recovered mask agrees with
-    ``analysis.metrics.recovery_rate`` computed against the exact same cache.
+    """Assert this script's threshold-filtered any-edge recovered mask agrees
+    with ``analysis.metrics.recovery_rate`` computed against the exact same
+    cache.
+
+    This checks the EDGE FILTERING, not the matching: metrics.recovery_rate
+    still counts any gt row with a surviving edge (the reported recovery is
+    now a max-weight-matching count -- see ``max_weight_matching_recovered``
+    -- which that function does not compute; it is deliberately left
+    untouched).
 
     ``gt_recovered_mask``/``ext_matched_mask`` above are a near-duplicate of
     metrics.py's own internal edge-filtering loop (kept separate only
@@ -748,6 +905,7 @@ def compute_metrics_for_id(
     experiment_id: str,
     *,
     ground_truth_path: Path,
+    edge_filter: str,
     n_resamples: int,
     seed: int,
     alpha: float = 0.05,
@@ -756,6 +914,17 @@ def compute_metrics_for_id(
 ) -> dict:
     """Compute recovery (+ validity, unless ``compute_validity=False``) with
     paper-clustered bootstrap CIs for one experiment id.
+
+    ``edge_filter`` (no default; one of ``EDGE_FILTERS``) picks how the raw
+    threshold-0 match-cache edges are filtered before the recovery matching:
+    ``"threshold"`` keeps ``w >= the dataset's fuzzy_threshold``; ``"judge"``
+    keeps every edge whose extraction the combined judges labelled valid (no
+    weight cutoff) and requires ``compute_validity=True``, since it needs the
+    judge_combine labels. Recovery is then the fraction of ground truth rows in
+    a maximum-weight 1-1 matching over the surviving edges
+    (``max_weight_matching_recovered``). Validity is unchanged in both modes: it
+    still uses the dataset-threshold edges (judge-filtered edges would make it
+    collapse to exactly the judge labels).
 
     ``ground_truth_path`` has no default -- see module docstring: the ground
     truth file is always given explicitly (an analysis config's
@@ -802,13 +971,19 @@ def compute_metrics_for_id(
     _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
     _assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
 
+    if edge_filter not in EDGE_FILTERS:
+        raise ValueError(f"edge_filter must be one of {EDGE_FILTERS}, got {edge_filter!r}")
+    if edge_filter == "judge" and not compute_validity:
+        raise ValueError(
+            f"{experiment_id}: edge_filter='judge' needs the judge_combine labels, "
+            f"but compute_validity is false"
+        )
+
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
     # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
-    # module docstring) -- passing the dataset's own threshold here returns
-    # the already-selected edges directly, rather than a second manual
-    # weight-filter reimplementing that same cutoff.
-    selected_edges = match_cache.load_match_cache(experiment_id, fuzzy_threshold=threshold)
-    for gt_idx, ex_idx in selected_edges:
+    # module docstring): the raw edge list is every strict-matched candidate.
+    _matching, raw_edges, raw_weights = match_cache.load_match_cache(experiment_id)
+    for gt_idx, ex_idx in raw_edges:
         if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
             raise RuntimeError(
                 f"{experiment_id}: cached edge (gt_idx={gt_idx}, ex_idx={ex_idx}) out "
@@ -817,9 +992,32 @@ def compute_metrics_for_id(
                 f"`python analysis/match_cache.py {experiment_id}`."
             )
 
-    recovered = gt_recovered_mask(n_gt, selected_edges)
-    matched = ext_matched_mask(n_ext, selected_edges)
-    _verify_recovery(ground_truth_df, extraction_df, cfg, threshold, cache_path, recovered)
+    # Dataset-threshold edges: always computed -- validity's matched mask, and
+    # the cross-check of the edge filtering against analysis.metrics.
+    threshold_edges, threshold_weights = filter_edges_by_threshold(raw_edges, raw_weights, threshold)
+    matched = ext_matched_mask(n_ext, threshold_edges)
+    _verify_recovery(
+        ground_truth_df, extraction_df, cfg, threshold, cache_path,
+        gt_recovered_mask(n_gt, threshold_edges),
+    )
+
+    judge_ids = None
+    judged_labels = None
+    if compute_validity:
+        if judge_combine_id is not None:
+            judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
+        else:
+            judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
+        judged_labels = load_validity_labels(judge_combine_id, extraction_df)
+
+    if edge_filter == "threshold":
+        surviving_edges, surviving_weights = threshold_edges, threshold_weights
+    else:
+        surviving_edges, surviving_weights = filter_edges_by_judgement(raw_edges, raw_weights, judged_labels)
+
+    any_edge_recovered = gt_recovered_mask(n_gt, surviving_edges)
+    recovered, matching = max_weight_matching_recovered(n_gt, n_ext, surviving_edges, surviving_weights)
+    _verify_matching(matching, surviving_edges, recovered, any_edge_recovered, ground_truth_df, extraction_df)
 
     recovery_point, recovery_lo, recovery_hi = bootstrap_cluster_rate(
         recovered, ground_truth_df["document_id"].to_numpy(),
@@ -833,15 +1031,19 @@ def compute_metrics_for_id(
         "extraction_file": match_cache.repo_relative(extraction_file_path),
         "n_gt": n_gt,
         "n_ext": n_ext,
-        "fuzzy_threshold": threshold,
+        "edge_filter": edge_filter,
+        "fuzzy_threshold": threshold if edge_filter == "threshold" else None,
+        "n_surviving_edges": len(surviving_edges),
         "n_resamples": n_resamples,
         "seed": seed,
         "bootstrap_unit": "paper",
         "recovery": recovery_point,
+        "recovery_any_edge": float(any_edge_recovered.mean()),
         "recovery_ci_lo": recovery_lo,
         "recovery_ci_hi": recovery_hi,
         "judge_combine_id": None,
         "judge_ids": None,
+        "n_split_rows_inheriting_judgement": None,
         "validity": None,
         "validity_ci_lo": None,
         "validity_ci_hi": None,
@@ -850,11 +1052,6 @@ def compute_metrics_for_id(
     if not compute_validity:
         return row
 
-    if judge_combine_id is not None:
-        judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
-    else:
-        judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
-    judged_labels = load_validity_labels(judge_combine_id, extraction_df)
     validity_labels = _verify_validity(
         ground_truth_df, extraction_df, cfg, threshold, cache_path, matched, judged_labels,
     )
@@ -867,6 +1064,7 @@ def compute_metrics_for_id(
     row.update({
         "judge_combine_id": judge_combine_id,
         "judge_ids": ";".join(judge_ids),
+        "n_split_rows_inheriting_judgement": count_split_rows(extraction_df),
         "validity": validity_point,
         "validity_ci_lo": validity_lo,
         "validity_ci_hi": validity_hi,
@@ -1035,6 +1233,13 @@ def _build_parser() -> argparse.ArgumentParser:
              "--config is given.",
     )
     p.add_argument(
+        "--edge-filter", choices=EDGE_FILTERS, default=None,
+        help="How the raw match-cache edges are filtered before the recovery matching: "
+             "'threshold' (w >= the dataset's fuzzy_threshold) or 'judge' (drop edges to "
+             "judged-invalid extractions; needs judge coverage, so incompatible with "
+             "--skip-validity). Required unless --config is given.",
+    )
+    p.add_argument(
         "--n-resamples", type=int, default=None,
         help="Number of paper-cluster bootstrap resamples. Required unless --config is given.",
     )
@@ -1069,16 +1274,16 @@ def main(argv: list[str] | None = None) -> None:
     cli_flags_given = (
         args.experiment_ids or args.n_resamples is not None or args.seed is not None
         or args.alpha is not None or args.skip_validity or args.output is not None
-        or args.ground_truth_file is not None
+        or args.ground_truth_file is not None or args.edge_filter is not None
     )
     if args.config and cli_flags_given:
         parser.error("--config is mutually exclusive with experiment_ids and every other flag")
     if not args.config and not (
         args.experiment_ids and args.n_resamples is not None and args.seed is not None
-        and args.ground_truth_file is not None
+        and args.ground_truth_file is not None and args.edge_filter is not None
     ):
         parser.error(
-            "experiment_ids, --n-resamples, --seed and --ground-truth-file are "
+            "experiment_ids, --n-resamples, --seed, --ground-truth-file and --edge-filter are "
             "required unless --config is given"
         )
 
@@ -1089,9 +1294,10 @@ def main(argv: list[str] | None = None) -> None:
         ground_truth_path = get_ground_truth_path(cfg)
         section = get_section(
             cfg, "recovery_validity",
-            required_keys=("n_resamples", "alpha", "compute_validity", "output"),
+            required_keys=("edge_filter", "n_resamples", "alpha", "compute_validity", "output"),
             optional_keys=("judge_combine_ids",),
         )
+        edge_filter = section["edge_filter"]
         n_resamples = section["n_resamples"]
         seed = cfg["seed"]
         alpha = section["alpha"]
@@ -1100,6 +1306,16 @@ def main(argv: list[str] | None = None) -> None:
             raise ValueError(
                 f"{args.config}: params.recovery_validity.compute_validity must be a "
                 f"bool, got {compute_validity!r}"
+            )
+        if edge_filter not in EDGE_FILTERS:
+            raise ValueError(
+                f"{args.config}: params.recovery_validity.edge_filter must be one of "
+                f"{EDGE_FILTERS}, got {edge_filter!r}"
+            )
+        if edge_filter == "judge" and not compute_validity:
+            raise ValueError(
+                f"{args.config}: edge_filter 'judge' needs judge coverage, but "
+                f"params.recovery_validity.compute_validity is false"
             )
         output = Path(section["output"])
         if not output.is_absolute():
@@ -1132,10 +1348,13 @@ def main(argv: list[str] | None = None) -> None:
             ground_truth_path = _REPO_ROOT / ground_truth_path
         if not ground_truth_path.exists():
             parser.error(f"--ground-truth-file {ground_truth_path} does not exist")
+        edge_filter = args.edge_filter
         n_resamples = args.n_resamples
         seed = args.seed
         alpha = args.alpha if args.alpha is not None else 0.05
         compute_validity = not args.skip_validity
+        if edge_filter == "judge" and not compute_validity:
+            parser.error("--edge-filter judge needs judge coverage and cannot be combined with --skip-validity")
         output = args.output if args.output is not None else Path("results/recovery_validity.csv")
         analysis_config_id = None
 
@@ -1143,7 +1362,7 @@ def main(argv: list[str] | None = None) -> None:
     for experiment_id in experiment_ids:
         print(f"Processing {experiment_id} ...")
         row = compute_metrics_for_id(
-            experiment_id, ground_truth_path=ground_truth_path,
+            experiment_id, ground_truth_path=ground_truth_path, edge_filter=edge_filter,
             n_resamples=n_resamples, seed=seed, alpha=alpha,
             compute_validity=compute_validity,
             judge_combine_id=judge_combine_overrides.get(experiment_id),

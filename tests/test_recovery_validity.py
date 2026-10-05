@@ -439,6 +439,79 @@ def test_load_validity_labels_out_of_order_still_aligns(fixture_roots):
     assert labels.tolist() == [True, False]
 
 
+def test_load_validity_labels_split_children_inherit_parent_judgement(fixture_roots):
+    _, results_root = fixture_roots
+    # postprocessed.json split measurement 1 (doc d1) into two rows sharing its id.
+    extraction_df = pd.DataFrame([
+        _final_json_row(0), _final_json_row(1, attr="tn"), _final_json_row(1, attr="tn"), _final_json_row(2),
+    ])
+    combined = [
+        {"measurement_id": 0, "document_id": "d1", "attribute": "ph", "judgement_combined": True},
+        {"measurement_id": 1, "document_id": "d1", "attribute": "tn", "judgement_combined": False},
+        {"measurement_id": 2, "document_id": "d1", "attribute": "ph", "judgement_combined": True},
+    ]
+    combine_dir = results_root / "pond" / "judge_combine" / "2026-01-03-pond-model-combo-01"
+    combine_dir.mkdir(parents=True)
+    with open(combine_dir / "combined.json", "w") as f:
+        json.dump(combined, f)
+
+    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    assert labels.tolist() == [True, False, False, True]
+    assert rv.count_split_rows(extraction_df) == 2
+    assert rv.count_split_rows(extraction_df.drop_duplicates(["document_id", "measurement_id"])) == 0
+
+
+def test_load_validity_labels_same_measurement_id_in_different_documents_is_distinct(fixture_roots):
+    _, results_root = fixture_roots
+    extraction_df = pd.DataFrame([_final_json_row(0, doc="d1"), _final_json_row(0, doc="d2")])
+    combined = [
+        {"measurement_id": 0, "document_id": "d1", "attribute": "ph", "judgement_combined": True},
+        {"measurement_id": 0, "document_id": "d2", "attribute": "ph", "judgement_combined": False},
+    ]
+    combine_dir = results_root / "pond" / "judge_combine" / "2026-01-03-pond-model-combo-01"
+    combine_dir.mkdir(parents=True)
+    with open(combine_dir / "combined.json", "w") as f:
+        json.dump(combined, f)
+    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    assert labels.tolist() == [True, False]
+
+
+def test_load_validity_labels_unjudged_extraction_key_raises(fixture_roots):
+    _, results_root = fixture_roots
+    extraction_df = pd.DataFrame([_final_json_row(0), _final_json_row(1, attr="tn")])
+    combined = [{"measurement_id": 0, "document_id": "d1", "attribute": "ph", "judgement_combined": True}]
+    combine_dir = results_root / "pond" / "judge_combine" / "2026-01-03-pond-model-combo-01"
+    combine_dir.mkdir(parents=True)
+    with open(combine_dir / "combined.json", "w") as f:
+        json.dump(combined, f)
+    with pytest.raises(ValueError, match="no judgement"):
+        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+
+
+def test_load_validity_labels_attribute_mismatch_at_shared_key_raises(fixture_roots):
+    _, results_root = fixture_roots
+    extraction_df = pd.DataFrame([_final_json_row(0, attr="tn")])
+    combined = [{"measurement_id": 0, "document_id": "d1", "attribute": "ph", "judgement_combined": True}]
+    combine_dir = results_root / "pond" / "judge_combine" / "2026-01-03-pond-model-combo-01"
+    combine_dir.mkdir(parents=True)
+    with open(combine_dir / "combined.json", "w") as f:
+        json.dump(combined, f)
+    with pytest.raises(ValueError, match="attribute"):
+        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+
+
+def test_load_validity_labels_duplicate_combined_key_raises(fixture_roots):
+    _, results_root = fixture_roots
+    extraction_df = pd.DataFrame([_final_json_row(0)])
+    rec = {"measurement_id": 0, "document_id": "d1", "attribute": "ph", "judgement_combined": True}
+    combine_dir = results_root / "pond" / "judge_combine" / "2026-01-03-pond-model-combo-01"
+    combine_dir.mkdir(parents=True)
+    with open(combine_dir / "combined.json", "w") as f:
+        json.dump([rec, rec], f)
+    with pytest.raises(ValueError, match="distinct"):
+        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+
+
 def test_load_validity_labels_row_count_mismatch_raises(fixture_roots):
     _, results_root = fixture_roots
     extraction_df = pd.DataFrame([_final_json_row(0)])
@@ -596,7 +669,7 @@ def e2e_fixture(tmp_path, monkeypatch):
 
 def test_compute_metrics_for_id_with_validity(e2e_fixture):
     extraction_id, combine_id, judge_ids, gt_path = e2e_fixture
-    row = rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+    row = rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
     assert row["n_gt"] == 3
     assert row["n_ext"] == 3
@@ -636,7 +709,7 @@ def test_compute_metrics_for_id_different_ground_truth_file_raises(tmp_path, e2e
         json.dump(gt_b_rows, f)
 
     with pytest.raises(RuntimeError, match="different ground truth"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_b_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_b_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_ground_truth_edited_in_place_raises(e2e_fixture):
@@ -649,7 +722,7 @@ def test_compute_metrics_for_id_ground_truth_edited_in_place_raises(e2e_fixture)
     gt_path.write_text(json.dumps(rows))
 
     with pytest.raises(RuntimeError, match="sha256"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_missing_sidecar_raises(e2e_fixture):
@@ -659,7 +732,7 @@ def test_compute_metrics_for_id_missing_sidecar_raises(e2e_fixture):
     cache_path.with_name("match_cache.meta.json").unlink()
 
     with pytest.raises(FileNotFoundError, match="match_cache.meta.json"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_extraction_edited_in_place_raises(e2e_fixture):
@@ -676,7 +749,7 @@ def test_compute_metrics_for_id_extraction_edited_in_place_raises(e2e_fixture):
     final_path.write_text(json.dumps(rows))
 
     with pytest.raises(RuntimeError, match="different extraction file"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_sidecar_missing_extraction_tracking_raises(e2e_fixture):
@@ -693,7 +766,7 @@ def test_compute_metrics_for_id_sidecar_missing_extraction_tracking_raises(e2e_f
     meta_path.write_text(json.dumps(meta))
 
     with pytest.raises(FileNotFoundError, match="predates extraction-file tracking"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_prefers_postprocessed_json(e2e_fixture):
@@ -707,7 +780,7 @@ def test_compute_metrics_for_id_prefers_postprocessed_json(e2e_fixture):
     (extraction_dir / "postprocessed.json").write_text(json.dumps(rows))
 
     with pytest.raises(RuntimeError, match="different extraction file"):
-        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0)
+        rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0)
 
 
 def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fixture, monkeypatch):
@@ -719,7 +792,7 @@ def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fi
     monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
 
     row = rv.compute_metrics_for_id(
-        extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, compute_validity=False,
+        extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0, compute_validity=False,
     )
 
     assert row["recovery"] == pytest.approx(2 / 3)
@@ -739,11 +812,158 @@ def test_compute_metrics_for_id_with_declared_judge_combine_id_skips_scan(e2e_fi
     monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
 
     row = rv.compute_metrics_for_id(
-        extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, judge_combine_id=combine_id,
+        extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0, judge_combine_id=combine_id,
     )
     assert row["judge_combine_id"] == combine_id
     assert row["judge_ids"] == ";".join(judge_ids)
     assert row["validity"] == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# max_weight_matching_recovered / edge filters / edge_filter modes
+# ---------------------------------------------------------------------------
+
+
+def test_matching_one_extraction_edged_to_two_gt_recovers_only_one():
+    # ex 0 can serve only one gt row -- any-edge counting would say 2/2.
+    recovered, matching = rv.max_weight_matching_recovered(2, 1, [(0, 0), (1, 0)], [1.0, 1.0])
+    assert recovered.sum() == 1
+    assert len(matching) == 1
+
+
+def test_matching_heavy_edge_beats_two_light_edges():
+    # gt0-ex0=0.9 alone (0.9) beats gt0-ex1 + gt1-ex0 (0.4 + 0.4 = 0.8), even
+    # though the latter recovers 2 gt rows: weight first, cardinality second.
+    edges = [(0, 0), (0, 1), (1, 0)]
+    recovered, matching = rv.max_weight_matching_recovered(2, 2, edges, [0.9, 0.4, 0.4])
+    assert matching == [(0, 0)]
+    assert recovered.tolist() == [True, False]
+
+
+def test_matching_light_edges_win_when_their_total_is_larger():
+    edges = [(0, 0), (0, 1), (1, 0)]
+    recovered, matching = rv.max_weight_matching_recovered(2, 2, edges, [0.7, 0.4, 0.4])
+    assert matching == [(0, 1), (1, 0)]
+    assert recovered.tolist() == [True, True]
+
+
+def test_matching_zero_weight_lone_edge_is_recovered():
+    recovered, matching = rv.max_weight_matching_recovered(1, 1, [(0, 0)], [0.0])
+    assert recovered.tolist() == [True]
+
+
+def test_matching_zero_weight_edge_never_displaces_positive_edge():
+    recovered, matching = rv.max_weight_matching_recovered(2, 1, [(0, 0), (1, 0)], [0.0, 0.5])
+    assert matching == [(1, 0)]
+
+
+def test_matching_cardinality_breaks_exact_weight_ties_only():
+    # gt0-ex0=0.5 alone vs gt0-ex1=0.5 + gt1-ex0=0.0: equal total weight, the
+    # 2-edge matching wins the tie.
+    edges = [(0, 0), (0, 1), (1, 0)]
+    recovered, _ = rv.max_weight_matching_recovered(2, 2, edges, [0.5, 0.5, 0.0])
+    assert recovered.tolist() == [True, True]
+    # ...but a tiny real-weight deficit loses to the single heavier edge.
+    recovered, matching = rv.max_weight_matching_recovered(2, 2, edges, [0.502, 0.5, 0.0])
+    assert matching == [(0, 0)]
+
+
+def test_matching_gt_and_ext_index_spaces_do_not_collide():
+    # gt row 0 and extraction row 0 are different nodes; both can be matched.
+    recovered, matching = rv.max_weight_matching_recovered(2, 2, [(0, 1), (1, 0)], [1.0, 1.0])
+    assert matching == [(0, 1), (1, 0)]
+
+
+def test_matching_no_edges_recovers_nothing():
+    recovered, matching = rv.max_weight_matching_recovered(3, 3, [], [])
+    assert recovered.tolist() == [False] * 3 and matching == []
+
+
+def test_matching_is_deterministic():
+    edges = [(i % 4, (i * 3) % 5) for i in range(12)]
+    edges = sorted(set(edges))
+    w = [0.1 * ((i * 7) % 10) for i in range(len(edges))]
+    a = rv.max_weight_matching_recovered(4, 5, edges, w)
+    b = rv.max_weight_matching_recovered(4, 5, edges, w)
+    assert a[1] == b[1] and a[0].tolist() == b[0].tolist()
+
+
+def test_matching_rejects_duplicate_edges_bad_weights_and_out_of_range():
+    with pytest.raises(ValueError, match="duplicate"):
+        rv.max_weight_matching_recovered(1, 1, [(0, 0), (0, 0)], [1.0, 1.0])
+    with pytest.raises(ValueError, match="outside"):
+        rv.max_weight_matching_recovered(1, 1, [(0, 0)], [1.5])
+    with pytest.raises(ValueError, match="out of range"):
+        rv.max_weight_matching_recovered(1, 1, [(0, 3)], [1.0])
+
+
+def test_filter_edges_by_threshold_is_inclusive_and_keeps_weights_aligned():
+    edges, weights = rv.filter_edges_by_threshold([(0, 0), (1, 1), (2, 2)], [0.5, 0.49, 1.0], 0.5)
+    assert edges == [(0, 0), (2, 2)] and weights == [0.5, 1.0]
+
+
+def test_filter_edges_by_judgement_drops_edges_to_invalid_extractions():
+    edges, weights = rv.filter_edges_by_judgement(
+        [(0, 0), (1, 1), (2, 2)], [0.1, 0.9, 0.2], np.array([True, False, True]),
+    )
+    assert edges == [(0, 0), (2, 2)] and weights == [0.1, 0.2]
+
+
+def test_verify_matching_rejects_cross_paper_edge():
+    gt = pd.DataFrame({"document_id": ["d1"]})
+    ex = pd.DataFrame({"document_id": ["d2"]})
+    with pytest.raises(AssertionError, match="different document_ids"):
+        rv._verify_matching([(0, 0)], [(0, 0)], np.array([True]), np.array([True]), gt, ex)
+
+
+def test_compute_metrics_threshold_mode_reports_matching_and_any_edge(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    row = rv.compute_metrics_for_id(
+        extraction_id, ground_truth_path=gt_path, edge_filter="threshold", n_resamples=200, seed=0,
+    )
+    assert row["edge_filter"] == "threshold"
+    assert row["fuzzy_threshold"] == 0.5
+    assert row["n_surviving_edges"] == 2
+    assert row["recovery"] == pytest.approx(2 / 3)
+    assert row["recovery"] <= row["recovery_any_edge"]
+
+
+def test_compute_metrics_judge_mode_drops_invalid_ext_and_ignores_weight(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    # judged = [True, False, True]: edge (1,1) dropped; edge (2,2) kept even
+    # though its weight 0.2 is below the 0.5 fuzzy threshold -> gt rows 0, 2.
+    row = rv.compute_metrics_for_id(
+        extraction_id, ground_truth_path=gt_path, edge_filter="judge", n_resamples=200, seed=0,
+    )
+    assert row["edge_filter"] == "judge"
+    assert row["fuzzy_threshold"] is None
+    assert row["n_surviving_edges"] == 2
+    assert row["recovery"] == pytest.approx(2 / 3)
+    # validity is unchanged by edge_filter: matched [T,T,F] | judged [T,F,T].
+    assert row["validity"] == pytest.approx(1.0)
+
+
+def test_compute_metrics_judge_mode_without_validity_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    with pytest.raises(ValueError, match="judge_combine labels"):
+        rv.compute_metrics_for_id(
+            extraction_id, ground_truth_path=gt_path, edge_filter="judge",
+            n_resamples=200, seed=0, compute_validity=False,
+        )
+
+
+def test_compute_metrics_unknown_edge_filter_raises(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    with pytest.raises(ValueError, match="edge_filter must be one of"):
+        rv.compute_metrics_for_id(
+            extraction_id, ground_truth_path=gt_path, edge_filter="both", n_resamples=200, seed=0,
+        )
+
+
+def test_compute_metrics_seed_determinism(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    kw = dict(ground_truth_path=gt_path, edge_filter="judge", n_resamples=200, seed=7)
+    assert rv.compute_metrics_for_id(extraction_id, **kw) == rv.compute_metrics_for_id(extraction_id, **kw)
 
 
 # ---------------------------------------------------------------------------
@@ -769,7 +989,24 @@ def test_main_rejects_ids_without_n_resamples_or_seed():
 
 def test_main_rejects_ids_without_ground_truth_file():
     with pytest.raises(SystemExit):
-        rv.main(["some-id", "--n-resamples", "10", "--seed", "0"])
+        rv.main(["some-id", "--n-resamples", "10", "--seed", "0", "--edge-filter", "threshold"])
+
+
+def test_main_rejects_ids_without_edge_filter(tmp_path):
+    gt_path = tmp_path / "gt.json"
+    gt_path.write_text("[]")
+    with pytest.raises(SystemExit):
+        rv.main(["some-id", "--n-resamples", "10", "--seed", "0", "--ground-truth-file", str(gt_path)])
+
+
+def test_main_rejects_judge_edge_filter_with_skip_validity(tmp_path):
+    gt_path = tmp_path / "gt.json"
+    gt_path.write_text("[]")
+    with pytest.raises(SystemExit):
+        rv.main([
+            "some-id", "--n-resamples", "10", "--seed", "0", "--ground-truth-file", str(gt_path),
+            "--edge-filter", "judge", "--skip-validity",
+        ])
 
 
 def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
@@ -778,8 +1015,8 @@ def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
 
     calls = []
 
-    def _fake_compute(experiment_id, *, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id):
-        calls.append((experiment_id, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+    def _fake_compute(experiment_id, *, ground_truth_path, edge_filter, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, ground_truth_path, edge_filter, n_resamples, seed, alpha, compute_validity, judge_combine_id))
         return {
             "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
             "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
@@ -790,10 +1027,10 @@ def test_main_ad_hoc_cli_calls_compute_metrics_for_id(tmp_path, monkeypatch):
     output = tmp_path / "out.csv"
     rv.main([
         "id-a", "--n-resamples", "10", "--seed", "0", "--ground-truth-file", str(gt_path),
-        "--skip-validity", "--output", str(output),
+        "--edge-filter", "threshold", "--skip-validity", "--output", str(output),
     ])
 
-    assert calls == [("id-a", gt_path, 10, 0, 0.05, False, None)]
+    assert calls == [("id-a", gt_path, "threshold", 10, 0, 0.05, False, None)]
     df = pd.read_csv(output)
     assert pd.isna(df.loc[0, "analysis_config_id"])  # None round-tripped through CSV as NaN
 
@@ -814,6 +1051,7 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
                     "experiment_ids": ["id-a", "id-b"],
                     "ground_truth_file": str(gt_path),
                     "recovery_validity": {
+                        "edge_filter": "threshold",
                         "n_resamples": 500,
                         "alpha": 0.1,
                         "compute_validity": True,
@@ -827,8 +1065,8 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
 
     calls = []
 
-    def _fake_compute(experiment_id, *, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id):
-        calls.append((experiment_id, ground_truth_path, n_resamples, seed, alpha, compute_validity, judge_combine_id))
+    def _fake_compute(experiment_id, *, ground_truth_path, edge_filter, n_resamples, seed, alpha, compute_validity, judge_combine_id):
+        calls.append((experiment_id, ground_truth_path, edge_filter, n_resamples, seed, alpha, compute_validity, judge_combine_id))
         return {
             "experiment_id": experiment_id, "recovery": 0.5, "recovery_ci_lo": 0.4, "recovery_ci_hi": 0.6,
             "validity": None, "validity_ci_lo": None, "validity_ci_hi": None, "judge_combine_id": None,
@@ -839,8 +1077,8 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
     rv.main(["--config", str(config_path)])
 
     assert calls == [
-        ("id-a", gt_path, 500, 342, 0.1, True, "declared-combine-id"),
-        ("id-b", gt_path, 500, 342, 0.1, True, None),
+        ("id-a", gt_path, "threshold", 500, 342, 0.1, True, "declared-combine-id"),
+        ("id-b", gt_path, "threshold", 500, 342, 0.1, True, None),
     ]
     df = pd.read_csv(tmp_path / "out.csv")
     assert (df["analysis_config_id"] == "2026-09-23-test-rv-01").all()
@@ -862,6 +1100,7 @@ def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
                     "experiment_ids": ["id-a"],
                     "ground_truth_file": str(gt_path),
                     "recovery_validity": {
+                        "edge_filter": "threshold",
                         "n_resamples": 500,
                         "alpha": 0.1,
                         "compute_validity": True,
@@ -878,6 +1117,7 @@ def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
 
 def _rv_config(tmp_path, **rv_overrides):
     section = {
+        "edge_filter": "threshold",
         "n_resamples": 500,
         "alpha": 0.1,
         "compute_validity": True,

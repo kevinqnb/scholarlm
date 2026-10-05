@@ -21,11 +21,14 @@ unmatchable as a single row. This is the one step that changes row count:
 match_cache.py's matching is purely positional within postprocessed.json and
 is unaffected (more extraction rows only ever means more match candidates),
 but analysis/recovery_validity.py's validity/judge_combine path joins by
-`measurement_id`, which list-expanded rows duplicate -- for an id with any
-list rows, that join's own row-count/measurement_id checks
-(load_validity_labels) will correctly refuse rather than silently
-misattribute a judgement to the wrong expanded row. Recovery is unaffected;
-validity for such an id needs the judge re-run against the expanded rows.
+`(document_id, measurement_id)`, which list-expanded rows duplicate. Since
+2026-10-05 (a deliberate choice, not a pure-data fact) every expanded child
+INHERITS its parent's combined judgement -- the judges only saw the unexpanded
+parent, so a child they never saw on its own (e.g. a decimal-comma value split
+into two bogus values) can carry a label that does not strictly apply to it.
+load_validity_labels still refuses any other key mismatch, and the output row
+reports `n_split_rows_inheriting_judgement`. The alternative is re-judging the
+expanded rows.
 
 Both postprocessing steps are best-effort and NEVER invent a value they
 aren't confident about:
