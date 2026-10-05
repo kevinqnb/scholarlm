@@ -70,7 +70,7 @@ def world(tmp_path, monkeypatch):
             "params": {"dataset": ds, "judge_interp_id": i["train"]}}))
         rd = probe_res / i["probe_cfg"]
         rd.mkdir(parents=True)
-        probe_dir = paths.result_dir(ds, "judge_interp", i["train"]) / "trained_probe"
+        probe_dir = rd / "trained_probe"
         (rd / "results.json").write_text(json.dumps({"probe_path": str(probe_dir / "head_probe.pkl")}))
         datasets[ds] = {
             "extraction_id": i["ext"], "judge_interp_id": i["interp"], "judge_combine_id": i["combine"],
@@ -95,7 +95,8 @@ def test_happy_path(world, tmp_path):
     out = cids.resolve_calibration_inputs(_load(cfg, tmp_path))
     assert out["judge_model"] == "qwen-2.5-7b"
     assert out["datasets"]["nfix"]["syn_test_id"] == _ids("nfix")["primary"]
-    assert out["datasets"]["pond"]["probe_dir"].name == "trained_probe"
+    assert out["datasets"]["pond"]["probe_dir"] == (
+        tmp_path / "synthetic_probe" / _ids("pond")["probe_cfg"] / "trained_probe")
     assert out["datasets"]["pond"]["extraction_dir"].parts[-2] == "extraction"
 
 

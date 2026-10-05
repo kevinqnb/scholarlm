@@ -83,7 +83,7 @@ def _load_synthetic_run(run_id: str, dataset: str):
     against the dataset the run's config lives under.
 
     Returns:
-        (judge_model, syn_responses, syn_activations, syn_layer_outputs, probe_dir)
+        (judge_model, syn_responses, syn_activations, syn_layer_outputs)
 
     Raises:
         FileNotFoundError: If the config or any of its three output files is missing.
@@ -132,21 +132,25 @@ def _load_synthetic_run(run_id: str, dataset: str):
             f"({len(response_ids)} ids) and attention_outputs.npz ({len(activation_ids)} ids)"
         )
 
-    probe_dir = run_dir / 'trained_probe'
-    return judge_model, syn_responses, syn_activations, syn_layer_outputs, probe_dir
+    return judge_model, syn_responses, syn_activations, syn_layer_outputs
 
 
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
 
-# Platt scaling (CalibratedClassifierCV) wraps the head probe / NTP calibrator
-# by default. Set False to fit the base Pipeline's own .fit()/.predict_proba()
-# directly instead -- saved under a '_noplatt' filename suffix so the
-# Platt-scaled baseline artifacts are never overwritten. Flip back to True to
-# restore the original behavior exactly.
-# 2026-08-10-no-platt-scaling-01 found no-Platt substantially worse (see note)
-# -- reverted to True, the validated default.
-USE_PLATT_SCALING = True
+# Platt scaling (CalibratedClassifierCV) on the training data is OFF by default:
+# analysis/calibration_updated_v3.py now fits its own Platt scalers per test
+# dataset on a small labelled real sample, so scaling here would be redundant.
+# False fits the base Pipeline's own .fit()/.predict_proba() directly, saved
+# under a '_noplatt' filename suffix -- calibration_updated_v3's config must
+# use probe_variant: noplatt to load these. Set True to wrap the head probe /
+# NTP calibrator in CalibratedClassifierCV as before (saved under the
+# unsuffixed 'head_probe.pkl' / 'ntp_calibrator.pkl', matching
+# probe_variant: platt).
+# NOTE: 2026-08-10-no-platt-scaling-01 found no-Platt worse than train-side
+# Platt under the OLD pipeline (no downstream Platt); that comparison does not
+# apply now that v3 recalibrates, but the old numbers are not comparable.
+USE_PLATT_SCALING = False
 
 # Layer-output probe training + its combined cross-model plot (bottom of this
 # file). Set False to skip both and only train/save the head probe + NTP
@@ -179,8 +183,8 @@ def cv_score(probe, X, y, kfold_cv):
 def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed):
     """Train the head probe + NTP calibrator (and, if TRAIN_LAYER_PROBE, the
     layer probe) for one (dataset, judge_model) synthetic run and save them
-    under ``probe_dir`` (inside the judge_interp run's own dir, where
-    analysis/loaders.py reads them back from). Figures and results.json go
+    under ``probe_dir`` (``out_dir``/trained_probe, where
+    analysis/calibration_ids.py resolves them). Figures and results.json go
     under ``out_dir`` (RESULTS_ROOT/<analysis config id>/). ``seed`` (the
     analysis config's) seeds every split and LogisticRegression.
     """
@@ -515,9 +519,10 @@ def main():
     print(f'[synthetic_probe_train] analysis_config={cfg["id"]} dataset={dataset} '
           f'judge_interp_id={run_id} out_dir={out_dir}')
 
-    JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir = (
+    JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs = (
         _load_synthetic_run(run_id, dataset)
     )
+    probe_dir = out_dir / 'trained_probe'
     DATASETS_SEEN = [dataset]
     JUDGE_MODELS_SEEN = [JUDGE_MODEL]
     _train_and_save(dataset, JUDGE_MODEL, syn_responses, syn_activations,

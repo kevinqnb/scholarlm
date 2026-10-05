@@ -1,0 +1,60 @@
+id: 2026-10-05-calibration-v3-gemma27b-qwen-2.5-7b-noplatt-01
+project: scholarlm
+description: >
+  DRAFT. Same as 2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01 except
+  probe_variant: noplatt -- loads head_probe_noplatt.pkl / ntp_calibrator_noplatt.pkl
+  (single fit on all synthetic training rows, no train-side Platt scaling or 5-fold
+  ensemble; v3's per-test-dataset Platt scaling is the only calibration). Those
+  artifacts come from re-running analysis/synthetic_probe_train.py with
+  USE_PLATT_SCALING = False on the three synthetic-probe configs below. Numbers are
+  not comparable to the platt-variant run: the ensemble and the train-side Platt
+  change together. Calibration analysis v3 (analysis/calibration_updated_v3.py): same
+  extractions / judge runs as
+  2026-10-04-calibration-v2-gemma27b-qwen-2.5-7b-v3-01, but real-extraction cells
+  are Platt-scaled instead of prevalence-rescaled. Per test dataset, platt_n rows
+  are sampled (seeded) from that dataset's real rows whose document was in its own
+  synthetic-probe training set, labelled by judge_combine (plus matching where
+  use_matching_labels is on); one scaler per (train probe, test dataset, method).
+  Real test rows exclude that pool, so cross-probe test sets are smaller than in
+  v2. Synthetic test cells are not scaled.
+  Known caveat: the supermat qualifier-pipeline run has ~43% unmatchable `value`
+  (units-in-value bug + unused point_value/lower/upper), which depresses the
+  matching-derived labels for supermat.
+  Run: python analysis/calibration_updated_v3.py analysis/analysis-configs/2026-10-05-calibration-v3-gemma27b-qwen-2.5-7b-noplatt-01.yaml
+seed: 0
+params:
+  probe_type: head
+  probe_variant: noplatt
+  syn_split: primary
+  platt_n: 100
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: false
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01

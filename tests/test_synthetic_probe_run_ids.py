@@ -1,10 +1,11 @@
-"""Rung-1 unit tests for the id-addressed synthetic-probe training path added
-2026-09-16 (analysis/synthetic_probe_train.py's --judge-run-ids mode, and
-run_judge_interp.py's migration of synthetic_file output onto
-experiments/results/{dataset}/judge_interp/{id}/).
+"""Rung-1 unit tests for analysis/synthetic_probe_train.py: the id-addressed
+run loader (_load_synthetic_run), and main() on a tiny hand-built judge_interp run
+-- where it writes (analysis/results/synthetic_probe/<analysis config id>/, never
+the judge_interp run dir), which artifacts the USE_PLATT_SCALING flag selects, and
+same-seed determinism.
 
-Hand-built fixtures under tmp_path, monkeypatching utils.EXPERIMENT_CONFIGS_ROOT
-and utils.RESULTS_ROOT so no real repo data is touched.
+Hand-built fixtures under tmp_path, monkeypatching utils.EXPERIMENT_CONFIGS_ROOT,
+utils.RESULTS_ROOT and spt.RESULTS_ROOT so no real repo data is touched.
 """
 from __future__ import annotations
 
@@ -12,9 +13,16 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-import pytest
-import yaml
+import matplotlib
+
+matplotlib.use("Agg")
+
+import joblib  # noqa: E402
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+import yaml  # noqa: E402
+from sklearn.calibration import CalibratedClassifierCV  # noqa: E402
+from sklearn.pipeline import Pipeline  # noqa: E402
 
 _REPO = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO))
@@ -22,6 +30,9 @@ sys.path.insert(0, str(_REPO / "experiments"))
 
 import utils as paths  # noqa: E402
 from analysis import synthetic_probe_train as spt  # noqa: E402
+
+EXP_ID = "2026-09-16-test-synthetic-judge-train-01"
+PROBE_CFG_ID = "2026-10-02-test-synthetic-probe-01"
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +72,6 @@ def _write_run_output(
                 "judgement_p_true": 0.9 if mid % 2 == 0 else 0.1,
             })
             mid += 1
-    n = mid
 
     if drop_file != "responses.json":
         with open(run_dir / "responses.json", "w") as f:
@@ -100,134 +110,134 @@ def fixture_roots(tmp_path, monkeypatch):
 
 def test_load_synthetic_run_happy_path(fixture_roots):
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    _write_experiment_config(exp_root, "pond", exp_id, "qwen-2.5-7b")
-    _write_run_output(results_root, "pond", exp_id, "qwen-2.5-7b")
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b")
 
-    dataset, judge_model, syn_responses, syn_activations, syn_layer_outputs, probe_dir = (
-        spt._load_synthetic_run(exp_id)
-    )
-    assert dataset == "pond"
+    judge_model, syn_responses, syn_activations, syn_layer_outputs = spt._load_synthetic_run(EXP_ID, "pond")
     assert judge_model == "qwen-2.5-7b"
     assert len(syn_responses) == 24
     assert set(syn_activations.files) == {str(r["measurement_id"]) for r in syn_responses}
-    assert probe_dir == results_root / "pond" / "judge_interp" / exp_id / "trained_probe"
+    assert set(syn_layer_outputs.files) == set(syn_activations.files)
+
+
+def test_load_synthetic_run_dataset_mismatch_raises(fixture_roots):
+    exp_root, results_root = fixture_roots
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b")
+    with pytest.raises(ValueError, match="analysis config says dataset='nfix'"):
+        spt._load_synthetic_run(EXP_ID, "nfix")
 
 
 def test_load_synthetic_run_missing_judge_param_raises(fixture_roots):
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    path = exp_root / "pond" / "judge_interp" / exp_id / f"{exp_id}.yaml"
+    path = exp_root / "pond" / "judge_interp" / EXP_ID / f"{EXP_ID}.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
-        yaml.safe_dump({"id": exp_id, "project": "scholarlm", "description": "x",
+        yaml.safe_dump({"id": EXP_ID, "project": "scholarlm", "description": "x",
                          "seed": 342, "params": {"dataset": "pond"}}, f)
     with pytest.raises(ValueError, match=r"missing required params key\(s\): \['judge'\]"):
-        spt._load_synthetic_run(exp_id)
+        spt._load_synthetic_run(EXP_ID, "pond")
 
 
 def test_load_synthetic_run_missing_file_raises(fixture_roots):
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    _write_experiment_config(exp_root, "pond", exp_id, "qwen-2.5-7b")
-    _write_run_output(results_root, "pond", exp_id, "qwen-2.5-7b", drop_file="layer_outputs.npz")
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b", drop_file="layer_outputs.npz")
     with pytest.raises(FileNotFoundError, match="layer_outputs.npz"):
-        spt._load_synthetic_run(exp_id)
+        spt._load_synthetic_run(EXP_ID, "pond")
 
 
 def test_load_synthetic_run_judge_model_mismatch_raises(fixture_roots):
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    _write_experiment_config(exp_root, "pond", exp_id, "qwen-2.5-7b")
-    _write_run_output(results_root, "pond", exp_id, "qwen-2.5-7b", mismatched_judge_model="llama-3.1-8b")
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b", mismatched_judge_model="llama-3.1-8b")
     with pytest.raises(ValueError, match="disagrees with"):
-        spt._load_synthetic_run(exp_id)
+        spt._load_synthetic_run(EXP_ID, "pond")
 
 
 def test_load_synthetic_run_measurement_id_mismatch_raises(fixture_roots):
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    _write_experiment_config(exp_root, "pond", exp_id, "qwen-2.5-7b")
-    _write_run_output(results_root, "pond", exp_id, "qwen-2.5-7b", extra_activation_id=True)
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b", extra_activation_id=True)
     with pytest.raises(ValueError, match="measurement_id set mismatch"):
-        spt._load_synthetic_run(exp_id)
+        spt._load_synthetic_run(EXP_ID, "pond")
 
 
 # ---------------------------------------------------------------------------
-# _select_judge_run_ids
+# main(): one positional analysis config, output under spt.RESULTS_ROOT
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-def _clean_env(monkeypatch):
-    for k in ("SYNTHETIC_PROBE_DATASETS", "SYNTHETIC_PROBE_JUDGES",
-              "SYNTHETIC_PROBE_JUDGE_DATE", "SYNTHETIC_PROBE_SOURCE",
-              "SYNTHETIC_PROBE_JUDGE_RUN_IDS"):
-        monkeypatch.delenv(k, raising=False)
-    monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py"])
-
-
-def test_select_judge_run_ids_none_by_default():
-    assert spt._select_judge_run_ids() is None
-
-
-def test_select_judge_run_ids_from_cli(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", "--judge-run-ids", "id-a", "id-b"])
-    assert spt._select_judge_run_ids() == ["id-a", "id-b"]
-
-
-def test_select_judge_run_ids_from_env(monkeypatch):
-    monkeypatch.setenv("SYNTHETIC_PROBE_JUDGE_RUN_IDS", "id-a id-b")
-    assert spt._select_judge_run_ids() == ["id-a", "id-b"]
-
-
-def test_select_judge_run_ids_cli_beats_env(monkeypatch):
-    monkeypatch.setenv("SYNTHETIC_PROBE_JUDGE_RUN_IDS", "id-env")
-    monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", "--judge-run-ids", "id-cli"])
-    assert spt._select_judge_run_ids() == ["id-cli"]
-
-
-# ---------------------------------------------------------------------------
-# main() mode dispatch: mutual exclusivity
-# ---------------------------------------------------------------------------
-
-
-def test_main_rejects_run_ids_mixed_with_legacy_cli_flags(monkeypatch):
-    monkeypatch.setattr(sys, "argv", [
-        "synthetic_probe_train.py", "--judge-run-ids", "id-a", "--datasets", "pond",
-    ])
-    with pytest.raises(ValueError, match="mutually exclusive"):
-        spt.main()
-
-
-def test_main_rejects_run_ids_mixed_with_legacy_env(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", "--judge-run-ids", "id-a"])
-    monkeypatch.setenv("SYNTHETIC_PROBE_SOURCE", "v2")
-    with pytest.raises(ValueError, match="mutually exclusive"):
-        spt.main()
-
-
-# ---------------------------------------------------------------------------
-# End-to-end: id mode trains and saves to the id-addressed tree
-# ---------------------------------------------------------------------------
-
-
-def test_main_run_ids_mode_trains_and_saves(tmp_path, monkeypatch, fixture_roots):
+@pytest.fixture
+def run_main(tmp_path, monkeypatch, fixture_roots):
+    """Build a tiny pond run, point spt at tmp dirs, return a callable that runs
+    main() with the given USE_PLATT_SCALING and returns the output dirs."""
     exp_root, results_root = fixture_roots
-    exp_id = "2026-09-16-test-synthetic-judge-train-01"
-    _write_experiment_config(exp_root, "pond", exp_id, "qwen-2.5-7b")
-    _write_run_output(results_root, "pond", exp_id, "qwen-2.5-7b")
+    _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
+    run_dir = _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b")
 
-    monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", "--judge-run-ids", exp_id])
-    monkeypatch.chdir(tmp_path)  # FIGURES_DIR is written relative to cwd
+    probe_results_root = tmp_path / "synthetic_probe"
+    monkeypatch.setattr(spt, "RESULTS_ROOT", probe_results_root)
 
-    spt.main()
+    cfg_path = tmp_path / "analysis-configs" / f"{PROBE_CFG_ID}.yaml"
+    cfg_path.parent.mkdir()
+    with open(cfg_path, "w") as f:
+        yaml.safe_dump({
+            "id": PROBE_CFG_ID, "project": "scholarlm", "description": "test", "seed": 7,
+            "params": {"dataset": "pond", "judge_interp_id": EXP_ID},
+        }, f)
 
-    probe_dir = results_root / "pond" / "judge_interp" / exp_id / "trained_probe"
-    assert (probe_dir / "head_probe.pkl").exists()
-    assert (probe_dir / "ntp_calibrator.pkl").exists()
+    def _run(use_platt: bool):
+        monkeypatch.setattr(spt, "USE_PLATT_SCALING", use_platt)
+        monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", str(cfg_path)])
+        spt.main()
+        out_dir = probe_results_root / PROBE_CFG_ID
+        return out_dir, out_dir / "trained_probe", run_dir
 
-    import joblib
-    probe_data = joblib.load(probe_dir / "head_probe.pkl")
+    return _run
+
+
+def test_main_noplatt_saves_plain_pipeline_under_analysis_results(run_main):
+    out_dir, probe_dir, run_dir = run_main(False)
+
+    assert (probe_dir / "head_probe_noplatt.pkl").exists()
+    assert (probe_dir / "ntp_calibrator_noplatt.pkl").exists()
+    assert not (probe_dir / "head_probe.pkl").exists()
+    assert not (run_dir / "trained_probe").exists()  # never the judge_interp run dir
+
+    probe_data = joblib.load(probe_dir / "head_probe_noplatt.pkl")
+    assert type(probe_data["probe"]) is Pipeline  # one fit, no CalibratedClassifierCV ensemble
     assert probe_data["dataset"] == "pond"
     assert probe_data["judge_model"] == "qwen-2.5-7b"
+    assert type(joblib.load(probe_dir / "ntp_calibrator_noplatt.pkl")["calibrator"]) is Pipeline
+
+    results = json.loads((out_dir / "results.json").read_text())
+    assert results["use_platt_scaling"] is False
+    assert Path(results["probe_path"]).parent == probe_dir
+    assert (out_dir / "head_scores.npz").exists()
+
+
+def test_main_platt_saves_calibrated_ensemble_unsuffixed(run_main):
+    out_dir, probe_dir, run_dir = run_main(True)
+
+    assert (probe_dir / "head_probe.pkl").exists()
+    assert (probe_dir / "ntp_calibrator.pkl").exists()
+    assert not (probe_dir / "head_probe_noplatt.pkl").exists()
+    assert not (run_dir / "trained_probe").exists()
+
+    probe_data = joblib.load(probe_dir / "head_probe.pkl")
+    assert type(probe_data["probe"]) is CalibratedClassifierCV
+    assert len(probe_data["probe"].calibrated_classifiers_) == spt.N_FOLDS
+    assert json.loads((out_dir / "results.json").read_text())["use_platt_scaling"] is True
+
+
+def test_main_same_seed_is_deterministic(run_main):
+    _, probe_dir, _ = run_main(False)
+    first = joblib.load(probe_dir / "head_probe_noplatt.pkl")
+    first_coef = first["probe"].named_steps["clf"].coef_.copy()
+    first_heads = first["top_k_heads"]
+
+    _, probe_dir, _ = run_main(False)
+    second = joblib.load(probe_dir / "head_probe_noplatt.pkl")
+    assert second["top_k_heads"] == first_heads
+    assert np.array_equal(second["probe"].named_steps["clf"].coef_, first_coef)

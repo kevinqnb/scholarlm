@@ -283,7 +283,8 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
         (synthetic_file's _v<N> suffix), so a v3 probe is never evaluated on
         a v2 test set;
       - the synthetic-probe analysis config's params.dataset is this dataset,
-        and its results.json points into the train run's trained_probe/.
+        and its results.json points into
+        analysis/results/synthetic_probe/<probe config id>/trained_probe/.
 
     Returns:
         {'judge_model': str,
@@ -333,7 +334,7 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
         train_dir, train_cfg = _run_config(syn_train_id, ds, "judge_interp")
         judge_models[f"{ds} synthetic train"] = train_cfg["params"]["judge"]
         corpus_version = _synthetic_file_version(syn_train_id, train_cfg)
-        probe_dir = train_dir / "trained_probe"
+        probe_dir = _SYNTHETIC_PROBE_RESULTS_ROOT / probe_cfg["id"] / "trained_probe"
 
         results_path = _SYNTHETIC_PROBE_RESULTS_ROOT / probe_cfg["id"] / "results.json"
         if not results_path.exists():
