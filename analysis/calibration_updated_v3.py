@@ -24,6 +24,7 @@ from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_l
 from analysis.analysis_config import load_calibration_v3_config
 from analysis.metrics import validity_rate_from_labels
 from analysis import calibration_ids as cids
+from analysis.calibration_plot_utils import support_mask
 from scholarlm.utils.calibration import bootstrap_ece, fit_platt, apply_platt
 
 mpl.rcParams.update({
@@ -373,10 +374,17 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
     density_norm = density / density.max() if density.max() > 0 else np.ones_like(density)
     alpha = _CURVE_DENSITY_ALPHA_FLOOR + (1 - _CURVE_DENSITY_ALPHA_FLOOR) * density_norm
 
+    # Draw only where the data support the curve (see support_mask); outside it the
+    # smoother returns 0/eps (or an upward extrapolation), not an estimate.
+    in_support = support_mask(probs, mesh, d['sigma'])
+
     points = np.array([mesh, mu]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     seg_colors = np.tile(mcolors.to_rgba(color), (len(segments), 1))
     seg_colors[:, 3] = (alpha[:-1] + alpha[1:]) / 2
+    seg_keep = in_support[:-1] & in_support[1:]
+    segments, seg_colors = segments[seg_keep], seg_colors[seg_keep]
+    assert len(segments) > 0
 
     if linestyle == '--':
         seg_idx = np.arange(len(segments))
@@ -391,7 +399,7 @@ def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder,
     ax.add_collection(lc)
 
     ax.fill_between(
-        mesh, d['lower'], d['upper'],
+        mesh, d['lower'], d['upper'], where=in_support,
         color=color, alpha=0.20, linewidth=0, zorder=band_zorder,
     )
 
@@ -418,8 +426,9 @@ def plot_calibration_curves(setting_results, dtype):
                 ax_cal.set_xlim(-0.02, 1.02)
                 ax_cal.set_ylim(-0.02, 1.02)
                 ax_cal.set_xlabel('Predicted Probability')
-                ax_cal.set_ylabel('Observed Frequency')
-                ax_cal.set_title(f'{method}, trained on {_DS_LABELS[train_ds]}', fontsize=15, style='italic')
+                if method == 'NTP':
+                    ax_cal.set_ylabel('Observed Frequency')
+                ax_cal.set_title(method, fontsize=15, style='italic')
                 ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
                 ax_cal.set_axisbelow(True)
                 fig_cal.tight_layout()
