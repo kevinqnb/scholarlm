@@ -264,7 +264,7 @@ def run_sweep(ctx):
     assert len(summary) == len(ctx.datasets) ** 2 * len(_METHODS) * len(ctx.platt_ns), len(summary)
     assert (summary['n_used'] >= 2).all(), summary[summary['n_used'] < 2]
     for (ds, n), k in sorted(dropped.items()):
-        print(f'  WARNING dropped {k}/{ctx.n_trials} trials (single-class Platt sample): test={ds} n={n}')
+        print(f'  WARNING dropped {k}/{ctx.n_trials * len(ctx.datasets)} (trial, train probe) cells -- single-class Platt sample (one sample is shared by all train probes): test={ds} n={n}')
     for ds in ctx.datasets:
         pool_n = len(ctx.test_data[ds]['pool_idx'])
         for n in ctx.platt_ns:
