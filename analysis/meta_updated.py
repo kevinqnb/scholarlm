@@ -59,9 +59,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-from analysis.loaders import (
-    load_extraction, load_combined_judgements, load_ground_truth,
-    load_trained_probe, load_trained_ntp_calibrator, load_activations,
+import joblib
+import pickle
+
+from analysis.loaders import load_ground_truth_file
+from analysis.match_cache import repo_relative, sha256_file
+from analysis.meta_inputs import (
+    SECTION as META_SECTION, attach_scores, load_checked_dedup_rows, load_meta_config,
+    resolve_meta_inputs, stored_prediction_rows,
 )
 from experiments.run_extraction import load_dataset_config
 
@@ -88,24 +93,16 @@ mpl.rcParams.update({
     "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 
-FIGURES_DIR = REPO_ROOT / "figures" / "meta"
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-
-RESULTS_DIR = REPO_ROOT / "results"
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
+# Every run this script reads is named by one analysis config
+# (analysis/analysis-configs/<id>.yaml, see meta_inputs.load_meta_config); outputs go to
+# analysis/results/meta/<config id>/. Nothing is read from the legacy data/experiments tree.
+META_ROOT = REPO_ROOT / "analysis" / "results" / "meta"
 
 # ── Parameters ───────────────────────────────────────────────────────────────
+# Label for the `dataset` column of the output CSVs. The ecosystem bucketing,
+# ATTRIBUTES and PHYSICAL_BOUNDS below are pond-specific; main() asserts the config's
+# extraction run is a pond run.
 DATASET = 'pond'
-EXT_MODEL = 'gemma-3-27b'
-EXT_DATE = '2026_05_05'
-JUDGE_MODEL = 'qwen-2.5-7b'
-JUDGE_DATE = '2026_05_06'          # default; --judge-date overrides (interp judge run
-                                  # supplying the real-extraction activations)
-PROBE_TYPE = 'head'
-PROBE_SOURCE = None               # default (baseline trained_probe/); --probe-source
-                                  # selects a parallel synthetic_probe_<source>/ tree
-                                  # (e.g. 'v2') for the probe + NTP calibrator.
 
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
@@ -357,25 +354,78 @@ def convert_units(
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 
-def load_data():
-    """Load GT + extraction data, restrict to the shared held-out document set,
-    and attach judgement_combined / ntp_probs / probe_probs to ext_df.
+def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
+    """Platt-scaled NTP / probe confidence for the judged datapoints, read from the
+    predictions analysis/calibration_updated_v3.py stored -- nothing is recomputed.
+
+    Uses the 'real' cell with train dataset == test dataset (this dataset's own probe on
+    its own real extraction); see meta_inputs.stored_prediction_rows for how the pickle's
+    rows are mapped back to measurement_ids. Returns (scored_df, syn_docs, input_files);
+    scored_df has measurement_id, document_id, attribute, judgement_combined, ntp_prob,
+    probe_prob, one row per datapoint outside the probe's training documents.
     """
+    judge = inputs['judge_model']
+    for col in ('measurement_id', 'document_id', 'attribute'):
+        assert len(final_df) == len(combined_df) and (final_df[col].to_numpy() == combined_df[col].to_numpy()).all(), (
+            f'final.json and combined.json disagree on {col}')
+    assert final_df['measurement_id'].is_unique, 'final.json measurement_id is not unique'
+
+    suffix = '' if inputs['probe_variant'] == 'platt' else '_noplatt'
+    probe_path = inputs['probe_dir'] / f'head_probe{suffix}.pkl'
+    probe_art = joblib.load(probe_path)  # only for syn_document_ids; its predict_proba is never called
+    assert probe_art['judge_model'] == judge and probe_art['dataset'] == DATASET, probe_path
+    syn_docs = set(probe_art['syn_document_ids'])
+
+    with open(inputs['predictions_path'], 'rb') as f:
+        cell = pickle.load(f)['real'][judge][DATASET][DATASET]
+    assert cell['platt'] is not None, 'real-cell predictions should be Platt-scaled'
+    scored = stored_prediction_rows(final_df, syn_docs, cell)
+
+    # Every row the judge accepted is a positive label in the pickle (labels = judge OR matched).
+    jc = combined_df['judgement_combined'].to_numpy(dtype=bool)
+    idx = np.where(~final_df['document_id'].isin(syn_docs).to_numpy())[0]
+    assert cell['labels'][jc[idx]].all(), 'stored labels disagree with judgement_combined'
+    scored['judgement_combined'] = jc[idx]
+    return scored, syn_docs, [probe_path, inputs['predictions_path']]
+
+
+def load_data(cfg: dict, inputs: dict):
+    """Load GT + extraction rows, restrict to the shared held-out document set, and
+    attach judgement_combined / ntp_prob / probe_prob to the extraction rows.
+
+    Scores are computed on the judged run's final.json rows and joined by
+    measurement_id onto the rows named by params.meta.rows (final.json itself, or the
+    deduplicated records -- see meta_inputs.attach_scores for the many-to-one join).
+    Returns (gt_df, ext_df, manifest) where manifest records row counts and input hashes.
+    """
+    sec = cfg['params'][META_SECTION]
     config = load_dataset_config(DATASET)
 
-    gt_df = load_ground_truth(config)
+    gt_df = load_ground_truth_file(inputs['ground_truth_path'])
     gt_df = fix_fish_production_units(gt_df, config)
 
-    ext_records = load_extraction(DATASET, EXT_MODEL, EXT_DATE)
-    judged_records = load_combined_judgements(DATASET, EXT_MODEL, EXT_DATE)
-    ext_df = pd.DataFrame(ext_records)
-    judged_df = pd.DataFrame(judged_records)
-    ext_df['judgement_combined'] = judged_df['judgement_combined'].to_numpy()
-    ext_df[f'judgement_p_true_{JUDGE_MODEL}'] = judged_df[f'judgement_p_true_{JUDGE_MODEL}'].to_numpy()
+    final_path = inputs['extraction_dir'] / 'final.json'
+    combined_path = inputs['judge_combine_dir'] / 'combined.json'
+    final_df = pd.DataFrame(json.loads(final_path.read_text()))
+    combined_df = pd.DataFrame(json.loads(combined_path.read_text()))
+    scored, syn_docs, scored_inputs = _load_stored_scores(final_df, combined_df, inputs)
+    score_cols = ['judgement_combined', 'ntp_prob', 'probe_prob']
 
-    pd_data = load_trained_probe(DATASET, JUDGE_MODEL, ptype=PROBE_TYPE, source=PROBE_SOURCE)
-    ntp_cal_data = load_trained_ntp_calibrator(DATASET, JUDGE_MODEL, source=PROBE_SOURCE)
-    syn_docs = set(pd_data['syn_document_ids'])
+    input_files = [inputs['ground_truth_path'], final_path, combined_path, *scored_inputs]
+    if sec['rows'] == 'final':
+        rows_df = final_df
+    else:
+        records, dedup_meta = load_checked_dedup_rows(
+            inputs['dedup_dir'], inputs['extraction_id'], sec['deduplication_config_id'])
+        rows_df = pd.DataFrame(records)
+        input_files.append(inputs['dedup_dir'] / 'deduplicated.json')
+        print(f"[meta] deduplicated rows: {dedup_meta['rows_in']} -> {dedup_meta['rows_out']}")
+    n_rows = len(rows_df)
+    # Rows from the probe's own training documents have no held-out score (and are
+    # excluded below anyway); drop them before the join so every remaining row must score.
+    rows_df = rows_df[~rows_df['document_id'].isin(syn_docs)].reset_index(drop=True)
+    ext_df = attach_scores(rows_df, scored, score_cols)
+    assert len(ext_df) == len(rows_df)
 
     shared_docs = set(gt_df['document_id']) & set(ext_df['document_id'])
     heldout_docs = shared_docs - syn_docs
@@ -386,32 +436,19 @@ def load_data():
     ext_df = ext_df[ext_df['document_id'].isin(heldout_docs)].reset_index(drop=True)
     print(f"[meta] rows after held-out filter: gt={len(gt_df)}, ext={len(ext_df)}")
 
-    raw_ntp = ext_df[f'judgement_p_true_{JUDGE_MODEL}'].to_numpy()
-    ntp_probs = ntp_cal_data['calibrator'].predict_proba(raw_ntp.reshape(-1, 1))[:, 1]
-
-    top = pd_data['top_k_heads'] if PROBE_TYPE == 'head' else [pd_data['top_layer']]
-    act = load_activations(DATASET, EXT_MODEL, EXT_DATE, JUDGE_MODEL, JUDGE_DATE)
-    mids = ext_df['measurement_id'].tolist()
-    if PROBE_TYPE == 'head':
-        X = np.stack([
-            np.concatenate([np.asarray(act[str(m)], dtype=np.float32)[l, h, :] for l, h in top])
-            for m in mids
-        ])
-    else:
-        layer = pd_data['top_layer']
-        X = np.stack([np.asarray(act[str(m)], dtype=np.float32)[layer] for m in mids])
-    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
-
-    ext_df['ntp_prob'] = ntp_probs
-    ext_df['probe_prob'] = probe_probs
-
     gt_df['ecosystem_bucket'] = gt_df['ecosystem'].map(bucket_ecosystem)
     ext_df['ecosystem_bucket'] = ext_df['ecosystem'].map(bucket_ecosystem)
 
     gt_df = convert_units(gt_df)
     ext_df = convert_units(ext_df)
 
-    return gt_df, ext_df
+    manifest = dict(
+        rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, n_rows_scored=len(rows_df),
+        n_shared_docs=len(shared_docs), n_heldout_docs=len(heldout_docs),
+        n_gt_rows=len(gt_df), n_ext_rows=len(ext_df),
+        input_sha256={repo_relative(p): sha256_file(p) for p in input_files},
+    )
+    return gt_df, ext_df, manifest
 
 
 # ── Weighted statistics ──────────────────────────────────────────────────────
@@ -1113,57 +1150,51 @@ def plot_qq_legend_poster_smooth(out_path: Path):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    global PROBE_SOURCE, JUDGE_DATE, FIGURES_DIR
-    _judge_date_default = JUDGE_DATE
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--attributes', nargs='+', default=QQ_ATTRIBUTES,
-                         choices=ATTRIBUTES, help='Attribute subset (one subplot column each) for the Q-Q figures.')
-    parser.add_argument('--n-boot', type=int, default=N_BOOT,
-                         help='Bootstrap resamples for the ground-truth quantile uncertainty band.')
-    parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--probe-source', default=None,
-                         help="Synthetic training corpus for the probe + NTP calibrator "
-                              "(default: baseline trained_probe/). E.g. 'v2' reads the "
-                              "parallel synthetic_probe_<source>/ tree. Also suffixes the "
-                              "output CSVs and routes figures under figures/meta/<source>/ "
-                              "so baseline artifacts are never overwritten.")
-    parser.add_argument('--judge-date', default=_judge_date_default,
-                         help=f"Date tag of the qwen-2.5-7b interp judge run supplying the "
-                              f"real-extraction activations (default: {_judge_date_default}).")
+    parser.add_argument('config', type=Path,
+                        help="analysis/analysis-configs/<id>.yaml with params.meta (see meta_inputs.load_meta_config)")
     args = parser.parse_args()
 
-    PROBE_SOURCE = args.probe_source
-    JUDGE_DATE = args.judge_date
-    _suffix = f'_{PROBE_SOURCE}' if PROBE_SOURCE else ''
-    if PROBE_SOURCE:
-        FIGURES_DIR = FIGURES_DIR / PROBE_SOURCE
-        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    cfg = load_meta_config(args.config)
+    sec = cfg['params'][META_SECTION]
+    # meta_updated.py is pond-specific (see DATASET); resolve_meta_inputs fails if the
+    # calibration config has no pond block.
+    inputs = resolve_meta_inputs(cfg, DATASET)
+    bad_attrs = sorted(set(sec['qq_attributes']) - set(ATTRIBUTES))
+    assert not bad_attrs, f"qq_attributes not in ATTRIBUTES: {bad_attrs}"
+    seed, n_boot = cfg['seed'], sec['n_boot']
 
-    gt_df, ext_df = load_data()
+    out_dir = META_ROOT / cfg['id']
+    figures_dir = out_dir / 'figures'
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    gt_df, ext_df, manifest = load_data(cfg, inputs)
 
     stats_df = build_stats_table(gt_df, ext_df)
-    csv_path = RESULTS_DIR / f'meta_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
+    csv_path = out_dir / 'meta_stats.csv'
     stats_df.to_csv(csv_path, index=False)
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
 
-    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=args.seed, n_boot=args.n_boot)
-    w2_path = RESULTS_DIR / f'wasserstein_{DATASET}_{EXT_MODEL}_{EXT_DATE}{_suffix}.csv'
+    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=seed, n_boot=n_boot)
+    w2_path = out_dir / 'wasserstein.csv'
     w2_df.to_csv(w2_path, index=False)
     print(f"[meta] wrote {w2_path}")
     print(w2_df.to_string(index=False, float_format='{:.3g}'.format))
 
     for method in METHODS:
         for ecosystem in ECOSYSTEMS:
-            out_path = FIGURES_DIR / f'qq_{method}_{ecosystem}_smooth.pdf'
-            plot_qq_smooth(gt_df, ext_df, ecosystem, method, args.attributes, out_path,
-                            n_boot=args.n_boot, seed=args.seed)
+            plot_qq_smooth(gt_df, ext_df, ecosystem, method, sec['qq_attributes'],
+                           figures_dir / f'qq_{method}_{ecosystem}_smooth.pdf', n_boot=n_boot, seed=seed)
 
-    plot_qq_legend_smooth(FIGURES_DIR / 'qq_legend_smooth.pdf')
+    plot_qq_legend_smooth(figures_dir / 'qq_legend_smooth.pdf')
+    plot_qq_poster_smooth(gt_df, ext_df, figures_dir / 'qq_probe_pond_tn_poster_smooth.pdf',
+                          n_boot=n_boot, seed=seed)
+    plot_qq_legend_poster_smooth(figures_dir / 'qq_legend_poster_smooth.pdf')
 
-    plot_qq_poster_smooth(gt_df, ext_df, FIGURES_DIR / 'qq_probe_pond_tn_poster_smooth.pdf',
-                           n_boot=args.n_boot, seed=args.seed)
-    plot_qq_legend_poster_smooth(FIGURES_DIR / 'qq_legend_poster_smooth.pdf')
+    manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot, extraction_id=inputs['extraction_id'], calibration_config_id=sec['calibration_config_id'],
+                    deduplication_config_id=sec['deduplication_config_id'])
+    (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
 
 
 if __name__ == "__main__":
