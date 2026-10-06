@@ -41,13 +41,24 @@ from analysis import calibration_ids as cids
 from analysis.analysis_config import (
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
 )
-from analysis.match_cache import repo_relative, sha256_file
+from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
 SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "n_boot", "qq_attributes")
 ROWS_CHOICES = ("final", "deduplicated")
 # Columns the join compares between a kept row and the scored datapoint it joined to.
 JOIN_CHECK_COLS = ("document_id", "attribute")
+
+
+def numeric_point_value(point_value: pd.Series) -> pd.Series:
+    """The numeric value the meta analysis uses for every row: ``point_value`` parsed with
+    match_cache's ``_parse_numeric`` (plain numbers / numeric strings and "m x 10^e"
+    scientific notation), i.e. the same numbers the ground-truth matching sees. Anything
+    that does not parse (None, "pH", "1 m^2") is NaN and is dropped downstream by
+    ``convert_units``. ``value`` is raw model text (e.g. "ca. 0.26") and is not used."""
+    out = point_value.map(_parse_numeric).astype(float)
+    assert len(out) == len(point_value)
+    return out
 
 
 def load_meta_config(path: Path) -> dict:

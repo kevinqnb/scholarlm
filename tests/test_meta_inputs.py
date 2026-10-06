@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from analysis.meta_inputs import attach_scores, load_meta_config, stored_prediction_rows
+from analysis.meta_inputs import attach_scores, load_meta_config, numeric_point_value, stored_prediction_rows
 
 SCORE_COLS = ["ntp_prob", "probe_prob"]
 
@@ -150,3 +150,13 @@ def test_stored_rows_nonfinite_raises():
     c["probe_probs"][0] = np.nan
     with pytest.raises(ValueError, match="non-finite"):
         stored_prediction_rows(final(), {"t"}, c)
+
+
+# ── numeric_point_value ──────────────────────────────────────────────────────
+
+def test_numeric_point_value_known_answers():
+    pv = pd.Series(["0.26", 1.5, "1.5 × 10^8", None, "pH", "1 m²", "ca. 3"], index=[5, 6, 7, 8, 9, 10, 11])
+    out = numeric_point_value(pv)
+    assert out.index.tolist() == pv.index.tolist()
+    assert out.iloc[:3].tolist() == [0.26, 1.5, 1.5e8]
+    assert out.iloc[3:].isna().all()

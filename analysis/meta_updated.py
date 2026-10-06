@@ -65,7 +65,7 @@ import pickle
 from analysis.loaders import load_ground_truth_file
 from analysis.match_cache import repo_relative, sha256_file
 from analysis.meta_inputs import (
-    SECTION as META_SECTION, attach_scores, load_checked_dedup_rows, load_meta_config,
+    SECTION as META_SECTION, attach_scores, load_checked_dedup_rows, load_meta_config, numeric_point_value,
     resolve_meta_inputs, stored_prediction_rows,
 )
 from experiments.run_extraction import load_dataset_config
@@ -439,13 +439,23 @@ def load_data(cfg: dict, inputs: dict):
     gt_df['ecosystem_bucket'] = gt_df['ecosystem'].map(bucket_ecosystem)
     ext_df['ecosystem_bucket'] = ext_df['ecosystem'].map(bucket_ecosystem)
 
-    gt_df = convert_units(gt_df)
-    ext_df = convert_units(ext_df)
+    # Every row's numeric value is its parsed point_value (see numeric_point_value). In the
+    # ground truth point_value == value numerically (asserted), so only the extraction side
+    # changes relative to reading `value`.
+    gt_df['meta_value'] = numeric_point_value(gt_df['point_value'])
+    gt_value = pd.to_numeric(gt_df['value'], errors='coerce')
+    assert ((gt_df['meta_value'] == gt_value) | (gt_df['meta_value'].isna() & gt_value.isna())).all(), (
+        'ground truth point_value and value disagree')
+    ext_df['meta_value'] = numeric_point_value(ext_df['point_value'])
+    gt_df = convert_units(gt_df, value_col='meta_value')
+    ext_df = convert_units(ext_df, value_col='meta_value')
 
     manifest = dict(
         rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, n_rows_scored=len(rows_df),
         n_shared_docs=len(shared_docs), n_heldout_docs=len(heldout_docs),
         n_gt_rows=len(gt_df), n_ext_rows=len(ext_df),
+        n_ext_unparseable_point_value=int(ext_df['meta_value'].isna().sum()),
+        n_ext_unconvertible=int(ext_df['converted_value'].isna().sum()),
         input_sha256={repo_relative(p): sha256_file(p) for p in input_files},
     )
     return gt_df, ext_df, manifest
