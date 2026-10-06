@@ -275,3 +275,6 @@ ISSUE-*.md
 
 # Match caches (analysis/match_cache.py): derived pickles + sidecars, rebuilt on demand, never committed.
 analysis/results/match_cache/
+
+# Deduplicate caches (analysis/deduplicate_cache.py): derived pickles + sidecars, rebuilt on demand, never committed.
+analysis/results/deduplicate_cache/
