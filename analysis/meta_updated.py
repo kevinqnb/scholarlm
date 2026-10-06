@@ -65,8 +65,9 @@ import pickle
 from analysis.loaders import load_ground_truth_file
 from analysis.match_cache import repo_relative, sha256_file
 from analysis.meta_inputs import (
-    SECTION as META_SECTION, attach_scores, load_checked_dedup_rows, load_meta_config, numeric_point_value,
-    resolve_meta_inputs, stored_prediction_rows,
+    _REPO_ROOT as REPO_ROOT,
+    SECTION as META_SECTION, attach_scores, dedup_rows_with_scores, load_checked_dedup_rows, load_meta_config, numeric_point_value,
+    resolve_meta_inputs, row_provenance, stored_prediction_rows,
 )
 from experiments.run_extraction import load_dataset_config
 
@@ -414,18 +415,33 @@ def load_data(cfg: dict, inputs: dict):
     input_files = [inputs['ground_truth_path'], final_path, combined_path, *scored_inputs]
     if sec['rows'] == 'final':
         rows_df = final_df
+        n_rows = len(rows_df)
+        # Rows from the probe's own training documents have no held-out score (and are
+        # excluded below anyway); drop them before the join so every remaining row must score.
+        rows_df = rows_df[~rows_df['document_id'].isin(syn_docs)].reset_index(drop=True)
+        ext_df = attach_scores(rows_df, scored, score_cols)
     else:
-        records, dedup_meta = load_checked_dedup_rows(
-            inputs['dedup_dir'], inputs['extraction_id'], sec['deduplication_config_id'])
-        rows_df = pd.DataFrame(records)
-        input_files.append(inputs['dedup_dir'] / 'deduplicated.json')
-        print(f"[meta] deduplicated rows: {dedup_meta['rows_in']} -> {dedup_meta['rows_out']}")
-    n_rows = len(rows_df)
-    # Rows from the probe's own training documents have no held-out score (and are
-    # excluded below anyway); drop them before the join so every remaining row must score.
-    rows_df = rows_df[~rows_df['document_id'].isin(syn_docs)].reset_index(drop=True)
-    ext_df = attach_scores(rows_df, scored, score_cols)
-    assert len(ext_df) == len(rows_df)
+        post_path = inputs['extraction_dir'] / 'postprocessed.json'
+        post_df = row_provenance(pd.DataFrame(json.loads(post_path.read_text())))
+        input_files.append(post_path)
+        n_rows = len(post_df)
+        if sec['rows'] == 'postprocessed':
+            rows_df = post_df[~post_df['document_id'].isin(syn_docs)].reset_index(drop=True)
+            ext_df = attach_scores(rows_df, scored, score_cols)
+        else:
+            records, dedup_meta = load_checked_dedup_rows(
+                inputs['dedup_dir'], inputs['extraction_id'], sec['deduplication_config_id'])
+            assert REPO_ROOT / dedup_meta['extraction_file'] == post_path, (
+                f"deduplication was built from {dedup_meta['extraction_file']}, not {post_path}")
+            assert dedup_meta['rows_in'] == len(post_df)
+            clusters_df = pd.read_csv(inputs['dedup_dir'] / 'clusters.csv')
+            input_files += [inputs['dedup_dir'] / 'deduplicated.json', inputs['dedup_dir'] / 'clusters.csv']
+            print(f"[meta] deduplicated rows: {dedup_meta['rows_in']} -> {dedup_meta['rows_out']} "
+                  f"(confidence: {sec['confidence']})")
+            ext_df = dedup_rows_with_scores(
+                pd.DataFrame(records), post_df, clusters_df, scored, score_cols,
+                ['ntp_prob', 'probe_prob'], sec['confidence'], syn_docs)
+            rows_df = ext_df
 
     shared_docs = set(gt_df['document_id']) & set(ext_df['document_id'])
     heldout_docs = shared_docs - syn_docs
@@ -451,9 +467,12 @@ def load_data(cfg: dict, inputs: dict):
     ext_df = convert_units(ext_df, value_col='meta_value')
 
     manifest = dict(
-        rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, n_rows_scored=len(rows_df),
+        rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, confidence=sec['confidence'], n_rows_scored=len(rows_df),
         n_shared_docs=len(shared_docs), n_heldout_docs=len(heldout_docs),
         n_gt_rows=len(gt_df), n_ext_rows=len(ext_df),
+        n_ext_list_children=int((ext_df['n_siblings'] > 1).sum()) if 'n_siblings' in ext_df else None,
+        n_ext_list_children_unparseable=(int(((ext_df['n_siblings'] > 1) & ext_df['meta_value'].isna()).sum())
+                                         if 'n_siblings' in ext_df else None),
         n_ext_unparseable_point_value=int(ext_df['meta_value'].isna().sum()),
         n_ext_unconvertible=int(ext_df['converted_value'].isna().sum()),
         input_sha256={repo_relative(p): sha256_file(p) for p in input_files},
@@ -1203,7 +1222,7 @@ def main():
     plot_qq_legend_poster_smooth(figures_dir / 'qq_legend_poster_smooth.pdf')
 
     manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot, extraction_id=inputs['extraction_id'], calibration_config_id=sec['calibration_config_id'],
-                    deduplication_config_id=sec['deduplication_config_id'])
+                    deduplication_config_id=sec['deduplication_config_id'], confidence=sec['confidence'])
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
 
 

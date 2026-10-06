@@ -12,7 +12,10 @@ import pandas as pd
 import pytest
 import yaml
 
-from analysis.meta_inputs import attach_scores, load_meta_config, numeric_point_value, stored_prediction_rows
+from analysis.meta_inputs import (
+    attach_scores, dedup_rows_with_scores, load_meta_config, numeric_point_value, row_provenance,
+    stored_prediction_rows,
+)
 
 SCORE_COLS = ["ntp_prob", "probe_prob"]
 
@@ -89,7 +92,7 @@ GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
     "params": {"meta": {
         "calibration_config_id": "cal", "rows": "final",
-        "deduplication_config_id": None, "n_boot": 10, "qq_attributes": ["tn"],
+        "deduplication_config_id": None, "confidence": None, "n_boot": 10, "qq_attributes": ["tn"],
     }},
 }
 
@@ -98,6 +101,14 @@ def write(tmp_path, cfg):
     p = tmp_path / "t.yaml"
     p.write_text(yaml.safe_dump(cfg))
     return p
+
+
+def test_postprocessed_and_deduplicated_configs_load(tmp_path):
+    for rows, dd, conf in [("postprocessed", None, None), ("deduplicated", "x", "center"),
+                           ("deduplicated", "x", "cluster_mean")]:
+        cfg = copy.deepcopy(GOOD)
+        cfg["params"]["meta"].update(rows=rows, deduplication_config_id=dd, confidence=conf)
+        assert load_meta_config(write(tmp_path, cfg))["params"]["meta"]["confidence"] == conf
 
 
 def test_good_config_loads(tmp_path):
@@ -111,6 +122,9 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(deduplication_config_id="x"),             # id given for rows=final
     lambda m: m.update(rows="deduplicated"),                     # rows=deduplicated without id
     lambda m: m.update(n_boot=True),                             # bool is not an int
+    lambda m: m.update(confidence="center"),                     # confidence given for rows=final
+    lambda m: m.update(rows="deduplicated", deduplication_config_id="x"),                       # no confidence
+    lambda m: m.update(rows="deduplicated", deduplication_config_id="x", confidence="median"),  # bad choice
 ])
 def test_bad_config_raises(tmp_path, mutate):
     cfg = copy.deepcopy(GOOD)
@@ -160,3 +174,133 @@ def test_numeric_point_value_known_answers():
     assert out.index.tolist() == pv.index.tolist()
     assert out.iloc[:3].tolist() == [0.26, 1.5, 1.5e8]
     assert out.iloc[3:].isna().all()
+
+
+# ── row_provenance / dedup_rows_with_scores ──────────────────────────────────
+# Postprocessed fixture (row: measurement_id, document, point_value):
+#   0: 0 a 1.0 | 1: 1 a 4.0 (child 0 of parent 1) | 2: 1 a 5.0 (child 1) | 3: 2 a 4.0 (plain,
+#   duplicates row 1) | 4: 3 b 7.0 | 5: 4 t 9.0 (probe-training document, never scored)
+# Clusters: {0} {1,3} (center 3) {2} {4} {5}.
+
+def post():
+    return pd.DataFrame({
+        "measurement_id": [0, 1, 1, 2, 3, 4],
+        "document_id": ["a", "a", "a", "a", "b", "t"],
+        "attribute": ["tn", "ph", "ph", "ph", "tn", "tn"],
+        "value": ["1.0", "4 and 5", "4 and 5", "4.0", "7.0", "9.0"],
+        "point_value": [1.0, 4.0, 5.0, 4.0, 7.0, 9.0],
+        "list_values": [None] * 6,
+    })
+
+
+def clusters():
+    return pd.DataFrame({
+        "row": range(6), "measurement_id": [0, 1, 1, 2, 3, 4],
+        "cluster_id": [0, 1, 2, 1, 4, 5], "center_row": [0, 3, 2, 3, 4, 5],
+        "is_center": [True, False, True, True, True, True], "cluster_size": [1, 2, 1, 2, 1, 1],
+        "mean_w": 1.0,
+    })
+
+
+def scored3():
+    return pd.DataFrame({
+        "measurement_id": [0, 1, 2, 3], "document_id": ["a", "a", "a", "b"],
+        "attribute": ["tn", "ph", "ph", "tn"],
+        "judgement_combined": [True, False, True, False],
+        "ntp_prob": [0.1, 0.2, 0.3, 0.4], "probe_prob": [0.9, 0.8, 0.7, 0.6],
+    })
+
+
+def kept():
+    return post().iloc[[0, 2, 3, 4, 5]].reset_index(drop=True)[
+        ["measurement_id", "document_id", "attribute", "point_value"]]
+
+
+SC = ["judgement_combined", "ntp_prob", "probe_prob"]
+MC = ["ntp_prob", "probe_prob"]
+
+
+def dedup(conf, **over):
+    a = dict(kept=kept(), post=row_provenance(post()), clusters=clusters(), scored=scored3(),
+             score_cols=SC, mean_cols=MC, confidence=conf, excluded_docs={"t"})
+    a.update(over)
+    return dedup_rows_with_scores(**a)
+
+
+def test_row_provenance_known_answer():
+    out = row_provenance(post())
+    assert out["row"].tolist() == [0, 1, 2, 3, 4, 5]
+    assert out["n_siblings"].tolist() == [1, 2, 2, 1, 1, 1]
+    assert out["list_index"].tolist() == [-1, 0, 1, -1, -1, -1]
+
+
+def test_row_provenance_noncontiguous_siblings_raise():
+    p = post()
+    p["measurement_id"] = [0, 1, 7, 1, 3, 4]   # id 1 at rows 1 and 3, split by row 2
+    with pytest.raises(ValueError, match="contiguous"):
+        row_provenance(p)
+
+
+def test_row_provenance_siblings_disagree_raises():
+    p = post()
+    p.loc[2, "attribute"] = "tp"
+    with pytest.raises(ValueError, match="attribute"):
+        row_provenance(p)
+
+
+def test_row_provenance_non_int_id_raises():
+    p = post()
+    p["measurement_id"] = p["measurement_id"].astype(float)
+    with pytest.raises(ValueError, match="int"):
+        row_provenance(p)
+
+
+def test_dedup_center_confidence_is_the_centers_parents():
+    out = dedup("center")
+    assert out["row"].tolist() == [0, 2, 3, 4]          # row 5 is a training document
+    assert out["point_value"].tolist() == [1.0, 5.0, 4.0, 7.0]
+    assert out["probe_prob"].tolist() == [0.9, 0.8, 0.7, 0.6]   # row 2 is a child of parent 1
+    assert out["ntp_prob"].tolist() == [0.1, 0.2, 0.3, 0.4]
+    assert out["judgement_combined"].tolist() == [True, False, True, False]
+    assert out["n_siblings"].tolist() == [1, 2, 1, 1] and out["list_index"].tolist() == [-1, 1, -1, -1]
+
+
+def test_dedup_cluster_mean_averages_members_but_not_the_judge_label():
+    out = dedup("cluster_mean")
+    # cluster {1,3} = parents 1 (probe .8, ntp .2) and 2 (probe .7, ntp .3); center is row 3.
+    assert out["row"].tolist() == [0, 2, 3, 4]
+    assert out["probe_prob"].tolist() == pytest.approx([0.9, 0.8, 0.75, 0.6])
+    assert out["ntp_prob"].tolist() == pytest.approx([0.1, 0.2, 0.25, 0.4])
+    assert out["judgement_combined"].tolist() == [True, False, True, False]  # center's own
+
+
+def test_dedup_kept_row_not_matching_its_center_raises():
+    k = kept()
+    k.loc[2, "point_value"] = 99.0
+    with pytest.raises(ValueError, match="point_value"):
+        dedup("center", kept=k)
+
+
+def test_dedup_clusters_for_other_rows_raise():
+    c = clusters()
+    c.loc[1, "measurement_id"] = 9
+    with pytest.raises(ValueError, match="does not describe"):
+        dedup("center", clusters=c)
+
+
+def test_dedup_cluster_spanning_documents_raises():
+    c = clusters()
+    c.loc[4, "cluster_id"] = 1  # row 4 (document b) joins cluster {1,3}
+    c.loc[4, "is_center"] = False
+    with pytest.raises(ValueError):
+        dedup("center", clusters=c)
+
+
+def test_dedup_unscored_parent_raises():
+    with pytest.raises(ValueError, match="no scored datapoint"):
+        dedup("center", scored=scored3().iloc[[0, 1, 3]])
+
+
+def test_dedup_bad_confidence_raises():
+    with pytest.raises(ValueError, match="confidence"):
+        dedup("median")

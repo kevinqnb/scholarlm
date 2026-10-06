@@ -44,8 +44,14 @@ from analysis.analysis_config import (
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
-SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "n_boot", "qq_attributes")
-ROWS_CHOICES = ("final", "deduplicated")
+SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot", "qq_attributes")
+# final: judged final.json rows (list values unexpanded); postprocessed: postprocessed.json
+# (list values expanded to one row per entry, not deduplicated); deduplicated: the
+# deduplication of postprocessed.json.
+ROWS_CHOICES = ("final", "postprocessed", "deduplicated")
+# For rows == 'deduplicated': a kept row's probe/NTP confidence is its cluster center's
+# own (the center's parent datapoint's) or the mean over every cluster member's.
+CONFIDENCE_CHOICES = ("center", "cluster_mean")
 # Columns the join compares between a kept row and the scored datapoint it joined to.
 JOIN_CHECK_COLS = ("document_id", "attribute")
 
@@ -65,8 +71,9 @@ def load_meta_config(path: Path) -> dict:
     """Load and validate an analysis config for meta_updated.py.
 
     ``params`` holds exactly the ``meta`` section (SECTION_KEYS: no defaults, no
-    extras). ``deduplication_config_id`` is required to be present always: a string
-    iff ``rows == 'deduplicated'``, null iff ``rows == 'final'``.
+    extras). ``deduplication_config_id`` and ``confidence`` are required to be present
+    always: a string (``confidence`` one of CONFIDENCE_CHOICES) iff
+    ``rows == 'deduplicated'``, null otherwise.
     """
     cfg = _load_envelope(path)
     unexpected = set(cfg["params"]) - {SECTION}
@@ -81,8 +88,13 @@ def load_meta_config(path: Path) -> dict:
     if sec["rows"] == "deduplicated":
         if not isinstance(dd, str) or not dd:
             raise ValueError(f"{path}: {SECTION}.deduplication_config_id must be a non-empty string when rows is 'deduplicated'")
-    elif dd is not None:
-        raise ValueError(f"{path}: {SECTION}.deduplication_config_id must be null when rows is 'final', got {dd!r}")
+        if sec["confidence"] not in CONFIDENCE_CHOICES:
+            raise ValueError(f"{path}: {SECTION}.confidence must be one of {CONFIDENCE_CHOICES} when rows is 'deduplicated', got {sec['confidence']!r}")
+    else:
+        if dd is not None:
+            raise ValueError(f"{path}: {SECTION}.deduplication_config_id must be null unless rows is 'deduplicated', got {dd!r}")
+        if sec["confidence"] is not None:
+            raise ValueError(f"{path}: {SECTION}.confidence must be null unless rows is 'deduplicated', got {sec['confidence']!r}")
     nb = sec["n_boot"]
     if isinstance(nb, bool) or not isinstance(nb, int) or nb <= 0:
         raise ValueError(f"{path}: {SECTION}.n_boot must be a positive int, got {nb!r}")
@@ -213,4 +225,105 @@ def attach_scores(rows: pd.DataFrame, scored: pd.DataFrame, score_cols: list[str
     for c in score_cols:
         if out[c].isna().any():
             raise ValueError(f"{int(out[c].isna().sum())} rows have NaN {c!r} after the join")
+    return out
+
+
+def _dumps(x) -> str:
+    return json.dumps(x, default=str)
+
+
+def row_provenance(rows: pd.DataFrame) -> pd.DataFrame:
+    """Tag postprocessed.json rows with their identity. ``measurement_id`` is the PARENT
+    datapoint's id, not a row id: a list-valued datapoint is expanded into one row per
+    entry and every child keeps the parent's id. Row identity here is the position.
+
+    Adds ``row`` (position 0..n-1), ``n_siblings`` (rows sharing this measurement_id) and
+    ``list_index`` (0.. among siblings, -1 for a row that is the only one with its id).
+    Fails loud unless: measurement_id is an int on every row; the rows of one id are
+    contiguous; and siblings agree on every field except ``point_value`` and
+    ``list_values`` (postprocessing.expand_list_values only sets those).
+    """
+    mid = rows["measurement_id"]
+    if not all(isinstance(m, (int, np.integer)) and not isinstance(m, bool) for m in mid):
+        raise ValueError("measurement_id must be an int on every row")
+    run = (mid != mid.shift()).cumsum()
+    if run.nunique() != mid.nunique():
+        raise ValueError("rows sharing a measurement_id are not contiguous")
+    out = rows.copy()
+    out["row"] = np.arange(len(rows))
+    out["n_siblings"] = out.groupby("measurement_id")["row"].transform("size")
+    out["list_index"] = np.where(out["n_siblings"] > 1, out.groupby("measurement_id").cumcount(), -1)
+    free = {"point_value", "list_values"}
+    for m, g in out[out["n_siblings"] > 1].groupby("measurement_id"):
+        for c in rows.columns:
+            if c in free:
+                continue
+            if g[c].map(_dumps).nunique() != 1:
+                raise ValueError(f"measurement_id {m}: sibling rows disagree on {c!r}")
+    return out
+
+
+def dedup_rows_with_scores(kept: pd.DataFrame, post: pd.DataFrame, clusters: pd.DataFrame,
+                           scored: pd.DataFrame, score_cols: list[str], mean_cols: list[str],
+                           confidence: str, excluded_docs: set) -> pd.DataFrame:
+    """Deduplicated rows (outside ``excluded_docs``) with scores attached.
+
+    ``kept`` is deduplicated.json (the cluster centers, in row order, with merged
+    provenance); ``post`` the postprocessed.json rows it was built from (output of
+    ``row_provenance``); ``clusters`` its clusters.csv (row, measurement_id, cluster_id,
+    center_row, is_center, ...); ``scored`` one row per judged final.json datapoint.
+
+    Every postprocessed row is scored through its parent's measurement_id (children
+    inherit). A kept row takes its center's scores (``confidence == 'center'``) or, for
+    ``mean_cols`` only, the mean over all rows in its cluster (``'cluster_mean'``);
+    the remaining ``score_cols`` (the boolean judge label) are always the center's.
+    The kept rows are located through clusters.csv and verified against ``post``;
+    clusters must lie within one document (so dropping excluded documents never splits one).
+    """
+    if confidence not in CONFIDENCE_CHOICES:
+        raise ValueError(f"confidence must be one of {CONFIDENCE_CHOICES}, got {confidence!r}")
+    n = len(post)
+    if len(clusters) != n or clusters["row"].tolist() != list(range(n)) \
+            or clusters["measurement_id"].tolist() != post["measurement_id"].tolist():
+        raise ValueError("clusters.csv does not describe these postprocessed rows (row / measurement_id mismatch)")
+    centers = clusters[clusters["is_center"]].sort_values("row")
+    if len(centers) != len(kept) or centers["cluster_id"].nunique() != len(centers):
+        raise ValueError(f"{len(centers)} cluster centers vs {len(kept)} deduplicated rows")
+    if not (clusters.loc[clusters["is_center"], "center_row"].to_numpy() == clusters.loc[clusters["is_center"], "row"].to_numpy()).all():
+        raise ValueError("clusters.csv: a center's center_row is not itself")
+    crow = centers["row"].to_numpy()
+    for c in ("measurement_id", "document_id", "attribute", "point_value"):
+        a = kept[c].map(_dumps).tolist()
+        b = post.iloc[crow][c].map(_dumps).tolist()
+        if a != b:
+            raise ValueError(f"deduplicated.json row {next(i for i in range(len(a)) if a[i] != b[i])} "
+                             f"does not match its center row in postprocessed.json on {c!r}")
+    doc = post["document_id"].to_numpy()
+    cid = clusters["cluster_id"].to_numpy()
+    if (pd.Series(doc).groupby(cid).nunique() != 1).any():
+        raise ValueError("a deduplication cluster spans more than one document")
+
+    live = post[~post["document_id"].isin(excluded_docs)]
+    live_scored = attach_scores(live, scored, score_cols).set_index("row")
+    in_live = ~kept["document_id"].isin(excluded_docs).to_numpy()
+    out = kept[in_live].reset_index(drop=True)
+    out_rows = crow[in_live]
+    out["row"] = out_rows
+    out["cluster_id"] = centers["cluster_id"].to_numpy()[in_live]
+    out["cluster_size"] = centers["cluster_size"].to_numpy()[in_live]
+    out["n_siblings"] = post["n_siblings"].to_numpy()[out_rows]
+    out["list_index"] = post["list_index"].to_numpy()[out_rows]
+    for c in score_cols:
+        out[c] = live_scored.loc[out_rows, c].to_numpy()
+    if confidence == "cluster_mean":
+        members = live_scored.join(clusters.set_index("row")["cluster_id"])
+        mean = members.groupby("cluster_id")[mean_cols].mean()
+        size = members.groupby("cluster_id").size()
+        if not (size.loc[out["cluster_id"]].to_numpy() == out["cluster_size"].to_numpy()).all():
+            raise ValueError("a kept cluster lost members to the excluded-document filter")
+        for c in mean_cols:
+            out[c] = mean.loc[out["cluster_id"], c].to_numpy()
+    for c in score_cols:
+        if out[c].isna().any():
+            raise ValueError(f"NaN {c!r} after scoring the deduplicated rows")
     return out
