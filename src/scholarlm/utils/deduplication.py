@@ -8,11 +8,14 @@ than imported because ``match_datasets`` keeps them as closures, and refactoring
 would be an eval-logic change. ``tests/test_deduplication.py`` checks parity against
 ``match_datasets`` directly.
 
-Null semantics are the matcher's, strict and fuzzy alike: null == null agrees (a fuzzy
-field null on both sides scores 1.0); null vs non-null never matches (any fuzzy field
-null on exactly one side makes the pair ineligible, it is not averaged away). This
-replaced the pre-2026-09-30 rule (one-sided fuzzy nulls skipped, strict fields deciding
-alone when no fuzzy field was comparable) in lockstep with ``match_datasets``.
+Null semantics are the matcher's (as of commit 4dc0e99, 2026-10-03). Strict fields:
+null == null agrees, null vs non-null never matches. Fuzzy fields: null on BOTH sides ->
+the field abstains and is left out of the mean; null on exactly ONE side -> the field
+scores 0.0 and IS averaged in (the pair stays eligible; the threshold decides); if every
+fuzzy field abstains the score is 1.0 (strict fields alone decided). This replaced the
+2026-09-30 rule (both-null scored 1.0, one-sided null made the pair ineligible), which
+replaced the pre-2026-09-30 rule, in lockstep with ``match_datasets``. Dedup output
+produced under either earlier rule is not comparable with current output.
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -56,11 +59,11 @@ def _strict_equal(a, b) -> bool:
 
 
 def _fuzzy_score(a, b) -> Optional[float]:
-    """1.0 if both null; None (pair can never match) if exactly one is null."""
+    """None (field abstains) if both null; 0.0 if exactly one is null."""
     if _is_null(a) and _is_null(b):
-        return 1.0
-    if _is_null(a) or _is_null(b):
         return None
+    if _is_null(a) or _is_null(b):
+        return 0.0
     s_a = _normalize_obj(a)
     s_b = _normalize_obj(b)
     if not isinstance(s_a, str) or not isinstance(s_b, str):
@@ -77,17 +80,16 @@ def pair_score(
 ) -> Tuple[bool, Optional[float]]:
     """Score one pair of records.
 
-    Returns ``(eligible, fuzzy_score)``. ``eligible`` is False if any strict field
-    differs or any fuzzy field is null on exactly one side; then ``fuzzy_score`` is
-    ``None``. Otherwise ``fuzzy_score`` is the mean fuzzy ratio in [0, 1] over all
-    fuzzy fields (null on both sides counts as 1.0).
+    Returns ``(eligible, fuzzy_score)``. ``eligible`` is False iff some strict field
+    differs; then ``fuzzy_score`` is ``None``. Otherwise ``fuzzy_score`` is the mean
+    fuzzy ratio in [0, 1] over the fuzzy fields that do not abstain (null on both sides
+    abstains; null on exactly one side scores 0.0), or 1.0 if all fields abstain.
     """
     if not all(_strict_equal(row_a[c], row_b[c]) for c in strict_fields):
         return False, None
     scores = [_fuzzy_score(row_a[c], row_b[c]) for c in fuzzy_fields]
-    if any(s is None for s in scores):
-        return False, None
-    return True, float(np.mean(scores))
+    scored = [s for s in scores if s is not None]
+    return True, float(np.mean(scored)) if scored else 1.0
 
 
 def _is_duplicate(eligible: bool, score: Optional[float], fuzzy_threshold: float) -> bool:
@@ -185,9 +187,10 @@ def deduplicate_records(
     Pair rule (mirrors ``match_datasets`` edge semantics): rows ``a`` and ``b`` are
     duplicates iff every strict field is equal (null == null; numerics via
     ``np.isclose(atol=1e-3, rtol=0)``; strings case-insensitive and stripped; a
-    numeric never equals a string) AND no fuzzy field is null on exactly one side AND the
-    mean ``rapidfuzz.fuzz.ratio`` / 100 over the fuzzy fields (null on both sides
-    scoring 1.0) is ``>= fuzzy_threshold``.
+    numeric never equals a string) AND the mean ``rapidfuzz.fuzz.ratio`` / 100 over the
+    fuzzy fields is ``>= fuzzy_threshold``, where a fuzzy field null on both sides
+    abstains (left out of the mean), one null on exactly one side scores 0.0, and the
+    score is 1.0 if every field abstains.
 
     Grouping rule: the pair relation isn't transitive, so rows are walked in
     ``df`` order and each row is compared only against rows already *kept*. A row that

@@ -3,8 +3,9 @@
 Fixtures are hand-built so the expected kept/dropped sets can be read off by
 inspection; fuzzy ratios the expectations depend on are asserted as preconditions.
 Pairwise semantics are also checked for parity against ``match_datasets`` (the
-ground-truth matcher), including its null rules: fuzzy null == null scores 1.0, and
-a fuzzy field null on exactly one side makes the pair never match.
+ground-truth matcher), including its null rules: a fuzzy field null on both sides
+abstains from the mean, one null on exactly one side scores 0.0 and is averaged in, and
+an all-abstaining pair scores 1.0.
 """
 import numpy as np
 import pandas as pd
@@ -117,20 +118,23 @@ def test_empty_string_does_not_equal_a_real_value_on_strict_fields():
 
 # ── Fuzzy semantics ────────────────────────────────────────────────────────────
 
-def test_fuzzy_null_equals_null_is_duplicate():
+def test_fuzzy_all_null_both_sides_abstains_score_one():
     df = pd.DataFrame([_rec(None, eco=None), _rec(None, eco=None)])
     kept, dups = _dedup(df, 1.0, fuzzy=FUZZY)
     assert kept.index.tolist() == [0]
     assert dups.score.tolist() == [1.0]
 
 
-def test_fuzzy_one_sided_null_never_duplicates():
-    # name null on row 1 only, even though ecosystem agrees perfectly and threshold is 0.
+def test_fuzzy_one_sided_null_scores_zero_and_threshold_decides():
+    # name null on row 1 only; ecosystem agrees (1.0) -> mean (0.0 + 1.0) / 2 = 0.5.
     df = pd.DataFrame([_rec("pond a", eco="pond"), _rec(None, eco="pond")])
-    assert len(_dedup(df, 0.0, fuzzy=FUZZY)[0]) == 2
+    kept, dups = _dedup(df, 0.5, fuzzy=FUZZY)   # inclusive threshold
+    assert kept.index.tolist() == [0] and dups.score.tolist() == [0.5]
+    assert len(_dedup(df, 0.51, fuzzy=FUZZY)[0]) == 2
     # and in the other direction / on the second field
     df = pd.DataFrame([_rec("pond a", eco=None), _rec("pond a", eco="pond")])
-    assert len(_dedup(df, 0.0, fuzzy=FUZZY)[0]) == 2
+    assert _dedup(df, 0.5, fuzzy=FUZZY)[1].score.tolist() == [0.5]
+    assert len(_dedup(df, 0.51, fuzzy=FUZZY)[0]) == 2
 
 
 def test_fuzzy_null_still_needs_strict_match():
@@ -147,14 +151,25 @@ def test_merge_goes_to_highest_scoring_eligible_kept_row():
     assert dups[["dropped_label", "kept_label"]].values.tolist() == [[2, 0]]
 
 
-def test_fuzzy_null_null_field_counts_as_one_in_the_mean():
+def test_fuzzy_both_null_field_abstains_from_the_mean():
     a, b = _rec("aaaa", eco=None), _rec("aaab", eco=None)
     eligible, score = pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY)
-    assert eligible and score == 0.875  # (0.75 + 1.0) / 2
+    assert eligible and score == 0.75  # ecosystem abstains; mean over name alone
 
 
-def test_one_sided_null_pair_is_ineligible_with_no_score():
+def test_one_sided_null_field_scores_zero_in_the_mean():
     a, b = _rec("aaaa", eco="pond"), _rec("aaab", eco=None)
+    eligible, score = pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY)
+    assert eligible and score == 0.375  # (0.75 + 0.0) / 2
+
+
+def test_all_fuzzy_fields_abstain_scores_one():
+    a, b = _rec(None, eco=None), _rec(None, eco=None)
+    assert pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY) == (True, 1.0)
+
+
+def test_strict_mismatch_is_ineligible_with_no_score():
+    a, b = _rec("aaaa", value=7.0), _rec("aaaa", value=8.0)
     assert pair_score(pd.Series(a), pd.Series(b), strict_fields=STRICT, fuzzy_fields=FUZZY) == (False, None)
 
 
