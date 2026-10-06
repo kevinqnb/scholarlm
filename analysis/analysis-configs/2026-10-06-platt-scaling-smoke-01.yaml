@@ -1,0 +1,47 @@
+id: 2026-10-06-platt-scaling-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke job for 2026-10-05-platt-scaling-sweep-gemma27b-qwen-2.5-7b-v3-01: same config with platt_ns [10, 20] and
+  n_trials 3, to confirm plumbing (loading, pool size, scoring, plots) and to time
+  scoring vs. fitting/smECE so the full run's walltime can be set. Results are not
+  meaningful.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  platt_ns: [10, 20]
+  n_trials: 3
+  ci: 0.95
+  single_class_policy: drop
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01

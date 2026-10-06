@@ -1,0 +1,58 @@
+id: 2026-10-05-platt-scaling-sweep-gemma27b-qwen-2.5-7b-v3-01
+project: scholarlm
+description: >
+  DRAFT. Platt-sample-size sweep (analysis/platt_scaling.py) over the same probe /
+  NTP calibrator / extractions / judge runs as
+  2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01 (platt probe variant, head
+  probe). For each (train probe, test dataset, method), n_trials independent random
+  draws of the Platt rows are taken from the same pool v3 uses (that dataset's real
+  rows whose document was in its own synthetic-probe training set); within a trial the
+  platt_ns samples are nested prefixes of one permutation. Each scaler is scored by
+  smECE on a fixed held-out set of real rows (outside the pool and the train probe's
+  documents). The plotted curve is the mean over trials with a central ci interval
+  over trials. Real setting only; synthetic cells are never Platt-scaled.
+  Caveats: the band reflects Platt-sample variance only, not test-set resampling; at
+  n >= pool size every trial draws the same rows, so the band collapses to zero (see
+  Pool N in the CSV); single-class samples are dropped and counted (n_used);
+  fit_platt is unregularized, so tiny samples may be separable and give extreme scalers.
+  Run: bash analysis/submit.sh platt_scaling 2026-10-05-platt-scaling-sweep-gemma27b-qwen-2.5-7b-v3-01 --walltime HH:MM:SS --omp N
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  platt_ns: [10, 50, 100, 250, 500, 1000]
+  n_trials: 100
+  ci: 0.95
+  single_class_policy: drop
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
