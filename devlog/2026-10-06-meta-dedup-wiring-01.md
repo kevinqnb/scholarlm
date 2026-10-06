@@ -37,3 +37,16 @@ config: analysis/analysis-configs/2026-10-06-pond-meta-dedup-smoke-01.yaml
 ### Commits
 6ced57f meta_updated: use parsed point_value as every row's numeric value
 22ae738 meta_updated: postprocessed/deduplicated rows with list children, center or cluster-mean confidence
+
+## Session 2026-10-06 (row identity in predictions.pkl)
+
+### Prompts
+- "previously we had said there is an issue with tracking measurement IDs across the predictions in predictions.pkl and their use in the meta analysis. Is that still an issue? If so please design a plan to cleanly fix this. If we need to rerun calibration, that is okay."
+- Rerun with the same calibration id overwritten, as a dedicated job rather than in the interactive shell.
+
+### Implemented
+The stored real-cell predictions are now self-describing: `analysis/prediction_store.py` adds each cell's `measurement_id`s, document ids, attributes, `final.json`/`combined.json` hashes, seed and Platt-sample ids, written by `analysis/calibration_updated_v3.py`. `analysis/meta_inputs.py` and `analysis/meta_updated.py` join scores by `measurement_id` and verify the cell against the `final.json` in use, instead of rebuilding the row order by position; an old-format pickle is refused. The calibration config `2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01` was rerun as a cluster job: its probabilities, labels and Platt coefficients are identical to the previous pickle, and the four meta smoke configs reproduce byte-identical statistics. Deduplication needed no rerun. The shuffled-score control and the full runs are still to do.
+
+### Commits
+b13f86c calibration v3 / meta: store row identity with predictions.pkl, join scores by measurement_id
+d32e58a calibration v3 results: regenerate predictions.pkl with row provenance (job 7906566)
