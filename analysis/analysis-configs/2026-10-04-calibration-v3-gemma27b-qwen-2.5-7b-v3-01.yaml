@@ -47,7 +47,7 @@ params:
       judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
       ground_truth_file: data/supermat/ground_truth_qualifiers.json
       synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
-      use_matching_labels: false
+      use_matching_labels: true
       syn_test_ids:
         primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
         diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
