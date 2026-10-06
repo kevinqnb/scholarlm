@@ -140,30 +140,85 @@ def final():
                          "attribute": ["tn", "tn", "ph", "ph"]})
 
 
-def cell(n=2):
-    return {"probe_probs": np.array([0.1, 0.2][:n]), "ntp_probs": np.array([0.3, 0.4][:n]),
-            "labels": np.array([True, False][:n])}
+FINAL_SHA = "abc"
+CAL_ID = "cal-1"
 
 
-def test_stored_rows_map_in_final_order_skipping_training_docs():
-    out = stored_prediction_rows(final(), {"t"}, cell())
+def cell(final_order=(0, 2)):
+    """A real cell as calibration stores it: ids t(raining doc) rows 1 and 3 excluded."""
+    f = final().set_index("measurement_id")
+    ids = list(final_order)
+    return {"probe_probs": np.array([0.1, 0.2]), "ntp_probs": np.array([0.3, 0.4]),
+            "labels": np.array([True, False]), "measurement_ids": np.array(ids),
+            "document_ids": f.loc[ids, "document_id"].tolist(), "attributes": f.loc[ids, "attribute"].tolist(),
+            "final_sha256": FINAL_SHA, "combined_sha256": "def", "calibration_config_id": CAL_ID, "seed": 0,
+            "platt_measurement_ids": np.array([1]), "excluded_documents": ["t"]}
+
+
+def stored(c=None, fin=None, docs=("t",), sha=FINAL_SHA, cal=CAL_ID):
+    return stored_prediction_rows(final() if fin is None else fin, set(docs), cell() if c is None else c, sha, cal)
+
+
+def test_stored_rows_join_by_id_known_answer():
+    out = stored()
     assert out["measurement_id"].tolist() == [0, 2]
     assert out["probe_prob"].tolist() == [0.1, 0.2]
     assert out["ntp_prob"].tolist() == [0.3, 0.4]
+    assert out["label"].tolist() == [True, False]
 
 
-def test_stored_rows_length_mismatch_raises():
-    with pytest.raises(ValueError, match="does not match"):
-        stored_prediction_rows(final(), {"t"}, cell(n=1))
-    with pytest.raises(ValueError, match="does not match"):
-        stored_prediction_rows(final(), set(), cell())
+def test_stored_rows_scores_follow_ids_not_position():
+    # final.json reordered: positional pairing would swap the scores; id pairing must not.
+    fin = final().iloc[[2, 1, 0, 3]].reset_index(drop=True)
+    out = stored(fin=fin)
+    assert dict(zip(out["measurement_id"], out["probe_prob"])) == {0: 0.1, 2: 0.2}
 
 
-def test_stored_rows_nonfinite_raises():
+@pytest.mark.parametrize("mutate,match", [
+    (lambda c: c.pop("measurement_ids"), "predates row provenance"),
+    (lambda c: c.update(final_sha256="zzz"), "sha256 mismatch"),
+    (lambda c: c.update(calibration_config_id="other"), "asked for"),
+    (lambda c: c.update(excluded_documents=["t", "a"]), "excluded documents"),
+    (lambda c: c.update(measurement_ids=np.array([0, 0])), "not unique"),
+    (lambda c: c.update(measurement_ids=np.array([0, 3])), "not the final.json ids"),
+    (lambda c: c.update(document_ids=["a", "a"]), "disagree with final.json on 'document_id'"),
+    (lambda c: c.update(attributes=["tn", "tn"]), "disagree with final.json on 'attribute'"),
+    (lambda c: c.update(probe_probs=np.array([0.1])), "disagree in length"),
+    (lambda c: c.update(platt_measurement_ids=np.array([0])), "Platt sample overlaps"),
+    (lambda c: c["probe_probs"].__setitem__(0, np.nan), "non-finite"),
+])
+def test_stored_rows_raise(mutate, match):
     c = cell()
-    c["probe_probs"][0] = np.nan
-    with pytest.raises(ValueError, match="non-finite"):
-        stored_prediction_rows(final(), {"t"}, c)
+    mutate(c)
+    with pytest.raises(ValueError, match=match):
+        stored(c)
+
+
+def test_stored_rows_wrong_excluded_docs_raises():
+    with pytest.raises(ValueError, match="excluded documents"):
+        stored(docs=())
+
+
+def test_stored_rows_changed_final_raises():
+    fin = final().iloc[[0, 1, 2]]  # final.json lost id 3 (a training-doc row): ids outside excluded still match
+    assert stored(fin=fin)["measurement_id"].tolist() == [0, 2]
+    fin = final().iloc[[0, 1, 3]]  # lost id 2: stored id 2 no longer exists
+    with pytest.raises(ValueError, match="not the final.json ids"):
+        stored(fin=fin)
+
+
+def test_real_cell_provenance_known_answer(tmp_path):
+    from analysis.prediction_store import real_cell_provenance
+    f, c = tmp_path / "final.json", tmp_path / "combined.json"
+    f.write_text("[]"); c.write_text("[1]")
+    out = real_cell_provenance(final(), np.array([0, 2]), np.array([1]), {"t"}, f, c, CAL_ID, 0)
+    assert out["measurement_ids"].tolist() == [0, 2] and out["document_ids"] == ["a", "b"]
+    assert out["platt_measurement_ids"].tolist() == [1] and out["excluded_documents"] == ["t"]
+    assert out["final_sha256"] != out["combined_sha256"]
+    with pytest.raises(AssertionError, match="overlap"):
+        real_cell_provenance(final(), np.array([0, 1]), np.array([1]), set(), f, c, CAL_ID, 0)
+    with pytest.raises(AssertionError, match="excluded document"):
+        real_cell_provenance(final(), np.array([0, 1]), np.array([2]), {"t"}, f, c, CAL_ID, 0)
 
 
 # ── numeric_point_value ──────────────────────────────────────────────────────

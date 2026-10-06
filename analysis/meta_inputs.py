@@ -7,11 +7,11 @@ tested on a hand-built fixture (tests/test_meta_inputs.py).
 Confidences are NOT recomputed here. They are the Platt-scaled probe / NTP
 predictions that analysis/calibration_updated_v3.py stored in
 analysis/results/calibration/<calibration config id>/predictions.pkl (the 'real'
-cell with train dataset == test dataset). That file stores no measurement_ids: its
-rows are the judged final.json rows whose document is outside the probe's
-synthetic-training documents (and the Platt pool, which is the same set when train ==
-test), in final.json order. ``stored_prediction_rows`` rebuilds that row selection and
-asserts it against the pickle.
+cell with train dataset == test dataset). Each real cell stores its own
+measurement_ids (plus document_ids, attributes, the final.json / combined.json sha256
+and the Platt sample's ids; see analysis/prediction_store.py), so
+``stored_prediction_rows`` joins scores by id and verifies the cell against the
+final.json in use. A pickle without that provenance is refused.
 
 The one risky step is ``attach_scores``. Scores are per judged datapoint, keyed by
 ``measurement_id`` (unique in final.json).
@@ -41,6 +41,7 @@ from analysis import calibration_ids as cids
 from analysis.analysis_config import (
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
 )
+from analysis.prediction_store import check_real_cell
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
@@ -146,34 +147,25 @@ def resolve_meta_inputs(cfg: dict, dataset: str) -> dict:
             raise ValueError(f"{dd_cfg['id']}: experiment_ids does not contain {extraction_id!r}")
         dedup_dir = dd.deduplication_dir(dd_cfg["id"], extraction_id)
 
-    return dict(dataset=dataset, judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,
+    return dict(dataset=dataset, calibration_config_id=cal_id, judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,
                 extraction_dir=ds["extraction_dir"], judge_combine_dir=ds["judge_combine_dir"],
                 ground_truth_path=ds["ground_truth_path"], probe_dir=ds["probe_dir"],
                 probe_variant=cal_cfg["params"]["probe_variant"], predictions_path=predictions_path,
                 dedup_dir=dedup_dir)
 
 
-def stored_prediction_rows(final_df: pd.DataFrame, excluded_docs: set, probs: dict) -> pd.DataFrame:
+def stored_prediction_rows(final_df: pd.DataFrame, excluded_docs: set, probs: dict, final_sha256: str,
+                           calibration_config_id: str) -> pd.DataFrame:
     """Scored datapoints (one row each) for the stored calibration predictions.
 
     ``final_df`` is the judged final.json; ``excluded_docs`` the probe's synthetic-
-    training documents (``syn_document_ids``); ``probs`` the pickle's cell with
-    probe_probs / ntp_probs / labels. The stored arrays are in final.json order over
-    the rows whose document is not excluded, so that selection is rebuilt here and the
-    lengths must agree exactly. Returns measurement_id, document_id, attribute,
-    ntp_prob, probe_prob.
+    training documents (``syn_document_ids``); ``probs`` the pickle's real cell. The
+    cell carries its own measurement_ids, so scores are keyed by id and the cell is
+    verified against final_df (``prediction_store.check_real_cell``): no positional
+    rebuild. Returns measurement_id, document_id, attribute, ntp_prob, probe_prob,
+    label.
     """
-    idx = np.where(~final_df["document_id"].isin(excluded_docs).to_numpy())[0]
-    n = len(probs["probe_probs"])
-    if not (len(idx) == n == len(probs["ntp_probs"]) == len(probs["labels"])):
-        raise ValueError(f"stored predictions have {n} rows but final.json has {len(idx)} rows outside "
-                         f"the probe's training documents -- predictions.pkl does not match this run")
-    out = final_df.iloc[idx][["measurement_id", "document_id", "attribute"]].reset_index(drop=True)
-    out["ntp_prob"] = np.asarray(probs["ntp_probs"], dtype=float)
-    out["probe_prob"] = np.asarray(probs["probe_probs"], dtype=float)
-    if not (np.isfinite(out["ntp_prob"]).all() and np.isfinite(out["probe_prob"]).all()):
-        raise ValueError("stored predictions contain non-finite values")
-    return out
+    return check_real_cell(probs, final_df, excluded_docs, final_sha256, calibration_config_id)
 
 
 def load_checked_dedup_rows(dedup_dir: Path, extraction_id: str, deduplication_config_id: str) -> tuple[list[dict], dict]:

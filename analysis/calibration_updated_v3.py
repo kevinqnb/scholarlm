@@ -24,6 +24,8 @@ from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_l
 from analysis.analysis_config import load_calibration_v3_config
 from analysis.metrics import validity_rate_from_labels
 from analysis import calibration_ids as cids
+from analysis.match_cache import sha256_file
+from analysis.prediction_store import PROVENANCE_KEYS, real_cell_provenance
 from analysis.calibration_plot_utils import support_mask
 from scholarlm.utils.calibration import bootstrap_ece, fit_platt, apply_platt
 
@@ -243,7 +245,15 @@ def compute_predictions(load_from_precomputed=False):
     if load_from_precomputed and cache_file.exists():
         print(f'Loading precomputed predictions from {cache_file}...')
         with open(cache_file, 'rb') as f:
-            return pickle.load(f)
+            loaded = pickle.load(f)
+        for _tr, _by_test in loaded['real'][JUDGE_MODEL].items():
+            for _te, _cell in _by_test.items():
+                missing = [k for k in PROVENANCE_KEYS if k not in _cell]
+                assert not missing, f'{cache_file} predates row provenance (cell {_tr}->{_te} lacks {missing}); rerun'
+                assert _cell['final_sha256'] == sha256_file(_INPUTS['datasets'][_te]['extraction_dir'] / 'final.json'), (
+                    f'{cache_file}: final.json changed since it was built ({_tr}->{_te})')
+                assert _cell['calibration_config_id'] == CONFIG_ID, (_tr, _te)
+        return loaded
 
     judge_model = JUDGE_MODEL
     setting_results = {dtype: {judge_model: {}} for dtype in _DTYPES}
@@ -306,6 +316,13 @@ def compute_predictions(load_from_precomputed=False):
                     'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
                     'platt': platt,
                 }
+                if dataset_type == 'syn':
+                    setting_results[dataset_type][judge_model][train_ds][test_ds]['measurement_ids'] = np.asarray(mids)
+                else:
+                    setting_results[dataset_type][judge_model][train_ds][test_ds].update(real_cell_provenance(
+                        real_df, idx, pi, exclude,
+                        _INPUTS['datasets'][test_ds]['extraction_dir'] / 'final.json',
+                        _INPUTS['datasets'][test_ds]['judge_combine_dir'] / 'combined.json', CONFIG_ID, SEED))
 
     fits_df = pd.DataFrame(fit_rows)
     assert len(fits_df) == len(TRAIN_DATASETS) * len(DATASETS) * 2, len(fits_df)

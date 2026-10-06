@@ -380,13 +380,15 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     with open(inputs['predictions_path'], 'rb') as f:
         cell = pickle.load(f)['real'][judge][DATASET][DATASET]
     assert cell['platt'] is not None, 'real-cell predictions should be Platt-scaled'
-    scored = stored_prediction_rows(final_df, syn_docs, cell)
+    scored = stored_prediction_rows(final_df, syn_docs, cell, sha256_file(inputs['extraction_dir'] / 'final.json'),
+                                    inputs['calibration_config_id'])
 
     # Every row the judge accepted is a positive label in the pickle (labels = judge OR matched).
-    jc = combined_df['judgement_combined'].to_numpy(dtype=bool)
-    idx = np.where(~final_df['document_id'].isin(syn_docs).to_numpy())[0]
-    assert cell['labels'][jc[idx]].all(), 'stored labels disagree with judgement_combined'
-    scored['judgement_combined'] = jc[idx]
+    jc = combined_df.set_index('measurement_id')['judgement_combined'].astype(bool)
+    assert jc.index.is_unique and set(scored['measurement_id']) <= set(jc.index)
+    scored['judgement_combined'] = jc.loc[scored['measurement_id']].to_numpy()
+    assert scored.loc[scored['judgement_combined'], 'label'].all(), 'stored labels disagree with judgement_combined'
+    scored = scored.drop(columns='label')
     return scored, syn_docs, [probe_path, inputs['predictions_path']]
 
 
