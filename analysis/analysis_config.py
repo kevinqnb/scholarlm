@@ -371,18 +371,33 @@ def load_calibration_v2_config(path: Path) -> dict:
 
 
 # analysis/calibration_updated_v3.py: v2 minus pi_te_estimate. Real-extraction
-# cells are instead Platt-scaled on platt_n rows sampled from the test
+# cells are instead recalibrated on platt_n rows sampled from the test
 # dataset's own probe-training documents (labelled by judge_combine, plus
-# matching if that dataset's use_matching_labels is on).
-CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n",)
+# matching if that dataset's use_matching_labels is on), by the required
+# recalibration method: platt_fit (slope + intercept), intercept_fit (slope
+# fixed at 1, intercept by MLE) or prior_shift (label-shift correction from the
+# scorer's synthetic training prevalence to the sample's label rate).
+CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n", "recalibration")
+RECALIBRATION_METHODS = ("prior_shift", "intercept_fit", "platt_fit")
+
+
+def _validate_v3_recalibration(path: Path, params: dict) -> None:
+    n = params["platt_n"]
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    if params["recalibration"] not in RECALIBRATION_METHODS:
+        raise ValueError(
+            f"{path}: params.recalibration must be one of {RECALIBRATION_METHODS}, got {params['recalibration']!r}"
+        )
 
 
 def load_calibration_v3_config(path: Path) -> dict:
     """Load analysis/calibration_updated_v3.py's analysis-configs/<id>.yaml.
 
     Same as load_calibration_config's per-dataset blocks (no pi_te_estimate
-    anywhere) plus a required top-level ``params.platt_n``: a positive int, the
-    number of real rows per dataset used to fit each Platt scaler.
+    anywhere) plus required top-level ``params.platt_n``, a positive int, the
+    number of real rows per dataset each recalibrator is fit on, and
+    ``params.recalibration``, one of RECALIBRATION_METHODS.
 
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
@@ -393,9 +408,7 @@ def load_calibration_v3_config(path: Path) -> dict:
         raise ValueError(
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V3_TOP_KEYS)}"
         )
-    n = params["platt_n"]
-    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    _validate_v3_recalibration(path, params)
     _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
     return cfg
 
@@ -447,9 +460,7 @@ def load_calibration_validated_config(path: Path) -> dict:
         raise ValueError(
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V3_TOP_KEYS)}"
         )
-    n = params["platt_n"]
-    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    _validate_v3_recalibration(path, params)
     _validate_calibration_body(path, cfg, CALIBRATION_VALIDATED_DATASET_KEYS, CALIBRATION_VALIDATED_DATASETS)
     for ds, block in params["datasets"].items():
         pin = block["validation_sha256"]

@@ -28,7 +28,11 @@ from analysis import calibration_ids as cids
 from analysis.match_cache import sha256_file
 from analysis.prediction_store import PROVENANCE_KEYS, real_cell_provenance
 from analysis.calibration_plot_utils import support_mask
-from scholarlm.utils.calibration import bootstrap_ece, fit_platt, apply_platt
+from analysis.head_activations import HeadActivationCache
+from scholarlm.utils.calibration import (
+    bootstrap_ece, apply_platt, fit_recalibration, RECALIBRATION_METHODS,
+)
+from analysis.analysis_config import RECALIBRATION_METHODS as _CFG_RECALIBRATION_METHODS
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -77,7 +81,7 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 # analysis/results/calibration/<config id>/.
 def _parse_args():
     parser = argparse.ArgumentParser(
-        description="Probe/NTP calibration analysis (v3 Platt scaling, but real test cells are scored against human-validated labels)."
+        description="Probe/NTP calibration analysis (v3 recalibration, but real test cells are scored against human-validated labels)."
     )
     parser.add_argument('config', type=Path,
                         help="analysis/analysis-configs/<id>.yaml (see load_calibration_validated_config)")
@@ -95,6 +99,17 @@ SYN_SPLIT    = _PARAMS['syn_split']
 # Number of real rows per dataset used to fit each Platt scaler (config: platt_n);
 # these stay labelled by LLM + matching (the training split has no human labels).
 PLATT_N = _PARAMS['platt_n']
+# How the real cells are recalibrated on that sample (config: recalibration), per method
+# (probe / NTP), always as expit(coef * logit(p) + intercept):
+#   platt_fit     -- coef and intercept by unregularized logistic MLE (Platt).
+#   intercept_fit -- coef fixed at 1, intercept by MLE: the scaled sample probabilities
+#                    average to the sample's label rate.
+#   prior_shift   -- coef fixed at 1, intercept logit(sample label rate) - logit(pi_tr),
+#                    pi_tr = the scorer's synthetic training prevalence (label-shift
+#                    correction, as calibration_updated.py did with a hand-set pi_te).
+RECALIBRATION = _PARAMS['recalibration']
+assert tuple(RECALIBRATION_METHODS) == tuple(_CFG_RECALIBRATION_METHODS), (RECALIBRATION_METHODS, _CFG_RECALIBRATION_METHODS)
+assert RECALIBRATION in RECALIBRATION_METHODS, RECALIBRATION
 DATASETS = list(_PARAMS['datasets'])
 TRAIN_DATASETS = list(_PARAMS['datasets'])  # every validated dataset has its own synthetic-probe config
 
@@ -112,7 +127,8 @@ _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
 _DTYPES = ['syn', 'real']  # both always available: every dataset has a synthetic probe + test set and real judge_interp data
 
 print(f'[calibration validated] config: {CONFIG_ID} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
-      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | platt_n: {PLATT_N} | judge: {JUDGE_MODEL} '
+      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | platt_n: {PLATT_N} | recalibration: {RECALIBRATION} '
+      f'| judge: {JUDGE_MODEL} '
       f'| out dir: {OUT_DIR}')
 
 
@@ -143,6 +159,11 @@ for _train_ds in TRAIN_DATASETS:
           f'from {_INPUTS["datasets"][_train_ds]["syn_train_id"]}...')
     ntp_cal_cache[_train_ds] = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _ntp_cal_filename)}
     probe_cache[_train_ds]   = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _probe_filename)}
+
+# Head features: each activation row is decompressed once per run, keeping the union of
+# every train probe's top heads (see analysis/head_activations.py).
+_HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr][JUDGE_MODEL]['top_k_heads']])
+              if PROBE_TYPE == 'head' else None)
 
 
 # Pre-load all test data, including matching results, to avoid redundant loading and matching within the loop
@@ -265,11 +286,7 @@ def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
         lo = np.load(act_dir / 'layer_outputs.npz')
         X = np.stack([np.array(lo[str(mid)], dtype=np.float32)[top] for mid in mids], axis=0)
     else:
-        act = np.load(act_dir / 'attention_outputs.npz')
-        X = np.concatenate([
-            np.stack([np.array(act[str(mid)], dtype=np.float32)[l, h, :] for mid in mids], axis=0)
-            for l, h in top
-        ], axis=1)
+        X = _HEAD_ACTS.features(act_dir, mids, top)
     assert X.shape[0] == len(mids), (X.shape, len(mids))
     probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
     assert probe_probs.shape == ntp_probs.shape == (len(mids),), (train_ds, test_ds)
@@ -282,9 +299,10 @@ def compute_predictions(load_from_precomputed=False):
     # Every (train_ds, test_ds) pair is scored separately, for both 'syn' (test_ds's
     # own synthetic test set) and 'real' (test_ds's real extraction, excluding
     # test_ds's Platt pool and train_ds's probe-training documents). 'real' cells
-    # are Platt-scaled -- probe and NTP separately -- with scalers fit on test_ds's
-    # PLATT_N-row sample; 'syn' cells are not scaled and carry platt=None.
-    # Also writes platt_fits.csv (one row per fitted scaler).
+    # are recalibrated by RECALIBRATION -- probe and NTP separately -- with maps fit on
+    # test_ds's PLATT_N-row sample; 'syn' cells are not scaled and carry platt=None
+    # ('platt' holds the (coef, intercept) pair whatever the method; 'recalibration'
+    # names the method). Also writes platt_fits.csv (one row per fitted map).
 
     cache_file = OUT_DIR / 'predictions.pkl'
 
@@ -299,6 +317,8 @@ def compute_predictions(load_from_precomputed=False):
                 assert _cell['final_sha256'] == sha256_file(_INPUTS['datasets'][_te]['extraction_dir'] / 'final.json'), (
                     f'{cache_file}: final.json changed since it was built ({_tr}->{_te})')
                 assert _cell['calibration_config_id'] == CONFIG_ID, (_tr, _te)
+                assert _cell['recalibration'] == RECALIBRATION, (
+                    f'{cache_file}: built with recalibration {_cell["recalibration"]!r} != {RECALIBRATION!r}')
                 assert _cell['validation_sha256'] == test_data[_te]['val_sha256'], (
                     f'{cache_file}: validations changed since it was built ({_tr}->{_te})')
         return loaded
@@ -331,17 +351,33 @@ def compute_predictions(load_from_precomputed=False):
                     act_dir  = _INPUTS['datasets'][test_ds]['judge_interp_dir']
                     col      = f'judgement_p_true_{judge_model}'
 
-                    # Platt scalers: fit on test_ds's own sample, per method.
+                    # Recalibration maps: fit on test_ds's own sample, per method. pi_tr (used
+                    # only by prior_shift) is train_ds's scorer's synthetic training prevalence.
                     pi = td['platt_idx']
                     p_probe, p_ntp = _score_rows(
                         train_ds, test_ds, real_df['measurement_id'].iloc[pi].tolist(),
                         real_df[col].iloc[pi].to_numpy(), act_dir)
                     p_labels = td['labels'][pi]
-                    platt = {'probe': fit_platt(p_probe, p_labels), 'ntp': fit_platt(p_ntp, p_labels)}
+                    p_raw = {'probe': p_probe, 'ntp': p_ntp}
+                    pi_tr = {'probe': pd_data['train_prevalence'],
+                             'ntp': ntp_cal_cache[train_ds][judge_model]['train_prevalence']}
+                    platt = {meth: fit_recalibration(RECALIBRATION, p_raw[meth], p_labels, pi_tr[meth])
+                             for meth in ('probe', 'ntp')}
                     for meth, (coef, icpt) in platt.items():
+                        p_scaled_mean = float(apply_platt(p_raw[meth], coef, icpt).mean())
+                        if RECALIBRATION != 'platt_fit':
+                            assert coef == 1.0, (RECALIBRATION, meth, coef)
+                        if RECALIBRATION == 'intercept_fit':
+                            # Score equation of the intercept MLE (known answer, solved to ~1e-12).
+                            assert abs(p_scaled_mean - p_labels.mean()) < 1e-8, (
+                                train_ds, test_ds, meth, p_scaled_mean, p_labels.mean())
                         fit_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': meth,
+                                         'Recalibration': RECALIBRATION,
                                          'coef': coef, 'intercept': icpt, 'N': len(pi),
-                                         'Label rate': float(p_labels.mean())})
+                                         'Label rate': float(p_labels.mean()),
+                                         'Train prevalence': float(pi_tr[meth]),
+                                         'Raw mean prob': float(p_raw[meth].mean()),
+                                         'Scaled mean prob': p_scaled_mean})
 
                     # Test rows: outside test_ds's Platt pool and train_ds's probe-training docs.
                     exclude = td['pool_docs'] | set(pd_data['syn_document_ids'])
@@ -386,7 +422,7 @@ def compute_predictions(load_from_precomputed=False):
                 assert np.isfinite(probe_probs).all() and np.isfinite(ntp_probs).all(), (train_ds, test_ds)
                 setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                     'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
-                    'platt': platt,
+                    'platt': platt, 'recalibration': None if platt is None else RECALIBRATION,
                 }
                 if dataset_type == 'syn':
                     setting_results[dataset_type][judge_model][train_ds][test_ds]['measurement_ids'] = np.asarray(mids)
@@ -605,7 +641,8 @@ def _probe_metrics(probs, y_true, threshold=0.5):
 def compute_metrics(setting_results):
     # One row per (dtype, train_ds, test_ds, method). 'Label rate' is the
     # empirical positive rate of the evaluated labels (diagnostic only); 'Platt N'
-    # is the sample size the real-data scalers were fit on (NaN for syn).
+    # is the sample size the real-data recalibration maps were fit on (NaN for syn) and
+    # 'Recalibration' the method (None for syn).
     rows = []
     for dtype in setting_results:
         for judge_model in setting_results[dtype]:
@@ -622,6 +659,7 @@ def compute_metrics(setting_results):
                             'N':              m['n'],
                             'Label rate':     float(np.mean(rdict['labels'])),
                             'Platt N':        np.nan if rdict['platt'] is None else PLATT_N,
+                            'Recalibration':  rdict['recalibration'],
                             'Accuracy':       m['acc'],
                             'Precision':      m['prec'],
                             'Recall':         m['rec'],

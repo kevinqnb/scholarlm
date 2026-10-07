@@ -154,6 +154,10 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
     if set(spec["datasets"].values()) != config_datasets:
         raise ValueError(f"spec datasets {sorted(spec['datasets'].values())} != {cal_id} datasets {sorted(config_datasets)}")
     platt_n = cal_cfg["params"]["platt_n"]
+    # Captions below describe Platt scaling; other recalibration methods need their own wording.
+    if cal_cfg["params"]["recalibration"] != "platt_fit":
+        raise ValueError(f"{cal_id}: recalibration {cal_cfg['params']['recalibration']!r} -- "
+                         "captions are written for platt_fit only")
     results_dir = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id
 
     frames, judges = {}, set()

@@ -27,6 +27,7 @@ params:
   probe_variant: noplatt
   syn_split: primary
   platt_n: 100
+  recalibration: platt_fit
   datasets:
     pond:
       extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01

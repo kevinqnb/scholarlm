@@ -305,9 +305,10 @@ def test_v1_loader_rejects_v2_config(world, tmp_path):
 
 
 # ── load_calibration_v3_config: platt_n, no pi_te ────────────────────────────
-def _to_v3(cfg, n=100):
+def _to_v3(cfg, n=100, recalibration="platt_fit"):
     cfg["params"].pop("pi_te_estimate")
     cfg["params"]["platt_n"] = n
+    cfg["params"]["recalibration"] = recalibration
     return cfg
 
 
@@ -325,12 +326,27 @@ def test_v3_happy_path(world, tmp_path):
     cids.resolve_calibration_inputs(out)
 
 
+@pytest.mark.parametrize("method", ["prior_shift", "intercept_fit", "platt_fit"])
+def test_v3_accepts_every_recalibration_method(world, tmp_path, method):
+    cfg, _ = world
+    _to_v3(cfg, recalibration=method)
+    assert _load_v3(cfg, tmp_path)["params"]["recalibration"] == method
+
+
+def test_recalibration_methods_match_library():
+    from scholarlm.utils.calibration import RECALIBRATION_METHODS
+    assert ac.RECALIBRATION_METHODS == RECALIBRATION_METHODS
+
+
 @pytest.mark.parametrize("mutate", [
     lambda c: c["params"].pop("platt_n"),
     lambda c: c["params"].update(platt_n=0),
     lambda c: c["params"].update(platt_n=-5),
     lambda c: c["params"].update(platt_n=True),
     lambda c: c["params"].update(platt_n=10.0),
+    lambda c: c["params"].pop("recalibration"),                            # no default method
+    lambda c: c["params"].update(recalibration="platt"),
+    lambda c: c["params"].update(recalibration=None),
     lambda c: c["params"].update(pi_te_estimate=0.5),                      # v1 key not allowed
     lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate=0.5),  # v2 key not allowed
 ])
@@ -348,6 +364,7 @@ def _to_validated(cfg, tmp_path, monkeypatch):
     import hashlib
     cfg["params"].pop("pi_te_estimate")
     cfg["params"]["platt_n"] = 100
+    cfg["params"]["recalibration"] = "platt_fit"
     cfg["params"]["datasets"].pop("nfix")
     vdir = tmp_path / "validations"
     vdir.mkdir()
@@ -401,6 +418,8 @@ def test_validated_missing_file_is_hard_error(world, tmp_path, monkeypatch):
     lambda c: c["params"]["datasets"].pop("supermat"),
     lambda c: c["params"]["datasets"].update(nfix=dict(c["params"]["datasets"]["pond"])),  # no validations for nfix
     lambda c: c["params"].pop("platt_n"),
+    lambda c: c["params"].pop("recalibration"),
+    lambda c: c["params"].update(recalibration="intercept"),
 ])
 def test_validated_loader_rejects_malformed(world, tmp_path, monkeypatch, mutate):
     cfg, _ = _to_validated(world[0], tmp_path, monkeypatch)

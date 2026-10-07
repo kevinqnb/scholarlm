@@ -160,6 +160,17 @@ def test_load_metrics_wrong_platt_n(staged):
         cl.load_metrics(SPEC)
 
 
+@pytest.mark.parametrize("method", ["prior_shift", "intercept_fit"])
+def test_load_metrics_rejects_non_platt_recalibration(staged, method):
+    # Captions describe Platt scaling, so a non-Platt run must not render silently.
+    cfg_path = cl.ANALYSIS_CONFIGS_ROOT / f"{REAL_CFG}.yaml"
+    text = cfg_path.read_text()
+    assert text.count("recalibration: platt_fit") == 1
+    cfg_path.write_text(text.replace("recalibration: platt_fit", f"recalibration: {method}"))
+    with pytest.raises(ValueError, match="recalibration"):
+        cl.load_metrics(SPEC)
+
+
 def test_load_metrics_dropped_row(staged):
     p = staged / "metrics_probe.csv"
     pd.read_csv(p).iloc[1:].to_csv(p, index=False)
