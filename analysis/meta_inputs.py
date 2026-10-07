@@ -45,7 +45,8 @@ from analysis.prediction_store import check_real_cell
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
-SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot", "qq_attributes")
+SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot",
+                "ecosystems", "attributes", "qq_attributes", "poster")
 # final: judged final.json rows (list values unexpanded); postprocessed: postprocessed.json
 # (list values expanded to one row per entry, not deduplicated); deduplicated: the
 # deduplication of postprocessed.json.
@@ -72,7 +73,10 @@ def load_meta_config(path: Path) -> dict:
     """Load and validate an analysis config for meta_updated.py.
 
     ``params`` holds exactly the ``meta`` section (SECTION_KEYS: no defaults, no
-    extras). ``deduplication_config_id`` and ``confidence`` are required to be present
+    extras). ``ecosystems`` / ``attributes`` are the cells analysed (membership in
+    meta_updated's canonical lists is checked there); ``qq_attributes`` must be a subset
+    of ``attributes``; ``poster`` (bool) says whether to draw the single poster cell.
+    ``deduplication_config_id`` and ``confidence`` are required to be present
     always: a string (``confidence`` one of CONFIDENCE_CHOICES) iff
     ``rows == 'deduplicated'``, null otherwise.
     """
@@ -99,9 +103,15 @@ def load_meta_config(path: Path) -> dict:
     nb = sec["n_boot"]
     if isinstance(nb, bool) or not isinstance(nb, int) or nb <= 0:
         raise ValueError(f"{path}: {SECTION}.n_boot must be a positive int, got {nb!r}")
-    qa = sec["qq_attributes"]
-    if not isinstance(qa, list) or not qa or not all(isinstance(x, str) for x in qa) or len(set(qa)) != len(qa):
-        raise ValueError(f"{path}: {SECTION}.qq_attributes must be a non-empty list of unique strings")
+    for key in ("ecosystems", "attributes", "qq_attributes"):
+        v = sec[key]
+        if not isinstance(v, list) or not v or not all(isinstance(x, str) for x in v) or len(set(v)) != len(v):
+            raise ValueError(f"{path}: {SECTION}.{key} must be a non-empty list of unique strings")
+    stray_qq = sorted(set(sec["qq_attributes"]) - set(sec["attributes"]))
+    if stray_qq:
+        raise ValueError(f"{path}: {SECTION}.qq_attributes not in {SECTION}.attributes: {stray_qq}")
+    if not isinstance(sec["poster"], bool):
+        raise ValueError(f"{path}: {SECTION}.poster must be a bool, got {sec['poster']!r}")
     if isinstance(cfg["seed"], bool) or not isinstance(cfg["seed"], int):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     return cfg

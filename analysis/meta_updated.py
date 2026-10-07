@@ -28,7 +28,9 @@ observation reaches.
 The gray band around the diagonal is the ground truth's own bootstrap
 sampling uncertainty, not a statement about the extracted lines.
 
-Outputs: 6 Q-Q figures (3 ecosystems x 2 methods) plus one poster figure, a
+The analysed cells are the config's params.meta.ecosystems x attributes (subsets of
+ECOSYSTEMS / ATTRIBUTES). Outputs: one Q-Q figure per selected ecosystem x method,
+plus the poster figure iff params.meta.poster, a
 stats CSV (ground_truth, extracted, judge_filtered, ntp_weighted,
 probe_weighted) via weighted_stats() -- weighted mean/std/n_eff/Hazen
 median/Q1/Q3, computed on raw non-log values -- and a 2-Wasserstein CSV
@@ -105,6 +107,9 @@ META_ROOT = REPO_ROOT / "analysis" / "results" / "meta"
 # extraction run is a pond run.
 DATASET = 'pond'
 
+# Canonical universe of cells. A config's params.meta.ecosystems / .attributes pick the
+# subset actually analysed; _boot_rng keys bootstrap streams on positions in THESE lists,
+# so subsetting never changes a retained cell's CI.
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
 
@@ -645,10 +650,11 @@ def _setting_data(
     raise ValueError(f"Unknown setting: {setting}")
 
 
-def build_stats_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame) -> pd.DataFrame:
+def build_stats_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame,
+                      ecosystems: list[str], attributes: list[str]) -> pd.DataFrame:
     rows = []
-    for ecosystem in ECOSYSTEMS:
-        for attribute in ATTRIBUTES:
+    for ecosystem in ecosystems:
+        for attribute in attributes:
             for setting in SETTINGS:
                 data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
                 row = dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute,
@@ -786,6 +792,9 @@ def _boot_rng(boot_seed: int, ecosystem: str, attribute: str, stream: int) -> np
     sharing a stream across them makes their replicates paired -- the right basis
     for the within-cell 'does weighting beat unweighted' comparison these numbers
     exist for (a paired-difference CI is a later, separate addition).
+
+    Indexed on the canonical ECOSYSTEMS/ATTRIBUTES, never the config's subset, so a
+    cell's CI is the same whichever cells a config selects.
     """
     return np.random.default_rng(
         [int(boot_seed), ECOSYSTEMS.index(ecosystem), ATTRIBUTES.index(attribute), int(stream)]
@@ -842,6 +851,7 @@ def _bootstrap_w2_ci(gt_x, ext_x, ext_w, gt_rng, ext_rng, n_boot: int, ci: float
 
 
 def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_seed: int,
+                            ecosystems: list[str], attributes: list[str],
                             n_boot: int = N_BOOT) -> pd.DataFrame:
     """One row per (ecosystem, attribute, setting): the quantile-approximated
     2-Wasserstein distance from that extracted setting's distribution to ground
@@ -861,12 +871,16 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
     `shuffle_seed` reused as the bootstrap seed. `w2_n_boot_ok` is the surviving
     replicate count; the CI is NaN when it drops below W2_BOOT_MIN_OK_FRAC * n_boot
     (see _bootstrap_w2_ci -- the CI is a spread, never a test against 0).
+
+    NOTE: `w2_shuffled` draws from ONE rng shared sequentially across cells, so its
+    value for a cell depends on which cells precede it in `ecosystems` x `attributes`
+    -- unlike the bootstrap CIs (_boot_rng), it is not invariant to the cell subset.
     """
     rng = np.random.default_rng(shuffle_seed)
     min_ok = int(np.ceil(W2_BOOT_MIN_OK_FRAC * n_boot))
     rows = []
-    for ecosystem in ECOSYSTEMS:
-        for attribute in ATTRIBUTES:
+    for ecosystem in ecosystems:
+        for attribute in attributes:
             log_scale = attribute in LOG_SCALE_ATTRIBUTES
             gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
             gt_x = gt_data[0] if gt_data is not None else np.array([])
@@ -1191,8 +1205,15 @@ def main():
     # meta_updated.py is pond-specific (see DATASET); resolve_meta_inputs fails if the
     # calibration config has no pond block.
     inputs = resolve_meta_inputs(cfg, DATASET)
-    bad_attrs = sorted(set(sec['qq_attributes']) - set(ATTRIBUTES))
-    assert not bad_attrs, f"qq_attributes not in ATTRIBUTES: {bad_attrs}"
+    ecosystems, attributes = sec['ecosystems'], sec['attributes']
+    bad_ecos = sorted(set(ecosystems) - set(ECOSYSTEMS))
+    assert not bad_ecos, f"ecosystems not in ECOSYSTEMS: {bad_ecos}"
+    bad_attrs = sorted(set(attributes) - set(ATTRIBUTES))
+    assert not bad_attrs, f"attributes not in ATTRIBUTES: {bad_attrs}"
+    # load_meta_config already checks qq_attributes is a subset of attributes.
+    if sec['poster']:
+        assert POSTER_ECOSYSTEM in ecosystems and POSTER_ATTRIBUTE in attributes, (
+            f"poster: true but the poster cell ({POSTER_ECOSYSTEM}, {POSTER_ATTRIBUTE}) is not selected")
     seed, n_boot = cfg['seed'], sec['n_boot']
 
     out_dir = META_ROOT / cfg['id']
@@ -1201,29 +1222,33 @@ def main():
 
     gt_df, ext_df, manifest = load_data(cfg, inputs)
 
-    stats_df = build_stats_table(gt_df, ext_df)
+    stats_df = build_stats_table(gt_df, ext_df, ecosystems, attributes)
     csv_path = out_dir / 'meta_stats.csv'
     stats_df.to_csv(csv_path, index=False)
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
 
-    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=seed, n_boot=n_boot)
+    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=seed,
+                                    ecosystems=ecosystems, attributes=attributes, n_boot=n_boot)
     w2_path = out_dir / 'wasserstein.csv'
     w2_df.to_csv(w2_path, index=False)
     print(f"[meta] wrote {w2_path}")
     print(w2_df.to_string(index=False, float_format='{:.3g}'.format))
 
     for method in METHODS:
-        for ecosystem in ECOSYSTEMS:
+        for ecosystem in ecosystems:
             plot_qq_smooth(gt_df, ext_df, ecosystem, method, sec['qq_attributes'],
                            figures_dir / f'qq_{method}_{ecosystem}_smooth.pdf', n_boot=n_boot, seed=seed)
 
     plot_qq_legend_smooth(figures_dir / 'qq_legend_smooth.pdf')
-    plot_qq_poster_smooth(gt_df, ext_df, figures_dir / 'qq_probe_pond_tn_poster_smooth.pdf',
-                          n_boot=n_boot, seed=seed)
-    plot_qq_legend_poster_smooth(figures_dir / 'qq_legend_poster_smooth.pdf')
+    if sec['poster']:
+        plot_qq_poster_smooth(gt_df, ext_df, figures_dir / 'qq_probe_pond_tn_poster_smooth.pdf',
+                              n_boot=n_boot, seed=seed)
+        plot_qq_legend_poster_smooth(figures_dir / 'qq_legend_poster_smooth.pdf')
 
-    manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot, extraction_id=inputs['extraction_id'], calibration_config_id=sec['calibration_config_id'],
+    manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot,
+                    ecosystems=ecosystems, attributes=attributes, poster=sec['poster'],
+                    extraction_id=inputs['extraction_id'], calibration_config_id=sec['calibration_config_id'],
                     deduplication_config_id=sec['deduplication_config_id'], confidence=sec['confidence'])
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
 

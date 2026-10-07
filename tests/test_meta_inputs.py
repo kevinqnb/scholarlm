@@ -92,7 +92,8 @@ GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
     "params": {"meta": {
         "calibration_config_id": "cal", "rows": "final",
-        "deduplication_config_id": None, "confidence": None, "n_boot": 10, "qq_attributes": ["tn"],
+        "deduplication_config_id": None, "confidence": None, "n_boot": 10,
+        "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"], "poster": False,
     }},
 }
 
@@ -125,6 +126,14 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(confidence="center"),                     # confidence given for rows=final
     lambda m: m.update(rows="deduplicated", deduplication_config_id="x"),                       # no confidence
     lambda m: m.update(rows="deduplicated", deduplication_config_id="x", confidence="median"),  # bad choice
+    lambda m: m.pop("ecosystems"),                               # cell subset has no default
+    lambda m: m.pop("attributes"),
+    lambda m: m.pop("poster"),
+    lambda m: m.update(ecosystems=[]),                           # empty subset
+    lambda m: m.update(attributes=["tn", "tn"]),                 # duplicate
+    lambda m: m.update(ecosystems="pond"),                       # not a list
+    lambda m: m.update(qq_attributes=["ph"]),                    # qq attribute outside attributes
+    lambda m: m.update(poster="false"),                          # str is not a bool
 ])
 def test_bad_config_raises(tmp_path, mutate):
     cfg = copy.deepcopy(GOOD)
