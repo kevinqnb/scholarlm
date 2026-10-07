@@ -48,16 +48,16 @@
     ]
   ],
   "train_prevalence": 0.4985203973789896,
-  "use_platt_scaling": true,
+  "use_platt_scaling": false,
   "head_probe_train": {
-    "accuracy": 0.9661805115197633,
-    "precision": 0.9375124378109453,
-    "recall": 0.9987280050879797,
-    "f1": 0.9671525354136727,
-    "auroc": 0.9980020252732477,
-    "ece": 0.14188155165410674
+    "accuracy": 0.9883745508349187,
+    "precision": 0.9814002089864159,
+    "recall": 0.9955480178079288,
+    "f1": 0.9884234897916229,
+    "auroc": 0.9992981018592259,
+    "ece": 0.01750260628672017
   },
-  "ntp_calibrator_train_ece": 0.05115163379276428,
-  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/pond/judge_interp/2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/head_probe.pkl",
-  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/pond/judge_interp/2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/ntp_calibrator.pkl"
+  "ntp_calibrator_train_ece": 0.05050889265890677,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01/trained_probe/head_probe_noplatt.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01/trained_probe/ntp_calibrator_noplatt.pkl"
 }

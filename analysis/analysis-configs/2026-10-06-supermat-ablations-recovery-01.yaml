@@ -1,0 +1,24 @@
+id: 2026-10-06-supermat-ablations-recovery-01
+project: scholarlm
+description: >
+  Recovery/validity (threshold edge filter, paper-clustered bootstrap) for ablations 2-5 and 7 on supermat.
+  Ablations 2-5 are the 2026-10-02 regenerated full runs; ablation 7 is the 2026-09-26 run
+  (llama = llama-3.1-8b-reppen; the non-reppen llama ablation7 run is unjudged).
+  Same ground truth, seed and settings as 2026-10-05-supermat-full-pipeline-vs-baselines-recovery-01.
+  PREREQUISITES NOT YET MET for the 2026-10-02 ids (recovery_validity.py will fail loud): no
+  postprocessed.json, no match cache, and most 2026-10-04 judge_combine runs have no combined.json.
+  Ablation 7 ids are ready.
+  No run (omitted; null cell in the latex table): ablation2-gemma27b, ablation2-gptoss120b, ablation2-llama8b-reppen, ablation3-gemma27b, ablation3-gptoss120b, ablation3-llama8b-reppen, ablation4-gemma27b, ablation4-gptoss120b, ablation4-llama8b-reppen, ablation5-gemma27b, ablation5-gptoss120b, ablation5-llama8b-reppen.
+seed: 342
+params:
+  ground_truth_file: data/supermat/ground_truth_qualifiers.json
+  experiment_ids:
+    - 2026-09-26-supermat-ablation7-gemma27b-full-01
+    - 2026-09-26-supermat-ablation7-gptoss120b-full-01
+    - 2026-09-26-supermat-ablation7-llama8b-reppen-full-01
+  recovery_validity:
+    edge_filter: threshold
+    n_resamples: 2000
+    alpha: 0.05
+    compute_validity: true
+    output: analysis/results/recovery-validity/2026-10-06-supermat-ablations-recovery-01.csv

@@ -627,7 +627,7 @@ CONFIG = DatasetConfig(
     fuzzy_matching={
         "name": "name",
     },
-    fuzzy_threshold=0.522,
+    fuzzy_threshold=2/3,
     numeric_coerce=["point_value"],
     # Material names are chemical formulas whose notation (LaTeX, unicode
     # subscripts, spacing) varies by system; fuzz.ratio on the raw strings

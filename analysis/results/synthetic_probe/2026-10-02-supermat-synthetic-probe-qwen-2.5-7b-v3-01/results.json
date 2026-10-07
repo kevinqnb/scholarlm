@@ -48,16 +48,16 @@
     ]
   ],
   "train_prevalence": 0.5,
-  "use_platt_scaling": true,
+  "use_platt_scaling": false,
   "head_probe_train": {
-    "accuracy": 0.9958333333333333,
-    "precision": 0.9917355371900827,
+    "accuracy": 0.9995833333333334,
+    "precision": 0.9991673605328892,
     "recall": 1.0,
-    "f1": 0.995850622406639,
-    "auroc": 0.9999854166666666,
-    "ece": 0.12197271830052267
+    "f1": 0.9995835068721366,
+    "auroc": 1.0,
+    "ece": 0.008700290975899062
   },
-  "ntp_calibrator_train_ece": 0.02741510674780447,
-  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/supermat/judge_interp/2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/head_probe.pkl",
-  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/experiments/results/supermat/judge_interp/2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-train-01/trained_probe/ntp_calibrator.pkl"
+  "ntp_calibrator_train_ece": 0.026382585518973573,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01/trained_probe/head_probe_noplatt.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01/trained_probe/ntp_calibrator_noplatt.pkl"
 }

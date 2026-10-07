@@ -1,0 +1,102 @@
+id: 2026-10-06-ablations-recovery-validity-latex-01
+project: scholarlm
+description: >
+  LaTeX table of recovery / validity (+ paper-clustered bootstrap interval) for ablations 2-5 and 7,
+  one column per dataset, read from the three 2026-10-06-*-ablations-recovery-01 result CSVs.
+  Formatting only; seed is required by the analysis-config envelope and is unused here.
+  Null cells = no run or no judging (supermat ablations 2-5; pond ablation 4 and 3 llama; nfix ablation 5 gptoss120b).
+seed: 342
+params:
+  recovery_validity_latex:
+    datasets:
+      PLW: {dataset: pond, analysis_config: 2026-10-06-pond-ablations-recovery-01}
+      NF: {dataset: nfix, analysis_config: 2026-10-06-nfix-ablations-recovery-01}
+      SM: {dataset: supermat, analysis_config: 2026-10-06-supermat-ablations-recovery-01}
+    decimals: 1
+    ci_format: pm
+    output: analysis/results/recovery-validity/2026-10-06-ablations-recovery-validity.tex
+    caption: >-
+      (Recovery, validity) in \% with 95\% paper-clustered bootstrap intervals
+      ($\pm$ half-width) for ablations 2--5 and 7. PLW, NF, SM: pond, nfix, supermat.
+    label: tab:ablations-recovery-validity
+    blocks:
+      - rows:
+          - label: Ablation 2, \texttt{gemma-3-27b}
+            ids:
+              PLW: 2026-10-02-pond-ablation2-gemma27b-full-01
+              NF: 2026-10-02-nfix-ablation2-gemma27b-full-01
+              SM: null
+          - label: Ablation 2, \texttt{gpt-oss-120b}
+            ids:
+              PLW: 2026-10-02-pond-ablation2-gptoss120b-full-01
+              NF: 2026-10-02-nfix-ablation2-gptoss120b-full-01
+              SM: null
+          - label: Ablation 2, \texttt{llama-3.1-8b}
+            ids:
+              PLW: 2026-10-02-pond-ablation2-llama8b-reppen-full-01
+              NF: 2026-10-02-nfix-ablation2-llama8b-reppen-full-01
+              SM: null
+      - rows:
+          - label: Ablation 3, \texttt{gemma-3-27b}
+            ids:
+              PLW: 2026-10-02-pond-ablation3-gemma27b-full-01
+              NF: 2026-10-02-nfix-ablation3-gemma27b-full-01
+              SM: null
+          - label: Ablation 3, \texttt{gpt-oss-120b}
+            ids:
+              PLW: 2026-10-02-pond-ablation3-gptoss120b-full-01
+              NF: 2026-10-02-nfix-ablation3-gptoss120b-full-01
+              SM: null
+          - label: Ablation 3, \texttt{llama-3.1-8b}
+            ids:
+              PLW: null
+              NF: 2026-10-02-nfix-ablation3-llama8b-reppen-full-01
+              SM: null
+      - rows:
+          - label: Ablation 4, \texttt{gemma-3-27b}
+            ids:
+              PLW: 2026-10-02-pond-ablation4-gemma27b-full-01
+              NF: 2026-10-02-nfix-ablation4-gemma27b-full-01
+              SM: null
+          - label: Ablation 4, \texttt{gpt-oss-120b}
+            ids:
+              PLW: 2026-10-02-pond-ablation4-gptoss120b-full-01
+              NF: 2026-10-02-nfix-ablation4-gptoss120b-full-01
+              SM: null
+          - label: Ablation 4, \texttt{llama-3.1-8b}
+            ids:
+              PLW: null
+              NF: 2026-10-02-nfix-ablation4-llama8b-reppen-full-01
+              SM: null
+      - rows:
+          - label: Ablation 5, \texttt{gemma-3-27b}
+            ids:
+              PLW: 2026-10-02-pond-ablation5-gemma27b-full-01
+              NF: 2026-10-02-nfix-ablation5-gemma27b-full-01
+              SM: null
+          - label: Ablation 5, \texttt{gpt-oss-120b}
+            ids:
+              PLW: 2026-10-02-pond-ablation5-gptoss120b-full-01
+              NF: null
+              SM: null
+          - label: Ablation 5, \texttt{llama-3.1-8b}
+            ids:
+              PLW: 2026-10-02-pond-ablation5-llama8b-reppen-full-01
+              NF: 2026-10-02-nfix-ablation5-llama8b-reppen-full-01
+              SM: null
+      - rows:
+          - label: Ablation 7, \texttt{gemma-3-27b}
+            ids:
+              PLW: 2026-09-26-pond-ablation7-gemma27b-full-01
+              NF: 2026-09-26-nfix-ablation7-gemma27b-full-01
+              SM: 2026-09-26-supermat-ablation7-gemma27b-full-01
+          - label: Ablation 7, \texttt{gpt-oss-120b}
+            ids:
+              PLW: 2026-09-26-pond-ablation7-gptoss120b-full-01
+              NF: 2026-09-26-nfix-ablation7-gptoss120b-full-01
+              SM: 2026-09-26-supermat-ablation7-gptoss120b-full-01
+          - label: Ablation 7, \texttt{llama-3.1-8b}
+            ids:
+              PLW: 2026-09-26-pond-ablation7-llama8b-reppen-full-01
+              NF: 2026-09-26-nfix-ablation7-llama8b-reppen-full-01
+              SM: 2026-09-26-supermat-ablation7-llama8b-reppen-full-01

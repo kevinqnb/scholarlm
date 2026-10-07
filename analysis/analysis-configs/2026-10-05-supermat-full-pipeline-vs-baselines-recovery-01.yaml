@@ -13,6 +13,7 @@ seed: 342
 params:
   ground_truth_file: data/supermat/ground_truth_qualifiers.json
   experiment_ids:
+    - 2026-09-26-supermat-extraction-llama8b-reppen-full-01
     - 2026-09-21-supermat-extraction-gemma27b-full-01
     - 2026-09-21-supermat-extraction-gptoss120b-full-01
     - 2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01
