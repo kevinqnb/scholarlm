@@ -1,0 +1,65 @@
+id: 2026-10-07-pond-ablation4-llama8b-reppen-full-p3of3-01
+project: scholarlm
+description: >
+  Part 3 of 3 of 2026-10-02-pond-ablation4-llama8b-reppen-full-01, which hit its 72h walltime unfinished (2026-10-06:
+  llama-3.1-8b-reppen loops inside the events step, see the combined config).
+  Identical to the parent config except params.paper_subset, which restricts this
+  job to 39 of the corpus's 115 papers. Split: largest-first greedy by OCR
+  character count into the lightest part with room, capped at 39 papers per part
+  (-> 38/38/39 papers, 33.3% of characters each); papers listed in sorted-filename
+  order, which is the order run_ablation processes them. The three parts are
+  disjoint and exhaustive; experiments/combine_ablation_parts.py checks that and
+  merges them back under the parent id. Includes the 2026-10-07 ablation 4 events
+  change (max_retries 4->2, max_concurrent 2->4, commit f7cd4ea). STAGED-GATES: rung 3
+  (one-paper e2e, the longest paper) was run 2026-10-07 and did NOT fully match its
+  prediction (a second prompt also looped, so some looping prompts are expected to
+  end as empty events); submitted anyway on 2026-10-07 on the user's explicit decision.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "4"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  # PROVISIONAL, not measured: kept at the parent's ceiling. Each part is ~1/3 of the
+  # parent's work, but the parent never finished, so there is no measured basis yet.
+  walltime: "72:00:00"
+  paper_subset:
+    - analysis_of_biological
+    - biogeochemistry_of_natural
+    - carbon_dioxide_efflux
+    - characterizing_ponds
+    - comparative_analysis
+    - concordance_of_species
+    - content_of_selected
+    - diel_vertical_migrations
+    - diversity_of_macroinvertebrates
+    - drivers_of_sediment
+    - exceptional_summer
+    - first_record_of_the
+    - fish_preference
+    - functions_of_traditional_ponds
+    - habitat_characteristics
+    - high_rates_and_close
+    - identification_of_total
+    - impact_of_macrophytes
+    - lake_metabolism
+    - macroinvertebrate_communities
+    - macroinvertebrate_size
+    - measuring_the_trophic
+    - nutrient_limitation_of
+    - organic_carbon_burial
+    - physical_and_chemical_limnological
+    - potential_methane
+    - production_of_fish
+    - regulation_of_zooplankton
+    - seasonal_succession_in_fishless
+    - sediment_characteristics
+    - sediment_desiccation
+    - sediment_organic_carbon_burial
+    - seed_bank
+    - short-and_long_term
+    - spatial_variation_in_stable
+    - strength_of_phytoplankton
+    - submerged_macrophytes_as_refuges
+    - value_of_artificial
+    - zooplankton_body

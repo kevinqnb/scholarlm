@@ -1,6 +1,18 @@
 id: 2026-10-02-pond-ablation4-llama8b-reppen-full-01
 project: scholarlm
 description: >
+  COMBINED CONFIG (2026-10-07). The single 72h job from this config hit its walltime
+  unfinished on 2026-10-06 (llama-3.1-8b-reppen loops inside the events step's
+  event_details string until max_tokens or the 300s read timeout; see
+  commit f7cd4ea). It was replaced by three disjoint part jobs,
+  2026-10-07-pond-ablation4-llama8b-reppen-full-p{1,2,3}of3-01, whose results
+  experiments/combine_ablation_parts.py merges back into this id's result
+  directory (so the 2026-10-04 judge configs that reference this id are unchanged).
+  Do NOT `submit.sh` this id -- that would relaunch the single job; run
+  `python experiments/combine_ablation_parts.py <this config>` once all three
+  parts have finished. params below are the shared run parameters (checked equal
+  against every part); params.parts lists the parts. Original description follows.
+
   Rung-4 full run, pond, model=llama-3.1-8b-reppen. Ablation 4
   (src/scholarlm/measurementlm_ablation4.py, via run_ablation.py), regenerated
   2026-10-02 from 2026-09-21-pond-ablation4-llama8b-full-01 to match the gold
@@ -24,3 +36,7 @@ params:
   # Raised from 40:00:00 on 2026-10-02 before any run: measured pond llama-3.1-8b full pipeline is
   # 17.9-20.1h and ablation 7 13.6h; ablation 4 is estimated above that (see commit message).
   walltime: "72:00:00"
+  parts:
+    - 2026-10-07-pond-ablation4-llama8b-reppen-full-p1of3-01
+    - 2026-10-07-pond-ablation4-llama8b-reppen-full-p2of3-01
+    - 2026-10-07-pond-ablation4-llama8b-reppen-full-p3of3-01
