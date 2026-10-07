@@ -16,6 +16,7 @@ params:
     deduplication_config_id: null
     confidence: null
     n_boot: 2000
+    reference: ground_truth
     ecosystems: [pond, lake, wetland]
     attributes: [surface_area, max_depth, vegetation_cover, ph, tn, tp, chla]
     qq_attributes: [surface_area, ph, tn, tp]

@@ -19,6 +19,7 @@ params:
     deduplication_config_id: 2026-10-06-pond-deduplication-01
     confidence: center
     n_boot: 20
+    reference: ground_truth
     ecosystems: [pond, lake]
     attributes: [surface_area, max_depth, ph, chla]
     qq_attributes: [surface_area, max_depth, ph, chla]

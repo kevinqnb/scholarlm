@@ -46,7 +46,12 @@ from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
 SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot",
-                "ecosystems", "attributes", "qq_attributes", "poster")
+                "reference", "ecosystems", "attributes", "qq_attributes", "poster")
+# The distribution every extracted setting is compared against (Q-Q x-axis, W2):
+# ground_truth: the curated GT rows; valid: the extracted rows whose stored calibration
+# label is positive (judge OR ground-truth match) -- the same label the probe is
+# calibrated against.
+REFERENCE_CHOICES = ("ground_truth", "valid")
 # final: judged final.json rows (list values unexpanded); postprocessed: postprocessed.json
 # (list values expanded to one row per entry, not deduplicated); deduplicated: the
 # deduplication of postprocessed.json.
@@ -73,7 +78,7 @@ def load_meta_config(path: Path) -> dict:
     """Load and validate an analysis config for meta_updated.py.
 
     ``params`` holds exactly the ``meta`` section (SECTION_KEYS: no defaults, no
-    extras). ``ecosystems`` / ``attributes`` are the cells analysed (membership in
+    extras). ``reference`` is one of REFERENCE_CHOICES. ``ecosystems`` / ``attributes`` are the cells analysed (membership in
     meta_updated's canonical lists is checked there); ``qq_attributes`` must be a subset
     of ``attributes``; ``poster`` (bool) says whether to draw the single poster cell.
     ``deduplication_config_id`` and ``confidence`` are required to be present
@@ -103,6 +108,8 @@ def load_meta_config(path: Path) -> dict:
     nb = sec["n_boot"]
     if isinstance(nb, bool) or not isinstance(nb, int) or nb <= 0:
         raise ValueError(f"{path}: {SECTION}.n_boot must be a positive int, got {nb!r}")
+    if sec["reference"] not in REFERENCE_CHOICES:
+        raise ValueError(f"{path}: {SECTION}.reference must be one of {REFERENCE_CHOICES}, got {sec['reference']!r}")
     for key in ("ecosystems", "attributes", "qq_attributes"):
         v = sec[key]
         if not isinstance(v, list) or not v or not all(isinstance(x, str) for x in v) or len(set(v)) != len(v):

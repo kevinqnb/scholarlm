@@ -29,14 +29,18 @@ The gray band around the diagonal is the ground truth's own bootstrap
 sampling uncertainty, not a statement about the extracted lines.
 
 The analysed cells are the config's params.meta.ecosystems x attributes (subsets of
-ECOSYSTEMS / ATTRIBUTES). Outputs: one Q-Q figure per selected ecosystem x method,
+ECOSYSTEMS / ATTRIBUTES). params.meta.reference sets what every
+extracted setting is compared against (Q-Q x-axis, W2): 'ground_truth' (the curated
+GT rows) or 'valid' (the extracted rows whose stored calibration label -- judge OR
+ground-truth match -- is positive; GT is then itself a compared setting / a
+reference line). Outputs: one Q-Q figure per selected ecosystem x method,
 plus the poster figure iff params.meta.poster, a
-stats CSV (ground_truth, extracted, judge_filtered, ntp_weighted,
-probe_weighted) via weighted_stats() -- weighted mean/std/n_eff/Hazen
+stats CSV (SETTINGS[reference]: ground_truth, extracted, judge_filtered or valid,
+ntp_weighted, probe_weighted) via weighted_stats() -- weighted mean/std/n_eff/Hazen
 median/Q1/Q3, computed on raw non-log values -- and a 2-Wasserstein CSV
 (build_wasserstein_table) giving the quantile-approximated W_2 distance from
-each extracted setting's per-(ecosystem, attribute) distribution to ground
-truth, with a two-sample percentile bootstrap CI. Every setting is restricted to
+each compared setting's per-(ecosystem, attribute) distribution to the
+reference, with a two-sample percentile bootstrap CI. Every setting is restricted to
 documents shared between GT and extraction, minus the probe/NTP calibrator's
 training documents, so the weighted settings are honest out-of-sample
 estimates. See notes/scholarlm/builds/2026-08-21-weighted-hazen-meta-01.md
@@ -60,6 +64,8 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 import joblib
 import pickle
@@ -117,20 +123,50 @@ METHODS = ['ntp', 'probe']
 METHOD_PROB_COL = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
 METHOD_LABELS = {'ntp': 'NTP confidence', 'probe': 'Probe confidence'}
 
-# Settings recorded in the stats CSV/table: ground truth, the two unfiltered
-# reference settings, and each method's fully-weighted setting -- ALL held-out rows,
-# weighted by that method's confidence, no hard cutoff (see module docstring).
-SETTINGS = (
-    ['ground_truth', 'extracted', 'judge_filtered']
-    + [f'{m}_weighted' for m in METHODS]
-)
+# params.meta.reference picks the distribution every extracted setting is compared
+# against (Q-Q x-axis, W2): 'ground_truth' (the curated GT rows) or 'valid' (the
+# extracted rows whose stored calibration label -- judge OR ground-truth match -- is
+# positive; see meta_inputs.REFERENCE_CHOICES). The reference itself is a setting.
+#
+# Settings recorded in the stats CSV/table, per reference: ground truth, the unfiltered
+# extracted rows, the reference's filtered setting (judge-only `judge_filtered` under
+# ground_truth, kept byte-identical to earlier runs; judge-OR-match `valid` under
+# valid), and each method's fully-weighted setting -- ALL held-out rows, weighted by
+# that method's confidence, no hard cutoff (see module docstring).
+SETTINGS = {
+    'ground_truth': ['ground_truth', 'extracted', 'judge_filtered'] + [f'{m}_weighted' for m in METHODS],
+    'valid':        ['ground_truth', 'extracted', 'valid'] + [f'{m}_weighted' for m in METHODS],
+}
+
+# Settings scored against the reference in the W2 table. Under 'valid', ground truth
+# is itself a compared setting (how far the valid-labelled extraction sits from GT).
+W2_SETTINGS = {
+    'ground_truth': ['extracted', 'judge_filtered'] + [f'{m}_weighted' for m in METHODS],
+    'valid':        ['ground_truth', 'extracted'] + [f'{m}_weighted' for m in METHODS],
+}
+
+# Unit-weight lines drawn over the GAMMAS sweep on every Q-Q panel, in a neutral
+# style so they can't be read as a gamma color.
+QQ_REFERENCE_LINES = {
+    'ground_truth': ['extracted', 'judge_filtered'],
+    'valid':        ['ground_truth', 'extracted'],
+}
+QQ_REFERENCE_STYLE = {
+    'ground_truth':   dict(color='#2a7d3a', linestyle='-', linewidth=1.5),
+    'extracted':      dict(color='black', linestyle='-', linewidth=1.3),
+    'judge_filtered': dict(color='black', linestyle=':', linewidth=1.6),
+}
 
 SETTING_LABELS = {
     'ground_truth':   'Ground truth',
     'extracted':      'Extracted (unfiltered)',
     'judge_filtered': 'Extracted (judge-filtered)',
+    'valid':          'Extracted (valid: judge or GT match)',
     **{f'{m}_weighted': f'Extracted ({METHOD_LABELS[m]}-weighted)' for m in METHODS},
 }
+
+# Short Q-Q x-axis label for each reference.
+REFERENCE_AXIS_LABEL = {'ground_truth': 'GT', 'valid': 'Valid extracted'}
 
 STANDARD_UNITS = {
     'max_depth': 'm', 'surface_area': 'm^2', 'vegetation_cover': 'percent',
@@ -196,7 +232,8 @@ LOG_SCALE_ATTRIBUTES = {'surface_area', 'max_depth', 'tn', 'tp', 'chla'}
 # reliability has to be tracked via n_eff instead. Complementary to
 # weighted_valid_range (narrows the line's probability window, never drops it
 # outright) and kish_gate_levels (the per-level version of this gate). Ground truth
-# is exempt -- see the `gt_x.size < 2` checks in plot_qq_smooth/plot_qq_poster_smooth.
+# is exempt -- see the `ref_x.size < 2` / `gt_x.size >= 2` checks in plot_qq_smooth /
+# plot_qq_poster_smooth (the reference sample is exempt likewise).
 MIN_RELIABLE_N = 5
 
 # Quantile probability grid for the Q-Q lines, capped to [0.025, 0.975] so a single
@@ -368,7 +405,9 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     its own real extraction); see meta_inputs.stored_prediction_rows for how the pickle's
     rows are mapped back to measurement_ids. Returns (scored_df, syn_docs, input_files);
     scored_df has measurement_id, document_id, attribute, judgement_combined, ntp_prob,
-    probe_prob, one row per datapoint outside the probe's training documents.
+    probe_prob, label, one row per datapoint outside the probe's training documents.
+    ``label`` is the stored calibration label (judge OR ground-truth match): the
+    'valid' reference setting filters on it.
     """
     judge = inputs['judge_model']
     for col in ('measurement_id', 'document_id', 'attribute'):
@@ -393,7 +432,7 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     assert jc.index.is_unique and set(scored['measurement_id']) <= set(jc.index)
     scored['judgement_combined'] = jc.loc[scored['measurement_id']].to_numpy()
     assert scored.loc[scored['judgement_combined'], 'label'].all(), 'stored labels disagree with judgement_combined'
-    scored = scored.drop(columns='label')
+    assert scored['label'].dtype == bool
     return scored, syn_docs, [probe_path, inputs['predictions_path']]
 
 
@@ -417,7 +456,9 @@ def load_data(cfg: dict, inputs: dict):
     final_df = pd.DataFrame(json.loads(final_path.read_text()))
     combined_df = pd.DataFrame(json.loads(combined_path.read_text()))
     scored, syn_docs, scored_inputs = _load_stored_scores(final_df, combined_df, inputs)
-    score_cols = ['judgement_combined', 'ntp_prob', 'probe_prob']
+    # label (judge OR match) is boolean like judgement_combined: a deduplicated row
+    # always takes its cluster center's (dedup_rows_with_scores), never a mean.
+    score_cols = ['judgement_combined', 'label', 'ntp_prob', 'probe_prob']
 
     input_files = [inputs['ground_truth_path'], final_path, combined_path, *scored_inputs]
     if sec['rows'] == 'final':
@@ -615,8 +656,9 @@ def _setting_data(
     setting: str, gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosystem: str, attribute: str,
 ) -> tuple[np.ndarray, np.ndarray] | None:
     """Return (x, w) arrays of converted_value / weight for one setting, or None if
-    empty. ground_truth/extracted/judge_filtered are unit-weight (w=1 for every
-    surviving row); ntp_weighted/probe_weighted are ALL held-out extracted rows
+    empty. ground_truth/extracted/judge_filtered/valid are unit-weight (w=1 for every
+    surviving row; judge_filtered keeps judgement_combined rows, valid keeps rows whose
+    stored calibration label -- judge OR GT match -- is True); ntp_weighted/probe_weighted are ALL held-out extracted rows
     weighted by that method's confidence, with no hard cutoff (see module docstring).
     """
     if setting == 'ground_truth':
@@ -638,6 +680,12 @@ def _setting_data(
         if len(sub) == 0:
             return None
         return sub['converted_value'].to_numpy(), np.ones(len(sub))
+    if setting == 'valid':
+        assert base['label'].dtype == bool, base['label'].dtype
+        sub = base[base['label']]
+        if len(sub) == 0:
+            return None
+        return sub['converted_value'].to_numpy(), np.ones(len(sub))
 
     for method in METHODS:
         if setting == f'{method}_weighted':
@@ -650,12 +698,12 @@ def _setting_data(
     raise ValueError(f"Unknown setting: {setting}")
 
 
-def build_stats_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame,
+def build_stats_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, reference: str,
                       ecosystems: list[str], attributes: list[str]) -> pd.DataFrame:
     rows = []
     for ecosystem in ecosystems:
         for attribute in attributes:
-            for setting in SETTINGS:
+            for setting in SETTINGS[reference]:
                 data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
                 row = dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute,
                            setting=setting, unit=STANDARD_UNITS[attribute])
@@ -698,8 +746,9 @@ def _hazen_quantiles(x: np.ndarray, levels: np.ndarray) -> np.ndarray:
 
 def _bootstrap_gt_band(x: np.ndarray, levels: np.ndarray, n_boot: int, ci: float, seed: int):
     """2.5/97.5th percentile band (or `ci`-equivalent) of the bootstrap distribution
-    of the ground-truth Hazen quantiles at `levels`. Represents sampling noise in the
-    ground-truth estimate alone -- see module docstring.
+    of the reference sample's Hazen quantiles at `levels` (ground truth, or the
+    valid-labelled extraction under reference 'valid'). Represents sampling noise in
+    the reference estimate alone -- see module docstring.
     """
     rng = np.random.default_rng(seed)
     n = x.size
@@ -732,40 +781,38 @@ def _axis_limits(values: np.ndarray, log: bool) -> tuple[float, float]:
 # Both sides use the same Hazen estimator as the Q-Q figures:
 # weighted_hazen_quantile for the confidence-weighted extracted side (reduces
 # exactly to np.quantile(method='hazen') at unit weight), _hazen_quantiles for
-# the unweighted ground-truth side -- same estimator family on both axes, no
-# mismatch. The score is in the raw value units, and additionally in log10 units
+# the unweighted reference side (ground truth or the valid-labelled extraction, per
+# params.meta.reference) -- same estimator family on both axes, no mismatch. The score is in the raw value units, and additionally in log10 units
 # for LOG_SCALE_ATTRIBUTES so the table reads across attributes that span orders
 # of magnitude (a raw W_2 in m^2 and one in pH units are not comparable).
 
-W2_SETTINGS = ['extracted', 'judge_filtered'] + [f'{m}_weighted' for m in METHODS]
-
-
-def wasserstein2_quantile(gt_x: np.ndarray, ext_x: np.ndarray, ext_w: np.ndarray) -> dict:
+def wasserstein2_quantile(ref_x: np.ndarray, ext_x: np.ndarray, ext_w: np.ndarray) -> dict:
     """Quantile-approximated 2-Wasserstein distance from the confidence-weighted
-    extracted sample (ext_x, ext_w) to the unweighted ground-truth sample (gt_x),
-    in the units of the inputs.
+    sample (ext_x, ext_w) to the unweighted reference sample (ref_x: ground truth or
+    the valid-labelled extraction, per params.meta.reference), in the units of the
+    inputs.
 
-    W_2 ~= sqrt( mean_i (q_ext(u_i) - q_gt(u_i))^2 ) over the midpoint grid
+    W_2 ~= sqrt( mean_i (q_ext(u_i) - q_ref(u_i))^2 ) over the midpoint grid
     W2_QGRID on [W2_QLO, W2_QHI]. The mean (not the width-scaled integral) keeps
-    the statistic in data units, so a pure location shift ext = gt + c gives
+    the statistic in data units, so a pure location shift ext = ref + c gives
     W_2 = |c| exactly.
 
     Returns dict(w2, w2_skip, ext_qlo, ext_qhi). w2 is NaN, with a non-empty
     w2_skip, when a sample cannot support W2_QGRID without np.interp clamping into
     an unobserved probability range (a clamped quantile reads as a flat artifact,
     not a measurement):
-      - 'gt_undersupported' : gt_x has fewer than W2_MIN_GT_N points
+      - 'ref_undersupported': ref_x has fewer than W2_MIN_GT_N points
       - 'ext_no_weight'     : ext_x empty, or every weight is zero
       - 'ext_clamped'       : weighted_valid_range(ext_x, ext_w) does not cover
                               [W2_QLO, W2_QHI] -- e.g. a heavy-weight row at the
                               sample max
     """
-    gt_x = np.asarray(gt_x, dtype=float)
+    ref_x = np.asarray(ref_x, dtype=float)
     ext_x = np.asarray(ext_x, dtype=float)
     ext_w = np.asarray(ext_w, dtype=float)
 
-    if gt_x.size < W2_MIN_GT_N:
-        return dict(w2=np.nan, w2_skip='gt_undersupported', ext_qlo=np.nan, ext_qhi=np.nan)
+    if ref_x.size < W2_MIN_GT_N:
+        return dict(w2=np.nan, w2_skip='ref_undersupported', ext_qlo=np.nan, ext_qhi=np.nan)
     if ext_x.size == 0 or not np.any(ext_w > 0):
         return dict(w2=np.nan, w2_skip='ext_no_weight', ext_qlo=np.nan, ext_qhi=np.nan)
 
@@ -773,9 +820,9 @@ def wasserstein2_quantile(gt_x: np.ndarray, ext_x: np.ndarray, ext_w: np.ndarray
     if ext_qlo > W2_QLO or ext_qhi < W2_QHI:
         return dict(w2=np.nan, w2_skip='ext_clamped', ext_qlo=ext_qlo, ext_qhi=ext_qhi)
 
-    gt_q = _hazen_quantiles(gt_x, W2_QGRID)
+    ref_q = _hazen_quantiles(ref_x, W2_QGRID)
     ext_q = weighted_hazen_quantile(ext_x, ext_w, W2_QGRID)
-    w2 = float(np.sqrt(np.mean((ext_q - gt_q) ** 2)))
+    w2 = float(np.sqrt(np.mean((ext_q - ref_q) ** 2)))
     return dict(w2=w2, w2_skip='', ext_qlo=float(ext_qlo), ext_qhi=float(ext_qhi))
 
 
@@ -784,10 +831,15 @@ def _boot_rng(boot_seed: int, ecosystem: str, attribute: str, stream: int) -> np
     depend on the order cells are iterated in (seed-determinism control,
     CLAUDE.md). `stream` separates the independent resampling streams inside one
     (ecosystem, attribute):
-      0 = GT rows, raw            2 = extracted rows, raw  (all-rows settings)
-      1 = GT rows, log10-positive 3 = extracted rows, raw  (judge_filtered)
+      0 = reference rows, raw     2 = extracted rows, raw  (all-rows settings)
+      1 = reference rows, log10   3 = extracted rows, raw  (judge_filtered)
                                   4 = extracted rows, log  (all-rows settings)
                                   5 = extracted rows, log  (judge_filtered)
+                                  6 = GT rows, raw  (ground_truth as a compared
+                                  7 = GT rows, log   setting, reference 'valid')
+    The reference rows are GT under reference 'ground_truth' and the valid-labelled
+    extraction under 'valid'; under 'ground_truth' streams 0-5 are exactly the ones
+    used before the reference option existed.
     extracted / ntp_weighted / probe_weighted draw from the identical row set, so
     sharing a stream across them makes their replicates paired -- the right basis
     for the within-cell 'does weighting beat unweighted' comparison these numbers
@@ -850,20 +902,35 @@ def _bootstrap_w2_ci(gt_x, ext_x, ext_w, gt_rng, ext_rng, n_boot: int, ci: float
     return float(lo), float(hi), n_ok
 
 
-def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_seed: int,
-                            ecosystems: list[str], attributes: list[str],
-                            n_boot: int = N_BOOT) -> pd.DataFrame:
-    """One row per (ecosystem, attribute, setting): the quantile-approximated
-    2-Wasserstein distance from that extracted setting's distribution to ground
-    truth, raw units and (for LOG_SCALE_ATTRIBUTES) log10 units.
+def _w2_ext_streams(setting: str) -> tuple[int, int]:
+    """(raw, log) _boot_rng streams for a compared setting's resampling -- see
+    _boot_rng. extracted / ntp_weighted / probe_weighted share one row set and so one
+    stream pair (paired replicates)."""
+    if setting == 'judge_filtered':
+        return 3, 5
+    if setting == 'ground_truth':
+        return 6, 7
+    assert setting in ('extracted', *(f'{m}_weighted' for m in METHODS)), setting
+    return 2, 4
 
-    `extracted` / `judge_filtered` are the unweighted baselines the two
-    confidence-weighted settings are read against -- a probe/NTP-weighted W_2 is
-    uninterpretable alone; the claim it supports is "confidence weighting moves
-    the extracted distribution toward GT", i.e. {ntp,probe}_weighted W_2 below
-    `extracted`. `w2_shuffled` is the permutation control: ext weights shuffled
-    within the cell (seed `shuffle_seed`), which should regress W_2 back toward
-    the `extracted` baseline -- if it does not, the weights carry no
+
+def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_seed: int,
+                            reference: str, ecosystems: list[str], attributes: list[str],
+                            n_boot: int = N_BOOT) -> pd.DataFrame:
+    """One row per (ecosystem, attribute, setting in W2_SETTINGS[reference]): the
+    quantile-approximated 2-Wasserstein distance from that setting's distribution to
+    the reference distribution (`reference`: 'ground_truth' -> GT rows; 'valid' ->
+    extracted rows whose calibration label, judge OR GT match, is True), raw units
+    and (for LOG_SCALE_ATTRIBUTES) log10 units.
+
+    The unit-weight settings are the baselines the two confidence-weighted settings
+    are read against -- a probe/NTP-weighted W_2 is uninterpretable alone; the claim
+    it supports is "confidence weighting moves the extracted distribution toward the
+    reference", i.e. {ntp,probe}_weighted W_2 below `extracted`. Under 'valid',
+    `ground_truth` is itself a compared row: how far the valid-labelled extraction
+    sits from the curated GT. `w2_shuffled` is the permutation control: weights
+    shuffled within the cell (seed `shuffle_seed`), which should regress W_2 back
+    toward the `extracted` baseline -- if it does not, the weights carry no
     distributional signal.
 
     `w2_lo` / `w2_hi` (and `w2_log_lo` / `w2_log_hi`) are the percentile bootstrap
@@ -876,19 +943,20 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
     value for a cell depends on which cells precede it in `ecosystems` x `attributes`
     -- unlike the bootstrap CIs (_boot_rng), it is not invariant to the cell subset.
     """
+    assert reference in SETTINGS, reference
     rng = np.random.default_rng(shuffle_seed)
     min_ok = int(np.ceil(W2_BOOT_MIN_OK_FRAC * n_boot))
     rows = []
     for ecosystem in ecosystems:
         for attribute in attributes:
             log_scale = attribute in LOG_SCALE_ATTRIBUTES
-            gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
-            gt_x = gt_data[0] if gt_data is not None else np.array([])
-            gt_pos = gt_x[gt_x > 0] if log_scale else np.array([])
-            for setting in W2_SETTINGS:
+            ref_data = _setting_data(reference, gt_df, ext_df, ecosystem, attribute)
+            ref_x = ref_data[0] if ref_data is not None else np.array([])
+            ref_pos = ref_x[ref_x > 0] if log_scale else np.array([])
+            for setting in W2_SETTINGS[reference]:
                 row = dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute,
-                           setting=setting, unit=STANDARD_UNITS[attribute],
-                           n_gt=int(gt_x.size), n_ext=0, n_eff=0.0,
+                           setting=setting, reference=reference, unit=STANDARD_UNITS[attribute],
+                           n_ref=int(ref_x.size), n_ext=0, n_eff=0.0,
                            ext_qlo=np.nan, ext_qhi=np.nan,
                            w2=np.nan, w2_skip='no_data',
                            w2_lo=np.nan, w2_hi=np.nan, w2_n_boot_ok=0,
@@ -896,20 +964,20 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
                            w2_log_lo=np.nan, w2_log_hi=np.nan, w2_log_n_boot_ok=0,
                            w2_shuffled=np.nan)
                 ext_data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
-                all_rows = setting != 'judge_filtered'  # shared ext resample stream
+                raw_stream, log_stream = _w2_ext_streams(setting)
                 if ext_data is not None:
                     ext_x, ext_w = ext_data
                     row['n_ext'] = int(ext_x.size)
                     row['n_eff'] = kish_n_eff(ext_w) if np.any(ext_w > 0) else 0.0
 
-                    raw = wasserstein2_quantile(gt_x, ext_x, ext_w)
+                    raw = wasserstein2_quantile(ref_x, ext_x, ext_w)
                     row.update(w2=raw['w2'], w2_skip=raw['w2_skip'],
                                ext_qlo=raw['ext_qlo'], ext_qhi=raw['ext_qhi'])
                     if np.isfinite(raw['w2']):
                         lo, hi, n_ok = _bootstrap_w2_ci(
-                            gt_x, ext_x, ext_w,
+                            ref_x, ext_x, ext_w,
                             _boot_rng(shuffle_seed, ecosystem, attribute, 0),
-                            _boot_rng(shuffle_seed, ecosystem, attribute, 2 if all_rows else 3),
+                            _boot_rng(shuffle_seed, ecosystem, attribute, raw_stream),
                             n_boot=n_boot)
                         row['w2_n_boot_ok'] = n_ok
                         if n_ok >= min_ok:
@@ -918,14 +986,14 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
                     if log_scale:
                         ext_pos = ext_x > 0
                         lgx, lgw = np.log10(ext_x[ext_pos]), ext_w[ext_pos]
-                        gt_logx = np.log10(gt_pos)
-                        lg = wasserstein2_quantile(gt_logx, lgx, lgw)
+                        ref_logx = np.log10(ref_pos)
+                        lg = wasserstein2_quantile(ref_logx, lgx, lgw)
                         row.update(w2_log=lg['w2'], w2_log_skip=lg['w2_skip'])
                         if np.isfinite(lg['w2']):
                             lo, hi, n_ok = _bootstrap_w2_ci(
-                                gt_logx, lgx, lgw,
+                                ref_logx, lgx, lgw,
                                 _boot_rng(shuffle_seed, ecosystem, attribute, 1),
-                                _boot_rng(shuffle_seed, ecosystem, attribute, 4 if all_rows else 5),
+                                _boot_rng(shuffle_seed, ecosystem, attribute, log_stream),
                                 n_boot=n_boot)
                             row['w2_log_n_boot_ok'] = n_ok
                             if n_ok >= min_ok:
@@ -934,7 +1002,7 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
                         row['w2_log'], row['w2_log_skip'] = np.nan, 'n/a'
 
                     if np.any(ext_w > 0):
-                        shuf = wasserstein2_quantile(gt_x, ext_x, rng.permutation(ext_w))
+                        shuf = wasserstein2_quantile(ref_x, ext_x, rng.permutation(ext_w))
                         row['w2_shuffled'] = shuf['w2']
                 rows.append(row)
     return pd.DataFrame(rows)
@@ -942,9 +1010,40 @@ def build_wasserstein_table(gt_df: pd.DataFrame, ext_df: pd.DataFrame, shuffle_s
 
 # ── Visualization ─────────────────────────────────────────────────────────────
 
+def qq_line(ref_x: np.ndarray, ref_lo: float, ref_hi: float, ext_x: np.ndarray, ext_w: np.ndarray):
+    """(reference quantile, weighted quantile) pairs for one Q-Q line, or None if the
+    line is gated out. Every line on a panel -- each GAMMAS line and each
+    QQ_REFERENCE_LINES line -- goes through here, so all pass the same three gates:
+    Kish n_eff >= MIN_RELIABLE_N; levels inside both samples' interpolable range
+    (ref_lo/ref_hi from _valid_range, weighted_valid_range for ext); and
+    kish_gate_levels' per-level support requirement.
+    """
+    if ext_x.size == 0 or not np.any(ext_w > 0):
+        return None
+    n_eff = kish_n_eff(ext_w)
+    if n_eff < MIN_RELIABLE_N:
+        return None
+    ext_lo, ext_hi = weighted_valid_range(ext_x, ext_w)
+    lo, hi = max(ref_lo, ext_lo), min(ref_hi, ext_hi)
+    levels = QLEVELS[(QLEVELS >= lo) & (QLEVELS <= hi)]
+    levels = kish_gate_levels(levels, n_eff)
+    if levels.size == 0:
+        return None
+    return _hazen_quantiles(ref_x, levels), weighted_hazen_quantile(ext_x, ext_w, levels)
+
+
+def _draw_qq_line(ax, line, zorder, **style):
+    ref_q, ext_q = line
+    if ref_q.size == 1:
+        ax.scatter(ref_q, ext_q, color=style['color'], s=10, alpha=0.85, zorder=zorder)
+    else:
+        ax.plot(ref_q, ext_q, alpha=0.85, zorder=zorder, solid_capstyle='round', **style)
+
+
 def plot_qq_smooth(
     gt_df: pd.DataFrame,
     ext_df: pd.DataFrame,
+    reference: str,
     ecosystem: str,
     method: str,
     attributes: list[str],
@@ -954,15 +1053,19 @@ def plot_qq_smooth(
     seed: int = 0,
 ):
     """One Q-Q figure for a fixed (ecosystem, method): one subplot per attribute.
-    Each subplot overlays, for every gamma in GAMMAS, a line of (GT quantile,
-    weighted-extracted quantile) pairs -- every held-out row included at every
-    gamma, weighted by confidence(x)^(1/gamma), colored via gamma_color(). The gray
-    band around the diagonal is GT's own bootstrap sampling uncertainty.
+    The x-axis is the `reference` distribution (ground truth, or the valid-labelled
+    extraction -- judge OR GT match). Each subplot overlays, for every gamma in GAMMAS,
+    a line of (reference quantile, weighted-extracted quantile) pairs -- every
+    held-out row included at every gamma, weighted by confidence(x)^(1/gamma),
+    colored via gamma_color() -- plus the unit-weight QQ_REFERENCE_LINES[reference]
+    lines (e.g. unweighted extracted, and GT under 'valid') in QQ_REFERENCE_STYLE.
+    The gray band around the diagonal is the reference's own bootstrap sampling
+    uncertainty.
 
-    A line is dropped once its Kish n_eff falls below MIN_RELIABLE_N; within a
-    surviving line, individual levels below their own n_eff requirement are
-    dropped by kish_gate_levels.
+    Every line goes through qq_line's gates (Kish n_eff >= MIN_RELIABLE_N, the
+    interpolable range, and kish_gate_levels per level).
     """
+    ref_label = REFERENCE_AXIS_LABEL[reference]
     n_attrs = len(attributes)
     fig, axes = plt.subplots(1, n_attrs, figsize=(2.6 * n_attrs, 2.9))
     if n_attrs == 1:
@@ -971,66 +1074,51 @@ def plot_qq_smooth(
     for i, (ax, attribute) in enumerate(zip(axes, attributes)):
         log_scale = attribute in LOG_SCALE_ATTRIBUTES
 
-        gt_data = _setting_data('ground_truth', gt_df, ext_df, ecosystem, attribute)
-        gt_x = gt_data[0] if gt_data is not None else np.array([])
-        if log_scale:
-            gt_x = gt_x[gt_x > 0]
-        if gt_x.size < 2:
-            ax.text(0.5, 0.5, f'insufficient GT data\n(n={gt_x.size})',
+        def cell(setting):
+            data = _setting_data(setting, gt_df, ext_df, ecosystem, attribute)
+            x, w = data if data is not None else (np.array([]), np.array([]))
+            if log_scale:
+                pos = x > 0
+                x, w = x[pos], w[pos]
+            return x, w
+
+        ref_x, _ = cell(reference)
+        if ref_x.size < 2:
+            ax.text(0.5, 0.5, f'insufficient {ref_label} data\n(n={ref_x.size})',
                      ha='center', va='center', fontsize=9, color='#888888',
                      transform=ax.transAxes)
             ax.set_xticks([]); ax.set_yticks([])
-            ax.set_xlabel('GT')
+            ax.set_xlabel(ref_label)
             if i == 0:
                 ax.set_ylabel('Extracted')
             ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
             continue
 
-        gt_lo, gt_hi = _valid_range(gt_x.size)
-        gt_levels = QLEVELS[(QLEVELS >= gt_lo) & (QLEVELS <= gt_hi)]
-        gt_q = _hazen_quantiles(gt_x, gt_levels)
-        boot_lo, boot_hi = _bootstrap_gt_band(gt_x, gt_levels, n_boot=n_boot, ci=ci, seed=seed)
+        ref_lo, ref_hi = _valid_range(ref_x.size)
+        ref_levels = QLEVELS[(QLEVELS >= ref_lo) & (QLEVELS <= ref_hi)]
+        ref_q = _hazen_quantiles(ref_x, ref_levels)
+        boot_lo, boot_hi = _bootstrap_gt_band(ref_x, ref_levels, n_boot=n_boot, ci=ci, seed=seed)
 
-        all_plotted = [gt_q, boot_lo, boot_hi]
+        all_plotted = [ref_q, boot_lo, boot_hi]
 
-        ext_data = _setting_data(f'{method}_weighted', gt_df, ext_df, ecosystem, attribute)
-        if ext_data is not None:
-            ext_x_all, ext_p_all = ext_data
-            if log_scale:
-                pos = ext_x_all > 0
-                ext_x_all, ext_p_all = ext_x_all[pos], ext_p_all[pos]
-        else:
-            ext_x_all, ext_p_all = np.array([]), np.array([])
-
+        ext_x_all, ext_p_all = cell(f'{method}_weighted')
         for t in GAMMAS:
-            if ext_x_all.size == 0:
+            line = qq_line(ref_x, ref_lo, ref_hi, ext_x_all, ext_p_all ** (1.0 / t))
+            if line is None:
                 continue
-            w_t = ext_p_all ** (1.0 / t)
-            if not np.any(w_t > 0):
-                continue
-            n_eff = kish_n_eff(w_t)
-            if n_eff < MIN_RELIABLE_N:
-                continue
+            _draw_qq_line(ax, line, zorder=4, color=gamma_color(t), linewidth=1.0)
+            all_plotted.extend(line)
 
-            ext_lo, ext_hi = weighted_valid_range(ext_x_all, w_t)
-            lo, hi = max(gt_lo, ext_lo), min(gt_hi, ext_hi)
-            levels_t = QLEVELS[(QLEVELS >= lo) & (QLEVELS <= hi)]
-            levels_t = kish_gate_levels(levels_t, n_eff)
-            if levels_t.size == 0:
+        for setting in QQ_REFERENCE_LINES[reference]:
+            x, w = cell(setting)
+            line = qq_line(ref_x, ref_lo, ref_hi, x, w)
+            if line is None:
                 continue
-
-            gt_q_t = _hazen_quantiles(gt_x, levels_t)
-            ext_q_t = weighted_hazen_quantile(ext_x_all, w_t, levels_t)
-            color = gamma_color(t)
-            if levels_t.size == 1:
-                ax.scatter(gt_q_t, ext_q_t, color=color, s=10, alpha=0.85, zorder=4)
-            else:
-                ax.plot(gt_q_t, ext_q_t, color=color, linewidth=1.0, alpha=0.85,
-                        zorder=4, solid_capstyle='round')
-            all_plotted.extend([gt_q_t, ext_q_t])
+            _draw_qq_line(ax, line, zorder=5, **QQ_REFERENCE_STYLE[setting])
+            all_plotted.extend(line)
 
         lo_lim, hi_lim = _axis_limits(np.concatenate(all_plotted), log=log_scale)
-        ax.fill_between(gt_q, boot_lo, boot_hi, color='#888888', alpha=0.25, linewidth=0, zorder=1)
+        ax.fill_between(ref_q, boot_lo, boot_hi, color='#888888', alpha=0.25, linewidth=0, zorder=1)
         ax.plot([lo_lim, hi_lim], [lo_lim, hi_lim], color='#888888', linewidth=1.0,
                  linestyle='--', zorder=2)
 
@@ -1041,7 +1129,7 @@ def plot_qq_smooth(
         ax.set_ylim(lo_lim, hi_lim)
         ax.set_box_aspect(1)
 
-        ax.set_xlabel('GT')
+        ax.set_xlabel(ref_label)
         if i == 0:
             ax.set_ylabel('Extracted')
         ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
@@ -1054,15 +1142,23 @@ def plot_qq_smooth(
     print(f"[meta] wrote {out_path}")
 
 
-def plot_qq_legend_smooth(out_path: Path):
+# Legend text for the QQ_REFERENCE_LINES entries.
+QQ_REFERENCE_LEGEND = {
+    'ground_truth':   'Ground truth',
+    'extracted':      'Unweighted extracted',
+    'judge_filtered': 'Judge-filtered extracted',
+}
+
+
+def plot_qq_legend_smooth(out_path: Path, reference: str):
     """Horizontal colorbar spanning GAMMAS, red (heavy filtering) to blue (no
-    reweighting). Colorbar only -- the y=x reference and GT band live on each
-    Q-Q panel itself.
+    reweighting), above a key for the QQ_REFERENCE_LINES[reference] lines and the
+    reference bootstrap band. The y=x diagonal lives on each Q-Q panel itself.
     """
-    fig, ax = plt.subplots(figsize=(4.5, 0.6))
+    fig, ax = plt.subplots(figsize=(4.5, 1.1))
     ax.axis('off')
 
-    cbar_ax = fig.add_axes([0.15, 0.35, 0.7, 0.3])
+    cbar_ax = fig.add_axes([0.15, 0.62, 0.7, 0.18])
     cbar = fig.colorbar(
         plt.cm.ScalarMappable(norm=QQ_GAMMA_NORM, cmap=GAMMA_CMAP),
         cax=cbar_ax, orientation='horizontal',
@@ -1071,6 +1167,13 @@ def plot_qq_legend_smooth(out_path: Path):
     tick_gammas = [GAMMA_FLOOR, 0.4, 0.6, 0.8, 1.0]
     cbar.set_ticks(tick_gammas)
     cbar.set_ticklabels([f'{g:g}' for g in tick_gammas])
+
+    handles = [Line2D([], [], label=QQ_REFERENCE_LEGEND[s], **QQ_REFERENCE_STYLE[s])
+               for s in QQ_REFERENCE_LINES[reference]]
+    handles.append(Patch(color='#888888', alpha=0.25, linewidth=0,
+                                     label=f'{REFERENCE_AXIS_LABEL[reference]} 95% bootstrap'))
+    ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.25),
+              ncol=len(handles), fontsize=9, handlelength=2.2, columnspacing=1.2)
 
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
@@ -1211,9 +1314,13 @@ def main():
     bad_attrs = sorted(set(attributes) - set(ATTRIBUTES))
     assert not bad_attrs, f"attributes not in ATTRIBUTES: {bad_attrs}"
     # load_meta_config already checks qq_attributes is a subset of attributes.
+    reference = sec['reference']
+    assert reference in SETTINGS, reference
     if sec['poster']:
         assert POSTER_ECOSYSTEM in ecosystems and POSTER_ATTRIBUTE in attributes, (
             f"poster: true but the poster cell ({POSTER_ECOSYSTEM}, {POSTER_ATTRIBUTE}) is not selected")
+        # plot_qq_poster_smooth is the fixed GT-referenced figure; it has no 'valid' form.
+        assert reference == 'ground_truth', "poster: true requires reference: ground_truth"
     seed, n_boot = cfg['seed'], sec['n_boot']
 
     out_dir = META_ROOT / cfg['id']
@@ -1222,13 +1329,13 @@ def main():
 
     gt_df, ext_df, manifest = load_data(cfg, inputs)
 
-    stats_df = build_stats_table(gt_df, ext_df, ecosystems, attributes)
+    stats_df = build_stats_table(gt_df, ext_df, reference, ecosystems, attributes)
     csv_path = out_dir / 'meta_stats.csv'
     stats_df.to_csv(csv_path, index=False)
     print(f"[meta] wrote {csv_path}")
     print(stats_df.to_string(index=False, float_format='{:.3g}'.format))
 
-    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=seed,
+    w2_df = build_wasserstein_table(gt_df, ext_df, shuffle_seed=seed, reference=reference,
                                     ecosystems=ecosystems, attributes=attributes, n_boot=n_boot)
     w2_path = out_dir / 'wasserstein.csv'
     w2_df.to_csv(w2_path, index=False)
@@ -1237,16 +1344,16 @@ def main():
 
     for method in METHODS:
         for ecosystem in ecosystems:
-            plot_qq_smooth(gt_df, ext_df, ecosystem, method, sec['qq_attributes'],
+            plot_qq_smooth(gt_df, ext_df, reference, ecosystem, method, sec['qq_attributes'],
                            figures_dir / f'qq_{method}_{ecosystem}_smooth.pdf', n_boot=n_boot, seed=seed)
 
-    plot_qq_legend_smooth(figures_dir / 'qq_legend_smooth.pdf')
+    plot_qq_legend_smooth(figures_dir / 'qq_legend_smooth.pdf', reference)
     if sec['poster']:
         plot_qq_poster_smooth(gt_df, ext_df, figures_dir / 'qq_probe_pond_tn_poster_smooth.pdf',
                               n_boot=n_boot, seed=seed)
         plot_qq_legend_poster_smooth(figures_dir / 'qq_legend_poster_smooth.pdf')
 
-    manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot,
+    manifest.update(analysis_config_id=cfg['id'], seed=seed, n_boot=n_boot, reference=reference,
                     ecosystems=ecosystems, attributes=attributes, poster=sec['poster'],
                     extraction_id=inputs['extraction_id'], calibration_config_id=sec['calibration_config_id'],
                     deduplication_config_id=sec['deduplication_config_id'], confidence=sec['confidence'])

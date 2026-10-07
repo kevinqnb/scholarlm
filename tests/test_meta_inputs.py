@@ -92,7 +92,7 @@ GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
     "params": {"meta": {
         "calibration_config_id": "cal", "rows": "final",
-        "deduplication_config_id": None, "confidence": None, "n_boot": 10,
+        "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"], "poster": False,
     }},
 }
@@ -126,6 +126,8 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(confidence="center"),                     # confidence given for rows=final
     lambda m: m.update(rows="deduplicated", deduplication_config_id="x"),                       # no confidence
     lambda m: m.update(rows="deduplicated", deduplication_config_id="x", confidence="median"),  # bad choice
+    lambda m: m.pop("reference"),                                # reference has no default
+    lambda m: m.update(reference="gt"),                          # bad choice
     lambda m: m.pop("ecosystems"),                               # cell subset has no default
     lambda m: m.pop("attributes"),
     lambda m: m.pop("poster"),

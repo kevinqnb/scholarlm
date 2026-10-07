@@ -1,0 +1,27 @@
+id: 2026-10-07-pond-meta-dedup-pondlake-valid-01
+project: scholarlm
+description: >
+  Full run (n_boot=2000). Same inputs and cells as 2026-10-07-pond-meta-dedup-pondlake-01 (deduplicated
+  rows from 2026-10-06-pond-deduplication-01, cluster-center confidence, Platt-scaled
+  pond->pond real-cell probe / NTP predictions from
+  2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01; pond + lake x surface_area,
+  max_depth, ph, chla), but every extracted setting is compared against the VALID
+  extracted rows -- those whose stored calibration label (judge OR ground-truth match)
+  is positive -- instead of against ground truth. Ground truth becomes a compared
+  setting and a Q-Q reference line, alongside unweighted extraction. The Platt sample
+  is disjoint from these rows (asserted in prediction_store), so the reference labels
+  never touched the confidence fit.
+  Run: python analysis/meta_updated.py analysis/analysis-configs/2026-10-07-pond-meta-dedup-pondlake-valid-01.yaml
+seed: 0
+params:
+  meta:
+    calibration_config_id: 2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01
+    rows: deduplicated
+    deduplication_config_id: 2026-10-06-pond-deduplication-01
+    confidence: center
+    n_boot: 2000
+    reference: valid
+    ecosystems: [pond, lake]
+    attributes: [surface_area, max_depth, ph, chla]
+    qq_attributes: [surface_area, max_depth, ph, chla]
+    poster: false

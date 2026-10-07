@@ -321,7 +321,7 @@ def test_wasserstein2_undersupported_gt_returns_nan():
     ext = rng.uniform(0.0, 10.0, 100)
     res = wasserstein2_quantile(rng.uniform(0.0, 10.0, W2_MIN_GT_N - 1), ext, np.ones(ext.size))
     assert np.isnan(res['w2'])
-    assert res['w2_skip'] == 'gt_undersupported'
+    assert res['w2_skip'] == 'ref_undersupported'
 
 
 def test_wasserstein2_ext_clamped_returns_nan():
