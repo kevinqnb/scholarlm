@@ -114,12 +114,16 @@ class MeasurementLMAblation4(MeasurementLM):
                 "schema": event_list_json,
             },
         }
+        # max_retries matches the base MeasurementLM._resolve_events (2); they were
+        # 4 / 2 (retries / concurrency) through 2026-10-06, see
+        # 2026-10-02-pond-ablation4-llama8b-reppen-full-01. max_concurrent is 4,
+        # not base's 8 -- a deliberate choice, between the old 2 and base.
         response_texts = self._call_batch(
             messages,
             response_format=response_format,
-            max_retries=4,
+            max_retries=2,
             max_tokens=8192,
-            max_concurrent=2,
+            max_concurrent=4,
             timeout=300,
             validator=lambda r: response_validator(EventList, r),
         )

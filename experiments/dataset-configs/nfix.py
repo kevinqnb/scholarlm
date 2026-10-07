@@ -739,6 +739,6 @@ CONFIG = DatasetConfig(
         "ecosystem_type": "ecosystem_type",
         "substrate_type": "substrate_type",
     },
-    fuzzy_threshold=1/6,
+    fuzzy_threshold=0.532,
     numeric_coerce=["point_value"],
 )
