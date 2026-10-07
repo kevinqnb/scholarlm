@@ -152,8 +152,10 @@ QQ_REFERENCE_LINES = {
     'valid':        ['ground_truth', 'extracted'],
 }
 QQ_REFERENCE_STYLE = {
-    'ground_truth':   dict(color='#2a7d3a', linestyle='-', linewidth=1.5),
-    'extracted':      dict(color='black', linestyle='-', linewidth=1.3),
+    # Dashed so they stand apart from the solid gamma lines; dash lengths differ from
+    # each other and from the gray y=x diagonal ('--', linewidth 1.0).
+    'ground_truth':   dict(color='#2a7d3a', linestyle=(0, (6, 2)), linewidth=1.6),
+    'extracted':      dict(color='black', linestyle=(0, (3, 1.5)), linewidth=1.5),
     'judge_filtered': dict(color='black', linestyle=':', linewidth=1.6),
 }
 
