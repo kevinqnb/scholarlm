@@ -9,9 +9,11 @@ random draws of the Platt rows; the plot shows the mean over trials with a centr
 params.ci interval over trials.
 
 Design points that keep the sweep comparable across n and trials:
-  - Trial t permutes the test dataset's Platt pool with rng([config seed, t]); the
-    n-sample is its first n rows, so within a trial every sample is a superset of the
-    previous one. The same permutation is used for every train probe.
+  - Trial t orders the test dataset's Platt pool with rng([config seed, t]), spread
+    evenly over documents (random document order, cycled; one random unchosen row per
+    document per visit -- cids.document_balanced_order); the n-sample is its first n
+    rows, so within a trial every sample is a superset of the previous one. The same
+    ordering is used for every train probe.
   - The test rows do not depend on n or the trial: they exclude the WHOLE pool and the
     train probe's own documents, exactly as in v3.
   - Real setting only. v3 never Platt-scales synthetic cells and the synthetic
@@ -80,10 +82,13 @@ _METHODS = [
 ]
 
 
-def trial_order(pool_size, seed, trial):
-    """Permutation of range(pool_size) for one trial; the n-sample is its first n entries."""
-    perm = np.random.default_rng([seed, trial]).permutation(pool_size)
-    assert len(set(perm.tolist())) == pool_size
+def trial_order(pool_doc_ids, seed, trial):
+    """Document-balanced ordering of the pool rows for one trial; the n-sample is its first n entries.
+
+    ``pool_doc_ids`` is the document id of each pool row. See cids.document_balanced_order.
+    """
+    perm = cids.document_balanced_order(pool_doc_ids, np.random.default_rng([seed, trial]))
+    assert sorted(perm.tolist()) == list(range(len(pool_doc_ids)))
     return perm
 
 
@@ -227,12 +232,13 @@ def run_sweep(ctx):
             test_scores = ctx.score_rows(train_ds, test_ds, test_idx)
             pool_scores = ctx.score_rows(train_ds, test_ds, pool_idx)  # scored once, indexed per trial
             pool_labels = labels_all[pool_idx]
+            pool_doc_ids = real_df['document_id'].to_numpy()[pool_idx]
             print(f'  {train_ds} probe -> {test_ds}: {len(test_idx)} test rows, pool {len(pool_idx)}; '
                   f'scored in {time.time() - t0:.0f}s', flush=True)
             t_fit = time.time()
 
             for trial in range(ctx.n_trials):
-                order = trial_order(len(pool_idx), ctx.seed, trial)
+                order = trial_order(pool_doc_ids, ctx.seed, trial)
                 for n in ctx.platt_ns:
                     sel = order[:n]
                     assert len(sel) == n and set(order[:ctx.platt_ns[0]].tolist()) <= set(sel.tolist())

@@ -13,6 +13,8 @@ import re
 import sys
 from pathlib import Path
 
+import numpy as np
+
 _EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
     sys.path.insert(0, str(_EXPERIMENTS_DIR))
@@ -472,3 +474,30 @@ def edges_to_judged_rows(edges, ext_df, judged_df):
             raise ValueError(f"edge ex_idx {ex_idx} out of range for {n_ext} extraction rows")
         mapped.add((int(gt_idx), int(ext_mids[ex_idx])))
     return sorted(mapped)
+
+
+def document_balanced_order(doc_ids, rng) -> np.ndarray:
+    """Order every row of a Platt pool so that any prefix is spread evenly over documents.
+
+    ``doc_ids`` is the document id of each pool row. Draw a random order of the
+    documents, then cycle through it; each visit takes one not-yet-chosen row of
+    that document, uniformly at random. A document with no rows left is passed
+    over (it cannot contribute), so a prefix of length n contains the first
+    ceil-balanced round-robin sample: no document supplies more than one row more
+    than any document that still had rows left. Returns positions into ``doc_ids``
+    covering every row exactly once; the Platt sample of size n is ``order[:n]``,
+    and samples for increasing n nest.
+    """
+    doc_ids = np.asarray(doc_ids)
+    assert doc_ids.ndim == 1 and len(doc_ids) > 0, doc_ids.shape
+    docs = np.unique(doc_ids)
+    rows_by_doc = {d: rng.permutation(np.flatnonzero(doc_ids == d)) for d in docs}
+    doc_order = rng.permutation(docs)
+    order = []
+    for r in range(max(len(v) for v in rows_by_doc.values())):
+        for d in doc_order:
+            if r < len(rows_by_doc[d]):
+                order.append(rows_by_doc[d][r])
+    order = np.asarray(order, dtype=np.int64)
+    assert len(order) == len(doc_ids) and len(set(order.tolist())) == len(doc_ids)
+    return order

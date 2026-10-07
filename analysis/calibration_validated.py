@@ -225,17 +225,22 @@ for ds in DATASETS:
 
     # Platt training pool: this dataset's real rows whose document was in its own
     # synthetic-probe training set (the "training split" of the real data). The
-    # Platt sample is PLATT_N of these rows, drawn without replacement with the
-    # config seed; every real test cell for this dataset excludes the whole pool,
-    # so Platt-train and test rows never overlap whichever probe is evaluated.
+    # Platt sample is PLATT_N of these rows, spread evenly over documents (random
+    # document order, one random unchosen row per document per pass; see
+    # cids.document_balanced_order), seeded with the config seed; every real test
+    # cell for this dataset excludes the whole pool, so Platt-train and test rows
+    # never overlap whichever probe is evaluated.
     pool_docs = set(probe_cache[ds][JUDGE_MODEL]['syn_document_ids'])
     pool_idx = np.where(real_df['document_id'].isin(pool_docs).to_numpy())[0]
     assert len(pool_idx) >= PLATT_N, f'{ds}: Platt pool has {len(pool_idx)} rows < platt_n={PLATT_N}'
-    platt_idx = np.sort(np.random.default_rng(SEED).choice(pool_idx, size=PLATT_N, replace=False))
+    pool_order = cids.document_balanced_order(
+        real_df['document_id'].to_numpy()[pool_idx], np.random.default_rng(SEED))
+    platt_idx = np.sort(pool_idx[pool_order[:PLATT_N]])
     assert len(set(platt_idx.tolist())) == PLATT_N and set(platt_idx) <= set(pool_idx.tolist())
     assert 0 < combined_labels[platt_idx].sum() < PLATT_N, (
         f'{ds}: Platt sample is single-class ({int(combined_labels[platt_idx].sum())}/{PLATT_N} valid)')
-    print(f'  {ds}: Platt sample {PLATT_N}/{len(pool_idx)} pool rows, '
+    print(f'  {ds}: Platt sample {PLATT_N}/{len(pool_idx)} pool rows from '
+          f'{real_df["document_id"].iloc[platt_idx].nunique()}/{len(pool_docs & set(real_df["document_id"]))} pool docs, '
           f'{int(combined_labels[platt_idx].sum())} valid')
 
     test_data[ds] = {

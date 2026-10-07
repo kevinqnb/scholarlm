@@ -20,12 +20,29 @@ _CFG = _REPO / "analysis/analysis-configs/2026-10-05-platt-scaling-sweep-gemma27
 
 
 def test_trial_order_nested_prefixes_and_determinism():
-    a = ps.trial_order(50, seed=0, trial=3)
+    docs = np.repeat(np.arange(10), 5)                     # 10 docs x 5 rows
+    a = ps.trial_order(docs, seed=0, trial=3)
     assert sorted(a.tolist()) == list(range(50))
     assert set(a[:10]) <= set(a[:25])                      # prefixes nest by construction
-    assert (a == ps.trial_order(50, seed=0, trial=3)).all()
-    assert not (a == ps.trial_order(50, seed=0, trial=4)).all()
-    assert not (a == ps.trial_order(50, seed=1, trial=3)).all()
+    assert (a == ps.trial_order(docs, seed=0, trial=3)).all()
+    assert not (a == ps.trial_order(docs, seed=0, trial=4)).all()
+    assert not (a == ps.trial_order(docs, seed=1, trial=3)).all()
+
+
+def test_trial_order_spreads_over_documents():
+    # docs A,B,C with 6,2,1 rows. Ordering: round-robin over a random doc order.
+    docs = np.array(list("AAAAAABBC"))
+    for trial in range(20):
+        o = ps.trial_order(docs, seed=0, trial=trial)
+        first3 = docs[o[:3]]
+        assert sorted(first3.tolist()) == ["A", "B", "C"]   # one from each doc in pass 1
+        assert sorted(docs[o[3:5]].tolist()) == ["A", "B"]  # pass 2: C exhausted, skipped
+        assert docs[o[5:]].tolist() == ["A"] * 4            # then only A remains
+        # same document cycle each pass
+        assert [d for d in docs[o[3:5]]] == [d for d in docs[o[:3]] if d != "C"]
+    # row choice within a doc is random: A's first pick varies across trials
+    firsts = {int(ps.trial_order(docs, 0, t)[np.flatnonzero(docs[ps.trial_order(docs, 0, t)] == "A")[0]]) for t in range(50)}
+    assert len(firsts) > 1
 
 
 def test_smece_known_answer_matches_relplot_diagram():
