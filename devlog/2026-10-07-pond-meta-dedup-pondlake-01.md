@@ -21,3 +21,16 @@ The meta analysis is narrowed to the ecosystem/attribute cells with the broadest
 
 ### Commits
 4706ea0 meta_updated: config-selected ecosystem/attribute cells, explicit poster flag
+
+## Session 2026-10-07 (valid-extraction reference)
+
+### Prompts
+- "Instead of comparing against the ground truth distribution, let's compare probe-weighted distributions to the judge-filtered distribution (only valid extracted data points). Note that since we always label by the combination of LLM judges + matching, that's how we should filter here as well. Then in the plot, the ground truth distribution should be the reference line. Still include the unweighted reference line as well."
+- Keep old configs able to reproduce the GT-referenced analysis through a required config switch.
+- "commit it, add it to the devlog, and run the full analysis directly here"
+
+### Implemented
+`analysis/meta_updated.py` gains a required `params.meta.reference` (`ground_truth` | `valid`, validated in `analysis/meta_inputs.py`). Under `valid`, every confidence-weighted and unweighted setting is compared (Q-Q x-axis, W2) against the extracted rows whose stored calibration label (judge OR ground-truth match) is positive, with ground truth drawn as a reference line and scored as its own W2 row. Q-Q panels now also draw unit-weight reference lines through a shared `qq_line` helper that applies the same reliability gates as the confidence sweep. This was a standalone evaluation-code commit; under `reference: ground_truth` the existing configs reproduce their earlier outputs exactly, so no prior numbers are invalidated. New configs are `analysis/analysis-configs/2026-10-07-pond-meta-dedup-pondlake-valid-01.yaml` (plus `-smoke-01`); the existing `2026-10-06/07-pond-meta-*` configs gained `reference: ground_truth`. New unit tests in `tests/test_meta_reference.py` cover the known answers (a perfect confidence reproduces the reference exactly), and the smoke run matched its predicted row counts.
+
+### Commits
+8238a33 meta_updated: reference option -- compare weighted settings against valid (judge OR match) extraction
