@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Smooth ECE (lower is better; best per column in bold). Real extractions scored against human validity labels; Platt scalers fitted on 100 LLM+matching-labelled rows per test dataset. Test rows exclude that Platt pool and the training probe's documents; $N$ is the same down each column. Judge model \texttt{qwen-2.5-7b}. Rows: dataset the probe / NTP calibrator was trained on; PLW: pond, SM: supermat. Intervals: $\pm$ half-width of the 95\% bootstrap interval.}
+\label{tab:calibration-validated-real-smece}
+\begin{tabular}{lcc}
+\toprule
+& \multicolumn{2}{c}{Test dataset} \\
+\cmidrule(l){2-3}
+Method (train) & PLW & SM \\
+\midrule
+NTP (PLW) & 0.140 $\pm$ 0.049 & \textbf{0.081} $\pm$ 0.056 \\
+NTP (SM) & 0.141 $\pm$ 0.049 & 0.082 $\pm$ 0.055 \\
+\midrule
+Probe (PLW) & 0.110 $\pm$ 0.037 & 0.098 $\pm$ 0.050 \\
+Probe (SM) & \textbf{0.060} $\pm$ 0.040 & 0.083 $\pm$ 0.043 \\
+\bottomrule
+\end{tabular}
+\end{table}

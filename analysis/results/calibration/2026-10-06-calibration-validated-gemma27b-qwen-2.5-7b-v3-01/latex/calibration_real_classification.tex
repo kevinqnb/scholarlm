@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Classification metrics at threshold 0.5 (no intervals stored). Pos. rate: fraction of test rows labelled valid. Real extractions scored against human validity labels; Platt scalers fitted on 100 LLM+matching-labelled rows per test dataset. Test rows exclude that Platt pool and the training probe's documents; $N$ is the same down each column. Judge model \texttt{qwen-2.5-7b}. Rows: dataset the probe / NTP calibrator was trained on; PLW: pond, SM: supermat.}
+\label{tab:calibration-validated-real-classification}
+\begin{tabular}{lllrcccccc}
+\toprule
+Method & Train & Test & $N$ & Pos. rate & Acc. & Prec. & Rec. & F1 & AUROC \\
+\midrule
+NTP & PLW & PLW & 295 & 0.525 & 0.637 & 0.711 & 0.523 & 0.602 & 0.688 \\
+NTP & PLW & SM & 175 & 0.383 & 0.771 & 0.708 & 0.687 & 0.697 & 0.820 \\
+NTP & SM & PLW & 295 & 0.525 & 0.637 & 0.711 & 0.523 & 0.602 & 0.688 \\
+NTP & SM & SM & 175 & 0.383 & 0.771 & 0.708 & 0.687 & 0.697 & 0.820 \\
+\midrule
+Probe & PLW & PLW & 295 & 0.525 & 0.627 & 0.642 & 0.658 & 0.650 & 0.667 \\
+Probe & PLW & SM & 175 & 0.383 & 0.594 & 0.458 & 0.328 & 0.383 & 0.659 \\
+Probe & SM & PLW & 295 & 0.525 & 0.617 & 0.654 & 0.574 & 0.612 & 0.676 \\
+Probe & SM & SM & 175 & 0.383 & 0.669 & 0.565 & 0.582 & 0.574 & 0.774 \\
+\bottomrule
+\end{tabular}
+\end{table}

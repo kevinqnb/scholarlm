@@ -2,6 +2,10 @@
 ``analysis/calibration_updated_v3.py`` as LaTeX tables, one set per test setting
 (synthetic and real are never mixed in a table).
 
+Also renders ``analysis/calibration_validated.py``'s CSVs (same schema; real cells
+scored against human validity labels): ``labels`` in the spec says which, and picks
+the loader for the referenced calibration config and the real-setting caption.
+
 This only *formats* numbers that calibration_updated_v3.py already wrote; it
 computes no metric. Per setting it writes three files into ``output_dir``:
 
@@ -39,7 +43,8 @@ Usage
 
 Table spec (``params.calibration_latex``; every key required, no defaults)::
 
-    calibration_config: <id of a calibration_updated_v3 analysis config>
+    calibration_config: <id of a calibration_updated_v3 or calibration_validated analysis config>
+    labels: llm_matching | human_validated   # v3 config | calibration_validated config
     datasets: {PLW: pond, NF: nfix, SM: supermat}   # ordered; key = label
     decimals: 3
     ci_format: pm | interval
@@ -60,11 +65,14 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.analysis_config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
+    load_calibration_validated_config,
 )
 
 SECTION = "calibration_latex"
-SECTION_KEYS = ("calibration_config", "datasets", "decimals", "ci_format", "output_dir", "label_prefix")
+SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "ci_format", "output_dir", "label_prefix")
 CI_FORMATS = ("pm", "interval")
+# Real-cell label source -> loader for the referenced calibration config.
+LABEL_LOADERS = {"llm_matching": load_calibration_v3_config, "human_validated": load_calibration_validated_config}
 MISSING_CELL = "--"
 SETTINGS = {"syn": "synthetic", "real": "real"}
 METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file>.csv suffix)
@@ -110,6 +118,8 @@ def load_spec(path: Path) -> dict:
     spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS)
     if spec["ci_format"] not in CI_FORMATS:
         raise ValueError(f"{path}: ci_format must be one of {CI_FORMATS}, got {spec['ci_format']!r}")
+    if spec["labels"] not in LABEL_LOADERS:
+        raise ValueError(f"{path}: labels must be one of {tuple(LABEL_LOADERS)}, got {spec['labels']!r}")
     d = spec["decimals"]
     if isinstance(d, bool) or not isinstance(d, int) or d < 0:
         raise ValueError(f"{path}: decimals must be a non-negative int, got {d!r}")
@@ -124,6 +134,12 @@ def load_spec(path: Path) -> dict:
     return spec
 
 
+def load_calibration_config(spec: dict) -> dict:
+    """The referenced calibration config, via the loader ``spec["labels"]`` names
+    (a v3 config fails the validated loader and vice versa)."""
+    return LABEL_LOADERS[spec["labels"]](ANALYSIS_CONFIGS_ROOT / f"{spec['calibration_config']}.yaml")
+
+
 def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
     """``{Type: frame}`` for NTP and Probe, plus the single judge model, after
     validating the CSVs against the referenced calibration config.
@@ -133,7 +149,7 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
         ValueError: any guard in the module docstring fails.
     """
     cal_id = spec["calibration_config"]
-    cal_cfg = load_calibration_v3_config(ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml")
+    cal_cfg = load_calibration_config(spec)
     config_datasets = set(cal_cfg["params"]["datasets"])
     if set(spec["datasets"].values()) != config_datasets:
         raise ValueError(f"spec datasets {sorted(spec['datasets'].values())} != {cal_id} datasets {sorted(config_datasets)}")
@@ -243,15 +259,27 @@ def _wrap(spec: dict, setting: str, name: str, body: list[str], caption: str, co
     ])
 
 
-def _caption_tail(spec: dict, setting: str, judge: str, platt_n: int, *, with_ci: bool = True) -> str:
+def _n_constant_down_columns(frames: dict, setting: str) -> bool:
+    """True iff every (method, train) row shares one N for each test dataset."""
+    df = pd.concat(frames.values())
+    return bool(df[df["Dataset type"] == setting].groupby("Test dataset")["N"].nunique().eq(1).all())
+
+
+def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: int, *, with_ci: bool = True) -> str:
     labels = ", ".join(f"{k}: {v}" for k, v in spec["datasets"].items())
     ci = ("$\\pm$ half-width of the" if spec["ci_format"] == "pm" else "bracketed") + " 95\\% bootstrap interval"
     if setting == "syn":
         s = "Synthetic test sets; no recalibration."
     else:
-        s = (f"Real extractions, Platt-scaled on {platt_n} labelled rows per test dataset. "
-             "Off-diagonal cells exclude the training probe's documents, so the test rows (N) "
-             "differ down a column.")
+        if spec["labels"] == "human_validated":
+            s = (f"Real extractions scored against human validity labels; Platt scalers fitted on {platt_n} "
+                 "LLM+matching-labelled rows per test dataset.")
+        else:
+            s = f"Real extractions, Platt-scaled on {platt_n} labelled rows per test dataset."
+        # Stated from the data, not assumed: exclusion is per cell, so N may or may not vary.
+        n_note = ("$N$ is the same down each column" if _n_constant_down_columns(frames, setting)
+                  else "$N$ differs down a column")
+        s += f" Test rows exclude that Platt pool and the training probe's documents; {n_note}."
     return f"{s} Judge model \\texttt{{{judge}}}. Rows: dataset the probe / NTP calibrator was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else "")
 
 
@@ -272,7 +300,7 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_
             cells = [_cell(lk[(kind, tr, te)], SMECE, spec=spec, bold=lk[(kind, tr, te)][SMECE[0]] == best[te])
                      for te in labels.values()]
             body.append(f"{kind} ({tl}) & " + " & ".join(cells) + " \\\\")
-    caption = f"Smooth ECE (lower is better; best per column in bold). " + _caption_tail(spec, setting, judge, platt_n)
+    caption = f"Smooth ECE (lower is better; best per column in bold). " + _caption_tail(spec, frames, setting, judge, platt_n)
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
@@ -326,7 +354,7 @@ def build_classification_table(spec: dict, frames: dict, setting: str, judge: st
         note = (f" -- : undefined (no row predicted valid at threshold 0.5; {len(undefined)} cell(s)"
                 " in this table).")
     caption = ("Classification metrics at threshold 0.5 (no intervals stored). Pos. rate: fraction of "
-               "test rows labelled valid." + note + " " + _caption_tail(spec, setting, judge, platt_n, with_ci=False))
+               "test rows labelled valid." + note + " " + _caption_tail(spec, frames, setting, judge, platt_n, with_ci=False))
     return _wrap(spec, setting, "classification", body, caption, "lll" + "r" + "c" * (1 + len(CLASSIFICATION)))
 
 
@@ -337,7 +365,7 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, pla
     body = ["Method & Train & Test & " + " & ".join(v[3] for v in ECE_VARIANTS) + " \\\\",
             *_long_rows(spec, frames, setting, cells)]
     caption = ("Alternative calibration errors: equal-width ECE, equal-mass (adaptive) ECE, and debiased "
-               "RMSCE (Kumar et al., 2019). " + _caption_tail(spec, setting, judge, platt_n))
+               "RMSCE (Kumar et al., 2019). " + _caption_tail(spec, frames, setting, judge, platt_n))
     return _wrap(spec, setting, "ece-variants", body, caption, "lll" + "c" * len(ECE_VARIANTS))
 
 
@@ -358,7 +386,7 @@ def main(argv: list[str] | None = None) -> None:
 
     spec = load_spec(args.config)
     frames, judge = load_metrics(spec)
-    platt_n = load_calibration_v3_config(ANALYSIS_CONFIGS_ROOT / f"{spec['calibration_config']}.yaml")["params"]["platt_n"]
+    platt_n = load_calibration_config(spec)["params"]["platt_n"]
     tables = build_tables(spec, frames, judge, platt_n)
     out_dir = Path(spec["output_dir"])
     out_dir = out_dir if out_dir.is_absolute() else _REPO_ROOT / out_dir

@@ -1,0 +1,19 @@
+id: 2026-10-07-calibration-validated-latex-01
+project: scholarlm
+description: >
+  LaTeX tables (synthetic and real, separately) for the human-validated calibration run
+  2026-10-06-calibration-validated-gemma27b-qwen-2.5-7b-v3-01: smooth ECE main table plus
+  classification and alternative-ECE tables. Only pond and supermat have validations, so
+  the tables are 2x2 train/test. Formatting only; seed is required by the analysis-config
+  envelope and is unused here.
+  Run: python analysis/calibration_latex.py --config analysis/analysis-configs/2026-10-07-calibration-validated-latex-01.yaml
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-06-calibration-validated-gemma27b-qwen-2.5-7b-v3-01
+    labels: human_validated
+    datasets: {PLW: pond, SM: supermat}
+    decimals: 3
+    ci_format: pm
+    output_dir: analysis/results/calibration/2026-10-06-calibration-validated-gemma27b-qwen-2.5-7b-v3-01/latex
+    label_prefix: tab:calibration-validated

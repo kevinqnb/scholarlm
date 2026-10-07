@@ -10,6 +10,7 @@ seed: 0
 params:
   calibration_latex:
     calibration_config: 2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01
+    labels: llm_matching
     datasets: {PLW: pond, NF: nfix, SM: supermat}
     decimals: 3
     ci_format: pm

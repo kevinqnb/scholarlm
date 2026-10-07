@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Smooth ECE (lower is better; best per column in bold). Synthetic test sets; no recalibration. Judge model \texttt{qwen-2.5-7b}. Rows: dataset the probe / NTP calibrator was trained on; PLW: pond, SM: supermat. Intervals: $\pm$ half-width of the 95\% bootstrap interval.}
+\label{tab:calibration-validated-syn-smece}
+\begin{tabular}{lcc}
+\toprule
+& \multicolumn{2}{c}{Test dataset} \\
+\cmidrule(l){2-3}
+Method (train) & PLW & SM \\
+\midrule
+NTP (PLW) & 0.056 $\pm$ 0.008 & \textbf{0.037} $\pm$ 0.014 \\
+NTP (SM) & 0.078 $\pm$ 0.009 & 0.049 $\pm$ 0.020 \\
+\midrule
+Probe (PLW) & 0.051 $\pm$ 0.009 & 0.071 $\pm$ 0.015 \\
+Probe (SM) & \textbf{0.044} $\pm$ 0.011 & 0.063 $\pm$ 0.010 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Classification metrics at threshold 0.5 (no intervals stored). Pos. rate: fraction of test rows labelled valid. Synthetic test sets; no recalibration. Judge model \texttt{qwen-2.5-7b}. Rows: dataset the probe / NTP calibrator was trained on; PLW: pond, SM: supermat.}
+\label{tab:calibration-validated-syn-classification}
+\begin{tabular}{lllrcccccc}
+\toprule
+Method & Train & Test & $N$ & Pos. rate & Acc. & Prec. & Rec. & F1 & AUROC \\
+\midrule
+NTP & PLW & PLW & 3{,}080 & 0.500 & 0.753 & 0.952 & 0.532 & 0.683 & 0.934 \\
+NTP & PLW & SM & 956 & 0.500 & 0.718 & 1.000 & 0.435 & 0.606 & 0.934 \\
+NTP & SM & PLW & 3{,}080 & 0.500 & 0.777 & 0.947 & 0.587 & 0.725 & 0.934 \\
+NTP & SM & SM & 956 & 0.500 & 0.740 & 0.996 & 0.481 & 0.649 & 0.934 \\
+\midrule
+Probe & PLW & PLW & 3{,}080 & 0.500 & 0.883 & 0.852 & 0.926 & 0.888 & 0.951 \\
+Probe & PLW & SM & 956 & 0.500 & 0.879 & 0.887 & 0.868 & 0.877 & 0.940 \\
+Probe & SM & PLW & 3{,}080 & 0.500 & 0.814 & 0.799 & 0.840 & 0.819 & 0.897 \\
+Probe & SM & SM & 956 & 0.500 & 0.950 & 0.969 & 0.929 & 0.949 & 0.989 \\
+\bottomrule
+\end{tabular}
+\end{table}

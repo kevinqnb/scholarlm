@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Alternative calibration errors: equal-width ECE, equal-mass (adaptive) ECE, and debiased RMSCE (Kumar et al., 2019). Synthetic test sets; no recalibration. Judge model \texttt{qwen-2.5-7b}. Rows: dataset the probe / NTP calibrator was trained on; PLW: pond, SM: supermat. Intervals: $\pm$ half-width of the 95\% bootstrap interval.}
+\label{tab:calibration-validated-syn-ece-variants}
+\begin{tabular}{lllccc}
+\toprule
+Method & Train & Test & ECE & Adaptive ECE & Debiased RMSCE \\
+\midrule
+NTP & PLW & PLW & 0.092 [0.078, 0.106] & 0.210 [0.198, 0.223] & 0.255 $\pm$ 0.012 \\
+NTP & PLW & SM & 0.051 [0.027, 0.077] & 0.227 [0.206, 0.251] & 0.282 $\pm$ 0.020 \\
+NTP & SM & PLW & 0.123 [0.109, 0.137] & 0.196 [0.184, 0.209] & 0.246 $\pm$ 0.011 \\
+NTP & SM & SM & 0.067 [0.039, 0.092] & 0.216 [0.195, 0.240] & 0.269 $\pm$ 0.022 \\
+\midrule
+Probe & PLW & PLW & 0.051 [0.047, 0.064] & 0.053 [0.044, 0.064] & 0.061 $\pm$ 0.011 \\
+Probe & PLW & SM & 0.072 [0.061, 0.096] & 0.071 [0.057, 0.091] & 0.077 $\pm$ 0.023 \\
+Probe & SM & PLW & 0.045 [0.039, 0.060] & 0.043 [0.036, 0.058] & 0.052 $\pm$ 0.014 \\
+Probe & SM & SM & 0.064 [0.056, 0.077] & 0.064 [0.051, 0.077] & 0.071 $\pm$ 0.018 \\
+\bottomrule
+\end{tabular}
+\end{table}

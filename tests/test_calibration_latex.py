@@ -13,7 +13,8 @@ from analysis import calibration_latex as cl
 REAL_CFG = "2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01"
 DS = ["pond", "nfix", "supermat"]
 SPEC = {"datasets": {"PLW": "pond", "NF": "nfix", "SM": "supermat"}, "decimals": 3, "ci_format": "pm",
-        "label_prefix": "tab:t", "calibration_config": REAL_CFG, "output_dir": "x"}
+        "label_prefix": "tab:t", "calibration_config": REAL_CFG, "output_dir": "x",
+        "labels": "llm_matching"}
 
 
 def _row(setting, kind, tr, te, smece):
@@ -173,3 +174,38 @@ def test_load_metrics_mixed_judges(staged):
     df.to_csv(p, index=False)
     with pytest.raises(ValueError, match="mix judge models"):
         cl.load_metrics(SPEC)
+
+
+def test_real_caption_states_n_pattern_from_data():
+    # Fixture N is 1234 everywhere -> constant down each column.
+    tex = cl.build_smece_table(SPEC, _frames(), "real", "j", 100)
+    assert "$N$ is the same down each column" in tex and "differs" not in tex
+    f = _frames()
+    f["Probe"].loc[(f["Probe"]["Dataset type"] == "real") & (f["Probe"]["Train dataset"] == "nfix"), "N"] = 999
+    tex = cl.build_smece_table(SPEC, f, "real", "j", 100)
+    assert "$N$ differs down a column" in tex and "same down" not in tex
+
+
+def test_real_caption_names_label_source():
+    llm = cl.build_smece_table(SPEC, _frames(), "real", "j", 100)
+    human = cl.build_smece_table({**SPEC, "labels": "human_validated"}, _frames(), "real", "j", 100)
+    assert "human validity labels" not in llm and "Platt-scaled on 100 labelled rows" in llm
+    assert "scored against human validity labels" in human and "100 LLM+matching-labelled rows" in human
+    # Synthetic captions do not depend on the label source.
+    assert (cl.build_smece_table(SPEC, _frames(), "syn", "j", 100)
+            == cl.build_smece_table({**SPEC, "labels": "human_validated"}, _frames(), "syn", "j", 100))
+
+
+def test_wrong_loader_for_config_raises(staged):
+    # A v3 (llm_matching) config fails the validated loader: it has nfix and no validation_sha256.
+    with pytest.raises(ValueError):
+        cl.load_metrics({**SPEC, "labels": "human_validated"})
+
+
+def test_load_spec_rejects_unknown_labels(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("id: c\nproject: scholarlm\ndescription: x\nseed: 0\nparams:\n  calibration_latex:\n"
+                 "    calibration_config: a\n    labels: human\n    datasets: {PLW: pond}\n    decimals: 3\n"
+                 "    ci_format: pm\n    output_dir: x\n    label_prefix: t\n")
+    with pytest.raises(ValueError, match="labels must be one of"):
+        cl.load_spec(p)
