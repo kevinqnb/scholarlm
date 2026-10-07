@@ -34,3 +34,14 @@ The meta analysis is narrowed to the ecosystem/attribute cells with the broadest
 
 ### Commits
 8238a33 meta_updated: reference option -- compare weighted settings against valid (judge OR match) extraction
+
+## Session 2026-10-07 (Q-Q line styling)
+
+### Prompts
+- "Can you just make the ground truth and unweighted extracted lines a little more visually distinct? I think the way to do this would be to make them dashed lines."
+
+### Implemented
+In `analysis/meta_updated.py`, the ground-truth and unweighted-extracted Q-Q reference lines are now dashed, each with its own dash length, so they stand apart from the solid confidence-sweep lines and from the y=x diagonal. This is a plotting-only change: rerunning `analysis/analysis-configs/2026-10-07-pond-meta-dedup-pondlake-valid-01.yaml` regenerated the figures with byte-identical statistics and Wasserstein tables.
+
+### Commits
+124ef50 meta_updated: dash the GT and unweighted Q-Q reference lines
