@@ -340,3 +340,70 @@ def test_v3_loader_rejects_malformed(world, tmp_path, mutate):
     mutate(cfg)
     with pytest.raises(ValueError):
         _load_v3(cfg, tmp_path)
+
+
+# ── load_calibration_validated_config: pond+supermat only, pinned validation sha256 ──
+def _to_validated(cfg, tmp_path, monkeypatch):
+    """v3 shape, minus nfix, plus a validations dir whose files the config pins."""
+    import hashlib
+    cfg["params"].pop("pi_te_estimate")
+    cfg["params"]["platt_n"] = 100
+    cfg["params"]["datasets"].pop("nfix")
+    vdir = tmp_path / "validations"
+    vdir.mkdir()
+    for ds, block in cfg["params"]["datasets"].items():
+        (vdir / f"{ds}.json").write_text(json.dumps({"dataset": ds, "n": 1}))
+        block["validation_sha256"] = hashlib.sha256((vdir / f"{ds}.json").read_bytes()).hexdigest()
+    monkeypatch.setenv(ac.VALIDATIONS_ENV, str(vdir))
+    return cfg, vdir
+
+
+def _load_validated(cfg, tmp_path):
+    p = tmp_path / f"{cfg['id']}.yaml"
+    p.write_text(yaml.safe_dump(cfg))
+    return ac.load_calibration_validated_config(p)
+
+
+def test_validated_happy_path(world, tmp_path, monkeypatch):
+    cfg, _ = world
+    _to_validated(cfg, tmp_path, monkeypatch)
+    out = cids.resolve_calibration_inputs(_load_validated(cfg, tmp_path))
+    assert set(out["datasets"]) == {"pond", "supermat"}
+
+
+def test_validated_rejects_sha_mismatch(world, tmp_path, monkeypatch):
+    cfg, vdir = _to_validated(world[0], tmp_path, monkeypatch)
+    (vdir / "pond.json").write_text(json.dumps({"dataset": "pond", "n": 2}))  # rebuilt after pinning
+    with pytest.raises(ValueError, match="sha256"):
+        _load_validated(cfg, tmp_path)
+
+
+def test_validated_env_unset_is_hard_error(world, tmp_path, monkeypatch):
+    cfg, _ = world
+    _to_validated(cfg, tmp_path, monkeypatch)
+    monkeypatch.delenv(ac.VALIDATIONS_ENV)
+    import dotenv
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: None)
+    with pytest.raises(KeyError, match=ac.VALIDATIONS_ENV):
+        _load_validated(cfg, tmp_path)
+
+
+def test_validated_missing_file_is_hard_error(world, tmp_path, monkeypatch):
+    cfg, vdir = _to_validated(world[0], tmp_path, monkeypatch)
+    (vdir / "supermat.json").unlink()
+    with pytest.raises(FileNotFoundError):
+        _load_validated(cfg, tmp_path)
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda c: c["params"]["datasets"]["pond"].pop("validation_sha256"),
+    lambda c: c["params"]["datasets"]["pond"].update(validation_sha256="abc"),
+    lambda c: c["params"]["datasets"].pop("supermat"),
+    lambda c: c["params"]["datasets"].update(nfix=dict(c["params"]["datasets"]["pond"])),  # no validations for nfix
+    lambda c: c["params"].pop("platt_n"),
+])
+def test_validated_loader_rejects_malformed(world, tmp_path, monkeypatch, mutate):
+    cfg, _ = _to_validated(world[0], tmp_path, monkeypatch)
+    mutate(cfg)
+    with pytest.raises(ValueError):
+        _load_validated(cfg, tmp_path)

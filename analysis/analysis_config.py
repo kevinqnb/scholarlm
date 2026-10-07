@@ -269,15 +269,15 @@ def load_calibration_config(path: Path) -> dict:
     pi = params["pi_te_estimate"]
     if pi is not None and (isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1):
         raise ValueError(f"{path}: params.pi_te_estimate must be null or a float in (0, 1), got {pi!r}")
-    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS)
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
     return cfg
 
 
-def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple) -> None:
-    """Checks shared by the v1 and v2 calibration loaders: seed, probe_type/
+def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datasets_expected: tuple) -> None:
+    """Checks shared by the calibration loaders: seed, probe_type/
     probe_variant/syn_split, and every per-dataset block against ``dataset_keys``
     (the keys of CALIBRATION_DATASET_KEYS plus whatever the caller adds, which
-    it validates itself)."""
+    it validates itself). ``params.datasets`` must have exactly ``datasets_expected``."""
     params = cfg["params"]
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
@@ -292,9 +292,9 @@ def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple) -> No
             f"{path}: params.syn_split must be one of {list(CALIBRATION_SYN_SPLITS)}, got {params['syn_split']!r}"
         )
     datasets = params["datasets"]
-    if not isinstance(datasets, dict) or set(datasets) != set(CALIBRATION_DATASETS):
+    if not isinstance(datasets, dict) or set(datasets) != set(datasets_expected):
         raise ValueError(
-            f"{path}: params.datasets must have exactly the keys {list(CALIBRATION_DATASETS)}, "
+            f"{path}: params.datasets must have exactly the keys {list(datasets_expected)}, "
             f"got {sorted(datasets) if isinstance(datasets, dict) else datasets!r}"
         )
     for ds, block in datasets.items():
@@ -360,7 +360,7 @@ def load_calibration_v2_config(path: Path) -> dict:
         raise ValueError(
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V2_TOP_KEYS)}"
         )
-    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS)
+    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
     for ds, block in params["datasets"].items():
         pi = block["pi_te_estimate"]
         if isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1:
@@ -396,7 +396,71 @@ def load_calibration_v3_config(path: Path) -> dict:
     n = params["platt_n"]
     if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
         raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
-    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS)
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
+    return cfg
+
+
+# analysis/calibration_validated.py: v3 evaluated against human validations instead
+# of LLM+matching labels. Only the datasets with validations (pond, supermat); each
+# block additionally pins validation_sha256, the sha256 of $SCHOLARLM_VALIDATIONS_DIR/
+# <ds>.json -- those files are rebuilt as more measurements get judged, so an
+# unpinned file would change the reported numbers silently.
+CALIBRATION_VALIDATED_DATASETS = ("pond", "supermat")
+CALIBRATION_VALIDATED_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("validation_sha256",)
+VALIDATIONS_ENV = "SCHOLARLM_VALIDATIONS_DIR"
+
+
+def validations_path(dataset: str) -> Path:
+    """$SCHOLARLM_VALIDATIONS_DIR/<dataset>.json (the env var is read from the repo's
+    .env if not already exported). No default directory: unset is an error."""
+    import os
+    from dotenv import load_dotenv
+    load_dotenv(_REPO_ROOT / ".env")
+    if VALIDATIONS_ENV not in os.environ:
+        raise KeyError(f"{VALIDATIONS_ENV} is not set -- add it to {_REPO_ROOT / '.env'}")
+    root = Path(os.environ[VALIDATIONS_ENV])
+    if not root.is_dir():
+        raise FileNotFoundError(f"{VALIDATIONS_ENV}={root} is not a directory")
+    path = root / f"{dataset}.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"no validations for {dataset!r} at {path}")
+    return path
+
+
+def load_calibration_validated_config(path: Path) -> dict:
+    """Load analysis/calibration_validated.py's analysis-configs/<id>.yaml.
+
+    Same keys as load_calibration_v3_config, except ``params.datasets`` is exactly
+    CALIBRATION_VALIDATED_DATASETS and each block also carries ``validation_sha256``.
+    Checks here (so _resolve_job.py rejects them before qsub) that
+    $SCHOLARLM_VALIDATIONS_DIR/<ds>.json exists and hashes to the pinned value.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types,
+            or a validations file whose sha256 differs from the pin.
+        KeyError / FileNotFoundError: env var unset / validations file missing.
+    """
+    import hashlib
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+    if set(params) != set(CALIBRATION_V3_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V3_TOP_KEYS)}"
+        )
+    n = params["platt_n"]
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    _validate_calibration_body(path, cfg, CALIBRATION_VALIDATED_DATASET_KEYS, CALIBRATION_VALIDATED_DATASETS)
+    for ds, block in params["datasets"].items():
+        pin = block["validation_sha256"]
+        if not isinstance(pin, str) or len(pin) != 64:
+            raise ValueError(f"{path}: params.datasets.{ds}.validation_sha256 must be a 64-char hex string, got {pin!r}")
+        actual = hashlib.sha256(validations_path(ds).read_bytes()).hexdigest()
+        if actual != pin:
+            raise ValueError(
+                f"{path}: {validations_path(ds)} sha256 {actual} != pinned {pin} -- the validations were "
+                f"rebuilt; re-pin validation_sha256 deliberately (this changes every number)"
+            )
     return cfg
 
 
@@ -448,5 +512,5 @@ def load_platt_sweep_config(path: Path) -> dict:
             f"{path}: params.single_class_policy must be one of {list(PLATT_SWEEP_SINGLE_CLASS_POLICIES)}, "
             f"got {params['single_class_policy']!r}"
         )
-    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS)
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
     return cfg

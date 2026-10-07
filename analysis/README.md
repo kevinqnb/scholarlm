@@ -15,6 +15,7 @@ analysis/
   validity_evaluation.py   — evaluate validity assessment methods (synthetic + human arms)
   synthetic_probe_train.py — trains and pre-calibrates the synthetic probe models
   calibration.py      - evaluates the trained probe / NTP models on test data
+  calibration_validated.py - calibration_updated_v3 scored on human-validated labels (pond, supermat; needs $SCHOLARLM_VALIDATIONS_DIR)
   clustering.py       - trains and evaluates a downstream clustering model
   match_cache.py       — computes and caches extraction<->ground-truth matches, by experiment id
   recovery_validity.py — recovery/validity with paper-clustered bootstrap CIs, from match caches + judge_combine
