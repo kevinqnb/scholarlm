@@ -96,6 +96,18 @@ only skips the scan, never the check. Every output row also carries the
 analysis config's own ``id`` (``None`` in ad-hoc CLI mode) and the
 repo-relative ``ground_truth_file`` it was scored against, so a number can be
 traced back to exactly what produced it.
+
+An optional ``params.recovery_validity.fuzzy_threshold_curve`` block
+(``experiment_ids``: a subset of params.experiment_ids; ``thresholds``: an
+explicit, strictly increasing list in [0, 1] that must include the dataset's
+own fuzzy_threshold) additionally sweeps the fuzzy threshold for those ids
+(``fuzzy_threshold_curve``) and writes, under
+``analysis/results/recovery-validity/<config id>/``, one
+``<experiment_id>-fuzzy-threshold-curve.csv`` per id plus
+``figures/<experiment_id>.pdf`` (recovery vs validity, points coloured by
+threshold) and ``figures/fuzzy_threshold_colorbar.pdf``. Config mode only, and
+requires compute_validity. The sweep's point at the dataset threshold is
+asserted equal to the headline row for that id.
 """
 from __future__ import annotations
 
@@ -1218,6 +1230,212 @@ def save_validity_recovery_legend(out_path):
 
 
 # ---------------------------------------------------------------------------
+# Fuzzy-threshold sweep: recovery/validity as the matching threshold varies
+# ---------------------------------------------------------------------------
+
+
+def _validate_threshold_grid(thresholds, dataset_threshold: float) -> list[float]:
+    """Assert ``thresholds`` is a non-empty, strictly increasing list of
+    numbers in [0, 1] that contains the dataset's own fuzzy_threshold exactly
+    (so the sweep can be checked against the headline row at that point).
+
+    Thresholds must be given as explicit decimals, not generated: the edge
+    filter is inclusive (``w >= t``), so a float-noise grid value like
+    0.7000000000000001 would silently drop edges scoring exactly 0.7.
+    """
+    if not isinstance(thresholds, list) or not thresholds or not all(
+        isinstance(t, (int, float)) and not isinstance(t, bool) for t in thresholds
+    ):
+        raise ValueError(f"thresholds must be a non-empty list of numbers, got {thresholds!r}")
+    thresholds = [float(t) for t in thresholds]
+    if any(not (0.0 <= t <= 1.0) for t in thresholds):
+        raise ValueError(f"thresholds must all lie in [0, 1], got {thresholds}")
+    if any(b <= a for a, b in zip(thresholds, thresholds[1:])):
+        raise ValueError(f"thresholds must be strictly increasing, got {thresholds}")
+    if dataset_threshold not in thresholds:
+        raise ValueError(
+            f"thresholds must include the dataset's own fuzzy_threshold "
+            f"{dataset_threshold!r} exactly (the known-answer point checked against "
+            f"compute_metrics_for_id), got {thresholds}"
+        )
+    return thresholds
+
+
+def fuzzy_threshold_curve(
+    experiment_id: str,
+    *,
+    ground_truth_path: Path,
+    thresholds: list[float],
+    judge_combine_id: str | None = None,
+) -> pd.DataFrame:
+    """Recovery and validity of one id at each fuzzy threshold in ``thresholds``.
+
+    Exactly ``compute_metrics_for_id``'s point estimates, with the dataset's
+    fuzzy_threshold swapped for each t: recovery is the fraction of ground
+    truth rows with any cached edge ``w >= t``; validity is the fraction of
+    extraction rows judged valid OR having any edge ``w >= t``. Same cache
+    guards (``_load_checked_inputs``), same judge resolution, and every point
+    is cross-checked against ``analysis.metrics`` (``_verify_recovery``/
+    ``_verify_validity``). No bootstrap CIs, and no max-weight matching.
+
+    ``thresholds`` must contain the dataset's own fuzzy_threshold (see
+    ``_validate_threshold_grid``); the caller checks that point against
+    ``compute_metrics_for_id``'s row.
+
+    Raises:
+        AssertionError: recovery or validity increases as the threshold rises
+            (both must be non-increasing -- raising t only removes edges).
+    """
+    inputs = _load_checked_inputs(experiment_id, ground_truth_path)
+    dataset = inputs["dataset"]
+    ground_truth_df, extraction_df = inputs["ground_truth_df"], inputs["extraction_df"]
+    cfg, cache_path = inputs["cfg"], inputs["cache_path"]
+    raw_edges, raw_weights = inputs["raw_edges"], inputs["raw_weights"]
+    n_gt, n_ext = len(ground_truth_df), len(extraction_df)
+
+    thresholds = _validate_threshold_grid(thresholds, cfg["fuzzy_threshold"])
+    judge_combine_id, _judge_ids, judged_labels = _resolve_judged_labels(
+        dataset, experiment_id, judge_combine_id, extraction_df,
+    )
+
+    rows = []
+    for t in thresholds:
+        edges, _weights = filter_edges_by_threshold(raw_edges, raw_weights, t)
+        recovered = gt_recovered_mask(n_gt, edges)
+        _verify_recovery(ground_truth_df, extraction_df, cfg, t, cache_path, recovered)
+        matched = ext_matched_mask(n_ext, edges)
+        validity_labels = _verify_validity(
+            ground_truth_df, extraction_df, cfg, t, cache_path, matched, judged_labels,
+        )
+        rows.append({
+            "experiment_id": experiment_id,
+            "dataset": dataset,
+            "judge_combine_id": judge_combine_id,
+            "fuzzy_threshold": t,
+            "is_dataset_threshold": t == cfg["fuzzy_threshold"],
+            "n_gt": n_gt,
+            "n_ext": n_ext,
+            "n_surviving_edges": len(edges),
+            "recovery": float(recovered.mean()),
+            "validity": float(validity_labels.mean()),
+        })
+    df = pd.DataFrame(rows)
+
+    for col in ("recovery", "validity"):
+        if (np.diff(df[col].to_numpy()) > 0).any():
+            raise AssertionError(
+                f"{experiment_id}: {col} increases with fuzzy threshold -- impossible, "
+                f"raising the threshold only removes edges: {df[col].tolist()}"
+            )
+    return df
+
+
+def _assert_curve_matches_row(curve: pd.DataFrame, row: dict) -> None:
+    """Known-answer check: the sweep's point at the dataset threshold must equal
+    ``compute_metrics_for_id``'s headline recovery/validity for the same id."""
+    at = curve[curve["is_dataset_threshold"]]
+    if len(at) != 1:
+        raise AssertionError(f"{row['experiment_id']}: {len(at)} curve rows at the dataset threshold, expected 1")
+    at = at.iloc[0]
+    for col in ("recovery", "validity", "n_surviving_edges", "fuzzy_threshold", "judge_combine_id"):
+        if at[col] != row[col]:
+            raise AssertionError(
+                f"{row['experiment_id']}: fuzzy-threshold curve {col}={at[col]!r} at the "
+                f"dataset threshold disagrees with compute_metrics_for_id's {row[col]!r}"
+            )
+
+
+_FUZZY_THRESHOLD_NORM = (0.0, 1.0)
+
+
+def plot_fuzzy_threshold_curve(curve: pd.DataFrame, out_path: Path) -> None:
+    """Save one recovery (x) vs validity (y) figure: a grey line through the
+    sweep, every point coloured by its fuzzy threshold on coolwarm with a fixed
+    0..1 norm (so colours match ``save_fuzzy_threshold_colorbar``). The
+    dataset's own fuzzy_threshold (``is_dataset_threshold``) is drawn as a
+    slightly larger diamond, every other threshold as a circle. No title.
+
+    Raises:
+        ValueError: ``curve`` doesn't have exactly one dataset-threshold row.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    is_selected = curve["is_dataset_threshold"].to_numpy(dtype=bool)
+    if is_selected.sum() != 1:
+        raise ValueError(f"expected exactly one is_dataset_threshold row, got {int(is_selected.sum())}")
+
+    norm = mcolors.Normalize(*_FUZZY_THRESHOLD_NORM)
+    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+    ax.plot(curve["recovery"], curve["validity"], "-", color="grey", lw=3.0, zorder=2)
+    ax.scatter(
+        curve["recovery"][~is_selected], curve["validity"][~is_selected], c=curve["fuzzy_threshold"][~is_selected],
+        cmap=plt.cm.coolwarm, norm=norm, marker="o", s=45, zorder=3,
+    )
+    # Thin dark edge: the dataset thresholds (~0.53-0.58) sit at coolwarm's
+    # near-white midpoint, so fill colour alone doesn't separate the diamond.
+    ax.scatter(
+        curve["recovery"][is_selected], curve["validity"][is_selected], c=curve["fuzzy_threshold"][is_selected],
+        cmap=plt.cm.coolwarm, norm=norm, marker="D", s=60, zorder=4, edgecolors="k", linewidths=0.9,
+    )
+    ax.set_xlabel("Recovery")
+    ax.set_ylabel("Validity")
+    ax.grid(alpha=0.25, linestyle="-", linewidth=0.4)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches="tight", dpi=200)
+    plt.close(fig)
+
+
+def save_fuzzy_threshold_colorbar(out_path: Path) -> None:
+    """Save the standalone 0..1 coolwarm colorbar, labelled "Fuzzy Threshold",
+    for plot_fuzzy_threshold_curve figures."""
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm, norm=mcolors.Normalize(*_FUZZY_THRESHOLD_NORM))
+    sm.set_array([])
+    fig, ax = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax, label="Fuzzy Threshold")
+    fig.savefig(out_path, bbox_inches="tight", dpi=200)
+    plt.close(fig)
+
+
+def fuzzy_threshold_figures_dir(analysis_config_id: str) -> Path:
+    """analysis/results/recovery-validity/<analysis config id>/figures/."""
+    return _REPO_ROOT / "analysis" / "results" / "recovery-validity" / analysis_config_id / "figures"
+
+
+def _parse_fuzzy_threshold_curve_section(section, experiment_ids: list[str], compute_validity: bool, where: str) -> dict:
+    """Validate params.recovery_validity.fuzzy_threshold_curve: exactly
+    ``experiment_ids`` (a non-empty, duplicate-free subset of
+    params.experiment_ids) and ``thresholds`` (checked per dataset later, by
+    ``_validate_threshold_grid``). Requires compute_validity: the curve plots
+    validity, which needs judgements."""
+    if not isinstance(section, dict) or set(section) != {"experiment_ids", "thresholds"}:
+        raise ValueError(
+            f"{where}: params.recovery_validity.fuzzy_threshold_curve must be a mapping with "
+            f"exactly the keys experiment_ids and thresholds, got {section!r}"
+        )
+    if not compute_validity:
+        raise ValueError(
+            f"{where}: params.recovery_validity.fuzzy_threshold_curve is set but compute_validity "
+            f"is false -- the curve plots validity, which needs judge_combine coverage"
+        )
+    curve_ids = section["experiment_ids"]
+    if not isinstance(curve_ids, list) or not curve_ids or not all(isinstance(x, str) for x in curve_ids):
+        raise ValueError(f"{where}: fuzzy_threshold_curve.experiment_ids must be a non-empty list of strings")
+    if len(set(curve_ids)) != len(curve_ids):
+        raise ValueError(f"{where}: fuzzy_threshold_curve.experiment_ids has duplicates: {curve_ids}")
+    unknown = set(curve_ids) - set(experiment_ids)
+    if unknown:
+        raise ValueError(
+            f"{where}: fuzzy_threshold_curve.experiment_ids not in params.experiment_ids: {sorted(unknown)}"
+        )
+    return {"experiment_ids": curve_ids, "thresholds": section["thresholds"]}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -1298,7 +1516,7 @@ def main(argv: list[str] | None = None) -> None:
         section = get_section(
             cfg, "recovery_validity",
             required_keys=("n_resamples", "alpha", "compute_validity", "output"),
-            optional_keys=("judge_combine_ids",),
+            optional_keys=("judge_combine_ids", "fuzzy_threshold_curve"),
         )
         n_resamples = section["n_resamples"]
         seed = cfg["seed"]
@@ -1332,8 +1550,14 @@ def main(argv: list[str] | None = None) -> None:
                 f"{args.config}: params.recovery_validity.judge_combine_ids has key(s) "
                 f"not in params.experiment_ids: {sorted(unknown_overrides)}"
             )
+        curve_section = None
+        if "fuzzy_threshold_curve" in section:
+            curve_section = _parse_fuzzy_threshold_curve_section(
+                section["fuzzy_threshold_curve"], experiment_ids, compute_validity, str(args.config),
+            )
         analysis_config_id = cfg["id"]
     else:
+        curve_section = None
         experiment_ids = args.experiment_ids
         ground_truth_path = args.ground_truth_file
         if not ground_truth_path.is_absolute():
@@ -1373,6 +1597,26 @@ def main(argv: list[str] | None = None) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output, index=False)
     print(f"\nWrote {len(df)} row(s) to {output}")
+
+    if curve_section is None:
+        return
+    figures_dir = fuzzy_threshold_figures_dir(analysis_config_id)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    rows_by_id = {row["experiment_id"]: row for row in rows}
+    for experiment_id in curve_section["experiment_ids"]:
+        print(f"Fuzzy-threshold curve for {experiment_id} ...")
+        curve = fuzzy_threshold_curve(
+            experiment_id, ground_truth_path=ground_truth_path,
+            thresholds=curve_section["thresholds"],
+            judge_combine_id=judge_combine_overrides.get(experiment_id),
+        )
+        _assert_curve_matches_row(curve, rows_by_id[experiment_id])
+        curve["analysis_config_id"] = analysis_config_id
+        curve.to_csv(figures_dir.parent / f"{experiment_id}-fuzzy-threshold-curve.csv", index=False)
+        plot_fuzzy_threshold_curve(curve, figures_dir / f"{experiment_id}.pdf")
+        print(f"  wrote {figures_dir / f'{experiment_id}.pdf'}")
+    save_fuzzy_threshold_colorbar(figures_dir / "fuzzy_threshold_colorbar.pdf")
+    print(f"  wrote {figures_dir / 'fuzzy_threshold_colorbar.pdf'}")
 
 
 if __name__ == "__main__":

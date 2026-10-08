@@ -1165,3 +1165,140 @@ def test_main_config_mode_judge_combine_override_with_compute_validity_false_rai
     )
     with pytest.raises(ValueError, match="would never be used"):
         rv.main(["--config", str(config_path)])
+
+
+# ---------------------------------------------------------------------------
+# fuzzy_threshold_curve -- recovery/validity swept over the fuzzy threshold
+# ---------------------------------------------------------------------------
+
+# Edge weights 1.0 / 0.6 / 0.2 on gt-ext pairs 0/1/2; judged [T, F, T];
+# the fixture's dataset threshold is 0.5. Edges are kept at w >= t, so:
+#   t=0.0, 0.2: all 3 edges -> recovery 3/3; matched all -> validity 3/3
+#   t=0.5, 0.6: edges 0,1   -> recovery 2/3; matched [T,T,F] | judged [T,F,T] -> 3/3
+#   t=0.7, 1.0: edge 0      -> recovery 1/3; matched [T,F,F] | judged [T,F,T] -> 2/3
+_CURVE_THRESHOLDS = [0.0, 0.2, 0.5, 0.6, 0.7, 1.0]
+_CURVE_WEIGHTS = [1.0, 0.6, 0.2]
+
+
+def test_fuzzy_threshold_curve_known_answer(e2e_fixture):
+    extraction_id, combine_id, _judge_ids, gt_path = e2e_fixture
+    _rewrite_fixture_cache(extraction_id, [(0, 0), (1, 1), (2, 2)], _CURVE_WEIGHTS)
+
+    curve = rv.fuzzy_threshold_curve(extraction_id, ground_truth_path=gt_path, thresholds=_CURVE_THRESHOLDS)
+
+    assert curve["fuzzy_threshold"].tolist() == _CURVE_THRESHOLDS
+    assert curve["recovery"].tolist() == pytest.approx([1, 1, 2 / 3, 2 / 3, 1 / 3, 1 / 3])
+    assert curve["validity"].tolist() == pytest.approx([1, 1, 1, 1, 2 / 3, 2 / 3])
+    assert curve["n_surviving_edges"].tolist() == [3, 3, 2, 2, 1, 1]
+    assert curve["is_dataset_threshold"].tolist() == [False, False, True, False, False, False]
+    assert (curve["judge_combine_id"] == combine_id).all()
+
+    # Known-answer control: the dataset-threshold point is the headline row.
+    row = rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=50, seed=0)
+    rv._assert_curve_matches_row(curve, row)
+
+
+def test_assert_curve_matches_row_catches_disagreement(e2e_fixture):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    curve = rv.fuzzy_threshold_curve(extraction_id, ground_truth_path=gt_path, thresholds=[0.0, 0.5])
+    row = rv.compute_metrics_for_id(extraction_id, ground_truth_path=gt_path, n_resamples=50, seed=0)
+    row["recovery"] = 0.0
+    with pytest.raises(AssertionError, match="disagrees"):
+        rv._assert_curve_matches_row(curve, row)
+
+
+@pytest.mark.parametrize("thresholds, match", [
+    ([0.0, 0.6], "must include the dataset's own fuzzy_threshold"),
+    ([0.5, 0.2], "strictly increasing"),
+    ([0.5, 0.5], "strictly increasing"),
+    ([0.5, 1.5], r"\[0, 1\]"),
+    ([], "non-empty list"),
+    ([True, 0.5], "non-empty list of numbers"),
+])
+def test_fuzzy_threshold_curve_rejects_bad_grid(e2e_fixture, thresholds, match):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    with pytest.raises(ValueError, match=match):
+        rv.fuzzy_threshold_curve(extraction_id, ground_truth_path=gt_path, thresholds=thresholds)
+
+
+def _curve_config(tmp_path, gt_path, experiment_ids, curve_section, compute_validity=True):
+    config_path = tmp_path / "2026-10-07-test-curve-01.yaml"
+    with open(config_path, "w") as f:
+        yaml.safe_dump(
+            {
+                "id": "2026-10-07-test-curve-01",
+                "project": "scholarlm",
+                "description": "test",
+                "seed": 342,
+                "params": {
+                    "experiment_ids": experiment_ids,
+                    "ground_truth_file": str(gt_path),
+                    "recovery_validity": {
+                        "n_resamples": 50,
+                        "alpha": 0.05,
+                        "compute_validity": compute_validity,
+                        "output": str(tmp_path / "out.csv"),
+                        "fuzzy_threshold_curve": curve_section,
+                    },
+                },
+            },
+            f,
+        )
+    return config_path
+
+
+def test_main_config_mode_writes_curve_csv_and_figures(tmp_path, e2e_fixture, monkeypatch):
+    extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
+    _rewrite_fixture_cache(extraction_id, [(0, 0), (1, 1), (2, 2)], _CURVE_WEIGHTS)
+    figures_dir = tmp_path / "rv-out" / "2026-10-07-test-curve-01" / "figures"
+    monkeypatch.setattr(rv, "fuzzy_threshold_figures_dir", lambda config_id: figures_dir)
+
+    config_path = _curve_config(
+        tmp_path, gt_path, [extraction_id],
+        {"experiment_ids": [extraction_id], "thresholds": _CURVE_THRESHOLDS},
+    )
+    rv.main(["--config", str(config_path)])
+
+    curve = pd.read_csv(figures_dir.parent / f"{extraction_id}-fuzzy-threshold-curve.csv")
+    assert curve["recovery"].tolist() == pytest.approx([1, 1, 2 / 3, 2 / 3, 1 / 3, 1 / 3])
+    assert (curve["analysis_config_id"] == "2026-10-07-test-curve-01").all()
+    assert (figures_dir / f"{extraction_id}.pdf").stat().st_size > 0
+    assert (figures_dir / "fuzzy_threshold_colorbar.pdf").stat().st_size > 0
+
+
+def test_main_config_mode_curve_id_not_in_experiment_ids_raises(tmp_path):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+    config_path = _curve_config(tmp_path, gt_path, ["id-a"], {"experiment_ids": ["id-b"], "thresholds": [0.5]})
+    with pytest.raises(ValueError, match="not in params.experiment_ids"):
+        rv.main(["--config", str(config_path)])
+
+
+def test_main_config_mode_curve_without_validity_raises(tmp_path):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+    config_path = _curve_config(
+        tmp_path, gt_path, ["id-a"], {"experiment_ids": ["id-a"], "thresholds": [0.5]}, compute_validity=False,
+    )
+    with pytest.raises(ValueError, match="compute_validity is false"):
+        rv.main(["--config", str(config_path)])
+
+
+def test_main_config_mode_curve_section_missing_key_raises(tmp_path):
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text("[]")
+    config_path = _curve_config(tmp_path, gt_path, ["id-a"], {"experiment_ids": ["id-a"]})
+    with pytest.raises(ValueError, match="exactly the keys"):
+        rv.main(["--config", str(config_path)])
+
+
+def test_plot_fuzzy_threshold_curve_requires_exactly_one_selected_threshold(tmp_path):
+    curve = pd.DataFrame({
+        "fuzzy_threshold": [0.0, 0.5, 1.0], "recovery": [1.0, 0.5, 0.0], "validity": [1.0, 0.8, 0.6],
+        "is_dataset_threshold": [False, True, False],
+    })
+    rv.plot_fuzzy_threshold_curve(curve, tmp_path / "ok.pdf")
+    assert (tmp_path / "ok.pdf").stat().st_size > 0
+    for flags in ([False, False, False], [True, True, False]):
+        with pytest.raises(ValueError, match="exactly one is_dataset_threshold"):
+            rv.plot_fuzzy_threshold_curve(curve.assign(is_dataset_threshold=flags), tmp_path / "bad.pdf")
