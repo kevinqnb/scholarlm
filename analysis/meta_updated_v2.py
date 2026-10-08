@@ -18,7 +18,7 @@ Simplified from analysis/meta_updated.py:
    restrict_to_shared_docs=False: GT and extracted rows each drop the probe/NTP
    training documents (scores exist, and are out-of-sample, only outside them) but
    are NOT restricted to documents both sides cover; a row with an
-   unparseable point_value or a unit not in UNIT_CONVERSION has no standard-unit
+   unparseable point_value or a unit not in UNIT_CONVERSION_V2 has no standard-unit
    value; and a converted value outside PHYSICAL_BOUNDS is dropped. Nothing else --
    no Kish/n_eff gates. A Q-Q line or W1 score needs at least params.meta_v2.min_n
    rows. On log axes (LOG_SCALE_ATTRIBUTES) non-positive values cannot be drawn: they
@@ -71,7 +71,7 @@ from scipy import stats
 # Importing meta_updated also applies its matplotlib rcParams (paper fonts/sizes).
 from analysis.meta_updated import (
     ATTRIBUTES, DATASET, ECOSYSTEMS, LOG_SCALE_ATTRIBUTES, META_ROOT, METHOD_PROB_COL, METHODS,
-    QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS,
+    QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION,
     _attr_title, _axis_limits, _valid_range, load_data,
 )
 from analysis.meta_inputs import SECTION as META_SECTION, SECTION_V2, load_meta_v2_config, resolve_meta_inputs
@@ -103,6 +103,21 @@ QQ_BASE_LEGEND = {
     'ground_truth': 'Ground truth',
     'valid':        'Valid extracted (judge or GT match)',
 }
+# v1's UNIT_CONVERSION plus pond schema units it lacked (experiments/dataset-configs/
+# pond.py lists them as extraction units): mi^2, and ppm / ppb for tn / tp / chla, taken
+# as mg/L / µg/L (mass ratios in dilute water, density ~1 kg/L). Still deliberately
+# unconvertible: µg/cm^2 (an areal density, not a water concentration) and molar chla
+# (chl-a is essentially never reported in µmol/L; such a row is far more likely a
+# mislabeled unit than a real measurement).
+_V2_ADDED_UNITS = {
+    'surface_area': {'mi^2': 2589988.110336},
+    'tn':   {'ppm': 1000.0, 'ppb': 1.0},
+    'tp':   {'ppm': 1000.0, 'ppb': 1.0},
+    'chla': {'ppm': 1000.0, 'ppb': 1.0},
+}
+assert all(u not in UNIT_CONVERSION[a] for a, m in _V2_ADDED_UNITS.items() for u in m), 'v2 addition already in v1'
+UNIT_CONVERSION_V2 = {a: {**m, **_V2_ADDED_UNITS.get(a, {})} for a, m in UNIT_CONVERSION.items()}
+
 # Codes keying the per-(cell, setting) bootstrap RNG (see _rng); stable across configs.
 SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
                  **{m: 4 + i for i, m in enumerate(METHODS)}}
@@ -531,7 +546,8 @@ def main():
     input_keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
     v1_cfg = {**cfg, 'params': {META_SECTION: {k: sec[k] for k in input_keys}}}
     inputs = resolve_meta_inputs(v1_cfg, DATASET, sec['calibration_version'])
-    gt_df, ext_df, manifest = load_data(v1_cfg, inputs, restrict_to_shared_docs=False)
+    gt_df, ext_df, manifest = load_data(v1_cfg, inputs, restrict_to_shared_docs=False,
+                                        unit_conversion=UNIT_CONVERSION_V2)
 
     out_dir = META_ROOT / cfg['id']
     figures_dir = out_dir / 'figures'

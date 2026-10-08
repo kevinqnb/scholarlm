@@ -347,6 +347,7 @@ def fix_fish_production_units(gt_df: pd.DataFrame, config) -> pd.DataFrame:
 
 def convert_units(
     df: pd.DataFrame,
+    unit_conversion: dict,
     value_col: str = 'value',
     unit_col: str = 'units',
     attribute_col: str = 'attribute',
@@ -354,8 +355,12 @@ def convert_units(
 ) -> pd.DataFrame:
     """Convert values to the standard unit per attribute; unconvertible rows -> NaN.
 
+    ``unit_conversion`` is the caller's multiply-to-standard table, shaped like
+    UNIT_CONVERSION (exactly the same attribute keys, asserted): meta_updated.py and
+    clustering.py pass UNIT_CONVERSION, meta_updated_v2.py its own UNIT_CONVERSION_V2.
+
     Unlike scholarlm.utils.unit_conversion.apply_unit_conversion, a unit that is not
-    in UNIT_CONVERSION[attribute] yields NaN (dropped), not a factor-of-1.0 passthrough
+    in unit_conversion[attribute] yields NaN (dropped), not a factor-of-1.0 passthrough
     -- we do not want to silently treat e.g. a 'pounds' surface_area as if it were m^2.
     pH is the one exception: it is dimensionless, so any unit string is accepted.
 
@@ -373,11 +378,13 @@ def convert_units(
     (see PHYSICAL_BOUNDS), applied uniformly to ground truth and extraction alike, so
     this is a plausibility check, not a fit to what we expect the answer to be.
     """
+    assert set(unit_conversion) == set(UNIT_CONVERSION), (
+        f'unit_conversion attributes {sorted(unit_conversion)} != {sorted(UNIT_CONVERSION)}')
     df = df.copy()
     numeric_values = pd.to_numeric(df[value_col], errors='coerce')
 
     factors = pd.Series(np.nan, index=df.index)
-    for attribute, unit_map in UNIT_CONVERSION.items():
+    for attribute, unit_map in unit_conversion.items():
         attr_mask = df[attribute_col] == attribute
         if attribute == 'ph':
             factors.loc[attr_mask] = 1.0
@@ -455,14 +462,16 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     return scored, syn_docs, [probe_path, inputs['predictions_path']]
 
 
-def load_data(cfg: dict, inputs: dict, restrict_to_shared_docs: bool):
+def load_data(cfg: dict, inputs: dict, restrict_to_shared_docs: bool, unit_conversion: dict):
     """Load GT + extraction rows, restrict to held-out documents, and attach
     judgement_combined / ntp_prob / probe_prob to the extraction rows.
 
     Held-out always means outside the probe/NTP training documents (syn_document_ids).
     restrict_to_shared_docs=True additionally keeps only documents present in BOTH GT
     and extraction (meta_updated.py); False lets each side keep all its held-out
-    documents (meta_updated_v2.py).
+    documents (meta_updated_v2.py). ``unit_conversion`` is the table convert_units
+    applies to both sides (no default: each caller names its own, see convert_units);
+    it is recorded in the manifest.
 
     Scores are computed on the judged run's final.json rows and joined by
     measurement_id onto the rows named by params.meta.rows (final.json itself, or the
@@ -543,8 +552,8 @@ def load_data(cfg: dict, inputs: dict, restrict_to_shared_docs: bool):
     assert ((gt_df['meta_value'] == gt_value) | (gt_df['meta_value'].isna() & gt_value.isna())).all(), (
         'ground truth point_value and value disagree')
     ext_df['meta_value'] = numeric_point_value(ext_df['point_value'])
-    gt_df = convert_units(gt_df, value_col='meta_value')
-    ext_df = convert_units(ext_df, value_col='meta_value')
+    gt_df = convert_units(gt_df, unit_conversion, value_col='meta_value')
+    ext_df = convert_units(ext_df, unit_conversion, value_col='meta_value')
 
     manifest = dict(
         rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, confidence=sec['confidence'], n_rows_scored=len(rows_df),
@@ -557,6 +566,7 @@ def load_data(cfg: dict, inputs: dict, restrict_to_shared_docs: bool):
         n_ext_unparseable_point_value=int(ext_df['meta_value'].isna().sum()),
         n_ext_unconvertible=int(ext_df['converted_value'].isna().sum()),
         input_sha256={repo_relative(p): sha256_file(p) for p in input_files},
+        unit_conversion=unit_conversion,
     )
     return gt_df, ext_df, manifest
 
@@ -1360,7 +1370,7 @@ def main():
     figures_dir = out_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    gt_df, ext_df, manifest = load_data(cfg, inputs, restrict_to_shared_docs=True)
+    gt_df, ext_df, manifest = load_data(cfg, inputs, restrict_to_shared_docs=True, unit_conversion=UNIT_CONVERSION)
 
     stats_df = build_stats_table(gt_df, ext_df, reference, ecosystems, attributes)
     csv_path = out_dir / 'meta_stats.csv'

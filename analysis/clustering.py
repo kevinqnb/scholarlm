@@ -85,7 +85,7 @@ from scipy.spatial.distance import cdist
 
 from analysis.analysis_config import _load_envelope, get_section
 from analysis.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, SECTION as META_SECTION, resolve_meta_inputs
-from analysis.meta_updated import DATASET, load_data
+from analysis.meta_updated import DATASET, UNIT_CONVERSION, load_data
 
 SECTION = 'clustering'
 SECTION_KEYS = (
@@ -398,7 +398,8 @@ def main() -> None:
     _apply_style()
 
     inputs = resolve_clustering_inputs(cfg)
-    gt_df, ext_df, manifest = load_data(_meta_shim(cfg), inputs, restrict_to_shared_docs=False)
+    gt_df, ext_df, manifest = load_data(_meta_shim(cfg), inputs, restrict_to_shared_docs=False,
+                                        unit_conversion=UNIT_CONVERSION)
 
     # ── Entity x attribute matrices ──
     span = ext_df.groupby('entity_id')['document_id'].nunique()

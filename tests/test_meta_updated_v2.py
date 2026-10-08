@@ -241,3 +241,24 @@ def test_threshold_styles():
     assert all(s['linestyle'] == '-' for s in inner)
     np.testing.assert_allclose([s['color'] for s in inner], [THRESHOLD_CMAP(f) for f in (0.25, 0.5, 0.75)])
     assert len({mcolors.to_hex(s['color']) for s in inner} | {DARK_BLUE, DARK_RED}) == 5
+
+
+def test_unit_conversion_v2_additions_only():
+    """v2's table is v1's plus mi^2 and ppm / ppb for tn / tp / chla; v1 is untouched,
+    and µg/cm^2 and molar chla stay unconvertible in both."""
+    from analysis.meta_updated import UNIT_CONVERSION, convert_units
+    from analysis.meta_updated_v2 import UNIT_CONVERSION_V2
+    rows = pd.DataFrame({
+        'attribute': ['surface_area', 'tn', 'tp', 'chla', 'chla', 'chla', 'chla', 'tn'],
+        'units':     ['mi^2',         'ppm', 'ppb', 'ppm', 'µg/cm^2', 'µmol/L', 'μmol/L', 'mg/L'],
+        'v':         [0.1,            0.5,  40.0,  0.01,  3.0,       1.0,      1.0,      0.5],  # 0.1 mi^2 is under PHYSICAL_BOUNDS' 1e6 m^2
+    })
+    v2 = convert_units(rows, UNIT_CONVERSION_V2, value_col='v')['converted_value'].to_numpy()
+    v1 = convert_units(rows, UNIT_CONVERSION, value_col='v')['converted_value'].to_numpy()
+    np.testing.assert_allclose(v2[:4], [0.1 * 2589988.110336, 500.0, 40.0, 10.0])
+    assert np.isnan(v2[4:7]).all() and v2[7] == 500.0
+    assert np.isnan(v1[:7]).all() and v1[7] == 500.0
+    for a, m in UNIT_CONVERSION.items():
+        assert all(UNIT_CONVERSION_V2[a][u] == f for u, f in m.items())
+    with pytest.raises(AssertionError, match='unit_conversion attributes'):
+        convert_units(rows, {'tn': {}}, value_col='v')
