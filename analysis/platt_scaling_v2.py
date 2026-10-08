@@ -47,7 +47,7 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 import seaborn as sns
 
 from analysis.analysis_config import load_platt_sweep_v2_config
@@ -87,6 +87,9 @@ _METHODS = [
     ('Probe', 'probe', '-'),
     ('NTP',   'ntp',   '--'),
 ]
+
+# Recalibration sample sizes drawn in the figures (the CSVs keep every n in params.platt_ns).
+_PLOT_NS = [0, 100, 500]
 
 
 def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, float]:
@@ -304,41 +307,41 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
 
 
 def plot_sweep(df, datasets, platt_ns, figures_dir):
-    # One figure per (method, train_ds): one curve per test_ds, colored by test_ds.
-    # Line = mean over training resamples; band = their 2.5-97.5 percentiles (no test noise).
-    for method, _, linestyle in _METHODS:
+    # One figure per (method, train_ds): a group of bars per n in _PLOT_NS, one bar per
+    # test_ds, colored by test_ds. Bar = mean over training resamples; error bar = their
+    # 2.5-97.5 percentiles (no test noise; zero width at the n = 0 baseline).
+    missing = [n for n in _PLOT_NS if n not in platt_ns]
+    assert not missing, f'plotted ns {missing} are not in params.platt_ns {platt_ns}'
+    x = np.arange(len(_PLOT_NS))
+    width = 0.8 / len(datasets)
+    for method, _, _ in _METHODS:
         for train_ds in datasets:
             fig, ax = plt.subplots(figsize=(4.0, 3.8))
-            for test_ds in datasets:
+            for i, test_ds in enumerate(datasets):
                 sub = df[(df['Type'] == method) & (df['Train dataset'] == train_ds)
-                         & (df['Test dataset'] == test_ds)].sort_values('Platt N')
-                assert sub['Platt N'].tolist() == platt_ns, (method, train_ds, test_ds)
-                color = _DS_COLORS[test_ds]
-                ax.plot(sub['Platt N'], sub['SmECE'], linestyle=linestyle, color=color,
-                        lw=2.5, marker='o', ms=3.5, zorder=3)
-                ax.fill_between(sub['Platt N'], sub['SmECE_lo'], sub['SmECE_hi'],
-                                color=color, alpha=0.20, linewidth=0, zorder=1)
-            # symlog: linear below the smallest positive n, so the n = 0 baseline is drawn.
-            if platt_ns[0] == 0:
-                ax.set_xscale('symlog', linthresh=platt_ns[1])
-            else:
-                ax.set_xscale('log')
-            ax.set_xticks(platt_ns)
-            ax.set_xticklabels([str(n) for n in platt_ns])
+                         & (df['Test dataset'] == test_ds) & df['Platt N'].isin(_PLOT_NS)].sort_values('Platt N')
+                assert sub['Platt N'].tolist() == _PLOT_NS, (method, train_ds, test_ds)
+                mean = sub['SmECE'].to_numpy()
+                yerr = np.stack([mean - sub['SmECE_lo'].to_numpy(), sub['SmECE_hi'].to_numpy() - mean])
+                ax.bar(x + (i - (len(datasets) - 1) / 2) * width, mean, width, yerr=yerr,
+                       color=_DS_COLORS[test_ds], edgecolor='black', linewidth=0.4,
+                       error_kw={'elinewidth': 0.8, 'capsize': 2.5, 'capthick': 0.8}, zorder=3)
+            ax.set_xticks(x)
+            ax.set_xticklabels([str(n) for n in _PLOT_NS])
             ax.minorticks_off()
             ax.set_ylim(bottom=0)
             ax.set_xlabel('Platt Training Samples')
             if method == 'NTP':
                 ax.set_ylabel('SmECE')
             ax.set_title(method, fontsize=15, style='italic')
-            ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+            ax.grid(axis='y', alpha=0.25, linestyle='-', linewidth=0.4)
             ax.set_axisbelow(True)
             fig.tight_layout()
             fig.savefig(figures_dir / f'smece_vs_n_train_resample_{method.lower()}_train-{train_ds}.pdf',
                         bbox_inches='tight', dpi=200)
             plt.close(fig)
 
-    handles = [mlines.Line2D([], [], color=_DS_COLORS[ds], lw=2, marker='o', ms=3.5, label=_DS_LABELS[ds])
+    handles = [mpatches.Patch(facecolor=_DS_COLORS[ds], edgecolor='black', linewidth=0.4, label=_DS_LABELS[ds])
                for ds in datasets]
     fig_leg, ax_leg = plt.subplots(figsize=(6.0, 0.45))
     ax_leg.axis('off')
