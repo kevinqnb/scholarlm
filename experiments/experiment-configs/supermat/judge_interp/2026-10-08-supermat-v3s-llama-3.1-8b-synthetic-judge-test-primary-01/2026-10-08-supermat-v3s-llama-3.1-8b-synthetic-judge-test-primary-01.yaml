@@ -1,0 +1,22 @@
+id: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-primary-01
+project: scholarlm
+description: >-
+  NNsight interp-judge outputs (llama-3.1-8b) for supermat's v3s test-primary file
+  (data/supermat/probe_dataset_test_v3s.json): v3 realigned to the v1/v2 paper split, so the test split
+  is exactly the papers the manual validation sets were drawn from (v3's split
+  drifted because it was built from ground_truth_qualifiers.json; see
+  data/supermat/realign_probe_split.py). NOT produced by run_judge_interp: the
+  output dir was assembled by `realign_probe_split.py judge` from the v3 runs
+  2026-09-30-supermat-v3-llama-3.1-8b-synthetic-judge-{train,test-primary,test-diag}-01 -- each row takes its source row's response and activations, asserted
+  equal on every non-judgement field. Valid because identical rows in the v3
+  primary and diag runs were bit-exact across runs for all three judges
+  (535/535 pairs). Running this config with run_judge_interp should reproduce
+  it; that has not been run.
+seed: 342
+params:
+  dataset: supermat
+  judge: llama-3.1-8b
+  synthetic_file: data/supermat/probe_dataset_test_v3s.json
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  # Only needed if this config is ever actually run; same ceiling as the v3 configs.
+  walltime: "24:00:00"

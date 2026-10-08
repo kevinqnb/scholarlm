@@ -357,6 +357,25 @@ def sample_valid_set(
     return selected, remaining
 
 
+def pinned_split(records: list[dict], split: dict[str, str]) -> tuple[list[dict], list[dict]]:
+    """Whole-paper split from a committed ``{paper: "train"|"test"}`` file
+    (``probe_split_v3s.json``) instead of ``sample_valid_set``'s seeded shuffle,
+    whose result depends on the GT's paper list (that is how v3's split drifted
+    from v1/v2's). The file must name exactly the papers in ``records``.
+
+    Returns:
+        (train, test) records, in input order.
+    """
+    papers = {r["_paper_code"] for r in records}
+    assert set(split.values()) <= {"train", "test"}, f"bad split values: {set(split.values())}"
+    assert papers == set(split), (
+        f"split file vs GT papers differ: unassigned {sorted(papers - set(split))}, "
+        f"not in GT {sorted(set(split) - papers)}")
+    train = [r for r in records if split[r["_paper_code"]] == "train"]
+    test = [r for r in records if split[r["_paper_code"]] == "test"]
+    return train, test
+
+
 # ---------------------------------------------------------------------------
 # Invalid record construction
 # ---------------------------------------------------------------------------
@@ -754,6 +773,15 @@ def main(argv: list[str] | None = None) -> None:
              "approximate / tolerance qualifiers) -- the dataset config's ground truth. "
              "Required with --augment.",
     )
+    parser.add_argument(
+        "--split-file", default=None,
+        help="Pin the train/test paper split to this {paper: 'train'|'test'} JSON "
+             "(e.g. data/supermat/probe_split_v3s.json, the v1/v2 split) instead of "
+             "the seeded greedy shuffle. Must name exactly the GT's papers. Omit to "
+             "keep the shuffle (reproduces v1/v2/v3). A rebuild with it does NOT "
+             "byte-match probe_dataset*_v3s.json -- those come from "
+             "realign_probe_split.py.",
+    )
     ag = parser.add_argument_group("augmentation (opt-in; default OFF reproduces "
                                    "the current probe_dataset{,_test}.json byte-for-byte)")
     ag.add_argument("--augment", action="store_true",
@@ -846,7 +874,12 @@ def main(argv: list[str] | None = None) -> None:
         by_paper.setdefault(r["_paper_code"], []).append(r)
 
     # Split into train and test valid sets (whole-paper splits)
-    xv_train, xv_test = sample_valid_set(all_records, rng)
+    if args.split_file:
+        with open(args.split_file) as f:
+            xv_train, xv_test = pinned_split(all_records, json.load(f))
+        print(f"Split pinned from {args.split_file}")
+    else:
+        xv_train, xv_test = sample_valid_set(all_records, rng)
     print(f"Train valid: {len(xv_train):,} records ({len(xv_train) / len(all_records) * 100:.1f}% of total)")
     print(f"Test  valid: {len(xv_test):,} records ({len(xv_test) / len(all_records) * 100:.1f}% of total)")
 

@@ -75,3 +75,28 @@ Also requires OCR text (`ocr_output_raw/`) to be present:
 ```bash
 python data/supermat/create_probe_dataset.py
 ```
+
+## Train/test split: v3 vs v3s
+
+The split is drawn by a seeded greedy shuffle over the GT's paper list, so it depends on
+which GT file is used. v1/v2 were built from `ground_truth.json` (136 papers); v3 from
+`ground_truth_qualifiers.json` (142 papers), which gave a different split (38 v1-train
+papers in v3 test, 26 v1-test papers in v3 train). The manual validation sets
+(`data/validation/`) were drawn from the v1 test split, so **use v3s, not v3**:
+
+- `probe_split_v3s.json` (committed) -- the v1/v2 split, plus the 6 qualifier-only
+  papers in train. Test = exactly the v1 test papers.
+- `probe_dataset_v3s.json`, `probe_dataset_test_v3s.json`, `probe_dataset_test_v3s_diag.json`
+  -- the v3 rows rearranged onto that split by `realign_probe_split.py` (no regeneration),
+  plus `probe_dataset_v3s_realign_log.json` mapping each row to its v3 source. Reproduce:
+
+  ```bash
+  python data/supermat/realign_probe_split.py split --gt-file data/supermat/ground_truth_qualifiers.json --out <path>
+  python data/supermat/realign_probe_split.py realign --split-file data/supermat/probe_split_v3s.json --seed 342 --in-dir data/supermat --out-dir <dir>
+  ```
+
+  The matching judge-interp runs are `2026-10-08-supermat-v3s-*-synthetic-judge-*-01`,
+  assembled from the v3 runs by `realign_probe_split.py judge`.
+- A fresh build on the pinned split: `create_probe_dataset.py --qualifiers --augment
+  --split-file data/supermat/probe_split_v3s.json ...`. This is a new random draw and does
+  not byte-match the v3s files.
