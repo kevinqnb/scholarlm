@@ -1,0 +1,51 @@
+id: 2026-10-08-platt-scaling-sweep-gemma27b-qwen-2.5-7b-prior-shift-nested-01
+project: scholarlm
+description: >
+  Recalibration-sample-size sweep (analysis/platt_scaling.py), prior_shift, over the same probe / NTP
+  calibrator / extractions / judge runs as 2026-10-08-calibration-v3-gemma27b-qwen-2.5-7b-prior-shift-nested-01.
+  For each n in platt_ns and each (train probe, test dataset, method): 100 two-class recalibration
+  fit samples drawn exactly as v3 draws them (single-class draws skipped), each crossed with 100
+  test-document resamples (v3's); point = mean over fit samples of the un-resampled calibration
+  error, interval = 2.5/97.5 percentiles over all 10,000 replicates. At n=100 the rows reproduce
+  that v3 run's real cells.
+  Run: bash analysis/submit.sh platt_scaling 2026-10-08-platt-scaling-sweep-gemma27b-qwen-2.5-7b-prior-shift-nested-01 --walltime HH:MM:SS --omp N
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  platt_ns: [10, 50, 100, 250, 500, 1000]
+  recalibration: prior_shift
+  n_fit_samples: 100
+  n_doc_boot: 100
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01

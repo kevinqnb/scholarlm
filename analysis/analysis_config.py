@@ -480,13 +480,10 @@ def load_calibration_validated_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/platt_scaling.py: v3's per-dataset blocks and probe/split keys, but
-# instead of one platt_n, a nested sweep platt_ns (strictly increasing; within a
-# trial each Platt sample is a prefix of the next), n_trials independent random
-# draws of the Platt rows, ci (the central interval over trials), and
-# single_class_policy, what to do when a drawn sample has only one class.
-PLATT_SWEEP_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "n_trials", "ci", "single_class_policy")
-PLATT_SWEEP_SINGLE_CLASS_POLICIES = ("error", "drop")
+# analysis/platt_scaling.py: v3's per-dataset blocks, probe/split keys, recalibration
+# method and real-cell nested-bootstrap sizes, but instead of one platt_n a sweep
+# platt_ns (strictly increasing). Real cells only, so no n_syn_boot.
+PLATT_SWEEP_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration", "n_fit_samples", "n_doc_boot")
 
 
 def load_platt_sweep_config(path: Path) -> dict:
@@ -495,13 +492,9 @@ def load_platt_sweep_config(path: Path) -> dict:
     Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
     load_calibration_v3_config (syn_split is still required because
     calibration_ids.resolve_calibration_inputs cross-checks both synthetic test
-    runs; the sweep itself only scores real rows). Replaces ``platt_n`` with:
-
-      - ``platt_ns``: non-empty, strictly increasing list of positive ints.
-      - ``n_trials``: int >= 2, number of independent random Platt-sample draws.
-      - ``ci``: float strictly in (0, 1), the central interval over trials.
-      - ``single_class_policy``: 'error' (a single-class sample aborts the run) or
-        'drop' (that (trial, n) is excluded and counted in the output).
+    runs; the sweep itself only scores real rows), as are ``recalibration``,
+    ``n_fit_samples`` and ``n_doc_boot``. Replaces ``platt_n`` with ``platt_ns``, a
+    non-empty, strictly increasing list of positive ints.
 
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
@@ -517,16 +510,78 @@ def load_platt_sweep_config(path: Path) -> dict:
             or any(isinstance(n, bool) or not isinstance(n, int) or n <= 0 for n in ns)
             or any(a >= b for a, b in zip(ns, ns[1:]))):
         raise ValueError(f"{path}: params.platt_ns must be a non-empty strictly increasing list of positive ints, got {ns!r}")
-    nt = params["n_trials"]
-    if isinstance(nt, bool) or not isinstance(nt, int) or nt < 2:
-        raise ValueError(f"{path}: params.n_trials must be an int >= 2, got {nt!r}")
-    ci = params["ci"]
-    if isinstance(ci, bool) or not isinstance(ci, (int, float)) or not 0 < ci < 1:
-        raise ValueError(f"{path}: params.ci must be a float in (0, 1), got {ci!r}")
-    if params["single_class_policy"] not in PLATT_SWEEP_SINGLE_CLASS_POLICIES:
+    for key in ("n_fit_samples", "n_doc_boot"):
+        n = params[key]
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+            raise ValueError(f"{path}: params.{key} must be a positive int, got {n!r}")
+    if params["recalibration"] not in RECALIBRATION_METHODS:
         raise ValueError(
-            f"{path}: params.single_class_policy must be one of {list(PLATT_SWEEP_SINGLE_CLASS_POLICIES)}, "
-            f"got {params['single_class_policy']!r}"
+            f"{path}: params.recalibration must be one of {RECALIBRATION_METHODS}, got {params['recalibration']!r}"
         )
     _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
+    return cfg
+
+
+# analysis/calibration_updated_v4.py: prior-shift recalibration only, from ONE test-
+# prevalence estimate pi_te per test dataset (no fit-sample averaging), with test-document
+# bootstrap CIs (n_boot resamples, real and synthetic cells alike). prior_source picks
+# where pi_te comes from:
+#   sample -- label rate of prior_sample_n rows drawn uniformly from a document-resampled
+#             copy of the test dataset's probe-training pool (v3's fit sample 0).
+#   manual -- the per-dataset pi_te_estimate given in the config.
+#   oracle -- the label rate of the evaluated real test rows themselves. Diagnostic only
+#             (a perfect prior estimate); never a reportable number.
+# prior_sample_n must be set iff prior_source is sample, and every dataset's
+# pi_te_estimate iff it is manual; the other must be null.
+CALIBRATION_V4_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("n_boot", "prior_source", "prior_sample_n")
+CALIBRATION_V4_PRIOR_SOURCES = ("sample", "manual", "oracle")
+
+
+def load_calibration_v4_config(path: Path) -> dict:
+    """Load analysis/calibration_updated_v4.py's analysis-configs/<id>.yaml.
+
+    Per-dataset blocks are v2's (CALIBRATION_V2_DATASET_KEYS: v1's keys plus
+    ``pi_te_estimate``). Top level: v2's keys plus ``n_boot`` (positive int),
+    ``prior_source`` (one of CALIBRATION_V4_PRIOR_SOURCES) and ``prior_sample_n``.
+    ``prior_sample_n`` is a positive int when ``prior_source`` is 'sample' and null
+    otherwise; each ``pi_te_estimate`` is a float in (0, 1) when it is 'manual' and
+    null otherwise -- a value the chosen source would ignore is an error.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types, or a
+            prior_sample_n / pi_te_estimate inconsistent with prior_source.
+    """
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+    if set(params) != set(CALIBRATION_V4_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V4_TOP_KEYS)}"
+        )
+    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
+    n = params["n_boot"]
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        raise ValueError(f"{path}: params.n_boot must be a positive int, got {n!r}")
+    source = params["prior_source"]
+    if source not in CALIBRATION_V4_PRIOR_SOURCES:
+        raise ValueError(
+            f"{path}: params.prior_source must be one of {CALIBRATION_V4_PRIOR_SOURCES}, got {source!r}"
+        )
+    n = params["prior_sample_n"]
+    if source == "sample":
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+            raise ValueError(f"{path}: params.prior_sample_n must be a positive int for prior_source sample, got {n!r}")
+    elif n is not None:
+        raise ValueError(f"{path}: params.prior_sample_n must be null for prior_source {source!r}, got {n!r}")
+    for ds, block in params["datasets"].items():
+        pi = block["pi_te_estimate"]
+        if source == "manual":
+            if isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1:
+                raise ValueError(
+                    f"{path}: params.datasets.{ds}.pi_te_estimate must be a float in (0, 1) "
+                    f"for prior_source manual, got {pi!r}"
+                )
+        elif pi is not None:
+            raise ValueError(
+                f"{path}: params.datasets.{ds}.pi_te_estimate must be null for prior_source {source!r}, got {pi!r}"
+            )
     return cfg

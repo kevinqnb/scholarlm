@@ -1,25 +1,27 @@
-"""Platt-sample-size sweep: smECE of Platt-scaled probe / NTP calibrators vs. the
-number of real rows used to fit the scaler.
+"""Recalibration-sample-size sweep: calibration error of recalibrated probe / NTP
+scores vs. the number of real rows the recalibration is fit on.
 
 Replicates the real-extraction path of analysis/calibration_updated_v3.py (same
-inputs, labels, Platt pool, test split, plot layout) but, per (train probe, test
-dataset, method), fits one scaler for each n in params.platt_ns and reports smECE
-(relplot) on one fixed test set. The whole thing is repeated for params.n_trials
-random draws of the Platt rows; the plot shows the mean over trials with a central
-params.ci interval over trials.
+inputs, labels, Platt pool, test split, recalibration methods, fit-sample draws,
+nested bootstrap and plot layout), once for each n in params.platt_ns instead of
+v3's single platt_n. Per (train probe, test dataset, method, n) the calibration
+errors are analysis/nested_bootstrap.py's: n_fit_samples recalibration fit
+samples, each crossed with n_doc_boot test-document resamples; point = mean over
+fit samples of the un-resampled value, interval = percentiles over all replicates.
 
-Design points that keep the sweep comparable across n and trials:
-  - Trial t orders the test dataset's Platt pool with rng([config seed, t]), spread
-    evenly over documents (random document order, cycled; one random unchosen row per
-    document per visit -- cids.document_balanced_order); the n-sample is its first n
-    rows, so within a trial every sample is a superset of the previous one. The same
-    ordering is used for every train probe.
-  - The test rows do not depend on n or the trial: they exclude the WHOLE pool and the
-    train probe's own documents, exactly as in v3.
-  - Real setting only. v3 never Platt-scales synthetic cells and the synthetic
-    test sets are smaller than max(platt_ns) for nfix/supermat.
-  - Once n reaches the pool size every trial draws the same rows, so the band there is
-    degenerate (zero), not evidence of low variance. 'Pool N' is in the CSV.
+Design points that keep the sweep comparable with v3 and across n:
+  - Fit sample r of size n is nb.pool_resampled_fit_sample(pool, n, fit_sample_rng(seed, r)),
+    exactly v3's draw, so at n = v3's platt_n the sweep reproduces v3's real cells.
+    Samples of different n are not nested, but the same r resamples the same pool
+    documents at every n. Samples are shared by every train probe.
+  - A single-class sample cannot be fit by any recalibration method. It is skipped
+    and drawing continues at the next r until there are n_fit_samples two-class
+    samples ('Fit draws' in the CSV counts every draw), so small n conditions on
+    both classes being present. v3 never skips: at its platt_n no draw is single-class.
+  - The test rows and their document resamples do not depend on n: they exclude the
+    WHOLE pool and the train probe's own documents, as in v3, and the resamples are
+    v3's (nb.doc_boot_rng(seed, 'real', test_ds)), so comparisons across n are paired.
+  - Real setting only. v3 never recalibrates synthetic cells.
 
 No flags: one positional config (analysis/analysis-configs/<id>.yaml, see
 load_platt_sweep_config), normally run through
@@ -36,6 +38,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import json
 import time
+import pickle
 import argparse
 import joblib
 import numpy as np
@@ -44,11 +47,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import seaborn as sns
-import relplot
 
-from analysis.analysis_config import load_platt_sweep_config
+from analysis.analysis_config import load_platt_sweep_config, RECALIBRATION_METHODS as _CFG_RECALIBRATION_METHODS
 from analysis import calibration_ids as cids
-from scholarlm.utils.calibration import fit_platt, apply_platt
+from analysis import nested_bootstrap as nb
+from analysis.head_activations import HeadActivationCache
+from scholarlm.utils.calibration import apply_platt, fit_recalibration, RECALIBRATION_METHODS
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -82,36 +86,51 @@ _METHODS = [
 ]
 
 
-def trial_order(pool_doc_ids, seed, trial):
-    """Document-balanced ordering of the pool rows for one trial; the n-sample is its first n entries.
+# A run fails rather than draw more than this many fit samples per wanted sample:
+# that many single-class draws means n is too small for the pool's label rate.
+MAX_DRAWS_PER_SAMPLE = 10
 
-    ``pool_doc_ids`` is the document id of each pool row. See cids.document_balanced_order.
+
+def draw_fit_samples(pool_doc_ids, pool_labels, n, n_fit_samples, seed):
+    """``n_fit_samples`` two-class recalibration fit samples of ``n`` pool positions.
+
+    Draw r is v3's fit sample r (nb.pool_resampled_fit_sample with
+    nb.fit_sample_rng(seed, r)); single-class draws are skipped. Returns the kept
+    ``(r, positions)`` pairs and the number of draws made.
     """
-    perm = cids.document_balanced_order(pool_doc_ids, np.random.default_rng([seed, trial]))
-    assert sorted(perm.tolist()) == list(range(len(pool_doc_ids)))
-    return perm
+    pool_labels = np.asarray(pool_labels, dtype=bool)
+    assert len(pool_labels) == len(pool_doc_ids) > 0, (len(pool_labels), len(pool_doc_ids))
+    kept, r = [], 0
+    while len(kept) < n_fit_samples:
+        if r >= MAX_DRAWS_PER_SAMPLE * n_fit_samples:
+            raise RuntimeError(f'n={n}: only {len(kept)}/{n_fit_samples} two-class fit samples in {r} draws')
+        sample = nb.pool_resampled_fit_sample(pool_doc_ids, n, nb.fit_sample_rng(seed, r))
+        assert len(sample) == n
+        if 0 < pool_labels[sample].sum() < n:
+            kept.append((r, sample))
+        r += 1
+    return kept, r
 
 
-def smece(probs, labels):
-    """relplot smECE (deterministic: automatic-bandwidth search, no resampling)."""
-    probs, labels = np.asarray(probs, dtype=float), np.asarray(labels, dtype=bool)
-    assert probs.shape == labels.shape and probs.ndim == 1 and len(probs) > 0
-    ce = float(relplot.smECE(probs, labels))
-    assert np.isfinite(ce), ce
-    return ce
+def recalibrated_sets(pool_raw, pool_labels, test_raw, samples, recalibration, pi_tr):
+    """One recalibrated test-prediction array per fit sample, and the fitted maps.
 
-
-def summarize_trials(trials_df, ci):
-    """Mean / std / central-ci percentiles over trials for each (train, test, method, n)."""
-    keys = ['Train dataset', 'Test dataset', 'Type', 'Platt N']
-    lo_q, hi_q = 100 * (1 - ci) / 2, 100 * (1 + ci) / 2
-    g = trials_df.groupby(keys)['SmECE']
-    out = pd.DataFrame({
-        'SmECE': g.mean(), 'SmECE_std': g.std(ddof=1),
-        'SmECE_lo': g.quantile(lo_q / 100), 'SmECE_hi': g.quantile(hi_q / 100),
-        'n_used': g.size(),
-    }).reset_index()
-    return out
+    ``samples`` are ``draw_fit_samples``'s ``(r, positions)`` pairs into the pool.
+    Same fit and checks as v3's compute_predictions.
+    """
+    pred_sets, maps = [], []
+    for r, sample in samples:
+        p_raw, y = pool_raw[sample], np.asarray(pool_labels, dtype=bool)[sample]
+        coef, icpt = fit_recalibration(recalibration, p_raw, y, pi_tr)
+        assert np.isfinite(coef) and np.isfinite(icpt), (recalibration, r, coef, icpt)
+        if recalibration != 'platt_fit':
+            assert coef == 1.0, (recalibration, coef)
+        if recalibration == 'intercept_fit':
+            # Score equation of the intercept MLE (known answer, solved to ~1e-12).
+            assert abs(apply_platt(p_raw, coef, icpt).mean() - y.mean()) < 1e-8, (r, icpt)
+        pred_sets.append(apply_platt(test_raw, coef, icpt))
+        maps.append({'Fit sample': r, 'coef': coef, 'intercept': icpt, 'Label rate': float(y.mean())})
+    return pred_sets, maps
 
 
 class SweepContext:
@@ -123,9 +142,11 @@ class SweepContext:
         self.seed = cfg['seed']
         self.probe_type = params['probe_type']
         self.platt_ns = list(params['platt_ns'])
-        self.n_trials = params['n_trials']
-        self.ci = params['ci']
-        self.single_class_policy = params['single_class_policy']
+        self.recalibration = params['recalibration']
+        assert tuple(RECALIBRATION_METHODS) == tuple(_CFG_RECALIBRATION_METHODS)
+        assert self.recalibration in RECALIBRATION_METHODS, self.recalibration
+        self.n_fit_samples = params['n_fit_samples']
+        self.n_doc_boot = params['n_doc_boot']
         self.datasets = list(params['datasets'])
         self.inputs = cids.resolve_calibration_inputs(cfg)
         self.judge_model = self.inputs['judge_model']
@@ -140,6 +161,9 @@ class SweepContext:
                       else ('head_probe.pkl' if variant_kw is None else 'head_probe_noplatt.pkl'))
         self.ntp_cal = {ds: self._load_artifact(ds, ntp_name) for ds in self.datasets}
         self.probe = {ds: self._load_artifact(ds, probe_name) for ds in self.datasets}
+        # As in v3: each activation row decompressed once, keeping every train probe's top heads.
+        self.head_acts = (HeadActivationCache([lh for ds in self.datasets for lh in self.probe[ds]['top_k_heads']])
+                          if self.probe_type == 'head' else None)
         self.test_data = {ds: self._load_test_data(ds) for ds in self.datasets}
 
     def _load_artifact(self, train_ds, filename):
@@ -184,8 +208,17 @@ class SweepContext:
         pool_idx = np.where(real_df['document_id'].isin(pool_docs).to_numpy())[0]
         assert len(pool_idx) >= self.platt_ns[-1], (
             f'{ds}: pool has {len(pool_idx)} rows < max(platt_ns)={self.platt_ns[-1]}')
-        print(f'  {ds}: pool {len(pool_idx)} rows, {int(labels[pool_idx].sum())} valid')
-        return {'real_df': real_df, 'labels': labels, 'pool_docs': pool_docs, 'pool_idx': pool_idx}
+        pool_doc_ids = real_df['document_id'].to_numpy()[pool_idx]
+        fit_samples, n_draws = {}, {}
+        for n in self.platt_ns:
+            fit_samples[n], n_draws[n] = draw_fit_samples(pool_doc_ids, labels[pool_idx], n, self.n_fit_samples, self.seed)
+            rates = np.array([labels[pool_idx][s].mean() for _, s in fit_samples[n]])
+            print(f'  {ds}: n={n}: {self.n_fit_samples} two-class fit samples in {n_draws[n]} draws; label rate '
+                  f'mean {rates.mean():.3f}, range {rates.min():.2f}-{rates.max():.2f}')
+        print(f'  {ds}: pool {len(pool_idx)} rows / {len(np.unique(pool_doc_ids))} docs, '
+              f'row rate {labels[pool_idx].mean():.3f}')
+        return {'real_df': real_df, 'labels': labels, 'pool_docs': pool_docs, 'pool_idx': pool_idx,
+                'fit_samples': fit_samples, 'n_draws': n_draws}
 
     def score_rows(self, train_ds, test_ds, idx):
         """Raw (un-scaled) probe and NTP-calibrator probabilities for real_df rows ``idx``."""
@@ -201,11 +234,7 @@ class SweepContext:
             lo = np.load(act_dir / 'layer_outputs.npz')
             X = np.stack([np.array(lo[str(m)], dtype=np.float32)[top] for m in mids], axis=0)
         else:
-            act = np.load(act_dir / 'attention_outputs.npz')
-            X = np.concatenate([
-                np.stack([np.array(act[str(m)], dtype=np.float32)[l, h, :] for m in mids], axis=0)
-                for l, h in top
-            ], axis=1)
+            X = self.head_acts.features(act_dir, mids, top)
         assert X.shape[0] == len(mids), (X.shape, len(mids))
         probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
         assert probe_probs.shape == ntp_probs.shape == (len(mids),), (train_ds, test_ds)
@@ -214,69 +243,79 @@ class SweepContext:
 
 
 def run_sweep(ctx):
-    """One row per (train_ds, test_ds, method, trial, n): Platt scaler + smECE on the fixed test set."""
-    rows, dropped = [], {}
+    """Nested-bootstrap calibration errors per (train_ds, test_ds, method, n).
+
+    Returns the summary table (one row per cell and n), the fitted maps (one row per
+    fit sample) and the nested-bootstrap summaries keyed (train_ds, test_ds, method, n).
+    """
+    rows, fit_rows, boots = [], [], {}
+    test_boot = {}  # test_ds -> (measurement ids, document resamples), shared by every train probe and n
     for train_ds in ctx.datasets:
+        pi_tr = {'probe': ctx.probe[train_ds]['train_prevalence'],
+                 'ntp': ctx.ntp_cal[train_ds]['train_prevalence']}
         for test_ds in ctx.datasets:
             td = ctx.test_data[test_ds]
             real_df, labels_all, pool_idx = td['real_df'], td['labels'], td['pool_idx']
 
             # Test rows: outside test_ds's whole Platt pool and train_ds's probe-training docs
-            # (as in v3), independent of n and trial.
+            # (as in v3), independent of n.
             exclude = td['pool_docs'] | set(ctx.probe[train_ds]['syn_document_ids'])
             test_idx = np.where(~real_df['document_id'].isin(exclude).to_numpy())[0]
             assert len(test_idx) > 0, f'{train_ds} probe -> {test_ds}: no real test rows'
             assert not set(test_idx.tolist()) & set(pool_idx.tolist()), (train_ds, test_ds)
             test_labels = labels_all[test_idx]
+            test_mids = real_df['measurement_id'].to_numpy()[test_idx]
+            test_docs = real_df['document_id'].to_numpy()[test_idx]
+            if test_ds not in test_boot:
+                test_boot[test_ds] = (test_mids, nb.cluster_bootstrap_indices(
+                    test_docs, ctx.n_doc_boot, nb.doc_boot_rng(ctx.seed, 'real', test_ds)))
+            # Shared resamples index rows, so every train probe must leave the same test rows.
+            assert np.array_equal(test_boot[test_ds][0], test_mids), (train_ds, test_ds)
+            boot_idx = test_boot[test_ds][1]
+
             t0 = time.time()
             test_scores = ctx.score_rows(train_ds, test_ds, test_idx)
-            pool_scores = ctx.score_rows(train_ds, test_ds, pool_idx)  # scored once, indexed per trial
+            pool_scores = ctx.score_rows(train_ds, test_ds, pool_idx)  # scored once, indexed per fit sample
             pool_labels = labels_all[pool_idx]
-            pool_doc_ids = real_df['document_id'].to_numpy()[pool_idx]
-            print(f'  {train_ds} probe -> {test_ds}: {len(test_idx)} test rows, pool {len(pool_idx)}; '
-                  f'scored in {time.time() - t0:.0f}s', flush=True)
-            t_fit = time.time()
+            print(f'  {train_ds} probe -> {test_ds}: {len(test_idx)} test rows / {len(np.unique(test_docs))} docs, '
+                  f'pool {len(pool_idx)}; scored in {time.time() - t0:.0f}s', flush=True)
 
-            for trial in range(ctx.n_trials):
-                order = trial_order(pool_doc_ids, ctx.seed, trial)
-                for n in ctx.platt_ns:
-                    sel = order[:n]
-                    assert len(sel) == n and set(order[:ctx.platt_ns[0]].tolist()) <= set(sel.tolist())
-                    y = pool_labels[sel]
-                    if y.all() or not y.any():
-                        if ctx.single_class_policy == 'error':
-                            raise ValueError(f'{test_ds}: trial {trial} n={n} Platt sample is single-class')
-                        dropped[(test_ds, n)] = dropped.get((test_ds, n), 0) + 1
-                        continue
-                    for method, key, _ in _METHODS:
-                        coef, icpt = fit_platt(pool_scores[key][sel], y)
-                        assert np.isfinite(coef) and np.isfinite(icpt), (train_ds, test_ds, method, trial, n)
-                        scaled = apply_platt(test_scores[key], coef, icpt)
-                        rows.append({
-                            'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method,
-                            'Trial': trial, 'Platt N': n, 'coef': coef, 'intercept': icpt,
-                            'Platt label rate': float(y.mean()), 'Pool N': len(pool_idx),
-                            'Test N': len(test_idx), 'Test label rate': float(test_labels.mean()),
-                            'SmECE': smece(scaled, test_labels),
-                        })
+            for n in ctx.platt_ns:
+                t_n = time.time()
+                for method, key, _ in _METHODS:
+                    pred_sets, maps = recalibrated_sets(
+                        pool_scores[key], pool_labels, test_scores[key], td['fit_samples'][n],
+                        ctx.recalibration, pi_tr[key])
+                    for m in maps:
+                        fit_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method,
+                                         'Platt N': n, 'Recalibration': ctx.recalibration, **m,
+                                         'Train prevalence': float(pi_tr[key])})
+                    b = nb.nested_bootstrap(pred_sets, test_labels, boot_idx)
+                    boots[(train_ds, test_ds, key, n)] = b
+                    row = {
+                        'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': n,
+                        'Recalibration': ctx.recalibration,
+                        'Fit samples': b['n_fit_samples'], 'Fit draws': td['n_draws'][n],
+                        'Doc resamples': b['n_doc_boot'],
+                        'Pool N': len(pool_idx), 'Test N': len(test_idx), 'Test docs': len(np.unique(test_docs)),
+                        'Test label rate': float(test_labels.mean()),
+                        'Fit label rate': float(np.mean([m['Label rate'] for m in maps])),
+                    }
+                    for m in nb.METRICS:
+                        row.update({m: b['point'][m], f'{m}_lo': b['lo'][m], f'{m}_hi': b['hi'][m]})
+                    rows.append(row)
+                print(f'    n={n}: {ctx.n_fit_samples} fit samples x {ctx.n_doc_boot} doc resamples x '
+                      f'{len(_METHODS)} methods in {time.time() - t_n:.0f}s', flush=True)
 
-            print(f'    {ctx.n_trials} trials x {len(ctx.platt_ns)} n x {len(_METHODS)} methods fit+scored in '
-                  f'{time.time() - t_fit:.0f}s', flush=True)
-
-    trials_df = pd.DataFrame(rows)
-    assert not trials_df.duplicated(['Train dataset', 'Test dataset', 'Type', 'Trial', 'Platt N']).any()
-    summary = summarize_trials(trials_df, ctx.ci)
-    # Every cell must still have trials; a cell with fewer than all of them lost some to the drop policy.
+    summary = pd.DataFrame(rows)
+    fits_df = pd.DataFrame(fit_rows)
+    keys = ['Train dataset', 'Test dataset', 'Type', 'Platt N']
     assert len(summary) == len(ctx.datasets) ** 2 * len(_METHODS) * len(ctx.platt_ns), len(summary)
-    assert (summary['n_used'] >= 2).all(), summary[summary['n_used'] < 2]
-    for (ds, n), k in sorted(dropped.items()):
-        print(f'  WARNING dropped {k}/{ctx.n_trials * len(ctx.datasets)} (trial, train probe) cells -- single-class Platt sample (one sample is shared by all train probes): test={ds} n={n}')
-    for ds in ctx.datasets:
-        pool_n = len(ctx.test_data[ds]['pool_idx'])
-        for n in ctx.platt_ns:
-            if n >= pool_n:
-                print(f'  WARNING {ds}: n={n} >= pool {pool_n}; all trials use the same rows, band is degenerate')
-    return trials_df, summary
+    assert not summary.duplicated(keys).any()
+    assert (summary['Fit samples'] == ctx.n_fit_samples).all() and (summary['Doc resamples'] == ctx.n_doc_boot).all()
+    assert len(fits_df) == len(summary) * ctx.n_fit_samples, len(fits_df)
+    assert not fits_df.duplicated(keys + ['Fit sample']).any()
+    return summary, fits_df, boots
 
 
 def plot_sweep(ctx, df):
@@ -323,18 +362,21 @@ def plot_sweep(ctx, df):
 
 def main(config_path):
     cfg = load_platt_sweep_config(Path(config_path))
-    print(f"[platt sweep] config: {cfg['id']} | ns: {cfg['params']['platt_ns']} | "
-          f"n_trials: {cfg['params']['n_trials']} | ci: {cfg['params']['ci']}")
+    p = cfg['params']
+    print(f"[platt sweep] config: {cfg['id']} | ns: {p['platt_ns']} | recalibration: {p['recalibration']} | "
+          f"fit samples: {p['n_fit_samples']} x doc resamples: {p['n_doc_boot']}")
     ctx = SweepContext(cfg)
-    trials_df, summary = run_sweep(ctx)
-    trials_df.to_csv(ctx.out_dir / 'smece_vs_platt_n_trials.csv', index=False)
+    summary, fits_df, boots = run_sweep(ctx)
     summary.to_csv(ctx.out_dir / 'smece_vs_platt_n.csv', index=False)
+    fits_df.to_csv(ctx.out_dir / 'platt_fits.csv', index=False)
+    with open(ctx.out_dir / 'nested_bootstrap.pkl', 'wb') as f:
+        pickle.dump(boots, f)
     print(summary.to_string(index=False, float_format='{:.3f}'.format))
     plot_sweep(ctx, summary)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SmECE vs. number of Platt training samples (real setting).")
+    parser = argparse.ArgumentParser(description="Calibration error vs. number of recalibration training samples (real setting).")
     parser.add_argument('config', type=Path,
                         help="analysis-configs/<id>.yaml (see load_platt_sweep_config)")
     main(parser.parse_args().config)
