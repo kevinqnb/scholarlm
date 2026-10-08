@@ -16,10 +16,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import seaborn as sns
+from sklearn.metrics import roc_auc_score
 
 from analysis.analysis_config import load_calibration_v4_config
 from analysis import calibration_ids as cids
-from analysis import nested_bootstrap as nb
+from analysis import doc_bootstrap as db
+from analysis.metrics import validity_rate_from_labels
 from analysis.prediction_store import real_cell_provenance
 from analysis.calibration_plot_utils import draw_reliability_curve
 from analysis.head_activations import HeadActivationCache
@@ -68,8 +70,9 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 #
 # v4 recalibrates each real cell with ONE slope-1 map, fit once on one draw of fit rows:
 # no resampling of the fit data and no averaging over fit samples (how the results move
-# with fit_seed is a separate experiment). The only resampling is the test-document
-# cluster bootstrap (n_boot resamples, seeded by the envelope seed), for real and
+# with fit_seed is a separate experiment). The only resampling is a document-level
+# bootstrap of the evaluation set (n_boot resamples, seeded by the envelope seed; see
+# analysis/doc_bootstrap.py, where every SmECE / curve is relplot's own), for real and
 # synthetic cells alike. Synthetic cells are never recalibrated.
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -251,12 +254,11 @@ def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
 
 
 def compute_predictions():
-    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: cell}}}}, the shape
-    # nested_bootstrap.bootstrap_cells takes. 'syn' cells are test_ds's synthetic test set,
-    # never recalibrated (fit_maps None). 'real' cells are test_ds's real rows outside its
-    # fit pool, recalibrated -- probe and NTP separately -- by the one map in
-    # fit_maps[method] (so the bootstrap sees a single prediction set; recal_map holds the
-    # same maps). probe_raw/ntp_raw are the unmapped scores. Also writes recalibration_maps.csv.
+    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: cell}}}}. 'syn' cells
+    # are test_ds's synthetic test set, never recalibrated (recal_map None). 'real' cells are
+    # test_ds's real rows outside its fit pool, recalibrated -- probe and NTP separately -- by
+    # recal_map[method] = (coef, intercept). probe_probs/ntp_probs are the evaluated
+    # predictions, probe_raw/ntp_raw the unmapped scores. Also writes recalibration_maps.csv.
     judge_model = JUDGE_MODEL
     setting_results = {dtype: {judge_model: {}} for dtype in _DTYPES}
     map_rows = []
@@ -277,7 +279,7 @@ def compute_predictions():
                     probe_raw, ntp_raw = _score_rows(
                         train_ds, test_ds, mids, syn_df_s['judgement_p_true'].to_numpy(), syn_dir)
                     probe_probs, ntp_probs = probe_raw, ntp_raw
-                    cell = {'fit_maps': None, 'recal_map': None,
+                    cell = {'recal_map': None,
                             'measurement_ids': np.asarray(mids), 'document_ids': doc_ids}
                 else:  # real
                     td      = test_data[test_ds]
@@ -338,7 +340,7 @@ def compute_predictions():
                                          'Mapped mean prob': float(mapped.mean())})
                     probe_probs = apply_platt(probe_raw, *maps['probe'])
                     ntp_probs   = apply_platt(ntp_raw, *maps['ntp'])
-                    cell = {'fit_maps': {m: [maps[m]] for m in maps}, 'recal_map': maps,
+                    cell = {'recal_map': maps,
                             'fit_on_test_rows': FIT_SOURCE == 'oracle'}
                     # Provenance's fit-row field must not overlap the test rows, so an oracle
                     # fit (on the test rows themselves) records none; fit_on_test_rows says so.
@@ -365,7 +367,7 @@ def compute_predictions():
     return setting_results
 
 
-# (display name, method key in setting_results / bootstrap cells, linestyle).
+# (display name, method key in setting_results / calibration summaries, linestyle).
 # Probe and NTP are never drawn on the same axes or reported in the same table rows.
 _METHODS = [
     ('Probe', 'probe', '-'),
@@ -376,7 +378,8 @@ _METHODS = [
 def plot_calibration_curves(boot, dtype):
     # One figure per (method, train_ds): the train_ds probe (or NTP calibrator)
     # evaluated on every test dataset, one curve per test_ds, colored by test_ds.
-    # Line = the un-resampled curve; band = pointwise document-bootstrap interval.
+    # Line = relplot's curve on the full evaluation set; band = pointwise percentiles of
+    # relplot's curves over the document resamples; drawn only inside the data's support.
     for method, key, linestyle in _METHODS:
         for train_ds in DATASETS:
             train_dict = boot[dtype][JUDGE_MODEL][train_ds]
@@ -405,10 +408,47 @@ def plot_calibration_curves(boot, dtype):
             plt.close(fig_cal)
 
 
+def bootstrap_calibration(setting_results):
+    # Same nesting as setting_results, {dtype: {judge: {train_ds: {test_ds: {method: summary}}}}},
+    # each summary from db.doc_bootstrap_calibration. Resamples depend only on (dtype, test_ds):
+    # every probe and method scored on an evaluation set sees the same N_BOOT resamples.
+    out, resamples = {}, {}
+    for dtype, by_judge in setting_results.items():
+        out[dtype] = {JUDGE_MODEL: {}}
+        for train_ds, by_test in by_judge[JUDGE_MODEL].items():
+            out[dtype][JUDGE_MODEL][train_ds] = {}
+            for test_ds, cell in by_test.items():
+                mids = np.asarray(cell['measurement_ids'])
+                if (dtype, test_ds) not in resamples:
+                    resamples[dtype, test_ds] = (mids, db.document_resamples(
+                        cell['document_ids'], N_BOOT, db.resample_rng(SEED, dtype, test_ds)))
+                # Resamples index rows, so every cell on this evaluation set must have the same rows.
+                assert np.array_equal(resamples[dtype, test_ds][0], mids), (dtype, train_ds, test_ds)
+                print(f'  document bootstrap {dtype} {train_ds} -> {test_ds}: {N_BOOT} resamples')
+                out[dtype][JUDGE_MODEL][train_ds][test_ds] = {
+                    key: db.doc_bootstrap_calibration(cell[f'{key}_probs'], cell['labels'], resamples[dtype, test_ds][1])
+                    for _, key, _ in _METHODS
+                }
+    return out
+
+
+def _threshold_metrics(probs, labels, threshold=0.5):
+    y = np.asarray(labels, dtype=bool)
+    pred = np.asarray(probs) > threshold
+    tp, fp = int((pred & y).sum()), int((pred & ~y).sum())
+    fn, tn = int((~pred & y).sum()), int((~pred & ~y).sum())
+    prec = tp / (tp + fp) if tp + fp else float('nan')
+    rec = tp / (tp + fn) if tp + fn else float('nan')
+    return dict(acc=(tp + tn) / len(y), prec=prec, rec=rec,
+                f1=2 * prec * rec / (prec + rec) if prec + rec > 0 else float('nan'),
+                auroc=roc_auc_score(y, probs) if 0 < y.sum() < len(y) else float('nan'),
+                validity=validity_rate_from_labels(y, pred))
+
+
 def compute_metrics(setting_results, boot):
-    # One row per (dtype, train_ds, test_ds, method). Calibration errors are the
-    # un-resampled value with a percentile interval over N_BOOT test-document
-    # resamples; threshold metrics and AUROC are on the un-resampled test set.
+    # One row per (dtype, train_ds, test_ds, method). Calibration errors are the full
+    # evaluation set's value with a percentile interval over N_BOOT document resamples;
+    # threshold metrics and AUROC are on the full evaluation set.
     # Recalibration / Fit source / pi_te / Intercept are None / NaN for syn (never recalibrated);
     # pi_te is the fit rows' label rate (or the manual estimate).
     rows = []
@@ -416,9 +456,9 @@ def compute_metrics(setting_results, boot):
         for train_ds, by_test in setting_results[dtype][JUDGE_MODEL].items():
             for test_ds, rdict in by_test.items():
                 for kind, key, _ in _METHODS:
-                    t = nb.threshold_metrics(nb.cell_prediction_sets(rdict, key), rdict['labels'])
+                    t = _threshold_metrics(rdict[f'{key}_probs'], rdict['labels'])
                     b = boot[dtype][JUDGE_MODEL][train_ds][test_ds][key]
-                    assert b['n_fit_samples'] == 1 and b['n_doc_boot'] == N_BOOT, (b['n_fit_samples'], b['n_doc_boot'])
+                    assert b['n_boot'] == N_BOOT, b['n_boot']
                     mapped = rdict['recal_map'] is not None
                     row = {
                         'Dataset type':  dtype,
@@ -436,16 +476,16 @@ def compute_metrics(setting_results, boot):
                         'pi_te':         test_data[test_ds]['pi_te'] if mapped else np.nan,
                         'Intercept':     rdict['recal_map'][key][1] if mapped else np.nan,
                         'Mean prob':     float(np.mean(rdict[f'{key}_probs'])),
-                        'Doc resamples': b['n_doc_boot'],
+                        'Doc resamples': b['n_boot'],
                         'Accuracy':      t['acc'],
                         'Precision':     t['prec'],
                         'Recall':        t['rec'],
                         'F1':            t['f1'],
                         'AUROC':         t['auroc'],
                     }
-                    for m in nb.METRICS:
+                    for m in db.METRICS:
                         row.update({m: b['point'][m], f'{m}_lo': b['lo'][m], f'{m}_hi': b['hi'][m]})
-                    row.update({'Validity': t['validity'], 'Curve sigma': b['sigma_curve']})
+                    row.update({'Validity': t['validity'], 'relplot sigma': b['sigma']})
                     rows.append(row)
     df = pd.DataFrame(rows)
     n_expected = len(_DTYPES) * len(TRAIN_DATASETS) * len(DATASETS) * len(_METHODS)
@@ -456,8 +496,8 @@ def compute_metrics(setting_results, boot):
 
 if __name__ == "__main__":
     setting_results = compute_predictions()
-    print('Test-document bootstrap...')
-    boot = nb.bootstrap_cells(setting_results, SEED, N_BOOT, N_BOOT)
+    print('Document bootstrap...')
+    boot = bootstrap_calibration(setting_results)
     with open(OUT_DIR / 'bootstrap.pkl', 'wb') as f:
         pickle.dump(boot, f)
     for _dt in _DTYPES:
