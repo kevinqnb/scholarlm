@@ -522,6 +522,44 @@ def load_platt_sweep_config(path: Path) -> dict:
     return cfg
 
 
+# analysis/platt_scaling_v2.py: the sweep's inputs and platt_ns / recalibration, but
+# no nested bootstrap -- n_train_resamples recalibration fit samples per n, each scored
+# on the fixed (un-resampled) real test set. So no n_fit_samples / n_doc_boot.
+PLATT_SWEEP_V2_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration", "n_train_resamples")
+
+
+def load_platt_sweep_v2_config(path: Path) -> dict:
+    """Load analysis/platt_scaling_v2.py's analysis-configs/<id>.yaml.
+
+    Same as load_platt_sweep_config, except ``n_fit_samples`` and ``n_doc_boot`` are
+    replaced by ``n_train_resamples`` (positive int): the number of training-pool
+    resamples (fit samples) per n.
+
+    Raises:
+        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+    """
+    cfg = _load_envelope(path)
+    params = cfg["params"]
+    if set(params) != set(PLATT_SWEEP_V2_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(PLATT_SWEEP_V2_TOP_KEYS)}"
+        )
+    ns = params["platt_ns"]
+    if (not isinstance(ns, list) or not ns
+            or any(isinstance(n, bool) or not isinstance(n, int) or n <= 0 for n in ns)
+            or any(a >= b for a, b in zip(ns, ns[1:]))):
+        raise ValueError(f"{path}: params.platt_ns must be a non-empty strictly increasing list of positive ints, got {ns!r}")
+    n = params["n_train_resamples"]
+    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+        raise ValueError(f"{path}: params.n_train_resamples must be a positive int, got {n!r}")
+    if params["recalibration"] not in RECALIBRATION_METHODS:
+        raise ValueError(
+            f"{path}: params.recalibration must be one of {RECALIBRATION_METHODS}, got {params['recalibration']!r}"
+        )
+    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
+    return cfg
+
+
 # analysis/calibration_updated_v4.py: one recalibration map per (scorer, test dataset),
 # fit once -- no resampling of the fit data -- with test-document bootstrap CIs (n_boot
 # resamples, real and synthetic cells alike; seeded by the envelope seed).

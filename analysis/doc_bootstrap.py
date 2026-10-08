@@ -9,6 +9,9 @@ smECE) resample rows, not documents, and are switched off.
 
 Binned calibration errors (scholarlm's compute_ece) are computed on the same resamples.
 
+Also supplies platt_scaling_v2.py's training-pool resamples: the pool's documents
+resampled, then n rows drawn from it, keeping only two-class draws.
+
 Import-side-effect free so it can be unit tested on a hand-built fixture.
 """
 from __future__ import annotations
@@ -42,6 +45,59 @@ def document_resamples(doc_ids, n_boot: int, rng: np.random.Generator) -> list[n
     rows_by_doc = [np.flatnonzero(inverse == k) for k in range(inverse.max() + 1)]
     n_docs = len(rows_by_doc)
     return [np.concatenate([rows_by_doc[d] for d in rng.integers(0, n_docs, n_docs)]) for _ in range(n_boot)]
+
+
+# ── Training-pool resamples (platt_scaling_v2.py) ────────────────────────────
+# A run fails rather than draw more than this many resamples per wanted resample:
+# that many single-class draws means n is too small for the pool's label rate.
+MAX_DRAWS_PER_SAMPLE = 10
+
+
+def fit_resample_rng(seed: int, ds: str, r: int) -> np.random.Generator:
+    """RNG for training-pool resample ``r`` of dataset ``ds``.
+
+    SeedSequence zero-pads entropy, so ``[seed, h]`` and ``[seed, h, 0]`` are the same
+    stream: a bare extra word would collide with resample_rng at r=0. The constant
+    second word (0xF17) keeps these streams apart from resample_rng's ``[seed, crc32]``.
+    """
+    assert r >= 0, r
+    return np.random.default_rng([seed, 0xF17, zlib.crc32(ds.encode()), r])
+
+
+def resampled_fit_sample(pool_doc_ids, n: int, rng: np.random.Generator) -> np.ndarray:
+    """One fit sample: ``n`` sorted positions into the pool (repeats possible).
+
+    The pool's documents are resampled once (document_resamples), then ``n`` of the
+    resampled rows are drawn uniformly without replacement. A row whose document was
+    drawn k times has k copies to draw from; in a fit a repeat is a weight. The document
+    resample is drawn first, so a fresh RNG in the same state resamples the same
+    documents whatever ``n`` is.
+    """
+    expanded = document_resamples(pool_doc_ids, 1, rng)[0]
+    assert 0 < n <= len(expanded), f'resampled pool has {len(expanded)} rows, n={n}'
+    return np.sort(expanded[rng.choice(len(expanded), n, replace=False)])
+
+
+def two_class_fit_samples(pool_doc_ids, pool_labels, n: int, n_samples: int, seed: int, ds: str):
+    """``n_samples`` fit samples of size ``n`` that contain both classes.
+
+    Draw r is ``resampled_fit_sample(pool_doc_ids, n, fit_resample_rng(seed, ds, r))``
+    for r = 0, 1, ...; single-class draws (which no recalibration map can be fit on) are
+    skipped. Returns the kept ``(r, positions)`` pairs and the number of draws made.
+    Raises RuntimeError past MAX_DRAWS_PER_SAMPLE * n_samples draws.
+    """
+    pool_labels = np.asarray(pool_labels, dtype=bool)
+    assert len(pool_labels) == len(pool_doc_ids) > 0 and n_samples > 0, (len(pool_labels), len(pool_doc_ids))
+    kept, r = [], 0
+    while len(kept) < n_samples:
+        if r >= MAX_DRAWS_PER_SAMPLE * n_samples:
+            raise RuntimeError(f'{ds} n={n}: only {len(kept)}/{n_samples} two-class fit samples in {r} draws')
+        sample = resampled_fit_sample(pool_doc_ids, n, fit_resample_rng(seed, ds, r))
+        assert len(sample) == n
+        if 0 < pool_labels[sample].sum() < n:
+            kept.append((r, sample))
+        r += 1
+    return kept, r
 
 
 def _relplot(probs, labels) -> dict:

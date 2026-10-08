@@ -86,3 +86,70 @@ def test_interval_brackets_and_is_percentile_of_replicates():
         assert out["lo"][m] == lo and out["hi"][m] == hi
     assert np.all(out["lower"] <= out["upper"])
     assert out["drawn"].any() and out["drawn"].dtype == bool
+
+
+# ── Training-pool resamples ──────────────────────────────────────────────────
+def test_resampled_fit_sample_is_n_rows_of_a_document_resample():
+    doc_ids = np.repeat(np.arange(6), 4)
+    s = db.resampled_fit_sample(doc_ids, 10, db.fit_resample_rng(0, "pond", 3))
+    assert len(s) == 10 and np.array_equal(s, np.sort(s))
+    # Same RNG state: the document resample is the one document_resamples draws first, and
+    # the positions are a without-replacement subset of it (multiset containment).
+    expanded = db.document_resamples(doc_ids, 1, db.fit_resample_rng(0, "pond", 3))[0]
+    vals, counts = np.unique(s, return_counts=True)
+    assert all(counts[i] <= np.sum(expanded == v) for i, v in enumerate(vals))
+    # Deterministic, and n = whole resampled pool takes every resampled row.
+    assert np.array_equal(s, db.resampled_fit_sample(doc_ids, 10, db.fit_resample_rng(0, "pond", 3)))
+    full = db.resampled_fit_sample(doc_ids, len(expanded), db.fit_resample_rng(0, "pond", 3))
+    assert np.array_equal(full, np.sort(expanded))
+
+
+def test_resampled_fit_sample_shares_documents_across_n():
+    # One row per document: positions are document ids, so the sample at small n must be
+    # drawn from the same resampled documents as the sample at the full size.
+    doc_ids = np.arange(30)
+    docs_full = set(db.resampled_fit_sample(doc_ids, 30, db.fit_resample_rng(1, "nfix", 0)).tolist())
+    docs_small = set(db.resampled_fit_sample(doc_ids, 5, db.fit_resample_rng(1, "nfix", 0)).tolist())
+    assert docs_small <= docs_full
+
+
+def test_fit_resample_rng_streams_distinct():
+    a = db.fit_resample_rng(0, "pond", 0).integers(0, 1 << 30, 5)
+    assert np.array_equal(a, db.fit_resample_rng(0, "pond", 0).integers(0, 1 << 30, 5))
+    assert not np.array_equal(a, db.fit_resample_rng(0, "pond", 1).integers(0, 1 << 30, 5))
+    assert not np.array_equal(a, db.fit_resample_rng(0, "nfix", 0).integers(0, 1 << 30, 5))
+    # SeedSequence zero-pads entropy: r=0 must not reproduce any resample_rng stream
+    # (the collision the 0xF17 tag word exists to prevent).
+    for dtype, ds in [("fit", "pond"), ("real", "pond"), ("syn", "pond")]:
+        assert not np.array_equal(a, db.resample_rng(0, dtype, ds).integers(0, 1 << 30, 5))
+
+
+def test_two_class_fit_samples_no_skips_when_both_classes_certain():
+    # Every document has one valid and one invalid row, and n is the whole resampled pool.
+    doc_ids = np.repeat(np.arange(5), 2)
+    y = np.tile([True, False], 5)
+    kept, n_draws = db.two_class_fit_samples(doc_ids, y, 10, 7, seed=2, ds="pond")
+    assert n_draws == 7 and [r for r, _ in kept] == list(range(7))
+    for r, s in kept:
+        assert np.array_equal(s, db.resampled_fit_sample(doc_ids, 10, db.fit_resample_rng(2, "pond", r)))
+
+
+def test_two_class_fit_samples_skips_single_class():
+    # docs 0..3 valid, 4..7 invalid, one row each: a size-2 sample from one half is skipped.
+    doc_ids = np.arange(8)
+    y = doc_ids < 4
+    kept, n_draws = db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")
+    assert len(kept) == 30 and n_draws > 30
+    assert all(y[s].sum() == 1 for _, s in kept)
+    rs = [r for r, _ in kept]
+    skipped = sorted(set(range(n_draws)) - set(rs))
+    assert rs == sorted(rs) and skipped
+    assert all(y[db.resampled_fit_sample(doc_ids, 2, db.fit_resample_rng(0, "pond", r))].sum() in (0, 2)
+               for r in skipped)
+    assert db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")[1] == n_draws
+
+
+def test_two_class_fit_samples_fails_loud_on_single_class_pool():
+    import pytest
+    with pytest.raises(RuntimeError):
+        db.two_class_fit_samples(np.arange(10), np.zeros(10, dtype=bool), 3, 4, seed=0, ds="pond")
