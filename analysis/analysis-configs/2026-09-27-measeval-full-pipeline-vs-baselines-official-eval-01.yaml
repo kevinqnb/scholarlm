@@ -43,4 +43,4 @@ params:
     - 2026-09-26-measeval-chatextract-gemma27b-full-01
   measeval_evaluation:
     dev: false
-    output: analysis/results/2026-09-27-measeval-full-pipeline-vs-baselines-official-eval-01.csv
+    output: analysis/results/recovery-validity/2026-09-27-measeval-full-pipeline-vs-baselines-official-eval-01.csv
