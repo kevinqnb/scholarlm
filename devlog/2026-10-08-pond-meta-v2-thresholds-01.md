@@ -26,3 +26,17 @@ New `analysis/meta_updated_v2.py` replaces v1's confidence-weighted temperature 
 ### Commits
 a533e0a meta loaders: explicit calibration_version (v3|v4), restrict_to_shared_docs, training-doc asserts
 ad06ec9 meta_updated_v2: hard confidence thresholds, np.quantile Q-Q, scipy W1
+
+## Session 2026-10-08 (W1-vs-threshold curves)
+
+### Prompts
+- "Please add in plots that show how wasserstein distances change with increasing threhsold. In a single plot show this for (a) NTP probabilities, (b) probe probabilities, and (c) randomly shuffled probabilities (averaged and with CIs around the line). Take plotting tips from analogous plots in @analysis/clustering.py"
+- (Answers) Shuffle both methods, each its own dotted line; the shuffled band is the 95% percentile range over permutations.
+- "Good, add this to the previous devlog and commit. Then resubmit all the jobs."
+
+### Implemented
+The W1 permutation control in `analysis/meta_updated_v2.py` now averages over `n_shuffle_samples` permutations of each method's confidences (a new required config key), reporting the mean and 2.5/97.5 percentile range and the documents the shuffled subsets span; this is an evaluation change committed on its own, and it supersedes the single-permutation shuffled column of every earlier v2 run (all other columns unchanged). New figures `figures/w1_vs_threshold_{ecosystem}.pdf` plot W1 to ground truth against the confidence threshold for NTP and probe (with bootstrap CI bands) and their shuffled controls (with percentile bands), styled after `analysis/clustering.py`. New config `analysis/analysis-configs/2026-10-08-pond-meta-v2-w1-curves-01.yaml` (plus `-smoke-01`); the four earlier v2 configs gained `n_shuffle_samples`. Unit tests, the smoke run and the predicted-outcome checks passed.
+
+### Commits
+94d91f6 meta_updated_v2: shuffled-confidence control over n_shuffle_samples permutations
+db6b02d meta_updated_v2: W1-vs-threshold figures (NTP, probe, shuffled controls)
