@@ -2,7 +2,9 @@ id: 2026-10-05-nfix-full-pipeline-vs-baselines-recovery-01
 project: scholarlm
 description: >
   Same experiment ids, ground truth and seed as
-  2026-09-23-nfix-full-pipeline-vs-baselines-recovery-01, but recovery is a max-weight-matching count.
+  2026-09-23-nfix-full-pipeline-vs-baselines-recovery-01, with validity on. Created 2026-10-05 when
+  recovery was a max-weight-matching count; since 2026-10-07 recovery is the any-edge
+  count and the matching count is the separate recovery_max_weight_matching column.
   Dropped from the id list because they have no usable judge_combine output yet (add them back
   once it exists):
   - 2026-09-26-nfix-extraction-llama8b-reppen-full-01: none of its six judge runs have results, so no combined.json.
@@ -22,7 +24,6 @@ params:
     - 2026-09-25-nfix-nuextract3-noqualifiers-full-01
     - 2026-09-26-nfix-chatextract-gemma27b-full-01
   recovery_validity:
-    edge_filter: threshold
     n_resamples: 2000
     alpha: 0.05
     compute_validity: true

@@ -74,3 +74,25 @@ def test_unknown_id_raises():
     spec["blocks"][1]["rows"][0]["ids"]["PLW"] = "nope"
     with pytest.raises(KeyError, match="nope"):
         rvl.build_table(spec, _results())
+
+
+def test_pre_any_edge_csv_without_matching_column_raises(tmp_path, monkeypatch):
+    # A CSV written before 2026-10-07 has `recovery` = max-weight matching count
+    # and no recovery_max_weight_matching column: refuse it rather than render it.
+    import yaml
+    monkeypatch.setattr(rvl, "ANALYSIS_CONFIGS_ROOT", tmp_path)
+    csv_path = tmp_path / "out.csv"
+    cfg_id = "2026-10-05-test-rv-01"
+    with open(tmp_path / f"{cfg_id}.yaml", "w") as f:
+        yaml.safe_dump({
+            "id": cfg_id, "project": "scholarlm", "description": "test", "seed": 342,
+            "params": {"experiment_ids": ["a"], "recovery_validity": {"output": str(csv_path)}},
+        }, f)
+    old = dict(experiment_id="a", dataset="pond", analysis_config_id=cfg_id,
+               recovery=0.5, recovery_ci_lo=0.4, recovery_ci_hi=0.6, recovery_any_edge=0.7,
+               validity=0.9, validity_ci_lo=0.8, validity_ci_hi=1.0)
+    pd.DataFrame([old]).to_csv(csv_path, index=False)
+    with pytest.raises(ValueError, match="recovery_max_weight_matching"):
+        rvl.load_results("PLW", "pond", cfg_id)
+    pd.DataFrame([{**old, "recovery_max_weight_matching": 0.5}]).to_csv(csv_path, index=False)
+    assert rvl.load_results("PLW", "pond", cfg_id).loc["a", "recovery"] == 0.5

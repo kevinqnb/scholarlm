@@ -65,9 +65,12 @@ SECTION_KEYS = ("datasets", "decimals", "ci_format", "output", "caption", "label
 CI_FORMATS = ("pm", "interval")
 MISSING_CELL = "--"
 
+# recovery_max_weight_matching is not rendered; requiring it rejects a CSV written
+# before 2026-10-07, whose `recovery` column was the max-weight matching count rather
+# than today's any-edge count (see analysis/recovery_validity.py's module docstring).
 _NEEDED_COLUMNS = (
     "experiment_id", "dataset", "analysis_config_id",
-    "recovery", "recovery_ci_lo", "recovery_ci_hi",
+    "recovery", "recovery_ci_lo", "recovery_ci_hi", "recovery_max_weight_matching",
     "validity", "validity_ci_lo", "validity_ci_hi",
 )
 

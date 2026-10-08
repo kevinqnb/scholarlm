@@ -1,7 +1,7 @@
 id: 2026-10-06-pond-ablations-recovery-01
 project: scholarlm
 description: >
-  Recovery/validity (threshold edge filter, paper-clustered bootstrap) for ablations 2-5 and 7 on pond.
+  Recovery/validity (fuzzy-threshold edges, paper-clustered bootstrap) for ablations 2-5 and 7 on pond.
   Ablations 2-5 are the 2026-10-02 regenerated full runs; ablation 7 is the 2026-09-26 run
   (llama = llama-3.1-8b-reppen; the non-reppen llama ablation7 run is unjudged).
   Same ground truth, seed and settings as 2026-10-05-pond-full-pipeline-vs-baselines-recovery-01.
@@ -27,7 +27,6 @@ params:
     - 2026-10-02-pond-ablation5-gptoss120b-full-01
     - 2026-10-02-pond-ablation5-llama8b-reppen-full-01
   recovery_validity:
-    edge_filter: threshold
     n_resamples: 2000
     alpha: 0.05
     compute_validity: true

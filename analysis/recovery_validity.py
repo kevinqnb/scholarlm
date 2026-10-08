@@ -16,18 +16,20 @@ This is the centralized replacement for the recovery/validity halves of
     ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
     mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
     -- see analysis/analysis_config.py's module docstring for why;
-  - REPORTED RECOVERY IS A MAXIMUM-WEIGHT MATCHING COUNT (changed 2026-10-05):
-    the raw threshold-0 cache edges are first filtered one of two explicit ways
-    (``edge_filter``) -- ``threshold`` (``w >= fuzzy_threshold``) or ``judge``
-    (drop edges to extractions the combined judges marked invalid) -- then a
-    max-weight 1-1 matching is solved over only the surviving edges and every
-    ground truth row in it counts as recovered (see
-    ``max_weight_matching_recovered``). This is NOT ``analysis.metrics.
-    recovery_rate``'s any-surviving-edge count, which can only be >= it; that
-    older value is still emitted as ``recovery_any_edge`` and cross-checked
-    against metrics.py (``_verify_recovery``) to guard the edge filtering. Every
-    recovery number computed by this script before this change is invalid.
-    Validity is unchanged (dataset-threshold edges OR judged valid);
+  - REPORTED ``recovery`` IS THE ANY-EDGE COUNT (changed 2026-10-07): a ground
+    truth row is recovered if at least one extracted row has a cached edge to
+    it with ``w >= fuzzy_threshold`` -- the same count as ``analysis.metrics.
+    recovery_rate``, cross-checked against it on every call
+    (``_verify_recovery``). The max-weight 1-1 matching count over those same
+    edges (``max_weight_matching_recovered``) is kept as the secondary
+    ``recovery_max_weight_matching`` column (always <= ``recovery``), with its
+    own bootstrap CI. From 2026-10-05 until this change ``recovery`` WAS the
+    matching count (and an ``edge_filter: judge`` mode existed, now removed);
+    every ``recovery`` number this script wrote in that window means something
+    different and must be regenerated, not compared. Validity is unchanged
+    (dataset-threshold edges OR judged valid -- an extracted row counts as
+    matched if it has any threshold-surviving edge, never by matching
+    membership);
   - reads a match cache instead of computing one (never recomputes -- run
     ``python analysis/match_cache.py <id>`` first for any id that doesn't
     have one yet, and refuses a cache that predates its own extraction file
@@ -70,10 +72,10 @@ Usage
 -----
     python analysis/recovery_validity.py <id> [<id> ...] \\
         --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
-        --edge-filter {threshold,judge} [--alpha 0.05] [--skip-validity] [--output PATH]
+        [--alpha 0.05] [--skip-validity] [--output PATH]
     python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
 
-``--n-resamples``, ``--seed``, ``--ground-truth-file`` and ``--edge-filter`` are required, not
+``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
 defaulted (CLAUDE.md: no inferred defaults for a value that changes the
 reported numbers) -- pass the repo's own ``experiments/config.yaml``
 ``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
@@ -82,7 +84,7 @@ corresponding ``match_cache.py`` run used (its match_cache.meta.json sidecar
 is checked against it -- see ``_assert_ground_truth_matches_cache``).
 
 ``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
-and a ``params.recovery_validity`` section (``edge_filter``/``n_resamples``/``alpha``/
+and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
 ``compute_validity``/``output``, all required with no defaults, plus an
 optional ``judge_combine_ids`` id-to-id override map) from an
 analysis-configs/<id>.yaml -- see analysis/analysis_config.py. Mutually
@@ -629,8 +631,6 @@ def ext_matched_mask(n_ext: int, edges: list[tuple[int, int]]) -> np.ndarray:
     return mask
 
 
-EDGE_FILTERS = ("threshold", "judge")
-
 # Exact-integer scaling for max_weight_matching_recovered: weights are rounded
 # to 1e-6, then each edge gets +1 after multiplying by a constant larger than
 # any possible matching size, so cardinality only ever breaks ties between
@@ -648,20 +648,6 @@ def filter_edges_by_threshold(
     if len(edges) != len(edge_weights):
         raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
     kept = [(e, w) for e, w in zip(edges, edge_weights) if w >= fuzzy_threshold]
-    return [e for e, _ in kept], [w for _, w in kept]
-
-
-def filter_edges_by_judgement(
-    edges: list[tuple[int, int]], edge_weights: list[float], judged_labels: np.ndarray,
-) -> tuple[list[tuple[int, int]], list[float]]:
-    """(edges, weights) whose extracted measurement (``ex_idx``) the combined
-    judges labelled valid; an edge to a judged-invalid extraction is dropped.
-    ``judged_labels`` is ``load_validity_labels``' output, one bool per
-    extraction row.
-    """
-    if len(edges) != len(edge_weights):
-        raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
-    kept = [(e, w) for e, w in zip(edges, edge_weights) if judged_labels[e[1]]]
     return [e for e, _ in kept], [w for _, w in kept]
 
 
@@ -764,15 +750,11 @@ def _verify_recovery(
     cache_path: Path,
     recovered: np.ndarray,
 ) -> None:
-    """Assert this script's threshold-filtered any-edge recovered mask agrees
-    with ``analysis.metrics.recovery_rate`` computed against the exact same
-    cache.
-
-    This checks the EDGE FILTERING, not the matching: metrics.recovery_rate
-    still counts any gt row with a surviving edge (the reported recovery is
-    now a max-weight-matching count -- see ``max_weight_matching_recovered``
-    -- which that function does not compute; it is deliberately left
-    untouched).
+    """Assert this script's threshold-filtered any-edge recovered mask -- the
+    reported ``recovery`` -- agrees with ``analysis.metrics.recovery_rate``
+    computed against the exact same cache. (The secondary
+    ``recovery_max_weight_matching`` is guarded separately, by
+    ``_verify_matching``.)
 
     ``gt_recovered_mask``/``ext_matched_mask`` above are a near-duplicate of
     metrics.py's own internal edge-filtering loop (kept separate only
@@ -905,7 +887,6 @@ def compute_metrics_for_id(
     experiment_id: str,
     *,
     ground_truth_path: Path,
-    edge_filter: str,
     n_resamples: int,
     seed: int,
     alpha: float = 0.05,
@@ -915,16 +896,13 @@ def compute_metrics_for_id(
     """Compute recovery (+ validity, unless ``compute_validity=False``) with
     paper-clustered bootstrap CIs for one experiment id.
 
-    ``edge_filter`` (no default; one of ``EDGE_FILTERS``) picks how the raw
-    threshold-0 match-cache edges are filtered before the recovery matching:
-    ``"threshold"`` keeps ``w >= the dataset's fuzzy_threshold``; ``"judge"``
-    keeps every edge whose extraction the combined judges labelled valid (no
-    weight cutoff) and requires ``compute_validity=True``, since it needs the
-    judge_combine labels. Recovery is then the fraction of ground truth rows in
-    a maximum-weight 1-1 matching over the surviving edges
-    (``max_weight_matching_recovered``). Validity is unchanged in both modes: it
-    still uses the dataset-threshold edges (judge-filtered edges would make it
-    collapse to exactly the judge labels).
+    The raw threshold-0 match-cache edges are filtered to ``w >= the dataset's
+    fuzzy_threshold``. ``recovery`` is the fraction of ground truth rows with
+    at least one surviving edge; ``recovery_max_weight_matching`` is the
+    fraction in a maximum-weight 1-1 matching over the same surviving edges
+    (``max_weight_matching_recovered``), so it is always <= ``recovery``. Both
+    get a paper-clustered bootstrap CI from the same seed. Validity labels an
+    extraction matched if it has any surviving edge (OR judged valid).
 
     ``ground_truth_path`` has no default -- see module docstring: the ground
     truth file is always given explicitly (an analysis config's
@@ -971,14 +949,6 @@ def compute_metrics_for_id(
     _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
     _assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
 
-    if edge_filter not in EDGE_FILTERS:
-        raise ValueError(f"edge_filter must be one of {EDGE_FILTERS}, got {edge_filter!r}")
-    if edge_filter == "judge" and not compute_validity:
-        raise ValueError(
-            f"{experiment_id}: edge_filter='judge' needs the judge_combine labels, "
-            f"but compute_validity is false"
-        )
-
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
     # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
     # module docstring): the raw edge list is every strict-matched candidate.
@@ -992,14 +962,14 @@ def compute_metrics_for_id(
                 f"`python analysis/match_cache.py {experiment_id}`."
             )
 
-    # Dataset-threshold edges: always computed -- validity's matched mask, and
-    # the cross-check of the edge filtering against analysis.metrics.
+    # Dataset-threshold edges: the only edges recovery and validity ever use.
     threshold_edges, threshold_weights = filter_edges_by_threshold(raw_edges, raw_weights, threshold)
     matched = ext_matched_mask(n_ext, threshold_edges)
-    _verify_recovery(
-        ground_truth_df, extraction_df, cfg, threshold, cache_path,
-        gt_recovered_mask(n_gt, threshold_edges),
-    )
+    recovered = gt_recovered_mask(n_gt, threshold_edges)
+    _verify_recovery(ground_truth_df, extraction_df, cfg, threshold, cache_path, recovered)
+
+    recovered_mwm, matching = max_weight_matching_recovered(n_gt, n_ext, threshold_edges, threshold_weights)
+    _verify_matching(matching, threshold_edges, recovered_mwm, recovered, ground_truth_df, extraction_df)
 
     judge_ids = None
     judged_labels = None
@@ -1010,18 +980,12 @@ def compute_metrics_for_id(
             judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
         judged_labels = load_validity_labels(judge_combine_id, extraction_df)
 
-    if edge_filter == "threshold":
-        surviving_edges, surviving_weights = threshold_edges, threshold_weights
-    else:
-        surviving_edges, surviving_weights = filter_edges_by_judgement(raw_edges, raw_weights, judged_labels)
-
-    any_edge_recovered = gt_recovered_mask(n_gt, surviving_edges)
-    recovered, matching = max_weight_matching_recovered(n_gt, n_ext, surviving_edges, surviving_weights)
-    _verify_matching(matching, surviving_edges, recovered, any_edge_recovered, ground_truth_df, extraction_df)
-
+    gt_docs = ground_truth_df["document_id"].to_numpy()
     recovery_point, recovery_lo, recovery_hi = bootstrap_cluster_rate(
-        recovered, ground_truth_df["document_id"].to_numpy(),
-        n_resamples=n_resamples, seed=seed, alpha=alpha,
+        recovered, gt_docs, n_resamples=n_resamples, seed=seed, alpha=alpha,
+    )
+    mwm_point, mwm_lo, mwm_hi = bootstrap_cluster_rate(
+        recovered_mwm, gt_docs, n_resamples=n_resamples, seed=seed, alpha=alpha,
     )
 
     row = {
@@ -1031,16 +995,17 @@ def compute_metrics_for_id(
         "extraction_file": match_cache.repo_relative(extraction_file_path),
         "n_gt": n_gt,
         "n_ext": n_ext,
-        "edge_filter": edge_filter,
-        "fuzzy_threshold": threshold if edge_filter == "threshold" else None,
-        "n_surviving_edges": len(surviving_edges),
+        "fuzzy_threshold": threshold,
+        "n_surviving_edges": len(threshold_edges),
         "n_resamples": n_resamples,
         "seed": seed,
         "bootstrap_unit": "paper",
         "recovery": recovery_point,
-        "recovery_any_edge": float(any_edge_recovered.mean()),
         "recovery_ci_lo": recovery_lo,
         "recovery_ci_hi": recovery_hi,
+        "recovery_max_weight_matching": mwm_point,
+        "recovery_max_weight_matching_ci_lo": mwm_lo,
+        "recovery_max_weight_matching_ci_hi": mwm_hi,
         "judge_combine_id": None,
         "judge_ids": None,
         "n_split_rows_inheriting_judgement": None,
@@ -1233,13 +1198,6 @@ def _build_parser() -> argparse.ArgumentParser:
              "--config is given.",
     )
     p.add_argument(
-        "--edge-filter", choices=EDGE_FILTERS, default=None,
-        help="How the raw match-cache edges are filtered before the recovery matching: "
-             "'threshold' (w >= the dataset's fuzzy_threshold) or 'judge' (drop edges to "
-             "judged-invalid extractions; needs judge coverage, so incompatible with "
-             "--skip-validity). Required unless --config is given.",
-    )
-    p.add_argument(
         "--n-resamples", type=int, default=None,
         help="Number of paper-cluster bootstrap resamples. Required unless --config is given.",
     )
@@ -1274,16 +1232,16 @@ def main(argv: list[str] | None = None) -> None:
     cli_flags_given = (
         args.experiment_ids or args.n_resamples is not None or args.seed is not None
         or args.alpha is not None or args.skip_validity or args.output is not None
-        or args.ground_truth_file is not None or args.edge_filter is not None
+        or args.ground_truth_file is not None
     )
     if args.config and cli_flags_given:
         parser.error("--config is mutually exclusive with experiment_ids and every other flag")
     if not args.config and not (
         args.experiment_ids and args.n_resamples is not None and args.seed is not None
-        and args.ground_truth_file is not None and args.edge_filter is not None
+        and args.ground_truth_file is not None
     ):
         parser.error(
-            "experiment_ids, --n-resamples, --seed, --ground-truth-file and --edge-filter are "
+            "experiment_ids, --n-resamples, --seed and --ground-truth-file are "
             "required unless --config is given"
         )
 
@@ -1292,12 +1250,14 @@ def main(argv: list[str] | None = None) -> None:
         cfg = load_analysis_config(args.config)
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
+        # get_section rejects unknown keys, so a config still carrying the
+        # edge_filter key (removed 2026-10-07 with the judge edge-filter mode)
+        # fails loud here rather than being silently ignored.
         section = get_section(
             cfg, "recovery_validity",
-            required_keys=("edge_filter", "n_resamples", "alpha", "compute_validity", "output"),
+            required_keys=("n_resamples", "alpha", "compute_validity", "output"),
             optional_keys=("judge_combine_ids",),
         )
-        edge_filter = section["edge_filter"]
         n_resamples = section["n_resamples"]
         seed = cfg["seed"]
         alpha = section["alpha"]
@@ -1306,16 +1266,6 @@ def main(argv: list[str] | None = None) -> None:
             raise ValueError(
                 f"{args.config}: params.recovery_validity.compute_validity must be a "
                 f"bool, got {compute_validity!r}"
-            )
-        if edge_filter not in EDGE_FILTERS:
-            raise ValueError(
-                f"{args.config}: params.recovery_validity.edge_filter must be one of "
-                f"{EDGE_FILTERS}, got {edge_filter!r}"
-            )
-        if edge_filter == "judge" and not compute_validity:
-            raise ValueError(
-                f"{args.config}: edge_filter 'judge' needs judge coverage, but "
-                f"params.recovery_validity.compute_validity is false"
             )
         output = Path(section["output"])
         if not output.is_absolute():
@@ -1348,13 +1298,10 @@ def main(argv: list[str] | None = None) -> None:
             ground_truth_path = _REPO_ROOT / ground_truth_path
         if not ground_truth_path.exists():
             parser.error(f"--ground-truth-file {ground_truth_path} does not exist")
-        edge_filter = args.edge_filter
         n_resamples = args.n_resamples
         seed = args.seed
         alpha = args.alpha if args.alpha is not None else 0.05
         compute_validity = not args.skip_validity
-        if edge_filter == "judge" and not compute_validity:
-            parser.error("--edge-filter judge needs judge coverage and cannot be combined with --skip-validity")
         output = args.output if args.output is not None else _REPO_ROOT / "analysis" / "results" / "recovery-validity" / "recovery_validity.csv"
         analysis_config_id = None
 
@@ -1362,7 +1309,7 @@ def main(argv: list[str] | None = None) -> None:
     for experiment_id in experiment_ids:
         print(f"Processing {experiment_id} ...")
         row = compute_metrics_for_id(
-            experiment_id, ground_truth_path=ground_truth_path, edge_filter=edge_filter,
+            experiment_id, ground_truth_path=ground_truth_path,
             n_resamples=n_resamples, seed=seed, alpha=alpha,
             compute_validity=compute_validity,
             judge_combine_id=judge_combine_overrides.get(experiment_id),
@@ -1376,7 +1323,8 @@ def main(argv: list[str] | None = None) -> None:
         )
         print(
             f"  recovery={row['recovery']:.3f} "
-            f"[{row['recovery_ci_lo']:.3f}, {row['recovery_ci_hi']:.3f}]  {validity_str}"
+            f"[{row['recovery_ci_lo']:.3f}, {row['recovery_ci_hi']:.3f}]  "
+            f"recovery_max_weight_matching={row['recovery_max_weight_matching']:.3f}  {validity_str}"
         )
 
     df = pd.DataFrame(rows)
