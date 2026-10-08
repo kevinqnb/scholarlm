@@ -522,19 +522,26 @@ def load_platt_sweep_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/calibration_updated_v4.py: prior-shift recalibration only, from ONE test-
-# prevalence estimate pi_te per test dataset (no fit-sample averaging), with test-document
-# bootstrap CIs (n_boot resamples, real and synthetic cells alike). prior_source picks
-# where pi_te comes from:
-#   sample -- label rate of prior_sample_n rows drawn uniformly from a document-resampled
-#             copy of the test dataset's probe-training pool (v3's fit sample 0).
-#   manual -- the per-dataset pi_te_estimate given in the config.
-#   oracle -- the label rate of the evaluated real test rows themselves. Diagnostic only
-#             (a perfect prior estimate); never a reportable number.
-# prior_sample_n must be set iff prior_source is sample, and every dataset's
-# pi_te_estimate iff it is manual; the other must be null.
-CALIBRATION_V4_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("n_boot", "prior_source", "prior_sample_n")
-CALIBRATION_V4_PRIOR_SOURCES = ("sample", "manual", "oracle")
+# analysis/calibration_updated_v4.py: one recalibration map per (scorer, test dataset),
+# fit once -- no resampling of the fit data -- with test-document bootstrap CIs (n_boot
+# resamples, real and synthetic cells alike; seeded by the envelope seed).
+#   recalibration: prior_shift   -- slope 1, intercept logit(pi_te) - logit(pi_tr).
+#                  intercept_fit -- slope 1, intercept by MLE on the fit rows.
+#   fit_source:    sample -- fit_n rows drawn uniformly without replacement from the test
+#                            dataset's probe-training pool, by fit_seed (pi_te = their
+#                            label rate for prior_shift).
+#                  manual -- prior_shift only: the per-dataset pi_te_estimate.
+#                  oracle -- the evaluated real test rows themselves (pi_te = their label
+#                            rate; intercept_fit fit on them). Diagnostic only.
+# fit_n and fit_seed are set iff fit_source is sample, and every dataset's
+# pi_te_estimate iff it is manual; otherwise they must be null.
+CALIBRATION_V4_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("n_boot", "recalibration", "fit_source", "fit_n", "fit_seed")
+CALIBRATION_V4_RECALIBRATIONS = ("prior_shift", "intercept_fit")
+CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "intercept_fit": ("sample", "oracle")}
+
+
+def _is_int(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
 
 
 def load_calibration_v4_config(path: Path) -> dict:
@@ -542,14 +549,16 @@ def load_calibration_v4_config(path: Path) -> dict:
 
     Per-dataset blocks are v2's (CALIBRATION_V2_DATASET_KEYS: v1's keys plus
     ``pi_te_estimate``). Top level: v2's keys plus ``n_boot`` (positive int),
-    ``prior_source`` (one of CALIBRATION_V4_PRIOR_SOURCES) and ``prior_sample_n``.
-    ``prior_sample_n`` is a positive int when ``prior_source`` is 'sample' and null
-    otherwise; each ``pi_te_estimate`` is a float in (0, 1) when it is 'manual' and
-    null otherwise -- a value the chosen source would ignore is an error.
+    ``recalibration`` (one of CALIBRATION_V4_RECALIBRATIONS), ``fit_source`` (one of
+    CALIBRATION_V4_FIT_SOURCES[recalibration]), ``fit_n`` and ``fit_seed``.
+    ``fit_n`` (positive int) and ``fit_seed`` (non-negative int) are set when
+    ``fit_source`` is 'sample' and null otherwise; each ``pi_te_estimate`` is a float in
+    (0, 1) when it is 'manual' and null otherwise -- a value the chosen source would
+    ignore is an error.
 
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types, or a
-            prior_sample_n / pi_te_estimate inconsistent with prior_source.
+            fit_source / fit_n / fit_seed / pi_te_estimate inconsistent with recalibration.
     """
     cfg = _load_envelope(path)
     params = cfg["params"]
@@ -558,30 +567,39 @@ def load_calibration_v4_config(path: Path) -> dict:
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V4_TOP_KEYS)}"
         )
     _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
-    n = params["n_boot"]
-    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-        raise ValueError(f"{path}: params.n_boot must be a positive int, got {n!r}")
-    source = params["prior_source"]
-    if source not in CALIBRATION_V4_PRIOR_SOURCES:
+    if not _is_int(params["n_boot"]) or params["n_boot"] <= 0:
+        raise ValueError(f"{path}: params.n_boot must be a positive int, got {params['n_boot']!r}")
+    recal = params["recalibration"]
+    if recal not in CALIBRATION_V4_RECALIBRATIONS:
         raise ValueError(
-            f"{path}: params.prior_source must be one of {CALIBRATION_V4_PRIOR_SOURCES}, got {source!r}"
+            f"{path}: params.recalibration must be one of {CALIBRATION_V4_RECALIBRATIONS}, got {recal!r}"
         )
-    n = params["prior_sample_n"]
+    source = params["fit_source"]
+    if source not in CALIBRATION_V4_FIT_SOURCES[recal]:
+        raise ValueError(
+            f"{path}: params.fit_source must be one of {CALIBRATION_V4_FIT_SOURCES[recal]} "
+            f"for recalibration {recal!r}, got {source!r}"
+        )
+    n, fit_seed = params["fit_n"], params["fit_seed"]
     if source == "sample":
-        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-            raise ValueError(f"{path}: params.prior_sample_n must be a positive int for prior_source sample, got {n!r}")
-    elif n is not None:
-        raise ValueError(f"{path}: params.prior_sample_n must be null for prior_source {source!r}, got {n!r}")
+        if not _is_int(n) or n <= 0:
+            raise ValueError(f"{path}: params.fit_n must be a positive int for fit_source sample, got {n!r}")
+        if not _is_int(fit_seed) or fit_seed < 0:
+            raise ValueError(f"{path}: params.fit_seed must be a non-negative int for fit_source sample, got {fit_seed!r}")
+    else:
+        for key, v in (("fit_n", n), ("fit_seed", fit_seed)):
+            if v is not None:
+                raise ValueError(f"{path}: params.{key} must be null for fit_source {source!r}, got {v!r}")
     for ds, block in params["datasets"].items():
         pi = block["pi_te_estimate"]
         if source == "manual":
             if isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1:
                 raise ValueError(
                     f"{path}: params.datasets.{ds}.pi_te_estimate must be a float in (0, 1) "
-                    f"for prior_source manual, got {pi!r}"
+                    f"for fit_source manual, got {pi!r}"
                 )
         elif pi is not None:
             raise ValueError(
-                f"{path}: params.datasets.{ds}.pi_te_estimate must be null for prior_source {source!r}, got {pi!r}"
+                f"{path}: params.datasets.{ds}.pi_te_estimate must be null for fit_source {source!r}, got {pi!r}"
             )
     return cfg
