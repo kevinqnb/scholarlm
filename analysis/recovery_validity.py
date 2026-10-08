@@ -883,6 +883,73 @@ def bootstrap_cluster_rate(
 # ---------------------------------------------------------------------------
 
 
+def _load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
+    """Load one id's frames, matching config and raw threshold-0 cache edges,
+    running every cache guard -- the shared front half of
+    ``compute_metrics_for_id`` and ``fuzzy_threshold_curve``.
+
+    Returns a dict with keys dataset, ground_truth_df, extraction_df,
+    extraction_file_path, ground_truth_path, cfg, cache_path, raw_edges,
+    raw_weights. Raises loud on everything ``compute_metrics_for_id``'s
+    docstring lists for the cache.
+    """
+    dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path = load_frames(
+        experiment_id, ground_truth_path,
+    )
+
+    cfg = match_cache.get_matching_config(dataset_config)
+    _assert_matching_columns_present(ground_truth_df, extraction_df, cfg)
+
+    cache_path = match_cache.match_cache_path(experiment_id)
+    if not cache_path.exists():
+        raise FileNotFoundError(
+            f"{experiment_id}: no match_cache.pkl at {cache_path}. Run "
+            f"`python analysis/match_cache.py {experiment_id} "
+            f"--ground-truth-file {ground_truth_path}` first."
+        )
+    _assert_cache_fresh(cache_path, extraction_file_path, ground_truth_path)
+    _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
+    _assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
+
+    n_gt, n_ext = len(ground_truth_df), len(extraction_df)
+    # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
+    # module docstring): the raw edge list is every strict-matched candidate.
+    _matching, raw_edges, raw_weights = match_cache.load_match_cache(experiment_id)
+    for gt_idx, ex_idx in raw_edges:
+        if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
+            raise RuntimeError(
+                f"{experiment_id}: cached edge (gt_idx={gt_idx}, ex_idx={ex_idx}) out "
+                f"of range for n_gt={n_gt}, n_ext={n_ext} -- the cache no longer "
+                f"matches the current ground truth/extraction rows. Rerun "
+                f"`python analysis/match_cache.py {experiment_id}`."
+            )
+
+    return {
+        "dataset": dataset,
+        "ground_truth_df": ground_truth_df,
+        "extraction_df": extraction_df,
+        "extraction_file_path": extraction_file_path,
+        "ground_truth_path": ground_truth_path,
+        "cfg": cfg,
+        "cache_path": cache_path,
+        "raw_edges": raw_edges,
+        "raw_weights": raw_weights,
+    }
+
+
+def _resolve_judged_labels(
+    dataset: str, experiment_id: str, judge_combine_id: str | None, extraction_df: pd.DataFrame,
+) -> tuple[str, list[str], np.ndarray]:
+    """(judge_combine_id, judge_ids, per-row judged labels) for experiment_id:
+    a declared judge_combine_id is verified (``verify_judge_combine_id``),
+    otherwise one is found by scanning (``find_judge_combine_id``)."""
+    if judge_combine_id is not None:
+        judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
+    else:
+        judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
+    return judge_combine_id, judge_ids, load_validity_labels(judge_combine_id, extraction_df)
+
+
 def compute_metrics_for_id(
     experiment_id: str,
     *,
@@ -930,37 +997,14 @@ def compute_metrics_for_id(
     analysis.metrics' own rates. No fallback path for any of these -- see
     module docstring.
     """
-    dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path = load_frames(
-        experiment_id, ground_truth_path,
-    )
-
-    cfg = match_cache.get_matching_config(dataset_config)
+    inputs = _load_checked_inputs(experiment_id, ground_truth_path)
+    dataset = inputs["dataset"]
+    ground_truth_df, extraction_df = inputs["ground_truth_df"], inputs["extraction_df"]
+    extraction_file_path, ground_truth_path = inputs["extraction_file_path"], inputs["ground_truth_path"]
+    cfg, cache_path = inputs["cfg"], inputs["cache_path"]
+    raw_edges, raw_weights = inputs["raw_edges"], inputs["raw_weights"]
     threshold = cfg["fuzzy_threshold"]
-    _assert_matching_columns_present(ground_truth_df, extraction_df, cfg)
-
-    cache_path = match_cache.match_cache_path(experiment_id)
-    if not cache_path.exists():
-        raise FileNotFoundError(
-            f"{experiment_id}: no match_cache.pkl at {cache_path}. Run "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file {ground_truth_path}` first."
-        )
-    _assert_cache_fresh(cache_path, extraction_file_path, ground_truth_path)
-    _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
-    _assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
-
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
-    # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
-    # module docstring): the raw edge list is every strict-matched candidate.
-    _matching, raw_edges, raw_weights = match_cache.load_match_cache(experiment_id)
-    for gt_idx, ex_idx in raw_edges:
-        if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
-            raise RuntimeError(
-                f"{experiment_id}: cached edge (gt_idx={gt_idx}, ex_idx={ex_idx}) out "
-                f"of range for n_gt={n_gt}, n_ext={n_ext} -- the cache no longer "
-                f"matches the current ground truth/extraction rows. Rerun "
-                f"`python analysis/match_cache.py {experiment_id}`."
-            )
 
     # Dataset-threshold edges: the only edges recovery and validity ever use.
     threshold_edges, threshold_weights = filter_edges_by_threshold(raw_edges, raw_weights, threshold)
@@ -974,11 +1018,9 @@ def compute_metrics_for_id(
     judge_ids = None
     judged_labels = None
     if compute_validity:
-        if judge_combine_id is not None:
-            judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
-        else:
-            judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
-        judged_labels = load_validity_labels(judge_combine_id, extraction_df)
+        judge_combine_id, judge_ids, judged_labels = _resolve_judged_labels(
+            dataset, experiment_id, judge_combine_id, extraction_df,
+        )
 
     gt_docs = ground_truth_df["document_id"].to_numpy()
     recovery_point, recovery_lo, recovery_hi = bootstrap_cluster_rate(
