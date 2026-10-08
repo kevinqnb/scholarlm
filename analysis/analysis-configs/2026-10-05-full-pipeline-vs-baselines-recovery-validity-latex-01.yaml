@@ -40,8 +40,13 @@ params:
               SM: 2026-09-25-supermat-nuextract3-noqualifiers-full-01
           - label: ChatExtract
             ids:
-              PLW: 2026-09-26-pond-chatextract-gemma27b-full-01
-              NF: 2026-09-26-nfix-chatextract-gemma27b-full-01
+              # Blank: ChatExtract extracts only material/value/unit, so pond's
+              # ecosystem and nfix's ecosystem_type/substrate_type fuzzy fields are
+              # always null and its best possible edge score (0.5 / 1/3) is below the
+              # dataset fuzzy_threshold -- recovery 0 by construction, not measured.
+              # Runs: 2026-09-26-{pond,nfix}-chatextract-gemma27b-full-01.
+              PLW: null
+              NF: null
               SM: 2026-09-26-supermat-chatextract-gemma27b-full-01
           - label: \texttt{llama-3.1-8b}
             ids:
