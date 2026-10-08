@@ -1,0 +1,18 @@
+id: 2026-10-08-calibration-v3-nested-latex-01
+project: scholarlm
+description: >
+  LaTeX tables (synthetic and real, separately) for the nested-bootstrap v3 calibration run
+  2026-10-08-calibration-v3-gemma27b-qwen-2.5-7b-platt-fit-nested-01: smooth ECE main table plus
+  classification and alternative-ECE tables, every interval printed as [lo, hi].
+  Supersedes 2026-10-05-calibration-v3-latex-01. Formatting only; seed is required by
+  the analysis-config envelope and is unused here.
+  Run: python analysis/calibration_latex.py --config analysis/analysis-configs/2026-10-08-calibration-v3-nested-latex-01.yaml
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-08-calibration-v3-gemma27b-qwen-2.5-7b-platt-fit-nested-01
+    labels: llm_matching
+    datasets: {PLW: pond, NF: nfix, SM: supermat}
+    decimals: 3
+    output_dir: analysis/results/calibration/2026-10-08-calibration-v3-gemma27b-qwen-2.5-7b-platt-fit-nested-01/latex
+    label_prefix: tab:calibration
