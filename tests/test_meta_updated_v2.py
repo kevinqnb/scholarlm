@@ -26,7 +26,7 @@ from scipy import stats
 
 from analysis.meta_inputs import load_meta_v2_config
 from analysis.meta_updated_v2 import (
-    all_settings, build_stats_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
+    _summarize_shuffles, all_settings, build_stats_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
 )
 
 ECO, ATTR = 'pond', 'tn'
@@ -87,7 +87,7 @@ def test_stats_table_known_answers():
 
 def test_w1_table_known_answers():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=0)
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
     assert 'ground_truth' not in set(df['setting'])
     ref = gt['converted_value'].to_numpy()
     assert 'extracted' not in set(df['setting'])
@@ -100,8 +100,12 @@ def test_w1_table_known_answers():
     # same rows -> same point estimates; the CIs differ (each setting has its own bootstrap stream)
     for c in ['n_ext', 'w1', 'w1_log']:
         assert row(df, 'ntp_ge_0.00')[c] == e[c], c
-    # at t = 0 the shuffled control keeps every row, so it equals the real value
-    assert e['w1_shuffled'] == e['w1']
+    # at t = 0 every shuffle keeps every row: the control collapses onto the real value
+    # (to float rounding -- the mean of n identical values need not be bit-identical)
+    for sc in ('', '_log'):
+        np.testing.assert_allclose([e[f'w1_shuffled{sc}_{k}'] for k in ('mean', 'lo', 'hi')], e[f'w1{sc}'], rtol=1e-12)
+        assert e[f'w1_shuffled{sc}_n_ok'] == 30 and e[f'w1_shuffled{sc}_skip'] == ''
+    assert np.isnan(row(df, 'valid')['w1_shuffled_mean'])  # no control for a non-threshold setting
     n = row(df, 'ntp_ge_0.60')
     assert n['n_ext'] == 0 and np.isnan(n['w1']) and n['w1_skip'] == 'ext_n<min_n'
     # the valid set (rows 0-19) is a compared setting under the GT reference
@@ -113,30 +117,45 @@ def test_w1_table_known_answers():
 
 def test_valid_reference_perfect_threshold_gives_zero():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'valid', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=0)
+    df = build_w1_table(gt, ext, 'valid', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
     assert set(df['setting']) == set(all_settings('valid', THRESHOLDS)) - {'valid'}
     assert row(df, 'probe_ge_0.60')['w1'] == 0.0
     assert row(df, 'ground_truth')['n_ext'] == 30
 
 
-def test_shuffled_control_differs_and_keeps_n():
+def test_shuffled_control_band_and_docs():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=0)
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
     r = row(df, 'probe_ge_0.60')
-    assert r['n_ext_shuffled'] == r['n_ext'] == 20
-    assert r['w1_shuffled'] != r['w1']
+    # the perfect probe keeps the 20 GT-like rows; 20 random rows sit much further from GT
+    assert r['n_ext'] == 20 and r['w1_shuffled_n_ok'] == 30
+    assert r['w1_shuffled_lo'] <= r['w1_shuffled_mean'] <= r['w1_shuffled_hi']
+    assert r['w1'] < r['w1_shuffled_lo']
+    # the real subset sits in 2 documents; random 20-of-40 subsets spread over more
+    assert r['n_docs_ext'] == 2 and r['n_docs_ext_shuffled_mean'] > 2
+    # a constant confidence keeps all-or-nothing, so its control equals the real value
+    n = row(df, 'ntp_ge_0.50')
+    np.testing.assert_allclose([n[f'w1_shuffled_{k}'] for k in ('mean', 'lo', 'hi')], n['w1'], rtol=1e-12)
+
+
+def test_summarize_shuffles_refuses_partial_sets():
+    assert _summarize_shuffles(np.array([1.0, 2.0, 3.0]), 0.95)['skip'] == ''
+    p = _summarize_shuffles(np.array([1.0, np.nan]), 0.95)
+    assert np.isnan(p['mean']) and p['skip'] == 'partial_ok' and p['n_ok'] == 1
+    assert _summarize_shuffles(np.array([np.nan, np.nan]), 0.95)['skip'] == 'none_ok'
 
 
 def test_seed_determinism_and_seed_dependence():
     gt, ext = fixture()
-    a = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=0)
-    b = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=0)
-    c = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, seed=1)
+    a = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    b = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    c = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=1)
     pd.testing.assert_frame_equal(a, b)
     assert not np.allclose(a['w1_lo'].dropna(), c['w1_lo'].dropna())
     # a cell's CI does not depend on the threshold grid it was computed with
-    d = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], [0.6], MIN_N, n_boot=50, seed=0)
-    assert row(d, 'probe_ge_0.60')['w1_lo'] == row(a, 'probe_ge_0.60')['w1_lo']
+    d = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], [0.6], MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    for c in ('w1_lo', 'w1_shuffled_mean', 'w1_shuffled_lo', 'w1_shuffled_log_hi'):
+        assert row(d, 'probe_ge_0.60')[c] == row(a, 'probe_ge_0.60')[c], c
 
 
 def test_w1_shift_known_answer_and_min_n():
@@ -161,7 +180,7 @@ GOOD = {
         "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
-        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5,
+        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10,
     }},
 }
 
@@ -190,6 +209,9 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(thresholds=[-0.1, 0.0]),
     lambda m: m.update(thresholds=[0.0, True]),
     lambda m: m.update(min_n=0),
+    lambda m: m.pop("n_shuffle_samples"),
+    lambda m: m.update(n_shuffle_samples=0),
+    lambda m: m.update(n_shuffle_samples=True),
     lambda m: m.update(min_n=True),
     lambda m: m.update(reference="gt"),         # shared check still applies
     lambda m: m.update(qq_attributes=["ph"]),

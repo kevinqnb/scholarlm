@@ -30,10 +30,14 @@ Outputs under analysis/results/meta/<config id>/:
                    attribute, setting), plus method/threshold columns.
   wasserstein.csv  W1 (raw, and log10 for LOG_SCALE_ATTRIBUTES) from each compared
                    setting to the reference, two-sample percentile bootstrap CI, and
-                   w1_shuffled -- the permutation control: confidences permuted within
-                   the cell before thresholding, which should track the t = 0
-                   (unfiltered) baseline. If thresholding on the real confidence does no better than
-                   the shuffled one, the confidence carries no distributional signal.
+                   the permutation control w1_shuffled_{mean,lo,hi}[_log]: over
+                   params.meta_v2.n_shuffle_samples permutations of the method's
+                   confidences within the cell, the same threshold keeps exactly as many
+                   rows as the real one; mean and 2.5/97.5 percentiles of the resulting
+                   W1. A real W1 inside that range means thresholding on the confidence
+                   does no better than keeping the same number of random rows. NB the
+                   shuffled subsets spread over more documents than a real high-t
+                   subset (n_docs_ext_shuffled_mean vs n_docs_ext).
   qq_lines.csv     per Q-Q line: n, n_docs, n_nonpos, whether it was drawn.
   figures/qq_{method}_{ecosystem}.pdf, figures/qq_legend.pdf
 """
@@ -137,27 +141,23 @@ def cell_rows(gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosystem: str, attribu
     return g.dropna(subset=['converted_value']), e.dropna(subset=['converted_value'])
 
 
-def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame, prob_override: np.ndarray | None = None) -> pd.DataFrame:
+def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFrame:
     """Rows of one cell (gt/ext from cell_rows) belonging to `setting`.
 
     Unfiltered: ground_truth, extracted, valid
     (stored calibration label, judge OR GT match). Thresholded: '{method}_ge_{t:.2f}'
-    keeps extracted rows whose METHOD_PROB_COL[method] >= t. `prob_override` replaces
-    that confidence column (the shuffled control); it is only valid for a threshold
-    setting.
+    keeps extracted rows whose METHOD_PROB_COL[method] >= t.
     """
     if setting == 'ground_truth':
-        assert prob_override is None
         return gt
     if setting == 'extracted':
-        assert prob_override is None
         return ext
     if setting == 'valid':
-        assert prob_override is None and ext['label'].dtype == bool, ext['label'].dtype
+        assert ext['label'].dtype == bool, ext['label'].dtype
         return ext[ext['label']]
     method, sep, t = setting.partition('_ge_')
     assert sep and method in METHODS, f'unknown setting {setting!r}'
-    prob = ext[METHOD_PROB_COL[method]].to_numpy() if prob_override is None else prob_override
+    prob = ext[METHOD_PROB_COL[method]].to_numpy()
     assert prob.shape == (len(ext),) and np.isfinite(prob).all(), 'confidence missing or misshapen'
     return ext[prob >= float(t)]
 
@@ -224,15 +224,72 @@ def w1_with_ci(ref_x, ext_x, min_n: int, n_boot: int, rng: np.random.Generator, 
     return dict(w1=float(w1), w1_lo=float(lo), w1_hi=float(hi), w1_skip='')
 
 
-def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
-                   min_n: int, n_boot: int, seed: int) -> pd.DataFrame:
-    """One row per (ecosystem, attribute, compared setting): W1 from that setting to the
-    `reference` setting, raw and (LOG_SCALE_ATTRIBUTES) log10 units.
+def _shuffle_rng(seed: int, ecosystem: str, attribute: str, method: str, sample: int) -> np.random.Generator:
+    """RNG of shuffle `sample` of `method`'s confidences in one cell. Five seed words,
+    so it never coincides with a six-word _rng bootstrap stream."""
+    return np.random.default_rng([int(seed), ECOSYSTEMS.index(ecosystem), ATTRIBUTES.index(attribute),
+                                  SHUFFLE_STREAM + SETTING_CODES[method], int(sample)])
 
-    w1_shuffled[_log]: the same threshold applied after permuting the method's
-    confidences within the cell (one permutation per cell x method, shared by every
-    threshold so the shuffled subsets are nested like the real ones). NaN for the
-    unfiltered settings.
+
+def _summarize_shuffles(vals: np.ndarray, ci: float) -> dict:
+    """Mean and central `ci` percentile range of the per-shuffle W1s -- only when every
+    shuffle produced one (a partial set is not averaged; NaN + skip reason instead)."""
+    n_ok = int(np.isfinite(vals).sum())
+    if n_ok < vals.size:
+        return dict(mean=np.nan, lo=np.nan, hi=np.nan, n_ok=n_ok, skip='none_ok' if n_ok == 0 else 'partial_ok')
+    alpha = (1.0 - ci) / 2.0
+    lo, hi = np.quantile(vals, [alpha, 1.0 - alpha])
+    return dict(mean=float(vals.mean()), lo=float(lo), hi=float(hi), n_ok=n_ok, skip='')
+
+
+def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: list[float], log_scale: bool,
+                min_n: int, n_shuffle: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
+    """Permutation control for one (cell, method): per shuffle, permute the method's
+    confidences over the cell's extracted rows, then apply every threshold (one
+    permutation shared by all thresholds, so shuffled subsets are nested like the real
+    ones) and take W1 to `ref`. A permutation keeps the multiset of confidences, so at
+    each t the shuffled subset has exactly as many rows as the real one (asserted).
+
+    Returns {t: dict(w1_shuffled_{mean,lo,hi,n_ok,skip}, w1_shuffled_log_*,
+    n_docs_ext_shuffled_mean)}; log columns NaN / 'n/a' off LOG_SCALE_ATTRIBUTES."""
+    prob = ext[METHOD_PROB_COL[method]].to_numpy(dtype=float)
+    x = ext['converted_value'].to_numpy(dtype=float)
+    doc_codes, _ = pd.factorize(ext['document_id'])
+    real_n = {t: int((prob >= t).sum()) for t in thresholds}
+    ref_log = _scale(ref, True)
+    raw = {t: np.full(n_shuffle, np.nan) for t in thresholds}
+    lg = {t: np.full(n_shuffle, np.nan) for t in thresholds}
+    n_docs = {t: np.zeros(n_shuffle) for t in thresholds}
+    for s in range(n_shuffle):
+        p = _shuffle_rng(seed, ecosystem, attribute, method, s).permutation(prob)
+        for t in thresholds:
+            keep = p >= t
+            assert int(keep.sum()) == real_n[t], 'a permutation changed the number of rows kept'
+            xs = x[keep]
+            n_docs[t][s] = np.unique(doc_codes[keep]).size
+            if ref.size >= min_n and xs.size >= min_n:
+                raw[t][s] = stats.wasserstein_distance(ref, xs)
+            if log_scale:
+                xl = _scale(xs, True)
+                if ref_log.size >= min_n and xl.size >= min_n:
+                    lg[t][s] = stats.wasserstein_distance(ref_log, xl)
+    out = {}
+    for t in thresholds:
+        r = _summarize_shuffles(raw[t], ci)
+        l = (_summarize_shuffles(lg[t], ci) if log_scale
+             else dict(mean=np.nan, lo=np.nan, hi=np.nan, n_ok=0, skip='n/a'))
+        out[t] = {**{f'w1_shuffled_{k}': v for k, v in r.items()},
+                  **{f'w1_shuffled_log_{k}': v for k, v in l.items()},
+                  'n_docs_ext_shuffled_mean': float(n_docs[t].mean())}
+    return out
+
+
+def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
+                   min_n: int, n_boot: int, n_shuffle: int, seed: int) -> pd.DataFrame:
+    """One row per (ecosystem, attribute, compared setting): W1 from that setting to the
+    `reference` setting, raw and (LOG_SCALE_ATTRIBUTES) log10 units, with its bootstrap
+    CI, plus the shuffled_w1 permutation control (over `n_shuffle` permutations) on the
+    threshold settings -- NaN for the non-threshold settings.
     """
     rows = []
     for ecosystem in ecosystems:
@@ -240,8 +297,10 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
             log_scale = attribute in LOG_SCALE_ATTRIBUTES
             gt, ext = cell_rows(gt_df, ext_df, ecosystem, attribute)
             ref = setting_rows(reference, gt, ext)['converted_value'].to_numpy(dtype=float)
-            shuffled = {m: _rng(seed, ecosystem, attribute, SHUFFLE_STREAM + SETTING_CODES[m], 0.0, False).permutation(
-                            ext[METHOD_PROB_COL[m]].to_numpy()) for m in METHODS}
+            shuffled = {m: shuffled_w1(ref, ext, m, thresholds, log_scale, min_n, n_shuffle, seed, ecosystem, attribute)
+                        for m in METHODS}
+            empty = {k: (np.nan if isinstance(v, float) else (0 if isinstance(v, int) else '')) for k, v in
+                     shuffled[METHODS[0]][thresholds[0]].items()}
             for setting in all_settings(reference, thresholds):
                 if setting == reference:
                     continue
@@ -260,18 +319,7 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
                     lg = dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='n/a')
                 row.update({k.replace('w1', 'w1_log'): v for k, v in lg.items()})
 
-                row['w1_shuffled'] = row['w1_shuffled_log'] = np.nan
-                row['n_ext_shuffled'] = 0
-                if meta['method']:
-                    xs = setting_rows(setting, gt, ext, prob_override=shuffled[meta['method']])
-                    xs = xs['converted_value'].to_numpy(dtype=float)
-                    row['n_ext_shuffled'] = int(xs.size)
-                    if ref.size >= min_n and xs.size >= min_n:
-                        row['w1_shuffled'] = float(stats.wasserstein_distance(ref, xs))
-                    if log_scale:
-                        rl, xl = _scale(ref, True), _scale(xs, True)
-                        if rl.size >= min_n and xl.size >= min_n:
-                            row['w1_shuffled_log'] = float(stats.wasserstein_distance(rl, xl))
+                row.update(shuffled[meta['method']][meta['threshold']] if meta['method'] else empty)
                 rows.append(row)
     return pd.DataFrame(rows)
 
@@ -400,6 +448,7 @@ def main():
     assert not set(ecosystems) - set(ECOSYSTEMS), f"ecosystems not in ECOSYSTEMS: {ecosystems}"
     assert not set(attributes) - set(ATTRIBUTES), f"attributes not in ATTRIBUTES: {attributes}"
     thresholds, min_n, n_boot, seed = sec['thresholds'], sec['min_n'], sec['n_boot'], cfg['seed']
+    n_shuffle = sec['n_shuffle_samples']
 
     # resolve_meta_inputs / load_data read their inputs from params.meta; hand them
     # exactly the input-selection keys they use, nothing that could change v1 behavior.
@@ -416,11 +465,11 @@ def main():
     stats_df.to_csv(out_dir / 'meta_stats.csv', index=False)
     print(f"[meta_v2] wrote {out_dir / 'meta_stats.csv'}")
 
-    w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, min_n, n_boot, seed)
+    w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, min_n, n_boot, n_shuffle, seed)
     w1_df.to_csv(out_dir / 'wasserstein.csv', index=False)
     print(f"[meta_v2] wrote {out_dir / 'wasserstein.csv'}")
     print(w1_df[['ecosystem', 'attribute', 'setting', 'n_ext', 'n_docs_ext', 'w1', 'w1_lo', 'w1_hi',
-                 'w1_shuffled', 'w1_log', 'w1_shuffled_log']].to_string(index=False, float_format='{:.3g}'.format))
+                 'w1_shuffled_mean', 'w1_log', 'w1_shuffled_log_mean']].to_string(index=False, float_format='{:.3g}'.format))
 
     records = []
     for method in METHODS:
@@ -431,6 +480,7 @@ def main():
     plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, thresholds)
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/meta_updated_v2.py', seed=seed, n_boot=n_boot,
+                    n_shuffle_samples=n_shuffle,
                     reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds,
                     min_n=min_n, calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
