@@ -20,3 +20,16 @@ config: analysis/analysis-configs/2026-10-08-platt-scaling-v2-gemma27b-qwen-2.5-
 
 ### Commits
 e57f35c platt_scaling_v2: Platt-n sweep over training resamples, on doc_bootstrap
+
+## Session 2026-10-08 (follow-up: full-run failure)
+
+### Prompts
+- "All jobs failed"
+- "Skip and redraw."
+- "Commit and add this as a note to the previous devlog. Then resubmit."
+
+### Implemented
+All three full runs failed while drawing fit samples. For supermat at n=1000, a document resample that missed the large documents held fewer than n rows. That happened in 7 of the first 2000 draws, and the 100-draw tiny run never hit it. `analysis/doc_bootstrap.py`'s `resampled_fit_sample` now returns None for such a draw. `two_class_fit_samples` skips it, as it skips single-class draws, and reports per-kind skip counts. `analysis/platt_scaling_v2.py` writes those counts as `Short-pool skips` / `Single-class skips`. Draws with no skips are unchanged (the tiny run's per-resample output is byte-identical). The three full configs were resubmitted unchanged.
+
+### Commits
+4f94fa4 doc_bootstrap: skip fit draws whose document resample has fewer than n rows
