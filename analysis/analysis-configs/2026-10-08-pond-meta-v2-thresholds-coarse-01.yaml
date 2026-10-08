@@ -1,0 +1,30 @@
+id: 2026-10-08-pond-meta-v2-thresholds-coarse-01
+project: scholarlm
+description: >
+  Full run (n_boot=2000). meta_updated_v2.py (hard confidence thresholds, unweighted np.quantile Q-Q
+  lines, scipy W1 with percentile bootstrap CIs) on the same inputs and cells as
+  2026-10-07-pond-meta-dedup-pondlake-01: deduplicated rows from
+  2026-10-06-pond-deduplication-01, cluster-center confidence. Unlike that run, the
+  pond->pond real-cell probe / NTP confidences are the v4 intercept-fit recalibrated
+  predictions of 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01
+  (the 2026-10-04 v3 config no longer validates under the current v3 loader). Cells:
+  pond and lake x surface_area, max_depth, ph, chla. Threshold t keeps rows with
+  confidence >= t, t in {0 (unfiltered), 0.25, 0.5, 0.75}; a Q-Q line / W1 needs >= 5 rows. Unlike v1,
+  GT and extracted rows are NOT restricted to shared documents -- each side only drops
+  the probe/NTP training documents.
+  Run: python analysis/meta_updated_v2.py analysis/analysis-configs/2026-10-08-pond-meta-v2-thresholds-coarse-01.yaml
+seed: 0
+params:
+  meta_v2:
+    calibration_config_id: 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01
+    calibration_version: v4
+    rows: deduplicated
+    deduplication_config_id: 2026-10-06-pond-deduplication-01
+    confidence: center
+    n_boot: 2000
+    reference: ground_truth
+    ecosystems: [pond, lake]
+    attributes: [surface_area, max_depth, ph, chla]
+    qq_attributes: [surface_area, max_depth, ph, chla]
+    thresholds: [0.0, 0.25, 0.5, 0.75]
+    min_n: 5
