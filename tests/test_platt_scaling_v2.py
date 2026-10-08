@@ -90,7 +90,9 @@ def test_full_configs_load(slug):
     lambda p: p.update(platt_ns=[]),
     lambda p: p.update(platt_ns=[10, 10, 50]),
     lambda p: p.update(platt_ns=[50, 10]),
-    lambda p: p.update(platt_ns=[0, 10]),
+    lambda p: p.update(platt_ns=[-1, 10]),
+    lambda p: p.update(platt_ns=[0]),
+    lambda p: p.update(platt_ns=[0, 0, 50]),
     lambda p: p.update(n_train_resamples=0),
     lambda p: p.update(n_train_resamples=True),
     lambda p: p.update(n_train_resamples=2000.0),
@@ -106,3 +108,49 @@ def test_loader_rejects_malformed(tmp_path, mutate):
     p.write_text(yaml.safe_dump(cfg))
     with pytest.raises(ValueError):
         ac.load_platt_sweep_v2_config(p)
+
+
+@pytest.mark.parametrize("slug", ["intercept-fit", "platt-fit", "prior-shift"])
+def test_baseline_configs_load(slug):
+    cfg = ac.load_platt_sweep_v2_config(
+        _REPO / f"analysis/analysis-configs/2026-10-08-platt-scaling-v2-gemma27b-qwen-2.5-7b-{slug}-02.yaml")
+    assert cfg["params"]["platt_ns"] == [0, 50, 100, 250, 500, 1000]
+    assert cfg["params"]["n_train_resamples"] == 2000
+
+
+class _FakeInputs:
+    """Hand-built SweepInputs stand-in: one dataset, 6 pool docs, 4 test rows."""
+
+    def __init__(self):
+        import pandas as pd
+        self.datasets, self.seed = ["pond"], 0
+        n_pool = 24
+        docs = np.r_[np.repeat(np.arange(6), 4), [10, 10, 11, 11]]
+        self.labels = np.r_[np.tile([True, False], 12), [True, False, True, True]]
+        self.data = {"pond": {
+            "real_df": pd.DataFrame({"document_id": docs}),
+            "labels": self.labels, "pool_docs": set(range(6)),
+            "pool_idx": np.arange(n_pool), "test_idx": np.arange(n_pool, n_pool + 4)}}
+        self.probe = {"pond": {"train_prevalence": 0.5, "syn_document_ids": list(range(6))}}
+        self.ntp_cal = {"pond": {"train_prevalence": 0.4}}
+        rng = np.random.default_rng(0)
+        self.raw = {"probe": rng.uniform(0.1, 0.9, len(docs)), "ntp": rng.uniform(0.1, 0.9, len(docs))}
+
+    def score_rows(self, train_ds, test_ds, idx):
+        return {k: v[idx] for k, v in self.raw.items()}
+
+
+def test_run_sweep_baseline_is_raw_scores():
+    inp = _FakeInputs()
+    summary, samples_df = ps2.run_sweep(inp, [0, 8], "intercept_fit", 5)
+    base = summary[summary["Platt N"] == 0]
+    assert len(base) == 2 and (base["Recalibration"] == "none").all() and (base["Train resamples"] == 0).all()
+    test = inp.data["pond"]["test_idx"]
+    for _, row in base.iterrows():
+        key = row["Type"].lower()
+        v = ps2.smece(inp.raw[key][test], inp.labels[test])
+        assert row["SmECE"] == row["SmECE_lo"] == row["SmECE_hi"] == v
+        assert np.isnan(row["Fit label rate"])
+    # n > 0 rows unaffected: 5 resamples each, and the baseline has no per-resample rows.
+    assert (summary[summary["Platt N"] == 8]["Train resamples"] == 5).all()
+    assert len(samples_df) == 2 * 5 and (samples_df["Platt N"] == 8).all()

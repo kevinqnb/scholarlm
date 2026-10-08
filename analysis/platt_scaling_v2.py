@@ -15,6 +15,9 @@ bootstrap. Per (train probe, test dataset, method, n):
     fixed test rows and scored by relplot's smECE, exactly as doc_bootstrap computes it.
   - point = mean of the n_train_resamples smECE values, interval = their 2.5 / 97.5
     percentiles.
+  - n = 0 is the no-recalibration baseline: the raw probe / NTP-calibrator scores on
+    the same test rows (Recalibration 'none'), one deterministic value, so its interval
+    is that value (zero width) and it has no per-resample rows.
 
 The band is the spread over training resamples ONLY: the test rows are not resampled,
 so test-document sampling noise is not in it. It is narrower than, and not comparable
@@ -223,7 +226,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
     for ds in inp.datasets:
         d = inp.data[ds]
         pool_doc_ids = d['real_df']['document_id'].to_numpy()[d['pool_idx']]
-        for n in platt_ns:
+        for n in [n for n in platt_ns if n > 0]:
             samples[ds, n] = db.two_class_fit_samples(pool_doc_ids, d['labels'][d['pool_idx']], n,
                                                       n_resamples, inp.seed, ds)
             print(f'  {ds}: n={n}: {n_resamples} fit samples in {samples[ds, n][1]} draws '
@@ -248,8 +251,21 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
             pool_scores = inp.score_rows(train_ds, test_ds, pool_idx)  # scored once, indexed per sample
             print(f'  {train_ds} probe -> {test_ds}: scored in {time.time() - t0:.0f}s', flush=True)
 
+            common = {'Pool N': len(pool_idx), 'Test N': len(test_idx), 'Test docs': n_test_docs,
+                      'Test label rate': float(test_labels.mean())}
             for n in platt_ns:
                 t_n = time.time()
+                if n == 0:
+                    # Baseline: no recalibration map, the raw scores themselves.
+                    for method, key, _ in _METHODS:
+                        v = smece(test_scores[key], test_labels)
+                        rows.append({
+                            'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': 0,
+                            'Recalibration': 'none', 'Train resamples': 0, 'Fit draws': 0,
+                            'Short-pool skips': 0, 'Single-class skips': 0, **common,
+                            'Fit label rate': float('nan'), 'SmECE': v, 'SmECE_lo': v, 'SmECE_hi': v,
+                        })
+                    continue
                 kept, n_draws, skips = samples[test_ds, n]
                 for method, key, _ in _METHODS:
                     values, rates = [], []
@@ -267,8 +283,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
                         'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': n,
                         'Recalibration': recalibration, 'Train resamples': len(values), 'Fit draws': n_draws,
                         'Short-pool skips': skips['short_pool'], 'Single-class skips': skips['single_class'],
-                        'Pool N': len(pool_idx), 'Test N': len(test_idx), 'Test docs': n_test_docs,
-                        'Test label rate': float(test_labels.mean()), 'Fit label rate': float(np.mean(rates)),
+                        **common, 'Fit label rate': float(np.mean(rates)),
                         **summarize(values),
                     })
                 print(f'    n={n}: {n_resamples} resamples x {len(_METHODS)} methods in {time.time() - t_n:.0f}s',
@@ -279,8 +294,10 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
     keys = ['Train dataset', 'Test dataset', 'Type', 'Platt N']
     assert len(summary) == len(inp.datasets) ** 2 * len(_METHODS) * len(platt_ns), len(summary)
     assert not summary.duplicated(keys).any()
-    assert (summary['Train resamples'] == n_resamples).all()
-    assert len(samples_df) == len(summary) * n_resamples, len(samples_df)
+    fitted = summary['Platt N'] > 0
+    assert (summary.loc[fitted, 'Train resamples'] == n_resamples).all()
+    assert (summary.loc[~fitted, 'Train resamples'] == 0).all() and (summary.loc[~fitted, 'Recalibration'] == 'none').all()
+    assert len(samples_df) == fitted.sum() * n_resamples, len(samples_df)
     assert not samples_df.duplicated(keys + ['Fit sample']).any()
     assert (summary['SmECE_lo'] <= summary['SmECE']).all() and (summary['SmECE'] <= summary['SmECE_hi']).all()
     return summary, samples_df
@@ -301,7 +318,11 @@ def plot_sweep(df, datasets, platt_ns, figures_dir):
                         lw=2.5, marker='o', ms=3.5, zorder=3)
                 ax.fill_between(sub['Platt N'], sub['SmECE_lo'], sub['SmECE_hi'],
                                 color=color, alpha=0.20, linewidth=0, zorder=1)
-            ax.set_xscale('log')
+            # symlog: linear below the smallest positive n, so the n = 0 baseline is drawn.
+            if platt_ns[0] == 0:
+                ax.set_xscale('symlog', linthresh=platt_ns[1])
+            else:
+                ax.set_xscale('log')
             ax.set_xticks(platt_ns)
             ax.set_xticklabels([str(n) for n in platt_ns])
             ax.minorticks_off()

@@ -533,7 +533,8 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
 
     Same as load_platt_sweep_config, except ``n_fit_samples`` and ``n_doc_boot`` are
     replaced by ``n_train_resamples`` (positive int): the number of training-pool
-    resamples (fit samples) per n.
+    resamples (fit samples) per n. ``platt_ns`` may start at 0, the no-recalibration
+    baseline.
 
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
@@ -546,9 +547,11 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
         )
     ns = params["platt_ns"]
     if (not isinstance(ns, list) or not ns
-            or any(isinstance(n, bool) or not isinstance(n, int) or n <= 0 for n in ns)
-            or any(a >= b for a, b in zip(ns, ns[1:]))):
-        raise ValueError(f"{path}: params.platt_ns must be a non-empty strictly increasing list of positive ints, got {ns!r}")
+            or any(isinstance(n, bool) or not isinstance(n, int) or n < 0 for n in ns)
+            or any(a >= b for a, b in zip(ns, ns[1:]))
+            or ns == [0]):
+        raise ValueError(f"{path}: params.platt_ns must be a strictly increasing list of non-negative ints "
+                         f"with at least one positive n (0 = no-recalibration baseline), got {ns!r}")
     n = params["n_train_resamples"]
     if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
         raise ValueError(f"{path}: params.n_train_resamples must be a positive int, got {n!r}")
