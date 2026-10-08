@@ -128,8 +128,8 @@ def test_two_class_fit_samples_no_skips_when_both_classes_certain():
     # Every document has one valid and one invalid row, and n is the whole resampled pool.
     doc_ids = np.repeat(np.arange(5), 2)
     y = np.tile([True, False], 5)
-    kept, n_draws = db.two_class_fit_samples(doc_ids, y, 10, 7, seed=2, ds="pond")
-    assert n_draws == 7 and [r for r, _ in kept] == list(range(7))
+    kept, n_draws, skips = db.two_class_fit_samples(doc_ids, y, 10, 7, seed=2, ds="pond")
+    assert n_draws == 7 and skips == {"short_pool": 0, "single_class": 0} and [r for r, _ in kept] == list(range(7))
     for r, s in kept:
         assert np.array_equal(s, db.resampled_fit_sample(doc_ids, 10, db.fit_resample_rng(2, "pond", r)))
 
@@ -138,18 +138,54 @@ def test_two_class_fit_samples_skips_single_class():
     # docs 0..3 valid, 4..7 invalid, one row each: a size-2 sample from one half is skipped.
     doc_ids = np.arange(8)
     y = doc_ids < 4
-    kept, n_draws = db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")
+    kept, n_draws, skips = db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")
     assert len(kept) == 30 and n_draws > 30
+    # Every document resample has 8 rows >= n, so every skip is single-class.
+    assert skips == {"short_pool": 0, "single_class": n_draws - 30}
     assert all(y[s].sum() == 1 for _, s in kept)
     rs = [r for r, _ in kept]
     skipped = sorted(set(range(n_draws)) - set(rs))
     assert rs == sorted(rs) and skipped
     assert all(y[db.resampled_fit_sample(doc_ids, 2, db.fit_resample_rng(0, "pond", r))].sum() in (0, 2)
                for r in skipped)
-    assert db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")[1] == n_draws
+    assert db.two_class_fit_samples(doc_ids, y, 2, 30, seed=0, ds="pond")[1:] == (n_draws, skips)
 
 
 def test_two_class_fit_samples_fails_loud_on_single_class_pool():
     import pytest
     with pytest.raises(RuntimeError):
         db.two_class_fit_samples(np.arange(10), np.zeros(10, dtype=bool), 3, 4, seed=0, ds="pond")
+
+
+def test_resampled_fit_sample_none_when_resampled_pool_short():
+    # doc 0 has 10 rows, docs 1..4 one row each: a resample without doc 0 has <= 5 rows.
+    doc_ids = np.array([0] * 10 + [1, 2, 3, 4])
+    for r in range(200):
+        expanded = db.document_resamples(doc_ids, 1, db.fit_resample_rng(0, "supermat", r))[0]
+        s = db.resampled_fit_sample(doc_ids, 8, db.fit_resample_rng(0, "supermat", r))
+        assert (s is None) == (len(expanded) < 8)
+        if s is not None:
+            assert len(s) == 8
+
+
+def test_two_class_fit_samples_skips_short_pools():
+    # The failure seen in the full runs: n larger than some document resamples.
+    doc_ids = np.array([0] * 10 + [1, 2, 3, 4])
+    y = np.array([True, False] * 5 + [True, False, True, False])
+    kept, n_draws, skips = db.two_class_fit_samples(doc_ids, y, 8, 50, seed=0, ds="supermat")
+    assert len(kept) == 50 and skips["short_pool"] > 0
+    assert sum(skips.values()) == n_draws - 50
+    short = 0
+    for r in range(n_draws):
+        size = len(db.document_resamples(doc_ids, 1, db.fit_resample_rng(0, "supermat", r))[0])
+        short += size < 8
+    assert short == skips["short_pool"]
+    for r, s in kept:
+        assert len(db.document_resamples(doc_ids, 1, db.fit_resample_rng(0, "supermat", r))[0]) >= 8
+        assert len(s) == 8 and 0 < y[s].sum() < 8
+
+
+def test_two_class_fit_samples_fails_loud_when_n_exceeds_every_resample():
+    import pytest
+    with pytest.raises(RuntimeError):
+        db.two_class_fit_samples(np.repeat(np.arange(4), 2), np.tile([True, False], 4), 9, 3, seed=0, ds="pond")

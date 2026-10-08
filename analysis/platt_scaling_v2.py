@@ -7,8 +7,9 @@ bootstrap. Per (train probe, test dataset, method, n):
 
   - n_train_resamples fit samples from doc_bootstrap.two_class_fit_samples: the test
     dataset's pool documents resampled with replacement, then n rows drawn uniformly
-    without replacement from the resampled pool; single-class draws skipped ('Fit
-    draws' counts every draw).
+    without replacement from the resampled pool. Draws whose resampled pool has fewer
+    than n rows, and single-class draws, are skipped ('Fit draws' counts every draw;
+    'Short-pool skips' / 'Single-class skips' count each kind).
   - each sample's recalibration map (prior_shift / intercept_fit from
     analysis/recalibration.py, platt_fit from scholarlm's fit_platt) is applied to the
     fixed test rows and scored by relplot's smECE, exactly as doc_bootstrap computes it.
@@ -225,7 +226,8 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
         for n in platt_ns:
             samples[ds, n] = db.two_class_fit_samples(pool_doc_ids, d['labels'][d['pool_idx']], n,
                                                       n_resamples, inp.seed, ds)
-            print(f'  {ds}: n={n}: {n_resamples} two-class fit samples in {samples[ds, n][1]} draws')
+            print(f'  {ds}: n={n}: {n_resamples} fit samples in {samples[ds, n][1]} draws '
+                  f'(skipped: {samples[ds, n][2]})')
 
     rows, sample_rows = [], []
     for train_ds in inp.datasets:
@@ -248,7 +250,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
 
             for n in platt_ns:
                 t_n = time.time()
-                kept, n_draws = samples[test_ds, n]
+                kept, n_draws, skips = samples[test_ds, n]
                 for method, key, _ in _METHODS:
                     values, rates = [], []
                     for r, s in kept:
@@ -264,6 +266,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
                     rows.append({
                         'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': n,
                         'Recalibration': recalibration, 'Train resamples': len(values), 'Fit draws': n_draws,
+                        'Short-pool skips': skips['short_pool'], 'Single-class skips': skips['single_class'],
                         'Pool N': len(pool_idx), 'Test N': len(test_idx), 'Test docs': n_test_docs,
                         'Test label rate': float(test_labels.mean()), 'Fit label rate': float(np.mean(rates)),
                         **summarize(values),

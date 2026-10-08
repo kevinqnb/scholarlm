@@ -49,7 +49,8 @@ def document_resamples(doc_ids, n_boot: int, rng: np.random.Generator) -> list[n
 
 # ── Training-pool resamples (platt_scaling_v2.py) ────────────────────────────
 # A run fails rather than draw more than this many resamples per wanted resample:
-# that many single-class draws means n is too small for the pool's label rate.
+# that many skipped draws means n is too large for the pool or too small for its
+# label rate.
 MAX_DRAWS_PER_SAMPLE = 10
 
 
@@ -64,17 +65,22 @@ def fit_resample_rng(seed: int, ds: str, r: int) -> np.random.Generator:
     return np.random.default_rng([seed, 0xF17, zlib.crc32(ds.encode()), r])
 
 
-def resampled_fit_sample(pool_doc_ids, n: int, rng: np.random.Generator) -> np.ndarray:
-    """One fit sample: ``n`` sorted positions into the pool (repeats possible).
+def resampled_fit_sample(pool_doc_ids, n: int, rng: np.random.Generator) -> np.ndarray | None:
+    """One fit sample: ``n`` sorted positions into the pool (repeats possible), or None
+    if the document resample has fewer than ``n`` rows.
 
     The pool's documents are resampled once (document_resamples), then ``n`` of the
     resampled rows are drawn uniformly without replacement. A row whose document was
     drawn k times has k copies to draw from; in a fit a repeat is a weight. The document
     resample is drawn first, so a fresh RNG in the same state resamples the same
-    documents whatever ``n`` is.
+    documents whatever ``n`` is. Documents differ in size, so a resample that misses
+    the large ones can hold fewer than ``n`` rows; it then has no size-``n`` sample and
+    None is returned for the caller to skip (two_class_fit_samples counts these).
     """
+    assert n > 0, n
     expanded = document_resamples(pool_doc_ids, 1, rng)[0]
-    assert 0 < n <= len(expanded), f'resampled pool has {len(expanded)} rows, n={n}'
+    if len(expanded) < n:
+        return None
     return np.sort(expanded[rng.choice(len(expanded), n, replace=False)])
 
 
@@ -82,22 +88,39 @@ def two_class_fit_samples(pool_doc_ids, pool_labels, n: int, n_samples: int, see
     """``n_samples`` fit samples of size ``n`` that contain both classes.
 
     Draw r is ``resampled_fit_sample(pool_doc_ids, n, fit_resample_rng(seed, ds, r))``
-    for r = 0, 1, ...; single-class draws (which no recalibration map can be fit on) are
-    skipped. Returns the kept ``(r, positions)`` pairs and the number of draws made.
-    Raises RuntimeError past MAX_DRAWS_PER_SAMPLE * n_samples draws.
+    for r = 0, 1, ... Two kinds of draw are skipped, and drawing continues at the next r:
+      - short pool: the document resample has fewer than ``n`` rows;
+      - single class: the sample has one class, so no recalibration map can be fit.
+    Both condition the kept samples (on resampled pools of at least n rows, and on both
+    classes being present); the skip counts are returned so the output can report them.
+
+    Returns:
+        (kept, n_draws, skips): the kept ``(r, positions)`` pairs, the number of draws
+        made, and ``{'short_pool': int, 'single_class': int}`` (summing to
+        n_draws - n_samples).
+    Raises:
+        RuntimeError past MAX_DRAWS_PER_SAMPLE * n_samples draws.
     """
     pool_labels = np.asarray(pool_labels, dtype=bool)
     assert len(pool_labels) == len(pool_doc_ids) > 0 and n_samples > 0, (len(pool_labels), len(pool_doc_ids))
     kept, r = [], 0
+    skips = {'short_pool': 0, 'single_class': 0}
     while len(kept) < n_samples:
         if r >= MAX_DRAWS_PER_SAMPLE * n_samples:
-            raise RuntimeError(f'{ds} n={n}: only {len(kept)}/{n_samples} two-class fit samples in {r} draws')
+            raise RuntimeError(f'{ds} n={n}: only {len(kept)}/{n_samples} usable fit samples in {r} draws '
+                               f'(skipped: {skips})')
         sample = resampled_fit_sample(pool_doc_ids, n, fit_resample_rng(seed, ds, r))
-        assert len(sample) == n
-        if 0 < pool_labels[sample].sum() < n:
-            kept.append((r, sample))
+        if sample is None:
+            skips['short_pool'] += 1
+        else:
+            assert len(sample) == n
+            if 0 < pool_labels[sample].sum() < n:
+                kept.append((r, sample))
+            else:
+                skips['single_class'] += 1
         r += 1
-    return kept, r
+    assert sum(skips.values()) == r - n_samples, (skips, r, n_samples)
+    return kept, r, skips
 
 
 def _relplot(probs, labels) -> dict:
