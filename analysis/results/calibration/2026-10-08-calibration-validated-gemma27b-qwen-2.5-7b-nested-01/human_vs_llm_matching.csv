@@ -1,0 +1,5 @@
+Train dataset,Test dataset,N validated,N dropped,N,Human valid rate,LLM+matching valid rate,LLM+matching TP,LLM+matching FP,LLM+matching FN,LLM+matching TN
+pond,pond,295,0,295,0.5254237288135594,0.6440677966101694,142,48,13,92
+pond,supermat,280,105,175,0.38285714285714284,0.5314285714285715,58,35,9,73
+supermat,pond,295,0,295,0.5254237288135594,0.6440677966101694,142,48,13,92
+supermat,supermat,280,105,175,0.38285714285714284,0.5314285714285715,58,35,9,73
