@@ -25,7 +25,7 @@
     "analysis/results/deduplication/2026-10-06-pond-deduplication-01/2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01/deduplicated.json": "89e81a1ce01b8cb6505fc9897a4063453bbb171eda05cd6f1037039c8b9ff69c",
     "analysis/results/deduplication/2026-10-06-pond-deduplication-01/2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01/clusters.csv": "3f3f8539fd91a02687ec69377024c19c7a47b10ab79d17c06741121ae52bc919"
   },
-  "analysis_config_id": "2026-10-08-pond-meta-v2-thresholds-coarse-01",
+  "analysis_config_id": "2026-10-08-pond-meta-v2-w1-curves-01",
   "script": "analysis/meta_updated_v2.py",
   "seed": 0,
   "n_boot": 2000,

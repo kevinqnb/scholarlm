@@ -19,7 +19,6 @@ pond,surface_area,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,274,223,0,23,True
 pond,surface_area,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,274,220,0,23,True
 pond,surface_area,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,274,211,0,22,True
 pond,surface_area,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,274,201,0,22,True
-pond,surface_area,ntp,extracted,,,ground_truth,True,274,324,2,24,True
 pond,surface_area,ntp,valid,,,ground_truth,True,274,275,2,24,True
 pond,max_depth,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,True,161,121,0,21,True
 pond,max_depth,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,True,161,121,0,21,True
@@ -41,7 +40,6 @@ pond,max_depth,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,161,77,0,17,True
 pond,max_depth,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,161,74,0,17,True
 pond,max_depth,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,161,73,0,16,True
 pond,max_depth,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,161,68,0,15,True
-pond,max_depth,ntp,extracted,,,ground_truth,True,161,121,0,21,True
 pond,max_depth,ntp,valid,,,ground_truth,True,161,97,0,17,True
 pond,ph,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,False,115,181,0,12,True
 pond,ph,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,False,115,181,0,12,True
@@ -63,7 +61,6 @@ pond,ph,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,False,115,61,0,7,True
 pond,ph,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,False,115,61,0,7,True
 pond,ph,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,False,115,55,0,7,True
 pond,ph,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,False,115,50,0,7,True
-pond,ph,ntp,extracted,,,ground_truth,False,115,181,0,12,True
 pond,ph,ntp,valid,,,ground_truth,False,115,145,0,11,True
 pond,chla,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,True,29,73,0,9,True
 pond,chla,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,True,29,73,0,9,True
@@ -85,7 +82,6 @@ pond,chla,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,29,17,0,4,True
 pond,chla,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,29,17,0,4,True
 pond,chla,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,29,15,0,3,True
 pond,chla,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,29,12,0,3,True
-pond,chla,ntp,extracted,,,ground_truth,True,29,73,0,9,True
 pond,chla,ntp,valid,,,ground_truth,True,29,57,0,7,True
 lake,surface_area,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,True,197,243,0,27,True
 lake,surface_area,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,True,197,243,0,27,True
@@ -107,7 +103,6 @@ lake,surface_area,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,197,169,0,26,True
 lake,surface_area,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,197,168,0,26,True
 lake,surface_area,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,197,168,0,26,True
 lake,surface_area,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,197,165,0,25,True
-lake,surface_area,ntp,extracted,,,ground_truth,True,197,243,0,27,True
 lake,surface_area,ntp,valid,,,ground_truth,True,197,186,0,26,True
 lake,max_depth,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,True,99,200,0,26,True
 lake,max_depth,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,True,99,200,0,26,True
@@ -129,7 +124,6 @@ lake,max_depth,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,99,91,0,23,True
 lake,max_depth,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,99,89,0,23,True
 lake,max_depth,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,99,89,0,23,True
 lake,max_depth,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,99,79,0,22,True
-lake,max_depth,ntp,extracted,,,ground_truth,True,99,200,0,26,True
 lake,max_depth,ntp,valid,,,ground_truth,True,99,114,0,23,True
 lake,ph,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,False,73,106,0,17,True
 lake,ph,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,False,73,106,0,17,True
@@ -151,7 +145,6 @@ lake,ph,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,False,73,18,0,9,True
 lake,ph,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,False,73,17,0,9,True
 lake,ph,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,False,73,17,0,9,True
 lake,ph,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,False,73,16,0,9,True
-lake,ph,ntp,extracted,,,ground_truth,False,73,106,0,17,True
 lake,ph,ntp,valid,,,ground_truth,False,73,94,0,16,True
 lake,chla,ntp,ntp_ge_0.00,ntp,0.0,ground_truth,True,112,111,1,12,True
 lake,chla,ntp,ntp_ge_0.05,ntp,0.05,ground_truth,True,112,111,1,12,True
@@ -173,7 +166,6 @@ lake,chla,ntp,ntp_ge_0.80,ntp,0.8,ground_truth,True,112,50,1,7,True
 lake,chla,ntp,ntp_ge_0.85,ntp,0.85,ground_truth,True,112,48,1,7,True
 lake,chla,ntp,ntp_ge_0.90,ntp,0.9,ground_truth,True,112,47,1,7,True
 lake,chla,ntp,ntp_ge_0.95,ntp,0.95,ground_truth,True,112,44,1,7,True
-lake,chla,ntp,extracted,,,ground_truth,True,112,111,1,12,True
 lake,chla,ntp,valid,,,ground_truth,True,112,91,1,11,True
 pond,surface_area,probe,probe_ge_0.00,probe,0.0,ground_truth,True,274,324,2,24,True
 pond,surface_area,probe,probe_ge_0.05,probe,0.05,ground_truth,True,274,324,2,24,True
@@ -195,7 +187,6 @@ pond,surface_area,probe,probe_ge_0.80,probe,0.8,ground_truth,True,274,159,2,16,T
 pond,surface_area,probe,probe_ge_0.85,probe,0.85,ground_truth,True,274,110,1,14,True
 pond,surface_area,probe,probe_ge_0.90,probe,0.9,ground_truth,True,274,51,0,12,True
 pond,surface_area,probe,probe_ge_0.95,probe,0.95,ground_truth,True,274,9,0,6,True
-pond,surface_area,probe,extracted,,,ground_truth,True,274,324,2,24,True
 pond,surface_area,probe,valid,,,ground_truth,True,274,275,2,24,True
 pond,max_depth,probe,probe_ge_0.00,probe,0.0,ground_truth,True,161,121,0,21,True
 pond,max_depth,probe,probe_ge_0.05,probe,0.05,ground_truth,True,161,121,0,21,True
@@ -217,7 +208,6 @@ pond,max_depth,probe,probe_ge_0.80,probe,0.8,ground_truth,True,161,52,0,10,True
 pond,max_depth,probe,probe_ge_0.85,probe,0.85,ground_truth,True,161,46,0,8,True
 pond,max_depth,probe,probe_ge_0.90,probe,0.9,ground_truth,True,161,32,0,2,True
 pond,max_depth,probe,probe_ge_0.95,probe,0.95,ground_truth,True,161,29,0,2,True
-pond,max_depth,probe,extracted,,,ground_truth,True,161,121,0,21,True
 pond,max_depth,probe,valid,,,ground_truth,True,161,97,0,17,True
 pond,ph,probe,probe_ge_0.00,probe,0.0,ground_truth,False,115,181,0,12,True
 pond,ph,probe,probe_ge_0.05,probe,0.05,ground_truth,False,115,177,0,12,True
@@ -239,7 +229,6 @@ pond,ph,probe,probe_ge_0.80,probe,0.8,ground_truth,False,115,50,0,4,True
 pond,ph,probe,probe_ge_0.85,probe,0.85,ground_truth,False,115,33,0,3,True
 pond,ph,probe,probe_ge_0.90,probe,0.9,ground_truth,False,115,20,0,2,True
 pond,ph,probe,probe_ge_0.95,probe,0.95,ground_truth,False,115,7,0,1,True
-pond,ph,probe,extracted,,,ground_truth,False,115,181,0,12,True
 pond,ph,probe,valid,,,ground_truth,False,115,145,0,11,True
 pond,chla,probe,probe_ge_0.00,probe,0.0,ground_truth,True,29,73,0,9,True
 pond,chla,probe,probe_ge_0.05,probe,0.05,ground_truth,True,29,72,0,9,True
@@ -261,7 +250,6 @@ pond,chla,probe,probe_ge_0.80,probe,0.8,ground_truth,True,29,8,0,3,True
 pond,chla,probe,probe_ge_0.85,probe,0.85,ground_truth,True,29,1,0,1,False
 pond,chla,probe,probe_ge_0.90,probe,0.9,ground_truth,True,29,1,0,1,False
 pond,chla,probe,probe_ge_0.95,probe,0.95,ground_truth,True,29,0,0,0,False
-pond,chla,probe,extracted,,,ground_truth,True,29,73,0,9,True
 pond,chla,probe,valid,,,ground_truth,True,29,57,0,7,True
 lake,surface_area,probe,probe_ge_0.00,probe,0.0,ground_truth,True,197,243,0,27,True
 lake,surface_area,probe,probe_ge_0.05,probe,0.05,ground_truth,True,197,243,0,27,True
@@ -283,7 +271,6 @@ lake,surface_area,probe,probe_ge_0.80,probe,0.8,ground_truth,True,197,72,0,19,Tr
 lake,surface_area,probe,probe_ge_0.85,probe,0.85,ground_truth,True,197,37,0,9,True
 lake,surface_area,probe,probe_ge_0.90,probe,0.9,ground_truth,True,197,18,0,7,True
 lake,surface_area,probe,probe_ge_0.95,probe,0.95,ground_truth,True,197,1,0,1,False
-lake,surface_area,probe,extracted,,,ground_truth,True,197,243,0,27,True
 lake,surface_area,probe,valid,,,ground_truth,True,197,186,0,26,True
 lake,max_depth,probe,probe_ge_0.00,probe,0.0,ground_truth,True,99,200,0,26,True
 lake,max_depth,probe,probe_ge_0.05,probe,0.05,ground_truth,True,99,198,0,26,True
@@ -305,7 +292,6 @@ lake,max_depth,probe,probe_ge_0.80,probe,0.8,ground_truth,True,99,59,0,14,True
 lake,max_depth,probe,probe_ge_0.85,probe,0.85,ground_truth,True,99,43,0,11,True
 lake,max_depth,probe,probe_ge_0.90,probe,0.9,ground_truth,True,99,16,0,8,True
 lake,max_depth,probe,probe_ge_0.95,probe,0.95,ground_truth,True,99,1,0,1,False
-lake,max_depth,probe,extracted,,,ground_truth,True,99,200,0,26,True
 lake,max_depth,probe,valid,,,ground_truth,True,99,114,0,23,True
 lake,ph,probe,probe_ge_0.00,probe,0.0,ground_truth,False,73,106,0,17,True
 lake,ph,probe,probe_ge_0.05,probe,0.05,ground_truth,False,73,104,0,16,True
@@ -327,7 +313,6 @@ lake,ph,probe,probe_ge_0.80,probe,0.8,ground_truth,False,73,45,0,10,True
 lake,ph,probe,probe_ge_0.85,probe,0.85,ground_truth,False,73,28,0,8,True
 lake,ph,probe,probe_ge_0.90,probe,0.9,ground_truth,False,73,22,0,7,True
 lake,ph,probe,probe_ge_0.95,probe,0.95,ground_truth,False,73,6,0,5,True
-lake,ph,probe,extracted,,,ground_truth,False,73,106,0,17,True
 lake,ph,probe,valid,,,ground_truth,False,73,94,0,16,True
 lake,chla,probe,probe_ge_0.00,probe,0.0,ground_truth,True,112,111,1,12,True
 lake,chla,probe,probe_ge_0.05,probe,0.05,ground_truth,True,112,111,1,12,True
@@ -349,5 +334,4 @@ lake,chla,probe,probe_ge_0.80,probe,0.8,ground_truth,True,112,7,0,4,True
 lake,chla,probe,probe_ge_0.85,probe,0.85,ground_truth,True,112,4,0,2,False
 lake,chla,probe,probe_ge_0.90,probe,0.9,ground_truth,True,112,1,0,1,False
 lake,chla,probe,probe_ge_0.95,probe,0.95,ground_truth,True,112,0,0,0,False
-lake,chla,probe,extracted,,,ground_truth,True,112,111,1,12,True
 lake,chla,probe,valid,,,ground_truth,True,112,91,1,11,True
