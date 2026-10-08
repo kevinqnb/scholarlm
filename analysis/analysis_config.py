@@ -377,14 +377,19 @@ def load_calibration_v2_config(path: Path) -> dict:
 # recalibration method: platt_fit (slope + intercept), intercept_fit (slope
 # fixed at 1, intercept by MLE) or prior_shift (label-shift correction from the
 # scorer's synthetic training prevalence to the sample's label rate).
-CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n", "recalibration")
+# CIs and curve bands come from analysis/nested_bootstrap.py: n_fit_samples
+# recalibration fit samples x n_doc_boot test-document resamples for real cells,
+# n_syn_boot test-document resamples for (un-recalibrated) synthetic cells.
+CALIBRATION_V3_BOOTSTRAP_KEYS = ("n_fit_samples", "n_doc_boot", "n_syn_boot")
+CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n", "recalibration") + CALIBRATION_V3_BOOTSTRAP_KEYS
 RECALIBRATION_METHODS = ("prior_shift", "intercept_fit", "platt_fit")
 
 
 def _validate_v3_recalibration(path: Path, params: dict) -> None:
-    n = params["platt_n"]
-    if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-        raise ValueError(f"{path}: params.platt_n must be a positive int, got {n!r}")
+    for key in ("platt_n",) + CALIBRATION_V3_BOOTSTRAP_KEYS:
+        n = params[key]
+        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
+            raise ValueError(f"{path}: params.{key} must be a positive int, got {n!r}")
     if params["recalibration"] not in RECALIBRATION_METHODS:
         raise ValueError(
             f"{path}: params.recalibration must be one of {RECALIBRATION_METHODS}, got {params['recalibration']!r}"

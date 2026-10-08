@@ -15,22 +15,18 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
-from matplotlib.collections import LineCollection
 import seaborn as sns
-import relplot
-from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_loss
 
 from analysis.analysis_config import load_calibration_validated_config, validations_path
-from analysis.metrics import validity_rate_from_labels
 from analysis import calibration_ids as cids
+from analysis import nested_bootstrap as nb
 from analysis.match_cache import sha256_file
 from analysis.prediction_store import PROVENANCE_KEYS, real_cell_provenance
-from analysis.calibration_plot_utils import support_mask
+from analysis.calibration_plot_utils import draw_reliability_curve
 from analysis.head_activations import HeadActivationCache
 from scholarlm.utils.calibration import (
-    bootstrap_ece, apply_platt, fit_recalibration, RECALIBRATION_METHODS,
+    apply_platt, fit_recalibration, RECALIBRATION_METHODS,
 )
 from analysis.analysis_config import RECALIBRATION_METHODS as _CFG_RECALIBRATION_METHODS
 
@@ -99,6 +95,12 @@ SYN_SPLIT    = _PARAMS['syn_split']
 # Number of real rows per dataset used to fit each Platt scaler (config: platt_n);
 # these stay labelled by LLM + matching (the training split has no human labels).
 PLATT_N = _PARAMS['platt_n']
+# Nested-bootstrap sizes (see analysis/nested_bootstrap.py): real cells are refit on
+# N_FIT_SAMPLES independent platt_n-row samples, each crossed with N_DOC_BOOT test-document
+# resamples; synthetic cells (never recalibrated) get N_SYN_BOOT document resamples.
+N_FIT_SAMPLES = _PARAMS['n_fit_samples']
+N_DOC_BOOT    = _PARAMS['n_doc_boot']
+N_SYN_BOOT    = _PARAMS['n_syn_boot']
 # How the real cells are recalibrated on that sample (config: recalibration), per method
 # (probe / NTP), always as expit(coef * logit(p) + intercept):
 #   platt_fit     -- coef and intercept by unregularized logistic MLE (Platt).
@@ -128,6 +130,7 @@ _DTYPES = ['syn', 'real']  # both always available: every dataset has a syntheti
 
 print(f'[calibration validated] config: {CONFIG_ID} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
       f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | platt_n: {PLATT_N} | recalibration: {RECALIBRATION} '
+      f'| fit samples: {N_FIT_SAMPLES} x doc resamples: {N_DOC_BOOT} | syn doc resamples: {N_SYN_BOOT} '
       f'| judge: {JUDGE_MODEL} '
       f'| out dir: {OUT_DIR}')
 
@@ -245,24 +248,32 @@ for ds in DATASETS:
           f'{int(val_flagged.sum())} flagged, {int(val_example.sum())} example; all kept)')
 
     # Platt training pool: this dataset's real rows whose document was in its own
-    # synthetic-probe training set (the "training split" of the real data). The
-    # Platt sample is PLATT_N of these rows, spread evenly over documents (random
-    # document order, one random unchosen row per document per pass; see
-    # cids.document_balanced_order), seeded with the config seed; every real test
-    # cell for this dataset excludes the whole pool, so Platt-train and test rows
-    # never overlap whichever probe is evaluated.
+    # synthetic-probe training set (the "training split" of the real data). Each of
+    # the N_FIT_SAMPLES Platt samples resamples the pool's documents with replacement,
+    # then draws PLATT_N rows uniformly from that resampled pool
+    # (nb.pool_resampled_fit_sample): its label rate targets the per-row rate the
+    # test metrics weight by, and the spread over samples covers which documents
+    # happened to form the pool. A row can repeat within a sample (its document was
+    # drawn twice); in the fit that is a weight. predictions.pkl stores sample 0.
+    # Every real test cell for this dataset excludes the whole pool, so Platt-train
+    # and test rows never overlap whichever sample or probe is used.
     pool_docs = set(probe_cache[ds][JUDGE_MODEL]['syn_document_ids'])
     pool_idx = np.where(real_df['document_id'].isin(pool_docs).to_numpy())[0]
     assert len(pool_idx) >= PLATT_N, f'{ds}: Platt pool has {len(pool_idx)} rows < platt_n={PLATT_N}'
-    pool_order = cids.document_balanced_order(
-        real_df['document_id'].to_numpy()[pool_idx], np.random.default_rng(SEED))
-    platt_idx = np.sort(pool_idx[pool_order[:PLATT_N]])
-    assert len(set(platt_idx.tolist())) == PLATT_N and set(platt_idx) <= set(pool_idx.tolist())
-    assert 0 < combined_labels[platt_idx].sum() < PLATT_N, (
-        f'{ds}: Platt sample is single-class ({int(combined_labels[platt_idx].sum())}/{PLATT_N} valid)')
-    print(f'  {ds}: Platt sample {PLATT_N}/{len(pool_idx)} pool rows from '
-          f'{real_df["document_id"].iloc[platt_idx].nunique()}/{len(pool_docs & set(real_df["document_id"]))} pool docs, '
-          f'{int(combined_labels[platt_idx].sum())} valid')
+    fit_idx = []
+    for r in range(N_FIT_SAMPLES):
+        sample = pool_idx[nb.pool_resampled_fit_sample(
+            real_df['document_id'].to_numpy()[pool_idx], PLATT_N, nb.fit_sample_rng(SEED, r))]
+        assert len(sample) == PLATT_N and set(sample.tolist()) <= set(pool_idx.tolist())
+        assert 0 < combined_labels[sample].sum() < PLATT_N, (
+            f'{ds}: Platt sample {r} is single-class ({int(combined_labels[sample].sum())}/{PLATT_N} valid)')
+        fit_idx.append(sample)
+    platt_idx = fit_idx[0]
+    _rates = np.array([combined_labels[i].mean() for i in fit_idx])
+    print(f'  {ds}: {N_FIT_SAMPLES} Platt samples of {PLATT_N} rows from a resampled pool of '
+          f'{len(pool_idx)} rows / {len(pool_docs & set(real_df["document_id"]))} docs; label rate over samples '
+          f'mean {_rates.mean():.3f}, range {_rates.min():.2f}-{_rates.max():.2f} '
+          f'(pool row rate {combined_labels[pool_idx].mean():.3f})')
 
     test_data[ds] = {
         'real_df': real_df,
@@ -270,6 +281,7 @@ for ds in DATASETS:
         'judge_labels': jlabels,
         'pool_docs': pool_docs,
         'platt_idx': platt_idx,
+        'fit_idx': fit_idx,
         'val_pos': val_pos,
         'val_labels': val_labels,
         'val_sha256': hashlib.sha256(_vpath.read_bytes()).hexdigest(),
@@ -295,14 +307,17 @@ def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
 
 
 def compute_predictions(load_from_precomputed=False):
-    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs, ntp_probs, labels, platt}}}}}
+    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs, ntp_probs, labels, platt, ...}}}}}
     # Every (train_ds, test_ds) pair is scored separately, for both 'syn' (test_ds's
     # own synthetic test set) and 'real' (test_ds's real extraction, excluding
     # test_ds's Platt pool and train_ds's probe-training documents). 'real' cells
-    # are recalibrated by RECALIBRATION -- probe and NTP separately -- with maps fit on
-    # test_ds's PLATT_N-row sample; 'syn' cells are not scaled and carry platt=None
-    # ('platt' holds the (coef, intercept) pair whatever the method; 'recalibration'
-    # names the method). Also writes platt_fits.csv (one row per fitted map).
+    # are recalibrated by RECALIBRATION -- probe and NTP separately -- with one map per
+    # fit sample (fit_maps[method][r], each fit on test_ds's PLATT_N-row sample r);
+    # probe_probs/ntp_probs and 'platt' are fit sample 0's. 'syn' cells are not scaled
+    # and carry platt=None, fit_maps=None ('platt' holds the (coef, intercept) pair
+    # whatever the method; 'recalibration' names the method). probe_raw/ntp_raw are
+    # the un-recalibrated scores, document_ids the rows' documents (the nested
+    # bootstrap's clusters). Also writes platt_fits.csv (one row per fitted map).
 
     cache_file = OUT_DIR / 'predictions.pkl'
 
@@ -319,6 +334,9 @@ def compute_predictions(load_from_precomputed=False):
                 assert _cell['calibration_config_id'] == CONFIG_ID, (_tr, _te)
                 assert _cell['recalibration'] == RECALIBRATION, (
                     f'{cache_file}: built with recalibration {_cell["recalibration"]!r} != {RECALIBRATION!r}')
+                assert 'fit_maps' in _cell, f'{cache_file} predates the nested bootstrap; rerun'
+                assert all(len(v) == N_FIT_SAMPLES for v in _cell['fit_maps'].values()), (
+                    f'{cache_file}: built with a different n_fit_samples ({_tr}->{_te})')
                 assert _cell['validation_sha256'] == test_data[_te]['val_sha256'], (
                     f'{cache_file}: validations changed since it was built ({_tr}->{_te})')
         return loaded
@@ -335,7 +353,7 @@ def compute_predictions(load_from_precomputed=False):
             setting_results[dataset_type][judge_model][train_ds] = {}
 
             for test_ds in DATASETS:
-                platt = None
+                platt = fit_maps = None
                 if dataset_type == 'syn':
                     syn_dir = _INPUTS['datasets'][test_ds]['syn_test_dir']
                     with open(syn_dir / 'responses.json') as f:
@@ -344,46 +362,57 @@ def compute_predictions(load_from_precomputed=False):
                     mids     = syn_df_s['measurement_id'].tolist()
                     labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
                     raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
-                    probe_probs, ntp_probs = _score_rows(train_ds, test_ds, mids, raw_ntp_probs, syn_dir)
+                    doc_ids  = syn_df_s['document_id'].to_numpy()
+                    assert pd.notna(doc_ids).all(), f'{test_ds}: synthetic rows without document_id'
+                    probe_raw, ntp_raw = _score_rows(train_ds, test_ds, mids, raw_ntp_probs, syn_dir)
+                    probe_probs, ntp_probs = probe_raw, ntp_raw
                 else:  # real
                     td       = test_data[test_ds]
                     real_df  = td['real_df']
                     act_dir  = _INPUTS['datasets'][test_ds]['judge_interp_dir']
                     col      = f'judgement_p_true_{judge_model}'
 
-                    # Recalibration maps: fit on test_ds's own sample, per method. pi_tr (used
-                    # only by prior_shift) is train_ds's scorer's synthetic training prevalence.
+                    # Recalibration maps: one per fit sample and method, each fit on that
+                    # sample of test_ds's pool. pi_tr (used only by prior_shift) is train_ds's
+                    # scorer's synthetic training prevalence. Every row in any fit sample is
+                    # scored once.
                     pi = td['platt_idx']
-                    p_probe, p_ntp = _score_rows(
-                        train_ds, test_ds, real_df['measurement_id'].iloc[pi].tolist(),
-                        real_df[col].iloc[pi].to_numpy(), act_dir)
-                    p_labels = td['labels'][pi]
-                    p_raw = {'probe': p_probe, 'ntp': p_ntp}
+                    fit_union = np.unique(np.concatenate(td['fit_idx']))
+                    u_probe, u_ntp = _score_rows(
+                        train_ds, test_ds, real_df['measurement_id'].iloc[fit_union].tolist(),
+                        real_df[col].iloc[fit_union].to_numpy(), act_dir)
                     pi_tr = {'probe': pd_data['train_prevalence'],
                              'ntp': ntp_cal_cache[train_ds][judge_model]['train_prevalence']}
-                    platt = {meth: fit_recalibration(RECALIBRATION, p_raw[meth], p_labels, pi_tr[meth])
-                             for meth in ('probe', 'ntp')}
-                    for meth, (coef, icpt) in platt.items():
-                        p_scaled_mean = float(apply_platt(p_raw[meth], coef, icpt).mean())
-                        if RECALIBRATION != 'platt_fit':
-                            assert coef == 1.0, (RECALIBRATION, meth, coef)
-                        if RECALIBRATION == 'intercept_fit':
-                            # Score equation of the intercept MLE (known answer, solved to ~1e-12).
-                            assert abs(p_scaled_mean - p_labels.mean()) < 1e-8, (
-                                train_ds, test_ds, meth, p_scaled_mean, p_labels.mean())
-                        fit_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': meth,
-                                         'Recalibration': RECALIBRATION,
-                                         'coef': coef, 'intercept': icpt, 'N': len(pi),
-                                         'Label rate': float(p_labels.mean()),
-                                         'Train prevalence': float(pi_tr[meth]),
-                                         'Raw mean prob': float(p_raw[meth].mean()),
-                                         'Scaled mean prob': p_scaled_mean})
+                    fit_maps = {'probe': [], 'ntp': []}
+                    for r, sample in enumerate(td['fit_idx']):
+                        at = np.searchsorted(fit_union, sample)
+                        assert np.array_equal(fit_union[at], sample), (train_ds, test_ds, r)
+                        p_raw = {'probe': u_probe[at], 'ntp': u_ntp[at]}
+                        p_labels = td['labels'][sample]
+                        for meth in ('probe', 'ntp'):
+                            coef, icpt = fit_recalibration(RECALIBRATION, p_raw[meth], p_labels, pi_tr[meth])
+                            p_scaled_mean = float(apply_platt(p_raw[meth], coef, icpt).mean())
+                            if RECALIBRATION != 'platt_fit':
+                                assert coef == 1.0, (RECALIBRATION, meth, coef)
+                            if RECALIBRATION == 'intercept_fit':
+                                # Score equation of the intercept MLE (known answer, solved to ~1e-12).
+                                assert abs(p_scaled_mean - p_labels.mean()) < 1e-8, (
+                                    train_ds, test_ds, meth, r, p_scaled_mean, p_labels.mean())
+                            fit_maps[meth].append((coef, icpt))
+                            fit_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': meth,
+                                             'Fit sample': r, 'Recalibration': RECALIBRATION,
+                                             'coef': coef, 'intercept': icpt, 'N': len(sample),
+                                             'Label rate': float(p_labels.mean()),
+                                             'Train prevalence': float(pi_tr[meth]),
+                                             'Raw mean prob': float(p_raw[meth].mean()),
+                                             'Scaled mean prob': p_scaled_mean})
+                    platt = {meth: fit_maps[meth][0] for meth in fit_maps}
 
                     # Test rows: outside test_ds's Platt pool and train_ds's probe-training docs.
                     exclude = td['pool_docs'] | set(pd_data['syn_document_ids'])
                     idx_all = np.where(~real_df['document_id'].isin(exclude).to_numpy())[0]
                     assert len(idx_all) > 0, f'{train_ds} probe -> {test_ds}: no real test rows'
-                    assert not set(idx_all.tolist()) & set(pi.tolist()), (train_ds, test_ds)
+                    assert not set(idx_all.tolist()) & set(fit_union.tolist()), (train_ds, test_ds)
 
                     # Scored rows: only the human-validated rows that are also test rows.
                     # Validated rows inside the Platt pool or the probe's training documents
@@ -394,7 +423,7 @@ def compute_predictions(load_from_precomputed=False):
                     n_dropped = int((~in_test).sum())
                     assert len(idx) > 0, f'{train_ds} probe -> {test_ds}: no validated test rows'
                     assert len(idx) + n_dropped == len(td['val_pos'])
-                    assert (np.diff(idx) > 0).all() and not set(idx.tolist()) & set(pi.tolist()), (train_ds, test_ds)
+                    assert (np.diff(idx) > 0).all() and not set(idx.tolist()) & set(fit_union.tolist()), (train_ds, test_ds)
                     assert not real_df['document_id'].iloc[idx].isin(exclude).any(), (train_ds, test_ds)
                     print(f'  real test split {train_ds} probe -> {test_ds}: {len(idx)} validated test rows '
                           f'({n_dropped}/{len(td["val_pos"])} validated rows dropped: in Platt pool or probe-training docs; '
@@ -411,10 +440,10 @@ def compute_predictions(load_from_precomputed=False):
                                        'LLM+matching FP': int((auto_labels & ~labels).sum()),
                                        'LLM+matching FN': int((~auto_labels & labels).sum()),
                                        'LLM+matching TN': int((~auto_labels & ~labels).sum())})
-                    probe_probs, ntp_probs = _score_rows(
+                    probe_raw, ntp_raw = _score_rows(
                         train_ds, test_ds, mids, real_df[col].iloc[idx].to_numpy(), act_dir)
-                    probe_probs = apply_platt(probe_probs, *platt['probe'])
-                    ntp_probs   = apply_platt(ntp_probs, *platt['ntp'])
+                    probe_probs = apply_platt(probe_raw, *platt['probe'])
+                    ntp_probs   = apply_platt(ntp_raw, *platt['ntp'])
 
                 assert len(mids) == len(labels) > 0, (dataset_type, train_ds, test_ds, len(mids), len(labels))
                 assert probe_probs.shape == ntp_probs.shape == labels.shape, (
@@ -422,10 +451,12 @@ def compute_predictions(load_from_precomputed=False):
                 assert np.isfinite(probe_probs).all() and np.isfinite(ntp_probs).all(), (train_ds, test_ds)
                 setting_results[dataset_type][judge_model][train_ds][test_ds] = {
                     'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
+                    'probe_raw': probe_raw, 'ntp_raw': ntp_raw, 'fit_maps': fit_maps,
                     'platt': platt, 'recalibration': None if platt is None else RECALIBRATION,
                 }
                 if dataset_type == 'syn':
-                    setting_results[dataset_type][judge_model][train_ds][test_ds]['measurement_ids'] = np.asarray(mids)
+                    setting_results[dataset_type][judge_model][train_ds][test_ds].update(
+                        measurement_ids=np.asarray(mids), document_ids=doc_ids)
                 else:
                     setting_results[dataset_type][judge_model][train_ds][test_ds].update(real_cell_provenance(
                         real_df, idx, pi, exclude,
@@ -434,9 +465,11 @@ def compute_predictions(load_from_precomputed=False):
                     setting_results[dataset_type][judge_model][train_ds][test_ds]['validation_sha256'] = td['val_sha256']
 
     fits_df = pd.DataFrame(fit_rows)
-    assert len(fits_df) == len(TRAIN_DATASETS) * len(DATASETS) * 2, len(fits_df)
+    assert len(fits_df) == len(TRAIN_DATASETS) * len(DATASETS) * 2 * N_FIT_SAMPLES, len(fits_df)
     fits_df.to_csv(OUT_DIR / 'platt_fits.csv', index=False)
-    print(fits_df.to_string(index=False, float_format='{:.3f}'.format))
+    print(fits_df[fits_df['Fit sample'] == 0].to_string(index=False, float_format='{:.3f}'.format))
+    print(fits_df.groupby(['Train dataset', 'Test dataset', 'Method'])[['coef', 'intercept', 'Label rate']]
+          .agg(['mean', 'std', 'min', 'max']).to_string(float_format='{:.3f}'.format))
 
     agree_df = pd.DataFrame(agree_rows)
     assert len(agree_df) == len(TRAIN_DATASETS) * len(DATASETS), len(agree_df)
@@ -451,107 +484,30 @@ def compute_predictions(load_from_precomputed=False):
     return setting_results
 
 
-# (display name, key in each setting_results cell, linestyle). Probe and NTP are
-# never drawn on the same axes or reported in the same table rows.
+# (display name, method key in setting_results / nested-bootstrap cells, linestyle).
+# Probe and NTP are never drawn on the same axes or reported in the same table rows.
 _METHODS = [
-    ('Probe', 'probe_probs', '-'),
-    ('NTP',   'ntp_probs',   '--'),
+    ('Probe', 'probe', '-'),
+    ('NTP',   'ntp',   '--'),
 ]
 
 
-# Bootstrap settings for ECE confidence intervals (also reused to seed
-# relplot's own internal bootstraps, which take no seed argument of their
-# own — see the seeding note in _plot_relplot_curve/_probe_metrics below).
-ECE_N_BOOT = 2000
-ECE_CI     = 0.95
-ECE_SEED   = SEED
-
-
-# Floor on the density-normalized alpha used for the smoothed calibration
-# curves below, so low-density mesh regions fade toward-transparent (the
-# continuous analog of the old discrete plot dropping zero-count bins
-# entirely) without a segment fully disappearing.
-_CURVE_DENSITY_ALPHA_FLOOR = 0.15
-
-
-# Dash pattern for the NTP curve, expressed as (period, on) in mesh-point
-# units. matplotlib's own dashed linestyle can't be passed to `linestyle=`
-# below: a LineCollection built from many short independent 2-point segments
-# (needed for per-segment density alpha) restarts the dash offset at the
-# start of every segment, which visually collapses '--' into a solid line
-# (confirmed empirically) — so the dash pattern is instead emulated by
-# omitting the "off" segments outright.
-_NTP_DASH_PERIOD, _NTP_DASH_ON = 10, 7
-
-
-def _plot_relplot_curve(ax, probs, labels, color, *, linestyle, lw, line_zorder, band_zorder):
-    """Density-weighted smoothed reliability curve + bootstrap CI band.
-
-    Replaces the discrete per-bin scatter (marker size ~ bin count) with a
-    continuous LineCollection whose per-segment alpha tracks local prediction
-    density — relplot's own internal convention (see its diagrams.py: both its
-    bootstrapped bag lines and its main-curve scatter scale alpha, never
-    linewidth, by density) — and the per-bin SEM band with relplot's bootstrap
-    confidence band.
-    """
-    # relplot's BaggingRegressor/scipy.stats.bootstrap calls take no seed of
-    # their own and draw from the global numpy RNG — reseed immediately
-    # before the call so the rendered curve/band is reproducible run-to-run
-    # (confirmed: identical `mu`/`lower`/`upper` across repeated seeded calls
-    # on the same inputs; without this, two full-pipeline runs disagreed).
-    np.random.seed(ECE_SEED)
-    d = relplot.prepare_rel_diagram(np.asarray(probs), np.asarray(labels), num_bootstrap=ECE_N_BOOT)
-    mesh, mu, density = d['mesh'], d['mu'], d['density']
-
-    density_norm = density / density.max() if density.max() > 0 else np.ones_like(density)
-    alpha = _CURVE_DENSITY_ALPHA_FLOOR + (1 - _CURVE_DENSITY_ALPHA_FLOOR) * density_norm
-
-    # Draw only where the data support the curve (see support_mask); outside it the
-    # smoother returns 0/eps (or an upward extrapolation), not an estimate.
-    in_support = support_mask(probs, mesh, d['sigma'])
-
-    points = np.array([mesh, mu]).T.reshape(-1, 1, 2)
-    segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    seg_colors = np.tile(mcolors.to_rgba(color), (len(segments), 1))
-    seg_colors[:, 3] = (alpha[:-1] + alpha[1:]) / 2
-    seg_keep = in_support[:-1] & in_support[1:]
-    segments, seg_colors = segments[seg_keep], seg_colors[seg_keep]
-    assert len(segments) > 0
-
-    if linestyle == '--':
-        seg_idx = np.arange(len(segments))
-        dash_mask = (seg_idx % _NTP_DASH_PERIOD) < _NTP_DASH_ON
-        segments = segments[dash_mask]
-        seg_colors = seg_colors[dash_mask]
-
-    lc = LineCollection(
-        segments, colors=seg_colors, lw=lw,
-        capstyle='round', zorder=line_zorder,
-    )
-    ax.add_collection(lc)
-
-    ax.fill_between(
-        mesh, d['lower'], d['upper'], where=in_support,
-        color=color, alpha=0.20, linewidth=0, zorder=band_zorder,
-    )
-
-
-def plot_calibration_curves(setting_results, dtype):
+def plot_calibration_curves(boot, dtype):
     # One figure per (method, train_ds): the train_ds probe (or NTP calibrator)
     # evaluated on every test dataset, one curve per test_ds, colored by test_ds.
+    # Line, band and drawn region are the cell's nested-bootstrap summary.
     for judge_model in JUDGE_MODELS:
         for method, key, linestyle in _METHODS:
             for train_ds in DATASETS:
-                train_dict = setting_results[dtype][judge_model][train_ds]
+                train_dict = boot[dtype][judge_model][train_ds]
                 assert set(train_dict) == set(DATASETS), (dtype, train_ds, sorted(train_dict))
 
                 fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
                 ax_cal.plot([0, 1], [0, 1], 'k:', lw=1.0, alpha=0.5, zorder=1)
 
                 for test_ds in DATASETS:
-                    rdict = train_dict[test_ds]
-                    _plot_relplot_curve(
-                        ax_cal, rdict[key], rdict['labels'], _DS_COLORS[test_ds],
+                    draw_reliability_curve(
+                        ax_cal, train_dict[test_ds][key], _DS_COLORS[test_ds],
                         linestyle=linestyle, lw=2.5, line_zorder=3, band_zorder=1,
                     )
 
@@ -571,114 +527,45 @@ def plot_calibration_curves(setting_results, dtype):
                 plt.show()
 
 
-def _probe_metrics(probs, y_true, threshold=0.5):
-    """Compute metrics at a fixed threshold. Returns dict.
-
-    Calibration error is reported in four variants, each with a bootstrap
-    confidence interval:
-      - ``ece``      — L1 ECE, equal-width bins, plug-in (matches the
-                       reliability-diagram ECE used in the calibration plots).
-      - ``ece_em``   — L1 ECE, adaptive equal-mass (quantile) bins, plug-in.
-      - ``rmsce_db`` — debiased L2 RMS calibration error on equal-mass bins
-                       (Kumar, Liang & Ma, NeurIPS 2019).  Distinct metric /
-                       scale from the L1 columns; the only provably-unbiased one.
-      - ``smece``    — smooth ECE (relplot), a kernel-smoothed calibration
-                       distance with its own bootstrap CI, independent of any
-                       binning choice.
-    Each variant ``X`` carries ``X_lo`` / ``X_hi`` interval bounds.
-    """
-    probs   = np.asarray(probs)
-    y_true  = np.asarray(y_true, dtype=bool)
-    preds   = probs > threshold
-    tp  = int(( preds &  y_true).sum())
-    tn  = int((~preds & ~y_true).sum())
-    fp  = int(( preds & ~y_true).sum())
-    fn  = int((~preds &  y_true).sum())
-    n   = len(y_true)
-    acc   = (tp + tn) / n
-    prec  = tp / (tp + fp) if (tp + fp) > 0 else float('nan')
-    rec   = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
-    f1    = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else float('nan')
-    auroc = roc_auc_score(y_true, probs) if y_true.sum() > 0 and (~y_true).sum() > 0 else float('nan')
-
-    # ── Calibration-error variants with bootstrap CIs ────────────────────
-    ece_ew = bootstrap_ece(probs, y_true, binning='equal_width', p=1,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-    ece_em = bootstrap_ece(probs, y_true, binning='equal_mass', p=1,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-    rmsce  = bootstrap_ece(probs, y_true, binning='equal_mass', p=2, debiased=True,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-
-    # relplot's own bootstrap CI on smECE — no diagram is already computed in
-    # this call path (compute_metrics and plot_calibration_curves each derive
-    # their own rdicts independently from setting_results), so this is the
-    # cheapest correct call: report_CE/report_CE_std default True regardless
-    # of plot_confidence_band/plot_bag_lines, so skipping those (both False)
-    # avoids the 200-estimator bootstrap regression fit for the main curve,
-    # which isn't needed here. Reseed first — see the seeding note in
-    # _plot_relplot_curve; relplot's internal `scipy.stats.bootstrap` call
-    # (which produces ce_ci_width) draws from the global numpy RNG and is
-    # otherwise non-reproducible run-to-run.
-    np.random.seed(ECE_SEED)
-    smece_d = relplot.prepare_rel_diagram(
-        probs, y_true, num_bootstrap=ECE_N_BOOT, plot_confidence_band=False, plot_bag_lines=False,
-    )
-
-    bs    = float(brier_score_loss(y_true, probs))
-    p_pos = float(y_true.mean())
-    bss   = 1.0 - bs / (p_pos * (1 - p_pos)) if p_pos not in (0.0, 1.0) else float('nan')
-    validity = validity_rate_from_labels(y_true, preds)
-    return dict(acc=acc, prec=prec, rec=rec, f1=f1, auroc=auroc,
-                ece=ece_ew['ece'],         ece_lo=ece_ew['ci_low'],    ece_hi=ece_ew['ci_high'],
-                ece_em=ece_em['ece'],      ece_em_lo=ece_em['ci_low'], ece_em_hi=ece_em['ci_high'],
-                rmsce_db=rmsce['ece'],     rmsce_db_lo=rmsce['ci_low'], rmsce_db_hi=rmsce['ci_high'],
-                smece=smece_d['ce'],
-                smece_lo=smece_d['ce'] - smece_d['ce_ci_width'],
-                smece_hi=smece_d['ce'] + smece_d['ce_ci_width'],
-                bs=bs, bss=bss, n=n, validity=validity)
-
-
-def compute_metrics(setting_results):
-    # One row per (dtype, train_ds, test_ds, method). 'Label rate' is the
-    # empirical positive rate of the evaluated labels (diagnostic only); 'Platt N'
-    # is the sample size the real-data recalibration maps were fit on (NaN for syn) and
-    # 'Recalibration' the method (None for syn).
+def compute_metrics(setting_results, boot):
+    # One row per (dtype, train_ds, test_ds, method). Calibration errors (ECE, ECE_em,
+    # RMSCE_db, SmECE) are nested-bootstrap point estimates with percentile intervals;
+    # threshold metrics and AUROC are averaged over fit samples on the un-resampled
+    # test set (synthetic cells: the single raw set). 'Label rate' is the evaluated
+    # labels' positive rate (diagnostic only); 'Platt N' the size of each real-data
+    # fit sample (NaN for syn); 'Fit samples' x 'Doc resamples' the replicates behind
+    # each interval; 'Curve sigma' the reliability curve's bandwidth.
     rows = []
     for dtype in setting_results:
         for judge_model in setting_results[dtype]:
             for train_ds in setting_results[dtype][judge_model]:
                 for test_ds, rdict in setting_results[dtype][judge_model][train_ds].items():
                     for kind, key, _ in _METHODS:
-                        m = _probe_metrics(rdict[key], rdict['labels'])
-                        rows.append({
+                        t = nb.threshold_metrics(nb.cell_prediction_sets(rdict, key), rdict['labels'])
+                        b = boot[dtype][judge_model][train_ds][test_ds][key]
+                        row = {
                             'Dataset type':   dtype,
                             'Judge model':    judge_model,
                             'Train dataset':  train_ds,
                             'Test dataset':   test_ds,
                             'Type':           kind,
-                            'N':              m['n'],
+                            'N':              len(rdict['labels']),
+                            'N docs':         len(np.unique(rdict['document_ids'])),
                             'Label rate':     float(np.mean(rdict['labels'])),
                             'Platt N':        np.nan if rdict['platt'] is None else PLATT_N,
                             'Recalibration':  rdict['recalibration'],
-                            'Accuracy':       m['acc'],
-                            'Precision':      m['prec'],
-                            'Recall':         m['rec'],
-                            'F1':             m['f1'],
-                            'AUROC':          m['auroc'],
-                            'ECE':            m['ece'],
-                            'ECE_lo':         m['ece_lo'],
-                            'ECE_hi':         m['ece_hi'],
-                            'ECE_em':         m['ece_em'],
-                            'ECE_em_lo':      m['ece_em_lo'],
-                            'ECE_em_hi':      m['ece_em_hi'],
-                            'RMSCE_db':       m['rmsce_db'],
-                            'RMSCE_db_lo':    m['rmsce_db_lo'],
-                            'RMSCE_db_hi':    m['rmsce_db_hi'],
-                            'SmECE':          m['smece'],
-                            'SmECE_lo':       m['smece_lo'],
-                            'SmECE_hi':       m['smece_hi'],
-                            'Validity':       m['validity'],
-                        })
+                            'Fit samples':    b['n_fit_samples'],
+                            'Doc resamples':  b['n_doc_boot'],
+                            'Accuracy':       t['acc'],
+                            'Precision':      t['prec'],
+                            'Recall':         t['rec'],
+                            'F1':             t['f1'],
+                            'AUROC':          t['auroc'],
+                        }
+                        for m in nb.METRICS:
+                            row.update({m: b['point'][m], f'{m}_lo': b['lo'][m], f'{m}_hi': b['hi'][m]})
+                        row.update({'Validity': t['validity'], 'Curve sigma': b['sigma_curve']})
+                        rows.append(row)
     df = pd.DataFrame(rows)
     n_expected = len(_DTYPES) * len(JUDGE_MODELS) * len(TRAIN_DATASETS) * len(DATASETS) * len(_METHODS)
     assert len(df) == n_expected, (len(df), n_expected)
@@ -691,9 +578,13 @@ if __name__ == "__main__":
     load_from_precomputed = False
 
     setting_results = compute_predictions(load_from_precomputed=load_from_precomputed)
+    print('Nested bootstrap...')
+    boot = nb.bootstrap_cells(setting_results, SEED, N_DOC_BOOT, N_SYN_BOOT)
+    with open(OUT_DIR / 'nested_bootstrap.pkl', 'wb') as f:
+        pickle.dump(boot, f)
     for _dt in _DTYPES:
-        plot_calibration_curves(setting_results, dtype=_dt)
-    metrics_df = compute_metrics(setting_results)
+        plot_calibration_curves(boot, dtype=_dt)
+    metrics_df = compute_metrics(setting_results, boot)
     for _kind, _, _ in _METHODS:
         _sub = metrics_df[metrics_df['Type'] == _kind]
         print(f'\n=== {_kind} ===')

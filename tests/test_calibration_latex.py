@@ -12,7 +12,7 @@ from analysis import calibration_latex as cl
 
 REAL_CFG = "2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01"
 DS = ["pond", "nfix", "supermat"]
-SPEC = {"datasets": {"PLW": "pond", "NF": "nfix", "SM": "supermat"}, "decimals": 3, "ci_format": "pm",
+SPEC = {"datasets": {"PLW": "pond", "NF": "nfix", "SM": "supermat"}, "decimals": 3,
         "label_prefix": "tab:t", "calibration_config": REAL_CFG, "output_dir": "x",
         "labels": "llm_matching"}
 
@@ -37,24 +37,28 @@ def _frames(**override):
 
 
 def test_format_known_answer():
-    # point 0.05077, interval [0.04197, 0.05956] -> half-width 0.0088 -> "0.051 $\pm$ 0.009"
     assert cl.format_estimate(0.05076895907228567, 0.04197373579428747, 0.05956418235028388,
-                              decimals=3, ci_format="pm") == "0.051 $\\pm$ 0.009"
-    assert cl.format_estimate(0.5, 0.4, 0.7, decimals=1, ci_format="interval", bold=True) == "\\textbf{0.5} [0.4, 0.7]"
+                              decimals=3) == "0.051 [0.042, 0.060]"
+    assert cl.format_estimate(0.5, 0.4, 0.7, decimals=1, bold=True) == "\\textbf{0.5} [0.4, 0.7]"
 
 
 def test_negative_lower_bound_allowed_not_clipped():
-    assert cl.format_estimate(0.005, -0.004, 0.014, decimals=3, ci_format="interval") == "0.005 [-0.004, 0.014]"
+    assert cl.format_estimate(0.005, -0.004, 0.014, decimals=3) == "0.005 [-0.004, 0.014]"
 
 
-def test_point_outside_interval_raises():
-    with pytest.raises(ValueError, match="outside its interval"):
-        cl.format_estimate(0.2, 0.3, 0.4, decimals=3, ci_format="pm")
+def test_point_outside_percentile_interval_renders_exact_interval():
+    # Resampled |gap| statistics sit above the un-resampled point near perfect calibration.
+    assert cl.format_estimate(0.2, 0.3, 0.4, decimals=3) == "0.200 [0.300, 0.400]"
+
+
+def test_inverted_interval_raises():
+    with pytest.raises(ValueError, match="lo > hi"):
+        cl.format_estimate(0.2, 0.4, 0.3, decimals=3)
 
 
 def test_nan_raises():
     with pytest.raises(ValueError, match="not finite"):
-        cl.format_estimate(float("nan"), 0.0, 0.1, decimals=3, ci_format="pm")
+        cl.format_estimate(float("nan"), 0.0, 0.1, decimals=3)
     with pytest.raises(ValueError, match="not finite"):
         cl.format_point(float("nan"), decimals=3)
 
@@ -67,7 +71,7 @@ def test_smece_table_structure_and_bold():
     # Probe train=pond (0.100) is the column-min for test pond only through ties across rows:
     assert tex.count("\\textbf{0.100}") == 3  # Probe (PLW) bold in every column
     assert "\\textbf{0.110}" not in tex
-    assert "\\textbf{0.100} $\\pm$ 0.020" in tex  # half-width of [-0.01, +0.03] is 0.02
+    assert "\\textbf{0.100} [0.090, 0.130]" in tex
 
 
 def test_smece_row_order_is_ntp_then_probe():
@@ -118,18 +122,22 @@ def test_variants_plugin_ece_point_outside_interval_renders_exact_interval():
     assert "0.007 [0.008, 0.049]" in tex
 
 
-def test_variants_rmsce_point_outside_interval_still_raises():
+def test_variants_rmsce_point_outside_interval_renders_exact_interval():
     f = _frames()
-    f["NTP"].loc[3, "RMSCE_db"] = 0.5
-    with pytest.raises(ValueError, match="outside its interval"):
-        cl.build_variants_table(SPEC, f, "syn", "j", 100)
+    f["NTP"].loc[3, ["RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi"]] = [0.5, 0.06, 0.09]
+    tex = cl.build_variants_table(SPEC, f, "syn", "j", 100)
+    assert "0.500 [0.060, 0.090]" in tex
 
 
 @pytest.fixture
 def staged(tmp_path, monkeypatch):
     cfg_dir = tmp_path / "cfgs"
     cfg_dir.mkdir()
-    shutil.copy(cl.ANALYSIS_CONFIGS_ROOT / f"{REAL_CFG}.yaml", cfg_dir)
+    # REAL_CFG predates the required nested-bootstrap keys; stage it with them added.
+    text = (cl.ANALYSIS_CONFIGS_ROOT / f"{REAL_CFG}.yaml").read_text()
+    assert text.count("  platt_n: 100\n") == 1
+    (cfg_dir / f"{REAL_CFG}.yaml").write_text(
+        text.replace("  platt_n: 100\n", "  platt_n: 100\n  n_fit_samples: 2\n  n_doc_boot: 2\n  n_syn_boot: 2\n"))
     monkeypatch.setattr(cl, "ANALYSIS_CONFIGS_ROOT", cfg_dir)
     monkeypatch.setattr(cl, "_REPO_ROOT", tmp_path)
     res = tmp_path / "analysis" / "results" / "calibration" / REAL_CFG
@@ -217,6 +225,14 @@ def test_load_spec_rejects_unknown_labels(tmp_path):
     p = tmp_path / "c.yaml"
     p.write_text("id: c\nproject: scholarlm\ndescription: x\nseed: 0\nparams:\n  calibration_latex:\n"
                  "    calibration_config: a\n    labels: human\n    datasets: {PLW: pond}\n    decimals: 3\n"
-                 "    ci_format: pm\n    output_dir: x\n    label_prefix: t\n")
+                 "    output_dir: x\n    label_prefix: t\n")
     with pytest.raises(ValueError, match="labels must be one of"):
         cl.load_spec(p)
+
+
+def test_caption_describes_the_nested_interval():
+    real = cl.build_smece_table(SPEC, _frames(), "real", "j", 100)
+    syn = cl.build_smece_table(SPEC, _frames(), "syn", "j", 100)
+    assert "document-level bootstrap" in real and "document-level bootstrap" in syn
+    assert "refitting the recalibration" in real and "averaged over those samples" in real
+    assert "refitting the recalibration" not in syn and "averaged" not in syn

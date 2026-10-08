@@ -47,7 +47,6 @@ Table spec (``params.calibration_latex``; every key required, no defaults)::
     labels: llm_matching | human_validated   # v3 config | calibration_validated config
     datasets: {PLW: pond, NF: nfix, SM: supermat}   # ordered; key = label
     decimals: 3
-    ci_format: pm | interval
     output_dir: analysis/results/calibration/<name>
     label_prefix: tab:calibration
 """
@@ -69,8 +68,7 @@ from analysis.analysis_config import (  # noqa: E402
 )
 
 SECTION = "calibration_latex"
-SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "ci_format", "output_dir", "label_prefix")
-CI_FORMATS = ("pm", "interval")
+SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "output_dir", "label_prefix")
 # Real-cell label source -> loader for the referenced calibration config.
 LABEL_LOADERS = {"llm_matching": load_calibration_v3_config, "human_validated": load_calibration_validated_config}
 MISSING_CELL = "--"
@@ -81,13 +79,14 @@ METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file
 CLASSIFICATION = (("Accuracy", "Acc."), ("Precision", "Prec."), ("Recall", "Rec."),
                   ("F1", "F1"), ("AUROC", "AUROC"))
 # (CSV value column, lo column, hi column, header) -- intervals in the variants table.
-# Last field: plug-in ECE with a percentile bootstrap interval. That interval can
-# lie entirely above the point estimate when the true ECE is near zero (bootstrap
-# replicates carry extra noise-floor bias), so these columns skip the lo <= point
-# check and always print the exact [lo, hi]. Debiased RMSCE keeps the strict check.
-ECE_VARIANTS = (("ECE", "ECE_lo", "ECE_hi", "ECE", True),
-                ("ECE_em", "ECE_em_lo", "ECE_em_hi", "Adaptive ECE", True),
-                ("RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi", "Debiased RMSCE", False))
+# Every calibration error is a nested-bootstrap point estimate with a percentile
+# interval (analysis/nested_bootstrap.py). Resampling inflates |gap|-type statistics,
+# so the interval can lie entirely above the point when calibration is near perfect:
+# intervals are printed as exact [lo, hi], never as a +- half-width, and lo <= point
+# is not required.
+ECE_VARIANTS = (("ECE", "ECE_lo", "ECE_hi", "ECE"),
+                ("ECE_em", "ECE_em_lo", "ECE_em_hi", "Adaptive ECE"),
+                ("RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi", "Debiased RMSCE"))
 SMECE = ("SmECE", "SmECE_lo", "SmECE_hi")
 
 _KEY = ["Dataset type", "Train dataset", "Test dataset", "Type"]
@@ -116,8 +115,6 @@ def load_spec(path: Path) -> dict:
     if set(cfg["params"]) != {SECTION}:
         raise ValueError(f"{path}: params keys {sorted(cfg['params'])} must be exactly [{SECTION!r}]")
     spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS)
-    if spec["ci_format"] not in CI_FORMATS:
-        raise ValueError(f"{path}: ci_format must be one of {CI_FORMATS}, got {spec['ci_format']!r}")
     if spec["labels"] not in LABEL_LOADERS:
         raise ValueError(f"{path}: labels must be one of {tuple(LABEL_LOADERS)}, got {spec['labels']!r}")
     d = spec["decimals"]
@@ -199,34 +196,24 @@ def _check_finite(name: str, v: float) -> None:
         raise ValueError(f"{name}={v!r} is not finite")
 
 
-def format_estimate(
-    point: float, lo: float, hi: float, *, decimals: int, ci_format: str, bold: bool = False,
-    plugin_percentile: bool = False,
-) -> str:
-    """``point`` with its interval, e.g. ``0.051 $\\pm$ 0.009``; ``bold`` wraps
-    only the point estimate. Bounds are not range-checked (smooth-ECE's lower
-    bound can be negative) and never clipped.
+def format_estimate(point: float, lo: float, hi: float, *, decimals: int, bold: bool = False) -> str:
+    """``point`` with its percentile interval, e.g. ``0.051 [0.042, 0.060]``; ``bold``
+    wraps only the point estimate. The interval need not contain the point (see
+    ECE_VARIANTS); bounds are never clipped.
 
     Raises:
-        ValueError: a value is non-finite, the point is outside [0, 1], or
-            lo <= point <= hi fails.
+        ValueError: a value is non-finite, the point is outside [0, 1], or lo > hi.
     """
     for name, v in (("point", point), ("ci_lo", lo), ("ci_hi", hi)):
         _check_finite(name, v)
     if not 0.0 <= point <= 1.0:
         raise ValueError(f"point {point} outside [0, 1]")
-    if not lo <= point <= hi and not plugin_percentile:
-        raise ValueError(f"point {point} outside its interval [{lo}, {hi}]")
-    if plugin_percentile:
-        ci_format = "interval"  # percentile interval need not be centred on (or contain) the point
+    if lo > hi:
+        raise ValueError(f"interval [{lo}, {hi}] has lo > hi")
     p = f"{point:.{decimals}f}"
     if bold:
         p = f"\\textbf{{{p}}}"
-    if ci_format == "pm":
-        return f"{p} $\\pm$ {(hi - lo) / 2:.{decimals}f}"
-    if ci_format == "interval":
-        return f"{p} [{lo:.{decimals}f}, {hi:.{decimals}f}]"
-    raise ValueError(f"ci_format must be one of {CI_FORMATS}, got {ci_format!r}")
+    return f"{p} [{lo:.{decimals}f}, {hi:.{decimals}f}]"
 
 
 def format_point(v: float, *, decimals: int) -> str:
@@ -236,10 +223,9 @@ def format_point(v: float, *, decimals: int) -> str:
     return f"{v:.{decimals}f}"
 
 
-def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False, plugin_percentile: bool = False) -> str:
+def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False) -> str:
     try:
-        return format_estimate(row[cols[0]], row[cols[1]], row[cols[2]], decimals=spec["decimals"],
-                               ci_format=spec["ci_format"], bold=bold, plugin_percentile=plugin_percentile)
+        return format_estimate(row[cols[0]], row[cols[1]], row[cols[2]], decimals=spec["decimals"], bold=bold)
     except ValueError as e:
         raise ValueError(f"{row['Dataset type']}/{row['Type']} train={row['Train dataset']} "
                          f"test={row['Test dataset']} {cols[0]}: {e}") from e
@@ -271,7 +257,9 @@ def _n_constant_down_columns(frames: dict, setting: str) -> bool:
 
 def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: int, *, with_ci: bool = True) -> str:
     labels = ", ".join(f"{k}: {v}" for k, v in spec["datasets"].items())
-    ci = ("$\\pm$ half-width of the" if spec["ci_format"] == "pm" else "bracketed") + " 95\\% bootstrap interval"
+    ci = ("bracketed 95\\% percentile interval of a document-level bootstrap of the test set" + (
+        "" if setting == "syn" else ", crossed with refitting the recalibration on independent labelled samples")
+        + "; point: the un-resampled value" + ("" if setting == "syn" else ", averaged over those samples"))
     if setting == "syn":
         s = "Synthetic test sets; no recalibration."
     else:
@@ -364,7 +352,7 @@ def build_classification_table(spec: dict, frames: dict, setting: str, judge: st
 
 def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
     def cells(r: pd.Series) -> str:
-        return " & ".join(_cell(r, v[:3], spec=spec, plugin_percentile=v[4]) for v in ECE_VARIANTS)
+        return " & ".join(_cell(r, v[:3], spec=spec) for v in ECE_VARIANTS)
 
     body = ["Method & Train & Test & " + " & ".join(v[3] for v in ECE_VARIANTS) + " \\\\",
             *_long_rows(spec, frames, setting, cells)]

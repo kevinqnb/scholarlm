@@ -305,10 +305,14 @@ def test_v1_loader_rejects_v2_config(world, tmp_path):
 
 
 # ── load_calibration_v3_config: platt_n, no pi_te ────────────────────────────
+BOOTSTRAP = {"n_fit_samples": 3, "n_doc_boot": 4, "n_syn_boot": 5}
+
+
 def _to_v3(cfg, n=100, recalibration="platt_fit"):
     cfg["params"].pop("pi_te_estimate")
     cfg["params"]["platt_n"] = n
     cfg["params"]["recalibration"] = recalibration
+    cfg["params"].update(BOOTSTRAP)
     return cfg
 
 
@@ -349,6 +353,10 @@ def test_recalibration_methods_match_library():
     lambda c: c["params"].update(recalibration=None),
     lambda c: c["params"].update(pi_te_estimate=0.5),                      # v1 key not allowed
     lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate=0.5),  # v2 key not allowed
+    *[lambda c, k=k: c["params"].pop(k) for k in BOOTSTRAP],               # no default replicate counts
+    *[lambda c, k=k: c["params"].update({k: 0}) for k in BOOTSTRAP],
+    *[lambda c, k=k: c["params"].update({k: True}) for k in BOOTSTRAP],
+    *[lambda c, k=k: c["params"].update({k: 2.0}) for k in BOOTSTRAP],
 ])
 def test_v3_loader_rejects_malformed(world, tmp_path, mutate):
     cfg, _ = world
@@ -365,6 +373,7 @@ def _to_validated(cfg, tmp_path, monkeypatch):
     cfg["params"].pop("pi_te_estimate")
     cfg["params"]["platt_n"] = 100
     cfg["params"]["recalibration"] = "platt_fit"
+    cfg["params"].update(BOOTSTRAP)
     cfg["params"]["datasets"].pop("nfix")
     vdir = tmp_path / "validations"
     vdir.mkdir()
@@ -420,6 +429,8 @@ def test_validated_missing_file_is_hard_error(world, tmp_path, monkeypatch):
     lambda c: c["params"].pop("platt_n"),
     lambda c: c["params"].pop("recalibration"),
     lambda c: c["params"].update(recalibration="intercept"),
+    lambda c: c["params"].pop("n_fit_samples"),
+    lambda c: c["params"].update(n_doc_boot=0),
 ])
 def test_validated_loader_rejects_malformed(world, tmp_path, monkeypatch, mutate):
     cfg, _ = _to_validated(world[0], tmp_path, monkeypatch)
