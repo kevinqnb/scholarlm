@@ -39,7 +39,7 @@ for _p in (_REPO_ROOT / "src", _REPO_ROOT / "experiments", _REPO_ROOT):
 
 from analysis import calibration_ids as cids
 from analysis.analysis_config import (
-    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
+    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config, load_calibration_v4_config,
 )
 from analysis.prediction_store import check_real_cell
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
@@ -47,6 +47,14 @@ from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 SECTION = "meta"
 SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot",
                 "reference", "ecosystems", "attributes", "qq_attributes", "poster")
+# meta_updated_v2.py: hard confidence thresholds instead of the weighted sweep, no poster.
+SECTION_V2 = "meta_v2"
+SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
+                   "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n")
+# Which calibration script built calibration_config_id's predictions.pkl (and so which
+# config loader validates it): calibration_updated_v3.py (Platt-scaled real cells) or
+# calibration_updated_v4.py (prior-shift / intercept-fit recalibrated real cells).
+CALIBRATION_LOADERS = {"v3": load_calibration_v3_config, "v4": load_calibration_v4_config}
 # The distribution every extracted setting is compared against (Q-Q x-axis, W2):
 # ground_truth: the curated GT rows; valid: the extracted rows whose stored calibration
 # label is positive (judge OR ground-truth match) -- the same label the probe is
@@ -90,6 +98,49 @@ def load_meta_config(path: Path) -> dict:
     if unexpected:
         raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
     sec = get_section(cfg, SECTION, SECTION_KEYS)
+    _check_common_section(path, cfg, sec, SECTION)
+    if not isinstance(sec["poster"], bool):
+        raise ValueError(f"{path}: {SECTION}.poster must be a bool, got {sec['poster']!r}")
+    return cfg
+
+
+def load_meta_v2_config(path: Path) -> dict:
+    """Load and validate an analysis config for meta_updated_v2.py.
+
+    ``params`` holds exactly the ``meta_v2`` section (SECTION_V2_KEYS: no defaults, no
+    extras). The keys shared with ``meta`` are checked exactly as in load_meta_config.
+    ``thresholds``: non-empty, strictly increasing list of numbers in [0, 1) starting at
+    0 -- a threshold-t setting keeps the extracted rows with confidence >= t, so t = 0 is
+    the unfiltered set. ``min_n``: a
+    positive int; a Q-Q line / W1 score is only computed for a sample of at least
+    that many rows.
+    """
+    cfg = _load_envelope(path)
+    unexpected = set(cfg["params"]) - {SECTION_V2}
+    if unexpected:
+        raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
+    sec = get_section(cfg, SECTION_V2, SECTION_V2_KEYS)
+    _check_common_section(path, cfg, sec, SECTION_V2)
+    th = sec["thresholds"]
+    if (not isinstance(th, list) or not th
+            or not all(isinstance(t, (int, float)) and not isinstance(t, bool) for t in th)):
+        raise ValueError(f"{path}: {SECTION_V2}.thresholds must be a non-empty list of numbers")
+    if not all(0.0 <= t < 1.0 for t in th) or not all(a < b for a, b in zip(th, th[1:])):
+        raise ValueError(f"{path}: {SECTION_V2}.thresholds must be strictly increasing, in [0, 1), got {th}")
+    if th[0] != 0:
+        raise ValueError(f"{path}: {SECTION_V2}.thresholds must start at 0 (the unfiltered set), got {th}")
+    if sec["calibration_version"] not in CALIBRATION_LOADERS:
+        raise ValueError(f"{path}: {SECTION_V2}.calibration_version must be one of {sorted(CALIBRATION_LOADERS)}, "
+                         f"got {sec['calibration_version']!r}")
+    mn = sec["min_n"]
+    if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
+        raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")
+    return cfg
+
+
+def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> None:
+    """Checks shared by the ``meta`` and ``meta_v2`` sections (and the envelope seed)."""
+    SECTION = section  # noqa: N806 -- error messages name the section being checked
     if not isinstance(sec["calibration_config_id"], str) or not sec["calibration_config_id"]:
         raise ValueError(f"{path}: {SECTION}.calibration_config_id must be a non-empty string")
     if sec["rows"] not in ROWS_CHOICES:
@@ -117,24 +168,22 @@ def load_meta_config(path: Path) -> dict:
     stray_qq = sorted(set(sec["qq_attributes"]) - set(sec["attributes"]))
     if stray_qq:
         raise ValueError(f"{path}: {SECTION}.qq_attributes not in {SECTION}.attributes: {stray_qq}")
-    if not isinstance(sec["poster"], bool):
-        raise ValueError(f"{path}: {SECTION}.poster must be a bool, got {sec['poster']!r}")
     if isinstance(cfg["seed"], bool) or not isinstance(cfg["seed"], int):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
-    return cfg
 
 
-def resolve_meta_inputs(cfg: dict, dataset: str) -> dict:
+def resolve_meta_inputs(cfg: dict, dataset: str, calibration_version: str) -> dict:
     """Resolve and cross-check every run a meta config names (pure id/config/path logic).
 
-    The calibration config (a v3 calibration analysis config) is the single source of
+    The calibration config (a ``calibration_version`` -- v3 or v4 -- calibration analysis
+    config, validated by that version's loader) is the single source of
     truth for the extraction, judge_combine run, ground truth file, synthetic-probe
     run and probe variant: calibration_ids.resolve_calibration_inputs cross-checks all
     of them against each run's own committed config. Requires ``dataset`` in its
     datasets and a built predictions.pkl. For ``rows: deduplicated`` the deduplication
     config must list the extraction id.
 
-    Returns dict(dataset, judge_model, extraction_id, extraction_dir, judge_combine_dir,
+    Returns dict(dataset, calibration_config_id, calibration_version, judge_model, extraction_id, extraction_dir, judge_combine_dir,
     ground_truth_path, probe_dir, probe_variant, predictions_path, dedup_dir | None).
     """
     sec = cfg["params"][SECTION]
@@ -142,7 +191,9 @@ def resolve_meta_inputs(cfg: dict, dataset: str) -> dict:
     cal_path = ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml"
     if not cal_path.exists():
         raise FileNotFoundError(f"calibration config {cal_path} does not exist")
-    cal_cfg = load_calibration_v3_config(cal_path)
+    if calibration_version not in CALIBRATION_LOADERS:
+        raise ValueError(f"calibration_version must be one of {sorted(CALIBRATION_LOADERS)}, got {calibration_version!r}")
+    cal_cfg = CALIBRATION_LOADERS[calibration_version](cal_path)
     if dataset not in cal_cfg["params"]["datasets"]:
         raise ValueError(f"{cal_id}: no {dataset!r} block (has {sorted(cal_cfg['params']['datasets'])})")
     cal_inputs = cids.resolve_calibration_inputs(cal_cfg)
@@ -164,7 +215,8 @@ def resolve_meta_inputs(cfg: dict, dataset: str) -> dict:
             raise ValueError(f"{dd_cfg['id']}: experiment_ids does not contain {extraction_id!r}")
         dedup_dir = dd.deduplication_dir(dd_cfg["id"], extraction_id)
 
-    return dict(dataset=dataset, calibration_config_id=cal_id, judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,
+    return dict(dataset=dataset, calibration_config_id=cal_id, calibration_version=calibration_version,
+                judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,
                 extraction_dir=ds["extraction_dir"], judge_combine_dir=ds["judge_combine_dir"],
                 ground_truth_path=ds["ground_truth_path"], probe_dir=ds["probe_dir"],
                 probe_variant=cal_cfg["params"]["probe_variant"], predictions_path=predictions_path,

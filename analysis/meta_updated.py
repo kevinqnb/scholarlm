@@ -400,8 +400,10 @@ def convert_units(
 # ── Data loading ─────────────────────────────────────────────────────────────
 
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
-    """Platt-scaled NTP / probe confidence for the judged datapoints, read from the
-    predictions analysis/calibration_updated_v3.py stored -- nothing is recomputed.
+    """Recalibrated NTP / probe confidence for the judged datapoints, read from the
+    predictions analysis/calibration_updated_v3.py (Platt-scaled) or
+    calibration_updated_v4.py (prior-shift / intercept-fit; inputs['calibration_version'])
+    stored -- nothing is recomputed.
 
     Uses the 'real' cell with train dataset == test dataset (this dataset's own probe on
     its own real extraction); see meta_inputs.stored_prediction_rows for how the pickle's
@@ -422,10 +424,25 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     probe_art = joblib.load(probe_path)  # only for syn_document_ids; its predict_proba is never called
     assert probe_art['judge_model'] == judge and probe_art['dataset'] == DATASET, probe_path
     syn_docs = set(probe_art['syn_document_ids'])
+    # Held-out must mean held out from BOTH confidence models: the NTP calibrator's
+    # training documents have to be the probe's.
+    ntp_path = inputs['probe_dir'] / f'ntp_calibrator{suffix}.pkl'
+    assert set(joblib.load(ntp_path)['syn_document_ids']) == syn_docs, (
+        f'{ntp_path} was trained on different documents than {probe_path}')
 
     with open(inputs['predictions_path'], 'rb') as f:
         cell = pickle.load(f)['real'][judge][DATASET][DATASET]
-    assert cell['platt'] is not None, 'real-cell predictions should be Platt-scaled'
+    if inputs['calibration_version'] == 'v3':
+        assert cell['platt'] is not None, 'real-cell predictions should be Platt-scaled'
+    else:
+        # v4 real cells are recalibrated by a map fit once on rows outside the scored set.
+        assert inputs['calibration_version'] == 'v4', inputs['calibration_version']
+        assert cell['recal_map'] is not None and cell['fit_on_test_rows'] is False, (
+            'v4 real-cell predictions should be recalibrated on rows outside the test set')
+    # The recalibration fit rows must come from training documents, not merely be
+    # different measurement_ids (check_real_cell checks only the latter).
+    fit_docs = set(final_df.set_index('measurement_id').loc[cell['platt_measurement_ids'], 'document_id'])
+    assert fit_docs <= syn_docs, f'recalibration fit rows from held-out documents: {sorted(fit_docs - syn_docs)}'
     scored = stored_prediction_rows(final_df, syn_docs, cell, sha256_file(inputs['extraction_dir'] / 'final.json'),
                                     inputs['calibration_config_id'])
 
@@ -438,9 +455,14 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     return scored, syn_docs, [probe_path, inputs['predictions_path']]
 
 
-def load_data(cfg: dict, inputs: dict):
-    """Load GT + extraction rows, restrict to the shared held-out document set, and
-    attach judgement_combined / ntp_prob / probe_prob to the extraction rows.
+def load_data(cfg: dict, inputs: dict, restrict_to_shared_docs: bool):
+    """Load GT + extraction rows, restrict to held-out documents, and attach
+    judgement_combined / ntp_prob / probe_prob to the extraction rows.
+
+    Held-out always means outside the probe/NTP training documents (syn_document_ids).
+    restrict_to_shared_docs=True additionally keeps only documents present in BOTH GT
+    and extraction (meta_updated.py); False lets each side keep all its held-out
+    documents (meta_updated_v2.py).
 
     Scores are computed on the judged run's final.json rows and joined by
     measurement_id onto the rows named by params.meta.rows (final.json itself, or the
@@ -494,12 +516,20 @@ def load_data(cfg: dict, inputs: dict):
             rows_df = ext_df
 
     shared_docs = set(gt_df['document_id']) & set(ext_df['document_id'])
-    heldout_docs = shared_docs - syn_docs
-    print(f"[meta] shared GT/extraction docs: {len(shared_docs)}, "
-          f"held out (non-training): {len(heldout_docs)}")
-
-    gt_df = gt_df[gt_df['document_id'].isin(heldout_docs)].reset_index(drop=True)
-    ext_df = ext_df[ext_df['document_id'].isin(heldout_docs)].reset_index(drop=True)
+    if restrict_to_shared_docs:
+        heldout_docs = shared_docs - syn_docs
+        print(f"[meta] shared GT/extraction docs: {len(shared_docs)}, "
+              f"held out (non-training): {len(heldout_docs)}")
+        gt_df = gt_df[gt_df['document_id'].isin(heldout_docs)].reset_index(drop=True)
+        ext_df = ext_df[ext_df['document_id'].isin(heldout_docs)].reset_index(drop=True)
+    else:
+        # Each side keeps every document outside the probe/NTP training documents; GT and
+        # extraction need not cover the same documents.
+        gt_df = gt_df[~gt_df['document_id'].isin(syn_docs)].reset_index(drop=True)
+        assert not set(ext_df['document_id']) & syn_docs, 'extracted rows from probe-training documents'
+        heldout_docs = set(gt_df['document_id']) | set(ext_df['document_id'])
+        print(f"[meta] held out (non-training) docs: gt={gt_df['document_id'].nunique()}, "
+              f"ext={ext_df['document_id'].nunique()}, shared={len(shared_docs - syn_docs)}")
     print(f"[meta] rows after held-out filter: gt={len(gt_df)}, ext={len(ext_df)}")
 
     gt_df['ecosystem_bucket'] = gt_df['ecosystem'].map(bucket_ecosystem)
@@ -518,7 +548,8 @@ def load_data(cfg: dict, inputs: dict):
 
     manifest = dict(
         rows=sec['rows'], n_final_rows=len(final_df), n_rows_before_doc_filter=n_rows, confidence=sec['confidence'], n_rows_scored=len(rows_df),
-        n_shared_docs=len(shared_docs), n_heldout_docs=len(heldout_docs),
+        restrict_to_shared_docs=restrict_to_shared_docs, n_shared_docs=len(shared_docs), n_heldout_docs=len(heldout_docs),
+        n_gt_docs=int(gt_df['document_id'].nunique()), n_ext_docs=int(ext_df['document_id'].nunique()),
         n_gt_rows=len(gt_df), n_ext_rows=len(ext_df),
         n_ext_list_children=int((ext_df['n_siblings'] > 1).sum()) if 'n_siblings' in ext_df else None,
         n_ext_list_children_unparseable=(int(((ext_df['n_siblings'] > 1) & ext_df['meta_value'].isna()).sum())
@@ -1309,7 +1340,7 @@ def main():
     sec = cfg['params'][META_SECTION]
     # meta_updated.py is pond-specific (see DATASET); resolve_meta_inputs fails if the
     # calibration config has no pond block.
-    inputs = resolve_meta_inputs(cfg, DATASET)
+    inputs = resolve_meta_inputs(cfg, DATASET, 'v3')
     ecosystems, attributes = sec['ecosystems'], sec['attributes']
     bad_ecos = sorted(set(ecosystems) - set(ECOSYSTEMS))
     assert not bad_ecos, f"ecosystems not in ECOSYSTEMS: {bad_ecos}"
@@ -1329,7 +1360,7 @@ def main():
     figures_dir = out_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    gt_df, ext_df, manifest = load_data(cfg, inputs)
+    gt_df, ext_df, manifest = load_data(cfg, inputs, restrict_to_shared_docs=True)
 
     stats_df = build_stats_table(gt_df, ext_df, reference, ecosystems, attributes)
     csv_path = out_dir / 'meta_stats.csv'
