@@ -33,3 +33,16 @@ All three full runs failed while drawing fit samples. For supermat at n=1000, a 
 
 ### Commits
 4f94fa4 doc_bootstrap: skip fit draws whose document resample has fewer than n rows
+
+## Session 2026-10-08 (follow-up: band width, n = 0 baseline)
+
+### Prompts
+- "The confidence intervals in these plots are quite large. What happened? Would more samples help?"
+- "Ok here is what I want to do. Let's retry this, but with the number of training examples as 0,50,100,250,500,100. Note the 0: we need a baseline case." (the trailing 100 was read as 1000)
+- "Commit it and add a follow-up to the devlog. Submit the full jobs."
+
+### Implemented
+The band width was diagnosed with no code change. More resamples would not narrow it: it is a percentile range, already estimated to about 0.003 at 2000 resamples. At large n it is set by document resampling of a pool with only about 10 effective documents. `analysis/platt_scaling_v2.py` now accepts n = 0 in `platt_ns` as a no-recalibration baseline: the raw probe / NTP-calibrator scores on the same test rows, one value per cell with a zero-width interval, drawn on a symlog x axis. `load_platt_sweep_v2_config` now accepts non-negative `platt_ns`. The new configs are `analysis/analysis-configs/2026-10-08-platt-scaling-v2-gemma27b-qwen-2.5-7b-{intercept-fit,platt-fit,prior-shift}-02.yaml` (platt_ns [0, 50, 100, 250, 500, 1000]), plus `...-baseline-smoke-01.yaml` and `...-intercept-fit-tiny-02.yaml`. In the tiny run, the n > 0 per-resample output is byte-identical to the earlier tiny run. The three `-02` runs were submitted.
+
+### Commits
+1e65e7e platt_scaling_v2: n = 0 no-recalibration baseline; -02 sweep configs
