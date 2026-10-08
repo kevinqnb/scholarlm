@@ -1,0 +1,32 @@
+id: 2026-10-08-pond-clustering-01
+project: scholarlm
+description: >
+  analysis/clustering.py on the pond deduplicated rows (2026-10-06-pond-deduplication-01,
+  cluster-center confidence) with the v4 intercept-fit recalibrated pond->pond probe / NTP
+  confidences of 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01 (same
+  inputs as 2026-10-08-pond-meta-v2-thresholds-01). Method parameters are the legacy
+  clustering.py's (THRESHOLD 0.20, attribute subsets of size 2-5, 5 clusters, KNN k=5, gamma
+  0..5 in 101 steps, 10000 KMeans seeds, 1000 random-confidence draws, seed 42; plus 1000 shuffled-confidence draws per method as the permutation control), but the
+  inputs, cell aggregation (median value / mean confidence) and probe (in-domain pond, not
+  nfix) differ, so numbers are not comparable to the legacy figures/clustering/ plots.
+  Run: bash analysis/submit.sh clustering 2026-10-08-pond-clustering-01 --walltime <from smoke> --omp <N>
+seed: 42
+params:
+  clustering:
+    calibration_config_id: 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01
+    calibration_version: v4
+    extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+    judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+    judge_model: qwen-2.5-7b
+    probe_train_dataset: pond
+    rows: deduplicated
+    deduplication_config_id: 2026-10-06-pond-deduplication-01
+    confidence: center
+    missing_threshold: 0.2
+    attribute_set_sizes: [2, 3, 4, 5]
+    n_clusters: 5
+    knn_neighbors: 5
+    gammas: {start: 0.0, stop: 5.0, num: 101}
+    n_runs: 10000
+    n_random_samples: 1000
+    n_shuffle_samples: 1000
