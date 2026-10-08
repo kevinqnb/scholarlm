@@ -12,6 +12,8 @@ description: >
   confidence >= t, t in {0 (unfiltered), 0.25, 0.5, 0.75}; a Q-Q line / W1 needs >= 5 rows. Unlike v1,
   GT and extracted rows are NOT restricted to shared documents -- each side only drops
   the probe/NTP training documents.
+  n_shuffle_samples (1000) added 2026-10-08 when the shuffle control became an
+  average over permutations (commit 94d91f6); earlier outputs used one permutation.
   Run: python analysis/meta_updated_v2.py analysis/analysis-configs/2026-10-08-pond-meta-v2-thresholds-coarse-01.yaml
 seed: 0
 params:
@@ -28,3 +30,4 @@ params:
     qq_attributes: [surface_area, max_depth, ph, chla]
     thresholds: [0.0, 0.25, 0.5, 0.75]
     min_n: 5
+    n_shuffle_samples: 1000

@@ -40,6 +40,10 @@ Outputs under analysis/results/meta/<config id>/:
                    subset (n_docs_ext_shuffled_mean vs n_docs_ext).
   qq_lines.csv     per Q-Q line: n, n_docs, n_nonpos, whether it was drawn.
   figures/qq_{method}_{ecosystem}.pdf, figures/qq_legend.pdf
+  figures/w1_vs_threshold_{ecosystem}.pdf, figures/w1_vs_threshold_legend.pdf
+                   one panel per attribute, drawn from wasserstein.csv: W1 to the
+                   reference vs threshold for NTP and probe (bootstrap CI band) and
+                   each method's shuffled control (mean, 2.5-97.5 percentile band).
 """
 from __future__ import annotations
 
@@ -56,10 +60,12 @@ import json
 
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import seaborn as sns
 from scipy import stats
 
 # Importing meta_updated also applies its matplotlib rcParams (paper fonts/sizes).
@@ -102,6 +108,16 @@ SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
                  **{m: 4 + i for i, m in enumerate(METHODS)}}
 # Offset added to a method's code for its shuffled-confidence permutation stream.
 SHUFFLE_STREAM = 100
+
+# W1-vs-threshold curves, styled after analysis/clustering.py's ARM_STYLE: same husl
+# hues per method, real arm solid and thick, its shuffled control dotted.
+_HUSL = sns.color_palette('husl', 10)
+CURVE_STYLE = {
+    'ntp':            dict(color=_HUSL[2], ls='-', lw=2.5, alpha=0.85, label='NTP'),
+    'probe':          dict(color=_HUSL[7], ls='-', lw=2.5, label='Probe'),
+    'ntp_shuffled':   dict(color=_HUSL[2], ls=':', lw=2.0, alpha=0.85, label='NTP (shuffled)'),
+    'probe_shuffled': dict(color=_HUSL[7], ls=':', lw=2.0, alpha=0.85, label='Probe (shuffled)'),
+}
 
 
 
@@ -435,6 +451,66 @@ def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float]):
     print(f"[meta_v2] wrote {out_path}")
 
 
+# ── W1 vs threshold ─────────────────────────────────────────────────────────
+
+def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thresholds: list[float]) -> pd.DataFrame:
+    """The (ecosystem, attribute, method) threshold rows of wasserstein.csv, in grid order."""
+    c = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['method'] == method)]
+    c = c.sort_values('threshold')
+    assert np.allclose(c['threshold'].to_numpy(dtype=float), thresholds), (ecosystem, attribute, method)
+    return c
+
+
+def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
+                   out_path: Path):
+    """One figure per ecosystem, one panel per attribute: W1 to the reference against the
+    confidence threshold t. Per method, the real filter (solid; band = its two-sample
+    bootstrap CI) and its shuffled control (dotted; band = the 2.5-97.5 percentile range
+    over permutations). log10 W1 for LOG_SCALE_ATTRIBUTES, raw W1 otherwise. A point the
+    table skipped (n < min_n) is a gap in its line."""
+    fig, axes = plt.subplots(1, len(attributes), figsize=(3.0 * len(attributes), 2.8), squeeze=False)
+    for i, (ax, attribute) in enumerate(zip(axes[0], attributes)):
+        sc = '_log' if attribute in LOG_SCALE_ATTRIBUTES else ''
+        for method in METHODS:
+            c = _curve(w1_df, ecosystem, attribute, method, thresholds)
+            real = CURVE_STYLE[method]
+            ax.plot(thresholds, c[f'w1{sc}'], **real)
+            ax.fill_between(thresholds, c[f'w1{sc}_lo'], c[f'w1{sc}_hi'], color=real['color'], alpha=0.2, linewidth=0)
+            shuf = CURVE_STYLE[f'{method}_shuffled']
+            ax.plot(thresholds, c[f'w1_shuffled{sc}_mean'], **shuf)
+            ax.fill_between(thresholds, c[f'w1_shuffled{sc}_lo'], c[f'w1_shuffled{sc}_hi'], color=shuf['color'],
+                            alpha=0.12, linewidth=0)
+        ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
+        ax.set_xlabel('Confidence threshold $t$', fontsize=11)
+        ax.set_ylabel(f"$W_1$ to {REFERENCE_AXIS_LABEL[w1_df['reference'].iloc[0]]}" + (' (log$_{10}$)' if sc else ''),
+                      fontsize=11)
+        ax.set_xlim(thresholds[0], thresholds[-1])
+        ax.set_xticks(thresholds if len(thresholds) <= 6 else np.round(np.linspace(0, thresholds[-1], 5), 2))
+        ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+        ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+        ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta_v2] wrote {out_path}")
+
+
+def plot_w1_curves_legend(out_path: Path):
+    """Line key (as clustering.plot_legend) plus the two band meanings, which differ:
+    the real band is a bootstrap CI, the shuffled band the spread over permutations."""
+    order = ('probe', 'ntp', 'probe_shuffled', 'ntp_shuffled')
+    handles = [Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
+                      linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
+    handles += [Patch(color='#888888', alpha=0.35, linewidth=0, label='Real: 95% bootstrap CI'),
+                Patch(color='#888888', alpha=0.18, linewidth=0, label='Shuffled: 2.5-97.5% over permutations')]
+    fig, ax = plt.subplots(figsize=(10.0, 0.7))
+    ax.axis('off')
+    ax.legend(handles=handles, loc='center', ncol=3, fontsize=12, frameon=False, handlelength=2.0)
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    print(f"[meta_v2] wrote {out_path}")
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -478,6 +554,9 @@ def main():
                                min_n, n_boot, seed, figures_dir / f'qq_{method}_{ecosystem}.pdf')
     pd.DataFrame(records).to_csv(out_dir / 'qq_lines.csv', index=False)
     plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, thresholds)
+    for ecosystem in ecosystems:
+        plot_w1_curves(w1_df, ecosystem, attributes, thresholds, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
+    plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf')
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/meta_updated_v2.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
