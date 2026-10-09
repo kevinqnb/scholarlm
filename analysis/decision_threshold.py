@@ -8,7 +8,7 @@ analysis/recovery_validity.py), validity the fraction of kept extractions that a
 judged valid OR matched (recovery_validity.py's validity labels, unchanged).
 
 Probabilities are the recalibrated ``probe_probs`` / ``ntp_probs`` of a v4 calibration
-run's ``real`` cells (analysis/calibration_updated_v4.py's predictions.pkl). Those are
+run's ``real`` cells (analysis/calibration.py's predictions.pkl). Those are
 scored per final.json row and exist only for the test documents (the fit pool and the
 probe's synthetic-training documents are excluded), so:
 

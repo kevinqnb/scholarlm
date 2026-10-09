@@ -1,14 +1,14 @@
 """Downstream clustering: does weighting extracted entities by probe / NTP confidence
 make a KMeans fit on the LLM-extracted pond data recover the ground truth's clusters?
 
-    python analysis/clustering.py analysis/analysis-configs/<id>.yaml
+    python analysis/pond_clustering.py analysis/analysis-configs/<id>.yaml
     bash analysis/submit.sh clustering <id> --walltime HH:MM:SS --omp N
 
 Pipeline (pond only; every value below that changes between runs is a key of
 params.clustering, see load_clustering_config):
 
 1. Rows and confidences come from pond_meta.load_data, exactly as for
-   meta_updated_v2.py: GT and extracted rows outside the probe/NTP
+   pond_meta_analysis.py: GT and extracted rows outside the probe/NTP
    training documents, values parsed from point_value and converted to standard units
    (pond_meta.convert_units), and the stored recalibrated probe / NTP confidences of
    the calibration config's real pond->pond cell, joined by measurement_id onto
@@ -140,7 +140,7 @@ def _is_pos_int(v) -> bool:
 
 
 def load_clustering_config(path: Path) -> dict:
-    """Load and validate an analysis config for clustering.py.
+    """Load and validate an analysis config for pond_clustering.py.
 
     ``params`` holds exactly the ``clustering`` section (SECTION_KEYS: no defaults, no
     extras). ``rows`` / ``deduplication_config_id`` / ``confidence`` follow the meta
@@ -563,7 +563,7 @@ def main() -> None:
     plot_center_dist(summary, gammas, figures_dir / 'center_dist.pdf')
     plot_legend(figures_dir / 'legend.pdf')
     manifest.update(
-        analysis_config_id=cfg['id'], script='analysis/clustering.py', seed=seed, params=sec,
+        analysis_config_id=cfg['id'], script='analysis/pond_clustering.py', seed=seed, params=sec,
         inputs={k: str(v) for k, v in inputs.items()},
         outlier_adjust=sec['outlier_adjust'],
         outlier_moments=None if moments is None else moments.to_dict('index'),

@@ -1,5 +1,5 @@
 """Run-id resolution for the calibration-family scripts
-(calibration_updated_v4.py, calibration_validated.py, platt_scaling_v2.py) and
+(calibration.py, calibration_validated.py, platt_scaling.py) and
 their consumers (decision_threshold.py, meta_inputs.py).
 
 Kept apart from those scripts because they do their real data loading at import

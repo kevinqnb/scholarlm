@@ -953,7 +953,7 @@ def test_validity_counts_every_extraction_with_a_threshold_edge_not_just_matched
 
 def test_calibration_labels_count_every_extraction_with_a_threshold_edge(e2e_fixture):
     # Same cache as above, through the calibration path
-    # (calibration_updated_v4 / platt_scaling_v2 / meta via predictions.pkl):
+    # (calibration / platt_scaling / meta via predictions.pkl):
     # both ext 0 and ext 1 must come back as having an edge.
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
     _rewrite_fixture_cache(extraction_id, [(0, 0), (0, 1), (2, 2)], [1.0, 0.6, 0.2])

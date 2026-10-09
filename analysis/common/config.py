@@ -308,7 +308,7 @@ def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datas
 # Top-level keys every calibration-family config carries, and the per-dataset blocks with
 # one pi_te_estimate per dataset (the assumed prevalence of valid rows in that dataset's
 # real extraction). Named V2 after the retired calibration_updated_v2.py that introduced
-# them; calibration_updated_v4.py and platt_scaling_v2.py build on both.
+# them; calibration.py and platt_scaling.py build on both.
 CALIBRATION_V2_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "datasets")
 CALIBRATION_V2_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("pi_te_estimate",)
 
@@ -425,14 +425,14 @@ def load_calibration_validated_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/platt_scaling_v2.py: the sweep's inputs and platt_ns / recalibration, but
+# analysis/platt_scaling.py: the sweep's inputs and platt_ns / recalibration, but
 # no nested bootstrap -- n_train_resamples recalibration fit samples per n, each scored
 # on the fixed (un-resampled) real test set. So no n_fit_samples / n_doc_boot.
 PLATT_SWEEP_V2_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration", "n_train_resamples")
 
 
 def load_platt_sweep_v2_config(path: Path) -> dict:
-    """Load analysis/platt_scaling_v2.py's analysis-configs/<id>.yaml.
+    """Load analysis/platt_scaling.py's analysis-configs/<id>.yaml.
 
     Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
     load_calibration_v3_config (syn_split is still required because
@@ -469,7 +469,7 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/calibration_updated_v4.py: one recalibration map per (scorer, test dataset),
+# analysis/calibration.py: one recalibration map per (scorer, test dataset),
 # fit once -- no resampling of the fit data -- with test-document bootstrap CIs (n_boot
 # resamples, real and synthetic cells alike; seeded by the envelope seed).
 #   recalibration: prior_shift   -- slope 1, intercept logit(pi_te) - logit(pi_tr).
@@ -495,7 +495,7 @@ def is_int(v) -> bool:
 
 
 def load_calibration_v4_config(path: Path) -> dict:
-    """Load analysis/calibration_updated_v4.py's analysis-configs/<id>.yaml.
+    """Load analysis/calibration.py's analysis-configs/<id>.yaml.
 
     Per-dataset blocks are v2's (CALIBRATION_V2_DATASET_KEYS: v1's keys plus
     ``pi_te_estimate``). Top level: v2's keys plus ``n_boot`` (positive int),

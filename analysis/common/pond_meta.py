@@ -1,5 +1,5 @@
-"""Pond meta-analysis data layer, shared by analysis/meta_updated_v2.py and
-analysis/clustering.py: the canonical ecosystem/attribute universe, unit conversion and
+"""Pond meta-analysis data layer, shared by analysis/pond_meta_analysis.py and
+analysis/pond_clustering.py: the canonical ecosystem/attribute universe, unit conversion and
 plausibility bounds, the ground-truth unit fix, and ``load_data`` (held-out GT +
 extraction rows with their stored, recalibrated NTP / probe confidences).
 
@@ -61,7 +61,7 @@ META_ROOT = REPO_ROOT / "analysis" / "results" / "meta"
 DATASET = 'pond'
 
 # Canonical universe of cells. A config's ecosystems / attributes pick the subset actually
-# analysed; meta_updated_v2.py keys its RNG streams on positions in THESE lists, so
+# analysed; pond_meta_analysis.py keys its RNG streams on positions in THESE lists, so
 # subsetting never changes a retained cell's CI -- never reorder them.
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
@@ -188,8 +188,8 @@ def convert_units(
     """Convert values to the standard unit per attribute; unconvertible rows -> NaN.
 
     ``unit_conversion`` is the caller's multiply-to-standard table, shaped like
-    UNIT_CONVERSION (exactly the same attribute keys, asserted): clustering.py passes
-    UNIT_CONVERSION, meta_updated_v2.py its own UNIT_CONVERSION_V2.
+    UNIT_CONVERSION (exactly the same attribute keys, asserted): pond_clustering.py passes
+    UNIT_CONVERSION, pond_meta_analysis.py its own UNIT_CONVERSION_V2.
 
     Unlike scholarlm.utils.unit_conversion.apply_unit_conversion, a unit that is not
     in unit_conversion[attribute] yields NaN (dropped), not a factor-of-1.0 passthrough
@@ -240,7 +240,7 @@ def convert_units(
 
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
     """Recalibrated NTP / probe confidence for the judged datapoints, read from the
-    predictions analysis/calibration_updated_v4.py stored -- nothing is recomputed.
+    predictions analysis/calibration.py stored -- nothing is recomputed.
 
     Uses the 'real' cell with train dataset == test dataset (this dataset's own probe on
     its own real extraction); see meta_inputs.stored_prediction_rows for how the pickle's

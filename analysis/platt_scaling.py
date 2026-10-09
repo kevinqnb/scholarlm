@@ -2,8 +2,8 @@
 
 Calibration error of recalibrated probe / NTP scores vs. the number of real rows n the
 recalibration is fit on, for each n in params.platt_ns. Same inputs, labels, Platt pool
-and test rows as calibration_updated_v4.py; replaces analysis/platt_scaling.py's nested
-bootstrap. Per (train probe, test dataset, method, n):
+and test rows as calibration.py; replaces the nested bootstrap of the retired v1 sweep
+(removed 2026-10-09). Per (train probe, test dataset, method, n):
 
   - n_train_resamples fit samples from doc_bootstrap.two_class_fit_samples: the test
     dataset's pool documents resampled with replacement, then n rows drawn uniformly
@@ -21,14 +21,14 @@ bootstrap. Per (train probe, test dataset, method, n):
 
 The band is the spread over training resamples ONLY: the test rows are not resampled,
 so test-document sampling noise is not in it. It is narrower than, and not comparable
-with, platt_scaling.py's nested-bootstrap intervals.
+with, the retired v1 sweep's nested-bootstrap intervals.
 
 Fit sample r of test dataset ds resamples the same pool documents at every n, and is
 shared by every train probe and method.
 
 No flags: one positional config (analysis/analysis-configs/<id>.yaml, see
 load_platt_sweep_v2_config), normally run through
-`bash analysis/submit.sh platt_scaling_v2 <id> --walltime HH:MM:SS --omp N`. Output goes
+`bash analysis/submit.sh platt_scaling <id> --walltime HH:MM:SS --omp N`. Output goes
 to analysis/results/calibration/<config id>/.
 """
 import sys
@@ -78,7 +78,7 @@ mpl.rcParams.update({
     "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 
-# Same colors / labels as calibration_updated_v4.py (blue: 7, orange: 1, red: 0).
+# Same colors / labels as calibration.py (blue: 7, orange: 1, red: 0).
 palette = sns.color_palette("husl", 10)
 _DS_COLORS = {'pond': palette[7], 'nfix': palette[1], 'supermat': palette[0]}
 _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
@@ -123,7 +123,7 @@ def summarize(values, ci_level=db.CI_LEVEL) -> dict:
 
 class SweepInputs:
     """Trained probes / NTP calibrators and real labels, pool and test rows per dataset,
-    loaded as in calibration_updated_v4.py."""
+    loaded as in calibration.py."""
 
     def __init__(self, cfg):
         params = cfg['params']

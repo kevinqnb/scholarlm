@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for analysis/platt_scaling_v2.py helpers and load_platt_sweep_v2_config."""
+"""Rung-1 unit tests for analysis/platt_scaling.py helpers and load_platt_sweep_v2_config."""
 from __future__ import annotations
 
 import copy
@@ -15,7 +15,7 @@ sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
 from analysis.common import config as ac  # noqa: E402
-from analysis import platt_scaling_v2 as ps2  # noqa: E402
+from analysis import platt_scaling as ps2  # noqa: E402
 
 _CFG = _REPO / "analysis/analysis-configs/2026-10-08-platt-scaling-v2-intercept-fit-tiny-01.yaml"
 

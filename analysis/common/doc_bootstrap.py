@@ -1,4 +1,4 @@
-"""Document-level bootstrap of an evaluation set's calibration, for calibration_updated_v4.py.
+"""Document-level bootstrap of an evaluation set's calibration, for calibration.py.
 
 Every smoothed quantity is relplot's own: ``relplot.prepare_rel_diagram`` gives the
 SmECE, the reliability curve on relplot's fixed mesh, the prediction density, and the
@@ -9,7 +9,7 @@ smECE) resample rows, not documents, and are switched off.
 
 Binned calibration errors (scholarlm's compute_ece) are computed on the same resamples.
 
-Also supplies platt_scaling_v2.py's training-pool resamples: the pool's documents
+Also supplies platt_scaling.py's training-pool resamples: the pool's documents
 resampled, then n rows drawn from it, keeping only two-class draws.
 
 Import-side-effect free so it can be unit tested on a hand-built fixture.
@@ -47,7 +47,7 @@ def document_resamples(doc_ids, n_boot: int, rng: np.random.Generator) -> list[n
     return [np.concatenate([rows_by_doc[d] for d in rng.integers(0, n_docs, n_docs)]) for _ in range(n_boot)]
 
 
-# ── Training-pool resamples (platt_scaling_v2.py) ────────────────────────────
+# ── Training-pool resamples (platt_scaling.py) ────────────────────────────
 # A run fails rather than draw more than this many resamples per wanted resample:
 # that many skipped draws means n is too large for the pool or too small for its
 # label rate.

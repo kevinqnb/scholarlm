@@ -1,4 +1,4 @@
-"""Unit tests for analysis/meta_updated_v2.py (hard confidence thresholds, unweighted
+"""Unit tests for analysis/pond_meta_analysis.py (hard confidence thresholds, unweighted
 library quantiles / scipy W1) and its config loader.
 
 Hand-built fixture, one (pond, tn) cell -- tn is a LOG_SCALE attribute:
@@ -25,7 +25,7 @@ import yaml
 from scipy import stats
 
 from analysis.common.meta_inputs import load_meta_v2_config
-from analysis.meta_updated_v2 import (
+from analysis.pond_meta_analysis import (
     _summarize_shuffles, all_settings, build_stats_table, build_survival_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
 )
 
@@ -136,7 +136,7 @@ def test_w1_table_known_answers():
 
 def test_ref_stats_known_answer_and_w1_curve_plot_is_raw_over_range(tmp_path, monkeypatch):
     import matplotlib.pyplot as plt
-    import analysis.meta_updated_v2 as m
+    import analysis.pond_meta_analysis as m
     gt, ext = fixture()
     df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
     q1, q3 = np.quantile(gt['converted_value'].to_numpy(), [0.25, 0.75], method='hazen')
@@ -156,7 +156,7 @@ def test_ref_stats_known_answer_and_w1_curve_plot_is_raw_over_range(tmp_path, mo
 
 def test_w1_curve_ylabel_only_on_leftmost_panel(tmp_path, monkeypatch):
     import matplotlib.pyplot as plt
-    import analysis.meta_updated_v2 as m
+    import analysis.pond_meta_analysis as m
     gt, ext = fixture()
     gt2, ext2 = gt.assign(attribute='tp'), ext.assign(attribute='tp')
     df = build_w1_table(pd.concat([gt, gt2]), pd.concat([ext, ext2]), 'ground_truth', [ECO], [ATTR, 'tp'],
@@ -172,7 +172,7 @@ def test_w1_curve_ylabel_only_on_leftmost_panel(tmp_path, monkeypatch):
 def test_qq_legend_has_a_threshold_colorbar(tmp_path, monkeypatch):
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
-    import analysis.meta_updated_v2 as m
+    import analysis.pond_meta_analysis as m
     th = [0.0, 0.25, 0.5, 0.75]
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
@@ -309,7 +309,7 @@ def test_v1_section_rejected(tmp_path):
 
 
 def test_threshold_styles():
-    from analysis.meta_updated_v2 import QQ_BASE_STYLE, THRESHOLD_CMAP, threshold_label, threshold_style
+    from analysis.pond_meta_analysis import QQ_BASE_STYLE, THRESHOLD_CMAP, threshold_label, threshold_style
     import matplotlib.colors as mcolors
     assert THRESHOLD_CMAP.name == 'coolwarm'
     th = [0.0, 0.25, 0.5, 0.75]
@@ -327,7 +327,7 @@ def test_unit_conversion_v2_additions_only():
     """v2's table is v1's plus mi^2 and ppm / ppb for tn / tp / chla; v1 is untouched,
     and µg/cm^2 and molar chla stay unconvertible in both."""
     from analysis.common.pond_meta import UNIT_CONVERSION, convert_units
-    from analysis.meta_updated_v2 import UNIT_CONVERSION_V2
+    from analysis.pond_meta_analysis import UNIT_CONVERSION_V2
     rows = pd.DataFrame({
         'attribute': ['surface_area', 'tn', 'tp', 'chla', 'chla', 'chla', 'chla', 'tn'],
         'units':     ['mi^2',         'ppm', 'ppb', 'ppm', 'µg/cm^2', 'µmol/L', 'μmol/L', 'mg/L'],
@@ -347,7 +347,7 @@ def test_unit_conversion_v2_additions_only():
 def test_shuffled_control_with_outlier_factor():
     """Raw confidences are permuted and each row keeps its own factor, so the shuffled
     row count may differ from the real one (no equal-count assertion), and is reported."""
-    from analysis.meta_updated_v2 import shuffled_w1
+    from analysis.pond_meta_analysis import shuffled_w1
     gt, ext = fixture()
     ext = ext.copy()
     factor = np.where(np.arange(len(ext)) % 2 == 0, 1.0, 0.5)
@@ -369,7 +369,7 @@ def test_shuffled_control_with_outlier_factor():
 # ── percentile threshold mode ──
 
 def test_keep_mask_percentile_hand_checked():
-    from analysis.meta_updated_v2 import keep_mask
+    from analysis.pond_meta_analysis import keep_mask
     p = np.array([0.1] * 10 + [0.5] * 10 + [0.9] * 20)   # n = 40, sorted
     # np.quantile(method='lower') index = floor(q * 39)
     assert keep_mask(p, 0.0, 'percentile').sum() == 40                 # t = 0 keeps everything
@@ -395,7 +395,7 @@ def test_percentile_settings_and_nesting():
 
 
 def test_percentile_shuffled_control_matches_size_with_factor():
-    from analysis.meta_updated_v2 import shuffled_w1
+    from analysis.pond_meta_analysis import shuffled_w1
     gt, ext = fixture()
     rng = np.random.default_rng(1)
     ext = ext.copy()
@@ -410,5 +410,5 @@ def test_percentile_shuffled_control_matches_size_with_factor():
 
 
 def keep_mask_n(p, t):
-    from analysis.meta_updated_v2 import keep_mask
+    from analysis.pond_meta_analysis import keep_mask
     return keep_mask(p, t, 'percentile').sum()

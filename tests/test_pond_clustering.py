@@ -1,4 +1,4 @@
-"""Unit tests for analysis/clustering.py's pure helpers and config loader.
+"""Unit tests for analysis/pond_clustering.py's pure helpers and config loader.
 
 Known answers (stated before running):
   - centroid_matching_distance of a centroid set with a row-permutation of itself is 0;
@@ -19,7 +19,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from analysis.clustering import (
+from analysis.pond_clustering import (
     cell_matrix, centroid_matching_distance, dense_submatrix, entity_confidence,
     enumerate_attribute_sets, fixed_attribute_set, load_clustering_config, process_matrix,
 )
@@ -150,7 +150,7 @@ def test_config_rejects(tmp_path, mutate, match):
 
 
 def test_kish_n_eff():
-    from analysis.clustering import kish_n_eff
+    from analysis.pond_clustering import kish_n_eff
     assert kish_n_eff(np.ones(7)) == pytest.approx(7)
     assert kish_n_eff(np.array([1.0, 0.0, 0.0])) == pytest.approx(1)
 
@@ -158,7 +158,7 @@ def test_kish_n_eff():
 # ── RowShuffler (outlier_adjust shuffled control) ──
 
 def _shuffler_fixture():
-    from analysis.clustering import RowShuffler
+    from analysis.pond_clustering import RowShuffler
     # entities 1, 2 (dense) and 3 (outside the dense index); attributes a, b.
     ext = pd.DataFrame({
         'entity_id': [1, 1, 1, 2, 2, 3, 3],

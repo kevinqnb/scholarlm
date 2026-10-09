@@ -1,4 +1,4 @@
-"""Fit-row sample and recalibration maps for analysis/calibration_updated_v4.py.
+"""Fit-row sample and recalibration maps for analysis/calibration.py.
 
 Import-side-effect free so it can be unit tested on a hand-built fixture.
 

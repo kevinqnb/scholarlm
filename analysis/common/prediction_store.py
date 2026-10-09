@@ -1,9 +1,9 @@
 """Row identity and provenance for the 'real' cells of calibration predictions.pkl.
 
-analysis/calibration_updated_v3.py stores, with every real cell's score arrays, the
+analysis/calibration.py stores, with every real cell's score arrays, the
 measurement_id / document_id / attribute of each scored row, the sha256 of the
 final.json and combined.json they were scored from, and the Platt sample's ids.
-Consumers (analysis/meta_inputs.stored_prediction_rows) then join scores to rows by
+Consumers (common/meta_inputs.stored_prediction_rows, decision_threshold.py) then join scores to rows by
 measurement_id and verify all of it, instead of rebuilding the row selection by
 position. Import-side-effect free so it can be unit tested on a hand-built fixture.
 """

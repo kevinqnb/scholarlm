@@ -701,7 +701,7 @@ def main():
         plot_w1_curves(w1_df, ecosystem, attributes, thresholds, threshold_mode, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
     plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf')
 
-    manifest.update(analysis_config_id=cfg['id'], script='analysis/meta_updated_v2.py', seed=seed, n_boot=n_boot,
+    manifest.update(analysis_config_id=cfg['id'], script='analysis/pond_meta_analysis.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
                     reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds, threshold_mode=threshold_mode,
                     min_n=min_n, outlier_adjust=sec['outlier_adjust'],

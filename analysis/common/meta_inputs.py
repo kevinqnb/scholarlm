@@ -1,12 +1,12 @@
 """Config loading, input resolution and the score join for the pond meta analysis
-(analysis/meta_updated_v2.py, analysis/clustering.py; data loading in pond_meta.py).
+(analysis/pond_meta_analysis.py, analysis/pond_clustering.py; data loading in pond_meta.py).
 
 Kept apart from those scripts for the same reason as calibration_ids.py: these
 helpers have no import-time side effects and need no heavy data, so they can be unit
 tested on a hand-built fixture (tests/test_meta_inputs.py).
 
 Confidences are NOT recomputed here. They are the recalibrated probe / NTP
-predictions that analysis/calibration_updated_v4.py stored in
+predictions that analysis/calibration.py stored in
 analysis/results/calibration/<calibration config id>/predictions.pkl (the 'real'
 cell with train dataset == test dataset). Each real cell stores its own
 measurement_ids (plus document_ids, attributes, the final.json / combined.json sha256
@@ -46,13 +46,13 @@ from analysis.common.prediction_store import check_real_cell
 from analysis.common.matching import parse_numeric
 from analysis.common.provenance import sha256_file
 
-# meta_updated_v2.py's config section: hard confidence thresholds.
+# pond_meta_analysis.py's config section: hard confidence thresholds.
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
                    "n_shuffle_samples", "outlier_adjust", "threshold_mode")
 # Which calibration script built calibration_config_id's predictions.pkl (and so which
-# config loader validates it). Only calibration_updated_v4.py's are read now; the v3
+# config loader validates it). Only calibration.py's are read now; the v3
 # entry was dropped with the retired v1 meta analysis.
 CALIBRATION_LOADERS = {"v4": load_calibration_v4_config}
 # The distribution every extracted setting is compared against (Q-Q x-axis, W2):
@@ -83,7 +83,7 @@ def numeric_point_value(point_value: pd.Series) -> pd.Series:
 
 
 def load_meta_v2_config(path: Path) -> dict:
-    """Load and validate an analysis config for meta_updated_v2.py.
+    """Load and validate an analysis config for pond_meta_analysis.py.
 
     ``params`` holds exactly the ``meta_v2`` section (SECTION_V2_KEYS: no defaults, no
     extras). ``reference`` is one of REFERENCE_CHOICES; ``ecosystems`` / ``attributes``
@@ -199,7 +199,7 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
 
     predictions_path = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id / "predictions.pkl"
     if not predictions_path.exists():
-        raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration_updated_v4.py first")
+        raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration.py first")
 
     dedup_dir = None
     if sec["rows"] == "deduplicated":
