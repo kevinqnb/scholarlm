@@ -472,39 +472,67 @@ def split_value_and_unit_suffix(value: str, units: str | None, canonical_units: 
 
     Case 2 -- `units` is None/blank: some baselines drop the unit into
     `value` and leave `units` empty entirely (observed: GLiNER's
-    value="34%", units=None). Tries a trailing '%', then progressively
-    shorter whitespace-delimited trailing token-runs of `value` (longest
-    first), against canonical_units via standardize_units -- so "34%" still
-    resolves to "percent" when that's this attribute's canonical spelling,
-    the same variant lookup standardize_units itself uses. Returns the
-    first hit that actually lands in canonical_units; if nothing does,
-    returns `value` and `units` completely unchanged -- never guesses at a
-    unit that isn't already a real member of canonical_units.
+    value="34%", units=None). Tries every candidate trailing remainder of
+    `value` (longest first) against canonical_units via standardize_units --
+    so "34%" still resolves to "percent" when that's this attribute's
+    canonical spelling, the same variant lookup standardize_units itself
+    uses. Candidate cut points are (a) any whitespace boundary and (b) a
+    digit/')' immediately followed by a unit-start character (see
+    `_unit_tail_cut_points`), so "3.0 GPa", "48K", "5mg/L" and
+    "2.05(5)K" are all found. A cut never lands inside an alphabetic run:
+    "5mK" is cut before the 'm' (tail "mK") and never before the 'K', so it
+    can't be misread as 5 K -- a 1000x error. Returns the first hit that
+    actually lands in canonical_units; if nothing does, returns `value` and
+    `units` completely unchanged -- never guesses at a unit that isn't
+    already a real member of canonical_units.
 
     Returns:
         (value_text_for_shape_parsing, units_to_use).
     """
     s = value.strip()
 
-    if units:
+    if units and units.strip():
         u = units.strip()
-        if u and s.endswith(u) and s != u:
+        if s.endswith(u) and s != u:
             return s[: -len(u)].strip(), units
         return s, units
 
     if not canonical_units:
         return s, units
 
-    if s.endswith("%"):
-        standardized, _ = standardize_units("%", canonical_units)
+    for cut in _unit_tail_cut_points(s):
+        head, tail = s[:cut].strip(), s[cut:].strip()
+        if not head:
+            continue
+        standardized, _ = standardize_units(tail, canonical_units)
         if standardized in canonical_units:
-            return s[:-1].strip(), standardized
-
-    tokens = s.split()
-    for split_point in range(len(tokens) - 1, 0, -1):
-        candidate = " ".join(tokens[split_point:])
-        standardized, _ = standardize_units(candidate, canonical_units)
-        if standardized in canonical_units:
-            return " ".join(tokens[:split_point]), standardized
+            return head, standardized
 
     return s, units
+
+
+# Non-alphabetic characters that can begin a unit token glued onto a number.
+_GLUED_UNIT_START_CHARS = "%°‰"
+
+
+def _unit_tail_cut_points(s: str) -> list:
+    """Indices at which `s[i:]` could be a trailing unit string, longest tail first.
+
+    A cut point is a non-space character that either follows whitespace, or
+    follows a digit / ')' directly AND is a unit-start character (a letter,
+    which covers µ/μ, or one of `_GLUED_UNIT_START_CHARS`). Requiring the
+    preceding char to be a digit/')' means no cut ever lands inside a run of
+    letters, so a prefix like the 'm' of "mK" can't be silently dropped.
+    Digits, signs, '.', '±', '~', '(' etc. never start a glued tail, so
+    "1.5e-3" and "1.5x10^8" produce no glued cut that is itself a plausible
+    unit (and the canonical-membership check downstream rejects the rest)."""
+    cuts = []
+    for i in range(1, len(s)):
+        if s[i].isspace():
+            continue
+        if s[i - 1].isspace():
+            cuts.append(i)
+        elif s[i - 1].isdigit() or s[i - 1] == ")":
+            if s[i].isalpha() or s[i] in _GLUED_UNIT_START_CHARS:
+                cuts.append(i)
+    return cuts

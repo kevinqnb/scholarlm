@@ -148,7 +148,7 @@ def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
             for field in parsing.QUALIFIER_FIELDS:
                 record[field] = shape[field]
             changed.append("qualifiers")
-            if detected_units is not None and record.get("units") is None:
+            if detected_units is not None and _is_blank(record.get("units")):
                 record["units"] = detected_units
                 changed.append("units")
 

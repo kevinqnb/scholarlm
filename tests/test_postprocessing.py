@@ -391,3 +391,21 @@ def test_postprocess_experiment_normalizes_provenance_and_survives_expansion(tmp
     assert [r["page_number"] for r in rows] == [[4], [4], [7]]
     assert [r["context"] for r in rows] == [[None], [None], [7]]
     assert all(pp.provenance_lengths_equal(r) for r in rows)
+
+
+def test_glued_unit_recovered_into_blank_units_none_and_empty_string():
+    canonical = {"tc": frozenset({"K", "mK"})}
+    for blank in (None, "", "  "):
+        record, changed = pp.postprocess_record(
+            _record(value="48K", units=blank), canonical_units=canonical,
+        )
+        assert changed == ["qualifiers", "units"], blank
+        assert record["point_value"] == 48.0 and record["units"] == "K", blank
+
+
+def test_glued_unit_refuses_to_cut_inside_alphabetic_run():
+    # "5mK" with canonical {"K"} must stay unparsed/unfilled, not become 5 K.
+    record, changed = pp.postprocess_record(
+        _record(value="5mK", units=None), canonical_units={"tc": frozenset({"K"})},
+    )
+    assert changed == [] and record["units"] is None and record["qualifiers"] is None
