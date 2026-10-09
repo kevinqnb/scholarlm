@@ -21,7 +21,7 @@ import seaborn as sns
 from analysis.common.config import load_calibration_validated_config, validations_path
 from analysis.common import calibration_ids as cids
 from analysis.common import nested_bootstrap as nb
-from analysis.match_cache import sha256_file
+from analysis.common.provenance import sha256_file
 from analysis.common.prediction_store import PROVENANCE_KEYS, real_cell_provenance
 from analysis.common.calibration_plot_utils import draw_reliability_curve
 from analysis.common.head_activations import HeadActivationCache

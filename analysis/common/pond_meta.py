@@ -21,7 +21,7 @@ from analysis.common.meta_inputs import (
     attach_scores, dedup_rows_with_scores, load_checked_dedup_rows, numeric_point_value, row_provenance,
     stored_prediction_rows,
 )
-from analysis.match_cache import repo_relative, sha256_file
+from analysis.common.provenance import repo_relative, sha256_file
 from experiments.run_extraction import load_dataset_config
 
 # Paper figure style (ACL-style Times metrics). Not applied on import: each plotting

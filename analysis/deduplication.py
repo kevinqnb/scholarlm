@@ -68,7 +68,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis import deduplicate_cache as dc
 from analysis.common.config import _load_envelope, get_section
-from analysis.match_cache import repo_relative, sha256_file
+from analysis.common.provenance import repo_relative, sha256_file
 from experiments.run_extraction import load_dataset_config
 import utils as paths
 

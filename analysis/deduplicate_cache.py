@@ -36,7 +36,7 @@ is explicit and recorded, never inferred):
     stays null; anything else is a hard error.
   * ``numeric_coerce``: a strict column whose values are numeric strings in some
     rows and floats in others (``point_value``) is parsed with match_cache's
-    ``_parse_numeric``. Unlike match_cache, a value that does not parse is KEPT
+    ``parse_numeric``. Unlike match_cache, a value that does not parse is KEPT
     as its original string rather than turned into NaN -- NaN would make two
     different garbage strings (both "null") strict-equal to each other, which
     for dedup means merging unrelated rows. The count of kept-raw values is
@@ -66,7 +66,8 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.deduplication import _block_key, _is_null, _validate, pair_score
 from analysis.common.config import _load_envelope, get_section
-from analysis.match_cache import _parse_numeric, edges_above_threshold, repo_relative, sha256_file
+from analysis.common.matching import edges_above_threshold, parse_numeric
+from analysis.common.provenance import repo_relative, sha256_file
 import utils as paths
 
 DEDUP_CACHE_ROOT = _REPO_ROOT / "analysis" / "results" / "deduplicate_cache"
@@ -164,7 +165,7 @@ def prepare_frame(records: list[dict], sec: dict, label: str) -> pd.DataFrame:
     for c in sec["numeric_coerce"]:
         out, kept_raw = [], []
         for v in df[c]:
-            p = _parse_numeric(v)
+            p = parse_numeric(v)
             if pd.isna(p) and not _is_null(v):
                 kept_raw.append(v)
                 out.append(v)

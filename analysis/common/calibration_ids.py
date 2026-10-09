@@ -216,7 +216,7 @@ def load_cached_matching(extraction_id: str, ground_truth_path: Path):
 
     The cache holds every strict-matched candidate (built at threshold 0.0);
     the dataset config's own fuzzy_threshold is applied here via
-    match_cache.load_match_cache(..., fuzzy_threshold=...).
+    matching.load_match_cache(..., fuzzy_threshold=...).
 
     Returns:
         (ground_truth_df, extraction_df, edges) -- edges are (gt_idx, ex_idx)
@@ -224,15 +224,16 @@ def load_cached_matching(extraction_id: str, ground_truth_path: Path):
     """
     # Lazy: these pull in the extraction runner, which _resolve_job.py's
     # submit-time validation of a calibration config shouldn't pay for.
-    from analysis import match_cache, recovery_validity as rv
+    from analysis import recovery_validity as rv
+    from analysis.common import matching
 
     _dataset, dataset_config, gt_df, ext_df, ext_path, gt_path = rv.load_frames(
         extraction_id, ground_truth_path,
     )
-    cfg = match_cache.get_matching_config(dataset_config)
+    cfg = matching.get_matching_config(dataset_config)
     rv._assert_matching_columns_present(gt_df, ext_df, cfg)
 
-    cache_path = match_cache.match_cache_path(extraction_id)
+    cache_path = matching.match_cache_path(extraction_id)
     if not cache_path.exists():
         raise FileNotFoundError(
             f"{extraction_id}: no match_cache.pkl at {cache_path}. Run "
@@ -243,7 +244,7 @@ def load_cached_matching(extraction_id: str, ground_truth_path: Path):
     rv._assert_ground_truth_matches_cache(extraction_id, cache_path, gt_path, gt_df)
     rv._assert_extraction_matches_cache(extraction_id, cache_path, ext_path)
 
-    edges = match_cache.load_match_cache(extraction_id, fuzzy_threshold=cfg["fuzzy_threshold"])
+    edges = matching.load_match_cache(extraction_id, fuzzy_threshold=cfg["fuzzy_threshold"])
     n_gt, n_ext = len(gt_df), len(ext_df)
     for gt_idx, ex_idx in edges:
         if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):

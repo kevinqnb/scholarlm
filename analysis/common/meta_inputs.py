@@ -43,7 +43,8 @@ from analysis.common.config import (
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v4_config,
 )
 from analysis.common.prediction_store import check_real_cell
-from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
+from analysis.common.matching import parse_numeric
+from analysis.common.provenance import sha256_file
 
 # meta_updated_v2.py's config section: hard confidence thresholds.
 SECTION_V2 = "meta_v2"
@@ -72,11 +73,11 @@ JOIN_CHECK_COLS = ("document_id", "attribute")
 
 def numeric_point_value(point_value: pd.Series) -> pd.Series:
     """The numeric value the meta analysis uses for every row: ``point_value`` parsed with
-    match_cache's ``_parse_numeric`` (plain numbers / numeric strings and "m x 10^e"
+    matching's ``parse_numeric`` (plain numbers / numeric strings and "m x 10^e"
     scientific notation), i.e. the same numbers the ground-truth matching sees. Anything
     that does not parse (None, "pH", "1 m^2") is NaN and is dropped downstream by
     ``convert_units``. ``value`` is raw model text (e.g. "ca. 0.26") and is not used."""
-    out = point_value.map(_parse_numeric).astype(float)
+    out = point_value.map(parse_numeric).astype(float)
     assert len(out) == len(point_value)
     return out
 

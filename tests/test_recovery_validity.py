@@ -31,7 +31,7 @@ sys.path.insert(0, str(_REPO / "src"))
 
 import utils as paths  # noqa: E402
 from scholarlm.config import DatasetConfig  # noqa: E402
-from analysis import match_cache  # noqa: E402
+from analysis.common import matching, provenance  # noqa: E402
 from analysis import recovery_validity as rv  # noqa: E402
 
 
@@ -41,7 +41,7 @@ from analysis import recovery_validity as rv  # noqa: E402
 
 
 def test_masks_mark_gt_and_ext_indices_present_in_edges():
-    # edges is already threshold-filtered (match_cache.load_match_cache(id,
+    # edges is already threshold-filtered (matching.load_match_cache(id,
     # fuzzy_threshold=...) -- see module docstring), so the masks just mark
     # presence, no weight/threshold argument.
     edges = [(0, 0), (0, 1)]  # gt row 1 has no surviving edge
@@ -580,7 +580,7 @@ def e2e_fixture(tmp_path, monkeypatch):
     results_root = tmp_path / "results"
     monkeypatch.setattr(paths, "EXPERIMENT_CONFIGS_ROOT", exp_root)
     monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
-    monkeypatch.setattr(match_cache, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
+    monkeypatch.setattr(matching, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
 
     dataset = "testset"
     extraction_id = "2026-01-01-testset-model-extraction-01"
@@ -628,7 +628,7 @@ def e2e_fixture(tmp_path, monkeypatch):
     # Cache built at threshold 0.0: gt row 2 / ext row 2's candidate edge
     # scores 0.2, below the 0.5 fuzzy_threshold above -- excluded once
     # load_match_cache(..., fuzzy_threshold=0.5) filters it.
-    cache_path = match_cache.match_cache_path(extraction_id)
+    cache_path = matching.match_cache_path(extraction_id)
     edges = [(0, 0), (1, 1), (2, 2)]
     edge_weights = [1.0, 1.0, 0.2]
     _write_match_cache(cache_path, edges, edge_weights)
@@ -637,11 +637,11 @@ def e2e_fixture(tmp_path, monkeypatch):
     # built against gt_path/final_path (no postprocessed.json in this fixture,
     # so extraction_path() falls back to final.json).
     meta = {
-        "ground_truth_file": match_cache.repo_relative(gt_path),
-        "ground_truth_sha256": match_cache.sha256_file(gt_path),
+        "ground_truth_file": provenance.repo_relative(gt_path),
+        "ground_truth_sha256": provenance.sha256_file(gt_path),
         "n_gt": len(gt_rows),
-        "extraction_file": match_cache.repo_relative(final_path),
-        "extraction_sha256": match_cache.sha256_file(final_path),
+        "extraction_file": provenance.repo_relative(final_path),
+        "extraction_sha256": provenance.sha256_file(final_path),
     }
     with open(cache_path.with_name("match_cache.meta.json"), "w") as f:
         json.dump(meta, f)
@@ -673,9 +673,9 @@ def test_compute_metrics_for_id_with_validity(e2e_fixture):
 
     assert row["n_gt"] == 3
     assert row["n_ext"] == 3
-    assert row["ground_truth_file"] == match_cache.repo_relative(gt_path)
+    assert row["ground_truth_file"] == provenance.repo_relative(gt_path)
     extraction_dir = paths.find_result_dir(extraction_id)
-    assert row["extraction_file"] == match_cache.repo_relative(extraction_dir / "final.json")
+    assert row["extraction_file"] == provenance.repo_relative(extraction_dir / "final.json")
     # gt rows 0,1 recovered (weight 1.0 > 0.5); row 2 not (weight 0.2).
     assert row["recovery"] == pytest.approx(2 / 3)
     assert row["judge_combine_id"] == combine_id
@@ -728,7 +728,7 @@ def test_compute_metrics_for_id_ground_truth_edited_in_place_raises(e2e_fixture)
 def test_compute_metrics_for_id_missing_sidecar_raises(e2e_fixture):
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
 
-    cache_path = match_cache.match_cache_path(extraction_id)
+    cache_path = matching.match_cache_path(extraction_id)
     cache_path.with_name("match_cache.meta.json").unlink()
 
     with pytest.raises(FileNotFoundError, match="match_cache.meta.json"):
@@ -759,7 +759,7 @@ def test_compute_metrics_for_id_sidecar_missing_extraction_tracking_raises(e2e_f
     # (ground_truth_file/sha256/n_gt only) must not be trusted, exactly like
     # a missing sidecar -- it says nothing about which extraction file
     # produced the cache sitting next to it.
-    meta_path = match_cache.match_cache_path(extraction_id).with_name("match_cache.meta.json")
+    meta_path = matching.match_cache_path(extraction_id).with_name("match_cache.meta.json")
     meta = json.loads(meta_path.read_text())
     del meta["extraction_file"]
     del meta["extraction_sha256"]
@@ -913,7 +913,7 @@ def _rewrite_fixture_cache(extraction_id, edges, edge_weights):
     """Swap the e2e fixture's cached edges, keeping its sidecar and future mtime."""
     import os
     import time
-    cache_path = match_cache.match_cache_path(extraction_id)
+    cache_path = matching.match_cache_path(extraction_id)
     _write_match_cache(cache_path, edges, edge_weights)
     future = time.time() + 10
     os.utime(cache_path, (future, future))

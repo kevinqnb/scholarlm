@@ -34,7 +34,7 @@ This is the centralized replacement for the recovery/validity halves of
     ``python analysis/match_cache.py <id>`` first for any id that doesn't
     have one yet, and refuses a cache that predates its own extraction file
     (postprocessed.json, or final.json on fallback -- see
-    ``match_cache.extraction_path``) or the ground truth file rather than
+    ``matching.extraction_path``) or the ground truth file rather than
     silently matching against row positions that have since shifted
     underneath it, or that was built against a *different* ground truth or
     extraction file than the ones given now, per its match_cache.meta.json
@@ -43,7 +43,7 @@ This is the centralized replacement for the recovery/validity halves of
     Every cache is built at ``fuzzy_threshold=0.0`` regardless of the
     dataset's configured threshold (see ``analysis/match_cache.py``'s module
     docstring), so this script always loads it back via
-    ``match_cache.load_match_cache(id, fuzzy_threshold=<the dataset's own
+    ``matching.load_match_cache(id, fuzzy_threshold=<the dataset's own
     threshold>)`` -- never the raw 0.0 cache -- so the edges it works with
     are already the ones that threshold selects, not a second manual filter
     reimplementing the same cutoff;
@@ -80,7 +80,7 @@ defaulted (CLAUDE.md: no inferred defaults for a value that changes the
 reported numbers) -- pass the repo's own ``experiments/config.yaml``
 ``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
 repo's seeding. ``--ground-truth-file`` must be the exact file the
-corresponding ``match_cache.py`` run used (its match_cache.meta.json sidecar
+corresponding ````match_cache.py`` run used (its match_cache.meta.json sidecar
 is checked against it -- see ``_assert_ground_truth_matches_cache``).
 
 ``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
@@ -124,7 +124,7 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis import match_cache
+from analysis.common import matching, provenance
 from analysis.common.config import get_ground_truth_path, get_section, load_analysis_config
 from analysis.common.loaders import load_ground_truth_file
 from analysis.common.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
@@ -139,11 +139,11 @@ import utils as paths
 
 def load_frames(experiment_id: str, ground_truth_path: Path):
     """Load an experiment's ground truth + extraction frames exactly as
-    ``match_cache.build_match_cache`` did when it built this id's cache
+    ````match_cache.build_match_cache`` did when it built this id's cache
     (reset_index, no unit conversion, no row filtering) -- the cached
     (gt_idx, ex_idx) edges are positions into frames loaded this same way,
     so loading them any other way would silently misalign the cache. The
-    extraction file itself is resolved via ``match_cache.extraction_path``,
+    extraction file itself is resolved via ``matching.extraction_path``,
     the same postprocessed.json-else-final.json preference
     ``build_match_cache`` used.
 
@@ -171,7 +171,7 @@ def load_frames(experiment_id: str, ground_truth_path: Path):
             f"disagrees with the dataset its own path resolves to ({dataset!r})"
         )
 
-    extraction_file_path, _used_fallback = match_cache.extraction_path(experiment_id)
+    extraction_file_path, _used_fallback = matching.extraction_path(experiment_id)
     with open(extraction_file_path) as f:
         extraction_df = pd.DataFrame(json.load(f)).reset_index(drop=True)
 
@@ -237,8 +237,8 @@ def _assert_ground_truth_matches_cache(
         cache_meta = json.load(f)
 
     actual = {
-        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
-        "ground_truth_sha256": match_cache.sha256_file(ground_truth_path),
+        "ground_truth_file": provenance.repo_relative(ground_truth_path),
+        "ground_truth_sha256": provenance.sha256_file(ground_truth_path),
         "n_gt": len(ground_truth_df),
     }
     mismatches = [
@@ -261,7 +261,7 @@ def _assert_extraction_matches_cache(
     """Raise unless match_cache.py's own match_cache.meta.json sidecar
     confirms cache_path was built against this exact extraction_file_path
     (postprocessed.json, or final.json on fallback -- see
-    match_cache.extraction_path).
+    matching.extraction_path).
 
     Mirrors _assert_ground_truth_matches_cache, for the other file a cache's
     (gt_idx, ex_idx) edges are positions into. Without this, a cache built
@@ -303,8 +303,8 @@ def _assert_extraction_matches_cache(
         )
 
     actual = {
-        "extraction_file": match_cache.repo_relative(extraction_file_path),
-        "extraction_sha256": match_cache.sha256_file(extraction_file_path),
+        "extraction_file": provenance.repo_relative(extraction_file_path),
+        "extraction_sha256": provenance.sha256_file(extraction_file_path),
     }
     mismatches = [
         f"{key}: cache={cache_meta.get(key)!r} vs current={actual[key]!r}"
@@ -624,7 +624,7 @@ def count_split_rows(extraction_df: pd.DataFrame) -> int:
 
 # ---------------------------------------------------------------------------
 # Recovered / matched masks, from an ALREADY-threshold-filtered edge list
-# (i.e. match_cache.load_match_cache(id, fuzzy_threshold=...) -- see module
+# (i.e. matching.load_match_cache(id, fuzzy_threshold=...) -- see module
 # docstring) + a cross-check against analysis.metrics' own rates
 # ---------------------------------------------------------------------------
 
@@ -654,7 +654,7 @@ def filter_edges_by_threshold(
     edges: list[tuple[int, int]], edge_weights: list[float], fuzzy_threshold: float,
 ) -> tuple[list[tuple[int, int]], list[float]]:
     """(edges, weights) with ``w >= fuzzy_threshold`` -- the same inclusive
-    boundary as ``match_cache.edges_above_threshold``, but keeping the weights
+    boundary as ``matching.edges_above_threshold``, but keeping the weights
     (which the matching needs) aligned with the surviving edges.
     """
     if len(edges) != len(edge_weights):
@@ -909,10 +909,10 @@ def _load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
         experiment_id, ground_truth_path,
     )
 
-    cfg = match_cache.get_matching_config(dataset_config)
+    cfg = matching.get_matching_config(dataset_config)
     _assert_matching_columns_present(ground_truth_df, extraction_df, cfg)
 
-    cache_path = match_cache.match_cache_path(experiment_id)
+    cache_path = matching.match_cache_path(experiment_id)
     if not cache_path.exists():
         raise FileNotFoundError(
             f"{experiment_id}: no match_cache.pkl at {cache_path}. Run "
@@ -926,7 +926,7 @@ def _load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
     # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
     # module docstring): the raw edge list is every strict-matched candidate.
-    _matching, raw_edges, raw_weights = match_cache.load_match_cache(experiment_id)
+    _matching, raw_edges, raw_weights = matching.load_match_cache(experiment_id)
     for gt_idx, ex_idx in raw_edges:
         if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
             raise RuntimeError(
@@ -1045,8 +1045,8 @@ def compute_metrics_for_id(
     row = {
         "experiment_id": experiment_id,
         "dataset": dataset,
-        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
-        "extraction_file": match_cache.repo_relative(extraction_file_path),
+        "ground_truth_file": provenance.repo_relative(ground_truth_path),
+        "extraction_file": provenance.repo_relative(extraction_file_path),
         "n_gt": n_gt,
         "n_ext": n_ext,
         "fuzzy_threshold": threshold,
@@ -1099,7 +1099,7 @@ def compute_metrics_for_id(
 # computed. Purely additive: nothing above this section calls into it, and
 # main()/compute_metrics_for_id are unchanged. It takes already-computed score
 # arrays rather than reading anything: ``edges`` must be threshold-filtered
-# (match_cache.load_match_cache(id, fuzzy_threshold=...)) and indexed into the
+# (matching.load_match_cache(id, fuzzy_threshold=...)) and indexed into the
 # same row space as ``probs``/``labels`` -- nothing here checks that, because
 # nothing here has the frames to check it against. Imports are inside the
 # functions so importing this module stays as light as before.

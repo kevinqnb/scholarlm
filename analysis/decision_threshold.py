@@ -350,7 +350,7 @@ def resolve_inputs(cfg: dict) -> dict:
 def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str) -> pd.DataFrame:
     """Observed and permuted curves for both methods of one (train, test) cell."""
     from analysis import recovery_validity as rv
-    from analysis.match_cache import repo_relative, sha256_file
+    from analysis.common.provenance import repo_relative, sha256_file
     from analysis.common.prediction_store import check_real_cell
 
     params = cfg["params"]

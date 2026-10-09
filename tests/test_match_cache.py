@@ -26,6 +26,7 @@ sys.path.insert(0, str(_REPO))
 import utils as paths  # noqa: E402
 from scholarlm.config import DatasetConfig  # noqa: E402
 from analysis import match_cache  # noqa: E402
+from analysis.common import matching, provenance  # noqa: E402
 
 
 class _Entity(BaseModel):
@@ -53,7 +54,7 @@ def test_get_matching_config_happy_path():
         fuzzy_threshold=1 / 3,
         numeric_coerce=["point_value"],
     )
-    resolved = match_cache.get_matching_config(cfg)
+    resolved = matching.get_matching_config(cfg)
     assert resolved == {
         "strict": {"document_id": "document_id"},
         "fuzzy": {"name": "name"},
@@ -69,19 +70,19 @@ def test_get_matching_config_numeric_coerce_defaults_to_empty_list():
         fuzzy_matching={"name": "name"},
         fuzzy_threshold=0.5,
     )
-    assert match_cache.get_matching_config(cfg)["numeric_coerce"] == []
+    assert matching.get_matching_config(cfg)["numeric_coerce"] == []
 
 
 def test_get_matching_config_raises_when_unset():
     cfg = _minimal_dataset_config()  # no matching fields set
     with pytest.raises(KeyError, match="strict_matching"):
-        match_cache.get_matching_config(cfg)
+        matching.get_matching_config(cfg)
 
 
 def test_get_matching_config_raises_when_partially_set():
     cfg = _minimal_dataset_config(strict_matching={"document_id": "document_id"})
     with pytest.raises(KeyError, match="fuzzy_matching"):
-        match_cache.get_matching_config(cfg)
+        matching.get_matching_config(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -159,13 +160,13 @@ def test_main_config_reads_experiment_ids_and_calls_build_match_cache(tmp_path, 
 
 
 def test_repo_relative_under_repo_root():
-    path = match_cache._REPO_ROOT / "data" / "pond" / "ground_truth_review.json"
-    assert match_cache.repo_relative(path) == "data/pond/ground_truth_review.json"
+    path = provenance._REPO_ROOT / "data" / "pond" / "ground_truth_review.json"
+    assert provenance.repo_relative(path) == "data/pond/ground_truth_review.json"
 
 
 def test_repo_relative_outside_repo_root_returns_plain_string(tmp_path):
     path = tmp_path / "ground_truth.json"
-    assert match_cache.repo_relative(path) == str(path)
+    assert provenance.repo_relative(path) == str(path)
 
 
 def test_sha256_file_matches_known_digest(tmp_path):
@@ -173,7 +174,7 @@ def test_sha256_file_matches_known_digest(tmp_path):
 
     path = tmp_path / "gt.json"
     path.write_text("hello world")
-    assert match_cache.sha256_file(path) == hashlib.sha256(b"hello world").hexdigest()
+    assert provenance.sha256_file(path) == hashlib.sha256(b"hello world").hexdigest()
 
 
 def test_sha256_file_differs_when_contents_differ(tmp_path):
@@ -181,7 +182,7 @@ def test_sha256_file_differs_when_contents_differ(tmp_path):
     path_b = tmp_path / "b.json"
     path_a.write_text("[1, 2, 3]")
     path_b.write_text("[1, 2, 4]")
-    assert match_cache.sha256_file(path_a) != match_cache.sha256_file(path_b)
+    assert provenance.sha256_file(path_a) != provenance.sha256_file(path_b)
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +199,7 @@ def test_extraction_path_prefers_postprocessed_json(tmp_path, monkeypatch):
     (extraction_dir / "final.json").write_text("[]")
     (extraction_dir / "postprocessed.json").write_text("[]")
 
-    path, used_fallback = match_cache.extraction_path(experiment_id)
+    path, used_fallback = matching.extraction_path(experiment_id)
     assert path == extraction_dir / "postprocessed.json"
     assert used_fallback is False
 
@@ -211,7 +212,7 @@ def test_extraction_path_falls_back_to_final_json_with_warning(tmp_path, monkeyp
     extraction_dir.mkdir(parents=True)
     (extraction_dir / "final.json").write_text("[]")
 
-    path, used_fallback = match_cache.extraction_path(experiment_id)
+    path, used_fallback = matching.extraction_path(experiment_id)
     assert path == extraction_dir / "final.json"
     assert used_fallback is True
     assert "falling back to final.json" in capsys.readouterr().out
@@ -224,7 +225,7 @@ def test_extraction_path_raises_when_neither_exists(tmp_path, monkeypatch):
     (results_root / "testset" / "extraction" / experiment_id).mkdir(parents=True)
 
     with pytest.raises(FileNotFoundError, match="postprocessed.json or final.json"):
-        match_cache.extraction_path(experiment_id)
+        matching.extraction_path(experiment_id)
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +237,7 @@ def test_extraction_path_raises_when_neither_exists(tmp_path, monkeypatch):
 def build_cache_fixture(tmp_path, monkeypatch):
     results_root = tmp_path / "results"
     monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
-    monkeypatch.setattr(match_cache, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
+    monkeypatch.setattr(matching, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
 
     dataset = "testset"
     experiment_id = "2026-01-01-testset-model-extraction-01"
@@ -274,21 +275,21 @@ def test_build_match_cache_writes_pkl_and_sidecar(tmp_path, build_cache_fixture)
     cache_path = match_cache.build_match_cache(experiment_id, gt_path)
 
     # Written under MATCH_CACHE_ROOT/<id>/, never into the run's own directory.
-    assert cache_path == match_cache.MATCH_CACHE_ROOT / experiment_id / "match_cache.pkl"
-    assert cache_path == match_cache.match_cache_path(experiment_id)
+    assert cache_path == matching.MATCH_CACHE_ROOT / experiment_id / "match_cache.pkl"
+    assert cache_path == matching.match_cache_path(experiment_id)
     assert cache_path.exists()
     assert not (extraction_dir / "match_cache.pkl").exists()
     assert not (extraction_dir / "match_cache.meta.json").exists()
 
-    meta_path = match_cache.match_cache_meta_path(experiment_id)
+    meta_path = matching.match_cache_meta_path(experiment_id)
     assert meta_path == cache_path.with_name("match_cache.meta.json")
     with open(meta_path) as f:
         meta = json.load(f)
-    assert meta["ground_truth_file"] == match_cache.repo_relative(gt_path)
-    assert meta["ground_truth_sha256"] == match_cache.sha256_file(gt_path)
+    assert meta["ground_truth_file"] == provenance.repo_relative(gt_path)
+    assert meta["ground_truth_sha256"] == provenance.sha256_file(gt_path)
     assert meta["n_gt"] == 2
-    assert meta["extraction_file"] == match_cache.repo_relative(extraction_dir / "final.json")
-    assert meta["extraction_sha256"] == match_cache.sha256_file(extraction_dir / "final.json")
+    assert meta["extraction_file"] == provenance.repo_relative(extraction_dir / "final.json")
+    assert meta["extraction_sha256"] == provenance.sha256_file(extraction_dir / "final.json")
 
 
 def test_build_match_cache_prefers_postprocessed_json(tmp_path, build_cache_fixture):
@@ -308,10 +309,10 @@ def test_build_match_cache_prefers_postprocessed_json(tmp_path, build_cache_fixt
 
     match_cache.build_match_cache(experiment_id, gt_path)
 
-    with open(match_cache.match_cache_meta_path(experiment_id)) as f:
+    with open(matching.match_cache_meta_path(experiment_id)) as f:
         meta = json.load(f)
-    assert meta["extraction_file"] == match_cache.repo_relative(postprocessed_path)
-    assert meta["extraction_sha256"] == match_cache.sha256_file(postprocessed_path)
+    assert meta["extraction_file"] == provenance.repo_relative(postprocessed_path)
+    assert meta["extraction_sha256"] == provenance.sha256_file(postprocessed_path)
 
 
 def test_build_match_cache_raises_on_zero_document_id_overlap(tmp_path, build_cache_fixture):
@@ -339,10 +340,10 @@ def test_build_match_cache_rebuild_updates_sidecar_to_new_ground_truth(tmp_path,
         json.dump([{"document_id": "d1", "attribute": "ph"}, {"document_id": "d2", "attribute": "tn"}, {"document_id": "d1", "attribute": "extra"}], f)
     match_cache.build_match_cache(experiment_id, gt_b_path)
 
-    with open(match_cache.match_cache_meta_path(experiment_id)) as f:
+    with open(matching.match_cache_meta_path(experiment_id)) as f:
         meta = json.load(f)
-    assert meta["ground_truth_file"] == match_cache.repo_relative(gt_b_path)
-    assert meta["ground_truth_sha256"] == match_cache.sha256_file(gt_b_path)
+    assert meta["ground_truth_file"] == provenance.repo_relative(gt_b_path)
+    assert meta["ground_truth_sha256"] == provenance.sha256_file(gt_b_path)
     assert meta["n_gt"] == 3
 
 
@@ -357,7 +358,7 @@ def test_build_match_cache_deletes_stale_sidecar_when_rebuild_fails(tmp_path, bu
     with open(gt_a_path, "w") as f:
         json.dump([{"document_id": "d1", "attribute": "ph"}, {"document_id": "d2", "attribute": "tn"}], f)
     match_cache.build_match_cache(experiment_id, gt_a_path)
-    assert match_cache.match_cache_meta_path(experiment_id).exists()
+    assert matching.match_cache_meta_path(experiment_id).exists()
 
     def _boom(*args, **kwargs):
         raise RuntimeError("simulated failure after sidecar unlink")
@@ -370,34 +371,34 @@ def test_build_match_cache_deletes_stale_sidecar_when_rebuild_fails(tmp_path, bu
     with pytest.raises(RuntimeError, match="simulated failure"):
         match_cache.build_match_cache(experiment_id, gt_b_path)
 
-    assert not match_cache.match_cache_meta_path(experiment_id).exists()
+    assert not matching.match_cache_meta_path(experiment_id).exists()
 
 
 def test_default_match_cache_root_is_analysis_results_match_cache():
     # Unpatched: the real location, repo-relative.
-    assert match_cache.MATCH_CACHE_ROOT == match_cache._REPO_ROOT / "analysis" / "results" / "match_cache"
-    assert match_cache.repo_relative(match_cache.match_cache_path("some-id")) == (
+    assert matching.MATCH_CACHE_ROOT == provenance._REPO_ROOT / "analysis" / "results" / "match_cache"
+    assert provenance.repo_relative(matching.match_cache_path("some-id")) == (
         "analysis/results/match_cache/some-id/match_cache.pkl"
     )
-    assert match_cache.repo_relative(match_cache.match_cache_meta_path("some-id")) == (
+    assert provenance.repo_relative(matching.match_cache_meta_path("some-id")) == (
         "analysis/results/match_cache/some-id/match_cache.meta.json"
     )
 
 
 def test_load_match_cache_reads_only_the_new_location(tmp_path, monkeypatch):
     # A cache left in the old per-run location must never be served.
-    monkeypatch.setattr(match_cache, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
+    monkeypatch.setattr(matching, "MATCH_CACHE_ROOT", tmp_path / "match_cache_root")
     old_dir = tmp_path / "results" / "testset" / "extraction" / "id-a"
     old_dir.mkdir(parents=True)
     import pickle
     with open(old_dir / "match_cache.pkl", "wb") as f:
         pickle.dump(([], [(0, 0)], [1.0]), f)
     with pytest.raises(FileNotFoundError, match="No match cache"):
-        match_cache.load_match_cache("id-a")
-    new_path = match_cache.match_cache_path("id-a")
+        matching.load_match_cache("id-a")
+    new_path = matching.match_cache_path("id-a")
     new_path.parent.mkdir(parents=True)
     with open(new_path, "wb") as f:
         pickle.dump(([(0, 1)], [(0, 1)], [0.75]), f)
-    assert match_cache.load_match_cache("id-a") == ([(0, 1)], [(0, 1)], [0.75])
-    assert match_cache.load_match_cache("id-a", fuzzy_threshold=0.75) == [(0, 1)]
-    assert match_cache.load_match_cache("id-a", fuzzy_threshold=0.76) == []
+    assert matching.load_match_cache("id-a") == ([(0, 1)], [(0, 1)], [0.75])
+    assert matching.load_match_cache("id-a", fuzzy_threshold=0.75) == [(0, 1)]
+    assert matching.load_match_cache("id-a", fuzzy_threshold=0.76) == []

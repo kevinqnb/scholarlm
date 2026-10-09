@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from analysis.match_cache import sha256_file
+from analysis.common.provenance import sha256_file
 
 ID_COLS = ("measurement_id", "document_id", "attribute")
 # Keys a real cell must carry besides probe_probs / ntp_probs / labels / platt.
