@@ -1,0 +1,57 @@
+id: 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-noplatt-01
+project: scholarlm
+description: >
+  Train-side Platt vs no-Platt comparison under calibration v4, noplatt side. v4's intercept_fit
+  recalibration fixes the slope at 1 (v3 re-fit slope + intercept, which made train-side Platt
+  redundant), so the probe's own slope now survives into the scored probabilities.
+  Same inputs and params as 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01.
+  Differs from the reference only in probe_variant: noplatt, loading head_probe_noplatt.pkl /
+  ntp_calibrator_noplatt.pkl (plain LogisticRegression, no CalibratedClassifierCV) from the
+  same qwen v3 probe dirs (written by the 2026-10-05 run with Platt off).
+  Run: bash analysis/submit.sh calibration_v4 2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-noplatt-01 --walltime 04:00:00 --omp 4
+  Supermat uses the v3 (pre-v3s) synthetic probe/test ids, like the reference -- supermat
+  numbers are invalid until switched to the v3s supermat probe.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: noplatt
+  syn_split: primary
+  n_boot: 2000
+  recalibration: intercept_fit
+  fit_source: sample
+  fit_n: 100
+  fit_seed: 0
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-pond-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-02-nfix-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-02-supermat-synthetic-probe-qwen-2.5-7b-v3-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-supermat-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
