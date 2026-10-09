@@ -32,3 +32,4 @@ params:
     min_n: 5
     n_shuffle_samples: 1000
     outlier_adjust: false
+    threshold_mode: value

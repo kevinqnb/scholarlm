@@ -70,8 +70,8 @@ def test_threshold_filter_keeps_ties_and_t0_is_everything():
 
 def test_stats_table_known_answers():
     gt, ext = fixture()
-    df = build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS)
-    assert list(df['setting']) == all_settings('ground_truth', THRESHOLDS)
+    df = build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value')
+    assert list(df['setting']) == all_settings('ground_truth', THRESHOLDS, 'value')
     cols = ['n', 'n_docs', 'n_nonpos', 'mean', 'std', 'q1', 'median', 'q3']
     assert 'extracted' not in set(df['setting'])  # t = 0 is the unfiltered set
     pd.testing.assert_series_equal(row(df, 'probe_ge_0.00')[cols], row(df, 'ntp_ge_0.00')[cols], check_names=False)
@@ -88,7 +88,7 @@ def test_stats_table_known_answers():
 
 def test_survival_table_known_answers():
     gt, ext = fixture()
-    stats_df = build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS)
+    stats_df = build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value')
     sv = build_survival_table(stats_df, 'ground_truth')
     assert len(sv) == 2 * len(THRESHOLDS) and (sv['n_ref'] == 30).all()   # 30 GT rows; 2 methods x 3 thresholds
     g = lambda m, t: sv[(sv['method'] == m) & (sv['threshold'] == t)].iloc[0]
@@ -98,7 +98,7 @@ def test_survival_table_known_answers():
     assert [g('probe', t)['frac_docs_vs_t0'] for t in THRESHOLDS] == [1.0, 0.75, 0.5]
     assert [g('ntp', t)['n_ext'] for t in THRESHOLDS] == [40, 40, 0] and g('ntp', 0.6)['frac_rows_vs_t0'] == 0.0
     # it agrees with the W1 table's counts
-    w1 = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=20, n_shuffle=5, seed=0)
+    w1 = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=20, n_shuffle=5, seed=0)
     for _, r in w1[w1['method'].isin(['ntp', 'probe'])].iterrows():
         s = g(r['method'], r['threshold'])
         assert (s['n_ext'], s['n_docs_ext'], s['n_ref']) == (r['n_ext'], r['n_docs_ext'], r['n_ref'])
@@ -106,7 +106,7 @@ def test_survival_table_known_answers():
 
 def test_w1_table_known_answers():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
     assert 'ground_truth' not in set(df['setting'])
     ref = gt['converted_value'].to_numpy()
     assert 'extracted' not in set(df['setting'])
@@ -138,7 +138,7 @@ def test_ref_stats_known_answer_and_w1_curve_plot_is_raw_over_range(tmp_path, mo
     import matplotlib.pyplot as plt
     import analysis.meta_updated_v2 as m
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
     q1, q3 = np.quantile(gt['converted_value'].to_numpy(), [0.25, 0.75], method='hazen')
     assert (df['ref_iqr'] == q3 - q1).all()   # one value per cell, the reference's Hazen IQR in raw units
     rng = gt['converted_value'].max() - gt['converted_value'].min()
@@ -147,7 +147,7 @@ def test_ref_stats_known_answer_and_w1_curve_plot_is_raw_over_range(tmp_path, mo
     # tn is a LOG_SCALE attribute: the plotted curve must still be the RAW W1 / range.
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves(df, ECO, [ATTR], THRESHOLDS, tmp_path / 'w1.pdf')
+    m.plot_w1_curves(df, ECO, [ATTR], THRESHOLDS, 'value', tmp_path / 'w1.pdf')
     probe_line = next(l for l in saved['fig'].axes[0].lines if l.get_label() == 'Probe')
     p = df[df['method'] == 'probe'].sort_values('threshold')
     np.testing.assert_allclose(probe_line.get_ydata(), p['w1'].to_numpy() / rng, equal_nan=True)
@@ -160,10 +160,10 @@ def test_w1_curve_ylabel_only_on_leftmost_panel(tmp_path, monkeypatch):
     gt, ext = fixture()
     gt2, ext2 = gt.assign(attribute='tp'), ext.assign(attribute='tp')
     df = build_w1_table(pd.concat([gt, gt2]), pd.concat([ext, ext2]), 'ground_truth', [ECO], [ATTR, 'tp'],
-                        THRESHOLDS, MIN_N, n_boot=20, n_shuffle=5, seed=0)
+                        THRESHOLDS, 'value', MIN_N, n_boot=20, n_shuffle=5, seed=0)
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves(df, ECO, [ATTR, 'tp'], THRESHOLDS, tmp_path / 'w1.pdf')
+    m.plot_w1_curves(df, ECO, [ATTR, 'tp'], THRESHOLDS, 'value', tmp_path / 'w1.pdf')
     left, right = saved['fig'].axes
     assert 'range' in left.get_ylabel() and right.get_ylabel() == ''
     assert left.get_xlabel() and right.get_xlabel()   # x labels stay on every panel
@@ -176,7 +176,7 @@ def test_qq_legend_has_a_threshold_colorbar(tmp_path, monkeypatch):
     th = [0.0, 0.25, 0.5, 0.75]
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_qq_legend(tmp_path / 'leg.pdf', 'ground_truth', th)
+    m.plot_qq_legend(tmp_path / 'leg.pdf', 'ground_truth', th, 'value')
     fig = saved['fig']
     cax = fig.axes[0]
     assert [t.get_text() for t in cax.get_xticklabels()] == ['0', '0.25', '0.5', '0.75']
@@ -191,15 +191,15 @@ def test_qq_legend_has_a_threshold_colorbar(tmp_path, monkeypatch):
 
 def test_valid_reference_perfect_threshold_gives_zero():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'valid', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
-    assert set(df['setting']) == set(all_settings('valid', THRESHOLDS)) - {'valid'}
+    df = build_w1_table(gt, ext, 'valid', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    assert set(df['setting']) == set(all_settings('valid', THRESHOLDS, 'value')) - {'valid'}
     assert row(df, 'probe_ge_0.60')['w1'] == 0.0
     assert row(df, 'ground_truth')['n_ext'] == 30
 
 
 def test_shuffled_control_band_and_docs():
     gt, ext = fixture()
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
     r = row(df, 'probe_ge_0.60')
     # the perfect probe keeps the 20 GT-like rows; 20 random rows sit much further from GT
     assert r['n_ext'] == 20 and r['w1_shuffled_n_ok'] == 30
@@ -221,13 +221,13 @@ def test_summarize_shuffles_refuses_partial_sets():
 
 def test_seed_determinism_and_seed_dependence():
     gt, ext = fixture()
-    a = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
-    b = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
-    c = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=1)
+    a = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    b = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    c = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', MIN_N, n_boot=50, n_shuffle=30, seed=1)
     pd.testing.assert_frame_equal(a, b)
     assert not np.allclose(a['w1_lo'].dropna(), c['w1_lo'].dropna())
     # a cell's CI does not depend on the threshold grid it was computed with
-    d = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], [0.6], MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    d = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], [0.6], 'value', MIN_N, n_boot=50, n_shuffle=30, seed=0)
     for c in ('w1_lo', 'w1_shuffled_mean', 'w1_shuffled_lo', 'w1_shuffled_log_hi'):
         assert row(d, 'probe_ge_0.60')[c] == row(a, 'probe_ge_0.60')[c], c
 
@@ -254,7 +254,7 @@ GOOD = {
         "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
-        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False,
+        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False, "threshold_mode": "value",
     }},
 }
 
@@ -284,6 +284,8 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(thresholds=[0.0, True]),
     lambda m: m.update(min_n=0),
     lambda m: m.pop("outlier_adjust"),
+    lambda m: m.pop("threshold_mode"),
+    lambda m: m.update(threshold_mode="quantile"),
     lambda m: m.update(outlier_adjust=1),
     lambda m: m.pop("n_shuffle_samples"),
     lambda m: m.update(n_shuffle_samples=0),
@@ -353,13 +355,60 @@ def test_shuffled_control_with_outlier_factor():
     ext['probe_prob_raw'] = ext['probe_prob']
     ext['probe_prob'] = ext['probe_prob_raw'] * factor
     ref = gt['converted_value'].to_numpy()
-    out = shuffled_w1(ref, ext, 'probe', [0.0, 0.45], False, MIN_N, 30, 0, ECO, ATTR)
+    out = shuffled_w1(ref, ext, 'probe', [0.0, 0.45], 'value', False, MIN_N, 30, 0, ECO, ATTR)
     assert out[0.0]['n_ext_shuffled_mean'] == len(ext)            # t = 0 keeps everything
     # real: rows with raw*factor >= 0.45 ; shuffled mean is generally not equal to it
     real_n = int((ext['probe_prob'] >= 0.45).sum())
     assert out[0.45]['n_ext_shuffled_mean'] != real_n
     # with factors all 1 the old equal-count assertion still applies and the column equals real n
     ext1 = ext.assign(outlier_factor=1.0, probe_prob=ext['probe_prob_raw'])
-    out1 = shuffled_w1(ref, ext1, 'probe', [0.45], False, MIN_N, 30, 0, ECO, ATTR)
+    out1 = shuffled_w1(ref, ext1, 'probe', [0.45], 'value', False, MIN_N, 30, 0, ECO, ATTR)
     assert out1[0.45]['n_ext_shuffled_mean'] == int((ext1['probe_prob'] >= 0.45).sum())
 
+
+# ── percentile threshold mode ──
+
+def test_keep_mask_percentile_hand_checked():
+    from analysis.meta_updated_v2 import keep_mask
+    p = np.array([0.1] * 10 + [0.5] * 10 + [0.9] * 20)   # n = 40, sorted
+    # np.quantile(method='lower') index = floor(q * 39)
+    assert keep_mask(p, 0.0, 'percentile').sum() == 40                 # t = 0 keeps everything
+    assert keep_mask(p, 0.25, 'percentile').sum() == 40                # cutoff 0.1 is a tie: all kept
+    assert keep_mask(p, 0.3, 'percentile').sum() == 30                 # cutoff 0.5
+    assert keep_mask(p, 0.6, 'percentile').sum() == 20                 # cutoff 0.9
+    u = np.arange(100) / 100                                           # no ties: removes floor(q * 99) rows
+    for q, kept in ((0.0, 100), (0.1, 91), (0.2, 81), (0.5, 51)):
+        assert keep_mask(u, q, 'percentile').sum() == kept
+    assert keep_mask(np.array([]), 0.5, 'percentile').size == 0
+    with pytest.raises(AssertionError):
+        keep_mask(np.array([0.5, np.nan]), 0.1, 'percentile')
+
+
+def test_percentile_settings_and_nesting():
+    gt, ext = fixture()
+    g, e = cell_rows(gt, ext, ECO, ATTR)
+    assert len(setting_rows('probe_pct_0.00', g, e)) == len(e)
+    assert len(setting_rows('probe_pct_0.30', g, e)) == 30
+    assert len(setting_rows('probe_pct_0.60', g, e)) == 20
+    assert set(all_settings('ground_truth', [0.0, 0.3], 'percentile')) == {
+        'ground_truth', 'valid', 'ntp_pct_0.00', 'ntp_pct_0.30', 'probe_pct_0.00', 'probe_pct_0.30'}
+
+
+def test_percentile_shuffled_control_matches_size_with_factor():
+    from analysis.meta_updated_v2 import shuffled_w1
+    gt, ext = fixture()
+    rng = np.random.default_rng(1)
+    ext = ext.copy()
+    ext['probe_prob_raw'] = rng.uniform(0.05, 1.0, len(ext))          # no ties
+    ext['outlier_factor'] = rng.uniform(0.2, 1.0, len(ext))
+    ext['probe_prob'] = ext['probe_prob_raw'] * ext['outlier_factor']
+    ref = gt['converted_value'].to_numpy()
+    out = shuffled_w1(ref, ext, 'probe', [0.0, 0.2, 0.5], 'percentile', False, MIN_N, 20, 0, ECO, ATTR)
+    for t in (0.0, 0.2, 0.5):
+        real_n = int(keep_mask_n(ext['probe_prob'].to_numpy(), t))
+        assert out[t]['n_ext_shuffled_mean'] == real_n               # same size despite the factor
+
+
+def keep_mask_n(p, t):
+    from analysis.meta_updated_v2 import keep_mask
+    return keep_mask(p, t, 'percentile').sum()

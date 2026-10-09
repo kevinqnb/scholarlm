@@ -5,11 +5,18 @@ the confidently-scored extractions bring it closer?
 Simplified from analysis/meta_updated.py:
 
 1. Confidence is used as a HARD filter, not a weight: for each method (NTP, probe)
-   and each t in params.meta_v2.thresholds, setting ``{method}_ge_{t:.2f}`` keeps the
-   held-out extracted rows with confidence >= t (ties at t are kept). The grid must
-   start at t = 0, which keeps every row: it IS the unfiltered extracted set (there is
-   no separate ``extracted`` setting in the tables or figures). The confidence is the
-   adjusted one when params.meta_v2.outlier_adjust.
+   and each t in params.meta_v2.thresholds, one setting per t. params.meta_v2.threshold_mode
+   says what t means:
+   - 'value':      ``{method}_ge_{t:.2f}`` keeps the held-out extracted rows with
+                   confidence >= t (ties at t are kept).
+   - 'percentile': ``{method}_pct_{t:.2f}`` drops the bottom fraction t of the cell's
+                   (ecosystem, attribute) extracted rows by confidence: it keeps rows with
+                   confidence >= np.quantile(cell confidences, t, method='lower') (ties at
+                   the cutoff are kept, so slightly fewer than a fraction t may be removed).
+                   The cutoff is computed per cell and per method, on the cell's t = 0 set.
+   The grid must start at t = 0, which keeps every row in both modes: it IS the unfiltered
+   extracted set (there is no separate ``extracted`` setting in the tables or figures).
+   The confidence is the adjusted one when params.meta_v2.outlier_adjust.
 2. Every sample is unweighted, so quantiles, Q-Q lines and distances come straight
    from library functions: np.quantile(method='hazen') for quantiles (both Q-Q axes,
    stats table), scipy.stats.wasserstein_distance (W1, over the full empirical
@@ -38,9 +45,11 @@ Outputs under analysis/results/meta/<config id>/:
                    params.meta_v2.n_shuffle_samples permutations of the method's RAW
                    confidences within the cell, each multiplied by its row's own
                    non-outlier factor (1 unless params.meta_v2.outlier_adjust); mean and
-                   2.5/97.5 percentiles of the resulting W1. Without adjustment the same
-                   threshold keeps exactly as many rows as the real one; with it the count
-                   differs (n_ext_shuffled_mean). A real W1 inside that range means thresholding on the confidence
+                   2.5/97.5 percentiles of the resulting W1. The percentile rule is applied to each
+                   shuffled score vector, so in 'percentile' mode the shuffled and real
+                   subsets have the same size up to ties at the cutoff; in 'value' mode
+                   they have the same size only without adjustment. Realized size:
+                   n_ext_shuffled_mean. A real W1 inside that range means thresholding on the confidence
                    does no better than keeping the same number of random rows. NB the
                    shuffled subsets spread over more documents than a real high-t
                    subset (n_docs_ext_shuffled_mean vs n_docs_ext).
@@ -150,8 +159,37 @@ CURVE_STYLE = {
 }
 
 
-def threshold_setting(method: str, t: float) -> str:
-    return f'{method}_ge_{t:.2f}'
+THRESHOLD_MODES = ('value', 'percentile')
+SETTING_INFIX = {'value': '_ge_', 'percentile': '_pct_'}
+THRESHOLD_AXIS_LABEL = {'value': r'Confidence threshold $t$',
+                        'percentile': r'Bottom fraction of confidence removed $q$'}
+
+
+def threshold_setting(method: str, t: float, mode: str) -> str:
+    return f'{method}{SETTING_INFIX[mode]}{t:.2f}'
+
+
+def parse_threshold_setting(setting: str):
+    """(method, mode, t) of a '{method}_ge_{t}' / '{method}_pct_{t}' setting, else None."""
+    for mode, infix in SETTING_INFIX.items():
+        method, sep, t = setting.partition(infix)
+        if sep:
+            assert method in METHODS, f'unknown setting {setting!r}'
+            return method, mode, float(t)
+    return None
+
+
+def keep_mask(prob: np.ndarray, t: float, mode: str) -> np.ndarray:
+    """Rows kept at t of one cell's confidences `prob`: value mode prob >= t; percentile mode
+    prob >= the `t` quantile (method='lower', an actual score) of `prob` itself, so t = 0 keeps
+    everything and ties at the cutoff are kept."""
+    assert prob.ndim == 1 and np.isfinite(prob).all(), 'confidence missing or misshapen'
+    if mode == 'value':
+        return prob >= t
+    assert mode == 'percentile' and 0.0 <= t < 1.0, (mode, t)
+    if prob.size == 0:
+        return np.zeros(0, dtype=bool)
+    return prob >= np.quantile(prob, t, method='lower')
 
 
 def threshold_style(t: float, thresholds: list[float]) -> dict:
@@ -187,7 +225,8 @@ def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFr
 
     Unfiltered: ground_truth, extracted, valid
     (stored calibration label, judge OR GT match). Thresholded: '{method}_ge_{t:.2f}'
-    keeps extracted rows whose METHOD_PROB_COL[method] >= t.
+    keeps extracted rows whose METHOD_PROB_COL[method] >= t; '{method}_pct_{t:.2f}' drops
+    the bottom fraction t of them by that confidence (see keep_mask).
     """
     if setting == 'ground_truth':
         return gt
@@ -196,22 +235,26 @@ def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFr
     if setting == 'valid':
         assert ext['label'].dtype == bool, ext['label'].dtype
         return ext[ext['label']]
-    method, sep, t = setting.partition('_ge_')
-    assert sep and method in METHODS, f'unknown setting {setting!r}'
-    prob = ext[METHOD_PROB_COL[method]].to_numpy()
-    assert prob.shape == (len(ext),) and np.isfinite(prob).all(), 'confidence missing or misshapen'
-    return ext[prob >= float(t)]
+    parsed = parse_threshold_setting(setting)
+    assert parsed is not None, f'unknown setting {setting!r}'
+    method, mode, t = parsed
+    prob = ext[METHOD_PROB_COL[method]].to_numpy(dtype=float)
+    assert prob.shape == (len(ext),), 'confidence misshapen'
+    return ext[keep_mask(prob, t, mode)]
 
 
-def all_settings(reference: str, thresholds: list[float]) -> list[str]:
-    names = BASE_SETTINGS[reference] + [threshold_setting(m, t) for m in METHODS for t in thresholds]
+def all_settings(reference: str, thresholds: list[float], threshold_mode: str) -> list[str]:
+    names = BASE_SETTINGS[reference] + [threshold_setting(m, t, threshold_mode) for m in METHODS for t in thresholds]
     assert len(set(names)) == len(names), f'threshold settings collide at 2 decimals: {thresholds}'
     return names
 
 
 def _setting_meta(setting: str) -> dict:
-    method, sep, t = setting.partition('_ge_')
-    return dict(method=method, threshold=float(t)) if sep else dict(method='', threshold=np.nan)
+    parsed = parse_threshold_setting(setting)
+    if parsed is None:
+        return dict(method='', threshold_mode='', threshold=np.nan)
+    method, mode, t = parsed
+    return dict(method=method, threshold_mode=mode, threshold=t)
 
 
 # ── Stats table ─────────────────────────────────────────────────────────────
@@ -226,12 +269,12 @@ def summary_stats(x: np.ndarray) -> dict:
                 q1=float(q1), median=float(med), q3=float(q3))
 
 
-def build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds) -> pd.DataFrame:
+def build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode) -> pd.DataFrame:
     rows = []
     for ecosystem in ecosystems:
         for attribute in attributes:
             gt, ext = cell_rows(gt_df, ext_df, ecosystem, attribute)
-            for setting in all_settings(reference, thresholds):
+            for setting in all_settings(reference, thresholds, threshold_mode):
                 sub = setting_rows(setting, gt, ext)
                 x = sub['converted_value'].to_numpy(dtype=float)
                 rows.append(dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute, setting=setting,
@@ -251,7 +294,7 @@ def build_survival_table(stats_df: pd.DataFrame, reference: str) -> pd.DataFrame
     assert ref.index.is_unique and len(ref) > 0, 'reference setting missing or duplicated in the stats table'
     thr = stats_df[stats_df['method'].isin(METHODS)]
     out = thr.rename(columns={'n': 'n_ext', 'n_docs': 'n_docs_ext'})[
-        ['dataset', 'ecosystem', 'attribute', 'method', 'threshold', 'n_ext', 'n_docs_ext']].copy()
+        ['dataset', 'ecosystem', 'attribute', 'method', 'threshold_mode', 'threshold', 'n_ext', 'n_docs_ext']].copy()
     key = ['ecosystem', 'attribute']
     out['n_ref'] = [int(ref.loc[(e, a), 'n']) for e, a in zip(out['ecosystem'], out['attribute'])]
     t0 = out[out['threshold'] == 0.0].set_index(key + ['method'])
@@ -308,8 +351,8 @@ def _summarize_shuffles(vals: np.ndarray, ci: float) -> dict:
     return dict(mean=float(vals.mean()), lo=float(lo), hi=float(hi), n_ok=n_ok, skip='')
 
 
-def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: list[float], log_scale: bool,
-                min_n: int, n_shuffle: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
+def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: list[float], threshold_mode: str,
+                log_scale: bool, min_n: int, n_shuffle: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
     """Permutation control for one (cell, method): per shuffle, permute the method's RAW
     confidences (``{prob_col}_raw``) over the cell's extracted rows, multiply by each row's
     own ``outlier_factor`` (so the non-outlier filter is kept and only the link between
@@ -317,11 +360,13 @@ def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: lis
     permutation shared by all thresholds, so shuffled subsets are nested like the real
     ones) and take W1 to `ref`.
 
-    With no outlier adjustment every factor is 1, the shuffled scores are a permutation of
-    the real ones, and a threshold keeps exactly as many rows as the real one (asserted).
-    With adjustment the products form a different multiset, so the shuffled row count
-    differs from the real one; it is reported as n_ext_shuffled_mean, since W1 depends on
-    the sample size.
+    The threshold rule (keep_mask, `threshold_mode`) is applied to each shuffled score
+    vector. With no outlier adjustment every factor is 1, the shuffled scores are a
+    permutation of the real ones, and a threshold keeps exactly as many rows as the real
+    one in either mode (asserted). With adjustment the products form a different multiset:
+    in 'value' mode the shuffled row count then differs from the real one; in 'percentile'
+    mode it matches up to ties at the cutoff. The realized size is reported as
+    n_ext_shuffled_mean, since W1 depends on the sample size.
 
     Returns {t: dict(w1_shuffled_{mean,lo,hi,n_ok,skip}, w1_shuffled_log_*,
     n_docs_ext_shuffled_mean, n_ext_shuffled_mean)}; log columns NaN / 'n/a' off
@@ -335,7 +380,7 @@ def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: lis
     exact = bool((factor == 1.0).all())
     x = ext['converted_value'].to_numpy(dtype=float)
     doc_codes, _ = pd.factorize(ext['document_id'])
-    real_n = {t: int((prob >= t).sum()) for t in thresholds}
+    real_n = {t: int(keep_mask(prob, t, threshold_mode).sum()) for t in thresholds}
     ref_log = _scale(ref, True)
     w_raw = {t: np.full(n_shuffle, np.nan) for t in thresholds}
     lg = {t: np.full(n_shuffle, np.nan) for t in thresholds}
@@ -344,7 +389,7 @@ def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: lis
     for s in range(n_shuffle):
         p = _shuffle_rng(seed, ecosystem, attribute, method, s).permutation(raw) * factor
         for t in thresholds:
-            keep = p >= t
+            keep = keep_mask(p, t, threshold_mode)
             if exact:
                 assert int(keep.sum()) == real_n[t], 'a permutation changed the number of rows kept'
             xs = x[keep]
@@ -368,7 +413,7 @@ def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: lis
     return out
 
 
-def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
+def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode,
                    min_n: int, n_boot: int, n_shuffle: int, seed: int) -> pd.DataFrame:
     """One row per (ecosystem, attribute, compared setting): W1 from that setting to the
     `reference` setting, raw and (LOG_SCALE_ATTRIBUTES) log10 units, with its bootstrap
@@ -386,11 +431,11 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
             assert np.isnan(ref_iqr) or ref_iqr > 0, f'reference IQR is {ref_iqr} for {ecosystem}/{attribute}'
             ref_range = float(ref.max() - ref.min()) if ref.size else np.nan
             assert np.isnan(ref_range) or ref_range > 0, f'reference range is {ref_range} for {ecosystem}/{attribute}'
-            shuffled = {m: shuffled_w1(ref, ext, m, thresholds, log_scale, min_n, n_shuffle, seed, ecosystem, attribute)
+            shuffled = {m: shuffled_w1(ref, ext, m, thresholds, threshold_mode, log_scale, min_n, n_shuffle, seed, ecosystem, attribute)
                         for m in METHODS}
             empty = {k: (np.nan if isinstance(v, float) else (0 if isinstance(v, int) else '')) for k, v in
                      shuffled[METHODS[0]][thresholds[0]].items()}
-            for setting in all_settings(reference, thresholds):
+            for setting in all_settings(reference, thresholds, threshold_mode):
                 if setting == reference:
                     continue
                 meta = _setting_meta(setting)
@@ -448,7 +493,7 @@ def reference_band(ref_x: np.ndarray, levels: np.ndarray, n_boot: int, rng: np.r
     return lo, hi
 
 
-def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds, min_n, n_boot, seed,
+def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds, threshold_mode, min_n, n_boot, seed,
             out_path: Path) -> list[dict]:
     """One Q-Q figure for (ecosystem, method), one panel per attribute: x = reference
     quantiles, y = extracted quantiles, one line per threshold (threshold_style) plus the
@@ -479,7 +524,7 @@ def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds,
                                           _rng(seed, ecosystem, attribute, SETTING_CODES[reference], 0.0, log_scale))
         plotted = [ref_q, band_lo, band_hi]
 
-        lines = [(threshold_setting(method, t), threshold_style(t, thresholds), 4) for t in thresholds]
+        lines = [(threshold_setting(method, t, threshold_mode), threshold_style(t, thresholds), 4) for t in thresholds]
         lines += [(s, QQ_BASE_STYLE[s], 5) for s in QQ_BASE_LINES[reference]]
         for setting, style, z in lines:
             sub = setting_rows(setting, gt, ext)
@@ -512,7 +557,7 @@ def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds,
     return records
 
 
-def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float]):
+def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float], threshold_mode: str):
     """Key for the Q-Q figures: a discrete color bar for the threshold lines (one cell per
     threshold, in the colors threshold_style draws, labelled with t), plus a legend for
     the QQ_BASE_LINES and the band."""
@@ -525,7 +570,7 @@ def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float]):
     cb = fig.colorbar(sm, cax=cax, orientation='horizontal', ticks=np.arange(k))
     cb.ax.set_xticklabels([f'{t:g}' for t in thresholds], fontsize=9)
     cb.ax.tick_params(length=0)
-    cb.set_label(r'Confidence threshold $t$', fontsize=10)
+    cb.set_label(THRESHOLD_AXIS_LABEL[threshold_mode], fontsize=10)
     handles = [Line2D([], [], label=QQ_BASE_LEGEND[s], **QQ_BASE_STYLE[s]) for s in QQ_BASE_LINES[reference]]
     handles.append(Patch(color='#888888', alpha=0.25, linewidth=0, label=f'{REFERENCE_AXIS_LABEL[reference]} 95% bootstrap'))
     fig.legend(handles=handles, loc='center left', bbox_to_anchor=(0.54, 0.5), fontsize=9, handlelength=2.6, frameon=False)
@@ -545,7 +590,7 @@ def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thr
 
 
 def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
-                   out_path: Path):
+                   threshold_mode: str, out_path: Path):
     """One figure per ecosystem, one panel per attribute: W1 to the reference against the
     confidence threshold t. Per method, the real filter (solid) and its shuffled control
     (dotted; band = the 2.5-97.5 percentile range
@@ -569,7 +614,7 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
             ax.fill_between(thresholds, c['w1_shuffled_lo'] / rng, c['w1_shuffled_hi'] / rng, color=shuf['color'],
                             alpha=0.12, linewidth=0)
         ax.set_title(_attr_title(attribute), fontsize=13, style='italic')
-        ax.set_xlabel('Confidence threshold $t$', fontsize=11)
+        ax.set_xlabel(THRESHOLD_AXIS_LABEL[threshold_mode], fontsize=11)
         if i == 0:
             ax.set_ylabel(f"$W_1$ / range of {REFERENCE_AXIS_LABEL[w1_df['reference'].iloc[0]]}", fontsize=11)
         ax.set_xlim(thresholds[0], thresholds[-1])
@@ -610,7 +655,7 @@ def main():
     assert not set(ecosystems) - set(ECOSYSTEMS), f"ecosystems not in ECOSYSTEMS: {ecosystems}"
     assert not set(attributes) - set(ATTRIBUTES), f"attributes not in ATTRIBUTES: {attributes}"
     thresholds, min_n, n_boot, seed = sec['thresholds'], sec['min_n'], sec['n_boot'], cfg['seed']
-    n_shuffle = sec['n_shuffle_samples']
+    n_shuffle, threshold_mode = sec['n_shuffle_samples'], sec['threshold_mode']
 
     # resolve_meta_inputs / load_data read their inputs from params.meta; hand them
     # exactly the input-selection keys they use, nothing that could change v1 behavior.
@@ -630,7 +675,7 @@ def main():
     figures_dir = out_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 
-    stats_df = build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds)
+    stats_df = build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode)
     stats_df.to_csv(out_dir / 'meta_stats.csv', index=False)
     print(f"[meta_v2] wrote {out_dir / 'meta_stats.csv'}")
 
@@ -638,7 +683,7 @@ def main():
     survival_df.to_csv(out_dir / 'survival.csv', index=False)
     print(f"[meta_v2] wrote {out_dir / 'survival.csv'}")
 
-    w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, min_n, n_boot, n_shuffle, seed)
+    w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode, min_n, n_boot, n_shuffle, seed)
     w1_df.to_csv(out_dir / 'wasserstein.csv', index=False)
     check = survival_df.merge(w1_df[w1_df['method'].isin(METHODS)], on=['ecosystem', 'attribute', 'method', 'threshold'],
                               suffixes=('', '_w1'))
@@ -653,16 +698,16 @@ def main():
     for method in METHODS:
         for ecosystem in ecosystems:
             records += plot_qq(gt_df, ext_df, reference, ecosystem, method, sec['qq_attributes'], thresholds,
-                               min_n, n_boot, seed, figures_dir / f'qq_{method}_{ecosystem}.pdf')
+                               threshold_mode, min_n, n_boot, seed, figures_dir / f'qq_{method}_{ecosystem}.pdf')
     pd.DataFrame(records).to_csv(out_dir / 'qq_lines.csv', index=False)
-    plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, thresholds)
+    plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, thresholds, threshold_mode)
     for ecosystem in ecosystems:
-        plot_w1_curves(w1_df, ecosystem, attributes, thresholds, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
+        plot_w1_curves(w1_df, ecosystem, attributes, thresholds, threshold_mode, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
     plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf')
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/meta_updated_v2.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
-                    reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds,
+                    reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds, threshold_mode=threshold_mode,
                     min_n=min_n, outlier_adjust=sec['outlier_adjust'],
                     outlier_moments=None if moments is None else moments.to_dict('index'),
                     calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
