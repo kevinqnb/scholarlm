@@ -89,9 +89,11 @@ def check_config_type(path: Path, analysis_type: str) -> None:
 KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation", "deduplicate_cache", "deduplication"}
 
 # Params of a synthetic-probe config. use_platt_scaling picks the Platt-wrapped or
-# *_noplatt pickles.
+# *_noplatt pickles. exclude_documents lists papers dropped from probe training, each
+# {document_id, reason}; [] means none are dropped.
 SYNTHETIC_PROBE_STR_KEYS = ("dataset", "judge_interp_id")
-SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + ("use_platt_scaling",)
+SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + ("use_platt_scaling", "exclude_documents")
+SYNTHETIC_PROBE_EXCLUDE_KEYS = {"document_id", "reason"}
 
 
 def _resolve_ground_truth_path(ground_truth_file: str) -> Path:
@@ -247,7 +249,9 @@ def load_synthetic_probe_config(path: Path) -> dict:
     """Load a synthetic-probe config for synthetic_probe_train.py.
 
     params must be exactly ``dataset``, ``judge_interp_id`` (the synthetic-corpus
-    judge run to train on) and ``use_platt_scaling``. ``seed`` seeds the training splits.
+    judge run to train on), ``use_platt_scaling`` and ``exclude_documents`` (a list of
+    ``{document_id, reason}`` papers dropped from training; ``[]`` for none).
+    ``seed`` seeds the training splits.
 
     Args:
         path: Config path.
@@ -272,6 +276,21 @@ def load_synthetic_probe_config(path: Path) -> dict:
     if not isinstance(cfg["params"]["use_platt_scaling"], bool):
         raise ValueError(
             f"{path}: params.use_platt_scaling must be a bool, got {cfg['params']['use_platt_scaling']!r}")
+    excl = cfg["params"]["exclude_documents"]
+    if not isinstance(excl, list):
+        raise ValueError(f"{path}: params.exclude_documents must be a list, got {excl!r}")
+    for e in excl:
+        if not isinstance(e, dict) or set(e) != SYNTHETIC_PROBE_EXCLUDE_KEYS:
+            raise ValueError(
+                f"{path}: each params.exclude_documents entry must have exactly keys "
+                f"{sorted(SYNTHETIC_PROBE_EXCLUDE_KEYS)}, got {e!r}")
+        for k in SYNTHETIC_PROBE_EXCLUDE_KEYS:
+            if not isinstance(e[k], str) or not e[k].strip():
+                raise ValueError(
+                    f"{path}: params.exclude_documents[].{k} must be a non-empty string, got {e[k]!r}")
+    ids = [e["document_id"] for e in excl]
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"{path}: params.exclude_documents has duplicate document_ids: {ids}")
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     return cfg
@@ -421,10 +440,10 @@ def load_calibration_v3_config(path: Path) -> dict:
     return cfg
 
 
-# calibration_validated.py: v3 scored against human validations. Each dataset pins the
+# calibration_validated.py: v4 scored against human validations. Each dataset pins the
 # validations file's sha256, since the file is rebuilt as more rows are validated.
 CALIBRATION_VALIDATED_DATASETS = ("pond", "supermat")
-CALIBRATION_VALIDATED_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("validation_sha256",)
+CALIBRATION_VALIDATED_DATASET_KEYS = CALIBRATION_V2_DATASET_KEYS + ("validation_sha256",)
 VALIDATIONS_ENV = "SCHOLARLM_VALIDATIONS_DIR"
 
 
@@ -455,43 +474,6 @@ def validations_path(dataset: str) -> Path:
     if not path.is_file():
         raise FileNotFoundError(f"no validations for {dataset!r} at {path}")
     return path
-
-
-def load_calibration_validated_config(path: Path) -> dict:
-    """Load a calibration-validated config and check each validations file's pinned hash.
-
-    Checked at load time so _resolve_job.py rejects a bad config before qsub.
-
-    Args:
-        path: Config path.
-
-    Returns:
-        The config dict.
-
-    Raises:
-        ValueError: Bad envelope, keys or values, or a hash mismatch.
-        KeyError, FileNotFoundError: Validations env var unset or file missing.
-    """
-    import hashlib
-    cfg = _load_envelope(path, "calibration-validated")
-    params = cfg["params"]
-    if set(params) != set(CALIBRATION_V3_TOP_KEYS):
-        raise ValueError(
-            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V3_TOP_KEYS)}"
-        )
-    _validate_v3_recalibration(path, params)
-    _validate_calibration_body(path, cfg, CALIBRATION_VALIDATED_DATASET_KEYS, CALIBRATION_VALIDATED_DATASETS)
-    for ds, block in params["datasets"].items():
-        pin = block["validation_sha256"]
-        if not isinstance(pin, str) or len(pin) != 64:
-            raise ValueError(f"{path}: params.datasets.{ds}.validation_sha256 must be a 64-char hex string, got {pin!r}")
-        actual = hashlib.sha256(validations_path(ds).read_bytes()).hexdigest()
-        if actual != pin:
-            raise ValueError(
-                f"{path}: {validations_path(ds)} sha256 {actual} != pinned {pin} -- the validations were "
-                f"rebuilt; re-pin validation_sha256 deliberately (this changes every number)"
-            )
-    return cfg
 
 
 # platt_scaling.py: n_train_resamples fit samples per fit size n, each scored on the
@@ -562,14 +544,19 @@ def is_int(v) -> bool:
     return isinstance(v, int) and not isinstance(v, bool)
 
 
-def load_calibration_v4_config(path: Path) -> dict:
-    """Load a v4 calibration config for calibration.py.
+def _load_calibration_v4(path: Path, analysis_type: str, dataset_keys: tuple, datasets_expected: tuple,
+                         fit_sources: dict) -> dict:
+    """Load and check a v4-schema calibration-family config.
 
     A value the chosen ``fit_source`` would ignore (e.g. ``fit_n`` with ``manual``)
     is an error, not silently unused.
 
     Args:
         path: Config path.
+        analysis_type: Analysis type the config must be filed under.
+        dataset_keys: Exact key set of each per-dataset block.
+        datasets_expected: Exact set of dataset names.
+        fit_sources: ``recalibration`` -> fit_sources this script supports for it.
 
     Returns:
         The config dict.
@@ -578,13 +565,13 @@ def load_calibration_v4_config(path: Path) -> dict:
         ValueError: Bad envelope, keys or values, or fit settings inconsistent with
             ``recalibration`` / ``fit_source``.
     """
-    cfg = _load_envelope(path, "calibration")
+    cfg = _load_envelope(path, analysis_type)
     params = cfg["params"]
     if set(params) != set(CALIBRATION_V4_TOP_KEYS):
         raise ValueError(
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V4_TOP_KEYS)}"
         )
-    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
+    _validate_calibration_body(path, cfg, dataset_keys, datasets_expected)
     if not is_int(params["n_boot"]) or params["n_boot"] <= 0:
         raise ValueError(f"{path}: params.n_boot must be a positive int, got {params['n_boot']!r}")
     recal = params["recalibration"]
@@ -593,9 +580,9 @@ def load_calibration_v4_config(path: Path) -> dict:
             f"{path}: params.recalibration must be one of {CALIBRATION_V4_RECALIBRATIONS}, got {recal!r}"
         )
     source = params["fit_source"]
-    if source not in CALIBRATION_V4_FIT_SOURCES[recal]:
+    if source not in fit_sources[recal]:
         raise ValueError(
-            f"{path}: params.fit_source must be one of {CALIBRATION_V4_FIT_SOURCES[recal]} "
+            f"{path}: params.fit_source must be one of {fit_sources[recal]} "
             f"for recalibration {recal!r}, got {source!r}"
         )
     n, fit_seed = params["fit_n"], params["fit_seed"]
@@ -619,5 +606,58 @@ def load_calibration_v4_config(path: Path) -> dict:
         elif pi is not None:
             raise ValueError(
                 f"{path}: params.datasets.{ds}.pi_te_estimate must be null for fit_source {source!r}, got {pi!r}"
+            )
+    return cfg
+
+
+def load_calibration_v4_config(path: Path) -> dict:
+    """Load a v4 calibration config for calibration.py.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
+
+    Raises:
+        ValueError: See ``_load_calibration_v4``.
+    """
+    return _load_calibration_v4(path, "calibration", CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS,
+                                CALIBRATION_V4_FIT_SOURCES)
+
+
+# calibration_validated.py cannot fit on the test rows: with human labels on only some of
+# them, "oracle" would be ambiguous (human vs LLM+matching labels), so it is rejected.
+CALIBRATION_VALIDATED_FIT_SOURCES = {meth: tuple(f for f in srcs if f != "oracle")
+                                     for meth, srcs in CALIBRATION_V4_FIT_SOURCES.items()}
+
+
+def load_calibration_validated_config(path: Path) -> dict:
+    """Load a v4 calibration-validated config and check each validations file's pinned hash.
+
+    Checked at load time so _resolve_job.py rejects a bad config before qsub.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
+
+    Raises:
+        ValueError: Bad envelope, keys or values, or a hash mismatch.
+        KeyError, FileNotFoundError: Validations env var unset or file missing.
+    """
+    import hashlib
+    cfg = _load_calibration_v4(path, "calibration-validated", CALIBRATION_VALIDATED_DATASET_KEYS,
+                               CALIBRATION_VALIDATED_DATASETS, CALIBRATION_VALIDATED_FIT_SOURCES)
+    for ds, block in cfg["params"]["datasets"].items():
+        pin = block["validation_sha256"]
+        if not isinstance(pin, str) or len(pin) != 64:
+            raise ValueError(f"{path}: params.datasets.{ds}.validation_sha256 must be a 64-char hex string, got {pin!r}")
+        actual = hashlib.sha256(validations_path(ds).read_bytes()).hexdigest()
+        if actual != pin:
+            raise ValueError(
+                f"{path}: {validations_path(ds)} sha256 {actual} != pinned {pin} -- the validations were "
+                f"rebuilt; re-pin validation_sha256 deliberately (this changes every number)"
             )
     return cfg

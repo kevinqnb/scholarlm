@@ -69,7 +69,7 @@ def world(tmp_path, monkeypatch):
         (ac_root / "synthetic-probe" / f"{i['probe_cfg']}.yaml").write_text(yaml.safe_dump({
             "id": i["probe_cfg"], "project": "scholarlm", "description": "t", "seed": 1,
             "params": {"dataset": ds, "judge_interp_id": i["train"],
-                       "use_platt_scaling": True}}))
+                       "use_platt_scaling": True, "exclude_documents": []}}))
         rd = probe_res / i["probe_cfg"]
         rd.mkdir(parents=True)
         probe_dir = rd / "trained_probe"
@@ -362,18 +362,20 @@ def test_v3_loader_rejects_malformed(world, tmp_path, mutate):
         _load_v3(cfg, tmp_path)
 
 
-# ── load_calibration_validated_config: pond+supermat only, pinned validation sha256 ──
+# ── load_calibration_validated_config: v4 shape, pond+supermat only, pinned validation sha256 ──
+V4_FIT = {"n_boot": 4, "recalibration": "intercept_fit", "fit_source": "sample", "fit_n": 100, "fit_seed": 0}
+
+
 def _to_validated(cfg, tmp_path, monkeypatch):
-    """v3 shape, minus nfix, plus a validations dir whose files the config pins."""
+    """v4 shape, minus nfix, plus a validations dir whose files the config pins."""
     import hashlib
     cfg["params"].pop("pi_te_estimate")
-    cfg["params"]["platt_n"] = 100
-    cfg["params"]["recalibration"] = "platt_fit"
-    cfg["params"].update(BOOTSTRAP)
+    cfg["params"].update(V4_FIT)
     cfg["params"]["datasets"].pop("nfix")
     vdir = tmp_path / "validations"
     vdir.mkdir()
     for ds, block in cfg["params"]["datasets"].items():
+        block["pi_te_estimate"] = None
         (vdir / f"{ds}.json").write_text(json.dumps({"dataset": ds, "n": 1}))
         block["validation_sha256"] = hashlib.sha256((vdir / f"{ds}.json").read_bytes()).hexdigest()
     monkeypatch.setenv(ac.VALIDATIONS_ENV, str(vdir))
@@ -392,6 +394,19 @@ def test_validated_happy_path(world, tmp_path, monkeypatch):
     _to_validated(cfg, tmp_path, monkeypatch)
     out = cids.resolve_calibration_inputs(_load_validated(cfg, tmp_path))
     assert set(out["datasets"]) == {"pond", "supermat"}
+
+
+@pytest.mark.parametrize("recalibration, source, n, seed, pi", [
+    ("prior_shift", "manual", None, None, 0.3),
+    ("prior_shift", "sample", 100, 0, None),
+    ("platt_fit", "sample", 100, 1, None),
+])
+def test_validated_accepts_v4_fit_settings(world, tmp_path, monkeypatch, recalibration, source, n, seed, pi):
+    cfg, _ = _to_validated(world[0], tmp_path, monkeypatch)
+    cfg["params"].update(recalibration=recalibration, fit_source=source, fit_n=n, fit_seed=seed)
+    for block in cfg["params"]["datasets"].values():
+        block["pi_te_estimate"] = pi
+    assert _load_validated(cfg, tmp_path)["params"]["fit_source"] == source
 
 
 def test_validated_rejects_sha_mismatch(world, tmp_path, monkeypatch):
@@ -423,11 +438,15 @@ def test_validated_missing_file_is_hard_error(world, tmp_path, monkeypatch):
     lambda c: c["params"]["datasets"]["pond"].update(validation_sha256="abc"),
     lambda c: c["params"]["datasets"].pop("supermat"),
     lambda c: c["params"]["datasets"].update(nfix=dict(c["params"]["datasets"]["pond"])),  # no validations for nfix
-    lambda c: c["params"].pop("platt_n"),
-    lambda c: c["params"].pop("recalibration"),
+    lambda c: c["params"]["datasets"]["pond"].pop("pi_te_estimate"),
+    lambda c: c["params"]["datasets"]["pond"].update(pi_te_estimate=0.5),   # only for fit_source manual
+    lambda c: c["params"].update(platt_n=100),                              # v3 keys are gone
+    *[lambda c, k=k: c["params"].update({k: 1}) for k in ("n_fit_samples", "n_doc_boot", "n_syn_boot")],
+    *[lambda c, k=k: c["params"].pop(k) for k in V4_FIT],                   # no default fit settings
     lambda c: c["params"].update(recalibration="intercept"),
-    lambda c: c["params"].pop("n_fit_samples"),
-    lambda c: c["params"].update(n_doc_boot=0),
+    lambda c: c["params"].update(fit_source="oracle"),                      # ambiguous with partial human labels
+    lambda c: c["params"].update(fit_n=None),
+    lambda c: c["params"].update(n_boot=0),
 ])
 def test_validated_loader_rejects_malformed(world, tmp_path, monkeypatch, mutate):
     cfg, _ = _to_validated(world[0], tmp_path, monkeypatch)

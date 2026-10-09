@@ -175,7 +175,7 @@ def cv_score(probe, X, y, kfold_cv):
 
 
 def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed,
-                    use_platt_scaling):
+                    use_platt_scaling, exclude_documents):
     """Train and save the head probe and NTP calibrator (and optionally the layer probe).
 
     Args:
@@ -188,6 +188,11 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         out_dir: Where figures, head_scores.npz and results.json go.
         seed: Seeds every split and LogisticRegression.
         use_platt_scaling: Wrap probe and calibrator in CalibratedClassifierCV.
+        exclude_documents: ``{document_id, reason}`` entries dropped from training
+            (config ``params.exclude_documents``). Each must occur in the synthetic run.
+
+    Raises:
+        ValueError: An excluded document_id is absent from the synthetic run.
     """
     print(f'\n{"="*60}\nDataset: {DATASET}   Judge: {JUDGE_MODEL}\n{"="*60}')
 
@@ -206,9 +211,14 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         syn_groups, train_frac=1.0, cal_frac=0.0, random_state=seed
     )
 
-    # Exclude two papers whose very large tables distort the activations.
-    keep_mask = (syn_df.iloc[syn_train_idx]['document_id'] != 'habitat_characteristics') & (syn_df.iloc[syn_train_idx]['document_id'] != 'R164')
-    syn_train_idx = syn_train_idx[keep_mask.values]
+    # Drop the papers named in params.exclude_documents (reasons live in the config).
+    excluded_ids = [e['document_id'] for e in exclude_documents]
+    absent = sorted(set(excluded_ids) - set(syn_groups))
+    if absent:
+        raise ValueError(f"params.exclude_documents names documents absent from the synthetic run: {absent}")
+    n_before = len(syn_train_idx)
+    syn_train_idx = syn_train_idx[~np.isin(syn_groups[syn_train_idx], excluded_ids)]
+    print(f'  Excluded {n_before - len(syn_train_idx)} of {n_before} training rows from {excluded_ids}')
 
     syn_cv_idx = syn_train_idx
     syn_labels_cv = syn_labels[syn_cv_idx]
@@ -385,6 +395,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
             'top_k_heads':        [[int(l), int(h)] for l, h in top_k_heads],
             'train_prevalence':   float(y_train.mean()),
             'use_platt_scaling':  use_platt_scaling,
+            'exclude_documents':  exclude_documents,
             'head_probe_train':   train_metrics,
             'ntp_calibrator_train_ece': ntp_train_ece,
             'probe_path':         str(probe_path),
@@ -526,7 +537,8 @@ def main():
     DATASETS_SEEN = [dataset]
     JUDGE_MODELS_SEEN = [JUDGE_MODEL]
     _train_and_save(dataset, JUDGE_MODEL, syn_responses, syn_activations,
-                    syn_layer_outputs, probe_dir, out_dir, cfg['seed'], use_platt_scaling)
+                    syn_layer_outputs, probe_dir, out_dir, cfg['seed'], use_platt_scaling,
+                    cfg['params']['exclude_documents'])
 
     # ─────────────────────────────────────────────────────────────────
     # Create combined plot of F1 scores by layer for all judge models

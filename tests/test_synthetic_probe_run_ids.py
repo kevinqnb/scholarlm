@@ -182,12 +182,13 @@ def run_main(tmp_path, monkeypatch, fixture_roots):
     cfg_path = tmp_path / "analysis-configs" / "synthetic-probe" / f"{PROBE_CFG_ID}.yaml"
     cfg_path.parent.mkdir(parents=True)
 
-    def _run(use_platt: bool):
+    def _run(use_platt: bool, exclude_documents=()):
         with open(cfg_path, "w") as f:
             yaml.safe_dump({
                 "id": PROBE_CFG_ID, "project": "scholarlm", "description": "test", "seed": 7,
                 "params": {"dataset": "pond", "judge_interp_id": EXP_ID,
-                           "use_platt_scaling": use_platt},
+                           "use_platt_scaling": use_platt,
+                           "exclude_documents": list(exclude_documents)},
             }, f)
         monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", str(cfg_path)])
         spt.main()
@@ -244,3 +245,16 @@ def test_main_same_seed_is_deterministic(run_main):
     second = joblib.load(probe_dir / "head_probe_noplatt.pkl")
     assert second["top_k_heads"] == first_heads
     assert np.array_equal(second["probe"].named_steps["clf"].coef_, first_coef)
+
+
+def test_main_exclude_documents_drops_rows_and_is_recorded(run_main):
+    excl = [{"document_id": "doc0", "reason": "test"}]
+    out_dir, _, _ = run_main(False, excl)
+    results = json.loads((out_dir / "results.json").read_text())
+    assert results["exclude_documents"] == excl
+    assert results["n_train"] == 12 * 2 - 2  # 12 fixture docs x 2 rows, minus doc0's 2
+
+
+def test_main_exclude_documents_absent_id_raises(run_main):
+    with pytest.raises(ValueError, match="absent from the synthetic run"):
+        run_main(False, [{"document_id": "nope", "reason": "typo"}])

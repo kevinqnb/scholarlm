@@ -269,7 +269,7 @@ def _write_probe(tmp_path, name, cfg):
 
 def _probe_cfg(**params_override):
     params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01",
-              "use_platt_scaling": False}
+              "use_platt_scaling": False, "exclude_documents": []}
     params.update(params_override)
     return {"id": "probe-01", "project": "scholarlm", "description": "d", "seed": GOOD_SEED, "params": params}
 
@@ -302,6 +302,24 @@ def test_synthetic_probe_config_rejects_missing_use_platt_scaling(tmp_path):
 def test_synthetic_probe_config_rejects_non_bool_use_platt_scaling(tmp_path):
     with pytest.raises(ValueError, match="use_platt_scaling must be a bool"):
         ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(use_platt_scaling="true")))
+
+
+def test_synthetic_probe_config_loads_exclude_documents(tmp_path):
+    excl = [{"document_id": "paperA", "reason": "huge tables"}]
+    cfg = ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(exclude_documents=excl)))
+    assert cfg["params"]["exclude_documents"] == excl
+
+
+@pytest.mark.parametrize("bad", [
+    "paperA",
+    [{"document_id": "paperA"}],
+    [{"document_id": "paperA", "reason": ""}],
+    [{"document_id": "paperA", "reason": "r", "extra": 1}],
+    [{"document_id": "a", "reason": "r"}, {"document_id": "a", "reason": "s"}],
+])
+def test_synthetic_probe_config_rejects_bad_exclude_documents(tmp_path, bad):
+    with pytest.raises(ValueError):
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(exclude_documents=bad)))
 
 
 def test_synthetic_probe_config_rejects_id_mismatch(tmp_path):

@@ -10,3 +10,6 @@ params:
   dataset: nfix
   judge_interp_id: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-train-01
   use_platt_scaling: true
+  exclude_documents:
+    - document_id: R164
+      reason: 'Very large tables in this paper distort the attention-head activations (Kevin, original 2026-05 analysis; the claim is trusted, not re-measured).'
