@@ -41,9 +41,12 @@ def _rec(name, *, doc="d1", pv="7.0", units="mg/L", q=(), date="2020", page=1):
 def _cfg(tmp_path, **section_overrides):
     sec = copy.deepcopy(SEC)
     sec.update(section_overrides)
+    gt = tmp_path / "gt.json"
+    gt.write_text("[]")
     cfg = {"id": "cfg-01", "project": "p", "description": "d", "seed": 1,
-           "params": {"experiment_ids": ["x"], "deduplicate_cache": sec}}
-    path = tmp_path / "cfg-01.yaml"
+           "params": {"experiment_ids": ["x"], "ground_truth_file": str(gt), "deduplicate_cache": sec}}
+    path = tmp_path / "recovery-validity" / "cfg-01.yaml"
+    path.parent.mkdir(exist_ok=True)
     path.write_text(yaml.safe_dump(cfg))
     return path
 
@@ -78,6 +81,15 @@ def test_config_missing_and_extra_keys_fail_loud(tmp_path):
     path.write_text(yaml.safe_dump(raw))
     with pytest.raises(ValueError):
         dedup.load_deduplicate_cache_config(path)
+
+
+def test_config_outside_recovery_validity_dir_fails(tmp_path):
+    path = _cfg(tmp_path)
+    moved = tmp_path / "deduplicate-cache" / path.name
+    moved.parent.mkdir()
+    path.rename(moved)
+    with pytest.raises(ValueError, match="analysis-configs/recovery-validity/"):
+        dedup.load_deduplicate_cache_config(moved)
 
 
 def test_prepare_frame_joins_qualifiers_sorted_and_coerces_numeric():

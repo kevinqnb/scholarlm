@@ -17,7 +17,31 @@ sys.path.insert(0, str(_REPO / "experiments"))
 from analysis.common import config as ac  # noqa: E402
 from analysis import platt_scaling as ps2  # noqa: E402
 
-_CFG = _REPO / "analysis/analysis-configs/2026-10-08-platt-scaling-v2-intercept-fit-tiny-01.yaml"
+CFG_ID = "2026-01-01-platt-scaling-test-01"
+
+
+def _base_cfg(gt: Path) -> dict:
+    block = {"extraction_id": "e", "judge_interp_id": "j", "judge_combine_id": "c", "ground_truth_file": str(gt),
+             "synthetic_probe_config": "p", "use_matching_labels": True,
+             "syn_test_ids": {"primary": "tp", "diag": "td"}}
+    return {"id": CFG_ID, "project": "scholarlm", "description": "t", "seed": 0,
+            "params": {"probe_type": "head", "probe_variant": "platt", "syn_split": "primary",
+                       "platt_ns": [0, 100, 500], "recalibration": "intercept_fit", "n_train_resamples": 2000,
+                       "datasets": {ds: dict(block) for ds in ac.CALIBRATION_DATASETS}}}
+
+
+def _write(tmp_path: Path, cfg: dict, analysis_type: str = "platt-scaling") -> Path:
+    p = tmp_path / analysis_type / f"{cfg['id']}.yaml"
+    p.parent.mkdir(exist_ok=True)
+    p.write_text(yaml.safe_dump(cfg))
+    return p
+
+
+@pytest.fixture
+def base_cfg(tmp_path):
+    gt = tmp_path / "gt.json"
+    gt.write_text("[]")
+    return _base_cfg(gt)
 
 
 def test_summarize_hand_built():
@@ -68,19 +92,16 @@ def test_fit_map_known_answers():
         ps2.fit_map("isotonic", p, y, 0.3)
 
 
-def test_committed_config_loads():
-    cfg = ac.load_platt_sweep_v2_config(_CFG)
-    p = cfg["params"]
-    assert p["platt_ns"] == [10, 50, 100, 250, 500, 1000] and p["recalibration"] == "intercept_fit"
-    assert p["n_train_resamples"] == 100
+def test_config_loads(tmp_path, base_cfg):
+    p = ac.load_platt_sweep_v2_config(_write(tmp_path, base_cfg))["params"]
+    assert p["platt_ns"] == [0, 100, 500] and p["recalibration"] == "intercept_fit"
+    assert p["n_train_resamples"] == 2000
 
 
-@pytest.mark.parametrize("slug", ["intercept-fit", "platt-fit", "prior-shift"])
-def test_full_configs_load(slug):
-    cfg = ac.load_platt_sweep_v2_config(
-        _REPO / f"analysis/analysis-configs/2026-10-08-platt-scaling-v2-gemma27b-qwen-2.5-7b-{slug}-01.yaml")
-    assert cfg["params"]["n_train_resamples"] == 2000
-    assert cfg["params"]["recalibration"] == slug.replace("-", "_")
+def test_config_under_calibration_dir_rejected(tmp_path, base_cfg):
+    # platt-scaling is its own analysis type, no longer filed under calibration/
+    with pytest.raises(ValueError, match="must live in analysis-configs/platt-scaling/"):
+        ac.load_platt_sweep_v2_config(_write(tmp_path, base_cfg, "calibration"))
 
 
 @pytest.mark.parametrize("mutate", [
@@ -101,21 +122,11 @@ def test_full_configs_load(slug):
     lambda p: p.update(n_doc_boot=100),
     lambda p: p.update(platt_n=100),
 ])
-def test_loader_rejects_malformed(tmp_path, mutate):
-    cfg = copy.deepcopy(yaml.safe_load(_CFG.read_text()))
+def test_loader_rejects_malformed(tmp_path, base_cfg, mutate):
+    cfg = copy.deepcopy(base_cfg)
     mutate(cfg["params"])
-    p = tmp_path / f"{cfg['id']}.yaml"
-    p.write_text(yaml.safe_dump(cfg))
     with pytest.raises(ValueError):
-        ac.load_platt_sweep_v2_config(p)
-
-
-@pytest.mark.parametrize("slug", ["intercept-fit", "platt-fit", "prior-shift"])
-def test_baseline_configs_load(slug):
-    cfg = ac.load_platt_sweep_v2_config(
-        _REPO / f"analysis/analysis-configs/2026-10-08-platt-scaling-v2-gemma27b-qwen-2.5-7b-{slug}-02.yaml")
-    assert cfg["params"]["platt_ns"] == [0, 50, 100, 250, 500, 1000]
-    assert cfg["params"]["n_train_resamples"] == 2000
+        ac.load_platt_sweep_v2_config(_write(tmp_path, cfg))
 
 
 class _FakeInputs:

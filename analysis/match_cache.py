@@ -6,7 +6,7 @@ the run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
 ``fuzzy_threshold``/``numeric_coerce`` on its ``DatasetConfig``, in
 ``experiments/dataset-configs/{dataset}.py`` -- see ``get_matching_config``
 below and ``DatasetConfig``'s own docstring), run match_datasets, and write
-the result to analysis/results/match_cache/<id>/match_cache.pkl (see
+the result to analysis/results/match-cache/<id>/match_cache.pkl (see
 ``MATCH_CACHE_ROOT`` / ``match_cache_path`` -- one flat directory per
 experiment id, deliberately NOT inside the run's own experiments/results/
 directory: a cache is an analysis artifact derived from a run plus a ground
@@ -65,11 +65,11 @@ Usage
 -----
     python analysis/match_cache.py <experiment_id> [<experiment_id> ...] \\
         --ground-truth-file <path>
-    python analysis/match_cache.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/match_cache.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
     bash analysis/match_cache.sh
 
 ``--config`` reads ``params.experiment_ids`` and ``params.ground_truth_file``
-from an analysis-configs/<id>.yaml (see analysis/common/config.py) instead
+from an analysis-configs/recovery-validity/<id>.yaml (see analysis/common/config.py) instead
 of taking them as flags -- mutually exclusive with passing ids/
 ``--ground-truth-file`` directly.
 """
@@ -248,7 +248,7 @@ def main() -> None:
     parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to compute and cache matches for.")
     parser.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+        help="analysis-configs/recovery-validity/<id>.yaml providing params.experiment_ids and "
              "params.ground_truth_file -- mutually exclusive with passing "
              "experiment_ids/--ground-truth-file directly.",
     )
@@ -271,7 +271,7 @@ def main() -> None:
         parser.error("--ground-truth-file is required when passing experiment_ids directly")
 
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
     else:

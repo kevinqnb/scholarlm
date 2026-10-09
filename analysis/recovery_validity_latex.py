@@ -27,7 +27,7 @@ exact. Values are percentages. The best point estimate per column and metric is 
 
 Usage
 -----
-    python analysis/recovery_validity_latex.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/recovery_validity_latex.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 
 Table spec (``params.recovery_validity_latex`` in the analysis config; every key
 required, no defaults)::
@@ -36,7 +36,7 @@ required, no defaults)::
       PLW: {dataset: pond, analysis_config: <recovery_validity analysis config id>}
     decimals: 1
     ci_format: pm | interval
-    output: analysis/results/<name>.tex
+    output: analysis/results/recovery-validity/<name>.tex
     caption: "..."
     label: tab:...
     blocks:              # ordered row groups, separated by a single \\midrule
@@ -57,7 +57,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section,
+    _load_envelope, analysis_config_path, get_section,
 )
 
 SECTION = "recovery_validity_latex"
@@ -89,7 +89,7 @@ def load_spec(path: Path) -> dict:
             row whose ``ids`` keys are not exactly the dataset column keys, or
             an experiment id used in more than one cell of the same column.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "recovery-validity")
     if set(cfg["params"]) != {SECTION}:
         raise ValueError(f"{path}: params keys {sorted(cfg['params'])} must be exactly [{SECTION!r}]")
     spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS)
@@ -150,8 +150,8 @@ def load_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFram
             different ``analysis_config_id`` or ``dataset``, or its id set is
             not exactly the config's ``experiment_ids`` (stale CSV).
     """
-    config_path = ANALYSIS_CONFIGS_ROOT / f"{analysis_config_id}.yaml"
-    cfg = _load_envelope(config_path)
+    config_path = analysis_config_path("recovery-validity", analysis_config_id)
+    cfg = _load_envelope(config_path, "recovery-validity")
     params = cfg["params"]
     if "recovery_validity" not in params or "experiment_ids" not in params:
         raise ValueError(f"{config_path}: not a recovery_validity analysis config")
@@ -273,7 +273,7 @@ def build_table(spec: dict, results: dict[str, pd.DataFrame]) -> str:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", type=Path, required=True, help="analysis-configs/<id>.yaml table spec")
+    parser.add_argument("--config", type=Path, required=True, help="analysis-configs/recovery-validity/<id>.yaml table spec")
     args = parser.parse_args(argv)
 
     spec = load_spec(args.config)

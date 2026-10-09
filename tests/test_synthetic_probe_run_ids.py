@@ -1,6 +1,6 @@
 """Rung-1 unit tests for analysis/synthetic_probe_train.py: the id-addressed
 run loader (_load_synthetic_run), and main() on a tiny hand-built judge_interp run
--- where it writes (analysis/results/synthetic_probe/<analysis config id>/, never
+-- where it writes (analysis/results/synthetic-probe/<analysis config id>/, never
 the judge_interp run dir), which artifacts params.use_platt_scaling selects, and
 same-seed determinism.
 
@@ -176,11 +176,11 @@ def run_main(tmp_path, monkeypatch, fixture_roots):
     _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
     run_dir = _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b")
 
-    probe_results_root = tmp_path / "synthetic_probe"
+    probe_results_root = tmp_path / "synthetic-probe"
     monkeypatch.setattr(spt, "RESULTS_ROOT", probe_results_root)
 
-    cfg_path = tmp_path / "analysis-configs" / f"{PROBE_CFG_ID}.yaml"
-    cfg_path.parent.mkdir()
+    cfg_path = tmp_path / "analysis-configs" / "synthetic-probe" / f"{PROBE_CFG_ID}.yaml"
+    cfg_path.parent.mkdir(parents=True)
 
     def _run(use_platt: bool):
         with open(cfg_path, "w") as f:
@@ -228,6 +228,9 @@ def test_main_platt_saves_calibrated_ensemble_unsuffixed(run_main):
     probe_data = joblib.load(probe_dir / "head_probe.pkl")
     assert type(probe_data["probe"]) is CalibratedClassifierCV
     assert len(probe_data["probe"].calibrated_classifiers_) == spt.N_FOLDS
+    # use_platt_scaling also wraps the NTP calibrator, not just the head probe
+    ntp = joblib.load(probe_dir / "ntp_calibrator.pkl")["calibrator"]
+    assert type(ntp) is CalibratedClassifierCV and len(ntp.calibrated_classifiers_) == spt.N_FOLDS
     assert json.loads((out_dir / "results.json").read_text())["use_platt_scaling"] is True
 
 

@@ -113,7 +113,27 @@ def test_permutation_control_is_seed_deterministic():
 # Config loader
 # ---------------------------------------------------------------------------
 
-CALIBRATION_ID = "2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01"
+CALIBRATION_ID = "2026-01-01-calibration-v4-test-01"
+
+
+@pytest.fixture(autouse=True)
+def _calibration_config(tmp_path, monkeypatch):
+    """A minimal valid v4 calibration config (pond, nfix, supermat) under
+    tmp_path/analysis-configs/calibration/, which the loader resolves CALIBRATION_ID in."""
+    from analysis.common import config as ac
+    root = tmp_path / "analysis-configs"
+    (root / "calibration").mkdir(parents=True)
+    monkeypatch.setattr(ac, "ANALYSIS_CONFIGS_ROOT", root)
+    gt = tmp_path / "gt.json"
+    gt.write_text("[]")
+    block = {"extraction_id": "e", "judge_interp_id": "j", "judge_combine_id": "c",
+             "ground_truth_file": str(gt), "synthetic_probe_config": "p", "use_matching_labels": True,
+             "pi_te_estimate": None, "syn_test_ids": {"primary": "tp", "diag": "td"}}
+    (root / "calibration" / f"{CALIBRATION_ID}.yaml").write_text(yaml.safe_dump({
+        "id": CALIBRATION_ID, "project": "scholarlm", "description": "t", "seed": 0,
+        "params": {"probe_type": "head", "probe_variant": "platt", "syn_split": "primary", "n_boot": 10,
+                   "recalibration": "intercept_fit", "fit_source": "sample", "fit_n": 5, "fit_seed": 0,
+                   "datasets": {ds: dict(block) for ds in ac.CALIBRATION_DATASETS}}}))
 
 
 def _config(**overrides):
@@ -131,7 +151,8 @@ def _config(**overrides):
 
 def _write(tmp_path, cfg):
     cfg = copy.deepcopy(cfg)
-    path = tmp_path / f"{cfg['id']}.yaml"
+    path = tmp_path / "decision-threshold" / f"{cfg['id']}.yaml"
+    path.parent.mkdir(exist_ok=True)
     path.write_text(yaml.safe_dump(cfg))
     return path
 
@@ -154,6 +175,11 @@ def test_config_loads(tmp_path):
 def test_config_rejects(tmp_path, overrides, match):
     with pytest.raises(ValueError, match=match):
         load_decision_threshold_config(_write(tmp_path, _config(**overrides)))
+
+
+def test_config_rejects_missing_calibration_config(tmp_path):
+    with pytest.raises(FileNotFoundError, match="calibration config"):
+        load_decision_threshold_config(_write(tmp_path, _config(calibration_config_id="2026-01-01-nope-01")))
 
 
 def test_config_rejects_unknown_key(tmp_path):

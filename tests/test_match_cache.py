@@ -134,7 +134,9 @@ def test_main_config_reads_experiment_ids_and_calls_build_match_cache(tmp_path, 
     gt_path = tmp_path / "ground_truth.json"
     gt_path.write_text("[]")
 
-    config_path = tmp_path / "2026-09-23-test-analysis-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-09-23-test-analysis-01.yaml"
+
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {
@@ -376,12 +378,12 @@ def test_build_match_cache_deletes_stale_sidecar_when_rebuild_fails(tmp_path, bu
 
 def test_default_match_cache_root_is_analysis_results_match_cache():
     # Unpatched: the real location, repo-relative.
-    assert matching.MATCH_CACHE_ROOT == provenance._REPO_ROOT / "analysis" / "results" / "match_cache"
+    assert matching.MATCH_CACHE_ROOT == provenance._REPO_ROOT / "analysis" / "results" / "match-cache"
     assert provenance.repo_relative(matching.match_cache_path("some-id")) == (
-        "analysis/results/match_cache/some-id/match_cache.pkl"
+        "analysis/results/match-cache/some-id/match_cache.pkl"
     )
     assert provenance.repo_relative(matching.match_cache_meta_path("some-id")) == (
-        "analysis/results/match_cache/some-id/match_cache.meta.json"
+        "analysis/results/match-cache/some-id/match_cache.meta.json"
     )
 
 

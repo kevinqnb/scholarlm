@@ -57,7 +57,7 @@ Usage
 -----
     python analysis/postprocessing.py <experiment_id> [<experiment_id> ...] \\
         --ground-truth-file <path>
-    python analysis/postprocessing.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/postprocessing.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 """
 from __future__ import annotations
 
@@ -288,7 +288,7 @@ def main() -> None:
     parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to postprocess.")
     parser.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+        help="analysis-configs/recovery-validity/<id>.yaml providing params.experiment_ids and "
              "params.ground_truth_file -- mutually exclusive with passing "
              "experiment_ids/--ground-truth-file directly.",
     )
@@ -312,7 +312,7 @@ def main() -> None:
         parser.error("--ground-truth-file is required when passing experiment_ids directly")
 
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
     else:

@@ -169,43 +169,48 @@ CACHE_SEC = {
     "join_list_fields": [],
     "summary_thresholds": [0.5],
 }
-DEDUP_SEC = {"deduplicate_cache_config_id": "cache-01", "solver_time_limit_s": 60,
-             "provenance_fields": ["page_number", "context"]}
+DEDUP_SEC = {"solver_time_limit_s": 60, "provenance_fields": ["page_number", "context"]}
 
 
-def _write_configs(tmp_path, monkeypatch, dedup_sec=None, ids=("x",)):
-    monkeypatch.setattr(dedup, "ANALYSIS_CONFIGS_ROOT", tmp_path)
-    (tmp_path / "cache-01.yaml").write_text(yaml.safe_dump({
-        "id": "cache-01", "project": "p", "description": "d", "seed": 1,
-        "params": {"experiment_ids": ["x"], "deduplicate_cache": CACHE_SEC}}))
-    path = tmp_path / "dedup-01.yaml"
-    path.write_text(yaml.safe_dump({
-        "id": "dedup-01", "project": "p", "description": "d", "seed": 1,
-        "params": {"experiment_ids": list(ids), "deduplication": dedup_sec or DEDUP_SEC}}))
+def _write_configs(tmp_path, dedup_sec=None, cache_sec=None):
+    """One recovery-validity config carrying both dedup sections."""
+    gt = tmp_path / "gt.json"
+    gt.write_text("[]")
+    params = {"experiment_ids": ["x"], "ground_truth_file": str(gt)}
+    if cache_sec is not False:
+        params["deduplicate_cache"] = cache_sec or CACHE_SEC
+    params["deduplication"] = dedup_sec or DEDUP_SEC
+    path = tmp_path / "recovery-validity" / "dedup-01.yaml"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(yaml.safe_dump({"id": "dedup-01", "project": "p", "description": "d", "seed": 1,
+                                    "params": params}))
     return path
 
 
-def test_config_happy_path(tmp_path, monkeypatch):
-    assert dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch))["id"] == "dedup-01"
+def test_config_happy_path(tmp_path):
+    assert dedup.load_deduplication_config(_write_configs(tmp_path))["id"] == "dedup-01"
 
 
 @pytest.mark.parametrize("override", [
     {"solver_time_limit_s": 0}, {"solver_time_limit_s": True}, {"provenance_fields": []},
-    {"provenance_fields": ["name", "page_number"]},     # name is a match field of the cache config
-    {"deduplicate_cache_config_id": "missing-cfg"},
+    {"provenance_fields": ["name", "page_number"]},     # name is a deduplicate_cache match field
 ])
-def test_config_rejects_bad_section(tmp_path, monkeypatch, override):
+def test_config_rejects_bad_section(tmp_path, override):
     sec = {**DEDUP_SEC, **override}
-    with pytest.raises((ValueError, FileNotFoundError)):
-        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
+    with pytest.raises(ValueError):
+        dedup.load_deduplication_config(_write_configs(tmp_path, sec))
 
 
-def test_config_rejects_id_not_in_cache_config_and_missing_key(tmp_path, monkeypatch):
-    with pytest.raises(ValueError, match="not in cache config"):
-        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, ids=("x", "y")))
-    sec = {k: v for k, v in DEDUP_SEC.items() if k != "solver_time_limit_s"}
+def test_config_rejects_missing_or_extra_key(tmp_path):
     with pytest.raises(KeyError):
-        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
+        dedup.load_deduplication_config(_write_configs(tmp_path, {"provenance_fields": ["page_number"]}))
+    with pytest.raises(KeyError):   # the retired cross-config pointer is now an unknown key
+        dedup.load_deduplication_config(_write_configs(tmp_path, {**DEDUP_SEC, "deduplicate_cache_config_id": "c"}))
+
+
+def test_config_requires_cache_section_on_same_config(tmp_path):
+    with pytest.raises(KeyError, match="deduplicate_cache"):
+        dedup.load_deduplication_config(_write_configs(tmp_path, cache_sec=False))
 
 
 # -- end to end on a fake run ----------------------------------------------------------

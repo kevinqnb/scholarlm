@@ -1041,7 +1041,9 @@ def test_main_config_mode_reads_params_and_applies_judge_combine_override(tmp_pa
     gt_path = tmp_path / "ground_truth.json"
     gt_path.write_text("[]")
 
-    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-09-23-test-rv-01.yaml"
+
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {
@@ -1090,7 +1092,9 @@ def test_main_config_mode_unknown_judge_combine_override_key_raises(tmp_path):
     gt_path = tmp_path / "ground_truth.json"
     gt_path.write_text("[]")
 
-    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-09-23-test-rv-01.yaml"
+
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {
@@ -1127,7 +1131,8 @@ def _rv_config(tmp_path, **rv_overrides):
     gt_path = tmp_path / "ground_truth.json"
     if not gt_path.exists():
         gt_path.write_text("[]")
-    config_path = tmp_path / "2026-09-23-test-rv-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-09-23-test-rv-01.yaml"
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {
@@ -1221,7 +1226,8 @@ def test_fuzzy_threshold_curve_rejects_bad_grid(e2e_fixture, thresholds, match):
 
 
 def _curve_config(tmp_path, gt_path, experiment_ids, curve_section, compute_validity=True):
-    config_path = tmp_path / "2026-10-07-test-curve-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-10-07-test-curve-01.yaml"
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {

@@ -17,8 +17,9 @@ from analysis.common import config as ac  # noqa: E402
 GOOD_SEED = 342  # an arbitrary bootstrap seed -- not checked against defaults.seed
 
 
-def _write(tmp_path: Path, name: str, cfg: dict) -> Path:
-    path = tmp_path / f"{name}.yaml"
+def _write(tmp_path: Path, name: str, cfg: dict, analysis_type: str = "recovery-validity") -> Path:
+    path = tmp_path / analysis_type / f"{name}.yaml"
+    path.parent.mkdir(exist_ok=True)
     with open(path, "w") as f:
         yaml.safe_dump(cfg, f)
     return path
@@ -53,7 +54,7 @@ def _base_cfg(tmp_path: Path, **overrides) -> dict:
 def test_load_analysis_config_happy_path(tmp_path):
     cfg = _base_cfg(tmp_path)
     path = _write(tmp_path, cfg["id"], cfg)
-    loaded = ac.load_analysis_config(path)
+    loaded = ac.load_analysis_config(path, "recovery-validity")
     assert loaded["params"]["experiment_ids"] == ["2026-01-01-pond-model-extraction-01"]
 
 
@@ -63,21 +64,21 @@ def test_load_analysis_config_missing_envelope_key_raises(tmp_path, missing_key)
     del cfg[missing_key]
     path = _write(tmp_path, "2026-09-23-test-analysis-01", cfg)
     with pytest.raises(ValueError, match="missing required key"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_load_analysis_config_id_filename_mismatch_raises(tmp_path):
     cfg = _base_cfg(tmp_path, id="2026-09-23-different-id-01")
     path = _write(tmp_path, "2026-09-23-test-analysis-01", cfg)
     with pytest.raises(ValueError, match="does not match filename stem"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_load_analysis_config_params_not_a_mapping_raises(tmp_path):
     cfg = _base_cfg(tmp_path, params=["not", "a", "mapping"])
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="params must be a mapping"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 @pytest.mark.parametrize("bad_experiment_ids", [None, [], "a-string", [1, 2], {"a": "b"}])
@@ -89,7 +90,7 @@ def test_load_analysis_config_bad_experiment_ids_raises(tmp_path, bad_experiment
         cfg["params"]["experiment_ids"] = bad_experiment_ids
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="experiment_ids"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 @pytest.mark.parametrize("bad_ground_truth_file", [None, "", 123, ["a"]])
@@ -101,7 +102,7 @@ def test_load_analysis_config_bad_ground_truth_file_raises(tmp_path, bad_ground_
         cfg["params"]["ground_truth_file"] = bad_ground_truth_file
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="ground_truth_file"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_load_analysis_config_nonexistent_ground_truth_file_raises(tmp_path):
@@ -109,7 +110,7 @@ def test_load_analysis_config_nonexistent_ground_truth_file_raises(tmp_path):
     cfg["params"]["ground_truth_file"] = str(tmp_path / "no_such_file.json")
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="does not exist"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_get_ground_truth_path_resolves_repo_relative_path():
@@ -132,7 +133,7 @@ def test_load_analysis_config_seed_need_not_match_defaults_seed(tmp_path):
     # defaults.seed (see load_analysis_config's own docstring).
     cfg = _base_cfg(tmp_path, seed=GOOD_SEED + 1)
     path = _write(tmp_path, cfg["id"], cfg)
-    loaded = ac.load_analysis_config(path)
+    loaded = ac.load_analysis_config(path, "recovery-validity")
     assert loaded["seed"] == GOOD_SEED + 1
 
 
@@ -141,7 +142,7 @@ def test_load_analysis_config_duplicate_experiment_ids_raises(tmp_path):
     cfg["params"]["experiment_ids"] = ["id-a", "id-b", "id-a"]
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="duplicate"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_load_analysis_config_unknown_top_level_param_key_raises(tmp_path):
@@ -149,15 +150,62 @@ def test_load_analysis_config_unknown_top_level_param_key_raises(tmp_path):
     cfg["params"]["fuzzy_threshold"] = 0.3  # e.g. a value meant for a section, dropped at top level
     path = _write(tmp_path, cfg["id"], cfg)
     with pytest.raises(ValueError, match="unexpected top-level key"):
-        ac.load_analysis_config(path)
+        ac.load_analysis_config(path, "recovery-validity")
 
 
 def test_load_analysis_config_known_section_key_is_allowed(tmp_path):
     cfg = _base_cfg(tmp_path)
     cfg["params"]["recovery_validity"] = {"n_resamples": 2000}
     path = _write(tmp_path, cfg["id"], cfg)
-    loaded = ac.load_analysis_config(path)
+    loaded = ac.load_analysis_config(path, "recovery-validity")
     assert loaded["params"]["recovery_validity"] == {"n_resamples": 2000}
+
+
+# ---------------------------------------------------------------------------
+# analysis types: config / results paths and the type-directory check
+# ---------------------------------------------------------------------------
+
+
+def test_analysis_config_path_is_typed():
+    assert ac.analysis_config_path("platt-scaling", "x-01") == ac.ANALYSIS_CONFIGS_ROOT / "platt-scaling" / "x-01.yaml"
+
+
+@pytest.mark.parametrize("bad", ["platt_scaling", "match-cache", "results"])
+def test_analysis_config_path_rejects_unknown_type(bad):
+    with pytest.raises(ValueError, match="unknown analysis type"):
+        ac.analysis_config_path(bad, "x-01")
+
+
+def test_analysis_results_dir_accepts_results_only_types():
+    assert ac.analysis_results_dir("match-cache") == ac.ANALYSIS_RESULTS_ROOT / "match-cache"
+    with pytest.raises(ValueError, match="unknown analysis type"):
+        ac.analysis_results_dir("match_cache")
+
+
+def test_load_analysis_config_wrong_type_dir_raises(tmp_path):
+    cfg = _base_cfg(tmp_path)
+    path = _write(tmp_path, cfg["id"], cfg, "calibration")
+    with pytest.raises(ValueError, match="must live in analysis-configs/recovery-validity/"):
+        ac.load_analysis_config(path, "recovery-validity")
+
+
+def test_load_analysis_config_measeval_type(tmp_path):
+    cfg = _base_cfg(tmp_path)
+    path = _write(tmp_path, cfg["id"], cfg, "measeval")
+    assert ac.load_analysis_config(path, "measeval")["id"] == cfg["id"]
+
+
+def test_load_analysis_config_rejects_other_types(tmp_path):
+    cfg = _base_cfg(tmp_path)
+    path = _write(tmp_path, cfg["id"], cfg, "calibration")
+    with pytest.raises(ValueError, match="serves recovery-validity and measeval"):
+        ac.load_analysis_config(path, "calibration")
+
+
+def test_synthetic_probe_config_in_calibration_dir_raises(tmp_path):
+    path = _write(tmp_path, "probe-01", _probe_cfg(), "calibration")
+    with pytest.raises(ValueError, match="must live in analysis-configs/synthetic-probe/"):
+        ac.load_synthetic_probe_config(path)
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +263,10 @@ def test_get_section_optional_key_allowed_but_not_required():
 
 # ── load_synthetic_probe_config ───────────────────────────────────────────
 
+def _write_probe(tmp_path, name, cfg):
+    return _write(tmp_path, name, cfg, "synthetic-probe")
+
+
 def _probe_cfg(**params_override):
     params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01",
               "use_platt_scaling": False}
@@ -223,12 +275,12 @@ def _probe_cfg(**params_override):
 
 
 def test_synthetic_probe_config_loads(tmp_path):
-    cfg = ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", _probe_cfg()))
+    cfg = ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg()))
     assert cfg["params"]["dataset"] == "pond"
 
 
 def test_synthetic_probe_config_rejects_extra_key(tmp_path):
-    path = _write(tmp_path, "probe-01", _probe_cfg(experiment_ids=["x"]))
+    path = _write_probe(tmp_path, "probe-01", _probe_cfg(experiment_ids=["x"]))
     with pytest.raises(ValueError, match="must be exactly"):
         ac.load_synthetic_probe_config(path)
 
@@ -237,28 +289,28 @@ def test_synthetic_probe_config_rejects_missing_key(tmp_path):
     cfg = _probe_cfg()
     del cfg["params"]["dataset"]
     with pytest.raises(ValueError, match="must be exactly"):
-        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", cfg))
 
 
 def test_synthetic_probe_config_rejects_missing_use_platt_scaling(tmp_path):
     cfg = _probe_cfg()
     del cfg["params"]["use_platt_scaling"]
     with pytest.raises(ValueError, match="must be exactly"):
-        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", cfg))
 
 
 def test_synthetic_probe_config_rejects_non_bool_use_platt_scaling(tmp_path):
     with pytest.raises(ValueError, match="use_platt_scaling must be a bool"):
-        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", _probe_cfg(use_platt_scaling="true")))
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(use_platt_scaling="true")))
 
 
 def test_synthetic_probe_config_rejects_id_mismatch(tmp_path):
     with pytest.raises(ValueError, match="does not match filename stem"):
-        ac.load_synthetic_probe_config(_write(tmp_path, "other-name", _probe_cfg()))
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "other-name", _probe_cfg()))
 
 
 def test_synthetic_probe_config_rejects_non_int_seed(tmp_path):
     cfg = _probe_cfg()
     cfg["seed"] = "342"
     with pytest.raises(ValueError, match="seed must be an int"):
-        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", cfg))

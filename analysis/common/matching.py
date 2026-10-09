@@ -25,12 +25,13 @@ import utils as paths  # noqa: E402
 from analysis.common.loaders import load_ground_truth_file  # noqa: E402
 from analysis.common.provenance import repo_relative, sha256_file  # noqa: E402
 from experiments.run_extraction import load_dataset_config  # noqa: E402
+from analysis.common.config import analysis_results_dir  # noqa: E402
 
 # Where every match cache lives: MATCH_CACHE_ROOT/<experiment id>/{match_cache.pkl,
 # match_cache.meta.json}. A per-id directory (not a flat <id>.pkl) because
 # analysis/recovery_validity.py locates the sidecar as
 # ``cache_path.with_name("match_cache.meta.json")``.
-MATCH_CACHE_ROOT = _REPO_ROOT / "analysis" / "results" / "match_cache"
+MATCH_CACHE_ROOT = analysis_results_dir("match-cache")
 
 # ---------------------------------------------------------------------------
 # Per-dataset matching configuration

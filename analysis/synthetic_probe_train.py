@@ -23,7 +23,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 
-from analysis.common.config import load_synthetic_probe_config
+from analysis.common.config import analysis_results_dir, load_synthetic_probe_config
 from scholarlm.utils.probe import grouped_kfold_split, grouped_holdout_split
 from scholarlm.utils.calibration import compute_ece
 import utils as paths
@@ -51,12 +51,12 @@ mpl.rcParams.update({
     "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 
-RESULTS_ROOT = REPO_ROOT / "analysis" / "results" / "synthetic_probe"
+RESULTS_ROOT = analysis_results_dir("synthetic-probe")
 
 
 # ─────────────────────────────────────────────────────────────────
-# Run config: one analysis-configs/<id>.yaml (see
-# analysis/analysis_config.load_synthetic_probe_config) naming the dataset and
+# Run config: one analysis-configs/synthetic-probe/<id>.yaml (see
+# analysis/common/config.load_synthetic_probe_config) naming the dataset and
 # the judge_interp run on the synthetic corpus to train on. No flags, no env
 # vars, no defaults -- the config id is the run's identity, and figures/results
 # are written under RESULTS_ROOT/<config id>/.
@@ -67,7 +67,7 @@ def _parse_args():
         description="Train the head probe + NTP calibrator on one synthetic judge_interp run."
     )
     parser.add_argument('config', type=Path,
-                        help="analysis/analysis-configs/<id>.yaml with params.dataset and "
+                        help="analysis/analysis-configs/synthetic-probe/<id>.yaml with params.dataset and "
                              "params.judge_interp_id")
     return parser.parse_args()
 

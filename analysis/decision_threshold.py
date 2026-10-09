@@ -29,10 +29,10 @@ should stay near the base rate at every threshold.
 
 Usage
 -----
-    python analysis/decision_threshold.py analysis/analysis-configs/<id>.yaml
+    python analysis/decision_threshold.py analysis/analysis-configs/decision-threshold/<id>.yaml
     bash analysis/submit.sh decision_threshold <id> --walltime HH:MM:SS --omp N
 
-Writes analysis/results/decision_threshold/<config id>/curves.csv and
+Writes analysis/results/decision-threshold/<config id>/curves.csv and
 figures/<train>-<test>-<method>.pdf (+ decision_threshold_colorbar.pdf,
 decision_threshold_legend.pdf).
 """
@@ -53,7 +53,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    ANALYSIS_CONFIGS_ROOT, is_int, _load_envelope, load_calibration_v4_config,
+    analysis_config_path, analysis_results_dir, is_int, _load_envelope, load_calibration_v4_config,
 )
 from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels  # noqa: E402
 
@@ -61,7 +61,7 @@ PARAM_KEYS = ("calibration_config_id", "cells", "thresholds", "highlight_thresho
               "n_permutations", "invalid_datasets")
 # (method, score column in prediction_store.check_real_cell's rows)
 METHODS = (("probe", "probe_prob"), ("ntp", "ntp_prob"))
-RESULTS_ROOT = _REPO_ROOT / "analysis" / "results" / "decision_threshold"
+RESULTS_ROOT = analysis_results_dir("decision-threshold")
 _THRESHOLD_NORM = (0.0, 1.0)
 
 
@@ -75,7 +75,7 @@ def _is_number(v) -> bool:
 
 
 def load_decision_threshold_config(path: Path) -> dict:
-    """Load and validate an analysis-configs/<id>.yaml for this script.
+    """Load and validate an analysis-configs/decision-threshold/<id>.yaml.
 
     ``params`` holds exactly PARAM_KEYS:
       - calibration_config_id: a v4 calibration config (its predictions.pkl is read);
@@ -93,12 +93,12 @@ def load_decision_threshold_config(path: Path) -> dict:
         ValueError: any of the above fails.
         FileNotFoundError: the calibration config does not exist.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "decision-threshold")
     params = cfg["params"]
     if set(params) != set(PARAM_KEYS):
         raise ValueError(f"{path}: params keys {sorted(params)} must be exactly {sorted(PARAM_KEYS)}")
 
-    cal_path = ANALYSIS_CONFIGS_ROOT / f"{params['calibration_config_id']}.yaml"
+    cal_path = analysis_config_path("calibration", params["calibration_config_id"])
     if not cal_path.exists():
         raise FileNotFoundError(f"{path}: calibration config {cal_path} does not exist")
     datasets = set(load_calibration_v4_config(cal_path)["params"]["datasets"])
@@ -339,10 +339,10 @@ def resolve_inputs(cfg: dict) -> dict:
     from analysis.common import calibration_ids as cids
 
     cal_id = cfg["params"]["calibration_config_id"]
-    cal_cfg = load_calibration_v4_config(ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml")
-    predictions_path = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id / "predictions.pkl"
+    cal_cfg = load_calibration_v4_config(analysis_config_path("calibration", cal_id))
+    predictions_path = analysis_results_dir("calibration") / cal_id / "predictions.pkl"
     if not predictions_path.exists():
-        raise FileNotFoundError(f"{predictions_path} does not exist -- run calibration_v4 on {cal_id} first")
+        raise FileNotFoundError(f"{predictions_path} does not exist -- run analysis/calibration.py on {cal_id} first")
     return {"calibration_config": cal_cfg, "calibration_inputs": cids.resolve_calibration_inputs(cal_cfg),
             "predictions_path": predictions_path}
 
@@ -422,7 +422,7 @@ def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("config", type=Path, help="analysis/analysis-configs/<id>.yaml")
+    parser.add_argument("config", type=Path, help="analysis/analysis-configs/decision-threshold/<id>.yaml")
     args = parser.parse_args(argv)
 
     cfg = load_decision_threshold_config(args.config)

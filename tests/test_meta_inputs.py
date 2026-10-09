@@ -101,7 +101,8 @@ GOOD = {
 
 
 def write(tmp_path, cfg):
-    p = tmp_path / "t.yaml"
+    p = tmp_path / "meta" / "t.yaml"
+    p.parent.mkdir(exist_ok=True)
     p.write_text(yaml.safe_dump(cfg))
     return p
 

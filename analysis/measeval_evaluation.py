@@ -663,7 +663,7 @@ def main(argv: list[str] | None = None) -> None:
                               "analysis/out/measeval/<id>/ directory.")
     parser.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+        help="analysis-configs/measeval/<id>.yaml providing params.experiment_ids and "
              "params.measeval_evaluation (dev, output) -- mutually exclusive with "
              "--experiment-id/--dev/--out-dir. Scores every id in the list and writes "
              "one combined CSV to params.measeval_evaluation.output.",
@@ -677,7 +677,7 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--experiment-id is required unless --config is given")
 
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "measeval")
         experiment_ids = cfg["params"]["experiment_ids"]
         section = get_section(cfg, "measeval_evaluation", required_keys=("dev", "output"))
         dev = section["dev"]

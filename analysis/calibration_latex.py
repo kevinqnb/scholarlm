@@ -39,7 +39,7 @@ Guards (the CSVs carry no config id, so provenance cannot be fully proven here):
 
 Usage
 -----
-    python analysis/calibration_latex.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/calibration_latex.py --config analysis/analysis-configs/<calibration | calibration-validated>/<id>.yaml
 
 Table spec (``params.calibration_latex``; every key required, no defaults)::
 
@@ -47,7 +47,7 @@ Table spec (``params.calibration_latex``; every key required, no defaults)::
     labels: llm_matching | human_validated   # v3 config | calibration_validated config
     datasets: {PLW: pond, NF: nfix, SM: supermat}   # ordered; key = label
     decimals: 3
-    output_dir: analysis/results/calibration/<name>
+    output_dir: analysis/results/<calibration | calibration-validated>/<name>
     label_prefix: tab:calibration
 """
 from __future__ import annotations
@@ -63,7 +63,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
+    _load_envelope, analysis_config_path, analysis_results_dir, get_section, load_calibration_v3_config,
     load_calibration_validated_config,
 )
 
@@ -71,6 +71,9 @@ SECTION = "calibration_latex"
 SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "output_dir", "label_prefix")
 # Real-cell label source -> loader for the referenced calibration config.
 LABEL_LOADERS = {"llm_matching": load_calibration_v3_config, "human_validated": load_calibration_validated_config}
+# Real-cell label source -> analysis type of the referenced calibration config, its
+# results, and this latex config itself (it lives with the analysis it formats).
+LABEL_TYPES = {"llm_matching": "calibration", "human_validated": "calibration-validated"}
 MISSING_CELL = "--"
 SETTINGS = {"syn": "synthetic", "real": "real"}
 METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file>.csv suffix)
@@ -111,12 +114,18 @@ def load_spec(path: Path) -> dict:
         ValueError/KeyError: malformed envelope or section, bad value types, or
             dataset labels/names that are empty or repeated.
     """
-    cfg = _load_envelope(path)
+    if Path(path).parent.name not in LABEL_TYPES.values():
+        raise ValueError(f"{path}: a calibration_latex config must live in one of "
+                         f"{sorted(LABEL_TYPES.values())}/, found in {Path(path).parent.name}/")
+    cfg = _load_envelope(path, Path(path).parent.name)
     if set(cfg["params"]) != {SECTION}:
         raise ValueError(f"{path}: params keys {sorted(cfg['params'])} must be exactly [{SECTION!r}]")
     spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS)
     if spec["labels"] not in LABEL_LOADERS:
         raise ValueError(f"{path}: labels must be one of {tuple(LABEL_LOADERS)}, got {spec['labels']!r}")
+    if LABEL_TYPES[spec["labels"]] != Path(path).parent.name:
+        raise ValueError(f"{path}: labels {spec['labels']!r} formats {LABEL_TYPES[spec['labels']]} results, "
+                         f"but the config lives in {Path(path).parent.name}/")
     d = spec["decimals"]
     if isinstance(d, bool) or not isinstance(d, int) or d < 0:
         raise ValueError(f"{path}: decimals must be a non-negative int, got {d!r}")
@@ -134,7 +143,7 @@ def load_spec(path: Path) -> dict:
 def load_calibration_config(spec: dict) -> dict:
     """The referenced calibration config, via the loader ``spec["labels"]`` names
     (a v3 config fails the validated loader and vice versa)."""
-    return LABEL_LOADERS[spec["labels"]](ANALYSIS_CONFIGS_ROOT / f"{spec['calibration_config']}.yaml")
+    return LABEL_LOADERS[spec["labels"]](analysis_config_path(LABEL_TYPES[spec["labels"]], spec["calibration_config"]))
 
 
 def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
@@ -155,7 +164,7 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
     if cal_cfg["params"]["recalibration"] != "platt_fit":
         raise ValueError(f"{cal_id}: recalibration {cal_cfg['params']['recalibration']!r} -- "
                          "captions are written for platt_fit only")
-    results_dir = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id
+    results_dir = analysis_results_dir(LABEL_TYPES[spec["labels"]]) / cal_id
 
     frames, judges = {}, set()
     for kind, suffix in METHODS:
@@ -373,7 +382,7 @@ def build_tables(spec: dict, frames: dict, judge: str, platt_n: int) -> dict[str
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", type=Path, required=True, help="analysis-configs/<id>.yaml table spec")
+    parser.add_argument("--config", type=Path, required=True, help="analysis-configs/<calibration | calibration-validated>/<id>.yaml table spec")
     args = parser.parse_args(argv)
 
     spec = load_spec(args.config)

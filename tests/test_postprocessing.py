@@ -318,7 +318,9 @@ def test_main_config_reads_experiment_ids(tmp_path, monkeypatch):
     gt_path = tmp_path / "ground_truth.json"
     gt_path.write_text("[]")
 
-    config_path = tmp_path / "2026-09-23-test-analysis-01.yaml"
+    config_path = tmp_path / "recovery-validity" / "2026-09-23-test-analysis-01.yaml"
+
+    config_path.parent.mkdir(exist_ok=True)
     with open(config_path, "w") as f:
         yaml.safe_dump(
             {
@@ -336,3 +338,4 @@ def test_main_config_reads_experiment_ids(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["postprocessing.py", "--config", str(config_path)])
     pp.main()
     assert seen == [("id-a", gt_path)]
+

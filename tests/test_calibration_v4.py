@@ -47,7 +47,8 @@ def base_cfg(tmp_path):
 
 
 def _load(cfg, tmp_path):
-    path = tmp_path / f"{cfg['id']}.yaml"
+    path = tmp_path / "calibration" / f"{cfg['id']}.yaml"
+    path.parent.mkdir(exist_ok=True)
     path.write_text(yaml.safe_dump(cfg))
     return ac.load_calibration_v4_config(path)
 

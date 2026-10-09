@@ -646,7 +646,7 @@ def plot_w1_curves_legend(out_path: Path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('config', type=Path, help="analysis/analysis-configs/<id>.yaml with params.meta_v2")
+    parser.add_argument('config', type=Path, help="analysis/analysis-configs/meta/<id>.yaml with params.meta_v2")
     args = parser.parse_args()
 
     cfg = load_meta_v2_config(args.config)

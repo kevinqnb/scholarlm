@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import seaborn as sns
 
-from analysis.common.config import load_calibration_validated_config, validations_path
+from analysis.common.config import analysis_results_dir, load_calibration_validated_config, validations_path
 from analysis.common import calibration_ids as cids
 from analysis.common import matching
 from analysis.common import nested_bootstrap as nb
@@ -66,8 +66,8 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# One positional analysis config (analysis/analysis-configs/<id>.yaml, loaded by
-# analysis_config.load_calibration_validated_config) names every run this script reads:
+# One positional analysis config (analysis/analysis-configs/calibration-validated/<id>.yaml, loaded by
+# common.config.load_calibration_validated_config) names every run this script reads:
 # per dataset, the real extraction + its qwen interp-judge run + judge_combine
 # run, the synthetic-probe analysis config whose cached probe is applied, and
 # the synthetic test runs. calibration_ids.resolve_calibration_inputs
@@ -75,13 +75,13 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 # anything is loaded. No flags or defaults (the one env var, SCHOLARLM_VALIDATIONS_DIR,
 # only locates the human-validation files, whose sha256 the config pins): the config id is the
 # run's identity, and every figure/CSV/pickle goes under
-# analysis/results/calibration/<config id>/.
+# analysis/results/calibration-validated/<config id>/.
 def _parse_args():
     parser = argparse.ArgumentParser(
         description="Probe/NTP calibration analysis (v3 recalibration, but real test cells are scored against human-validated labels)."
     )
     parser.add_argument('config', type=Path,
-                        help="analysis/analysis-configs/<id>.yaml (see load_calibration_validated_config)")
+                        help="analysis/analysis-configs/calibration-validated/<id>.yaml (see load_calibration_validated_config)")
     return parser.parse_args()
 
 
@@ -120,7 +120,7 @@ _INPUTS = cids.resolve_calibration_inputs(_CFG)
 JUDGE_MODEL  = _INPUTS['judge_model']
 JUDGE_MODELS = [JUDGE_MODEL]  # kept as a list: every plot/metrics loop below is judge_model-indexed
 
-OUT_DIR = REPO_ROOT / "analysis" / "results" / "calibration" / CONFIG_ID
+OUT_DIR = analysis_results_dir("calibration-validated") / CONFIG_ID
 FIGURES_DIR = OUT_DIR / "figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 

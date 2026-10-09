@@ -26,10 +26,10 @@ with, the retired v1 sweep's nested-bootstrap intervals.
 Fit sample r of test dataset ds resamples the same pool documents at every n, and is
 shared by every train probe and method.
 
-No flags: one positional config (analysis/analysis-configs/<id>.yaml, see
+No flags: one positional config (analysis/analysis-configs/platt-scaling/<id>.yaml, see
 load_platt_sweep_v2_config), normally run through
 `bash analysis/submit.sh platt_scaling <id> --walltime HH:MM:SS --omp N`. Output goes
-to analysis/results/calibration/<config id>/.
+to analysis/results/platt-scaling/<config id>/.
 """
 import sys
 from pathlib import Path
@@ -50,7 +50,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 
-from analysis.common.config import load_platt_sweep_v2_config
+from analysis.common.config import analysis_results_dir, load_platt_sweep_v2_config
 from analysis.common import calibration_ids as cids
 from analysis.common import matching
 from analysis.common import doc_bootstrap as db
@@ -358,7 +358,7 @@ def main(config_path):
     platt_ns, recalibration, n_resamples = list(p['platt_ns']), p['recalibration'], p['n_train_resamples']
     print(f"[platt sweep v2] config: {cfg['id']} | ns: {platt_ns} | recalibration: {recalibration} | "
           f"train resamples: {n_resamples}")
-    out_dir = REPO_ROOT / 'analysis' / 'results' / 'calibration' / cfg['id']
+    out_dir = analysis_results_dir('platt-scaling') / cfg['id']
     figures_dir = out_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
 
@@ -374,5 +374,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Calibration error vs. number of recalibration training samples, over training resamples (real setting).")
     parser.add_argument('config', type=Path,
-                        help="analysis-configs/<id>.yaml (see load_platt_sweep_v2_config)")
+                        help="analysis-configs/platt-scaling/<id>.yaml (see load_platt_sweep_v2_config)")
     main(parser.parse_args().config)

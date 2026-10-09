@@ -1,8 +1,8 @@
 """Deduplicate an extraction with exact weighted correlation clustering, keeping each cluster's center.
 
 Reads the within-extraction duplicate graph cached by analysis/deduplicate_cache.py
-(every strict-equal row pair with its mean fuzzy score ``w``) and the extraction
-file that cache was built against, then:
+on the same recovery-validity config (every strict-equal row pair with its mean
+fuzzy score ``w``) and the extraction file that cache was built against, then:
 
 (a) clusters the rows by weighted correlation clustering. With ``tau`` = the
     experiment's dataset's ``DatasetConfig.fuzzy_threshold``, a pair of rows costs
@@ -42,7 +42,7 @@ file first, so a regenerated extraction cannot be silently mismatched.
 
 Usage
 -----
-    python analysis/deduplication.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/deduplication.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
     bash analysis/submit.sh deduplication <id> --walltime HH:MM:SS --omp N
 """
 from __future__ import annotations
@@ -67,7 +67,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common import dedup
-from analysis.common.config import ANALYSIS_CONFIGS_ROOT, get_section
+from analysis.common.config import get_section
 from analysis.common.dedup import (
     DEDUP_SECTION as SECTION, DEDUP_SECTION_KEYS as SECTION_KEYS, deduplication_dir, load_deduplication_config,
 )
@@ -371,15 +371,14 @@ def load_deduplicated(config_id: str, experiment_id: str) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True,
-                        help="analysis-configs/<id>.yaml with params.experiment_ids and params.deduplication")
+                        help="analysis-configs/recovery-validity/<id>.yaml with params.deduplicate_cache and params.deduplication")
     args = parser.parse_args()
     cfg = load_deduplication_config(args.config)
     sec = get_section(cfg, SECTION, SECTION_KEYS)
-    cache_config_id = sec["deduplicate_cache_config_id"]
-    cache_cfg = dedup.load_deduplicate_cache_config(ANALYSIS_CONFIGS_ROOT / f"{cache_config_id}.yaml")
-    cache_section = get_section(cache_cfg, dedup.CACHE_SECTION, dedup.CACHE_SECTION_KEYS)
+    # The caches this clusters were built by deduplicate_cache.py on this same config.
+    cache_section = get_section(cfg, dedup.CACHE_SECTION, dedup.CACHE_SECTION_KEYS)
     for experiment_id in cfg["params"]["experiment_ids"]:
-        build_deduplication(cfg["id"], experiment_id, sec, cache_config_id, cache_section)
+        build_deduplication(cfg["id"], experiment_id, sec, cfg["id"], cache_section)
 
 
 if __name__ == "__main__":

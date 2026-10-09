@@ -7,7 +7,7 @@ experiment scaffolding.
 ## Layout
 
 Top-level `analysis/*.py` files are **entry points**: each one reads one
-`analysis-configs/<id>.yaml` and writes under `analysis/results/`. Shared code lives in
+`analysis-configs/<type>/<id>.yaml` and writes under `analysis/results/<type>/`. Shared code lives in
 `analysis/common/`. Entry points import from `common/` and never from each other.
 `common/` modules never import an entry point. The one exception is
 `_resolve_job.py`, the submit-time validator. It imports each script's own config
@@ -52,13 +52,38 @@ analysis/
     meta_inputs.py           meta config loader, input resolution, the score join
     pond_meta.py             pond cell universe, unit conversion + bounds, load_data
     outlier_weight.py        non-outlier confidence factor (pond_meta_analysis, pond_clustering)
-  analysis-configs/          committed configs, one per analysis run
-  results/                   outputs, by script then config id
+  analysis-configs/<type>/   committed configs, one directory per analysis type
+  results/<type>/            outputs, by analysis type then config id
 ```
+
+## Analysis types
+
+Configs and results share one directory name per analysis type
+(`common.config.ANALYSIS_TYPES`). Every loader checks that its config sits in its own
+type directory, and every cross-config reference (a calibration config's
+`synthetic_probe_config`, a meta config's `calibration_config_id`, ...) resolves through
+`common.config.analysis_config_path(type, id)`, so a misfiled config is a hard error.
+
+| type | scripts | results |
+|---|---|---|
+| `recovery-validity` | setup: `postprocessing`, `match_cache`, `deduplicate_cache`, `deduplication`; then `recovery_validity`, `recovery_validity_latex` | `recovery-validity/`, plus `match-cache/<experiment id>/`, `deduplicate-cache/<config id>/`, `deduplication/<config id>/` |
+| `measeval` | `measeval_evaluation` | `measeval/` |
+| `synthetic-probe` | `synthetic_probe_train` | `synthetic-probe/` |
+| `calibration` | `calibration`, `calibration_latex` (`labels: llm_matching`) | `calibration/` |
+| `calibration-validated` | `calibration_validated`, `calibration_latex` (`labels: human_validated`) | `calibration-validated/` |
+| `platt-scaling` | `platt_scaling` | `platt-scaling/` |
+| `decision-threshold` | `decision_threshold` | `decision-threshold/` |
+| `meta` | `pond_meta_analysis` | `meta/` |
+| `clustering` | `pond_clustering` | `clustering/` |
+
+A recovery-validity config is the one setup config for its experiment ids: run
+postprocessing, match_cache, deduplicate_cache and deduplication on it, in that order,
+before recovery_validity. Its `deduplicate_cache` and `deduplication` sections build the
+dedup artefacts that meta / clustering configs name by `deduplication_config_id`.
 
 ## Analysis configs
 
-`analysis-configs/<id>.yaml` groups the experiment ids that feed one analysis report
+`analysis-configs/<type>/<id>.yaml` groups the experiment ids that feed one analysis report
 together with the parameters to run it. It follows the harness's standard
 `id`/`project`/`description`/`seed`/`params` envelope (see `notes/hub/conventions.md`).
 `params.experiment_ids` is shared by every consumer. A script that needs its own
@@ -70,7 +95,7 @@ is an error.
 id: 2026-09-23-pond-recovery-report-01
 project: scholarlm
 description: Recovery report for a pond extraction variant (no judge coverage yet -- recovery only).
-seed: 342                          # recovery_validity.py's bootstrap RNG seed -- unrelated to
+seed: 0                            # recovery_validity.py's bootstrap RNG seed -- unrelated to
                                     # experiments/config.yaml's defaults.seed, never checked against it
 params:
   experiment_ids:
@@ -79,7 +104,7 @@ params:
     n_resamples: 2000
     alpha: 0.05
     compute_validity: false
-    output: analysis/results/2026-09-23-pond-recovery-report-01.csv
+    output: analysis/results/recovery-validity/2026-09-23-pond-recovery-report-01.csv
 ```
 
 Section names are part of the config schema and did not change when scripts were
@@ -102,14 +127,15 @@ data. Treat it as fixture-verified, not production-verified, until a real id nee
 ## Running
 
 ```bash
-python analysis/<script>.py [--config] analysis/analysis-configs/<id>.yaml
+python analysis/<script>.py [--config] analysis/analysis-configs/<type>/<id>.yaml
 bash analysis/submit.sh <key> <id> --walltime HH:MM:SS --omp N [--dry-run]
 ```
 
-`match_cache`, `deduplicate_cache`, `deduplication`, `recovery_validity` and
-`measeval_evaluation` take `--config`; the rest take the config path positionally.
+`postprocessing`, `match_cache`, `deduplicate_cache`, `deduplication`, `recovery_validity`
+and `measeval_evaluation` take `--config`; the rest take the config path positionally.
 `submit.sh` keys are the script names in `_resolve_job.SCRIPTS` (`calibration`,
-`platt_scaling`, `pond_meta_analysis`, `pond_clustering`, …). `--walltime` and `--omp`
+`platt_scaling`, `pond_meta_analysis`, `pond_clustering`, …); each key fixes the type
+directory its `<id>` is looked up in. `--walltime` and `--omp`
 are required, because cost varies by script and config. Job logs go to
 `analysis/out/<id>.<key>.log`.
 

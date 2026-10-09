@@ -1,13 +1,13 @@
 """Compute and cache within-extraction duplicate edges, by experiment id.
 
 The deduplication counterpart of analysis/match_cache.py. The only job of this
-script: given an analysis config (analysis/analysis-configs/<id>.yaml) listing
+script: given a recovery-validity config (analysis/analysis-configs/recovery-validity/<id>.yaml) listing
 experiment ids and a ``params.deduplicate_cache`` section, load each run's
 extraction file, apply the section's explicit pre-normalisation, score EVERY
 pair of rows that strict-matches under the same pairwise rule as
 ``scholarlm.utils.deduplication.pair_score`` (itself a mirror of
 ``match_datasets``' edge rule), and write the edges + weights to
-analysis/results/deduplicate_cache/<config id>/<experiment id>/
+analysis/results/deduplicate-cache/<config id>/<experiment id>/
 deduplicate_cache.pkl, plus a deduplicate_cache.meta.json sidecar recording the
 extraction file (repo-relative path + sha256), row count and the exact section
 the cache was built with.
@@ -44,7 +44,7 @@ is explicit and recorded, never inferred):
 
 Usage
 -----
-    python analysis/deduplicate_cache.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/deduplicate_cache.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
     bash analysis/submit.sh deduplicate_cache <id> --walltime HH:MM:SS --omp N
 """
 from __future__ import annotations
@@ -234,7 +234,7 @@ def build_deduplicate_cache(config_id: str, experiment_id: str, sec: dict) -> Pa
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True,
-                        help="analysis-configs/<id>.yaml with params.experiment_ids and params.deduplicate_cache")
+                        help="analysis-configs/recovery-validity/<id>.yaml with params.deduplicate_cache")
     args = parser.parse_args()
     cfg = load_deduplicate_cache_config(args.config)
     sec = get_section(cfg, SECTION, SECTION_KEYS)

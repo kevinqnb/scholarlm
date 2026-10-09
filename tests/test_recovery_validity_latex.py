@@ -80,10 +80,12 @@ def test_pre_any_edge_csv_without_matching_column_raises(tmp_path, monkeypatch):
     # A CSV written before 2026-10-07 has `recovery` = max-weight matching count
     # and no recovery_max_weight_matching column: refuse it rather than render it.
     import yaml
-    monkeypatch.setattr(rvl, "ANALYSIS_CONFIGS_ROOT", tmp_path)
+    from analysis.common import config as ac
+    monkeypatch.setattr(ac, "ANALYSIS_CONFIGS_ROOT", tmp_path)
     csv_path = tmp_path / "out.csv"
     cfg_id = "2026-10-05-test-rv-01"
-    with open(tmp_path / f"{cfg_id}.yaml", "w") as f:
+    (tmp_path / "recovery-validity").mkdir()
+    with open(tmp_path / "recovery-validity" / f"{cfg_id}.yaml", "w") as f:
         yaml.safe_dump({
             "id": cfg_id, "project": "scholarlm", "description": "test", "seed": 342,
             "params": {"experiment_ids": ["a"], "recovery_validity": {"output": str(csv_path)}},

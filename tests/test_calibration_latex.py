@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from analysis import calibration_latex as cl
 
-REAL_CFG = "2026-10-04-calibration-v3-gemma27b-qwen-2.5-7b-v3-01"
+REAL_CFG = "2026-01-01-calibration-v3-test-01"
 DS = ["pond", "nfix", "supermat"]
 SPEC = {"datasets": {"PLW": "pond", "NF": "nfix", "SM": "supermat"}, "decimals": 3,
         "label_prefix": "tab:t", "calibration_config": REAL_CFG, "output_dir": "x",
@@ -129,18 +129,30 @@ def test_variants_rmsce_point_outside_interval_renders_exact_interval():
     assert "0.500 [0.060, 0.090]" in tex
 
 
+def _v3_config(gt):
+    block = {"extraction_id": "e", "judge_interp_id": "j", "judge_combine_id": "c", "ground_truth_file": str(gt),
+             "synthetic_probe_config": "p", "use_matching_labels": True,
+             "syn_test_ids": {"primary": "tp", "diag": "td"}}
+    return {"id": REAL_CFG, "project": "scholarlm", "description": "t", "seed": 0,
+            "params": {"probe_type": "head", "probe_variant": "platt", "syn_split": "primary", "platt_n": 100,
+                       "recalibration": "platt_fit", "n_fit_samples": 2, "n_doc_boot": 2, "n_syn_boot": 2,
+                       "datasets": {ds: dict(block) for ds in DS}}}
+
+
 @pytest.fixture
 def staged(tmp_path, monkeypatch):
+    import yaml
+    from analysis.common import config as ac
     cfg_dir = tmp_path / "cfgs"
-    cfg_dir.mkdir()
-    # REAL_CFG predates the required nested-bootstrap keys; stage it with them added.
-    text = (cl.ANALYSIS_CONFIGS_ROOT / f"{REAL_CFG}.yaml").read_text()
-    assert text.count("  platt_n: 100\n") == 1
-    (cfg_dir / f"{REAL_CFG}.yaml").write_text(
-        text.replace("  platt_n: 100\n", "  platt_n: 100\n  n_fit_samples: 2\n  n_doc_boot: 2\n  n_syn_boot: 2\n"))
-    monkeypatch.setattr(cl, "ANALYSIS_CONFIGS_ROOT", cfg_dir)
-    monkeypatch.setattr(cl, "_REPO_ROOT", tmp_path)
-    res = tmp_path / "analysis" / "results" / "calibration" / REAL_CFG
+    gt = tmp_path / "gt.json"
+    gt.write_text("[]")
+    # The same v3 config filed under both types: the validated loader must still reject it.
+    for typ in ("calibration", "calibration-validated"):
+        (cfg_dir / typ).mkdir(parents=True)
+        (cfg_dir / typ / f"{REAL_CFG}.yaml").write_text(yaml.safe_dump(_v3_config(gt)))
+    monkeypatch.setattr(ac, "ANALYSIS_CONFIGS_ROOT", cfg_dir)
+    monkeypatch.setattr(ac, "ANALYSIS_RESULTS_ROOT", tmp_path / "results")
+    res = tmp_path / "results" / "calibration" / REAL_CFG
     res.mkdir(parents=True)
     for kind, df in _frames().items():
         df.to_csv(res / f"metrics_{kind.lower()}.csv", index=False)
@@ -171,7 +183,8 @@ def test_load_metrics_wrong_platt_n(staged):
 @pytest.mark.parametrize("method", ["prior_shift", "intercept_fit"])
 def test_load_metrics_rejects_non_platt_recalibration(staged, method):
     # Captions describe Platt scaling, so a non-Platt run must not render silently.
-    cfg_path = cl.ANALYSIS_CONFIGS_ROOT / f"{REAL_CFG}.yaml"
+    from analysis.common import config as ac
+    cfg_path = ac.ANALYSIS_CONFIGS_ROOT / "calibration" / f"{REAL_CFG}.yaml"
     text = cfg_path.read_text()
     assert text.count("recalibration: platt_fit") == 1
     cfg_path.write_text(text.replace("recalibration: platt_fit", f"recalibration: {method}"))
@@ -222,11 +235,34 @@ def test_wrong_loader_for_config_raises(staged):
 
 
 def test_load_spec_rejects_unknown_labels(tmp_path):
-    p = tmp_path / "c.yaml"
+    p = tmp_path / "calibration" / "c.yaml"
+    p.parent.mkdir()
     p.write_text("id: c\nproject: scholarlm\ndescription: x\nseed: 0\nparams:\n  calibration_latex:\n"
                  "    calibration_config: a\n    labels: human\n    datasets: {PLW: pond}\n    decimals: 3\n"
                  "    output_dir: x\n    label_prefix: t\n")
     with pytest.raises(ValueError, match="labels must be one of"):
+        cl.load_spec(p)
+
+
+_SPEC_YAML = ("id: c\nproject: scholarlm\ndescription: x\nseed: 0\nparams:\n  calibration_latex:\n"
+              "    calibration_config: a\n    labels: {labels}\n    datasets: {{PLW: pond}}\n    decimals: 3\n"
+              "    output_dir: x\n    label_prefix: t\n")
+
+
+@pytest.mark.parametrize("typ, labels", [("calibration", "human_validated"), ("calibration-validated", "llm_matching")])
+def test_load_spec_rejects_labels_from_other_type(tmp_path, typ, labels):
+    p = tmp_path / typ / "c.yaml"
+    p.parent.mkdir()
+    p.write_text(_SPEC_YAML.format(labels=labels))
+    with pytest.raises(ValueError, match="config lives in"):
+        cl.load_spec(p)
+
+
+def test_load_spec_rejects_other_type_dir(tmp_path):
+    p = tmp_path / "recovery-validity" / "c.yaml"
+    p.parent.mkdir()
+    p.write_text(_SPEC_YAML.format(labels="llm_matching"))
+    with pytest.raises(ValueError, match="must live in one of"):
         cl.load_spec(p)
 
 

@@ -108,7 +108,8 @@ BASE = {
 
 
 def _write(tmp_path, cfg):
-    p = tmp_path / f"{cfg['id']}.yaml"
+    p = tmp_path / "clustering" / f"{cfg['id']}.yaml"
+    p.parent.mkdir(exist_ok=True)
     p.write_text(yaml.safe_dump(cfg))
     return p
 

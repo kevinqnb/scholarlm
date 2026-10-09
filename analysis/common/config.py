@@ -1,12 +1,15 @@
-"""Shared loader for analysis/analysis-configs/<id>.yaml.
+"""Shared loader for analysis/analysis-configs/<type>/<id>.yaml.
 
 Reuses the harness's standard id/project/description/seed/params envelope
 (see notes/hub/conventions.md and experiments/utils.load_experiment_config's
 own copy of the same envelope check) rather than inventing a second config
-shape -- the difference from an experiments/experiment-configs/ entry is only
-where it lives (flat under analysis/analysis-configs/, not nested by
-dataset/experiment-type, since an analysis config isn't routed through
-submit.sh/_resolve_job.py) and what params it carries.
+shape -- the difference from an experiments/experiment-configs/ entry is
+where it lives (analysis/analysis-configs/<type>/, one directory per analysis
+type, the same names as analysis/results/<type>/) and what params it carries.
+Every loader checks that its config sits in its own type directory
+(check_config_type), and every cross-config reference resolves through
+analysis_config_path(type, id) -- so a config filed under the wrong type is a
+hard error, not a silently-found file.
 
 Every analysis-config consumer (analysis/match_cache.py,
 analysis/recovery_validity.py, ...) shares one params.experiment_ids list --
@@ -35,12 +38,56 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
+ANALYSIS_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results"
+
+# Analysis types: each is a subdirectory of both analysis-configs/ (the configs
+# of that type) and results/ (their outputs, by config id). recovery-validity
+# configs also drive the setup steps (postprocessing, match_cache,
+# deduplicate_cache, deduplication) on the same experiment ids; the latex
+# configs live with the analysis whose CSVs they format.
+ANALYSIS_TYPES = (
+    "recovery-validity", "measeval", "synthetic-probe", "calibration", "calibration-validated",
+    "platt-scaling", "decision-threshold", "meta", "clustering",
+)
+# Results-only types: artefacts keyed by experiment id (match-cache) or by
+# (recovery-validity config id, experiment id) (the dedup pair), with no config
+# directory of their own.
+RESULTS_ONLY_TYPES = ("match-cache", "deduplicate-cache", "deduplication")
+
+
+def analysis_config_path(analysis_type: str, config_id: str) -> Path:
+    """ANALYSIS_CONFIGS_ROOT/<analysis_type>/<config_id>.yaml -- the one place a
+    config path is built from an id. Does not check the file exists."""
+    if analysis_type not in ANALYSIS_TYPES:
+        raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES}")
+    return ANALYSIS_CONFIGS_ROOT / analysis_type / f"{config_id}.yaml"
+
+
+def analysis_results_dir(analysis_type: str) -> Path:
+    """ANALYSIS_RESULTS_ROOT/<analysis_type>/ for a config or results-only type."""
+    if analysis_type not in ANALYSIS_TYPES + RESULTS_ONLY_TYPES:
+        raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES + RESULTS_ONLY_TYPES}")
+    return ANALYSIS_RESULTS_ROOT / analysis_type
+
+
+def check_config_type(path: Path, analysis_type: str) -> None:
+    """Raise unless ``path`` sits directly in an ``<analysis_type>/`` directory,
+    so e.g. a platt-scaling config filed under calibration/ never loads."""
+    if analysis_type not in ANALYSIS_TYPES:
+        raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES}")
+    if Path(path).parent.name != analysis_type:
+        raise ValueError(
+            f"{path}: a {analysis_type} config must live in analysis-configs/{analysis_type}/, "
+            f"found in {Path(path).parent.name}/"
+        )
+
 
 # Every params section name a consumer script owns, so load_analysis_config
 # can reject a stray top-level key (e.g. a value meant for
 # params.recovery_validity dropped at the top level instead) instead of
 # silently ignoring it. Add a script's section name here when it grows one.
-KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation"}
+# The dedup sections ride on recovery-validity configs (see common/dedup.py).
+KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation", "deduplicate_cache", "deduplication"}
 
 # Params keys for analysis/synthetic_probe_train.py, which trains on one
 # judge_interp run and so has no experiment_ids / ground_truth_file.
@@ -69,9 +116,11 @@ def get_ground_truth_path(cfg: dict) -> Path:
     return _resolve_ground_truth_path(cfg["params"]["ground_truth_file"])
 
 
-def _load_envelope(path: Path) -> dict:
+def _load_envelope(path: Path, analysis_type: str) -> dict:
     """Parse path and check the id/project/description/seed/params envelope
-    (id == filename stem, params a mapping). Shared by every loader here."""
+    (id == filename stem, params a mapping) and that it sits in
+    analysis-configs/<analysis_type>/ (check_config_type). Shared by every loader."""
+    check_config_type(path, analysis_type)
     with open(path) as f:
         cfg = yaml.safe_load(f)
 
@@ -87,8 +136,11 @@ def _load_envelope(path: Path) -> dict:
     return cfg
 
 
-def load_analysis_config(path: Path) -> dict:
-    """Load and validate an analysis-configs/<id>.yaml envelope.
+def load_analysis_config(path: Path, analysis_type: str) -> dict:
+    """Load and validate an experiment-id-list analysis config: a
+    recovery-validity config (which also drives postprocessing, match_cache and
+    the dedup pair) or a measeval config -- ``analysis_type`` names which, and the
+    file must sit in that type's directory.
 
     Enforces the same id/project/description/seed/params envelope as
     experiments/utils.load_experiment_config (id must match the filename
@@ -115,7 +167,9 @@ def load_analysis_config(path: Path) -> dict:
             missing/empty/non-list/duplicate experiment_ids, or a missing/
             empty/non-string/nonexistent ground_truth_file.
     """
-    cfg = _load_envelope(path)
+    if analysis_type not in ("recovery-validity", "measeval"):
+        raise ValueError(f"load_analysis_config serves recovery-validity and measeval configs, got {analysis_type!r}")
+    cfg = _load_envelope(path, analysis_type)
 
     experiment_ids = cfg["params"].get("experiment_ids")
     if not isinstance(experiment_ids, list) or not experiment_ids or not all(
@@ -187,7 +241,7 @@ def get_section(
 
 
 def load_synthetic_probe_config(path: Path) -> dict:
-    """Load analysis/synthetic_probe_train.py's analysis-configs/<id>.yaml.
+    """Load analysis/synthetic_probe_train.py's analysis-configs/synthetic-probe/<id>.yaml.
 
     Same envelope as load_analysis_config, but params carries exactly
     ``dataset`` (pond / nfix / supermat), ``judge_interp_id`` (the
@@ -203,7 +257,7 @@ def load_synthetic_probe_config(path: Path) -> dict:
             not a bool, or seed not an int.
     ``seed`` seeds every split and LogisticRegression in synthetic_probe_train.py.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "synthetic-probe")
     keys = set(cfg["params"])
     if keys != set(SYNTHETIC_PROBE_PARAM_KEYS):
         raise ValueError(
@@ -228,7 +282,7 @@ def load_synthetic_probe_config(path: Path) -> dict:
 #     qwen interp-judge run over it, and the judge_combine run holding its labels.
 #   - ground_truth_file: the ground-truth CSV/JSON this extraction is scored against
 #     (must exist; repo-root-relative if not absolute).
-#   - synthetic_probe_config: the id of the analysis-configs/ yaml (loadable by
+#   - synthetic_probe_config: the id of the analysis-configs/synthetic-probe/ yaml (loadable by
 #     load_synthetic_probe_config) whose cached probe is applied.
 #   - syn_test_ids: {primary: <id>, diag: <id>}, this dataset's synthetic judge_interp
 #     test runs; both required, ``params.syn_split`` names which one is used.
@@ -340,7 +394,7 @@ def _validate_v3_recalibration(path: Path, params: dict) -> None:
 
 
 def load_calibration_v3_config(path: Path) -> dict:
-    """Load a calibration_updated_v3-schema analysis-configs/<id>.yaml.
+    """Load a calibration_updated_v3-schema analysis-configs/calibration/<id>.yaml.
 
     The v3 script itself is retired; this loader stays because
     calibration_latex.py still formats v3 output and calibration_validated.py
@@ -352,7 +406,7 @@ def load_calibration_v3_config(path: Path) -> dict:
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "calibration")
     params = cfg["params"]
     if set(params) != set(CALIBRATION_V3_TOP_KEYS):
         raise ValueError(
@@ -391,7 +445,7 @@ def validations_path(dataset: str) -> Path:
 
 
 def load_calibration_validated_config(path: Path) -> dict:
-    """Load analysis/calibration_validated.py's analysis-configs/<id>.yaml.
+    """Load analysis/calibration_validated.py's analysis-configs/calibration-validated/<id>.yaml.
 
     Same keys as load_calibration_v3_config, except ``params.datasets`` is exactly
     CALIBRATION_VALIDATED_DATASETS and each block also carries ``validation_sha256``.
@@ -404,7 +458,7 @@ def load_calibration_validated_config(path: Path) -> dict:
         KeyError / FileNotFoundError: env var unset / validations file missing.
     """
     import hashlib
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "calibration-validated")
     params = cfg["params"]
     if set(params) != set(CALIBRATION_V3_TOP_KEYS):
         raise ValueError(
@@ -432,7 +486,7 @@ PLATT_SWEEP_V2_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration"
 
 
 def load_platt_sweep_v2_config(path: Path) -> dict:
-    """Load analysis/platt_scaling.py's analysis-configs/<id>.yaml.
+    """Load analysis/platt_scaling.py's analysis-configs/platt-scaling/<id>.yaml.
 
     Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
     load_calibration_v3_config (syn_split is still required because
@@ -445,7 +499,7 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "platt-scaling")
     params = cfg["params"]
     if set(params) != set(PLATT_SWEEP_V2_TOP_KEYS):
         raise ValueError(
@@ -495,7 +549,7 @@ def is_int(v) -> bool:
 
 
 def load_calibration_v4_config(path: Path) -> dict:
-    """Load analysis/calibration.py's analysis-configs/<id>.yaml.
+    """Load analysis/calibration.py's analysis-configs/calibration/<id>.yaml.
 
     Per-dataset blocks are v2's (CALIBRATION_V2_DATASET_KEYS: v1's keys plus
     ``pi_te_estimate``). Top level: v2's keys plus ``n_boot`` (positive int),
@@ -510,7 +564,7 @@ def load_calibration_v4_config(path: Path) -> dict:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types, or a
             fit_source / fit_n / fit_seed / pi_te_estimate inconsistent with recalibration.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "calibration")
     params = cfg["params"]
     if set(params) != set(CALIBRATION_V4_TOP_KEYS):
         raise ValueError(

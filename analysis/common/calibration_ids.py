@@ -24,7 +24,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    ANALYSIS_CONFIGS_ROOT, _resolve_ground_truth_path, load_synthetic_probe_config,
+    _resolve_ground_truth_path, analysis_config_path, analysis_results_dir, load_synthetic_probe_config,
 )
 
 
@@ -63,7 +63,7 @@ def pinned_run_dir(run_id: str, expected_dataset: str, expected_type: str) -> Pa
 
 # ── Config-driven resolution ─────────────────────────────────────────────────
 
-_SYNTHETIC_PROBE_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results" / "synthetic_probe"
+_SYNTHETIC_PROBE_RESULTS_ROOT = analysis_results_dir("synthetic-probe")
 
 # _v<N> plus an optional letter suffix: supermat's realigned split is v3s
 # (data/supermat/realign_probe_split.py), a different corpus version from v3.
@@ -108,7 +108,7 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
         a v2 test set;
       - the synthetic-probe analysis config's params.dataset is this dataset,
         and its results.json points into
-        analysis/results/synthetic_probe/<probe config id>/trained_probe/.
+        analysis/results/synthetic-probe/<probe config id>/trained_probe/.
 
     Returns:
         {'judge_model': str,
@@ -145,7 +145,7 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
                 f"{block['judge_interp_id']!r}"
             )
 
-        probe_cfg_path = ANALYSIS_CONFIGS_ROOT / f"{block['synthetic_probe_config']}.yaml"
+        probe_cfg_path = analysis_config_path("synthetic-probe", block["synthetic_probe_config"])
         if not probe_cfg_path.exists():
             raise FileNotFoundError(f"synthetic_probe_config {probe_cfg_path} does not exist")
         probe_cfg = load_synthetic_probe_config(probe_cfg_path)
@@ -164,7 +164,7 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
         if not results_path.exists():
             raise FileNotFoundError(
                 f"{results_path} missing -- run analysis/synthetic_probe_train.py "
-                f"analysis/analysis-configs/{probe_cfg['id']}.yaml first"
+                f"{probe_cfg_path} first"
             )
         with open(results_path) as f:
             results = json.load(f)

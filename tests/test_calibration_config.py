@@ -47,11 +47,11 @@ def _ids(ds):
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     exp_root, res_root = tmp_path / "experiment-configs", tmp_path / "results"
-    ac_root, probe_res = tmp_path / "analysis-configs", tmp_path / "synthetic_probe"
-    ac_root.mkdir()
+    ac_root, probe_res = tmp_path / "analysis-configs", tmp_path / "synthetic-probe"
+    (ac_root / "synthetic-probe").mkdir(parents=True)
     monkeypatch.setattr(paths, "EXPERIMENT_CONFIGS_ROOT", exp_root)
     monkeypatch.setattr(paths, "RESULTS_ROOT", res_root)
-    monkeypatch.setattr(cids, "ANALYSIS_CONFIGS_ROOT", ac_root)
+    monkeypatch.setattr(ac, "ANALYSIS_CONFIGS_ROOT", ac_root)
     monkeypatch.setattr(cids, "_SYNTHETIC_PROBE_RESULTS_ROOT", probe_res)
 
     gt = tmp_path / "gt.json"
@@ -66,7 +66,7 @@ def world(tmp_path, monkeypatch):
                    {"judge": "qwen-2.5-7b", "synthetic_file": f"data/{ds}/probe_dataset_v3.json"})
         for split, f in (("primary", "probe_dataset_test_v3.json"), ("diag", "probe_dataset_test_v3_diag.json")):
             _write_exp(exp_root, ds, "judge_interp", i[split], {"judge": "qwen-2.5-7b", "synthetic_file": f"data/{ds}/{f}"})
-        (ac_root / f"{i['probe_cfg']}.yaml").write_text(yaml.safe_dump({
+        (ac_root / "synthetic-probe" / f"{i['probe_cfg']}.yaml").write_text(yaml.safe_dump({
             "id": i["probe_cfg"], "project": "scholarlm", "description": "t", "seed": 1,
             "params": {"dataset": ds, "judge_interp_id": i["train"],
                        "use_platt_scaling": True}}))
@@ -99,7 +99,7 @@ def test_happy_path(world, tmp_path):
     assert out["judge_model"] == "qwen-2.5-7b"
     assert out["datasets"]["nfix"]["syn_test_id"] == _ids("nfix")["primary"]
     assert out["datasets"]["pond"]["probe_dir"] == (
-        tmp_path / "synthetic_probe" / _ids("pond")["probe_cfg"] / "trained_probe")
+        tmp_path / "synthetic-probe" / _ids("pond")["probe_cfg"] / "trained_probe")
     assert out["datasets"]["pond"]["extraction_dir"].parts[-2] == "extraction"
 
 
@@ -131,7 +131,8 @@ def test_loader_rejects_malformed(world, tmp_path, mutate):
 
 def test_loader_rejects_id_filename_mismatch(world, tmp_path):
     cfg, _ = world
-    p = tmp_path / "other-name.yaml"
+    p = tmp_path / "calibration" / "other-name.yaml"
+    p.parent.mkdir()
     p.write_text(yaml.safe_dump(_to_v3(cfg)))
     with pytest.raises(ValueError):
         ac.load_calibration_v3_config(p)
@@ -212,6 +213,15 @@ def test_v3s_train_with_v3_test_rejected(world, tmp_path):
                          "probe_dataset_test_v3s_diag.json")
     with pytest.raises(ValueError, match="synthetic corpus 'v3' != .*'v3s'"):
         cids.resolve_calibration_inputs(_load(cfg, tmp_path))
+
+
+def test_config_in_wrong_type_dir_rejected(world, tmp_path):
+    cfg, _ = world
+    p = tmp_path / "platt-scaling" / f"{cfg['id']}.yaml"
+    p.parent.mkdir()
+    p.write_text(yaml.safe_dump(_to_v3(cfg)))
+    with pytest.raises(ValueError, match="must live in analysis-configs/calibration/"):
+        ac.load_calibration_v3_config(p)
 
 
 def test_probe_config_dataset_mismatch(world, tmp_path):
@@ -302,7 +312,8 @@ def _to_v3(cfg, n=100, recalibration="platt_fit"):
 
 
 def _load_v3(cfg, tmp_path):
-    p = tmp_path / f"{cfg['id']}.yaml"
+    p = tmp_path / "calibration" / f"{cfg['id']}.yaml"
+    p.parent.mkdir(exist_ok=True)
     p.write_text(yaml.safe_dump(cfg))
     return ac.load_calibration_v3_config(p)
 
@@ -370,7 +381,8 @@ def _to_validated(cfg, tmp_path, monkeypatch):
 
 
 def _load_validated(cfg, tmp_path):
-    p = tmp_path / f"{cfg['id']}.yaml"
+    p = tmp_path / "calibration-validated" / f"{cfg['id']}.yaml"
+    p.parent.mkdir(exist_ok=True)
     p.write_text(yaml.safe_dump(cfg))
     return ac.load_calibration_validated_config(p)
 

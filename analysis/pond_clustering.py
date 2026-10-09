@@ -1,8 +1,8 @@
 """Downstream clustering: does weighting extracted entities by probe / NTP confidence
 make a KMeans fit on the LLM-extracted pond data recover the ground truth's clusters?
 
-    python analysis/pond_clustering.py analysis/analysis-configs/<id>.yaml
-    bash analysis/submit.sh clustering <id> --walltime HH:MM:SS --omp N
+    python analysis/pond_clustering.py analysis/analysis-configs/clustering/<id>.yaml
+    bash analysis/submit.sh pond_clustering <id> --walltime HH:MM:SS --omp N
 
 Pipeline (pond only; every value below that changes between runs is a key of
 params.clustering, see load_clustering_config):
@@ -91,7 +91,7 @@ from sklearn.impute import KNNImputer
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-from analysis.common.config import _load_envelope, get_section, is_int
+from analysis.common.config import _load_envelope, analysis_results_dir, get_section, is_int
 from analysis.common.outlier_weight import add_outlier_columns
 from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, resolve_meta_inputs
 from analysis.common.pond_meta import DATASET, PAPER_RCPARAMS, UNIT_CONVERSION, load_data
@@ -120,7 +120,7 @@ CONF_COLS = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
 ARMS = ('ntp', 'probe', 'ntp_shuffled', 'probe_shuffled')
 # Third rng seed word per shuffled arm (rng [seed, sample, stream]).
 SHUFFLE_STREAMS = {'ntp': 1, 'probe': 2}
-CLUSTERING_ROOT = REPO_ROOT / 'analysis' / 'results' / 'clustering'
+CLUSTERING_ROOT = analysis_results_dir('clustering')
 
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette('husl', 10)
@@ -154,7 +154,7 @@ def load_clustering_config(path: Path) -> dict:
     factor of analysis/common/outlier_weight.py); ``gammas`` {start, stop, num} for np.linspace, start == 0 (the gamma = 0
     known-answer check needs it), stop > start, num >= 2. ``seed`` an int.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, 'clustering')
     unexpected = set(cfg['params']) - {SECTION}
     if unexpected:
         raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
@@ -452,7 +452,7 @@ def plot_center_dist(summary: pd.DataFrame, gammas: np.ndarray, out_path: Path) 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    ap.add_argument('config', type=Path, help='analysis/analysis-configs/<id>.yaml')
+    ap.add_argument('config', type=Path, help='analysis/analysis-configs/clustering/<id>.yaml')
     args = ap.parse_args()
 
     cfg = load_clustering_config(args.config)

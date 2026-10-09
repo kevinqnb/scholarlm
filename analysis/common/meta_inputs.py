@@ -40,7 +40,7 @@ for _p in (_REPO_ROOT / "src", _REPO_ROOT / "experiments", _REPO_ROOT):
 
 from analysis.common import calibration_ids as cids, dedup
 from analysis.common.config import (
-    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v4_config,
+    _load_envelope, analysis_config_path, analysis_results_dir, get_section, load_calibration_v4_config,
 )
 from analysis.common.prediction_store import check_real_cell
 from analysis.common.matching import parse_numeric
@@ -102,7 +102,7 @@ def load_meta_v2_config(path: Path) -> dict:
     multiplies the NTP / probe confidences by the non-outlier factor of
     analysis/common/outlier_weight.py before thresholding.
     """
-    cfg = _load_envelope(path)
+    cfg = _load_envelope(path, "meta")
     unexpected = set(cfg["params"]) - {SECTION_V2}
     if unexpected:
         raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
@@ -185,7 +185,7 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
     ground_truth_path, probe_dir, probe_variant, predictions_path, dedup_dir | None).
     """
     cal_id, calibration_version = sec["calibration_config_id"], sec["calibration_version"]
-    cal_path = ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml"
+    cal_path = analysis_config_path("calibration", cal_id)
     if not cal_path.exists():
         raise FileNotFoundError(f"calibration config {cal_path} does not exist")
     if calibration_version not in CALIBRATION_LOADERS:
@@ -197,15 +197,16 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
     ds = cal_inputs["datasets"][dataset]
     extraction_id = cal_cfg["params"]["datasets"][dataset]["extraction_id"]
 
-    predictions_path = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id / "predictions.pkl"
+    predictions_path = analysis_results_dir("calibration") / cal_id / "predictions.pkl"
     if not predictions_path.exists():
         raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration.py first")
 
     dedup_dir = None
     if sec["rows"] == "deduplicated":
-        dd_path = ANALYSIS_CONFIGS_ROOT / f"{sec['deduplication_config_id']}.yaml"
+        # deduplication runs on a recovery-validity config (see common/dedup.py)
+        dd_path = analysis_config_path("recovery-validity", sec["deduplication_config_id"])
         if not dd_path.exists():
-            raise FileNotFoundError(f"deduplication config {dd_path} does not exist")
+            raise FileNotFoundError(f"deduplication (recovery-validity) config {dd_path} does not exist")
         dd_cfg = dedup.load_deduplication_config(dd_path)
         if extraction_id not in dd_cfg["params"]["experiment_ids"]:
             raise ValueError(f"{dd_cfg['id']}: experiment_ids does not contain {extraction_id!r}")

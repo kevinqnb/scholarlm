@@ -15,6 +15,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from analysis.common.config import analysis_results_dir
 from analysis.common.loaders import load_ground_truth_file
 from analysis.common.meta_inputs import (
     _REPO_ROOT as REPO_ROOT,
@@ -50,9 +51,9 @@ PAPER_RCPARAMS = {
 }
 
 # Every run the meta analysis reads is named by one analysis config
-# (analysis/analysis-configs/<id>.yaml, see meta_inputs.load_meta_v2_config); outputs go to
+# (analysis/analysis-configs/meta/<id>.yaml, see meta_inputs.load_meta_v2_config); outputs go to
 # analysis/results/meta/<config id>/. Nothing is read from the legacy data/experiments tree.
-META_ROOT = REPO_ROOT / "analysis" / "results" / "meta"
+META_ROOT = analysis_results_dir("meta")
 
 # ── Parameters ───────────────────────────────────────────────────────────────
 # Label for the `dataset` column of the output CSVs. The ecosystem bucketing,

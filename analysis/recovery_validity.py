@@ -73,7 +73,7 @@ Usage
     python analysis/recovery_validity.py <id> [<id> ...] \\
         --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
         [--alpha 0.05] [--skip-validity] [--output PATH]
-    python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/recovery_validity.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 
 ``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
 defaulted (CLAUDE.md: no inferred defaults for a value that changes the
@@ -87,7 +87,7 @@ is checked against it -- see ``assert_ground_truth_matches_cache``).
 and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
 ``compute_validity``/``output``, all required with no defaults, plus an
 optional ``judge_combine_ids`` id-to-id override map) from an
-analysis-configs/<id>.yaml -- see analysis/common/config.py. Mutually
+analysis-configs/recovery-validity/<id>.yaml -- see analysis/common/config.py. Mutually
 exclusive with ``experiment_ids`` and every flag above. A declared
 ``judge_combine_ids`` entry is still verified against its extraction id (see
 ``verify_judge_combine_id``) before use, the same way automatic resolution
@@ -124,7 +124,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common import matching, provenance
-from analysis.common.config import get_ground_truth_path, get_section, load_analysis_config
+from analysis.common.config import analysis_results_dir, get_ground_truth_path, get_section, load_analysis_config
 from analysis.common.recovery import (
     ext_matched_mask, filter_edges_by_threshold, gt_recovered_mask, load_checked_inputs, resolve_judged_labels,
     verify_recovery, verify_validity,
@@ -759,7 +759,7 @@ def save_fuzzy_threshold_colorbar(out_path: Path) -> None:
 
 def fuzzy_threshold_figures_dir(analysis_config_id: str) -> Path:
     """analysis/results/recovery-validity/<analysis config id>/figures/."""
-    return _REPO_ROOT / "analysis" / "results" / "recovery-validity" / analysis_config_id / "figures"
+    return analysis_results_dir("recovery-validity") / analysis_config_id / "figures"
 
 
 def _parse_fuzzy_threshold_curve_section(section, experiment_ids: list[str], compute_validity: bool, where: str) -> dict:
@@ -803,7 +803,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("experiment_ids", nargs="*", help="Extraction/ablation/baseline experiment ids to score.")
     p.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids, "
+        help="analysis-configs/recovery-validity/<id>.yaml providing params.experiment_ids, "
              "params.ground_truth_file, and params.recovery_validity -- mutually "
              "exclusive with experiment_ids and every flag below.",
     )
@@ -863,7 +863,7 @@ def main(argv: list[str] | None = None) -> None:
 
     judge_combine_overrides: dict[str, str] = {}
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
         # get_section rejects unknown keys, so a config still carrying the
@@ -924,7 +924,7 @@ def main(argv: list[str] | None = None) -> None:
         seed = args.seed
         alpha = args.alpha if args.alpha is not None else 0.05
         compute_validity = not args.skip_validity
-        output = args.output if args.output is not None else _REPO_ROOT / "analysis" / "results" / "recovery-validity" / "recovery_validity.csv"
+        output = args.output if args.output is not None else analysis_results_dir("recovery-validity") / "recovery_validity.csv"
         analysis_config_id = None
 
     rows = []

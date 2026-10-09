@@ -17,7 +17,7 @@ import matplotlib.lines as mlines
 import seaborn as sns
 from sklearn.metrics import roc_auc_score
 
-from analysis.common.config import load_calibration_v4_config
+from analysis.common.config import analysis_results_dir, load_calibration_v4_config
 from analysis.common import calibration_ids as cids
 from analysis.common import matching
 from analysis.common import doc_bootstrap as db
@@ -64,8 +64,8 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# One positional analysis config (analysis/analysis-configs/<id>.yaml, loaded by
-# analysis_config.load_calibration_v4_config) names every run this script reads,
+# One positional analysis config (analysis/analysis-configs/calibration/<id>.yaml, loaded by
+# common.config.load_calibration_v4_config) names every run this script reads,
 # exactly as in calibration_updated_v3.py, and every figure/CSV/pickle goes under
 # analysis/results/calibration/<config id>/.
 #
@@ -80,7 +80,7 @@ def _parse_args():
         description="Probe/NTP calibration analysis (v4: one prior-shift or intercept-fit recalibration per cell, fit once, document-bootstrap CIs)."
     )
     parser.add_argument('config', type=Path,
-                        help="analysis/analysis-configs/<id>.yaml (see load_calibration_v4_config)")
+                        help="analysis/analysis-configs/calibration/<id>.yaml (see load_calibration_v4_config)")
     return parser.parse_args()
 
 
@@ -117,7 +117,7 @@ TRAIN_DATASETS = list(_PARAMS['datasets'])  # every dataset has its own syntheti
 _INPUTS = cids.resolve_calibration_inputs(_CFG)
 JUDGE_MODEL = _INPUTS['judge_model']
 
-OUT_DIR = REPO_ROOT / "analysis" / "results" / "calibration" / CONFIG_ID
+OUT_DIR = analysis_results_dir("calibration") / CONFIG_ID
 FIGURES_DIR = OUT_DIR / "figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
