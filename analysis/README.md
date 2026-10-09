@@ -92,6 +92,13 @@ A declared `judge_combine_ids` override is verified against its extraction id
 (`common.recovery.verify_judge_combine_id`), the same way automatic resolution
 (`find_judge_combine_id`) verifies a candidate it finds by scanning.
 
+The optional `judge_combine_ids` key (only meaningful with `compute_validity: true`)
+overrides auto-resolution for specific ids, e.g. `{2026-05-05-pond-gemma-3-27b-extraction-01:
+2026-09-13-pond-gemma3-27b-extraction-judge-combine-01}`. At the time it was written, no
+`pond` id had both a fresh (`point_value`-column) schema and judge_combine coverage, so
+this path is exercised by `tests/test_recovery_validity.py`'s fixtures rather than real
+data. Treat it as fixture-verified, not production-verified, until a real id needs it.
+
 ## Running
 
 ```bash
