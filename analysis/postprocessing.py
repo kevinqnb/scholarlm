@@ -10,6 +10,15 @@ final.json when present, falling back (with a warning) to final.json
 otherwise. Deduplication is a separate, later development session -- not
 handled here.
 
+A provenance step (see normalize_provenance) makes every record carry the six
+PROVENANCE_FIELDS as lists: the pipeline writes them as per-row lists, but
+baselines and some ablations write scalars or omit them, and
+analysis/deduplication.py merges them as lists across a cluster. Each entry is
+parsed on its own -- a list is kept, any other value becomes ``[value]``, an
+absent field ``[None]`` -- so a run (or row) mixing the two shapes is fine. No
+analysis reads these fields for matching or scoring, so this changes no
+recovery/validity number.
+
 A third step, list-value expansion (see expand_list_values), turns any row
 whose `list_values` ends up non-empty (whether the model wrote it directly,
 or this script's own qualifier fill produced it from a comma-separated
@@ -81,6 +90,10 @@ import utils as paths
 # A row's six shape fields -- `_qualifiers_unfilled` requires every one of
 # these null/absent before this script will touch qualifier fields at all.
 _SHAPE_FIELDS = ("point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation")
+
+# Where in the paper a record came from. The full pipeline writes each as a list
+# (one entry per merged source); normalize_provenance gives every record that shape.
+PROVENANCE_FIELDS = ("page_number", "table_number", "row_index", "column_index", "source", "context")
 
 
 def _is_numeric_string(u: str) -> bool:
@@ -182,6 +195,30 @@ def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
     return record, changed
 
 
+def normalize_provenance(record: dict) -> tuple:
+    """Return (new record, names of the PROVENANCE_FIELDS it rewrote). Each
+    field is handled on its own: a list is kept as is, an absent field becomes
+    ``[None]``, any other value (a scalar page number, a context string, an
+    explicit None) becomes ``[value]``. Nothing is parsed out of or dropped
+    from a value -- only wrapped."""
+    record = dict(record)
+    wrapped = []
+    for field in PROVENANCE_FIELDS:
+        value = record.get(field)
+        if isinstance(value, list):
+            continue
+        record[field] = [value]
+        wrapped.append(field)
+    return record, wrapped
+
+
+def provenance_lengths_equal(record: dict) -> bool:
+    """True if every PROVENANCE_FIELDS list has the same length -- what
+    deduplication.merge_provenance needs to merge a row. A row mixing a
+    multi-entry list with a wrapped scalar fails this."""
+    return len({len(record[field]) for field in PROVENANCE_FIELDS}) == 1
+
+
 def expand_list_values(record: dict) -> list:
     """If record["list_values"] is a non-empty list, return one copy of
     record per entry -- each with point_value set to that entry, converted
@@ -237,6 +274,8 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
 
     n_qualifiers_filled = 0
     n_units_changed = 0
+    n_wrapped_by_field = dict.fromkeys(PROVENANCE_FIELDS, 0)
+    n_unequal_provenance = 0
     n_rows_list_expanded = 0
     n_extra_rows_from_expansion = 0
     new_records = []
@@ -248,6 +287,10 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
                     f"{experiment_id}: postprocess_record changed {key!r} -- "
                     f"it must only ever touch qualifier/units fields"
                 )
+        new_record, wrapped = normalize_provenance(new_record)
+        for field in wrapped:
+            n_wrapped_by_field[field] += 1
+        n_unequal_provenance += not provenance_lengths_equal(new_record)
 
         expanded = expand_list_values(new_record)
         if len(expanded) > 1:
@@ -279,6 +322,11 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
         f"qualifier fields filled: {n_qualifiers_filled}, units standardized: "
         f"{n_units_changed}, {n_rows_list_expanded} list-value row(s) expanded "
         f"into {n_extra_rows_from_expansion} extra row(s) -> {out_path}"
+    )
+    print(
+        f"{experiment_id}: provenance fields wrapped into lists (rows per field, of {len(records)}): "
+        f"{n_wrapped_by_field}; {n_unequal_provenance} row(s) with unequal provenance list lengths "
+        f"(deduplication cannot merge those)"
     )
     return out_path
 

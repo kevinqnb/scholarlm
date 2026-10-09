@@ -339,3 +339,55 @@ def test_main_config_reads_experiment_ids(tmp_path, monkeypatch):
     pp.main()
     assert seen == [("id-a", gt_path)]
 
+
+# ---------------------------------------------------------------------------
+# normalize_provenance -- each entry parsed on its own
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_provenance_keeps_lists_wraps_scalars_and_fills_absent():
+    record = {"page_number": 3, "context": "the text", "source": ["table", "text"], "table_number": None}
+    out, wrapped = pp.normalize_provenance(record)
+    assert out["page_number"] == [3]
+    assert out["context"] == ["the text"]
+    assert out["source"] == ["table", "text"]          # already a list: untouched
+    assert out["table_number"] == [None]               # explicit None wrapped, not dropped
+    assert out["row_index"] == [None] and out["column_index"] == [None]   # absent
+    assert sorted(wrapped) == sorted(set(pp.PROVENANCE_FIELDS) - {"source"})
+    assert record == {"page_number": 3, "context": "the text", "source": ["table", "text"], "table_number": None}
+
+
+def test_normalize_provenance_pipeline_row_is_a_no_op():
+    record = {f: [1, 2] for f in pp.PROVENANCE_FIELDS}
+    out, wrapped = pp.normalize_provenance(record)
+    assert out == record and wrapped == []
+    assert pp.provenance_lengths_equal(out)
+
+
+def test_normalize_provenance_mixed_shapes_do_not_raise_but_lengths_can_differ():
+    out, _ = pp.normalize_provenance({"page_number": [1, 2], "context": "x"})
+    assert out["page_number"] == [1, 2] and out["context"] == ["x"]
+    assert not pp.provenance_lengths_equal(out)
+
+
+def test_postprocess_experiment_normalizes_provenance_and_survives_expansion(tmp_path, monkeypatch):
+    results_root = tmp_path / "results"
+    monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)
+    experiment_id = "2026-01-01-testset-model-baseline-gliner-01"
+    extraction_dir = results_root / "testset" / "baseline_gliner" / experiment_id
+    extraction_dir.mkdir(parents=True)
+    final_rows = [
+        {"document_id": "d1", "attribute": "tc", "value": "1, 2", "units": "K", "measurement_id": 0,
+         "page_number": 4, **_BLANK_SHAPE},
+        {"document_id": "d1", "attribute": "tc", "value": "48", "units": "K", "measurement_id": 1,
+         **_BLANK_SHAPE, **{f: [7] for f in pp.PROVENANCE_FIELDS}},
+    ]
+    (extraction_dir / "final.json").write_text(json.dumps(final_rows))
+    gt_path = tmp_path / "ground_truth.json"
+    gt_path.write_text(json.dumps([{"document_id": "d1", "attribute": "tc", "point_value": 1.0, "units": "K"}]))
+
+    rows = json.loads(pp.postprocess_experiment(experiment_id, gt_path).read_text())
+    assert len(rows) == 3                                   # row 0 expanded into two
+    assert [r["page_number"] for r in rows] == [[4], [4], [7]]
+    assert [r["context"] for r in rows] == [[None], [None], [7]]
+    assert all(pp.provenance_lengths_equal(r) for r in rows)
