@@ -26,7 +26,7 @@ from scipy import stats
 
 from analysis.meta_inputs import load_meta_v2_config
 from analysis.meta_updated_v2 import (
-    _summarize_shuffles, all_settings, build_stats_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
+    _summarize_shuffles, all_settings, build_stats_table, build_survival_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
 )
 
 ECO, ATTR = 'pond', 'tn'
@@ -85,6 +85,24 @@ def test_stats_table_known_answers():
     assert row(df, 'ntp_ge_0.60')['n'] == 0 and np.isnan(row(df, 'ntp_ge_0.60')['median'])
 
 
+def test_survival_table_known_answers():
+    gt, ext = fixture()
+    stats_df = build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS)
+    sv = build_survival_table(stats_df, 'ground_truth')
+    assert len(sv) == 2 * len(THRESHOLDS) and (sv['n_ref'] == 30).all()   # 30 GT rows; 2 methods x 3 thresholds
+    g = lambda m, t: sv[(sv['method'] == m) & (sv['threshold'] == t)].iloc[0]
+    # probe: 40 rows / 4 docs at t=0; 30 / 3 at 0.5 (ties kept); 20 / 2 at 0.6.  ntp: all 40 at 0.5, none at 0.6.
+    assert [(g('probe', t)['n_ext'], g('probe', t)['n_docs_ext']) for t in THRESHOLDS] == [(40, 4), (30, 3), (20, 2)]
+    assert [g('probe', t)['frac_rows_vs_t0'] for t in THRESHOLDS] == [1.0, 0.75, 0.5]
+    assert [g('probe', t)['frac_docs_vs_t0'] for t in THRESHOLDS] == [1.0, 0.75, 0.5]
+    assert [g('ntp', t)['n_ext'] for t in THRESHOLDS] == [40, 40, 0] and g('ntp', 0.6)['frac_rows_vs_t0'] == 0.0
+    # it agrees with the W1 table's counts
+    w1 = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=20, n_shuffle=5, seed=0)
+    for _, r in w1[w1['method'].isin(['ntp', 'probe'])].iterrows():
+        s = g(r['method'], r['threshold'])
+        assert (s['n_ext'], s['n_docs_ext'], s['n_ref']) == (r['n_ext'], r['n_docs_ext'], r['n_ref'])
+
+
 def test_w1_table_known_answers():
     gt, ext = fixture()
     df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
@@ -113,6 +131,61 @@ def test_w1_table_known_answers():
     assert v['n_ext'] == 20 and v['w1'] == stats.wasserstein_distance(ref, ext['converted_value'].to_numpy()[:20])
     # the high-confidence rows sit closer to GT than the unfiltered set
     assert row(df, 'probe_ge_0.60')['w1'] < e['w1']
+
+
+def test_ref_stats_known_answer_and_w1_curve_plot_is_raw_over_range(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.meta_updated_v2 as m
+    gt, ext = fixture()
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, MIN_N, n_boot=50, n_shuffle=30, seed=0)
+    q1, q3 = np.quantile(gt['converted_value'].to_numpy(), [0.25, 0.75], method='hazen')
+    assert (df['ref_iqr'] == q3 - q1).all()   # one value per cell, the reference's Hazen IQR in raw units
+    rng = gt['converted_value'].max() - gt['converted_value'].min()
+    assert (df['ref_range'] == rng).all()     # ... and its max - min
+
+    # tn is a LOG_SCALE attribute: the plotted curve must still be the RAW W1 / range.
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_w1_curves(df, ECO, [ATTR], THRESHOLDS, tmp_path / 'w1.pdf')
+    probe_line = next(l for l in saved['fig'].axes[0].lines if l.get_label() == 'Probe')
+    p = df[df['method'] == 'probe'].sort_values('threshold')
+    np.testing.assert_allclose(probe_line.get_ydata(), p['w1'].to_numpy() / rng, equal_nan=True)
+    assert not np.allclose(probe_line.get_ydata()[:2], p['w1_log'].to_numpy()[:2])
+
+
+def test_w1_curve_ylabel_only_on_leftmost_panel(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.meta_updated_v2 as m
+    gt, ext = fixture()
+    gt2, ext2 = gt.assign(attribute='tp'), ext.assign(attribute='tp')
+    df = build_w1_table(pd.concat([gt, gt2]), pd.concat([ext, ext2]), 'ground_truth', [ECO], [ATTR, 'tp'],
+                        THRESHOLDS, MIN_N, n_boot=20, n_shuffle=5, seed=0)
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_w1_curves(df, ECO, [ATTR, 'tp'], THRESHOLDS, tmp_path / 'w1.pdf')
+    left, right = saved['fig'].axes
+    assert 'range' in left.get_ylabel() and right.get_ylabel() == ''
+    assert left.get_xlabel() and right.get_xlabel()   # x labels stay on every panel
+
+
+def test_qq_legend_has_a_threshold_colorbar(tmp_path, monkeypatch):
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    import analysis.meta_updated_v2 as m
+    th = [0.0, 0.25, 0.5, 0.75]
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_qq_legend(tmp_path / 'leg.pdf', 'ground_truth', th)
+    fig = saved['fig']
+    cax = fig.axes[0]
+    assert [t.get_text() for t in cax.get_xticklabels()] == ['0', '0.25', '0.5', '0.75']
+    # one colorbar cell per threshold, in exactly the colors the Q-Q lines use
+    mesh, = [c for c in cax.collections if type(c).__name__ == 'QuadMesh']   # (the other collection is the dividers)
+    cb_colors = [mcolors.to_hex(c) for c in mesh.cmap(mesh.norm(np.arange(len(th))))]
+    assert cb_colors == [mcolors.to_hex(m.threshold_style(t, th)['color']) for t in th]
+    texts = [t.get_text() for t in fig.legends[0].get_texts()]
+    assert not any('Confidence' in s for s in texts)   # thresholds are no longer separate legend entries
+    assert any('Valid' in s for s in texts) and any('bootstrap' in s for s in texts)
 
 
 def test_valid_reference_perfect_threshold_gives_zero():
@@ -231,16 +304,18 @@ def test_v1_section_rejected(tmp_path):
 
 
 def test_threshold_styles():
-    from analysis.meta_updated_v2 import DARK_BLUE, DARK_RED, QQ_BASE_STYLE, THRESHOLD_CMAP, threshold_style
+    from analysis.meta_updated_v2 import QQ_BASE_STYLE, THRESHOLD_CMAP, threshold_label, threshold_style
     import matplotlib.colors as mcolors
+    assert THRESHOLD_CMAP.name == 'coolwarm'
     th = [0.0, 0.25, 0.5, 0.75]
-    s0 = threshold_style(0.0, th)
-    assert s0['color'] == DARK_BLUE and s0['linestyle'] != '-'
-    assert QQ_BASE_STYLE['valid']['color'] == DARK_RED and QQ_BASE_STYLE['valid']['linestyle'] != '-'
-    inner = [threshold_style(t, th) for t in th[1:]]
-    assert all(s['linestyle'] == '-' for s in inner)
-    np.testing.assert_allclose([s['color'] for s in inner], [THRESHOLD_CMAP(f) for f in (0.25, 0.5, 0.75)])
-    assert len({mcolors.to_hex(s['color']) for s in inner} | {DARK_BLUE, DARK_RED}) == 5
+    styles = [threshold_style(t, th) for t in th]
+    # t = 0 is not special: every threshold line is solid, evenly spaced along the colormap
+    assert all(s['linestyle'] == '-' for s in styles) and len({s['linewidth'] for s in styles}) == 1
+    np.testing.assert_allclose([s['color'] for s in styles], [THRESHOLD_CMAP(f) for f in (0.0, 1 / 3, 2 / 3, 1.0)])
+    assert len({mcolors.to_hex(s['color']) for s in styles}) == 4
+    assert threshold_label(0.0) == r'Confidence $\geq 0$' and threshold_label(0.25) == r'Confidence $\geq 0.25$'
+    # valid: black, dotted
+    assert mcolors.to_hex(QQ_BASE_STYLE['valid']['color']) == '#000000' and QQ_BASE_STYLE['valid']['linestyle'] == ':'
 
 
 def test_unit_conversion_v2_additions_only():
