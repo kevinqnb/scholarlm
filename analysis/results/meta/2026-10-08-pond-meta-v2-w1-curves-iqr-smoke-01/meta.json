@@ -84,11 +84,11 @@
     },
     "ph": {}
   },
-  "analysis_config_id": "2026-10-08-pond-meta-v2-w1-curves-01",
+  "analysis_config_id": "2026-10-08-pond-meta-v2-w1-curves-iqr-smoke-01",
   "script": "analysis/meta_updated_v2.py",
   "seed": 0,
-  "n_boot": 2000,
-  "n_shuffle_samples": 10000,
+  "n_boot": 20,
+  "n_shuffle_samples": 20,
   "reference": "ground_truth",
   "ecosystems": [
     "pond",
