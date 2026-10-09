@@ -222,64 +222,26 @@ def load_synthetic_probe_config(path: Path) -> dict:
     return cfg
 
 
-# Params keys for analysis/calibration_updated.py. Per-dataset blocks must
-# carry exactly CALIBRATION_DATASET_KEYS for each of CALIBRATION_DATASETS.
+# Shared by every calibration-family loader below. Per-dataset blocks carry exactly
+# CALIBRATION_DATASET_KEYS (plus a loader's own additions) for each of CALIBRATION_DATASETS:
+#   - extraction_id / judge_interp_id / judge_combine_id: the real extraction run, the
+#     qwen interp-judge run over it, and the judge_combine run holding its labels.
+#   - ground_truth_file: the ground-truth CSV/JSON this extraction is scored against
+#     (must exist; repo-root-relative if not absolute).
+#   - synthetic_probe_config: the id of the analysis-configs/ yaml (loadable by
+#     load_synthetic_probe_config) whose cached probe is applied.
+#   - syn_test_ids: {primary: <id>, diag: <id>}, this dataset's synthetic judge_interp
+#     test runs; both required, ``params.syn_split`` names which one is used.
+#   - use_matching_labels: bool. True labels a real extraction valid if the judge said
+#     so OR it matched a ground-truth row; False uses ``judgement_combined`` alone.
+# Cross-run consistency (ids really are what they claim, judge model agreement,
+# corpus-version agreement) is checked by calibration_ids.resolve_calibration_inputs.
 CALIBRATION_DATASETS = ("pond", "nfix", "supermat")
-CALIBRATION_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "pi_te_estimate", "datasets")
 CALIBRATION_DATASET_KEYS = (
     "extraction_id", "judge_interp_id", "judge_combine_id", "ground_truth_file",
     "synthetic_probe_config", "syn_test_ids", "use_matching_labels",
 )
 CALIBRATION_SYN_SPLITS = ("primary", "diag")
-
-
-def load_calibration_config(path: Path) -> dict:
-    """Load analysis/calibration_updated.py's analysis-configs/<id>.yaml.
-
-    Same envelope as load_analysis_config, but params carries exactly
-    CALIBRATION_TOP_KEYS. ``params.datasets`` has exactly one block per
-    CALIBRATION_DATASETS entry (pond, nfix, supermat), each with exactly
-    CALIBRATION_DATASET_KEYS:
-
-      - extraction_id / judge_interp_id / judge_combine_id: the real extraction
-        run, the qwen interp-judge run over it, and the judge_combine run
-        holding its labels.
-      - ground_truth_file: the ground-truth CSV/JSON this extraction is scored
-        against (must exist; repo-root-relative if not absolute).
-      - synthetic_probe_config: the id of the analysis-configs/ yaml (loadable
-        by load_synthetic_probe_config) whose cached probe is applied.
-      - syn_test_ids: {primary: <id>, diag: <id>}, this dataset's synthetic
-        judge_interp test runs. Both are required; ``params.syn_split``
-        names which one the synthetic evaluation uses.
-      - use_matching_labels: bool. True labels a real extraction valid if the
-        judge said so OR it matched a ground-truth row (``judgement_combined |
-        has_matching_edge``); False uses ``judgement_combined`` alone. Matching
-        is still computed either way, since recovery uses its edges.
-
-    ``pi_te_estimate`` is required: a float in (0, 1), or null to switch the
-    label-shift rescaling off explicitly. ``probe_type`` is 'head' or 'layer',
-    ``probe_variant`` 'platt' or 'noplatt', ``syn_split`` 'primary' or 'diag'. ``seed`` seeds the bootstrap CIs
-    and the random-baseline curve.
-
-    Cross-run consistency (ids really are what they claim, judge model
-    agreement, corpus-version agreement) is checked by
-    analysis/calibration_ids.py, which has the experiment-config lookups.
-
-    Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
-    """
-    cfg = _load_envelope(path)
-    params = cfg["params"]
-
-    if set(params) != set(CALIBRATION_TOP_KEYS):
-        raise ValueError(
-            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_TOP_KEYS)}"
-        )
-    pi = params["pi_te_estimate"]
-    if pi is not None and (isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1):
-        raise ValueError(f"{path}: params.pi_te_estimate must be null or a float in (0, 1), got {pi!r}")
-    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
-    return cfg
 
 
 def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datasets_expected: tuple) -> None:
@@ -343,40 +305,12 @@ def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datas
                 )
 
 
-# analysis/calibration_updated_v2.py: same schema as v1 except the single global
-# pi_te_estimate is replaced by one required estimate per dataset block -- the
-# assumed prevalence of valid rows in that dataset's real extraction, applied
-# whenever any probe is tested on that dataset.
+# Top-level keys every calibration-family config carries, and the per-dataset blocks with
+# one pi_te_estimate per dataset (the assumed prevalence of valid rows in that dataset's
+# real extraction). Named V2 after the retired calibration_updated_v2.py that introduced
+# them; calibration_updated_v4.py and platt_scaling_v2.py build on both.
 CALIBRATION_V2_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "datasets")
 CALIBRATION_V2_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("pi_te_estimate",)
-
-
-def load_calibration_v2_config(path: Path) -> dict:
-    """Load analysis/calibration_updated_v2.py's analysis-configs/<id>.yaml.
-
-    Identical to load_calibration_config (see its docstring for every shared
-    key) except there is no top-level ``pi_te_estimate``: each
-    ``params.datasets.<ds>`` block instead carries a required
-    ``pi_te_estimate``, a float strictly in (0, 1). No null/off value -- v2
-    rescales to the test dataset's prevalence for every real-data cell.
-
-    Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
-    """
-    cfg = _load_envelope(path)
-    params = cfg["params"]
-    if set(params) != set(CALIBRATION_V2_TOP_KEYS):
-        raise ValueError(
-            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V2_TOP_KEYS)}"
-        )
-    _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
-    for ds, block in params["datasets"].items():
-        pi = block["pi_te_estimate"]
-        if isinstance(pi, bool) or not isinstance(pi, (int, float)) or not 0 < pi < 1:
-            raise ValueError(
-                f"{path}: params.datasets.{ds}.pi_te_estimate must be a float in (0, 1), got {pi!r}"
-            )
-    return cfg
 
 
 # analysis/calibration_updated_v3.py: v2 minus pi_te_estimate. Real-extraction
@@ -406,10 +340,12 @@ def _validate_v3_recalibration(path: Path, params: dict) -> None:
 
 
 def load_calibration_v3_config(path: Path) -> dict:
-    """Load analysis/calibration_updated_v3.py's analysis-configs/<id>.yaml.
+    """Load a calibration_updated_v3-schema analysis-configs/<id>.yaml.
 
-    Same as load_calibration_config's per-dataset blocks (no pi_te_estimate
-    anywhere) plus required top-level ``params.platt_n``, a positive int, the
+    The v3 script itself is retired; this loader stays because
+    calibration_latex.py still formats v3 output and calibration_validated.py
+    shares its top-level keys. Per-dataset blocks are CALIBRATION_DATASET_KEYS
+    (no pi_te_estimate anywhere), plus required top-level ``params.platt_n``, a positive int, the
     number of real rows per dataset each recalibrator is fit on, and
     ``params.recalibration``, one of RECALIBRATION_METHODS.
 
@@ -489,48 +425,6 @@ def load_calibration_validated_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/platt_scaling.py: v3's per-dataset blocks, probe/split keys, recalibration
-# method and real-cell nested-bootstrap sizes, but instead of one platt_n a sweep
-# platt_ns (strictly increasing). Real cells only, so no n_syn_boot.
-PLATT_SWEEP_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration", "n_fit_samples", "n_doc_boot")
-
-
-def load_platt_sweep_config(path: Path) -> dict:
-    """Load analysis/platt_scaling.py's analysis-configs/<id>.yaml.
-
-    Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
-    load_calibration_v3_config (syn_split is still required because
-    calibration_ids.resolve_calibration_inputs cross-checks both synthetic test
-    runs; the sweep itself only scores real rows), as are ``recalibration``,
-    ``n_fit_samples`` and ``n_doc_boot``. Replaces ``platt_n`` with ``platt_ns``, a
-    non-empty, strictly increasing list of positive ints.
-
-    Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
-    """
-    cfg = _load_envelope(path)
-    params = cfg["params"]
-    if set(params) != set(PLATT_SWEEP_TOP_KEYS):
-        raise ValueError(
-            f"{path}: params keys {sorted(params)} must be exactly {sorted(PLATT_SWEEP_TOP_KEYS)}"
-        )
-    ns = params["platt_ns"]
-    if (not isinstance(ns, list) or not ns
-            or any(isinstance(n, bool) or not isinstance(n, int) or n <= 0 for n in ns)
-            or any(a >= b for a, b in zip(ns, ns[1:]))):
-        raise ValueError(f"{path}: params.platt_ns must be a non-empty strictly increasing list of positive ints, got {ns!r}")
-    for key in ("n_fit_samples", "n_doc_boot"):
-        n = params[key]
-        if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
-            raise ValueError(f"{path}: params.{key} must be a positive int, got {n!r}")
-    if params["recalibration"] not in RECALIBRATION_METHODS:
-        raise ValueError(
-            f"{path}: params.recalibration must be one of {RECALIBRATION_METHODS}, got {params['recalibration']!r}"
-        )
-    _validate_calibration_body(path, cfg, CALIBRATION_DATASET_KEYS, CALIBRATION_DATASETS)
-    return cfg
-
-
 # analysis/platt_scaling_v2.py: the sweep's inputs and platt_ns / recalibration, but
 # no nested bootstrap -- n_train_resamples recalibration fit samples per n, each scored
 # on the fixed (un-resampled) real test set. So no n_fit_samples / n_doc_boot.
@@ -540,10 +434,13 @@ PLATT_SWEEP_V2_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration"
 def load_platt_sweep_v2_config(path: Path) -> dict:
     """Load analysis/platt_scaling_v2.py's analysis-configs/<id>.yaml.
 
-    Same as load_platt_sweep_config, except ``n_fit_samples`` and ``n_doc_boot`` are
-    replaced by ``n_train_resamples`` (positive int): the number of training-pool
-    resamples (fit samples) per n. ``platt_ns`` may start at 0, the no-recalibration
-    baseline.
+    Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
+    load_calibration_v3_config (syn_split is still required because
+    calibration_ids.resolve_calibration_inputs cross-checks both synthetic test
+    runs; the sweep itself only scores real rows). ``platt_ns`` is a strictly
+    increasing list of non-negative ints (0 = the no-recalibration baseline),
+    ``recalibration`` one of RECALIBRATION_METHODS, and ``n_train_resamples`` a
+    positive int: the number of training-pool resamples (fit samples) per n.
 
     Raises:
         ValueError: malformed envelope, wrong/missing/extra keys, bad value types.

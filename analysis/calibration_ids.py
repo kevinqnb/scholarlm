@@ -1,10 +1,10 @@
-"""Id-addressed settings registry + resolution helpers for
-analysis/calibration_updated.py, under the 2026-09-16 experiment-contract
-migration (see notes/scholarlm/builds/2026-09-16-synthetic-probe-id-migration-01.md).
+"""Run-id resolution and match-cache glue for the calibration-family scripts
+(calibration_updated_v4.py, calibration_validated.py, platt_scaling_v2.py) and
+their consumers (decision_threshold.py, meta_inputs.py).
 
-Split out from calibration_updated.py itself because that script does its real
-data loading at import time -- these id-resolution helpers have no side
-effects, so they're what can actually be unit tested (tests/test_calibration_ids.py).
+Kept apart from those scripts because they do their real data loading at import
+time -- these helpers have no side effects, so they're what can actually be unit
+tested (tests/test_calibration_ids.py, tests/test_calibration_config.py).
 """
 from __future__ import annotations
 
@@ -12,8 +12,6 @@ import json
 import re
 import sys
 from pathlib import Path
-
-import numpy as np
 
 _EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
@@ -28,128 +26,6 @@ if str(_REPO_ROOT) not in sys.path:
 from analysis.analysis_config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _resolve_ground_truth_path, load_synthetic_probe_config,
 )
-
-
-ALL_DATASETS = ['pond', 'nfix', 'supermat']
-
-# The only judge with an id-addressed trained probe (2026-09-16 migration).
-# llama-3.1-8b's old-tree probe (data/experiments/*/synthetic_probe/llama-3.1-8b/)
-# predates the 2026-09-08 full-paper-judge rewrite (commit e7da363) that every
-# real judge_interp run below postdates -- mixing it in would combine
-# invalidated and valid judge numbers in the same figure. It needs a fresh
-# synthetic-judge train run + retrain before it can be added back.
-JUDGE_MODEL = 'qwen-2.5-7b'
-
-# Datasets with a migrated synthetic-probe train run -- each produces its own
-# trained probe, applied to every dataset's real extractions below (not
-# per-setting, since the judge/probe side is independent of which extraction
-# pipeline is being scored).
-#
-# nfix/supermat entries added 2026-09-16 pointing at newly-minted
-# judge_interp configs -- committed, but NOT YET RUN as of this edit (rung 4
-# augmentation was mid-flight; see notes/scholarlm/builds/
-# 2026-09-16-calibration-id-migration-01.md's second session for the prior
-# state). This is intentionally safe to commit ahead of the data: every
-# lookup below goes through pinned_run_dir/resolve_run, which fails loud
-# (FileNotFoundError) against a run id whose experiments/results/ dir has no
-# output yet, rather than silently reading nothing or someone else's run.
-# Don't treat calibration_updated.py succeeding against these ids as
-# evidence the underlying judge_interp runs exist -- confirm each run
-# actually completed first.
-TRAIN_DATASETS = ['pond', 'nfix', 'supermat']
-
-SYN_TRAIN_IDS = {
-    'pond': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-train-01',
-    'nfix': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-train-01',
-    'supermat': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-train-01',
-}
-SYN_TEST_IDS = {
-    'pond': {
-        'primary': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-primary-01',
-        'diag': '2026-09-10-pond-qwen-2.5-7b-synthetic-judge-test-diag-01',
-    },
-    'nfix': {
-        'primary': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-test-primary-01',
-        'diag': '2026-09-16-nfix-qwen-2.5-7b-synthetic-judge-test-diag-01',
-    },
-    'supermat': {
-        'primary': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-test-primary-01',
-        'diag': '2026-09-16-supermat-qwen-2.5-7b-synthetic-judge-test-diag-01',
-    },
-}
-
-# The two synthetic-test splits every TRAIN_DATASETS entry's SYN_TEST_IDS
-# must provide (see test_syn_test_ids_cover_primary_and_diag) -- fixed by the
-# split *naming* convention, independent of which/how many datasets have a
-# trained probe, so --syn-split is validated against this, not against
-# SYN_TEST_IDS's keys directly.
-SYN_SPLITS = ('primary', 'diag')
-
-# One entry per judged pipeline-variant. `result_type` names the
-# experiments/results/{dataset}/{result_type}/ subtree the extraction output
-# itself lives under; the three *_id maps are pinned experiment ids per
-# dataset -- no "most recent date" resolution anywhere downstream of this file.
-SETTINGS = {
-    'gemma-3-27b-extraction': {
-        'result_type': 'extraction',
-        'extraction_id': {
-            'pond': '2026-05-05-pond-gemma-3-27b-extraction-01',
-            'nfix': '2026-05-06-nfix-gemma-3-27b-extraction-01',
-            'supermat': '2026-07-09-supermat-gemma-3-27b-extraction-01',
-        },
-        'judge_interp_id': {
-            'pond': '2026-09-13-pond-gemma3-27b-extraction-qwen7b-judge-interp-01',
-            'nfix': '2026-09-13-nfix-gemma3-27b-extraction-qwen7b-judge-interp-01',
-            'supermat': '2026-09-13-supermat-gemma3-27b-extraction-qwen7b-judge-interp-01',
-        },
-        'judge_combine_id': {
-            'pond': '2026-09-13-pond-gemma3-27b-extraction-judge-combine-01',
-            'nfix': '2026-09-13-nfix-gemma3-27b-extraction-judge-combine-01',
-            'supermat': '2026-09-13-supermat-gemma3-27b-extraction-judge-combine-01',
-        },
-        'pi_te_estimate': 0.5,
-    },
-    'gpt-oss-120b-ablation1': {
-        'result_type': 'ablation',
-        'extraction_id': {
-            'pond': '2026-05-03-pond-gpt-oss-120b-ablation1-01',
-            'nfix': '2026-05-06-nfix-gpt-oss-120b-ablation1-01',
-            'supermat': '2026-08-13-supermat-gpt-oss-120b-ablation1-01',
-        },
-        'judge_interp_id': {
-            'pond': '2026-09-13-pond-gptoss-120b-ablation1-qwen7b-judge-interp-01',
-            'nfix': '2026-09-13-nfix-gptoss-120b-ablation1-qwen7b-judge-interp-01',
-            'supermat': '2026-09-13-supermat-gptoss-120b-ablation1-qwen7b-judge-interp-01',
-        },
-        'judge_combine_id': {
-            'pond': '2026-09-13-pond-gptoss-120b-ablation1-judge-combine-01',
-            'nfix': '2026-09-13-nfix-gptoss-120b-ablation1-judge-combine-01',
-            'supermat': '2026-09-13-supermat-gptoss-120b-ablation1-judge-combine-01',
-        },
-        'pi_te_estimate': 0.90,  # carried over from the pre-migration gpt-oss-120b entry
-    },
-    'baseline-nuextract': {
-        'result_type': 'baseline_nuextract',
-        'extraction_id': {
-            'pond': '2026-07-11-pond-baseline-nuextract-01',
-            'nfix': '2026-07-11-nfix-baseline-nuextract-01',
-            'supermat': '2026-07-13-supermat-baseline-nuextract-01',
-        },
-        'judge_interp_id': {
-            'pond': '2026-09-13-pond-baseline-nuextract-qwen7b-judge-interp-01',
-            'nfix': '2026-09-13-nfix-baseline-nuextract-qwen7b-judge-interp-01',
-            'supermat': '2026-09-13-supermat-baseline-nuextract-qwen7b-judge-interp-01',
-        },
-        'judge_combine_id': {
-            'pond': '2026-09-13-pond-baseline-nuextract-judge-combine-01',
-            'nfix': '2026-09-13-nfix-baseline-nuextract-judge-combine-01',
-            'supermat': '2026-09-13-supermat-baseline-nuextract-judge-combine-01',
-        },
-        'pi_te_estimate': 0.5,
-    },
-}
-
-DEFAULT_SETTING = 'gemma-3-27b-extraction'
 
 
 def resolve_run(run_id: str) -> tuple[str, str]:
@@ -185,63 +61,7 @@ def pinned_run_dir(run_id: str, expected_dataset: str, expected_type: str) -> Pa
     return paths.result_dir(expected_dataset, expected_type, run_id)
 
 
-def pinned_extraction_dir(dataset: str, result_type: str, run_id: str) -> Path:
-    """experiments/results/{dataset}/{result_type}/{run_id}/, after verifying
-    run_metadata.json's own 'dataset' field.
-
-    The extraction/ablation/baseline runs SETTINGS points at predate the
-    experiment-config-standard restructure (Phase B id migration -- see
-    experiments/utils.py's _EXPERIMENT_ID_RE comment) and were never given a
-    committed experiment-configs/ yaml, only id-addressed output -- so unlike
-    pinned_run_dir (which every judge_interp/judge_combine id here does have a
-    config for), the boundary check is against run_metadata.json instead of
-    find_experiment_config.
-
-    Raises:
-        FileNotFoundError: If the result dir or its run_metadata.json is missing.
-        ValueError: If run_metadata.json's own dataset disagrees with `dataset`.
-    """
-    run_dir = paths.result_dir(dataset, result_type, run_id)
-    metadata = paths.load_run_metadata(run_dir)
-    if metadata is None:
-        raise FileNotFoundError(f"{run_dir}: no run_metadata.json")
-    if metadata.get('dataset') != dataset:
-        raise ValueError(
-            f"{run_id}: run_metadata.json dataset={metadata.get('dataset')!r}, "
-            f"expected {dataset!r}"
-        )
-    return run_dir
-
-
-def select_setting(
-    name: str | None, datasets: list[str] | None = None
-) -> tuple[str, dict, list[str]]:
-    """Resolve a setting name and optional dataset narrowing.
-
-    Returns:
-        (setting_name, registry_entry, datasets) -- datasets defaults to
-        ALL_DATASETS when not narrowed.
-
-    Raises:
-        ValueError: Unknown setting name, or an unknown dataset in `datasets`.
-    """
-    setting = name or DEFAULT_SETTING
-    if setting not in SETTINGS:
-        raise ValueError(f"Unknown setting {setting!r}; known: {sorted(SETTINGS)}")
-    if datasets:
-        unknown = [d for d in datasets if d not in ALL_DATASETS]
-        if unknown:
-            raise ValueError(f"Unknown dataset(s) {unknown}; available: {ALL_DATASETS}")
-        resolved_datasets = [d for d in ALL_DATASETS if d in datasets]
-    else:
-        resolved_datasets = list(ALL_DATASETS)
-    return setting, SETTINGS[setting], resolved_datasets
-
-
-# ── Config-driven resolution (analysis/calibration_updated.py <config>) ──────
-# The SETTINGS/SYN_*_IDS registry above predates analysis-configs/ and is no
-# longer read by calibration_updated.py; everything it needs now comes from a
-# load_calibration_config() config via resolve_calibration_inputs below.
+# ── Config-driven resolution ─────────────────────────────────────────────────
 
 _SYNTHETIC_PROBE_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results" / "synthetic_probe"
 
@@ -474,30 +294,3 @@ def edges_to_judged_rows(edges, ext_df, judged_df):
             raise ValueError(f"edge ex_idx {ex_idx} out of range for {n_ext} extraction rows")
         mapped.add((int(gt_idx), int(ext_mids[ex_idx])))
     return sorted(mapped)
-
-
-def document_balanced_order(doc_ids, rng) -> np.ndarray:
-    """Order every row of a Platt pool so that any prefix is spread evenly over documents.
-
-    ``doc_ids`` is the document id of each pool row. Draw a random order of the
-    documents, then cycle through it; each visit takes one not-yet-chosen row of
-    that document, uniformly at random. A document with no rows left is passed
-    over (it cannot contribute), so a prefix of length n contains the first
-    ceil-balanced round-robin sample: no document supplies more than one row more
-    than any document that still had rows left. Returns positions into ``doc_ids``
-    covering every row exactly once; the Platt sample of size n is ``order[:n]``,
-    and samples for increasing n nest.
-    """
-    doc_ids = np.asarray(doc_ids)
-    assert doc_ids.ndim == 1 and len(doc_ids) > 0, doc_ids.shape
-    docs = np.unique(doc_ids)
-    rows_by_doc = {d: rng.permutation(np.flatnonzero(doc_ids == d)) for d in docs}
-    doc_order = rng.permutation(docs)
-    order = []
-    for r in range(max(len(v) for v in rows_by_doc.values())):
-        for d in doc_order:
-            if r < len(rows_by_doc[d]):
-                order.append(rows_by_doc[d][r])
-    order = np.asarray(order, dtype=np.int64)
-    assert len(order) == len(doc_ids) and len(set(order.tolist())) == len(doc_ids)
-    return order
