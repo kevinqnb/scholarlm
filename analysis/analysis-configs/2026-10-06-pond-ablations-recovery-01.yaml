@@ -7,8 +7,10 @@ description: >
   Same ground truth, seed and settings as 2026-10-05-pond-full-pipeline-vs-baselines-recovery-01.
   2026-10-07: postprocessed.json, match cache and judge_combine present for every listed id.
   Held out (null cell in the latex table): ablation3-llama8b-reppen -- judge_combine
-  2026-10-04-pond-ablation3-llama8b-reppen-judge-combine-01 run 2026-10-07, match cache job pending;
-  ablation4-llama8b-reppen -- run in progress (2026-10-07-pond-ablation4-llama8b-reppen-full-p{1,2,3}of3-01).
+  2026-10-04-pond-ablation3-llama8b-reppen-judge-combine-01 run 2026-10-07, match cache job pending.
+  2026-10-08: ablation4-llama8b-reppen added -- the 2026-10-07 split run (p{1,2,3}of3-01) combined into the
+  original id by experiments/combine_ablation_parts.py; judges + judge_combine done, postprocessed.json
+  written; match cache pending.
 seed: 342
 params:
   ground_truth_file: data/pond/ground_truth_review.json
@@ -23,6 +25,7 @@ params:
     - 2026-10-02-pond-ablation3-gptoss120b-full-01
     - 2026-10-02-pond-ablation4-gemma27b-full-01
     - 2026-10-02-pond-ablation4-gptoss120b-full-01
+    - 2026-10-02-pond-ablation4-llama8b-reppen-full-01
     - 2026-10-02-pond-ablation5-gemma27b-full-01
     - 2026-10-02-pond-ablation5-gptoss120b-full-01
     - 2026-10-02-pond-ablation5-llama8b-reppen-full-01
