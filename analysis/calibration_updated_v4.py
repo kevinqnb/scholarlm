@@ -25,7 +25,7 @@ from analysis.metrics import validity_rate_from_labels
 from analysis.prediction_store import real_cell_provenance
 from analysis.calibration_plot_utils import draw_reliability_curve
 from analysis.head_activations import HeadActivationCache
-from analysis.recalibration import prior_shift_map, intercept_fit_map, uniform_fit_sample
+from analysis.recalibration import prior_shift_map, intercept_fit_map, platt_fit_map, uniform_fit_sample
 from scholarlm.utils.calibration import apply_platt, fit_prior_shift
 
 mpl.rcParams.update({
@@ -93,17 +93,19 @@ PROBE_VARIANT = _PARAMS['probe_variant']
 SYN_SPLIT     = _PARAMS['syn_split']
 # Test-document resamples per cell (real and synthetic).
 N_BOOT = _PARAMS['n_boot']
-# Real-cell map (config: recalibration), always expit(logit(p) + intercept):
+# Real-cell map (config: recalibration), expit(slope * logit(p) + intercept); slope 1 except platt_fit:
 #   prior_shift   -- intercept logit(pi_te) - logit(pi_tr), pi_tr the scorer's synthetic
 #                    training prevalence.
 #   intercept_fit -- intercept by MLE on the fit rows (their mapped probabilities average
 #                    to their label rate).
+#   platt_fit     -- slope and intercept by unregularized logistic MLE on the fit rows
+#                    (recalibration_maps.csv's coef column is the slope).
 # What it is fit from (config: fit_source):
 #   sample -- fit_n rows drawn uniformly without replacement, by fit_seed, from the test
 #             dataset's probe-training pool; pi_te = their label rate.
 #   manual -- prior_shift only: the config's per-dataset pi_te_estimate.
 #   oracle -- the evaluated real test rows themselves (diagnostic only: a perfect pi_te,
-#             or an intercept fit in-sample on the rows it is scored on).
+#             or an intercept / Platt fit in-sample on the rows it is scored on).
 RECALIBRATION = _PARAMS['recalibration']
 FIT_SOURCE    = _PARAMS['fit_source']
 FIT_N         = _PARAMS['fit_n']
@@ -302,7 +304,7 @@ def compute_predictions():
 
                     fit_idx = td['fit_idx']
                     fit_labels = td['labels'][fit_idx]
-                    if RECALIBRATION == 'intercept_fit':
+                    if RECALIBRATION in ('intercept_fit', 'platt_fit'):
                         if FIT_SOURCE == 'oracle':
                             assert np.array_equal(fit_idx, idx)
                             fit_raw = raw
@@ -322,9 +324,13 @@ def compute_predictions():
                                 # Known answer: the library's prior_shift fit on the same rows.
                                 ref = fit_prior_shift(fit_labels, pi_tr[meth])
                                 assert ref == (coef, icpt), (train_ds, test_ds, meth, ref, (coef, icpt))
-                        else:
+                        elif RECALIBRATION == 'intercept_fit':
                             # Asserts its score equation: mapped fit rows average to their label rate.
                             coef, icpt = intercept_fit_map(fit_raw[meth], fit_labels)
+                        else:
+                            assert RECALIBRATION == 'platt_fit', RECALIBRATION
+                            # Asserts both Platt score equations; non-convergence is an error.
+                            coef, icpt = platt_fit_map(fit_raw[meth], fit_labels)
                         maps[meth] = (coef, icpt)
                         mapped = apply_platt(raw[meth], coef, icpt)
                         if FIT_SOURCE == 'oracle':

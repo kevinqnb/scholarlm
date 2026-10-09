@@ -577,17 +577,20 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
 # resamples, real and synthetic cells alike; seeded by the envelope seed).
 #   recalibration: prior_shift   -- slope 1, intercept logit(pi_te) - logit(pi_tr).
 #                  intercept_fit -- slope 1, intercept by MLE on the fit rows.
+#                  platt_fit     -- slope and intercept by unregularized logistic MLE on
+#                                   the fit rows.
 #   fit_source:    sample -- fit_n rows drawn uniformly without replacement from the test
 #                            dataset's probe-training pool, by fit_seed (pi_te = their
 #                            label rate for prior_shift).
 #                  manual -- prior_shift only: the per-dataset pi_te_estimate.
 #                  oracle -- the evaluated real test rows themselves (pi_te = their label
-#                            rate; intercept_fit fit on them). Diagnostic only.
+#                            rate; intercept_fit / platt_fit fit on them). Diagnostic only.
 # fit_n and fit_seed are set iff fit_source is sample, and every dataset's
 # pi_te_estimate iff it is manual; otherwise they must be null.
 CALIBRATION_V4_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("n_boot", "recalibration", "fit_source", "fit_n", "fit_seed")
-CALIBRATION_V4_RECALIBRATIONS = ("prior_shift", "intercept_fit")
-CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "intercept_fit": ("sample", "oracle")}
+CALIBRATION_V4_RECALIBRATIONS = ("prior_shift", "intercept_fit", "platt_fit")
+CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "intercept_fit": ("sample", "oracle"),
+                              "platt_fit": ("sample", "oracle")}
 
 
 def _is_int(v) -> bool:

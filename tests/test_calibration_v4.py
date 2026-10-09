@@ -17,8 +17,10 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from analysis import analysis_config as ac  # noqa: E402
-from analysis.recalibration import intercept_fit_map, prior_shift_map, uniform_fit_sample  # noqa: E402
-from scholarlm.utils.calibration import apply_platt, fit_prior_shift  # noqa: E402
+from analysis.recalibration import (  # noqa: E402
+    intercept_fit_map, platt_fit_map, prior_shift_map, uniform_fit_sample,
+)
+from scholarlm.utils.calibration import apply_platt, fit_platt, fit_prior_shift  # noqa: E402
 
 CFG_ID = "2026-01-01-calibration-v4-test-01"
 
@@ -62,6 +64,8 @@ def _manual(p):
     ("prior_shift", _manual),
     ("intercept_fit", lambda p: None),                                                # oracle
     ("intercept_fit", lambda p: p.update(fit_source="sample", fit_n=100, fit_seed=3)),
+    ("platt_fit", lambda p: None),                                                    # oracle
+    ("platt_fit", lambda p: p.update(fit_source="sample", fit_n=100, fit_seed=0)),
 ])
 def test_accepts_valid(base_cfg, tmp_path, recal, mutate):
     base_cfg["params"]["recalibration"] = recal
@@ -70,7 +74,8 @@ def test_accepts_valid(base_cfg, tmp_path, recal, mutate):
 
 
 @pytest.mark.parametrize("mutate", [
-    lambda p: p.update(recalibration="platt_fit"),                         # not offered in v4
+    lambda p: p.update(recalibration="platt_fit") or _manual(p),           # manual is prior_shift only
+    lambda p: p.update(recalibration="platt_scaling"),                     # unknown method
     lambda p: p.update(recalibration="intercept_fit") or _manual(p),       # manual is prior_shift only
     lambda p: p.update(fit_source="sample"),                               # sample without n / seed
     lambda p: p.update(fit_source="sample", fit_n=100),                    # sample without seed
@@ -133,6 +138,54 @@ def test_intercept_fit_known_answer():
     assert apply_platt(p, coef, icpt).mean() == pytest.approx(y.mean(), abs=1e-8)
     with pytest.raises(ValueError):
         intercept_fit_map(p, np.zeros(6, dtype=bool))
+
+
+def _two_level_rows(n_per, rate_lo, rate_hi):
+    """n_per rows at p = expit(-1) and n_per at p = expit(+1), with the given label
+    rates; positives first within each level, so the rows are not separable."""
+    from scipy.special import expit
+    k_lo, k_hi = round(n_per * rate_lo), round(n_per * rate_hi)
+    p = np.r_[np.full(n_per, expit(-1.0)), np.full(n_per, expit(1.0))]
+    y = np.r_[np.arange(n_per) < k_lo, np.arange(n_per) < k_hi]
+    return p, y
+
+
+def test_platt_fit_known_answer():
+    # Logits z in {-1, +1} with label rates r_lo, r_hi: the MLE makes each level's
+    # mapped probability its own rate, expit(-a + b) = r_lo and expit(a + b) = r_hi, so
+    # a = (logit r_hi - logit r_lo) / 2 and b = (logit r_hi + logit r_lo) / 2.
+    p, y = _two_level_rows(40, 0.25, 0.75)                 # a = ln 3, b = 0
+    coef, icpt = platt_fit_map(p, y)
+    assert coef == pytest.approx(np.log(3), abs=1e-3) and icpt == pytest.approx(0.0, abs=1e-3)
+    p, y = _two_level_rows(40, 0.2, 0.5)                   # a = ln 2, b = -ln 2
+    coef, icpt = platt_fit_map(p, y)
+    assert coef == pytest.approx(np.log(2), abs=1e-3) and icpt == pytest.approx(-np.log(2), abs=1e-3)
+    # Rates already matching the raw scores (expit(-1), expit(1)) would give the identity,
+    # (1, 0); same-rate levels give slope 0 (scores carry no information).
+    p, y = _two_level_rows(40, 0.5, 0.5)
+    coef, icpt = platt_fit_map(p, y)
+    assert coef == pytest.approx(0.0, abs=1e-3) and icpt == pytest.approx(0.0, abs=1e-3)
+
+
+def test_platt_fit_map_matches_library_fit():
+    rng = np.random.default_rng(0)
+    p = rng.uniform(0.01, 0.99, 200)
+    y = rng.random(200) < p ** 2
+    assert platt_fit_map(p, y) == fit_platt(p, y)
+
+
+def test_platt_fit_map_rejects_separable_and_single_class():
+    p = np.array([0.1, 0.2, 0.3, 0.7, 0.8, 0.9])
+    with pytest.raises(ValueError, match="separable"):
+        platt_fit_map(p, np.array([0, 0, 0, 1, 1, 1], dtype=bool))
+    with pytest.raises(ValueError, match="separable"):         # reversed direction
+        platt_fit_map(p, np.array([1, 1, 1, 0, 0, 0], dtype=bool))
+    with pytest.raises(ValueError, match="separable"):         # quasi: overlap only at a tie
+        platt_fit_map(np.array([0.1, 0.5, 0.5, 0.9]), np.array([0, 0, 1, 1], dtype=bool))
+    with pytest.raises(ValueError, match="both classes"):
+        platt_fit_map(p, np.zeros(6, dtype=bool))
+    # One overlapping pair is enough for a finite MLE.
+    platt_fit_map(p, np.array([0, 0, 1, 0, 1, 1], dtype=bool))
 
 
 def test_uniform_fit_sample():
