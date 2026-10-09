@@ -31,8 +31,8 @@ sys.path.insert(0, str(_REPO / "src"))
 
 import utils as paths  # noqa: E402
 from scholarlm.config import DatasetConfig  # noqa: E402
-from analysis.common import matching, provenance  # noqa: E402
 from analysis import recovery_validity as rv  # noqa: E402
+from analysis.common import matching, provenance, recovery  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -46,20 +46,20 @@ def test_masks_mark_gt_and_ext_indices_present_in_edges():
     # presence, no weight/threshold argument.
     edges = [(0, 0), (0, 1)]  # gt row 1 has no surviving edge
 
-    recovered = rv.gt_recovered_mask(2, edges)
-    matched = rv.ext_matched_mask(3, edges)
+    recovered = recovery.gt_recovered_mask(2, edges)
+    matched = recovery.ext_matched_mask(3, edges)
 
     assert recovered.tolist() == [True, False]
     assert matched.tolist() == [True, True, False]
 
 
 def test_masks_all_zero_when_no_edges():
-    assert rv.gt_recovered_mask(2, []).tolist() == [False, False]
-    assert rv.ext_matched_mask(1, []).tolist() == [False]
+    assert recovery.gt_recovered_mask(2, []).tolist() == [False, False]
+    assert recovery.ext_matched_mask(1, []).tolist() == [False]
 
 
 # ---------------------------------------------------------------------------
-# _assert_matching_columns_present
+# assert_matching_columns_present
 # ---------------------------------------------------------------------------
 
 _CFG = {
@@ -71,7 +71,7 @@ _CFG = {
 def test_matching_columns_present_passes_when_all_columns_exist():
     gt = pd.DataFrame(columns=["document_id", "attribute", "point_value", "units", "name", "ecosystem"])
     ext = pd.DataFrame(columns=["document_id", "attribute", "point_value", "units", "name", "ecosystem"])
-    rv._assert_matching_columns_present(gt, ext, _CFG)  # must not raise
+    matching.assert_matching_columns_present(gt, ext, _CFG)  # must not raise
 
 
 def test_matching_columns_present_raises_on_legacy_schema():
@@ -80,7 +80,7 @@ def test_matching_columns_present_raises_on_legacy_schema():
     gt = pd.DataFrame(columns=["document_id", "attribute", "value", "units", "name", "ecosystem", "location"])
     ext = pd.DataFrame(columns=["document_id", "attribute", "converted_value", "units", "name", "ecosystem", "location"])
     with pytest.raises(KeyError, match="point_value"):
-        rv._assert_matching_columns_present(gt, ext, _CFG)
+        matching.assert_matching_columns_present(gt, ext, _CFG)
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +200,7 @@ def test_find_judge_combine_id_happy_path(fixture_roots):
         _write_judge_config(exp_root, "pond", jid, extraction_id)
     _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": judge_ids})
 
-    found_id, found_judge_ids = rv.find_judge_combine_id("pond", extraction_id)
+    found_id, found_judge_ids = recovery.find_judge_combine_id("pond", extraction_id)
     assert found_id == combine_id
     assert found_judge_ids == judge_ids
 
@@ -211,7 +211,7 @@ def test_find_judge_combine_id_no_match_raises(fixture_roots):
     _write_experiment_config(exp_root, "pond", "judge_combine", "2026-01-03-pond-model-c1-01", {"judge_ids": ["2026-01-02-pond-model-j1-01"]})
 
     with pytest.raises(FileNotFoundError):
-        rv.find_judge_combine_id("pond", "2026-01-01-pond-model-extraction-01")
+        recovery.find_judge_combine_id("pond", "2026-01-01-pond-model-extraction-01")
 
 
 def test_find_judge_combine_id_ambiguous_raises(fixture_roots):
@@ -225,7 +225,7 @@ def test_find_judge_combine_id_ambiguous_raises(fixture_roots):
         _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [jid]})
 
     with pytest.raises(ValueError, match="more than one"):
-        rv.find_judge_combine_id("pond", extraction_id)
+        recovery.find_judge_combine_id("pond", extraction_id)
 
 
 def test_find_judge_combine_id_skips_candidate_with_unresolvable_judge(fixture_roots):
@@ -245,7 +245,7 @@ def test_find_judge_combine_id_skips_candidate_with_unresolvable_judge(fixture_r
         {"judge_ids": ["2026-01-04-pond-other-nosuchconfig-judge-local-01"]},
     )
 
-    found_id, found_judge_ids = rv.find_judge_combine_id("pond", extraction_id)
+    found_id, found_judge_ids = recovery.find_judge_combine_id("pond", extraction_id)
     assert found_id == combine_id
     assert found_judge_ids == [judge_id]
 
@@ -265,7 +265,7 @@ def test_find_judge_combine_id_skips_synthetic_judge_with_no_extraction_id(fixtu
         {"judge_ids": [synthetic_judge_id]},
     )
 
-    found_id, found_judge_ids = rv.find_judge_combine_id("pond", extraction_id)
+    found_id, found_judge_ids = recovery.find_judge_combine_id("pond", extraction_id)
     assert found_id == combine_id
     assert found_judge_ids == [judge_id]
 
@@ -282,7 +282,7 @@ def test_find_judge_combine_id_internally_inconsistent_combine_raises(fixture_ro
     )
 
     with pytest.raises(ValueError, match="disagree"):
-        rv.find_judge_combine_id("pond", ext_a)
+        recovery.find_judge_combine_id("pond", ext_a)
 
 
 def test_find_judge_combine_id_run_metadata_disagreement_raises(fixture_roots):
@@ -298,7 +298,7 @@ def test_find_judge_combine_id_run_metadata_disagreement_raises(fixture_roots):
     _write_run_metadata(results_root, "pond", "judge_local", judge_id, {"extraction_id": "some-other-extraction"})
 
     with pytest.raises(ValueError, match="not run against"):
-        rv.find_judge_combine_id("pond", extraction_id)
+        recovery.find_judge_combine_id("pond", extraction_id)
 
 
 def test_find_judge_combine_id_run_metadata_agreement_passes(fixture_roots):
@@ -310,7 +310,7 @@ def test_find_judge_combine_id_run_metadata_agreement_passes(fixture_roots):
     _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
     _write_run_metadata(results_root, "pond", "judge_local", judge_id, {"extraction_id": extraction_id})
 
-    found_id, found_judge_ids = rv.find_judge_combine_id("pond", extraction_id)
+    found_id, found_judge_ids = recovery.find_judge_combine_id("pond", extraction_id)
     assert found_id == combine_id
     assert found_judge_ids == [judge_id]
 
@@ -330,7 +330,7 @@ def test_verify_judge_combine_id_happy_path(fixture_roots):
     _write_judge_config(exp_root, "pond", judge_id, extraction_id)
     _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
 
-    assert rv.verify_judge_combine_id("pond", combine_id, extraction_id) == [judge_id]
+    assert recovery.verify_judge_combine_id("pond", combine_id, extraction_id) == [judge_id]
 
 
 def test_verify_judge_combine_id_disambiguates_what_scanning_would_refuse(fixture_roots):
@@ -347,9 +347,9 @@ def test_verify_judge_combine_id_disambiguates_what_scanning_would_refuse(fixtur
         _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [jid]})
 
     with pytest.raises(ValueError, match="more than one"):
-        rv.find_judge_combine_id("pond", extraction_id)
+        recovery.find_judge_combine_id("pond", extraction_id)
 
-    assert rv.verify_judge_combine_id("pond", "2026-01-03-pond-model-c1-01", extraction_id) == [
+    assert recovery.verify_judge_combine_id("pond", "2026-01-03-pond-model-c1-01", extraction_id) == [
         "2026-01-02-pond-model-j1-01"
     ]
 
@@ -362,7 +362,7 @@ def test_verify_judge_combine_id_wrong_extraction_raises(fixture_roots):
     _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
 
     with pytest.raises(ValueError, match="not the declared extraction_id"):
-        rv.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-wrong-01")
+        recovery.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-wrong-01")
 
 
 def test_verify_judge_combine_id_wrong_dataset_raises(fixture_roots):
@@ -374,7 +374,7 @@ def test_verify_judge_combine_id_wrong_dataset_raises(fixture_roots):
     _write_experiment_config(exp_root, "pond", "judge_combine", combine_id, {"judge_ids": [judge_id]})
 
     with pytest.raises(ValueError, match="not under experiment-configs/nfix/judge_combine"):
-        rv.verify_judge_combine_id("nfix", combine_id, extraction_id)
+        recovery.verify_judge_combine_id("nfix", combine_id, extraction_id)
 
 
 def test_verify_judge_combine_id_unresolvable_judge_raises(fixture_roots):
@@ -386,7 +386,7 @@ def test_verify_judge_combine_id_unresolvable_judge_raises(fixture_roots):
     )
 
     with pytest.raises(FileNotFoundError):
-        rv.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-extraction-01")
+        recovery.verify_judge_combine_id("pond", combine_id, "2026-01-01-pond-model-extraction-01")
 
 
 def test_verify_judge_combine_id_run_metadata_disagreement_raises(fixture_roots):
@@ -399,7 +399,7 @@ def test_verify_judge_combine_id_run_metadata_disagreement_raises(fixture_roots)
     _write_run_metadata(results_root, "pond", "judge_local", judge_id, {"extraction_id": "some-other-extraction"})
 
     with pytest.raises(ValueError, match="not run against"):
-        rv.verify_judge_combine_id("pond", combine_id, extraction_id)
+        recovery.verify_judge_combine_id("pond", combine_id, extraction_id)
 
 
 def _final_json_row(mid, doc="d1", attr="ph"):
@@ -418,7 +418,7 @@ def test_load_validity_labels_happy_path(fixture_roots):
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
 
-    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    labels = recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
     assert labels.tolist() == [True, False]
 
 
@@ -435,7 +435,7 @@ def test_load_validity_labels_out_of_order_still_aligns(fixture_roots):
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
 
-    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    labels = recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
     assert labels.tolist() == [True, False]
 
 
@@ -455,7 +455,7 @@ def test_load_validity_labels_split_children_inherit_parent_judgement(fixture_ro
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
 
-    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    labels = recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
     assert labels.tolist() == [True, False, False, True]
     assert rv.count_split_rows(extraction_df) == 2
     assert rv.count_split_rows(extraction_df.drop_duplicates(["document_id", "measurement_id"])) == 0
@@ -472,7 +472,7 @@ def test_load_validity_labels_same_measurement_id_in_different_documents_is_dist
     combine_dir.mkdir(parents=True)
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
-    labels = rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+    labels = recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
     assert labels.tolist() == [True, False]
 
 
@@ -485,7 +485,7 @@ def test_load_validity_labels_unjudged_extraction_key_raises(fixture_roots):
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
     with pytest.raises(ValueError, match="no judgement"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 def test_load_validity_labels_attribute_mismatch_at_shared_key_raises(fixture_roots):
@@ -497,7 +497,7 @@ def test_load_validity_labels_attribute_mismatch_at_shared_key_raises(fixture_ro
     with open(combine_dir / "combined.json", "w") as f:
         json.dump(combined, f)
     with pytest.raises(ValueError, match="attribute"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 def test_load_validity_labels_duplicate_combined_key_raises(fixture_roots):
@@ -509,7 +509,7 @@ def test_load_validity_labels_duplicate_combined_key_raises(fixture_roots):
     with open(combine_dir / "combined.json", "w") as f:
         json.dump([rec, rec], f)
     with pytest.raises(ValueError, match="distinct"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 def test_load_validity_labels_row_count_mismatch_raises(fixture_roots):
@@ -525,7 +525,7 @@ def test_load_validity_labels_row_count_mismatch_raises(fixture_roots):
         json.dump(combined, f)
 
     with pytest.raises(ValueError, match="not the same run"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 def test_load_validity_labels_document_id_mismatch_raises(fixture_roots):
@@ -540,7 +540,7 @@ def test_load_validity_labels_document_id_mismatch_raises(fixture_roots):
         json.dump(combined, f)
 
     with pytest.raises(ValueError, match="disagree"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 def test_load_validity_labels_non_bool_judgement_raises(fixture_roots):
@@ -555,7 +555,7 @@ def test_load_validity_labels_non_bool_judgement_raises(fixture_roots):
         json.dump(combined, f)
 
     with pytest.raises(ValueError, match="not a bool"):
-        rv.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
+        recovery.load_validity_labels("2026-01-03-pond-model-combo-01", extraction_df)
 
 
 # ---------------------------------------------------------------------------
@@ -623,7 +623,7 @@ def e2e_fixture(tmp_path, monkeypatch):
         fuzzy_threshold=0.5,
         numeric_coerce=["point_value"],
     )
-    monkeypatch.setattr(rv, "load_dataset_config", lambda ds: dataset_config)
+    monkeypatch.setattr(matching, "load_dataset_config", lambda ds: dataset_config)
 
     # Cache built at threshold 0.0: gt row 2 / ext row 2's candidate edge
     # scores 0.2, below the 0.5 fuzzy_threshold above -- excluded once
@@ -632,8 +632,8 @@ def e2e_fixture(tmp_path, monkeypatch):
     edges = [(0, 0), (1, 1), (2, 2)]
     edge_weights = [1.0, 1.0, 0.2]
     _write_match_cache(cache_path, edges, edge_weights)
-    # match_cache.meta.json sidecar -- _assert_ground_truth_matches_cache/
-    # _assert_extraction_matches_cache require this to confirm the cache was
+    # match_cache.meta.json sidecar -- assert_ground_truth_matches_cache/
+    # assert_extraction_matches_cache require this to confirm the cache was
     # built against gt_path/final_path (no postprocessed.json in this fixture,
     # so extraction_path() falls back to final.json).
     meta = {
@@ -688,7 +688,7 @@ def test_compute_metrics_for_id_with_validity(e2e_fixture):
 
 
 # ---------------------------------------------------------------------------
-# _assert_ground_truth_matches_cache -- a cache passing every OTHER guard
+# assert_ground_truth_matches_cache -- a cache passing every OTHER guard
 # (fresh by mtime, n_gt in range) must still be refused if it wasn't built
 # against the ground_truth_path given now. Without this guard these three
 # scenarios would silently misalign the cached (gt_idx, ex_idx) edges.
@@ -773,7 +773,7 @@ def test_compute_metrics_for_id_prefers_postprocessed_json(e2e_fixture):
     # A postprocessed.json appearing after the cache was built (and the
     # sidecar still pointing at final.json) must be caught as a mismatch --
     # load_frames now resolves extraction_path() itself, so this is exactly
-    # the scenario _assert_extraction_matches_cache exists for.
+    # the scenario assert_extraction_matches_cache exists for.
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
     extraction_dir = paths.find_result_dir(extraction_id)
     rows = json.loads((extraction_dir / "final.json").read_text())
@@ -789,7 +789,7 @@ def test_compute_metrics_for_id_skip_validity_never_touches_judge_combine(e2e_fi
     def _boom(*args, **kwargs):
         raise AssertionError("find_judge_combine_id must not be called when compute_validity=False")
 
-    monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
+    monkeypatch.setattr(recovery, "find_judge_combine_id", _boom)
 
     row = rv.compute_metrics_for_id(
         extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, compute_validity=False,
@@ -809,7 +809,7 @@ def test_compute_metrics_for_id_with_declared_judge_combine_id_skips_scan(e2e_fi
     def _boom(*args, **kwargs):
         raise AssertionError("find_judge_combine_id must not be called when judge_combine_id is given")
 
-    monkeypatch.setattr(rv, "find_judge_combine_id", _boom)
+    monkeypatch.setattr(recovery, "find_judge_combine_id", _boom)
 
     row = rv.compute_metrics_for_id(
         extraction_id, ground_truth_path=gt_path, n_resamples=200, seed=0, judge_combine_id=combine_id,
@@ -898,7 +898,7 @@ def test_matching_rejects_duplicate_edges_bad_weights_and_out_of_range():
 
 
 def test_filter_edges_by_threshold_is_inclusive_and_keeps_weights_aligned():
-    edges, weights = rv.filter_edges_by_threshold([(0, 0), (1, 1), (2, 2)], [0.5, 0.49, 1.0], 0.5)
+    edges, weights = recovery.filter_edges_by_threshold([(0, 0), (1, 1), (2, 2)], [0.5, 0.49, 1.0], 0.5)
     assert edges == [(0, 0), (2, 2)] and weights == [0.5, 1.0]
 
 
@@ -953,14 +953,13 @@ def test_validity_counts_every_extraction_with_a_threshold_edge_not_just_matched
 
 def test_calibration_labels_count_every_extraction_with_a_threshold_edge(e2e_fixture):
     # Same cache as above, through the calibration path
-    # (calibration_updated_v3 / platt_scaling / meta via predictions.pkl):
+    # (calibration_updated_v4 / platt_scaling_v2 / meta via predictions.pkl):
     # both ext 0 and ext 1 must come back as having an edge.
-    from analysis.common import calibration_ids as cids
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
     _rewrite_fixture_cache(extraction_id, [(0, 0), (0, 1), (2, 2)], [1.0, 0.6, 0.2])
-    _gt_df, ext_df, edges = cids.load_cached_matching(extraction_id, gt_path)
+    _gt_df, ext_df, edges = matching.load_cached_matching(extraction_id, gt_path)
     judged_df = ext_df[["measurement_id", "document_id", "attribute"]].reset_index(drop=True)
-    judged_edges = cids.edges_to_judged_rows(edges, ext_df, judged_df)
+    judged_edges = matching.edges_to_judged_rows(edges, ext_df, judged_df)
     assert judged_edges == [(0, 0), (0, 1)]
 
 

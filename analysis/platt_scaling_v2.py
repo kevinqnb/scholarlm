@@ -52,6 +52,7 @@ import seaborn as sns
 
 from analysis.common.config import load_platt_sweep_v2_config
 from analysis.common import calibration_ids as cids
+from analysis.common import matching
 from analysis.common import doc_bootstrap as db
 from analysis.common.head_activations import HeadActivationCache
 from analysis.common.recalibration import prior_shift_map, intercept_fit_map
@@ -173,9 +174,9 @@ class SweepInputs:
         # dataset's use_matching_labels is on.
         jlabels = real_df['judgement_combined'].to_numpy(dtype=bool)
         if block['use_matching_labels']:
-            _gt_df, ext_df, cached_edges = cids.load_cached_matching(
+            _gt_df, ext_df, cached_edges = matching.load_cached_matching(
                 block['extraction_id'], ds_inputs['ground_truth_path'])
-            judged_edges = cids.edges_to_judged_rows(cached_edges, ext_df, real_df)
+            judged_edges = matching.edges_to_judged_rows(cached_edges, ext_df, real_df)
             matched = np.zeros(len(real_df), dtype=bool)
             for _gt_idx, ex_idx in judged_edges:
                 matched[ex_idx] = True

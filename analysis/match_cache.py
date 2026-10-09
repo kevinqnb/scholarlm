@@ -150,7 +150,7 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
     match_cache.meta.json sidecar alongside the ground truth's own, so a
     cache built against final.json can never be silently scored later as if
     it reflected a postprocessed.json that didn't exist yet -- see
-    analysis/recovery_validity.py's _assert_extraction_matches_cache.
+    analysis/recovery_validity.py's assert_extraction_matches_cache.
 
     Raises:
         FileNotFoundError: no postprocessed.json or final.json for this id.
@@ -204,7 +204,7 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
     # Delete any stale sidecar before writing a new pkl -- if this call is
     # interrupted between the pkl write and the sidecar write below, a leftover
     # sidecar from a PREVIOUS (different) ground truth file would otherwise
-    # sit next to the new pkl and make _assert_ground_truth_matches_cache
+    # sit next to the new pkl and make assert_ground_truth_matches_cache
     # wrongly pass on the next run.
     match_cache_meta_path(experiment_id).unlink(missing_ok=True)
     matching, edges, edge_weights = cached_match(

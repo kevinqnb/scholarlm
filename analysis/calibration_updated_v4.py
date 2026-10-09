@@ -20,6 +20,7 @@ from sklearn.metrics import roc_auc_score
 
 from analysis.common.config import load_calibration_v4_config
 from analysis.common import calibration_ids as cids
+from analysis.common import matching
 from analysis.common import doc_bootstrap as db
 from analysis.common.metrics import validity_rate_from_labels
 from analysis.common.prediction_store import real_cell_provenance
@@ -188,9 +189,9 @@ for ds in DATASETS:
     # match when the dataset's use_matching_labels is on.
     jlabels = real_df['judgement_combined'].to_numpy(dtype=bool)
     if _PARAMS['datasets'][ds]['use_matching_labels']:
-        _gt_df, ext_df, cached_edges = cids.load_cached_matching(
+        _gt_df, ext_df, cached_edges = matching.load_cached_matching(
             _PARAMS['datasets'][ds]['extraction_id'], ds_inputs['ground_truth_path'])
-        judged_edges = cids.edges_to_judged_rows(cached_edges, ext_df, real_df)
+        judged_edges = matching.edges_to_judged_rows(cached_edges, ext_df, real_df)
         ex_edge_exists = np.zeros(len(real_df), dtype=bool)
         for _gt_idx, ex_idx in judged_edges:
             ex_edge_exists[ex_idx] = True

@@ -15,7 +15,7 @@ probe's synthetic-training documents are excluded), so:
   - scoring happens on recovery_validity.py's own row space -- postprocessed.json
     extractions, ground truth from the calibration config's ground_truth_file, edges
     from the match cache at the dataset's fuzzy_threshold -- loaded through its own
-    guarded loader (``_load_checked_inputs``), with split postprocessed rows
+    guarded loader (``load_checked_inputs``), with split postprocessed rows
     inheriting their parent's probability by measurement_id, exactly as they inherit
     its judgement;
   - ground truth AND extractions are restricted to documents outside the cell's
@@ -349,7 +349,7 @@ def resolve_inputs(cfg: dict) -> dict:
 
 def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str) -> pd.DataFrame:
     """Observed and permuted curves for both methods of one (train, test) cell."""
-    from analysis import recovery_validity as rv
+    from analysis.common import recovery
     from analysis.common.provenance import repo_relative, sha256_file
     from analysis.common.prediction_store import check_real_cell
 
@@ -359,17 +359,17 @@ def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str
     ds_inputs = inputs["calibration_inputs"]["datasets"][test]
     extraction_id = ds_block["extraction_id"]
 
-    data = rv._load_checked_inputs(extraction_id, ds_inputs["ground_truth_path"])
+    data = recovery.load_checked_inputs(extraction_id, ds_inputs["ground_truth_path"])
     assert data["dataset"] == test, (data["dataset"], test)
     gt_df, ext_df, mcfg = data["ground_truth_df"], data["extraction_df"], data["cfg"]
     n_gt, n_ext = len(gt_df), len(ext_df)
-    edges, _w = rv.filter_edges_by_threshold(data["raw_edges"], data["raw_weights"], mcfg["fuzzy_threshold"])
-    recovered = rv.gt_recovered_mask(n_gt, edges)
-    rv._verify_recovery(gt_df, ext_df, mcfg, mcfg["fuzzy_threshold"], data["cache_path"], recovered)
-    judge_combine_id, _judge_ids, judged = rv._resolve_judged_labels(
+    edges, _w = recovery.filter_edges_by_threshold(data["raw_edges"], data["raw_weights"], mcfg["fuzzy_threshold"])
+    recovered = recovery.gt_recovered_mask(n_gt, edges)
+    recovery.verify_recovery(gt_df, ext_df, mcfg, mcfg["fuzzy_threshold"], data["cache_path"], recovered)
+    judge_combine_id, _judge_ids, judged = recovery.resolve_judged_labels(
         test, extraction_id, ds_block["judge_combine_id"], ext_df)
-    validity_labels = rv._verify_validity(gt_df, ext_df, mcfg, mcfg["fuzzy_threshold"], data["cache_path"],
-                                          rv.ext_matched_mask(n_ext, edges), judged)
+    validity_labels = recovery.verify_validity(gt_df, ext_df, mcfg, mcfg["fuzzy_threshold"], data["cache_path"],
+                                          recovery.ext_matched_mask(n_ext, edges), judged)
 
     judge_models = list(predictions["real"])
     assert judge_models == [inputs["calibration_inputs"]["judge_model"]], judge_models

@@ -20,6 +20,7 @@ import seaborn as sns
 
 from analysis.common.config import load_calibration_validated_config, validations_path
 from analysis.common import calibration_ids as cids
+from analysis.common import matching
 from analysis.common import nested_bootstrap as nb
 from analysis.common.provenance import sha256_file
 from analysis.common.prediction_store import PROVENANCE_KEYS, real_cell_provenance
@@ -201,9 +202,9 @@ for ds in DATASETS:
     # several -- so a final.json row counts as matched if any of its expanded rows
     # did. Recovery is not computed here (see analysis/recovery_validity.py).
     if _PARAMS['datasets'][ds]['use_matching_labels']:
-        _gt_df, ext_df, cached_edges = cids.load_cached_matching(
+        _gt_df, ext_df, cached_edges = matching.load_cached_matching(
             _PARAMS['datasets'][ds]['extraction_id'], ds_inputs['ground_truth_path'])
-        judged_edges = cids.edges_to_judged_rows(cached_edges, ext_df, real_df)
+        judged_edges = matching.edges_to_judged_rows(cached_edges, ext_df, real_df)
         ex_edge_exists = np.zeros(len(real_df), dtype=bool)
         for _gt_idx, ex_idx in judged_edges:
             ex_edge_exists[ex_idx] = True

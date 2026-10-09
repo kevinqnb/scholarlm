@@ -20,6 +20,7 @@ sys.path.insert(0, str(_REPO / "experiments"))
 import utils as paths  # noqa: E402
 from analysis.common import config as ac  # noqa: E402
 from analysis.common import calibration_ids as cids  # noqa: E402
+from analysis.common import matching  # noqa: E402
 
 DATASETS = ("pond", "nfix", "supermat")
 
@@ -214,40 +215,40 @@ def _frames():
 def test_edges_map_through_measurement_id_and_collapse():
     judged, ext = _frames()
     # gt 7 matches both expanded copies of judged row 1; gt 8 matches ext row 3 -> judged row 2.
-    out = cids.edges_to_judged_rows([(7, 1), (7, 2), (8, 3)], ext, judged)
+    out = matching.edges_to_judged_rows([(7, 1), (7, 2), (8, 3)], ext, judged)
     assert out == [(7, 1), (8, 2)]
 
 
 def test_edges_identity_when_no_expansion():
     judged, _ = _frames()
-    assert cids.edges_to_judged_rows([(0, 2), (1, 0)], judged.copy(), judged) == [(0, 2), (1, 0)]
+    assert matching.edges_to_judged_rows([(0, 2), (1, 0)], judged.copy(), judged) == [(0, 2), (1, 0)]
 
 
 def test_edges_reject_nonrange_judged_ids():
     judged, ext = _frames()
     judged["measurement_id"] = [0, 2, 1]
     with pytest.raises(ValueError, match="range"):
-        cids.edges_to_judged_rows([], ext, judged)
+        matching.edges_to_judged_rows([], ext, judged)
 
 
 def test_edges_reject_ext_mid_outside_judged():
     judged, ext = _frames()
     ext.loc[3, "measurement_id"] = 9
     with pytest.raises(ValueError, match="outside"):
-        cids.edges_to_judged_rows([], ext, judged)
+        matching.edges_to_judged_rows([], ext, judged)
 
 
 def test_edges_reject_attribute_disagreement():
     judged, ext = _frames()
     ext.loc[3, "attribute"] = "z"
     with pytest.raises(ValueError, match="attribute"):
-        cids.edges_to_judged_rows([], ext, judged)
+        matching.edges_to_judged_rows([], ext, judged)
 
 
 def test_edges_reject_out_of_range_edge():
     judged, ext = _frames()
     with pytest.raises(ValueError, match="out of range"):
-        cids.edges_to_judged_rows([(0, 4)], ext, judged)
+        matching.edges_to_judged_rows([(0, 4)], ext, judged)
 
 
 # ── load_calibration_v3_config: platt_n, no pi_te ────────────────────────────
