@@ -176,6 +176,44 @@ def test_synthetic_corpus_version_mismatch(world, tmp_path):
         cids.resolve_calibration_inputs(_load(cfg, tmp_path))
 
 
+@pytest.mark.parametrize("name, version", [
+    ("probe_dataset_v3.json", "v3"),
+    ("probe_dataset_test_v3_diag.json", "v3"),
+    ("probe_dataset_v3s.json", "v3s"),
+    ("probe_dataset_test_v3s.json", "v3s"),
+    ("probe_dataset_test_v3s_diag.json", "v3s"),
+])
+def test_synthetic_file_version(name, version):
+    assert cids._synthetic_file_version("r", {"params": {"synthetic_file": f"data/supermat/{name}"}}) == version
+
+
+def test_synthetic_file_without_version_raises():
+    with pytest.raises(ValueError, match="no _v<N>"):
+        cids._synthetic_file_version("r", {"params": {"synthetic_file": "data/supermat/probe_dataset.json"}})
+
+
+def _set_supermat_corpus(exp_root, train_file, test_file, diag_file):
+    i = _ids("supermat")
+    for run, f in ((i["train"], train_file), (i["primary"], test_file), (i["diag"], diag_file)):
+        _write_exp(exp_root, "supermat", "judge_interp", run,
+                   {"judge": "qwen-2.5-7b", "synthetic_file": f"data/supermat/{f}"})
+
+
+def test_v3s_corpus_resolves(world, tmp_path):
+    cfg, exp_root = world
+    _set_supermat_corpus(exp_root, "probe_dataset_v3s.json", "probe_dataset_test_v3s.json",
+                         "probe_dataset_test_v3s_diag.json")
+    cids.resolve_calibration_inputs(_load(cfg, tmp_path))
+
+
+def test_v3s_train_with_v3_test_rejected(world, tmp_path):
+    cfg, exp_root = world
+    _set_supermat_corpus(exp_root, "probe_dataset_v3s.json", "probe_dataset_test_v3.json",
+                         "probe_dataset_test_v3s_diag.json")
+    with pytest.raises(ValueError, match="synthetic corpus 'v3' != .*'v3s'"):
+        cids.resolve_calibration_inputs(_load(cfg, tmp_path))
+
+
 def test_probe_config_dataset_mismatch(world, tmp_path):
     cfg, _ = world
     cfg["params"]["datasets"]["pond"]["synthetic_probe_config"] = _ids("nfix")["probe_cfg"]

@@ -65,7 +65,9 @@ def pinned_run_dir(run_id: str, expected_dataset: str, expected_type: str) -> Pa
 
 _SYNTHETIC_PROBE_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results" / "synthetic_probe"
 
-_SYN_FILE_VERSION_RE = re.compile(r"_(v\d+)(?:_diag)?\.json$")
+# _v<N> plus an optional letter suffix: supermat's realigned split is v3s
+# (data/supermat/realign_probe_split.py), a different corpus version from v3.
+_SYN_FILE_VERSION_RE = re.compile(r"_(v\d+[a-z]?)(?:_diag)?\.json$")
 
 
 def _synthetic_file_version(run_id: str, cfg: dict) -> str:
