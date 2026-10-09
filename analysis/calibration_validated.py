@@ -18,17 +18,17 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import seaborn as sns
 
-from analysis.analysis_config import load_calibration_validated_config, validations_path
-from analysis import calibration_ids as cids
-from analysis import nested_bootstrap as nb
+from analysis.common.config import load_calibration_validated_config, validations_path
+from analysis.common import calibration_ids as cids
+from analysis.common import nested_bootstrap as nb
 from analysis.match_cache import sha256_file
-from analysis.prediction_store import PROVENANCE_KEYS, real_cell_provenance
-from analysis.calibration_plot_utils import draw_reliability_curve
-from analysis.head_activations import HeadActivationCache
+from analysis.common.prediction_store import PROVENANCE_KEYS, real_cell_provenance
+from analysis.common.calibration_plot_utils import draw_reliability_curve
+from analysis.common.head_activations import HeadActivationCache
 from scholarlm.utils.calibration import (
     apply_platt, fit_recalibration, RECALIBRATION_METHODS,
 )
-from analysis.analysis_config import RECALIBRATION_METHODS as _CFG_RECALIBRATION_METHODS
+from analysis.common.config import RECALIBRATION_METHODS as _CFG_RECALIBRATION_METHODS
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -95,7 +95,7 @@ SYN_SPLIT    = _PARAMS['syn_split']
 # Number of real rows per dataset used to fit each Platt scaler (config: platt_n);
 # these stay labelled by LLM + matching (the training split has no human labels).
 PLATT_N = _PARAMS['platt_n']
-# Nested-bootstrap sizes (see analysis/nested_bootstrap.py): real cells are refit on
+# Nested-bootstrap sizes (see analysis/common/nested_bootstrap.py): real cells are refit on
 # N_FIT_SAMPLES independent platt_n-row samples, each crossed with N_DOC_BOOT test-document
 # resamples; synthetic cells (never recalibrated) get N_SYN_BOOT document resamples.
 N_FIT_SAMPLES = _PARAMS['n_fit_samples']
@@ -164,7 +164,7 @@ for _train_ds in TRAIN_DATASETS:
     probe_cache[_train_ds]   = {JUDGE_MODEL: _load_trained_artifact(_train_ds, _probe_filename)}
 
 # Head features: each activation row is decompressed once per run, keeping the union of
-# every train probe's top heads (see analysis/head_activations.py).
+# every train probe's top heads (see analysis/common/head_activations.py).
 _HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr][JUDGE_MODEL]['top_k_heads']])
               if PROBE_TYPE == 'head' else None)
 

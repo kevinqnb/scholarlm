@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for analysis/calibration_ids.py's run-id resolution
+"""Rung-1 unit tests for analysis/common/calibration_ids.py's run-id resolution
 helpers (resolve_run, pinned_run_dir). Hand-built fixtures under tmp_path, monkeypatching
 utils.EXPERIMENT_CONFIGS_ROOT and utils.RESULTS_ROOT so no real repo data is
 touched (same pattern as tests/test_synthetic_probe_run_ids.py).
@@ -16,7 +16,7 @@ sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
 import utils as paths  # noqa: E402
-from analysis import calibration_ids as cids  # noqa: E402
+from analysis.common import calibration_ids as cids  # noqa: E402
 
 
 def _write_config(root: Path, dataset: str, exp_type: str, exp_id: str) -> Path:

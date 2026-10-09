@@ -955,7 +955,7 @@ def test_calibration_labels_count_every_extraction_with_a_threshold_edge(e2e_fix
     # Same cache as above, through the calibration path
     # (calibration_updated_v3 / platt_scaling / meta via predictions.pkl):
     # both ext 0 and ext 1 must come back as having an edge.
-    from analysis import calibration_ids as cids
+    from analysis.common import calibration_ids as cids
     extraction_id, _combine_id, _judge_ids, gt_path = e2e_fixture
     _rewrite_fixture_cache(extraction_id, [(0, 0), (0, 1), (2, 2)], [1.0, 0.6, 0.2])
     _gt_df, ext_df, edges = cids.load_cached_matching(extraction_id, gt_path)

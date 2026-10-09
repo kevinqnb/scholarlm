@@ -5,7 +5,7 @@ build paths by hand.
 
 Typical usage
 -------------
-    from analysis.loaders import load_extraction, load_combined_judgements
+    from analysis.common.loaders import load_extraction, load_combined_judgements
 
     records = load_extraction("pond", "gemma-3-27b", "2026_04_01")
     judgements = load_combined_judgements("pond", "gemma-3-27b", "2026_04_01")
@@ -19,13 +19,13 @@ from pathlib import Path
 
 import numpy as np
 
-_EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
+_EXPERIMENTS_DIR = Path(__file__).parent.parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
     sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 import utils as _paths
 
-_UTILS_DIR = Path(__file__).parent.parent / "experiments"
+_UTILS_DIR = Path(__file__).parent.parent.parent / "experiments"
 if str(_UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(_UTILS_DIR))
 
@@ -160,7 +160,7 @@ def load_ground_truth_file(path: Path) -> "pd.DataFrame":
     The path-based counterpart to ``load_ground_truth`` -- used by
     analysis/match_cache.py and analysis/recovery_validity.py, which resolve
     the ground truth file from an analysis config's own
-    ``params.ground_truth_file`` (see analysis/analysis_config.py) rather
+    ``params.ground_truth_file`` (see analysis/common/config.py) rather
     than from a DatasetConfig, so an analysis run's ground truth is pinned
     explicitly and doesn't silently drift if the DatasetConfig's own
     ``ground_truth_file`` is later repointed.
@@ -199,7 +199,7 @@ def load_ground_truth(config) -> "pd.DataFrame":
         )
     path = Path(config.ground_truth_file)
     if not path.is_absolute():
-        path = Path(__file__).parent.parent / path
+        path = Path(__file__).parent.parent.parent / path
     return load_ground_truth_file(path)
 
 

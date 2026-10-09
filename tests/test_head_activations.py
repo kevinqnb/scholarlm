@@ -1,4 +1,4 @@
-"""analysis/head_activations.py: the cached head-feature reader must reproduce the
+"""analysis/common/head_activations.py: the cached head-feature reader must reproduce the
 per-head npz slicing it replaced, exactly."""
 import sys
 from pathlib import Path
@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from analysis.head_activations import HeadActivationCache  # noqa: E402
+from analysis.common.head_activations import HeadActivationCache  # noqa: E402
 
 
 def _old_features(act_dir, mids, top):

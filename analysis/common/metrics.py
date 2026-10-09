@@ -2,7 +2,7 @@
 
 Typical usage
 -------------
-    from analysis.metrics import recovery_rate, hallucination_rate
+    from analysis.common.metrics import recovery_rate, hallucination_rate
 
     recall = recovery_rate(extraction_df, ground_truth_df, strict_matching={"entity": ["name"]})
     print(recall)  # 0.82

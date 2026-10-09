@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for analysis/nested_bootstrap.py: the fit-sample x test-document
+"""Rung-1 unit tests for analysis/common/nested_bootstrap.py: the fit-sample x test-document
 nested bootstrap behind calibration v3's CIs and reliability curves.
 
 Fixtures are small enough to check by hand, plus two large known-answer cases
@@ -14,7 +14,7 @@ from scipy.special import expit, logit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis import nested_bootstrap as nb
+from analysis.common import nested_bootstrap as nb
 
 
 def _calibrated(n, seed, n_docs):

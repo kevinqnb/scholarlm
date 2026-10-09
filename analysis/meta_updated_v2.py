@@ -90,8 +90,8 @@ from analysis.meta_updated import (
     QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION,
     _attr_title, _axis_limits, _valid_range, load_data,
 )
-from analysis.outlier_weight import add_outlier_columns
-from analysis.meta_inputs import SECTION as META_SECTION, SECTION_V2, load_meta_v2_config, resolve_meta_inputs
+from analysis.common.outlier_weight import add_outlier_columns
+from analysis.common.meta_inputs import SECTION as META_SECTION, SECTION_V2, load_meta_v2_config, resolve_meta_inputs
 
 # Non-threshold settings, per reference: the reference's own setting first. `valid` is
 # the extracted rows whose stored calibration label is positive (judge OR GT match).

@@ -14,7 +14,7 @@ _REPO = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
-from analysis import analysis_config as ac  # noqa: E402
+from analysis.common import config as ac  # noqa: E402
 from analysis import platt_scaling_v2 as ps2  # noqa: E402
 
 _CFG = _REPO / "analysis/analysis-configs/2026-10-08-platt-scaling-v2-intercept-fit-tiny-01.yaml"

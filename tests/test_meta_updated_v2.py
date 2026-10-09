@@ -24,7 +24,7 @@ import pytest
 import yaml
 from scipy import stats
 
-from analysis.meta_inputs import load_meta_v2_config
+from analysis.common.meta_inputs import load_meta_v2_config
 from analysis.meta_updated_v2 import (
     _summarize_shuffles, all_settings, build_stats_table, build_survival_table, build_w1_table, cell_rows, qq_line, setting_rows, w1_with_ci,
 )
@@ -48,7 +48,7 @@ def fixture():
         'converted_value': vals, 'label': label,
         'probe_prob': probe, 'ntp_prob': np.full(40, 0.5),
     })
-    from analysis.outlier_weight import add_outlier_columns
+    from analysis.common.outlier_weight import add_outlier_columns
     return gt, add_outlier_columns(ext, False)[0]
 
 

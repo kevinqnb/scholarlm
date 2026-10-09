@@ -70,9 +70,9 @@ from matplotlib.patches import Patch
 import joblib
 import pickle
 
-from analysis.loaders import load_ground_truth_file
+from analysis.common.loaders import load_ground_truth_file
 from analysis.match_cache import repo_relative, sha256_file
-from analysis.meta_inputs import (
+from analysis.common.meta_inputs import (
     _REPO_ROOT as REPO_ROOT,
     SECTION as META_SECTION, attach_scores, dedup_rows_with_scores, load_checked_dedup_rows, load_meta_config, numeric_point_value,
     resolve_meta_inputs, row_provenance, stored_prediction_rows,

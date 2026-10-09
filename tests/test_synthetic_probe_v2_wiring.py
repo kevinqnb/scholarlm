@@ -26,7 +26,7 @@ sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
 import utils as paths  # noqa: E402
-from analysis import loaders  # noqa: E402
+from analysis.common import loaders  # noqa: E402
 
 
 # ── paths.trained_probe_dir ──────────────────────────────────────────────────

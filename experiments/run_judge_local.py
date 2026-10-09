@@ -115,7 +115,7 @@ async def _judge_one(
     unaffected and still raises immediately, unretried -- ``max_retries`` is
     for gpt-oss-120b's documented reasoning-budget failure only, not license
     to swallow other parse failures. Downstream, ``judgement: None`` is
-    already an expected/filtered value (see ``analysis/loaders.py`` and
+    already an expected/filtered value (see ``analysis/common/loaders.py`` and
     ``analysis/validity_evaluation.py``'s ``r.get("judgement") is not None``),
     and ``run_judge_combine``'s majority vote treats ``None`` exactly like an
     explicit ``False`` or an absent vote (``is True`` check), so this changes

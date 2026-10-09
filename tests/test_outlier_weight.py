@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from analysis.outlier_weight import add_outlier_columns
+from analysis.common.outlier_weight import add_outlier_columns
 
 
 def _df():

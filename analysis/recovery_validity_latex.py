@@ -56,7 +56,7 @@ import pandas as pd
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis.analysis_config import (  # noqa: E402
+from analysis.common.config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section,
 )
 

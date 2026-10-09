@@ -13,17 +13,17 @@ import re
 import sys
 from pathlib import Path
 
-_EXPERIMENTS_DIR = Path(__file__).parent.parent / "experiments"
+_EXPERIMENTS_DIR = Path(__file__).parent.parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
     sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 import utils as paths  # noqa: E402
 
-_REPO_ROOT = Path(__file__).parent.parent
+_REPO_ROOT = Path(__file__).parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis.analysis_config import (  # noqa: E402
+from analysis.common.config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _resolve_ground_truth_path, load_synthetic_probe_config,
 )
 

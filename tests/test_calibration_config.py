@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for the calibration config loaders (analysis/analysis_config.py) and
+"""Rung-1 unit tests for the calibration config loaders (analysis/common/config.py) and
 calibration_ids.resolve_calibration_inputs. Hand-built three-dataset fixture under
 tmp_path, with every companion-run cross-check exercised in both directions.
 """
@@ -18,8 +18,8 @@ sys.path.insert(0, str(_REPO))
 sys.path.insert(0, str(_REPO / "experiments"))
 
 import utils as paths  # noqa: E402
-from analysis import analysis_config as ac  # noqa: E402
-from analysis import calibration_ids as cids  # noqa: E402
+from analysis.common import config as ac  # noqa: E402
+from analysis.common import calibration_ids as cids  # noqa: E402
 
 DATASETS = ("pond", "nfix", "supermat")
 

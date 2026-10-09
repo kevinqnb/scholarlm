@@ -21,7 +21,7 @@ import zlib
 import numpy as np
 import relplot
 
-from analysis.calibration_plot_utils import support_mask
+from analysis.common.calibration_plot_utils import support_mask
 from scholarlm.utils.calibration import compute_ece
 
 CI_LEVEL = 0.95

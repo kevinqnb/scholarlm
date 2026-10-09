@@ -23,7 +23,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 
-from analysis.analysis_config import load_synthetic_probe_config
+from analysis.common.config import load_synthetic_probe_config
 from scholarlm.utils.probe import grouped_kfold_split, grouped_holdout_split
 from scholarlm.utils.calibration import compute_ece
 import utils as paths
@@ -182,7 +182,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     """Train the head probe + NTP calibrator (and, if TRAIN_LAYER_PROBE, the
     layer probe) for one (dataset, judge_model) synthetic run and save them
     under ``probe_dir`` (``out_dir``/trained_probe, where
-    analysis/calibration_ids.py resolves them). Figures and results.json go
+    analysis/common/calibration_ids.py resolves them). Figures and results.json go
     under ``out_dir`` (RESULTS_ROOT/<analysis config id>/). ``seed`` (the
     analysis config's) seeds every split and LogisticRegression.
     ``use_platt_scaling`` (the analysis config's params.use_platt_scaling)

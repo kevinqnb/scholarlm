@@ -15,7 +15,7 @@ This is the centralized replacement for the recovery/validity halves of
     explicit ``ground_truth_path`` (an analysis config's own
     ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
     mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
-    -- see analysis/analysis_config.py's module docstring for why;
+    -- see analysis/common/config.py's module docstring for why;
   - REPORTED ``recovery`` IS THE ANY-EDGE COUNT (changed 2026-10-07): a ground
     truth row is recovered if at least one extracted row has a cached edge to
     it with ``w >= fuzzy_threshold`` -- the same count as ``analysis.metrics.
@@ -87,7 +87,7 @@ is checked against it -- see ``_assert_ground_truth_matches_cache``).
 and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
 ``compute_validity``/``output``, all required with no defaults, plus an
 optional ``judge_combine_ids`` id-to-id override map) from an
-analysis-configs/<id>.yaml -- see analysis/analysis_config.py. Mutually
+analysis-configs/<id>.yaml -- see analysis/common/config.py. Mutually
 exclusive with ``experiment_ids`` and every flag above. A declared
 ``judge_combine_ids`` entry is still verified against its extraction id (see
 ``verify_judge_combine_id``) before use, the same way automatic resolution
@@ -125,9 +125,9 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis import match_cache
-from analysis.analysis_config import get_ground_truth_path, get_section, load_analysis_config
-from analysis.loaders import load_ground_truth_file
-from analysis.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
+from analysis.common.config import get_ground_truth_path, get_section, load_analysis_config
+from analysis.common.loaders import load_ground_truth_file
+from analysis.common.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
 from experiments.run_extraction import load_dataset_config
 import utils as paths
 
@@ -412,7 +412,7 @@ def _cross_check_judge_run_metadata(combine_id: str, judge_ids: list[str], extra
 def verify_judge_combine_id(dataset: str, judge_combine_id: str, extraction_id: str) -> list[str]:
     """Validate a config-DECLARED judge_combine_id against extraction_id, for
     an analysis config's optional ``params.recovery_validity.judge_combine_ids``
-    override (see analysis/analysis_config.py) -- so a wrong declared id
+    override (see analysis/common/config.py) -- so a wrong declared id
     still fails loud rather than being trusted blindly.
 
     Runs the exact same per-candidate check find_judge_combine_id applies to
@@ -1115,7 +1115,7 @@ def validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds):
     edges, preds). ``edges`` are (gt_idx, ex_idx) already filtered by the
     desired fuzzy threshold, ex_idx indexing into ``probs``.
     """
-    from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
+    from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels
 
     probs = np.asarray(probs)
     labels = np.asarray(labels, dtype=bool)
@@ -1144,7 +1144,7 @@ def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, t
     """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
-    from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
+    from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels
 
     cmap = plt.cm.coolwarm
     norm = mcolors.Normalize(vmin=0.0, vmax=1.0)

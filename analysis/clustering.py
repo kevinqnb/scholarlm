@@ -45,7 +45,7 @@ params.clustering, see load_clustering_config):
    better than its shuffled arm, the confidence carries no entity-level signal for this task.
 
 With params.clustering.outlier_adjust each row's confidence is first multiplied by
-exp(-(x-mu)^2 / (2 sigma^2)) (analysis/outlier_weight.py; mu / sigma per attribute over
+exp(-(x-mu)^2 / (2 sigma^2)) (analysis/common/outlier_weight.py; mu / sigma per attribute over
 the extracted rows). The shuffled arms then permute the RAW row confidences within each
 attribute and re-apply each row's own factor (RowShuffler), so the control keeps the
 outlier filter and breaks only the model-confidence-to-row link. Its n_eff is then not
@@ -91,9 +91,9 @@ from sklearn.impute import KNNImputer
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-from analysis.analysis_config import _load_envelope, get_section
-from analysis.outlier_weight import add_outlier_columns
-from analysis.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, SECTION as META_SECTION, resolve_meta_inputs
+from analysis.common.config import _load_envelope, get_section
+from analysis.common.outlier_weight import add_outlier_columns
+from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, SECTION as META_SECTION, resolve_meta_inputs
 from analysis.meta_updated import DATASET, UNIT_CONVERSION, load_data
 
 SECTION = 'clustering'
@@ -151,7 +151,7 @@ def load_clustering_config(path: Path) -> dict:
     of ints >= 1: search subsets of those sizes) is set, the other is null;
     ``n_clusters`` >= 2; ``knn_neighbors``, ``n_runs``, ``n_shuffle_samples`` positive
     ints; ``outlier_adjust`` a bool (true: multiply the confidences by the non-outlier
-    factor of analysis/outlier_weight.py); ``gammas`` {start, stop, num} for np.linspace, start == 0 (the gamma = 0
+    factor of analysis/common/outlier_weight.py); ``gammas`` {start, stop, num} for np.linspace, start == 0 (the gamma = 0
     known-answer check needs it), stop > start, num >= 2. ``seed`` an int.
     """
     cfg = _load_envelope(path)

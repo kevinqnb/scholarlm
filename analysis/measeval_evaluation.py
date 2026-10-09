@@ -89,7 +89,7 @@ sys.path.insert(0, str(REPO_ROOT))
 import pandas as pd
 
 import utils as paths
-from analysis.analysis_config import get_section, load_analysis_config
+from analysis.common.config import get_section, load_analysis_config
 from experiments.run_extraction import load_dataset_config
 
 MEASEVAL_ROOT = REPO_ROOT / "data" / "measeval"

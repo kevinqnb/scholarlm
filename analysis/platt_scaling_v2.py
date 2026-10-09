@@ -11,7 +11,7 @@ bootstrap. Per (train probe, test dataset, method, n):
     than n rows, and single-class draws, are skipped ('Fit draws' counts every draw;
     'Short-pool skips' / 'Single-class skips' count each kind).
   - each sample's recalibration map (prior_shift / intercept_fit from
-    analysis/recalibration.py, platt_fit from scholarlm's fit_platt) is applied to the
+    analysis/common/recalibration.py, platt_fit from scholarlm's fit_platt) is applied to the
     fixed test rows and scored by relplot's smECE, exactly as doc_bootstrap computes it.
   - point = mean of the n_train_resamples smECE values, interval = their 2.5 / 97.5
     percentiles.
@@ -50,11 +50,11 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 
-from analysis.analysis_config import load_platt_sweep_v2_config
-from analysis import calibration_ids as cids
-from analysis import doc_bootstrap as db
-from analysis.head_activations import HeadActivationCache
-from analysis.recalibration import prior_shift_map, intercept_fit_map
+from analysis.common.config import load_platt_sweep_v2_config
+from analysis.common import calibration_ids as cids
+from analysis.common import doc_bootstrap as db
+from analysis.common.head_activations import HeadActivationCache
+from analysis.common.recalibration import prior_shift_map, intercept_fit_map
 from scholarlm.utils.calibration import apply_platt, fit_platt
 
 mpl.rcParams.update({

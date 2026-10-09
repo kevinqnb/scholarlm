@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-_REPO_ROOT = Path(__file__).parent.parent
+_REPO_ROOT = Path(__file__).parent.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -320,7 +320,7 @@ CALIBRATION_V2_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("pi_te_estimate",)
 # recalibration method: platt_fit (slope + intercept), intercept_fit (slope
 # fixed at 1, intercept by MLE) or prior_shift (label-shift correction from the
 # scorer's synthetic training prevalence to the sample's label rate).
-# CIs and curve bands come from analysis/nested_bootstrap.py: n_fit_samples
+# CIs and curve bands come from analysis/common/nested_bootstrap.py: n_fit_samples
 # recalibration fit samples x n_doc_boot test-document resamples for real cells,
 # n_syn_boot test-document resamples for (un-recalibrated) synthetic cells.
 CALIBRATION_V3_BOOTSTRAP_KEYS = ("n_fit_samples", "n_doc_boot", "n_syn_boot")

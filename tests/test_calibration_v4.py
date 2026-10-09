@@ -1,6 +1,6 @@
 """Rung-1 tests for calibration v4: load_calibration_v4_config's recalibration /
 fit_source / fit_n / fit_seed / pi_te_estimate consistency rules, and
-analysis/recalibration.py on hand-built fixtures whose answers can be checked by
+analysis/common/recalibration.py on hand-built fixtures whose answers can be checked by
 inspection."""
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from analysis import analysis_config as ac  # noqa: E402
-from analysis.recalibration import (  # noqa: E402
+from analysis.common import config as ac  # noqa: E402
+from analysis.common.recalibration import (  # noqa: E402
     intercept_fit_map, platt_fit_map, prior_shift_map, uniform_fit_sample,
 )
 from scholarlm.utils.calibration import apply_platt, fit_platt, fit_prior_shift  # noqa: E402

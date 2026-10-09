@@ -23,13 +23,13 @@ recomputes and overwrites -- this is the point where a fresh, authoritative
 cache gets built, not a read-through cache that might silently keep serving a
 match computed under an older matching configuration or a different ground
 truth/extraction file.
-analysis/metrics.py's recovery_rate/validity_rate (via analysis/loaders.py's
+analysis/common/metrics.py's recovery_rate/validity_rate (via analysis/common/loaders.py's
 cached_match) read the file this writes; they never write it themselves.
 
 The ground truth file is never inferred from the run's dataset's own
 DatasetConfig.ground_truth_file -- it is always given explicitly, either via
 an analysis config's ``params.ground_truth_file`` (see
-analysis/analysis_config.py) or, in ad-hoc CLI mode, ``--ground-truth-file``.
+analysis/common/config.py) or, in ad-hoc CLI mode, ``--ground-truth-file``.
 This is deliberate: reading it implicitly off the DatasetConfig would let a
 cache (and everything scored against it) silently start using a different
 file if that config is later repointed (e.g. a revised ground-truth review
@@ -69,7 +69,7 @@ Usage
     bash analysis/match_cache.sh
 
 ``--config`` reads ``params.experiment_ids`` and ``params.ground_truth_file``
-from an analysis-configs/<id>.yaml (see analysis/analysis_config.py) instead
+from an analysis-configs/<id>.yaml (see analysis/common/config.py) instead
 of taking them as flags -- mutually exclusive with passing ids/
 ``--ground-truth-file`` directly.
 """
@@ -92,8 +92,8 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.data import match_datasets
 from scholarlm.utils.parsing import SCI_NOTATION_RE
-from analysis.analysis_config import get_ground_truth_path, load_analysis_config
-from analysis.loaders import load_ground_truth_file
+from analysis.common.config import get_ground_truth_path, load_analysis_config
+from analysis.common.loaders import load_ground_truth_file
 from experiments.run_extraction import load_dataset_config
 import utils as paths
 

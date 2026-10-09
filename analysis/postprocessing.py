@@ -74,8 +74,8 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils import parsing
-from analysis.analysis_config import get_ground_truth_path, load_analysis_config
-from analysis.loaders import load_ground_truth_file
+from analysis.common.config import get_ground_truth_path, load_analysis_config
+from analysis.common.loaders import load_ground_truth_file
 import utils as paths
 
 # A row's six shape fields -- `_qualifiers_unfilled` requires every one of

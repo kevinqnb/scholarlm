@@ -1,4 +1,4 @@
-"""Rung-1 unit tests for analysis/analysis_config.py, on hand-built YAML
+"""Rung-1 unit tests for analysis/common/config.py, on hand-built YAML
 fixtures under tmp_path so no real repo config is touched.
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ import yaml
 _REPO = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO))
 
-from analysis import analysis_config as ac  # noqa: E402
+from analysis.common import config as ac  # noqa: E402
 
 GOOD_SEED = 342  # an arbitrary bootstrap seed -- not checked against defaults.seed
 

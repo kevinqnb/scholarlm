@@ -25,8 +25,8 @@ import relplot
 from relplot.kernels import ReflectedGaussianKernel
 from sklearn.metrics import roc_auc_score, brier_score_loss
 
-from analysis.calibration_plot_utils import support_mask
-from analysis.metrics import validity_rate_from_labels
+from analysis.common.calibration_plot_utils import support_mask
+from analysis.common.metrics import validity_rate_from_labels
 from scholarlm.utils.calibration import apply_platt, compute_ece
 
 # relplot's own grid and kernel: curves match what prepare_rel_diagram would draw.

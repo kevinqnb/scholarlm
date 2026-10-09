@@ -9,7 +9,7 @@ predictions that analysis/calibration_updated_v3.py stored in
 analysis/results/calibration/<calibration config id>/predictions.pkl (the 'real'
 cell with train dataset == test dataset). Each real cell stores its own
 measurement_ids (plus document_ids, attributes, the final.json / combined.json sha256
-and the Platt sample's ids; see analysis/prediction_store.py), so
+and the Platt sample's ids; see analysis/common/prediction_store.py), so
 ``stored_prediction_rows`` joins scores by id and verifies the cell against the
 final.json in use. A pickle without that provenance is refused.
 
@@ -32,16 +32,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-_REPO_ROOT = Path(__file__).parent.parent
+_REPO_ROOT = Path(__file__).parent.parent.parent
 for _p in (_REPO_ROOT / "src", _REPO_ROOT / "experiments", _REPO_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from analysis import calibration_ids as cids
-from analysis.analysis_config import (
+from analysis.common import calibration_ids as cids
+from analysis.common.config import (
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config, load_calibration_v4_config,
 )
-from analysis.prediction_store import check_real_cell
+from analysis.common.prediction_store import check_real_cell
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
 SECTION = "meta"
@@ -118,7 +118,7 @@ def load_meta_v2_config(path: Path) -> dict:
     that many rows. ``n_shuffle_samples``: a positive int, the number of confidence
     permutations behind the W1 permutation control. ``outlier_adjust``: a bool; true
     multiplies the NTP / probe confidences by the non-outlier factor of
-    analysis/outlier_weight.py before thresholding.
+    analysis/common/outlier_weight.py before thresholding.
     """
     cfg = _load_envelope(path)
     unexpected = set(cfg["params"]) - {SECTION_V2}

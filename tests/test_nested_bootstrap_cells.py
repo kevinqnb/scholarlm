@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis import nested_bootstrap as nb
+from analysis.common import nested_bootstrap as nb
 from scholarlm.utils.calibration import apply_platt
 
 

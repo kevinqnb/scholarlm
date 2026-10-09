@@ -62,7 +62,7 @@ import pandas as pd
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis.analysis_config import (  # noqa: E402
+from analysis.common.config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config,
     load_calibration_validated_config,
 )
@@ -80,7 +80,7 @@ CLASSIFICATION = (("Accuracy", "Acc."), ("Precision", "Prec."), ("Recall", "Rec.
                   ("F1", "F1"), ("AUROC", "AUROC"))
 # (CSV value column, lo column, hi column, header) -- intervals in the variants table.
 # Every calibration error is a nested-bootstrap point estimate with a percentile
-# interval (analysis/nested_bootstrap.py). Resampling inflates |gap|-type statistics,
+# interval (analysis/common/nested_bootstrap.py). Resampling inflates |gap|-type statistics,
 # so the interval can lie entirely above the point when calibration is near perfect:
 # intervals are printed as exact [lo, hi], never as a +- half-width, and lo <= point
 # is not required.

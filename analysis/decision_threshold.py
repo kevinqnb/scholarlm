@@ -52,10 +52,10 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis.analysis_config import (  # noqa: E402
+from analysis.common.config import (  # noqa: E402
     ANALYSIS_CONFIGS_ROOT, _is_int, _load_envelope, load_calibration_v4_config,
 )
-from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels  # noqa: E402
+from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels  # noqa: E402
 
 PARAM_KEYS = ("calibration_config_id", "cells", "thresholds", "highlight_threshold",
               "n_permutations", "invalid_datasets")
@@ -336,7 +336,7 @@ def save_decision_threshold_legend(out_path: Path) -> None:
 def resolve_inputs(cfg: dict) -> dict:
     """The calibration config, its resolved run directories (calibration_ids), and the
     path of its predictions.pkl -- everything a run reads, checked to exist."""
-    from analysis import calibration_ids as cids
+    from analysis.common import calibration_ids as cids
 
     cal_id = cfg["params"]["calibration_config_id"]
     cal_cfg = load_calibration_v4_config(ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml")
@@ -351,7 +351,7 @@ def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str
     """Observed and permuted curves for both methods of one (train, test) cell."""
     from analysis import recovery_validity as rv
     from analysis.match_cache import repo_relative, sha256_file
-    from analysis.prediction_store import check_real_cell
+    from analysis.common.prediction_store import check_real_cell
 
     params = cfg["params"]
     cal_cfg = inputs["calibration_config"]

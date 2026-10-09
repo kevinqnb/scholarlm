@@ -65,7 +65,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.deduplication import _block_key, _is_null, _validate, pair_score
-from analysis.analysis_config import _load_envelope, get_section
+from analysis.common.config import _load_envelope, get_section
 from analysis.match_cache import _parse_numeric, edges_above_threshold, repo_relative, sha256_file
 import utils as paths
 

@@ -18,14 +18,14 @@ import matplotlib.lines as mlines
 import seaborn as sns
 from sklearn.metrics import roc_auc_score
 
-from analysis.analysis_config import load_calibration_v4_config
-from analysis import calibration_ids as cids
-from analysis import doc_bootstrap as db
-from analysis.metrics import validity_rate_from_labels
-from analysis.prediction_store import real_cell_provenance
-from analysis.calibration_plot_utils import draw_reliability_curve
-from analysis.head_activations import HeadActivationCache
-from analysis.recalibration import prior_shift_map, intercept_fit_map, platt_fit_map, uniform_fit_sample
+from analysis.common.config import load_calibration_v4_config
+from analysis.common import calibration_ids as cids
+from analysis.common import doc_bootstrap as db
+from analysis.common.metrics import validity_rate_from_labels
+from analysis.common.prediction_store import real_cell_provenance
+from analysis.common.calibration_plot_utils import draw_reliability_curve
+from analysis.common.head_activations import HeadActivationCache
+from analysis.common.recalibration import prior_shift_map, intercept_fit_map, platt_fit_map, uniform_fit_sample
 from scholarlm.utils.calibration import apply_platt, fit_prior_shift
 
 mpl.rcParams.update({
@@ -72,7 +72,7 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 # no resampling of the fit data and no averaging over fit samples (how the results move
 # with fit_seed is a separate experiment). The only resampling is a document-level
 # bootstrap of the evaluation set (n_boot resamples, seeded by the envelope seed; see
-# analysis/doc_bootstrap.py, where every SmECE / curve is relplot's own), for real and
+# analysis/common/doc_bootstrap.py, where every SmECE / curve is relplot's own), for real and
 # synthetic cells alike. Synthetic cells are never recalibrated.
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -162,7 +162,7 @@ for _train_ds in TRAIN_DATASETS:
     probe_cache[_train_ds]   = _load_trained_artifact(_train_ds, _probe_filename)
 
 # Head features: each activation row is decompressed once per run, keeping the union of
-# every train probe's top heads (see analysis/head_activations.py).
+# every train probe's top heads (see analysis/common/head_activations.py).
 _HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr]['top_k_heads']])
               if PROBE_TYPE == 'head' else None)
 

@@ -7,7 +7,7 @@ import relplot
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis.calibration_plot_utils import support_mask
+from analysis.common.calibration_plot_utils import support_mask
 
 
 def test_support_mask_hand_built():

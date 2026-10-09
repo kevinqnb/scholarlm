@@ -1,4 +1,4 @@
-"""Rung-1 tests for analysis/doc_bootstrap.py on hand-built fixtures whose answers can be
+"""Rung-1 tests for analysis/common/doc_bootstrap.py on hand-built fixtures whose answers can be
 checked by inspection."""
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from analysis import doc_bootstrap as db  # noqa: E402
+from analysis.common import doc_bootstrap as db  # noqa: E402
 from scholarlm.utils.calibration import compute_ece  # noqa: E402
 
 

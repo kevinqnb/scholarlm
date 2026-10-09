@@ -1,4 +1,4 @@
-"""Unit tests for analysis/meta_inputs.py on tiny hand-built fixtures.
+"""Unit tests for analysis/common/meta_inputs.py on tiny hand-built fixtures.
 
 The fixture mirrors the real hazard: postprocessed.json expands a list-valued
 datapoint into several rows that all carry their parent's measurement_id, while the
@@ -12,7 +12,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from analysis.meta_inputs import (
+from analysis.common.meta_inputs import (
     attach_scores, dedup_rows_with_scores, load_meta_config, numeric_point_value, row_provenance,
     stored_prediction_rows,
 )
@@ -219,7 +219,7 @@ def test_stored_rows_changed_final_raises():
 
 
 def test_real_cell_provenance_known_answer(tmp_path):
-    from analysis.prediction_store import real_cell_provenance
+    from analysis.common.prediction_store import real_cell_provenance
     f, c = tmp_path / "final.json", tmp_path / "combined.json"
     f.write_text("[]"); c.write_text("[1]")
     out = real_cell_provenance(final(), np.array([0, 2]), np.array([1]), {"t"}, f, c, CAL_ID, 0)
