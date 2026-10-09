@@ -22,10 +22,14 @@ params.clustering, see load_clustering_config):
    repeated mentions) takes the MEDIAN converted value and the MEAN confidence of
    exactly those rows -- value and confidence always come from the same rows, and a
    row without a standard-unit value contributes neither.
-3. Attribute set (enumerate_attribute_sets): for every subset of the GT's attributes
-   of each size in attribute_set_sizes, greedily drop the entity with the most missing
-   cells until the missing fraction is <= missing_threshold (dense_submatrix); keep the
-   subset with the largest n_rows * d (ties: first in enumeration order).
+3. Attribute set, exactly one of two modes (params.clustering.attributes /
+   attribute_set_sizes: one is a value, the other must be null):
+   - attributes: [..] -- cluster on exactly those attributes (fixed_attribute_set); each
+     must have valued GT and extracted rows, else a hard error. No search.
+   - attribute_set_sizes: [..] -- enumerate_attribute_sets: for every subset of the GT's
+     attributes of each size, greedily drop the entity with the most missing cells until
+     the missing fraction is <= missing_threshold (dense_submatrix); keep the subset
+     with the largest n_rows * d (ties: first in enumeration order).
 4. GT and extracted matrices are each restricted to that subset, made dense the same
    way, KNN-imputed and standardized INDEPENDENTLY (each in its own scale). An
    extracted entity's confidence is the product of its observed cells' confidences;
@@ -48,7 +52,7 @@ the same fits (bit-identical distances), and so are the random and shuffled arms
 shared seeds.
 
 Outputs under analysis/results/clustering/<config id>/:
-  attribute_sets.csv      every enumerated subset: d, n_rows, missing_frac, score, chosen.
+  attribute_sets.csv      every enumerated subset (or the one fixed subset): d, n_rows, missing_frac, score, chosen.
   centroid_distance.csv   per (arm, gamma): n, mean, se (= std / sqrt(n)), and n_eff, the Kish
                           effective number of entities under the weights conf**gamma.
   distances.npz           raw per-run distances, one (n, len(gammas)) array per arm.
@@ -94,7 +98,7 @@ SECTION_KEYS = (
     'calibration_config_id', 'calibration_version', 'extraction_id', 'judge_combine_id', 'judge_model',
     'probe_train_dataset', 'rows', 'deduplication_config_id', 'confidence',
     # method
-    'missing_threshold', 'attribute_set_sizes', 'n_clusters', 'knn_neighbors', 'gammas',
+    'missing_threshold', 'attributes', 'attribute_set_sizes', 'n_clusters', 'knn_neighbors', 'gammas',
     'n_runs', 'n_random_samples', 'n_shuffle_samples',
 )
 GAMMA_KEYS = ('start', 'stop', 'num')
@@ -138,7 +142,9 @@ def load_clustering_config(path: Path) -> dict:
     extras). ``rows`` / ``deduplication_config_id`` / ``confidence`` follow the meta
     configs: the latter two are strings iff rows == 'deduplicated', null otherwise.
     ``probe_train_dataset`` must be one of PROBE_TRAIN_DATASETS. ``missing_threshold``
-    in [0, 1); ``attribute_set_sizes`` a non-empty strictly increasing list of ints >= 1;
+    in [0, 1); exactly one of ``attributes`` (non-empty list of distinct non-empty strings:
+    cluster on exactly these) and ``attribute_set_sizes`` (non-empty strictly increasing list
+    of ints >= 1: search subsets of those sizes) is set, the other is null;
     ``n_clusters`` >= 2; ``knn_neighbors``, ``n_runs``, ``n_random_samples``, ``n_shuffle_samples`` positive
     ints; ``gammas`` {start, stop, num} for np.linspace, start == 0 (the gamma = 0
     known-answer check needs it), stop > start, num >= 2. ``seed`` an int.
@@ -176,8 +182,16 @@ def load_clustering_config(path: Path) -> dict:
     mt = sec['missing_threshold']
     if isinstance(mt, bool) or not isinstance(mt, (int, float)) or not 0 <= mt < 1:
         raise ValueError(f"{path}: {SECTION}.missing_threshold must be a number in [0, 1), got {mt!r}")
-    sizes = sec['attribute_set_sizes']
-    if (not isinstance(sizes, list) or not sizes or not all(_is_pos_int(s) for s in sizes)
+    attrs, sizes = sec['attributes'], sec['attribute_set_sizes']
+    if (attrs is None) == (sizes is None):
+        raise ValueError(f"{path}: exactly one of {SECTION}.attributes and {SECTION}.attribute_set_sizes must be "
+                         f"set, the other null; got attributes={attrs!r}, attribute_set_sizes={sizes!r}")
+    if attrs is not None:
+        if (not isinstance(attrs, list) or not attrs or not all(isinstance(a, str) and a for a in attrs)
+                or len(set(attrs)) != len(attrs)):
+            raise ValueError(f"{path}: {SECTION}.attributes must be a non-empty list of distinct non-empty "
+                             f"strings, got {attrs!r}")
+    elif (not isinstance(sizes, list) or not sizes or not all(_is_pos_int(s) for s in sizes)
             or any(a >= b for a, b in zip(sizes, sizes[1:]))):
         raise ValueError(f"{path}: {SECTION}.attribute_set_sizes must be a non-empty strictly increasing list of "
                          f"positive ints, got {sizes!r}")
@@ -277,6 +291,17 @@ def enumerate_attribute_sets(value: pd.DataFrame, sizes: list[int], threshold: f
                              missing_frac=float(sub.isna().to_numpy().mean()) if len(sub) else np.nan,
                              score=len(sub) * d))
     return pd.DataFrame(rows)
+
+
+def fixed_attribute_set(value: pd.DataFrame, attrs: list[str], threshold: float) -> pd.DataFrame:
+    """enumerate_attribute_sets' single-row analogue for a user-specified attribute list."""
+    missing = [a for a in attrs if a not in value.columns]
+    if missing:
+        raise ValueError(f'attributes {missing} have no valued rows; available: {list(value.columns)}')
+    sub = dense_submatrix(value[attrs], threshold)
+    return pd.DataFrame([dict(attributes='|'.join(attrs), d=len(attrs), n_rows=len(sub),
+                              missing_frac=float(sub.isna().to_numpy().mean()) if len(sub) else np.nan,
+                              score=len(sub) * len(attrs))])
 
 
 def process_matrix(m: pd.DataFrame, knn_neighbors: int) -> np.ndarray:
@@ -411,10 +436,15 @@ def main() -> None:
     ext_val, ext_conf, ext_cell_rows = cell_matrix(ext_df, 'entity_id', conf_cols)
 
     # ── Attribute subset, chosen on the GT ──
-    sets = enumerate_attribute_sets(gt_val, sec['attribute_set_sizes'], threshold)
+    if sec['attributes'] is not None:
+        sets = fixed_attribute_set(gt_val, sec['attributes'], threshold)
+    else:
+        sets = enumerate_attribute_sets(gt_val, sec['attribute_set_sizes'], threshold)
     best_i = int(sets['score'].idxmax())  # first in enumeration order among ties
     sets['chosen'] = sets.index == best_i
     keep_attrs = sets.loc[best_i, 'attributes'].split('|')
+    if sec['attributes'] is not None:
+        assert keep_attrs == sec['attributes'] and len(sets) == 1
     n_ties = int((sets['score'] == sets.loc[best_i, 'score']).sum())
     print(f"[clustering] keep_attrs={keep_attrs} (score {sets.loc[best_i, 'score']}, {n_ties} tied)")
     missing_ext = sorted(set(keep_attrs) - set(ext_val.columns))

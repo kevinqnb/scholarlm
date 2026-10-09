@@ -21,7 +21,7 @@ import yaml
 
 from analysis.clustering import (
     cell_matrix, centroid_matching_distance, dense_submatrix, entity_confidence,
-    enumerate_attribute_sets, load_clustering_config, process_matrix,
+    enumerate_attribute_sets, fixed_attribute_set, load_clustering_config, process_matrix,
 )
 
 
@@ -71,6 +71,15 @@ def test_enumerate_attribute_sets_scores():
         enumerate_attribute_sets(m, [4], 0.2)
 
 
+def test_fixed_attribute_set():
+    m = pd.DataFrame({'a': [1.0, 2, 3, 4], 'b': [1.0, 2, 3, 4], 'c': [1.0, np.nan, np.nan, np.nan]})
+    s = fixed_attribute_set(m, ['c', 'a'], 0.2)  # order preserved, c forces row drops
+    assert len(s) == 1 and s.loc[0, 'attributes'] == 'c|a' and s.loc[0, 'd'] == 2
+    assert s.loc[0, 'n_rows'] == 1 and s.loc[0, 'score'] == 2
+    with pytest.raises(ValueError, match='no valued rows'):
+        fixed_attribute_set(m, ['a', 'zzz'], 0.2)
+
+
 def test_entity_confidence_observed_cells_only():
     conf = pd.DataFrame({'a': [0.5, 0.2], 'b': [np.nan, 0.5]})
     assert entity_confidence(conf) == pytest.approx([0.5, 0.1])
@@ -92,7 +101,7 @@ BASE = {
         'calibration_config_id': 'cal', 'calibration_version': 'v4', 'extraction_id': 'ext',
         'judge_combine_id': 'jc', 'judge_model': 'qwen-2.5-7b', 'probe_train_dataset': 'pond',
         'rows': 'deduplicated', 'deduplication_config_id': 'dd', 'confidence': 'center',
-        'missing_threshold': 0.2, 'attribute_set_sizes': [2, 3], 'n_clusters': 5, 'knn_neighbors': 5,
+        'missing_threshold': 0.2, 'attributes': None, 'attribute_set_sizes': [2, 3], 'n_clusters': 5, 'knn_neighbors': 5,
         'gammas': {'start': 0.0, 'stop': 5.0, 'num': 3}, 'n_runs': 2, 'n_random_samples': 2, 'n_shuffle_samples': 2,
     }},
 }
@@ -108,6 +117,12 @@ def test_config_valid(tmp_path):
     load_clustering_config(_write(tmp_path, BASE))
 
 
+def test_config_valid_fixed_attributes(tmp_path):
+    cfg = copy.deepcopy(BASE)
+    cfg['params']['clustering'].update(attributes=['surface_area', 'max_depth', 'ph'], attribute_set_sizes=None)
+    load_clustering_config(_write(tmp_path, cfg))
+
+
 @pytest.mark.parametrize('mutate, match', [
     (lambda s: s.pop('n_runs'), 'missing required'),
     (lambda s: s.pop('n_shuffle_samples'), 'missing required'),
@@ -117,6 +132,11 @@ def test_config_valid(tmp_path):
     (lambda s: s.update(rows='final'), 'must be null'),
     (lambda s: s.update(gammas={'start': 0.5, 'stop': 5.0, 'num': 3}), 'gammas'),
     (lambda s: s.update(attribute_set_sizes=[3, 2]), 'attribute_set_sizes'),
+    (lambda s: s.pop('attributes'), 'missing required'),
+    (lambda s: s.update(attributes=['a', 'b']), 'exactly one'),
+    (lambda s: s.update(attribute_set_sizes=None), 'exactly one'),
+    (lambda s: s.update(attributes=[], attribute_set_sizes=None), 'attributes'),
+    (lambda s: s.update(attributes=['a', 'a'], attribute_set_sizes=None), 'attributes'),
     (lambda s: s.update(n_clusters=1), 'n_clusters'),
     (lambda s: s.update(missing_threshold=1.0), 'missing_threshold'),
 ])
