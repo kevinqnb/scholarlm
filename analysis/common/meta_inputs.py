@@ -1,11 +1,12 @@
-"""Config loading, input resolution and the score join for analysis/meta_updated.py.
+"""Config loading, input resolution and the score join for the pond meta analysis
+(analysis/meta_updated_v2.py, analysis/clustering.py; data loading in pond_meta.py).
 
-Split out of meta_updated.py for the same reason as calibration_ids.py: these
+Kept apart from those scripts for the same reason as calibration_ids.py: these
 helpers have no import-time side effects and need no heavy data, so they can be unit
 tested on a hand-built fixture (tests/test_meta_inputs.py).
 
-Confidences are NOT recomputed here. They are the Platt-scaled probe / NTP
-predictions that analysis/calibration_updated_v3.py stored in
+Confidences are NOT recomputed here. They are the recalibrated probe / NTP
+predictions that analysis/calibration_updated_v4.py stored in
 analysis/results/calibration/<calibration config id>/predictions.pkl (the 'real'
 cell with train dataset == test dataset). Each real cell stores its own
 measurement_ids (plus document_ids, attributes, the final.json / combined.json sha256
@@ -39,23 +40,20 @@ for _p in (_REPO_ROOT / "src", _REPO_ROOT / "experiments", _REPO_ROOT):
 
 from analysis.common import calibration_ids as cids
 from analysis.common.config import (
-    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v3_config, load_calibration_v4_config,
+    ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v4_config,
 )
 from analysis.common.prediction_store import check_real_cell
 from analysis.match_cache import _parse_numeric, repo_relative, sha256_file
 
-SECTION = "meta"
-SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "confidence", "n_boot",
-                "reference", "ecosystems", "attributes", "qq_attributes", "poster")
-# meta_updated_v2.py: hard confidence thresholds instead of the weighted sweep, no poster.
+# meta_updated_v2.py's config section: hard confidence thresholds.
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
                    "n_shuffle_samples", "outlier_adjust", "threshold_mode")
 # Which calibration script built calibration_config_id's predictions.pkl (and so which
-# config loader validates it): calibration_updated_v3.py (Platt-scaled real cells) or
-# calibration_updated_v4.py (prior-shift / intercept-fit recalibrated real cells).
-CALIBRATION_LOADERS = {"v3": load_calibration_v3_config, "v4": load_calibration_v4_config}
+# config loader validates it). Only calibration_updated_v4.py's are read now; the v3
+# entry was dropped with the retired v1 meta analysis.
+CALIBRATION_LOADERS = {"v4": load_calibration_v4_config}
 # The distribution every extracted setting is compared against (Q-Q x-axis, W2):
 # ground_truth: the curated GT rows; valid: the extracted rows whose stored calibration
 # label is positive (judge OR ground-truth match) -- the same label the probe is
@@ -83,33 +81,16 @@ def numeric_point_value(point_value: pd.Series) -> pd.Series:
     return out
 
 
-def load_meta_config(path: Path) -> dict:
-    """Load and validate an analysis config for meta_updated.py.
-
-    ``params`` holds exactly the ``meta`` section (SECTION_KEYS: no defaults, no
-    extras). ``reference`` is one of REFERENCE_CHOICES. ``ecosystems`` / ``attributes`` are the cells analysed (membership in
-    meta_updated's canonical lists is checked there); ``qq_attributes`` must be a subset
-    of ``attributes``; ``poster`` (bool) says whether to draw the single poster cell.
-    ``deduplication_config_id`` and ``confidence`` are required to be present
-    always: a string (``confidence`` one of CONFIDENCE_CHOICES) iff
-    ``rows == 'deduplicated'``, null otherwise.
-    """
-    cfg = _load_envelope(path)
-    unexpected = set(cfg["params"]) - {SECTION}
-    if unexpected:
-        raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
-    sec = get_section(cfg, SECTION, SECTION_KEYS)
-    _check_common_section(path, cfg, sec, SECTION)
-    if not isinstance(sec["poster"], bool):
-        raise ValueError(f"{path}: {SECTION}.poster must be a bool, got {sec['poster']!r}")
-    return cfg
-
-
 def load_meta_v2_config(path: Path) -> dict:
     """Load and validate an analysis config for meta_updated_v2.py.
 
     ``params`` holds exactly the ``meta_v2`` section (SECTION_V2_KEYS: no defaults, no
-    extras). The keys shared with ``meta`` are checked exactly as in load_meta_config.
+    extras). ``reference`` is one of REFERENCE_CHOICES; ``ecosystems`` / ``attributes``
+    are the cells analysed (membership in pond_meta's canonical lists is checked by the
+    script); ``qq_attributes`` must be a subset of ``attributes``.
+    ``deduplication_config_id`` and ``confidence`` are required to be present always: a
+    string (``confidence`` one of CONFIDENCE_CHOICES) iff ``rows == 'deduplicated'``,
+    null otherwise.
     ``thresholds``: non-empty, strictly increasing list of numbers in [0, 1) starting at
     0 -- a threshold-t setting keeps the extracted rows with confidence >= t
     (``threshold_mode: value``) or drops the bottom fraction t of each cell's rows by
@@ -152,7 +133,7 @@ def load_meta_v2_config(path: Path) -> dict:
 
 
 def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> None:
-    """Checks shared by the ``meta`` and ``meta_v2`` sections (and the envelope seed)."""
+    """Checks on the input-selection and cell keys of a meta section (and the envelope seed)."""
     SECTION = section  # noqa: N806 -- error messages name the section being checked
     if not isinstance(sec["calibration_config_id"], str) or not sec["calibration_config_id"]:
         raise ValueError(f"{path}: {SECTION}.calibration_config_id must be a non-empty string")
@@ -185,11 +166,14 @@ def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> Non
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
 
 
-def resolve_meta_inputs(cfg: dict, dataset: str, calibration_version: str) -> dict:
-    """Resolve and cross-check every run a meta config names (pure id/config/path logic).
+def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
+    """Resolve and cross-check every run a meta / clustering config names (pure
+    id/config/path logic). ``sec`` is the caller's config section; only its
+    ``calibration_config_id``, ``calibration_version``, ``rows`` and
+    ``deduplication_config_id`` are read.
 
-    The calibration config (a ``calibration_version`` -- v3 or v4 -- calibration analysis
-    config, validated by that version's loader) is the single source of
+    The calibration config (validated by ``calibration_version``'s loader in
+    CALIBRATION_LOADERS) is the single source of
     truth for the extraction, judge_combine run, ground truth file, synthetic-probe
     run and probe variant: calibration_ids.resolve_calibration_inputs cross-checks all
     of them against each run's own committed config. Requires ``dataset`` in its
@@ -199,8 +183,7 @@ def resolve_meta_inputs(cfg: dict, dataset: str, calibration_version: str) -> di
     Returns dict(dataset, calibration_config_id, calibration_version, judge_model, extraction_id, extraction_dir, judge_combine_dir,
     ground_truth_path, probe_dir, probe_variant, predictions_path, dedup_dir | None).
     """
-    sec = cfg["params"][SECTION]
-    cal_id = sec["calibration_config_id"]
+    cal_id, calibration_version = sec["calibration_config_id"], sec["calibration_version"]
     cal_path = ANALYSIS_CONFIGS_ROOT / f"{cal_id}.yaml"
     if not cal_path.exists():
         raise FileNotFoundError(f"calibration config {cal_path} does not exist")
@@ -215,7 +198,7 @@ def resolve_meta_inputs(cfg: dict, dataset: str, calibration_version: str) -> di
 
     predictions_path = _REPO_ROOT / "analysis" / "results" / "calibration" / cal_id / "predictions.pkl"
     if not predictions_path.exists():
-        raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration_updated_v3.py first")
+        raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration_updated_v4.py first")
 
     dedup_dir = None
     if sec["rows"] == "deduplicated":

@@ -2,7 +2,7 @@
 attribute distributions of the human-curated ground truth -- and does keeping only
 the confidently-scored extractions bring it closer?
 
-Simplified from analysis/meta_updated.py:
+Simplified from the retired v1, analysis/meta_updated.py (removed 2026-10-09):
 
 1. Confidence is used as a HARD filter, not a weight: for each method (NTP, probe)
    and each t in params.meta_v2.thresholds, one setting per t. params.meta_v2.threshold_mode
@@ -22,8 +22,7 @@ Simplified from analysis/meta_updated.py:
    stats table), scipy.stats.wasserstein_distance (W1, over the full empirical
    distributions -- not comparable to v1's trimmed quantile-W2), and
    scipy.stats.bootstrap (percentile) for the reference band and the W1 CIs.
-3. Data filtering is limited to what meta_updated.load_data does with
-   restrict_to_shared_docs=False: GT and extracted rows each drop the probe/NTP
+3. Data filtering is limited to what pond_meta.load_data does: GT and extracted rows each drop the probe/NTP
    training documents (scores exist, and are out-of-sample, only outside them) but
    are NOT restricted to documents both sides cover; a row with an
    unparseable point_value or a unit not in UNIT_CONVERSION_V2 has no standard-unit
@@ -84,14 +83,15 @@ from matplotlib.patches import Patch
 import seaborn as sns
 from scipy import stats
 
-# Importing meta_updated also applies its matplotlib rcParams (paper fonts/sizes).
-from analysis.meta_updated import (
-    ATTRIBUTES, DATASET, ECOSYSTEMS, LOG_SCALE_ATTRIBUTES, META_ROOT, METHOD_PROB_COL, METHODS,
+from analysis.common.pond_meta import (
+    ATTRIBUTES, DATASET, ECOSYSTEMS, LOG_SCALE_ATTRIBUTES, META_ROOT, METHOD_PROB_COL, METHODS, PAPER_RCPARAMS,
     QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION,
     _attr_title, _axis_limits, _valid_range, load_data,
 )
 from analysis.common.outlier_weight import add_outlier_columns
-from analysis.common.meta_inputs import SECTION as META_SECTION, SECTION_V2, load_meta_v2_config, resolve_meta_inputs
+from analysis.common.meta_inputs import SECTION_V2, load_meta_v2_config, resolve_meta_inputs
+
+mpl.rcParams.update(PAPER_RCPARAMS)
 
 # Non-threshold settings, per reference: the reference's own setting first. `valid` is
 # the extracted rows whose stored calibration label is positive (judge OR GT match).
@@ -657,13 +657,9 @@ def main():
     thresholds, min_n, n_boot, seed = sec['thresholds'], sec['min_n'], sec['n_boot'], cfg['seed']
     n_shuffle, threshold_mode = sec['n_shuffle_samples'], sec['threshold_mode']
 
-    # resolve_meta_inputs / load_data read their inputs from params.meta; hand them
-    # exactly the input-selection keys they use, nothing that could change v1 behavior.
     input_keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
-    v1_cfg = {**cfg, 'params': {META_SECTION: {k: sec[k] for k in input_keys}}}
-    inputs = resolve_meta_inputs(v1_cfg, DATASET, sec['calibration_version'])
-    gt_df, ext_df, manifest = load_data(v1_cfg, inputs, restrict_to_shared_docs=False,
-                                        unit_conversion=UNIT_CONVERSION_V2)
+    inputs = resolve_meta_inputs(sec, DATASET)
+    gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
     # Thresholds, survival and the real W1 read ext_df's ntp_prob / probe_prob (adjusted when
     # outlier_adjust); the shuffled control permutes the *_raw columns and re-applies the
     # row's own outlier_factor (see shuffled_w1).

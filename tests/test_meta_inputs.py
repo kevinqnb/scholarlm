@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from analysis.common.meta_inputs import (
-    attach_scores, dedup_rows_with_scores, load_meta_config, numeric_point_value, row_provenance,
+    attach_scores, dedup_rows_with_scores, load_meta_v2_config, numeric_point_value, row_provenance,
     stored_prediction_rows,
 )
 
@@ -90,10 +90,12 @@ def test_nan_score_raises():
 
 GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
-    "params": {"meta": {
-        "calibration_config_id": "cal", "rows": "final",
+    "params": {"meta_v2": {
+        "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
-        "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"], "poster": False,
+        "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
+        "thresholds": [0.0, 0.5], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False,
+        "threshold_mode": "value",
     }},
 }
 
@@ -108,12 +110,12 @@ def test_postprocessed_and_deduplicated_configs_load(tmp_path):
     for rows, dd, conf in [("postprocessed", None, None), ("deduplicated", "x", "center"),
                            ("deduplicated", "x", "cluster_mean")]:
         cfg = copy.deepcopy(GOOD)
-        cfg["params"]["meta"].update(rows=rows, deduplication_config_id=dd, confidence=conf)
-        assert load_meta_config(write(tmp_path, cfg))["params"]["meta"]["confidence"] == conf
+        cfg["params"]["meta_v2"].update(rows=rows, deduplication_config_id=dd, confidence=conf)
+        assert load_meta_v2_config(write(tmp_path, cfg))["params"]["meta_v2"]["confidence"] == conf
 
 
 def test_good_config_loads(tmp_path):
-    assert load_meta_config(write(tmp_path, GOOD))["params"]["meta"]["rows"] == "final"
+    assert load_meta_v2_config(write(tmp_path, GOOD))["params"]["meta_v2"]["rows"] == "final"
 
 
 @pytest.mark.parametrize("mutate", [
@@ -130,18 +132,17 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(reference="gt"),                          # bad choice
     lambda m: m.pop("ecosystems"),                               # cell subset has no default
     lambda m: m.pop("attributes"),
-    lambda m: m.pop("poster"),
     lambda m: m.update(ecosystems=[]),                           # empty subset
     lambda m: m.update(attributes=["tn", "tn"]),                 # duplicate
     lambda m: m.update(ecosystems="pond"),                       # not a list
     lambda m: m.update(qq_attributes=["ph"]),                    # qq attribute outside attributes
-    lambda m: m.update(poster="false"),                          # str is not a bool
+    lambda m: m.update(calibration_version="v3"),                # v3 calibrations no longer read
 ])
 def test_bad_config_raises(tmp_path, mutate):
     cfg = copy.deepcopy(GOOD)
-    mutate(cfg["params"]["meta"])
+    mutate(cfg["params"]["meta_v2"])
     with pytest.raises((ValueError, KeyError)):  # get_section raises KeyError for missing/stray keys
-        load_meta_config(write(tmp_path, cfg))
+        load_meta_v2_config(write(tmp_path, cfg))
 
 
 # ── stored_prediction_rows ───────────────────────────────────────────────────

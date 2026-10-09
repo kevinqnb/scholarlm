@@ -7,10 +7,10 @@ make a KMeans fit on the LLM-extracted pond data recover the ground truth's clus
 Pipeline (pond only; every value below that changes between runs is a key of
 params.clustering, see load_clustering_config):
 
-1. Rows and confidences come from meta_updated.load_data (restrict_to_shared_docs=False),
-   exactly as for meta_updated_v2.py: GT and extracted rows outside the probe/NTP
+1. Rows and confidences come from pond_meta.load_data, exactly as for
+   meta_updated_v2.py: GT and extracted rows outside the probe/NTP
    training documents, values parsed from point_value and converted to standard units
-   (meta_updated.convert_units), and the stored recalibrated probe / NTP confidences of
+   (pond_meta.convert_units), and the stored recalibrated probe / NTP confidences of
    the calibration config's real pond->pond cell, joined by measurement_id onto
    ``rows`` (final / postprocessed / deduplicated). Nothing is recomputed from
    activations.
@@ -93,8 +93,11 @@ from scipy.spatial.distance import cdist
 
 from analysis.common.config import _load_envelope, get_section
 from analysis.common.outlier_weight import add_outlier_columns
-from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, SECTION as META_SECTION, resolve_meta_inputs
-from analysis.meta_updated import DATASET, UNIT_CONVERSION, load_data
+from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, resolve_meta_inputs
+from analysis.common.pond_meta import DATASET, PAPER_RCPARAMS, UNIT_CONVERSION, load_data
+
+# Base style; _apply_style() overrides part of it before plotting.
+mpl.rcParams.update(PAPER_RCPARAMS)
 
 SECTION = 'clustering'
 SECTION_KEYS = (
@@ -107,7 +110,7 @@ SECTION_KEYS = (
     'n_runs', 'n_shuffle_samples', 'outlier_adjust',
 )
 GAMMA_KEYS = ('start', 'stop', 'num')
-# Only the in-domain cell is wired up: meta_updated._load_stored_scores reads
+# Only the in-domain cell is wired up: pond_meta._load_stored_scores reads
 # predictions.pkl['real'][judge][DATASET][DATASET] and the pond probe's training
 # documents. A cross-domain cell (e.g. nfix -> pond) excludes different documents and
 # would need that function generalized first.
@@ -221,19 +224,12 @@ def gamma_grid(sec: dict) -> np.ndarray:
     return np.linspace(float(g['start']), float(g['stop']), g['num'])
 
 
-def _meta_shim(cfg: dict) -> dict:
-    """The params.meta view meta_inputs.resolve_meta_inputs / meta_updated.load_data read."""
-    sec = cfg['params'][SECTION]
-    keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
-    return {**cfg, 'params': {META_SECTION: {k: sec[k] for k in keys}}}
-
-
 def resolve_clustering_inputs(cfg: dict) -> dict:
     """resolve_meta_inputs on the calibration config (which cross-checks every run it
     names), then check the extraction / judge_combine / judge model this config
     declares are the ones the calibration config actually uses."""
     sec = cfg['params'][SECTION]
-    inputs = resolve_meta_inputs(_meta_shim(cfg), DATASET, sec['calibration_version'])
+    inputs = resolve_meta_inputs(sec, DATASET)
     got = {'extraction_id': inputs['extraction_id'], 'judge_combine_id': inputs['judge_combine_dir'].name,
            'judge_model': inputs['judge_model']}
     bad = {k: (sec[k], v) for k, v in got.items() if sec[k] != v}
@@ -473,8 +469,7 @@ def main() -> None:
     _apply_style()
 
     inputs = resolve_clustering_inputs(cfg)
-    gt_df, ext_df, manifest = load_data(_meta_shim(cfg), inputs, restrict_to_shared_docs=False,
-                                        unit_conversion=UNIT_CONVERSION)
+    gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION)
     # Row-level, before cell_matrix: a cell's confidence is then the mean of its rows'
     # adjusted confidences, an entity's the product over its cells.
     ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
