@@ -65,76 +65,14 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils.deduplication import _block_key, _is_null, _validate, pair_score
-from analysis.common.config import _load_envelope, get_section
+from analysis.common.config import get_section
+from analysis.common.dedup import (
+    CACHE_SECTION as SECTION, CACHE_SECTION_KEYS as SECTION_KEYS, deduplicate_cache_meta_path,
+    deduplicate_cache_path, load_deduplicate_cache_config,
+)
 from analysis.common.matching import edges_above_threshold, parse_numeric
 from analysis.common.provenance import repo_relative, sha256_file
 import utils as paths
-
-DEDUP_CACHE_ROOT = _REPO_ROOT / "analysis" / "results" / "deduplicate_cache"
-ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
-
-SECTION = "deduplicate_cache"
-SECTION_KEYS = (
-    "extraction_file", "strict_fields", "fuzzy_fields", "numeric_coerce",
-    "join_list_fields", "summary_thresholds",
-)
-EXTRACTION_FILES = ("final.json", "postprocessed.json")
-
-
-def deduplicate_cache_path(config_id: str, experiment_id: str) -> Path:
-    """DEDUP_CACHE_ROOT/<config id>/<experiment id>/deduplicate_cache.pkl -- the
-    one place this path is built."""
-    return DEDUP_CACHE_ROOT / config_id / experiment_id / "deduplicate_cache.pkl"
-
-
-def deduplicate_cache_meta_path(config_id: str, experiment_id: str) -> Path:
-    return deduplicate_cache_path(config_id, experiment_id).with_name("deduplicate_cache.meta.json")
-
-
-def load_deduplicate_cache_config(path: Path) -> dict:
-    """Load and validate an analysis config for deduplicate_cache.
-
-    Envelope (id == filename stem, id/project/description/seed/params) as for
-    every analysis config; ``seed`` is required but unused (the build is
-    deterministic). ``params`` holds exactly ``experiment_ids`` (non-empty,
-    unique strings) and the ``deduplicate_cache`` section (SECTION_KEYS, no
-    defaults, no extras).
-
-    Raises:
-        ValueError / KeyError on anything malformed.
-    """
-    cfg = _load_envelope(path)
-    unexpected = set(cfg["params"]) - {"experiment_ids", SECTION}
-    if unexpected:
-        raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
-    ids = cfg["params"].get("experiment_ids")
-    if not isinstance(ids, list) or not ids or not all(isinstance(x, str) for x in ids):
-        raise ValueError(f"{path}: params.experiment_ids must be a non-empty list of strings, got {ids!r}")
-    if len(set(ids)) != len(ids):
-        raise ValueError(f"{path}: params.experiment_ids has duplicates")
-
-    sec = get_section(cfg, SECTION, SECTION_KEYS)
-    if sec["extraction_file"] not in EXTRACTION_FILES:
-        raise ValueError(f"{path}: extraction_file must be one of {EXTRACTION_FILES}, got {sec['extraction_file']!r}")
-    for key in ("strict_fields", "fuzzy_fields", "numeric_coerce", "join_list_fields"):
-        v = sec[key]
-        if not isinstance(v, list) or not all(isinstance(x, str) for x in v) or len(set(v)) != len(v):
-            raise ValueError(f"{path}: {SECTION}.{key} must be a list of unique strings, got {v!r}")
-    if not sec["strict_fields"] or not sec["fuzzy_fields"]:
-        raise ValueError(f"{path}: {SECTION}.strict_fields and fuzzy_fields must be non-empty")
-    both = set(sec["strict_fields"]) & set(sec["fuzzy_fields"])
-    if both:
-        raise ValueError(f"{path}: columns both strict and fuzzy: {sorted(both)}")
-    if not set(sec["numeric_coerce"]) <= set(sec["strict_fields"]):
-        raise ValueError(f"{path}: numeric_coerce must be a subset of strict_fields")
-    if not set(sec["join_list_fields"]) <= set(sec["strict_fields"]) | set(sec["fuzzy_fields"]):
-        raise ValueError(f"{path}: join_list_fields must be a subset of strict_fields + fuzzy_fields")
-    th = sec["summary_thresholds"]
-    if not isinstance(th, list) or not th or not all(
-        isinstance(t, (int, float)) and not isinstance(t, bool) and 0.0 <= t <= 1.0 for t in th
-    ):
-        raise ValueError(f"{path}: {SECTION}.summary_thresholds must be a non-empty list of numbers in [0, 1]")
-    return cfg
 
 
 def _join_list(v):
@@ -291,23 +229,6 @@ def build_deduplicate_cache(config_id: str, experiment_id: str, sec: dict) -> Pa
               f"{s['n_non_clique_components']} non-clique ({s['rows_in_non_clique_components']} rows), "
               f"{s['n_components']} components total")
     return cache_path
-
-
-def load_deduplicate_cache(config_id: str, experiment_id: str, fuzzy_threshold: float | None = None):
-    """Load a built cache. Returns the dict {"edges","edge_weights","n_rows"},
-    or, with ``fuzzy_threshold``, just the edges with weight >= it. Never
-    builds anything; raises if the cache has not been built."""
-    path = deduplicate_cache_path(config_id, experiment_id)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"No deduplicate cache for ({config_id!r}, {experiment_id!r}) at {path}; "
-            f"run `python analysis/deduplicate_cache.py --config analysis/analysis-configs/{config_id}.yaml`"
-        )
-    with open(path, "rb") as f:
-        data = pickle.load(f)
-    if fuzzy_threshold is None:
-        return data
-    return edges_above_threshold(data["edges"], data["edge_weights"], fuzzy_threshold)
 
 
 def main() -> None:

@@ -21,6 +21,7 @@ sys.path.insert(0, str(_REPO / "experiments"))
 sys.path.insert(0, str(_REPO))
 
 from analysis import deduplicate_cache as dc  # noqa: E402
+from analysis.common import dedup  # noqa: E402
 from analysis import deduplication as ded  # noqa: E402
 
 TL = 60.0
@@ -173,7 +174,7 @@ DEDUP_SEC = {"deduplicate_cache_config_id": "cache-01", "solver_time_limit_s": 6
 
 
 def _write_configs(tmp_path, monkeypatch, dedup_sec=None, ids=("x",)):
-    monkeypatch.setattr(ded, "ANALYSIS_CONFIGS_ROOT", tmp_path)
+    monkeypatch.setattr(dedup, "ANALYSIS_CONFIGS_ROOT", tmp_path)
     (tmp_path / "cache-01.yaml").write_text(yaml.safe_dump({
         "id": "cache-01", "project": "p", "description": "d", "seed": 1,
         "params": {"experiment_ids": ["x"], "deduplicate_cache": CACHE_SEC}}))
@@ -185,7 +186,7 @@ def _write_configs(tmp_path, monkeypatch, dedup_sec=None, ids=("x",)):
 
 
 def test_config_happy_path(tmp_path, monkeypatch):
-    assert ded.load_deduplication_config(_write_configs(tmp_path, monkeypatch))["id"] == "dedup-01"
+    assert dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch))["id"] == "dedup-01"
 
 
 @pytest.mark.parametrize("override", [
@@ -196,15 +197,15 @@ def test_config_happy_path(tmp_path, monkeypatch):
 def test_config_rejects_bad_section(tmp_path, monkeypatch, override):
     sec = {**DEDUP_SEC, **override}
     with pytest.raises((ValueError, FileNotFoundError)):
-        ded.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
+        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
 
 
 def test_config_rejects_id_not_in_cache_config_and_missing_key(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="not in cache config"):
-        ded.load_deduplication_config(_write_configs(tmp_path, monkeypatch, ids=("x", "y")))
+        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, ids=("x", "y")))
     sec = {k: v for k, v in DEDUP_SEC.items() if k != "solver_time_limit_s"}
     with pytest.raises(KeyError):
-        ded.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
+        dedup.load_deduplication_config(_write_configs(tmp_path, monkeypatch, sec))
 
 
 # -- end to end on a fake run ----------------------------------------------------------
@@ -225,8 +226,8 @@ def built(tmp_path, monkeypatch):
     (run / "final.json").write_text(json.dumps(recs))
     monkeypatch.setattr(dc.paths, "find_result_dir", lambda _id: run)
     monkeypatch.setattr(ded.paths, "find_result_dir", lambda _id: run)
-    monkeypatch.setattr(dc, "DEDUP_CACHE_ROOT", tmp_path / "cache")
-    monkeypatch.setattr(ded, "DEDUP_ROOT", tmp_path / "out")
+    monkeypatch.setattr(dedup, "DEDUP_CACHE_ROOT", tmp_path / "cache")
+    monkeypatch.setattr(dedup, "DEDUP_ROOT", tmp_path / "out")
     monkeypatch.setattr(ded, "get_threshold", lambda _id: 0.7)
     dc.build_deduplicate_cache("cache-01", "x", CACHE_SEC)
     return run, recs
@@ -243,18 +244,18 @@ def test_end_to_end_known_answer(built):
     # means: row0 = (0.75+1.0)/2, row2 = (1.0+0.75)/2 (tied, 0.875) > row1 = 0.75 -> tie between rows 0 and 2 -> lowest mid 10
     assert center_mid == 10
     assert out[0]["page_number"] == [1, 2, 3] and out[0]["context"] == ["ctx-10", "ctx-11", "ctx-12"]
-    meta = json.loads((ded.deduplication_dir("dedup-01", "x") / "meta.json").read_text())
+    meta = json.loads((dedup.deduplication_dir("dedup-01", "x") / "meta.json").read_text())
     assert (meta["rows_in"], meta["rows_out"], meta["n_clusters"], meta["n_singletons"]) == (5, 3, 3, 2)
     assert meta["n_centers_decided_by_tiebreak"] == 1 and meta["tau"] == 0.7
     assert meta["total_weighted_cost"] == 0.0     # joined pairs all >= tau, cut pairs all < tau: nothing to pay
-    audit = pd.read_csv(ded.deduplication_dir("dedup-01", "x") / "clusters.csv")
+    audit = pd.read_csv(dedup.deduplication_dir("dedup-01", "x") / "clusters.csv")
     assert audit["row"].tolist() == [0, 1, 2, 3, 4] and audit["is_center"].tolist() == [True, False, False, True, True]
     assert audit["center_row"].tolist() == [0, 0, 0, 3, 4]
 
 
 def test_end_to_end_is_deterministic(built):
     ded.build_deduplication("dedup-01", "x", DEDUP_SEC, "cache-01", CACHE_SEC)
-    d = ded.deduplication_dir("dedup-01", "x")
+    d = dedup.deduplication_dir("dedup-01", "x")
     first = {f: (d / f).read_bytes() for f in ("deduplicated.json", "clusters.csv")}
     ded.build_deduplication("dedup-01", "x", DEDUP_SEC, "cache-01", CACHE_SEC)
     assert first == {f: (d / f).read_bytes() for f in ("deduplicated.json", "clusters.csv")}
@@ -284,7 +285,7 @@ def test_shared_measurement_id_is_allowed_and_tie_breaks_on_row(built):
     ded.build_deduplication("dedup-01", "x", DEDUP_SEC, "cache-01", CACHE_SEC)
     out = ded.load_deduplicated("dedup-01", "x")
     assert out[0]["page_number"] == [1, 2, 3]                          # rows 0 and 2 tie on mean and id -> row 0
-    meta = json.loads((ded.deduplication_dir("dedup-01", "x") / "meta.json").read_text())
+    meta = json.loads((dedup.deduplication_dir("dedup-01", "x") / "meta.json").read_text())
     assert meta["n_clusters_with_shared_measurement_id"] == 1 and meta["n_records_sharing_a_measurement_id"] == 2
 
 
@@ -298,6 +299,6 @@ def test_non_int_measurement_id_raises(built):
 
 
 def test_load_deduplicated_missing_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(ded, "DEDUP_ROOT", tmp_path)
+    monkeypatch.setattr(dedup, "DEDUP_ROOT", tmp_path)
     with pytest.raises(FileNotFoundError):
         ded.load_deduplicated("dedup-01", "x")

@@ -38,7 +38,7 @@ for _p in (_REPO_ROOT / "src", _REPO_ROOT / "experiments", _REPO_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from analysis.common import calibration_ids as cids
+from analysis.common import calibration_ids as cids, dedup
 from analysis.common.config import (
     ANALYSIS_CONFIGS_ROOT, _load_envelope, get_section, load_calibration_v4_config,
 )
@@ -203,14 +203,13 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
 
     dedup_dir = None
     if sec["rows"] == "deduplicated":
-        from analysis import deduplication as dd
         dd_path = ANALYSIS_CONFIGS_ROOT / f"{sec['deduplication_config_id']}.yaml"
         if not dd_path.exists():
             raise FileNotFoundError(f"deduplication config {dd_path} does not exist")
-        dd_cfg = dd.load_deduplication_config(dd_path)
+        dd_cfg = dedup.load_deduplication_config(dd_path)
         if extraction_id not in dd_cfg["params"]["experiment_ids"]:
             raise ValueError(f"{dd_cfg['id']}: experiment_ids does not contain {extraction_id!r}")
-        dedup_dir = dd.deduplication_dir(dd_cfg["id"], extraction_id)
+        dedup_dir = dedup.deduplication_dir(dd_cfg["id"], extraction_id)
 
     return dict(dataset=dataset, calibration_config_id=cal_id, calibration_version=calibration_version,
                 judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,

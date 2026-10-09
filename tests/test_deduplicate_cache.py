@@ -20,6 +20,7 @@ sys.path.insert(0, str(_REPO / "experiments"))
 sys.path.insert(0, str(_REPO))
 
 from analysis import deduplicate_cache as dc  # noqa: E402
+from analysis.common import dedup  # noqa: E402
 from scholarlm.utils.deduplication import deduplicate_records  # noqa: E402
 
 SEC = {
@@ -48,7 +49,7 @@ def _cfg(tmp_path, **section_overrides):
 
 
 def test_config_happy_path(tmp_path):
-    assert dc.load_deduplicate_cache_config(_cfg(tmp_path))["id"] == "cfg-01"
+    assert dedup.load_deduplicate_cache_config(_cfg(tmp_path))["id"] == "cfg-01"
 
 
 @pytest.mark.parametrize("override", [
@@ -62,7 +63,7 @@ def test_config_happy_path(tmp_path):
 ])
 def test_config_rejects_bad_section(tmp_path, override):
     with pytest.raises(ValueError):
-        dc.load_deduplicate_cache_config(_cfg(tmp_path, **override))
+        dedup.load_deduplicate_cache_config(_cfg(tmp_path, **override))
 
 
 def test_config_missing_and_extra_keys_fail_loud(tmp_path):
@@ -71,12 +72,12 @@ def test_config_missing_and_extra_keys_fail_loud(tmp_path):
     del raw["params"]["deduplicate_cache"]["summary_thresholds"]
     path.write_text(yaml.safe_dump(raw))
     with pytest.raises(KeyError):
-        dc.load_deduplicate_cache_config(path)
+        dedup.load_deduplicate_cache_config(path)
     raw["params"]["deduplicate_cache"]["summary_thresholds"] = [1.0]
     raw["params"]["stray"] = 1
     path.write_text(yaml.safe_dump(raw))
     with pytest.raises(ValueError):
-        dc.load_deduplicate_cache_config(path)
+        dedup.load_deduplicate_cache_config(path)
 
 
 def test_prepare_frame_joins_qualifiers_sorted_and_coerces_numeric():
@@ -155,13 +156,13 @@ def test_build_end_to_end_and_sidecar(tmp_path, monkeypatch):
     recs = [_rec("aaaa"), _rec("aaab"), _rec("zzzz", doc="d2")]
     (run / "final.json").write_text(json.dumps(recs))
     monkeypatch.setattr(dc.paths, "find_result_dir", lambda _id: run)
-    monkeypatch.setattr(dc, "DEDUP_CACHE_ROOT", tmp_path / "cache")
+    monkeypatch.setattr(dedup, "DEDUP_CACHE_ROOT", tmp_path / "cache")
     path = dc.build_deduplicate_cache("cfg-01", "x", SEC)
-    data = dc.load_deduplicate_cache("cfg-01", "x")
+    data = dedup.load_deduplicate_cache("cfg-01", "x")
     assert data == {"edges": [(0, 1)], "edge_weights": [0.875], "n_rows": 3}
-    assert dc.load_deduplicate_cache("cfg-01", "x", 0.9) == []
-    assert dc.load_deduplicate_cache("cfg-01", "x", 0.875) == [(0, 1)]
-    meta = json.loads(dc.deduplicate_cache_meta_path("cfg-01", "x").read_text())
+    assert dedup.load_deduplicate_cache("cfg-01", "x", 0.9) == []
+    assert dedup.load_deduplicate_cache("cfg-01", "x", 0.875) == [(0, 1)]
+    meta = json.loads(dedup.deduplicate_cache_meta_path("cfg-01", "x").read_text())
     assert meta["n_rows"] == 3 and meta["n_edges_at_threshold_0"] == 1 and meta["section"] == SEC
     assert meta["extraction_sha256"] == dc.sha256_file(run / "final.json")
     assert path.exists()
@@ -174,6 +175,6 @@ def test_build_fails_loud_without_extraction_file(tmp_path, monkeypatch):
 
 
 def test_load_cache_missing_raises(tmp_path, monkeypatch):
-    monkeypatch.setattr(dc, "DEDUP_CACHE_ROOT", tmp_path)
+    monkeypatch.setattr(dedup, "DEDUP_CACHE_ROOT", tmp_path)
     with pytest.raises(FileNotFoundError):
-        dc.load_deduplicate_cache("cfg-01", "x")
+        dedup.load_deduplicate_cache("cfg-01", "x")

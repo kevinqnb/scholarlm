@@ -66,68 +66,17 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis import deduplicate_cache as dc
-from analysis.common.config import _load_envelope, get_section
+from analysis.common import dedup
+from analysis.common.config import ANALYSIS_CONFIGS_ROOT, get_section
+from analysis.common.dedup import (
+    DEDUP_SECTION as SECTION, DEDUP_SECTION_KEYS as SECTION_KEYS, deduplication_dir, load_deduplication_config,
+)
 from analysis.common.provenance import repo_relative, sha256_file
 from experiments.run_extraction import load_dataset_config
 import utils as paths
 
-DEDUP_ROOT = _REPO_ROOT / "analysis" / "results" / "deduplication"
-ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
 
-SECTION = "deduplication"
-SECTION_KEYS = ("deduplicate_cache_config_id", "solver_time_limit_s", "provenance_fields")
 _TIE_ATOL = 1e-12  # float-noise tolerance when comparing mean weights
-
-
-def deduplication_dir(config_id: str, experiment_id: str) -> Path:
-    """DEDUP_ROOT/<config id>/<experiment id>/ -- the one place this path is built."""
-    return DEDUP_ROOT / config_id / experiment_id
-
-
-def load_deduplication_config(path: Path) -> dict:
-    """Load and validate an analysis config for deduplication.
-
-    ``params`` holds exactly ``experiment_ids`` and the ``deduplication`` section
-    (SECTION_KEYS, no defaults, no extras). The named deduplicate_cache config must
-    exist and list every experiment id here; the provenance fields must not be match
-    fields of that config (a field cannot both decide duplication and be merged).
-    ``seed`` is required by the envelope and unused (the solve is deterministic).
-    """
-    cfg = _load_envelope(path)
-    unexpected = set(cfg["params"]) - {"experiment_ids", SECTION}
-    if unexpected:
-        raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
-    ids = cfg["params"].get("experiment_ids")
-    if not isinstance(ids, list) or not ids or not all(isinstance(x, str) for x in ids):
-        raise ValueError(f"{path}: params.experiment_ids must be a non-empty list of strings, got {ids!r}")
-    if len(set(ids)) != len(ids):
-        raise ValueError(f"{path}: params.experiment_ids has duplicates")
-
-    sec = get_section(cfg, SECTION, SECTION_KEYS)
-    cache_id = sec["deduplicate_cache_config_id"]
-    if not isinstance(cache_id, str) or not cache_id:
-        raise ValueError(f"{path}: {SECTION}.deduplicate_cache_config_id must be a non-empty string")
-    tl = sec["solver_time_limit_s"]
-    if isinstance(tl, bool) or not isinstance(tl, (int, float)) or tl <= 0:
-        raise ValueError(f"{path}: {SECTION}.solver_time_limit_s must be a positive number, got {tl!r}")
-    pf = sec["provenance_fields"]
-    if not isinstance(pf, list) or not pf or not all(isinstance(x, str) for x in pf) or len(set(pf)) != len(pf):
-        raise ValueError(f"{path}: {SECTION}.provenance_fields must be a non-empty list of unique strings")
-
-    cache_cfg_path = ANALYSIS_CONFIGS_ROOT / f"{cache_id}.yaml"
-    if not cache_cfg_path.exists():
-        raise FileNotFoundError(f"{path}: deduplicate_cache config {cache_cfg_path} does not exist")
-    cache_cfg = dc.load_deduplicate_cache_config(cache_cfg_path)
-    not_cached = sorted(set(ids) - set(cache_cfg["params"]["experiment_ids"]))
-    if not_cached:
-        raise ValueError(f"{path}: experiment ids not in cache config {cache_id}: {not_cached}")
-    match_fields = set(cache_cfg["params"][dc.SECTION]["strict_fields"]) | set(
-        cache_cfg["params"][dc.SECTION]["fuzzy_fields"])
-    both = sorted(set(pf) & match_fields)
-    if both:
-        raise ValueError(f"{path}: provenance_fields are also match fields of {cache_id}: {both}")
-    return cfg
 
 
 def get_threshold(experiment_id: str) -> float:
@@ -298,7 +247,7 @@ def pick_center(cluster: list[int], W: dict, measurement_ids: list) -> tuple[int
 # ---------------------------------------------------------------------------
 
 def _check_cache_matches_extraction(cache_config_id, cache_section, experiment_id, extraction_file, records):
-    meta_path = dc.deduplicate_cache_meta_path(cache_config_id, experiment_id)
+    meta_path = dedup.deduplicate_cache_meta_path(cache_config_id, experiment_id)
     if not meta_path.exists():
         raise FileNotFoundError(f"{experiment_id}: no cache sidecar {meta_path}; build the deduplicate cache first")
     meta = json.loads(meta_path.read_text())
@@ -353,7 +302,7 @@ def build_deduplication(config_id: str, experiment_id: str, sec: dict, cache_con
     if not isinstance(records, list) or not records:
         raise ValueError(f"{experiment_id}: {extraction_file} is not a non-empty list of records")
     cache_meta = _check_cache_matches_extraction(cache_config_id, cache_section, experiment_id, extraction_file, records)
-    cache = dc.load_deduplicate_cache(cache_config_id, experiment_id)
+    cache = dedup.load_deduplicate_cache(cache_config_id, experiment_id)
     n = len(records)
     assert cache["n_rows"] == n
 
@@ -393,7 +342,7 @@ def build_deduplication(config_id: str, experiment_id: str, sec: dict, cache_con
         "analysis_config_id": config_id, "experiment_id": experiment_id,
         "deduplicate_cache_config_id": cache_config_id,
         "extraction_file": repo_relative(extraction_file), "extraction_sha256": cache_meta["extraction_sha256"],
-        "cache_sha256": sha256_file(dc.deduplicate_cache_path(cache_config_id, experiment_id)),
+        "cache_sha256": sha256_file(dedup.deduplicate_cache_path(cache_config_id, experiment_id)),
         "tau": tau, "solver_time_limit_s": sec["solver_time_limit_s"], "provenance_fields": sec["provenance_fields"],
         "rows_in": n, "rows_out": len(kept), "n_clusters": len(clusters),
         "n_singletons": sum(len(g) == 1 for g in clusters), "largest_cluster": max(len(g) for g in clusters),
@@ -427,8 +376,8 @@ def main() -> None:
     cfg = load_deduplication_config(args.config)
     sec = get_section(cfg, SECTION, SECTION_KEYS)
     cache_config_id = sec["deduplicate_cache_config_id"]
-    cache_cfg = dc.load_deduplicate_cache_config(ANALYSIS_CONFIGS_ROOT / f"{cache_config_id}.yaml")
-    cache_section = get_section(cache_cfg, dc.SECTION, dc.SECTION_KEYS)
+    cache_cfg = dedup.load_deduplicate_cache_config(ANALYSIS_CONFIGS_ROOT / f"{cache_config_id}.yaml")
+    cache_section = get_section(cache_cfg, dedup.CACHE_SECTION, dedup.CACHE_SECTION_KEYS)
     for experiment_id in cfg["params"]["experiment_ids"]:
         build_deduplication(cfg["id"], experiment_id, sec, cache_config_id, cache_section)
 
