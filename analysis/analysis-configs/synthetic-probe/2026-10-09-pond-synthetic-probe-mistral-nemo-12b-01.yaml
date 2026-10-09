@@ -1,0 +1,12 @@
+id: 2026-10-09-pond-synthetic-probe-mistral-nemo-12b-01
+project: scholarlm
+description: >
+  Head probe + NTP calibrator for mistral-nemo-12b on the pond v3 synthetic corpus, from judge_interp run 2026-09-30-pond-v3-mistral-nemo-12b-synthetic-judge-train-01.
+  use_platt_scaling: true wraps both the head probe and the NTP calibrator in CalibratedClassifierCV (sigmoid, k-fold);
+  calibration configs must use probe_variant: platt. The probe's syn_document_ids define the real-data train/test
+  split every calibration-family analysis uses.
+seed: 0
+params:
+  dataset: pond
+  judge_interp_id: 2026-09-30-pond-v3-mistral-nemo-12b-synthetic-judge-train-01
+  use_platt_scaling: true

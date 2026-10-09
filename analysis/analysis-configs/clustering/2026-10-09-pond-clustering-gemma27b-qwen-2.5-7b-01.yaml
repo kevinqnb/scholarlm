@@ -1,0 +1,32 @@
+id: 2026-10-09-pond-clustering-gemma27b-qwen-2.5-7b-01
+project: scholarlm
+description: >
+  Pond downstream clustering (analysis/pond_clustering.py) on the deduplicated gemma27b rows (deduplication of 2026-10-09-pond-main-recovery-01,
+  cluster-center confidence) with the pond->pond intercept_fit probe / NTP confidences of 2026-10-09-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01,
+  each multiplied by the non-outlier factor (outlier_adjust). Attribute set fixed to surface_area, max_depth, ph;
+  5 clusters, KNN k = 5, missing_threshold 0.2, gamma 0..5 in 101 steps. 2000 KMeans seeds per arm, 2000 shuffled-confidence
+  draws as the permutation control.
+seed: 0
+params:
+  clustering:
+    calibration_config_id: 2026-10-09-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01
+    calibration_version: v4
+    extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+    judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+    judge_model: qwen-2.5-7b
+    probe_train_dataset: pond
+    rows: deduplicated
+    deduplication_config_id: 2026-10-09-pond-main-recovery-01
+    confidence: center
+    missing_threshold: 0.2
+    attributes: [surface_area, max_depth, ph]
+    attribute_set_sizes: null
+    n_clusters: 5
+    knn_neighbors: 5
+    gammas:
+      start: 0.0
+      stop: 5.0
+      num: 101
+    n_runs: 2000
+    n_shuffle_samples: 2000
+    outlier_adjust: true

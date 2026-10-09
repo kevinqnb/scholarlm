@@ -149,3 +149,7 @@ are required, because cost varies by script and config. Job logs go to
 - **`calibration_validated.py` still uses the v3 machinery** (`common/nested_bootstrap.py`,
   v3-schema config). Porting it to `recalibration.py` / `doc_bootstrap.py` is an eval
   change that invalidates its numbers.
+  Until then the nine `calibration/*-latex-01` configs fail to load (they name v4
+  calibration configs), and `calibration-validated/*-latex-01` fails at `load_metrics`
+  (its captions are written for `platt_fit`; the validated config is `intercept_fit`).
+  The validated config itself is in the current v3 schema and gets re-keyed by the port.

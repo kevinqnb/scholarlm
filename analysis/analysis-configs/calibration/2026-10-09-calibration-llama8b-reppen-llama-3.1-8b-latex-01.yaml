@@ -1,0 +1,18 @@
+id: 2026-10-09-calibration-llama8b-reppen-llama-3.1-8b-latex-01
+project: scholarlm
+description: >
+  NOT YET VALID: analysis/calibration_latex.py only reads v3-schema calibration configs (platt_fit, platt_n), so
+  this fails to load until it is retargeted to v4 output. Written now to fix the table's inputs: LaTeX tables (synthetic
+  and real) for 2026-10-09-calibration-llama8b-reppen-llama-3.1-8b-intercept-fit-01. Formatting only; seed unused.
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-09-calibration-llama8b-reppen-llama-3.1-8b-intercept-fit-01
+    labels: llm_matching
+    datasets:
+      PLW: pond
+      NF: nfix
+      SM: supermat
+    decimals: 3
+    output_dir: analysis/results/calibration/2026-10-09-calibration-llama8b-reppen-llama-3.1-8b-intercept-fit-01/latex
+    label_prefix: tab:calibration-llama8b-reppen-llama-3.1-8b

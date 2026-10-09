@@ -1,0 +1,44 @@
+id: 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01
+project: scholarlm
+description: >
+  Calibration scored on human validations (analysis/calibration_validated.py) for the qwen-2.5-7b probe / NTP on
+  the gemma27b pond and supermat extractions (supermat probe on the v3s split, matching the validation sets' split).
+  recalibration intercept_fit on platt_n=100 rows from the test dataset's probe-training pool, labelled by LLM +
+  matching (the training split has no human labels); real test cells scored only on human-labelled rows. Written
+  in the script's current v3 schema: nested bootstrap of n_fit_samples=100 recalibration fit samples x n_doc_boot=100
+  test-document resamples (10000 replicates), n_syn_boot=2000 for synthetic cells. NOT RUN NOW: the script is to
+  be ported to calibration.py's v4 machinery (one fit, n_boot), which will re-key this config. Validation files
+  pinned by sha256.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  platt_n: 100
+  n_fit_samples: 100
+  n_doc_boot: 100
+  n_syn_boot: 2000
+  recalibration: intercept_fit
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-09-pond-synthetic-probe-qwen-2.5-7b-01
+      use_matching_labels: true
+      validation_sha256: 2e9c1843ec7dea1ba1178e1d2a6e07f129e3a167577f3a2c1fcc0afde4c6a0c1
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-09-supermat-synthetic-probe-qwen-2.5-7b-01
+      use_matching_labels: true
+      validation_sha256: 7880e5099f7286b906ebc0272a23a30688c198abe59f67b712912aa7111044e5
+      syn_test_ids:
+        primary: 2026-10-08-supermat-v3s-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-10-08-supermat-v3s-qwen-2.5-7b-synthetic-judge-test-diag-01

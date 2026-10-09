@@ -1,0 +1,45 @@
+id: 2026-10-09-pond-ablations-recovery-01
+project: scholarlm
+description: >
+  pond: ablations 2, 3, 4, 5 and 7, each with llama-3.1-8b-reppen, gemma-3-27b and gpt-oss-120b (ablations 2-5 are
+  the 2026-10-02 runs, ablation 7 the 2026-09-26 runs; supermat has no ablation 2-5 runs and is not part of this
+  experiment). One config drives every setup step for its ids, in this order: postprocessing -> match_cache -> deduplicate_cache
+  -> deduplication -> recovery_validity (bash analysis/submit.sh <script> <id> ...). Dedup fields as in the 2026-10-06
+  dedup configs: name and date fuzzy, everything else strict; provenance lists merged into each cluster center (postprocessing
+  wraps scalar / absent provenance into lists, so baselines and ablations 1/7 dedup too). solver_time_limit_s 600
+  is per connected component; a component not solved to proven optimality in that time is a hard error. Recovery/validity:
+  paper-clustered bootstrap, 2000 resamples, 95% intervals.
+seed: 0
+params:
+  ground_truth_file: data/pond/ground_truth_review.json
+  experiment_ids:
+  - 2026-10-02-pond-ablation2-llama8b-reppen-full-01
+  - 2026-10-02-pond-ablation2-gemma27b-full-01
+  - 2026-10-02-pond-ablation2-gptoss120b-full-01
+  - 2026-10-02-pond-ablation3-llama8b-reppen-full-01
+  - 2026-10-02-pond-ablation3-gemma27b-full-01
+  - 2026-10-02-pond-ablation3-gptoss120b-full-01
+  - 2026-10-02-pond-ablation4-llama8b-reppen-full-01
+  - 2026-10-02-pond-ablation4-gemma27b-full-01
+  - 2026-10-02-pond-ablation4-gptoss120b-full-01
+  - 2026-10-02-pond-ablation5-llama8b-reppen-full-01
+  - 2026-10-02-pond-ablation5-gemma27b-full-01
+  - 2026-10-02-pond-ablation5-gptoss120b-full-01
+  - 2026-09-26-pond-ablation7-llama8b-reppen-full-01
+  - 2026-09-26-pond-ablation7-gemma27b-full-01
+  - 2026-09-26-pond-ablation7-gptoss120b-full-01
+  deduplicate_cache:
+    extraction_file: postprocessed.json
+    strict_fields: [document_id, attribute, point_value, lower, upper, tolerance, standard_deviation, units, qualifiers]
+    fuzzy_fields: [name, date]
+    numeric_coerce: [point_value, lower, upper, tolerance, standard_deviation]
+    join_list_fields: [qualifiers]
+    summary_thresholds: [1.0, 0.9, 0.8]
+  deduplication:
+    solver_time_limit_s: 600
+    provenance_fields: [page_number, table_number, row_index, column_index, source, context]
+  recovery_validity:
+    n_resamples: 2000
+    alpha: 0.05
+    compute_validity: true
+    output: analysis/results/recovery-validity/2026-10-09-pond-ablations-recovery-01.csv

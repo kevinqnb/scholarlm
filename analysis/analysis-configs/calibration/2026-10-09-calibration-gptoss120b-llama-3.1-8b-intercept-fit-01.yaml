@@ -1,0 +1,52 @@
+id: 2026-10-09-calibration-gptoss120b-llama-3.1-8b-intercept-fit-01
+project: scholarlm
+description: >
+  Calibration (analysis/calibration.py, v4) of the llama-3.1-8b head probe and NTP calibrator on the gptoss120b
+  full-pipeline extractions of pond, nfix and supermat (supermat probe on the v3s split), every train x test dataset
+  cell plus the synthetic test sets (primary split). Real cells: one intercept_fit map (slope 1, intercept by MLE)
+  fit once on fit_n=100 rows drawn by fit_seed=0 from the test dataset's probe-training pool; labels are judge_combine
+  OR ground-truth match. Intervals: 2000 test-document bootstrap resamples.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  n_boot: 2000
+  recalibration: intercept_fit
+  fit_source: sample
+  fit_n: 100
+  fit_seed: 0
+  datasets:
+    pond:
+      extraction_id: 2026-09-21-pond-extraction-gptoss120b-full-01
+      judge_interp_id: 2026-09-27-pond-extraction-gptoss120b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gptoss120b-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-09-pond-synthetic-probe-llama-3.1-8b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-25-nfix-extraction-gptoss120b-full-02
+      judge_interp_id: 2026-09-27-nfix-extraction-gptoss120b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gptoss120b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-09-nfix-synthetic-probe-llama-3.1-8b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gptoss120b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gptoss120b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gptoss120b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-09-supermat-synthetic-probe-llama-3.1-8b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-primary-01
+        diag: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-diag-01

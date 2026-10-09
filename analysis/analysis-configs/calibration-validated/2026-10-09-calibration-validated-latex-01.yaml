@@ -1,0 +1,17 @@
+id: 2026-10-09-calibration-validated-latex-01
+project: scholarlm
+description: >
+  NOT YET VALID: analysis/calibration_latex.py's captions are written for platt_fit only, and 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01
+  is intercept_fit; fails until the latex script is updated. LaTeX tables for 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01.
+  Formatting only; seed unused.
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01
+    labels: human_validated
+    datasets:
+      PLW: pond
+      SM: supermat
+    decimals: 3
+    output_dir: analysis/results/calibration-validated/2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01/latex
+    label_prefix: tab:calibration-validated
