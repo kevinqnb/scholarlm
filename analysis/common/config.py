@@ -490,7 +490,7 @@ CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "in
                               "platt_fit": ("sample", "oracle")}
 
 
-def _is_int(v) -> bool:
+def is_int(v) -> bool:
     return isinstance(v, int) and not isinstance(v, bool)
 
 
@@ -517,7 +517,7 @@ def load_calibration_v4_config(path: Path) -> dict:
             f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_V4_TOP_KEYS)}"
         )
     _validate_calibration_body(path, cfg, CALIBRATION_V2_DATASET_KEYS, CALIBRATION_DATASETS)
-    if not _is_int(params["n_boot"]) or params["n_boot"] <= 0:
+    if not is_int(params["n_boot"]) or params["n_boot"] <= 0:
         raise ValueError(f"{path}: params.n_boot must be a positive int, got {params['n_boot']!r}")
     recal = params["recalibration"]
     if recal not in CALIBRATION_V4_RECALIBRATIONS:
@@ -532,9 +532,9 @@ def load_calibration_v4_config(path: Path) -> dict:
         )
     n, fit_seed = params["fit_n"], params["fit_seed"]
     if source == "sample":
-        if not _is_int(n) or n <= 0:
+        if not is_int(n) or n <= 0:
             raise ValueError(f"{path}: params.fit_n must be a positive int for fit_source sample, got {n!r}")
-        if not _is_int(fit_seed) or fit_seed < 0:
+        if not is_int(fit_seed) or fit_seed < 0:
             raise ValueError(f"{path}: params.fit_seed must be a non-negative int for fit_source sample, got {fit_seed!r}")
     else:
         for key, v in (("fit_n", n), ("fit_seed", fit_seed)):

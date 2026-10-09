@@ -91,7 +91,7 @@ from sklearn.impute import KNNImputer
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-from analysis.common.config import _load_envelope, get_section
+from analysis.common.config import _load_envelope, get_section, is_int
 from analysis.common.outlier_weight import add_outlier_columns
 from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, resolve_meta_inputs
 from analysis.common.pond_meta import DATASET, PAPER_RCPARAMS, UNIT_CONVERSION, load_data
@@ -134,12 +134,9 @@ ARM_STYLE = {
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-def _is_int(v) -> bool:
-    return isinstance(v, int) and not isinstance(v, bool)
-
 
 def _is_pos_int(v) -> bool:
-    return _is_int(v) and v > 0
+    return is_int(v) and v > 0
 
 
 def load_clustering_config(path: Path) -> dict:
@@ -163,7 +160,7 @@ def load_clustering_config(path: Path) -> dict:
         raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
     sec = get_section(cfg, SECTION, SECTION_KEYS)
 
-    if not _is_int(cfg['seed']) or cfg['seed'] < 0:
+    if not is_int(cfg['seed']) or cfg['seed'] < 0:
         raise ValueError(f"{path}: seed must be a non-negative int, got {cfg['seed']!r}")
     for k in ('calibration_config_id', 'extraction_id', 'judge_combine_id', 'judge_model'):
         if not isinstance(sec[k], str) or not sec[k]:
@@ -203,7 +200,7 @@ def load_clustering_config(path: Path) -> dict:
             or any(a >= b for a, b in zip(sizes, sizes[1:]))):
         raise ValueError(f"{path}: {SECTION}.attribute_set_sizes must be a non-empty strictly increasing list of "
                          f"positive ints, got {sizes!r}")
-    if not _is_int(sec['n_clusters']) or sec['n_clusters'] < 2:
+    if not is_int(sec['n_clusters']) or sec['n_clusters'] < 2:
         raise ValueError(f"{path}: {SECTION}.n_clusters must be an int >= 2, got {sec['n_clusters']!r}")
     for k in ('knn_neighbors', 'n_runs', 'n_shuffle_samples'):
         if not _is_pos_int(sec[k]):
@@ -214,7 +211,7 @@ def load_clustering_config(path: Path) -> dict:
     if not isinstance(g, dict) or set(g) != set(GAMMA_KEYS):
         raise ValueError(f"{path}: {SECTION}.gammas must have exactly the keys {list(GAMMA_KEYS)}, got {g!r}")
     if (any(isinstance(g[k], bool) or not isinstance(g[k], (int, float)) for k in ('start', 'stop'))
-            or g['start'] != 0 or not g['stop'] > g['start'] or not _is_int(g['num']) or g['num'] < 2):
+            or g['start'] != 0 or not g['stop'] > g['start'] or not is_int(g['num']) or g['num'] < 2):
         raise ValueError(f"{path}: {SECTION}.gammas must have start == 0, stop > start, int num >= 2, got {g!r}")
     return cfg
 

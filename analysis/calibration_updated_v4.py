@@ -9,7 +9,6 @@ sys.path.insert(0, str(REPO_ROOT))
 import json
 import pickle
 import argparse
-import joblib
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -26,6 +25,7 @@ from analysis.common.metrics import validity_rate_from_labels
 from analysis.common.prediction_store import real_cell_provenance
 from analysis.common.calibration_plot_utils import draw_reliability_curve
 from analysis.common.head_activations import HeadActivationCache
+from analysis.common.loaders import load_probe_artifact
 from analysis.common.recalibration import prior_shift_map, intercept_fit_map, platt_fit_map, uniform_fit_sample
 from scholarlm.utils.calibration import apply_platt, fit_prior_shift
 
@@ -135,21 +135,6 @@ if FIT_SOURCE == 'oracle':
     print('[calibration v4] ORACLE fit: maps are fit on the evaluated rows themselves -- diagnostic only.')
 
 
-# ── Trained probe / NTP calibrator (id-addressed, one per TRAIN_DATASETS entry) ──
-def _load_trained_artifact(train_ds, filename):
-    path = _INPUTS['datasets'][train_ds]['probe_dir'] / filename
-    if not path.exists():
-        raise FileNotFoundError(
-            f'{path} does not exist. Run analysis/synthetic_probe_train.py '
-            f'on the {train_ds} synthetic-probe config first.'
-        )
-    artifact = joblib.load(path)
-    assert artifact['judge_model'] == JUDGE_MODEL, (
-        f'{path}: judge_model {artifact["judge_model"]!r} != {JUDGE_MODEL!r}')
-    assert artifact['dataset'] == train_ds, f'{path}: dataset {artifact["dataset"]!r} != {train_ds!r}'
-    return artifact
-
-
 _ntp_cal_filename = 'ntp_calibrator.pkl' if _PROBE_VARIANT_KW is None else 'ntp_calibrator_noplatt.pkl'
 _probe_filename = (
     'layer_probe.pkl' if PROBE_TYPE == 'layer'
@@ -159,8 +144,8 @@ ntp_cal_cache, probe_cache = {}, {}
 for _train_ds in TRAIN_DATASETS:
     print(f'Loading trained probe/NTP calibrator ({_train_ds}, {JUDGE_MODEL}) '
           f'from {_INPUTS["datasets"][_train_ds]["syn_train_id"]}...')
-    ntp_cal_cache[_train_ds] = _load_trained_artifact(_train_ds, _ntp_cal_filename)
-    probe_cache[_train_ds]   = _load_trained_artifact(_train_ds, _probe_filename)
+    ntp_cal_cache[_train_ds] = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _ntp_cal_filename, _train_ds, JUDGE_MODEL)
+    probe_cache[_train_ds]   = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _probe_filename, _train_ds, JUDGE_MODEL)
 
 # Head features: each activation row is decompressed once per run, keeping the union of
 # every train probe's top heads (see analysis/common/head_activations.py).

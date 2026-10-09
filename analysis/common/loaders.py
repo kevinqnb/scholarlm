@@ -5,10 +5,7 @@ build paths by hand.
 
 Typical usage
 -------------
-    from analysis.common.loaders import load_extraction, load_combined_judgements
-
-    records = load_extraction("pond", "gemma-3-27b", "2026_04_01")
-    judgements = load_combined_judgements("pond", "gemma-3-27b", "2026_04_01")
+    from analysis.common.loaders import load_ground_truth_file, load_trained_probe
 """
 from __future__ import annotations
 
@@ -17,74 +14,12 @@ import pickle
 import sys
 from pathlib import Path
 
-import numpy as np
-
 _EXPERIMENTS_DIR = Path(__file__).parent.parent.parent / "experiments"
 if str(_EXPERIMENTS_DIR) not in sys.path:
     sys.path.insert(0, str(_EXPERIMENTS_DIR))
 
 import utils as _paths
 
-_UTILS_DIR = Path(__file__).parent.parent.parent / "experiments"
-if str(_UTILS_DIR) not in sys.path:
-    sys.path.insert(0, str(_UTILS_DIR))
-
-import utils as _utils
-
-
-def load_run_metadata(output_dir: Path) -> dict | None:
-    """Load run_metadata.json from an output directory, or return None if absent."""
-    return _utils.load_run_metadata(output_dir)
-
-
-def check_run_for_issues(
-    dataset: str,
-    model: str,
-    date: str | None = None,
-    ablation: str | None = None,
-    *,
-    raise_on_warning: bool = False,
-) -> list[str]:
-    """Load run_metadata.json and return any recorded compatibility warnings.
-
-    Args:
-        dataset: Dataset name.
-        model: Extraction model short name.
-        date: Optional date tag.
-        ablation: Optional ablation number.
-        raise_on_warning: If True, raise RuntimeError when warnings are present.
-
-    Returns:
-        List of warning strings from ``gpu_compatibility_warnings``; empty if clean.
-    """
-    import warnings
-
-    if ablation is not None:
-        base = _paths.EXPERIMENTS_ROOT / dataset / "ablations" / f"ablation{ablation}" / model
-    else:
-        base = _paths.EXPERIMENTS_ROOT / dataset / "extraction" / model
-
-    if date:
-        output_dir = base / date
-    else:
-        date_dirs = sorted(base.iterdir(), reverse=True) if base.exists() else []
-        output_dir = next(
-            (d for d in date_dirs if (d / "final.json").exists()),
-            base,
-        )
-
-    meta = load_run_metadata(output_dir)
-    if meta is None:
-        return []
-
-    issues = meta.get("gpu_compatibility_warnings", [])
-    for w in issues:
-        msg = f"Run {dataset}/{model}/{output_dir.name}: {w}"
-        if raise_on_warning:
-            raise RuntimeError(msg)
-        warnings.warn(msg, stacklevel=2)
-
-    return issues
 
 
 def load_extraction(
@@ -94,64 +29,6 @@ def load_extraction(
     final = _paths.find_extraction_final(dataset, model, date)
     with open(final) as f:
         return json.load(f)
-
-
-def load_ablation(
-    dataset: str, ablation_n: str | int, model: str, date: str | None = None
-) -> list[dict]:
-    """Load final.json for an ablation run."""
-    final = _paths.find_extraction_final(dataset, model, date, ablation=str(ablation_n))
-    with open(final) as f:
-        return json.load(f)
-
-
-def load_combined_judgements(
-    dataset: str, extraction_model: str, extraction_date: str, ablation: str | None = None
-) -> list[dict]:
-    """Load combined.json for a judged extraction run."""
-    combined = _paths.find_combined(dataset, extraction_model, extraction_date, ablation)
-    with open(combined) as f:
-        return json.load(f)
-
-
-def load_human_judgements(
-    dataset: str,
-    extraction_model: str,
-    extraction_date: str | None = None,
-    judge_date: str | None = None,
-    drop_skipped: bool = True,
-) -> tuple[list[dict], str]:
-    """Load responses.json from a human validation run.
-
-    Produced historically by ``experiments/validation.py`` (a Streamlit app,
-    since removed) -- this reads whatever responses.json files already exist
-    on disk; nothing currently generates new ones.
-
-    Args:
-        dataset: Dataset identifier.
-        extraction_model: Extraction model short name.
-        extraction_date: Date tag of the extraction run. ``None`` resolves to the
-            most recent run that has human responses.
-        judge_date: Date tag of the validation session. ``None`` resolves to the latest.
-        drop_skipped: Drop records the annotator skipped (``judgement is None``).
-
-    Returns:
-        ``(records, extraction_date)``.  ``measurement_id`` is a positional index into
-        that extraction run's final.json, so it is only a valid join key against
-        artefacts from the same run — callers should check the returned date against
-        the one their activations came from.
-
-    Raises:
-        FileNotFoundError: If no human responses.json exists.
-    """
-    path, resolved_date = _paths.find_human_responses(
-        dataset, extraction_model, extraction_date, judge_date
-    )
-    with open(path) as f:
-        records = json.load(f)
-    if drop_skipped:
-        records = [r for r in records if r.get("judgement") is not None]
-    return records, resolved_date
 
 
 def load_ground_truth_file(path: Path) -> "pd.DataFrame":
@@ -178,78 +55,6 @@ def load_ground_truth_file(path: Path) -> "pd.DataFrame":
     if path.suffix == ".json":
         return pd.read_json(path, orient="records")
     raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
-
-
-def load_ground_truth(config) -> "pd.DataFrame":
-    """Load the manual ground-truth dataset using ``config.ground_truth_file``.
-
-    Args:
-        config: A ``DatasetConfig`` with ``ground_truth_file`` set.
-
-    Returns:
-        DataFrame loaded from the CSV or JSON file.
-
-    Raises:
-        ValueError: If ``config.ground_truth_file`` is ``None``.
-        FileNotFoundError: If the file does not exist.
-    """
-    if config.ground_truth_file is None:
-        raise ValueError(
-            f"DatasetConfig for '{config.name}' has no ground_truth_file set."
-        )
-    path = Path(config.ground_truth_file)
-    if not path.is_absolute():
-        path = Path(__file__).parent.parent.parent / path
-    return load_ground_truth_file(path)
-
-
-def load_activations(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
-    ablation: str | None = None,
-) -> "np.lib.npyio.NpzFile":
-    """Load attention_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_activations(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
-    return np.load(path)
-
-def load_layer_outputs(
-    dataset: str, extraction_model: str, extraction_date: str, judge_model: str, judge_date: str | None = None,
-    ablation: str | None = None,
-) -> "np.lib.npyio.NpzFile":
-    """Load layer_outputs.npz for a given (dataset, extraction, judge) triple."""
-    path = _paths.find_layer_outputs(dataset, extraction_model, extraction_date, judge_model, judge_date, ablation)
-    return np.load(path)
-
-
-def load_synthetic_responses(
-    dataset: str, judge_model: str, judge_date: str | None = None,
-    split: str = "train", name: str | None = None,
-) -> list[dict]:
-    """Load responses.json from a synthetic probe run.
-
-    ``name`` (a ``--synthetic-name`` label, e.g. ``v2_diag``) selects a
-    ``synthetic_probe_<name>`` tree and takes precedence over ``split``.
-    """
-    path = _paths.find_synthetic_responses(dataset, judge_model, judge_date, split, name)
-    with open(path) as f:
-        return json.load(f)
-
-
-def load_synthetic_activations(
-    dataset: str, judge_model: str, judge_date: str | None = None,
-    split: str = "train", name: str | None = None,
-) -> "np.lib.npyio.NpzFile":
-    """Load attention_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
-    path = _paths.find_synthetic_activations(dataset, judge_model, judge_date, split, name)
-    return np.load(path)
-
-
-def load_synthetic_layer_outputs(
-    dataset: str, judge_model: str, judge_date: str | None = None,
-    split: str = "train", name: str | None = None,
-) -> "np.lib.npyio.NpzFile":
-    """Load layer_outputs.npz from a synthetic probe run (see ``load_synthetic_responses``)."""
-    path = _paths.find_synthetic_layer_outputs(dataset, judge_model, judge_date, split, name)
-    return np.load(path)
 
 
 def load_trained_ntp_calibrator(
@@ -402,3 +207,21 @@ def cached_match(
             pickle.dump(result, f)
 
     return result
+
+
+def load_probe_artifact(probe_dir: Path, filename: str, dataset: str, judge_model: str) -> dict:
+    """A trained synthetic-probe artifact (head probe or NTP calibrator) from
+    analysis/synthetic_probe_train.py's ``probe_dir``, asserting it was trained for this
+    ``dataset`` and ``judge_model``."""
+    import joblib
+    path = probe_dir / filename
+    if not path.exists():
+        raise FileNotFoundError(
+            f'{path} does not exist. Run analysis/synthetic_probe_train.py '
+            f'on the {dataset} synthetic-probe config first.'
+        )
+    artifact = joblib.load(path)
+    assert artifact['judge_model'] == judge_model, (
+        f'{path}: judge_model {artifact["judge_model"]!r} != {judge_model!r}')
+    assert artifact['dataset'] == dataset, f'{path}: dataset {artifact["dataset"]!r} != {dataset!r}'
+    return artifact

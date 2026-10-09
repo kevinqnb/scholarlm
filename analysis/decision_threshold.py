@@ -53,7 +53,7 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    ANALYSIS_CONFIGS_ROOT, _is_int, _load_envelope, load_calibration_v4_config,
+    ANALYSIS_CONFIGS_ROOT, is_int, _load_envelope, load_calibration_v4_config,
 )
 from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels  # noqa: E402
 
@@ -126,7 +126,7 @@ def load_decision_threshold_config(path: Path) -> dict:
     if params["highlight_threshold"] not in ts:
         raise ValueError(f"{path}: params.highlight_threshold {params['highlight_threshold']!r} is not in thresholds")
 
-    if not _is_int(params["n_permutations"]) or params["n_permutations"] <= 0:
+    if not is_int(params["n_permutations"]) or params["n_permutations"] <= 0:
         raise ValueError(f"{path}: params.n_permutations must be a positive int, got {params['n_permutations']!r}")
 
     invalid = params["invalid_datasets"]
