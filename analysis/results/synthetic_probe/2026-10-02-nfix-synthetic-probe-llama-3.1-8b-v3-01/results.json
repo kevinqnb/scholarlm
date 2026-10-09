@@ -1,0 +1,63 @@
+{
+  "dataset": "nfix",
+  "judge_model": "llama-3.1-8b",
+  "seed": 342,
+  "n_train": 2118,
+  "n_folds": 5,
+  "top_k": 10,
+  "top_k_heads": [
+    [
+      13,
+      11
+    ],
+    [
+      16,
+      16
+    ],
+    [
+      15,
+      31
+    ],
+    [
+      21,
+      19
+    ],
+    [
+      21,
+      17
+    ],
+    [
+      17,
+      20
+    ],
+    [
+      20,
+      11
+    ],
+    [
+      16,
+      17
+    ],
+    [
+      16,
+      28
+    ],
+    [
+      17,
+      17
+    ]
+  ],
+  "train_prevalence": 0.4962228517469311,
+  "use_platt_scaling": true,
+  "head_probe_train": {
+    "accuracy": 0.931067044381492,
+    "precision": 0.9072907290729073,
+    "recall": 0.9590865842055185,
+    "f1": 0.9324699352451434,
+    "auroc": 0.9866490342129645,
+    "ece": 0.28696458313528056
+  },
+  "ntp_calibrator_train_ece": 0.022532752644368645,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-nfix-synthetic-probe-llama-3.1-8b-v3-01/trained_probe/head_probe.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-nfix-synthetic-probe-llama-3.1-8b-v3-01/trained_probe/ntp_calibrator.pkl"
+}

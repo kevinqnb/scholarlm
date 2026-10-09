@@ -1,0 +1,63 @@
+{
+  "dataset": "pond",
+  "judge_model": "llama-3.1-8b",
+  "seed": 342,
+  "n_train": 9462,
+  "n_folds": 5,
+  "top_k": 10,
+  "top_k_heads": [
+    [
+      18,
+      15
+    ],
+    [
+      13,
+      30
+    ],
+    [
+      18,
+      0
+    ],
+    [
+      16,
+      12
+    ],
+    [
+      13,
+      1
+    ],
+    [
+      15,
+      9
+    ],
+    [
+      14,
+      6
+    ],
+    [
+      16,
+      15
+    ],
+    [
+      13,
+      11
+    ],
+    [
+      23,
+      28
+    ]
+  ],
+  "train_prevalence": 0.4985203973789896,
+  "use_platt_scaling": true,
+  "head_probe_train": {
+    "accuracy": 0.9503276262946523,
+    "precision": 0.9097048041674706,
+    "recall": 0.9995760016959933,
+    "f1": 0.9525252525252526,
+    "auroc": 0.9984238790125977,
+    "ece": 0.17393011898050337
+  },
+  "ntp_calibrator_train_ece": 0.023832437565136002,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-llama-3.1-8b-v3-01/trained_probe/head_probe.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-llama-3.1-8b-v3-01/trained_probe/ntp_calibrator.pkl"
+}

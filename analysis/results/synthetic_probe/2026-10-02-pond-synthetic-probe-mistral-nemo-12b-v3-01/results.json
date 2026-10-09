@@ -1,0 +1,63 @@
+{
+  "dataset": "pond",
+  "judge_model": "mistral-nemo-12b",
+  "seed": 342,
+  "n_train": 9462,
+  "n_folds": 5,
+  "top_k": 10,
+  "top_k_heads": [
+    [
+      17,
+      13
+    ],
+    [
+      16,
+      26
+    ],
+    [
+      17,
+      21
+    ],
+    [
+      16,
+      21
+    ],
+    [
+      18,
+      2
+    ],
+    [
+      20,
+      0
+    ],
+    [
+      23,
+      31
+    ],
+    [
+      21,
+      22
+    ],
+    [
+      28,
+      6
+    ],
+    [
+      17,
+      14
+    ]
+  ],
+  "train_prevalence": 0.4985203973789896,
+  "use_platt_scaling": true,
+  "head_probe_train": {
+    "accuracy": 0.9351088564785458,
+    "precision": 0.9769820971867008,
+    "recall": 0.8908204367182532,
+    "f1": 0.9319139498780218,
+    "auroc": 0.9909299212118221,
+    "ece": 0.23926081802458765
+  },
+  "ntp_calibrator_train_ece": 0.051811499587021345,
+  "probe_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-mistral-nemo-12b-v3-01/trained_probe/head_probe.pkl",
+  "ntp_calibrator_path": "/projectnb/mcnet/kevin/coastal/scholarlm/analysis/results/synthetic_probe/2026-10-02-pond-synthetic-probe-mistral-nemo-12b-v3-01/trained_probe/ntp_calibrator.pkl"
+}
