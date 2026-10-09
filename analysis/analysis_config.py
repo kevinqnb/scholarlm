@@ -44,7 +44,10 @@ KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation"}
 
 # Params keys for analysis/synthetic_probe_train.py, which trains on one
 # judge_interp run and so has no experiment_ids / ground_truth_file.
-SYNTHETIC_PROBE_PARAM_KEYS = ("dataset", "judge_interp_id")
+# use_platt_scaling (bool, required) picks head_probe.pkl / ntp_calibrator.pkl
+# (CalibratedClassifierCV, probe_variant: platt) vs the *_noplatt.pkl variants.
+SYNTHETIC_PROBE_STR_KEYS = ("dataset", "judge_interp_id")
+SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + ("use_platt_scaling",)
 
 
 def _resolve_ground_truth_path(ground_truth_file: str) -> Path:
@@ -187,14 +190,17 @@ def load_synthetic_probe_config(path: Path) -> dict:
     """Load analysis/synthetic_probe_train.py's analysis-configs/<id>.yaml.
 
     Same envelope as load_analysis_config, but params carries exactly
-    ``dataset`` (pond / nfix / supermat) and ``judge_interp_id`` (the
-    judge_interp run on the synthetic corpus to train on) -- no
-    experiment_ids / ground_truth_file, which belong to the scoring
-    consumers. Any other params key is an error.
+    ``dataset`` (pond / nfix / supermat), ``judge_interp_id`` (the
+    judge_interp run on the synthetic corpus to train on) and
+    ``use_platt_scaling`` (bool: True wraps the head probe / NTP calibrator in
+    CalibratedClassifierCV and saves the unsuffixed pickles; False saves the
+    ``_noplatt`` pickles) -- no experiment_ids / ground_truth_file, which belong
+    to the scoring consumers. Any other params key is an error.
 
     Raises:
         ValueError: malformed envelope, or params keys != SYNTHETIC_PROBE_PARAM_KEYS,
-            either value not a non-empty string, or seed not an int.
+            dataset / judge_interp_id not a non-empty string, use_platt_scaling
+            not a bool, or seed not an int.
     ``seed`` seeds every split and LogisticRegression in synthetic_probe_train.py.
     """
     cfg = _load_envelope(path)
@@ -204,10 +210,13 @@ def load_synthetic_probe_config(path: Path) -> dict:
             f"{path}: params keys {sorted(keys)} must be exactly "
             f"{sorted(SYNTHETIC_PROBE_PARAM_KEYS)}"
         )
-    for k in SYNTHETIC_PROBE_PARAM_KEYS:
+    for k in SYNTHETIC_PROBE_STR_KEYS:
         v = cfg["params"][k]
         if not isinstance(v, str) or not v:
             raise ValueError(f"{path}: params.{k} must be a non-empty string, got {v!r}")
+    if not isinstance(cfg["params"]["use_platt_scaling"], bool):
+        raise ValueError(
+            f"{path}: params.use_platt_scaling must be a bool, got {cfg['params']['use_platt_scaling']!r}")
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     return cfg

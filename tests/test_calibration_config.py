@@ -67,7 +67,8 @@ def world(tmp_path, monkeypatch):
             _write_exp(exp_root, ds, "judge_interp", i[split], {"judge": "qwen-2.5-7b", "synthetic_file": f"data/{ds}/{f}"})
         (ac_root / f"{i['probe_cfg']}.yaml").write_text(yaml.safe_dump({
             "id": i["probe_cfg"], "project": "scholarlm", "description": "t", "seed": 1,
-            "params": {"dataset": ds, "judge_interp_id": i["train"]}}))
+            "params": {"dataset": ds, "judge_interp_id": i["train"],
+                       "use_platt_scaling": True}}))
         rd = probe_res / i["probe_cfg"]
         rd.mkdir(parents=True)
         probe_dir = rd / "trained_probe"

@@ -216,7 +216,8 @@ def test_get_section_optional_key_allowed_but_not_required():
 # ── load_synthetic_probe_config ───────────────────────────────────────────
 
 def _probe_cfg(**params_override):
-    params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01"}
+    params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01",
+              "use_platt_scaling": False}
     params.update(params_override)
     return {"id": "probe-01", "project": "scholarlm", "description": "d", "seed": GOOD_SEED, "params": params}
 
@@ -237,6 +238,18 @@ def test_synthetic_probe_config_rejects_missing_key(tmp_path):
     del cfg["params"]["dataset"]
     with pytest.raises(ValueError, match="must be exactly"):
         ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+
+
+def test_synthetic_probe_config_rejects_missing_use_platt_scaling(tmp_path):
+    cfg = _probe_cfg()
+    del cfg["params"]["use_platt_scaling"]
+    with pytest.raises(ValueError, match="must be exactly"):
+        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", cfg))
+
+
+def test_synthetic_probe_config_rejects_non_bool_use_platt_scaling(tmp_path):
+    with pytest.raises(ValueError, match="use_platt_scaling must be a bool"):
+        ac.load_synthetic_probe_config(_write(tmp_path, "probe-01", _probe_cfg(use_platt_scaling="true")))
 
 
 def test_synthetic_probe_config_rejects_id_mismatch(tmp_path):

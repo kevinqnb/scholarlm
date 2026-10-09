@@ -8,3 +8,4 @@ seed: 342
 params:
   dataset: nfix
   judge_interp_id: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-train-01
+  use_platt_scaling: true

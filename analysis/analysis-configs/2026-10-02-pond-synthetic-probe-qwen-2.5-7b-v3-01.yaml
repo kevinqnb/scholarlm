@@ -8,3 +8,4 @@ seed: 342
 params:
   dataset: pond
   judge_interp_id: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01
+  use_platt_scaling: true

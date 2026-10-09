@@ -138,19 +138,16 @@ def _load_synthetic_run(run_id: str, dataset: str):
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
 
-# Platt scaling (CalibratedClassifierCV) on the training data is OFF by default:
-# analysis/calibration_updated_v3.py now fits its own Platt scalers per test
-# dataset on a small labelled real sample, so scaling here would be redundant.
+# Platt scaling (CalibratedClassifierCV) on the training data is set per run by
+# the analysis config's required params.use_platt_scaling (no default).
 # False fits the base Pipeline's own .fit()/.predict_proba() directly, saved
-# under a '_noplatt' filename suffix -- calibration_updated_v3's config must
-# use probe_variant: noplatt to load these. Set True to wrap the head probe /
-# NTP calibrator in CalibratedClassifierCV as before (saved under the
-# unsuffixed 'head_probe.pkl' / 'ntp_calibrator.pkl', matching
-# probe_variant: platt).
+# under a '_noplatt' filename suffix -- calibration configs must use
+# probe_variant: noplatt to load these. True wraps the head probe / NTP
+# calibrator in CalibratedClassifierCV (saved under the unsuffixed
+# 'head_probe.pkl' / 'ntp_calibrator.pkl', matching probe_variant: platt).
 # NOTE: 2026-08-10-no-platt-scaling-01 found no-Platt worse than train-side
 # Platt under the OLD pipeline (no downstream Platt); that comparison does not
 # apply now that v3 recalibrates, but the old numbers are not comparable.
-USE_PLATT_SCALING = False
 
 # Layer-output probe training + its combined cross-model plot (bottom of this
 # file). Set False to skip both and only train/save the head probe + NTP
@@ -180,13 +177,16 @@ def cv_score(probe, X, y, kfold_cv):
     )
 
 
-def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed):
+def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed,
+                    use_platt_scaling):
     """Train the head probe + NTP calibrator (and, if TRAIN_LAYER_PROBE, the
     layer probe) for one (dataset, judge_model) synthetic run and save them
     under ``probe_dir`` (``out_dir``/trained_probe, where
     analysis/calibration_ids.py resolves them). Figures and results.json go
     under ``out_dir`` (RESULTS_ROOT/<analysis config id>/). ``seed`` (the
     analysis config's) seeds every split and LogisticRegression.
+    ``use_platt_scaling`` (the analysis config's params.use_platt_scaling)
+    picks the CalibratedClassifierCV-wrapped vs ``_noplatt`` artifacts.
     """
     print(f'\n{"="*60}\nDataset: {DATASET}   Judge: {JUDGE_MODEL}\n{"="*60}')
 
@@ -294,7 +294,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         ))
     ])
 
-    if USE_PLATT_SCALING:
+    if use_platt_scaling:
         head_probe = CalibratedClassifierCV(
             estimator=base_probe,
             method='sigmoid',  # 'sigmoid' is Platt scaling
@@ -323,7 +323,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
 
     # Save probe + metadata for use in synthetic_probe_test.ipynb
     probe_dir.mkdir(parents=True, exist_ok=True)
-    probe_filename = 'head_probe.pkl' if USE_PLATT_SCALING else 'head_probe_noplatt.pkl'
+    probe_filename = 'head_probe.pkl' if use_platt_scaling else 'head_probe_noplatt.pkl'
     probe_path = probe_dir / probe_filename
 
     probe_data = {
@@ -351,7 +351,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     ntp_base = Pipeline([
         ('clf', LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000, random_state=seed))
     ])
-    if USE_PLATT_SCALING:
+    if use_platt_scaling:
         ntp_calibrated = CalibratedClassifierCV(
             estimator=ntp_base,
             method='sigmoid',
@@ -364,7 +364,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     ntp_train_ece = float(compute_ece(ntp_cal_probs_tr, y_train))
     print(f"  NTP calibrator train ECE: {ntp_train_ece:.4f}")
 
-    ntp_cal_filename = 'ntp_calibrator.pkl' if USE_PLATT_SCALING else 'ntp_calibrator_noplatt.pkl'
+    ntp_cal_filename = 'ntp_calibrator.pkl' if use_platt_scaling else 'ntp_calibrator_noplatt.pkl'
     ntp_cal_path = probe_dir / ntp_cal_filename
     joblib.dump({
         'calibrator':       ntp_calibrated,
@@ -386,7 +386,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
             'top_k':              TOP_K,
             'top_k_heads':        [[int(l), int(h)] for l, h in top_k_heads],
             'train_prevalence':   float(y_train.mean()),
-            'use_platt_scaling':  USE_PLATT_SCALING,
+            'use_platt_scaling':  use_platt_scaling,
             'head_probe_train':   train_metrics,
             'ntp_calibrator_train_ece': ntp_train_ece,
             'probe_path':         str(probe_path),
@@ -516,8 +516,9 @@ def main():
 
     out_dir = RESULTS_ROOT / cfg['id']
     out_dir.mkdir(parents=True, exist_ok=True)
+    use_platt_scaling = cfg['params']['use_platt_scaling']
     print(f'[synthetic_probe_train] analysis_config={cfg["id"]} dataset={dataset} '
-          f'judge_interp_id={run_id} out_dir={out_dir}')
+          f'judge_interp_id={run_id} use_platt_scaling={use_platt_scaling} out_dir={out_dir}')
 
     JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs = (
         _load_synthetic_run(run_id, dataset)
@@ -526,7 +527,7 @@ def main():
     DATASETS_SEEN = [dataset]
     JUDGE_MODELS_SEEN = [JUDGE_MODEL]
     _train_and_save(dataset, JUDGE_MODEL, syn_responses, syn_activations,
-                    syn_layer_outputs, probe_dir, out_dir, cfg['seed'])
+                    syn_layer_outputs, probe_dir, out_dir, cfg['seed'], use_platt_scaling)
 
     # ─────────────────────────────────────────────────────────────────
     # Create combined plot of F1 scores by layer for all judge models

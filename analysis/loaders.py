@@ -261,8 +261,8 @@ def load_trained_ntp_calibrator(
         variant: ``None`` (default) loads the Platt-scaled baseline
             (``ntp_calibrator.pkl``). ``"noplatt"`` loads the
             CalibratedClassifierCV-free variant (``ntp_calibrator_noplatt.pkl``)
-            saved when ``synthetic_probe_train.py``'s ``USE_PLATT_SCALING`` is
-            set to ``False``.
+            saved when the synthetic-probe config's ``params.use_platt_scaling``
+            is ``false``.
         source: synthetic training corpus the calibrator was fit on. ``None``
             (default) is the baseline ``trained_probe/`` directory, unchanged.
             A non-``None`` value (e.g. ``"v2"``) reads from the parallel
@@ -305,8 +305,8 @@ def load_trained_probe(
         variant: ``None`` (default) loads the Platt-scaled baseline
             (``head_probe.pkl``). ``"noplatt"`` loads the
             CalibratedClassifierCV-free variant (``head_probe_noplatt.pkl``)
-            saved when ``synthetic_probe_train.py``'s ``USE_PLATT_SCALING`` is
-            set to ``False``. Only defined for ``ptype="head"`` — the layer
+            saved when the synthetic-probe config's ``params.use_platt_scaling``
+            is ``false``. Only defined for ``ptype="head"`` — the layer
             probe has no no-Platt variant (out of scope for
             2026-08-10-no-platt-scaling-01).
         source: synthetic training corpus the probe was fit on. ``None``

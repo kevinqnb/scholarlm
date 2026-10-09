@@ -1,7 +1,7 @@
 """Rung-1 unit tests for analysis/synthetic_probe_train.py: the id-addressed
 run loader (_load_synthetic_run), and main() on a tiny hand-built judge_interp run
 -- where it writes (analysis/results/synthetic_probe/<analysis config id>/, never
-the judge_interp run dir), which artifacts the USE_PLATT_SCALING flag selects, and
+the judge_interp run dir), which artifacts params.use_platt_scaling selects, and
 same-seed determinism.
 
 Hand-built fixtures under tmp_path, monkeypatching utils.EXPERIMENT_CONFIGS_ROOT,
@@ -171,7 +171,7 @@ def test_load_synthetic_run_measurement_id_mismatch_raises(fixture_roots):
 @pytest.fixture
 def run_main(tmp_path, monkeypatch, fixture_roots):
     """Build a tiny pond run, point spt at tmp dirs, return a callable that runs
-    main() with the given USE_PLATT_SCALING and returns the output dirs."""
+    main() with the given params.use_platt_scaling and returns the output dirs."""
     exp_root, results_root = fixture_roots
     _write_experiment_config(exp_root, "pond", EXP_ID, "qwen-2.5-7b")
     run_dir = _write_run_output(results_root, "pond", EXP_ID, "qwen-2.5-7b")
@@ -181,14 +181,14 @@ def run_main(tmp_path, monkeypatch, fixture_roots):
 
     cfg_path = tmp_path / "analysis-configs" / f"{PROBE_CFG_ID}.yaml"
     cfg_path.parent.mkdir()
-    with open(cfg_path, "w") as f:
-        yaml.safe_dump({
-            "id": PROBE_CFG_ID, "project": "scholarlm", "description": "test", "seed": 7,
-            "params": {"dataset": "pond", "judge_interp_id": EXP_ID},
-        }, f)
 
     def _run(use_platt: bool):
-        monkeypatch.setattr(spt, "USE_PLATT_SCALING", use_platt)
+        with open(cfg_path, "w") as f:
+            yaml.safe_dump({
+                "id": PROBE_CFG_ID, "project": "scholarlm", "description": "test", "seed": 7,
+                "params": {"dataset": "pond", "judge_interp_id": EXP_ID,
+                           "use_platt_scaling": use_platt},
+            }, f)
         monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", str(cfg_path)])
         spt.main()
         out_dir = probe_results_root / PROBE_CFG_ID
