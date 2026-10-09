@@ -1,6 +1,6 @@
 """Recovery vs validity as a decision threshold on probe / NTP probability is raised.
 
-For each configured (train, test) cell and method, keep extractions with prob >= t
+For each configured (train, test) cell and method, keep extractions with prob > t
 and compute recovery and validity as in recovery_validity.py. Probabilities come
 from a v4 calibration run's real cells. Split postprocessed rows inherit their
 parent's probability. Only documents the calibration scored are used, so the t = 0
@@ -194,10 +194,12 @@ def row_probabilities(ext_df: pd.DataFrame, scored: pd.DataFrame, column: str) -
 
 def decision_threshold_curve(n_gt: int, edges, validity_labels: np.ndarray, probs: np.ndarray,
                              thresholds) -> pd.DataFrame:
-    """Recovery and validity of the rows with ``probs >= t``, for each t.
+    """Recovery and validity of the rows with ``probs > t``, for each t.
 
     Each point comes from metrics.py and is cross-checked by a vectorised computation.
-    With nothing kept, recovery is 0 and validity is NaN.
+    With nothing kept (e.g. t = 1.0), recovery is 0 and validity is NaN. At t = 0.0 a row
+    with probability exactly 0.0 is dropped, so the caller's t = 0 known-answer assertion
+    fails loudly if any probability is exactly 0.
 
     Args:
         n_gt: Number of ground-truth rows.
@@ -220,7 +222,7 @@ def decision_threshold_curve(n_gt: int, edges, validity_labels: np.ndarray, prob
 
     rows = []
     for t in thresholds:
-        keep = probs >= t
+        keep = probs > t
         n_kept = int(keep.sum())
         recovery = recovery_rate_from_labels(n_gt, edges, keep)
         recovered = np.zeros(n_gt, dtype=bool)

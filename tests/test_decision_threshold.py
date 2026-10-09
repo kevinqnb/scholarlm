@@ -89,11 +89,11 @@ def test_curve_known_answers():
     assert np.isnan(curve["validity"].iloc[2])
 
 
-def test_threshold_is_inclusive():
+def test_threshold_is_strict():
     n_gt, edges, validity, probs = restricted()
     curve = decision_threshold_curve(n_gt, edges, validity, probs, [0.6])
-    # e0 (0.9) and e3 (exactly 0.6) both survive >= 0.6.
-    assert curve["n_kept"].tolist() == [2]
+    # Only e0 (0.9) survives > 0.6; e3 (exactly 0.6) is dropped.
+    assert curve["n_kept"].tolist() == [1]
 
 
 def test_permutation_control_is_seed_deterministic():
