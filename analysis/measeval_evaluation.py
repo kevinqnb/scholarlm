@@ -15,6 +15,17 @@ in the OCR text (same offsets as ground_truth.json).
   - Entity: ``name``, taking the occurrence nearest the chosen Quantity.
   - Unlocatable records are dropped and counted in ``Coverage``, never guessed.
 
+One Quantity row per distinct span. Records carry no offsets, so several records
+(e.g. one per entity measured at 9.8%) land on the same Quantity span. The scorer
+counts every (submission row, gold) overlap as a true positive, so repeated rows
+would inflate TP; span-tagging systems emit each span once. Records on one span
+are merged:
+  - Entity: among the records whose entity was located, the one whose span text has
+    the largest sum of fuzzy similarities (rapidfuzz ``fuzz.ratio`` / 100, as in
+    scholarlm.utils.deduplication) to the other records' entity texts, so near-variants
+    of a name vote together. Ties go to the earliest record.
+  - Unit: the most common unit (null counts as "no unit"); ties go to the earliest record.
+
 Usage
 -----
     python analysis/measeval_evaluation.py --experiment-id <id> [--dev] [--out-dir DIR]
@@ -24,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import subprocess
 import sys
@@ -36,6 +48,7 @@ sys.path.insert(0, str(REPO_ROOT / 'experiments'))
 sys.path.insert(0, str(REPO_ROOT))
 
 import pandas as pd
+from rapidfuzz import fuzz
 
 import utils as paths
 from analysis.common.config import get_section, load_analysis_config
@@ -52,6 +65,9 @@ _PAGE_WRAPPER_RE = re.compile(r'^<page number="\d+">\n|\n</page>\s*$')
 
 # Treated as missing for span lookup (models sometimes emit the string "None").
 _NULLISH = {None, "None", ""}
+
+# Float-noise tolerance when comparing summed similarities for a tie.
+_TIE_ATOL = 1e-9
 
 
 # ---------------------------------------------------------------------------
@@ -204,23 +220,73 @@ class Coverage:
     entity_dropped_no_name: int = 0
     entity_dropped_unlocatable: int = 0
     entity_located: int = 0
+    # Span merging: located records -> one Quantity row per distinct span.
+    quantity_rows_written: int = 0
+    quantity_records_merged: int = 0
+    unit_conflict_spans: int = 0
+    unit_tie_spans: int = 0
+    entity_conflict_spans: int = 0
+    entity_tie_spans: int = 0
+    entity_none_spans: int = 0
 
     def as_dict(self) -> dict:
         """All counters as a plain dict."""
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
 
 
+def pick_unit(units: list[str | None]) -> tuple[str | None, bool]:
+    """Most common unit among records merged onto one Quantity span.
+
+    Args:
+        units: One unit per record, in record order; None = no unit.
+
+    Returns:
+        ``(unit, tied)``: ties go to the unit whose first record came earliest.
+    """
+    counts: dict = {}
+    for u in units:
+        counts[u] = counts.get(u, 0) + 1
+    best = max(counts.values())
+    tied = [u for u in counts if counts[u] == best]   # dict order = first-occurrence order
+    return tied[0], len(tied) > 1
+
+
+def pick_entity(texts: list[str]) -> tuple[int, bool]:
+    """Index of the entity text with the largest summed fuzzy similarity to the others.
+
+    Similarity is ``fuzz.ratio / 100``. Identical texts score 1.0 with each other, so
+    the most common text wins unless near-variants of another text outweigh it.
+
+    Args:
+        texts: Located entity span texts, in record order. Non-empty.
+
+    Returns:
+        ``(index, tied)``: ties (within _TIE_ATOL) go to the earliest index.
+    """
+    assert texts, "pick_entity needs at least one entity"
+    scores = [
+        math.fsum(fuzz.ratio(a, b) / 100.0 for j, b in enumerate(texts) if j != i)
+        for i, a in enumerate(texts)
+    ]
+    best = max(scores)
+    tied = [i for i, s in enumerate(scores) if best - s <= _TIE_ATOL]
+    # Identical texts always tie with each other; only distinct winning texts are a real tie.
+    return tied[0], len({texts[i] for i in tied}) > 1
+
+
 def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
     """Write one MeasEval TSV per document with Quantity and MeasuredEntity rows.
 
-    Each row's ``text`` is the document substring at its offsets, as the scorer requires.
+    Records whose Quantity lands on the same span are merged into one annotSet (see
+    the module docstring for the unit and entity rules). Each row's ``text`` is the
+    document substring at its offsets, as the scorer requires.
 
     Args:
         df: One row per extraction, with document_id, name, value, units.
         out_dir: Submission directory.
 
     Returns:
-        Span-recovery ``Coverage``.
+        Span-recovery and merging ``Coverage``.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -228,8 +294,8 @@ def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
 
     for document_id, group in df.groupby("document_id"):
         doc_text = load_doc_text(document_id)
-        rows = []
-        annot_set = 0
+        # (qstart, qend) -> [(unit, entity span or None), ...] in record order.
+        spans: dict[tuple[int, int], list] = {}
 
         for _, rec in group.iterrows():
             coverage.total_records += 1
@@ -242,43 +308,65 @@ def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
                     coverage.quantity_dropped_unlocatable += 1
                 continue
             coverage.quantity_located += 1
-            qstart, qend, qtext = quantity
-
-            annot_set += 1
-            # annotId must match r'T?\d*-?\d+'; gold uses T<type>-<annotSet> (1=Quantity, 2=Entity).
-            q_annot_id = f"T1-{annot_set}"
+            qstart, qend, _ = quantity
             units = rec.get("units")
-            other = json.dumps({"unit": str(units)}) if units not in _NULLISH else ""
-            rows.append({
-                "docId": document_id, "annotSet": annot_set, "annotType": "Quantity",
-                "startOffset": qstart, "endOffset": qend, "annotId": q_annot_id,
-                "text": qtext, "other": other,
-            })
+            unit = None if units in _NULLISH else str(units)
 
+            entity = None
             name = rec.get("name")
             if name in _NULLISH:
                 coverage.entity_dropped_no_name += 1
+            else:
+                entity = resolve_entity_span(doc_text, name, anchor=(qstart, qend))
+                if entity is None:
+                    coverage.entity_dropped_unlocatable += 1
+                else:
+                    coverage.entity_located += 1
+            spans.setdefault((qstart, qend), []).append((unit, entity))
+
+        rows = []
+        for annot_set, ((qstart, qend), members) in enumerate(spans.items(), start=1):
+            coverage.quantity_rows_written += 1
+            coverage.quantity_records_merged += len(members) - 1
+
+            unit, unit_tied = pick_unit([u for u, _ in members])
+            coverage.unit_conflict_spans += len({u for u, _ in members}) > 1
+            coverage.unit_tie_spans += unit_tied
+            # annotId must match r'T?\d*-?\d+'; gold uses T<type>-<annotSet> (1=Quantity, 2=Entity).
+            q_annot_id = f"T1-{annot_set}"
+            rows.append({
+                "docId": document_id, "annotSet": annot_set, "annotType": "Quantity",
+                "startOffset": qstart, "endOffset": qend, "annotId": q_annot_id,
+                "text": doc_text[qstart:qend], "other": json.dumps({"unit": unit}) if unit else "",
+            })
+
+            entities = [e for _, e in members if e is not None]
+            if not entities:
+                coverage.entity_none_spans += 1
                 continue
-            entity = resolve_entity_span(doc_text, name, anchor=(qstart, qend))
-            if entity is None:
-                coverage.entity_dropped_unlocatable += 1
-                continue
-            coverage.entity_located += 1
-            estart, eend, etext = entity
-            e_annot_id = f"T2-{annot_set}"
+            idx, entity_tied = pick_entity([e[2] for e in entities])
+            coverage.entity_conflict_spans += len({(e[0], e[1]) for e in entities}) > 1
+            coverage.entity_tie_spans += entity_tied
+            estart, eend, etext = entities[idx]
             # Placeholder relation: the scorer crashes on an empty `other`. Never reported.
             rows.append({
                 "docId": document_id, "annotSet": annot_set, "annotType": "MeasuredEntity",
-                "startOffset": estart, "endOffset": eend, "annotId": e_annot_id,
+                "startOffset": estart, "endOffset": eend, "annotId": f"T2-{annot_set}",
                 "text": etext, "other": json.dumps({"HasQuantity": q_annot_id}),
             })
 
+        for row in rows:
+            assert row["text"] == doc_text[row["startOffset"]:row["endOffset"]], row
         if rows:
             pd.DataFrame(rows, columns=[
                 "docId", "annotSet", "annotType", "startOffset", "endOffset",
                 "annotId", "text", "other",
             ]).to_csv(out_dir / f"{document_id}.tsv", sep="\t", index=False)
 
+    c = coverage
+    assert c.total_records == c.quantity_dropped_no_value + c.quantity_dropped_unlocatable + c.quantity_located
+    assert c.quantity_located == c.entity_dropped_no_name + c.entity_dropped_unlocatable + c.entity_located
+    assert c.quantity_located == c.quantity_rows_written + c.quantity_records_merged
     return coverage
 
 
@@ -647,6 +735,9 @@ def _result_rows(result: dict, analysis_config_id: str) -> list[dict]:
             "n_records_total": coverage["total_records"],
             "n_quantity_located": coverage["quantity_located"],
             "n_entity_located": coverage["entity_located"],
+            "n_quantity_rows_written": coverage["quantity_rows_written"],
+            "n_quantity_records_merged": coverage["quantity_records_merged"],
+            "n_entity_tie_spans": coverage["entity_tie_spans"],
             "analysis_config_id": analysis_config_id,
         }
         for metric_name, column in _METRIC_COLUMNS.items():
