@@ -51,7 +51,7 @@ SECTION_KEYS = ("calibration_config_id", "rows", "deduplication_config_id", "con
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
-                   "n_shuffle_samples")
+                   "n_shuffle_samples", "outlier_adjust")
 # Which calibration script built calibration_config_id's predictions.pkl (and so which
 # config loader validates it): calibration_updated_v3.py (Platt-scaled real cells) or
 # calibration_updated_v4.py (prior-shift / intercept-fit recalibrated real cells).
@@ -115,7 +115,9 @@ def load_meta_v2_config(path: Path) -> dict:
     the unfiltered set. ``min_n``: a
     positive int; a Q-Q line / W1 score is only computed for a sample of at least
     that many rows. ``n_shuffle_samples``: a positive int, the number of confidence
-    permutations behind the W1 permutation control.
+    permutations behind the W1 permutation control. ``outlier_adjust``: a bool; true
+    multiplies the NTP / probe confidences by the non-outlier factor of
+    analysis/outlier_weight.py before thresholding.
     """
     cfg = _load_envelope(path)
     unexpected = set(cfg["params"]) - {SECTION_V2}
@@ -137,6 +139,8 @@ def load_meta_v2_config(path: Path) -> dict:
     ns = sec["n_shuffle_samples"]
     if isinstance(ns, bool) or not isinstance(ns, int) or ns <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.n_shuffle_samples must be a positive int, got {ns!r}")
+    if not isinstance(sec["outlier_adjust"], bool):
+        raise ValueError(f"{path}: {SECTION_V2}.outlier_adjust must be a bool, got {sec['outlier_adjust']!r}")
     mn = sec["min_n"]
     if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")

@@ -8,7 +8,8 @@ Simplified from analysis/meta_updated.py:
    and each t in params.meta_v2.thresholds, setting ``{method}_ge_{t:.2f}`` keeps the
    held-out extracted rows with confidence >= t (ties at t are kept). The grid must
    start at t = 0, which keeps every row: it IS the unfiltered extracted set (there is
-   no separate ``extracted`` setting in the tables or figures).
+   no separate ``extracted`` setting in the tables or figures). The confidence is the
+   adjusted one when params.meta_v2.outlier_adjust.
 2. Every sample is unweighted, so quantiles, Q-Q lines and distances come straight
    from library functions: np.quantile(method='hazen') for quantiles (both Q-Q axes,
    stats table), scipy.stats.wasserstein_distance (W1, over the full empirical
@@ -34,10 +35,12 @@ Outputs under analysis/results/meta/<config id>/:
   wasserstein.csv  W1 (raw, and log10 for LOG_SCALE_ATTRIBUTES) from each compared
                    setting to the reference, two-sample percentile bootstrap CI, and
                    the permutation control w1_shuffled_{mean,lo,hi}[_log]: over
-                   params.meta_v2.n_shuffle_samples permutations of the method's
-                   confidences within the cell, the same threshold keeps exactly as many
-                   rows as the real one; mean and 2.5/97.5 percentiles of the resulting
-                   W1. A real W1 inside that range means thresholding on the confidence
+                   params.meta_v2.n_shuffle_samples permutations of the method's RAW
+                   confidences within the cell, each multiplied by its row's own
+                   non-outlier factor (1 unless params.meta_v2.outlier_adjust); mean and
+                   2.5/97.5 percentiles of the resulting W1. Without adjustment the same
+                   threshold keeps exactly as many rows as the real one; with it the count
+                   differs (n_ext_shuffled_mean). A real W1 inside that range means thresholding on the confidence
                    does no better than keeping the same number of random rows. NB the
                    shuffled subsets spread over more documents than a real high-t
                    subset (n_docs_ext_shuffled_mean vs n_docs_ext).
@@ -78,6 +81,7 @@ from analysis.meta_updated import (
     QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION,
     _attr_title, _axis_limits, _valid_range, load_data,
 )
+from analysis.outlier_weight import add_outlier_columns
 from analysis.meta_inputs import SECTION as META_SECTION, SECTION_V2, load_meta_v2_config, resolve_meta_inputs
 
 # Non-threshold settings, per reference: the reference's own setting first. `valid` is
@@ -306,43 +310,61 @@ def _summarize_shuffles(vals: np.ndarray, ci: float) -> dict:
 
 def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: list[float], log_scale: bool,
                 min_n: int, n_shuffle: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
-    """Permutation control for one (cell, method): per shuffle, permute the method's
-    confidences over the cell's extracted rows, then apply every threshold (one
+    """Permutation control for one (cell, method): per shuffle, permute the method's RAW
+    confidences (``{prob_col}_raw``) over the cell's extracted rows, multiply by each row's
+    own ``outlier_factor`` (so the non-outlier filter is kept and only the link between
+    the model's confidence and the row is broken), then apply every threshold (one
     permutation shared by all thresholds, so shuffled subsets are nested like the real
-    ones) and take W1 to `ref`. A permutation keeps the multiset of confidences, so at
-    each t the shuffled subset has exactly as many rows as the real one (asserted).
+    ones) and take W1 to `ref`.
+
+    With no outlier adjustment every factor is 1, the shuffled scores are a permutation of
+    the real ones, and a threshold keeps exactly as many rows as the real one (asserted).
+    With adjustment the products form a different multiset, so the shuffled row count
+    differs from the real one; it is reported as n_ext_shuffled_mean, since W1 depends on
+    the sample size.
 
     Returns {t: dict(w1_shuffled_{mean,lo,hi,n_ok,skip}, w1_shuffled_log_*,
-    n_docs_ext_shuffled_mean)}; log columns NaN / 'n/a' off LOG_SCALE_ATTRIBUTES."""
-    prob = ext[METHOD_PROB_COL[method]].to_numpy(dtype=float)
+    n_docs_ext_shuffled_mean, n_ext_shuffled_mean)}; log columns NaN / 'n/a' off
+    LOG_SCALE_ATTRIBUTES."""
+    col = METHOD_PROB_COL[method]
+    raw = ext[f'{col}_raw'].to_numpy(dtype=float)
+    factor = ext['outlier_factor'].to_numpy(dtype=float)
+    assert np.isfinite(raw).all() and np.isfinite(factor).all() and ((factor > 0) & (factor <= 1)).all()
+    prob = ext[col].to_numpy(dtype=float)
+    assert np.array_equal(prob, raw * factor), f'{col} != {col}_raw * outlier_factor'
+    exact = bool((factor == 1.0).all())
     x = ext['converted_value'].to_numpy(dtype=float)
     doc_codes, _ = pd.factorize(ext['document_id'])
     real_n = {t: int((prob >= t).sum()) for t in thresholds}
     ref_log = _scale(ref, True)
-    raw = {t: np.full(n_shuffle, np.nan) for t in thresholds}
+    w_raw = {t: np.full(n_shuffle, np.nan) for t in thresholds}
     lg = {t: np.full(n_shuffle, np.nan) for t in thresholds}
     n_docs = {t: np.zeros(n_shuffle) for t in thresholds}
+    n_rows = {t: np.zeros(n_shuffle) for t in thresholds}
     for s in range(n_shuffle):
-        p = _shuffle_rng(seed, ecosystem, attribute, method, s).permutation(prob)
+        p = _shuffle_rng(seed, ecosystem, attribute, method, s).permutation(raw) * factor
         for t in thresholds:
             keep = p >= t
-            assert int(keep.sum()) == real_n[t], 'a permutation changed the number of rows kept'
+            if exact:
+                assert int(keep.sum()) == real_n[t], 'a permutation changed the number of rows kept'
             xs = x[keep]
+            n_rows[t][s] = xs.size
             n_docs[t][s] = np.unique(doc_codes[keep]).size
             if ref.size >= min_n and xs.size >= min_n:
-                raw[t][s] = stats.wasserstein_distance(ref, xs)
+                w_raw[t][s] = stats.wasserstein_distance(ref, xs)
             if log_scale:
                 xl = _scale(xs, True)
                 if ref_log.size >= min_n and xl.size >= min_n:
                     lg[t][s] = stats.wasserstein_distance(ref_log, xl)
     out = {}
     for t in thresholds:
-        r = _summarize_shuffles(raw[t], ci)
+        r = _summarize_shuffles(w_raw[t], ci)
         l = (_summarize_shuffles(lg[t], ci) if log_scale
              else dict(mean=np.nan, lo=np.nan, hi=np.nan, n_ok=0, skip='n/a'))
         out[t] = {**{f'w1_shuffled_{k}': v for k, v in r.items()},
                   **{f'w1_shuffled_log_{k}': v for k, v in l.items()},
-                  'n_docs_ext_shuffled_mean': float(n_docs[t].mean())}
+                  'n_docs_ext_shuffled_mean': float(n_docs[t].mean()),
+                  'n_ext_shuffled_mean': float(n_rows[t].mean())}
     return out
 
 
@@ -597,6 +619,12 @@ def main():
     inputs = resolve_meta_inputs(v1_cfg, DATASET, sec['calibration_version'])
     gt_df, ext_df, manifest = load_data(v1_cfg, inputs, restrict_to_shared_docs=False,
                                         unit_conversion=UNIT_CONVERSION_V2)
+    # Thresholds, survival and the real W1 read ext_df's ntp_prob / probe_prob (adjusted when
+    # outlier_adjust); the shuffled control permutes the *_raw columns and re-applies the
+    # row's own outlier_factor (see shuffled_w1).
+    ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
+    if moments is not None:
+        print(f"[meta_v2] outlier_adjust: confidences x exp(-(x-mu)^2/2sigma^2)\n{moments}")
 
     out_dir = META_ROOT / cfg['id']
     figures_dir = out_dir / 'figures'
@@ -635,7 +663,9 @@ def main():
     manifest.update(analysis_config_id=cfg['id'], script='analysis/meta_updated_v2.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
                     reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds,
-                    min_n=min_n, calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
+                    min_n=min_n, outlier_adjust=sec['outlier_adjust'],
+                    outlier_moments=None if moments is None else moments.to_dict('index'),
+                    calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
 
 

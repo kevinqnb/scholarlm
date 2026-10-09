@@ -102,7 +102,7 @@ BASE = {
         'judge_combine_id': 'jc', 'judge_model': 'qwen-2.5-7b', 'probe_train_dataset': 'pond',
         'rows': 'deduplicated', 'deduplication_config_id': 'dd', 'confidence': 'center',
         'missing_threshold': 0.2, 'attributes': None, 'attribute_set_sizes': [2, 3], 'n_clusters': 5, 'knn_neighbors': 5,
-        'gammas': {'start': 0.0, 'stop': 5.0, 'num': 3}, 'n_runs': 2, 'n_random_samples': 2, 'n_shuffle_samples': 2,
+        'gammas': {'start': 0.0, 'stop': 5.0, 'num': 3}, 'n_runs': 2, 'n_shuffle_samples': 2, 'outlier_adjust': False,
     }},
 }
 
@@ -125,6 +125,8 @@ def test_config_valid_fixed_attributes(tmp_path):
 
 @pytest.mark.parametrize('mutate, match', [
     (lambda s: s.pop('n_runs'), 'missing required'),
+    (lambda s: s.pop("outlier_adjust"), "missing required"),
+    (lambda s: s.update(outlier_adjust=1), "outlier_adjust"),
     (lambda s: s.pop('n_shuffle_samples'), 'missing required'),
     (lambda s: s.update(n_shuffle_samples=0), 'n_shuffle_samples'),
     (lambda s: s.update(extra=1), 'unexpected'),
@@ -151,3 +153,37 @@ def test_kish_n_eff():
     from analysis.clustering import kish_n_eff
     assert kish_n_eff(np.ones(7)) == pytest.approx(7)
     assert kish_n_eff(np.array([1.0, 0.0, 0.0])) == pytest.approx(1)
+
+
+# ── RowShuffler (outlier_adjust shuffled control) ──
+
+def _shuffler_fixture():
+    from analysis.clustering import RowShuffler
+    # entities 1, 2 (dense) and 3 (outside the dense index); attributes a, b.
+    ext = pd.DataFrame({
+        'entity_id': [1, 1, 1, 2, 2, 3, 3],
+        'attribute': ['a', 'a', 'b', 'a', 'b', 'a', 'b'],
+        'converted_value': [1., 2., 3., 4., 5., 6., 7.],
+        'probe_prob_raw': [0.5, 1.0, 0.8, 0.4, 0.6, 0.9, 0.9],
+        'outlier_factor': [1.0, 0.5, 1.0, 0.25, 1.0, 1.0, 1.0],
+    })
+    return RowShuffler(ext, 'probe_prob', pd.Index([1, 2]), ['a', 'b'])
+
+
+def test_row_shuffler_hand_computed_real_confidence():
+    sh = _shuffler_fixture()
+    # entity 1: cell a = mean(0.5*1, 1.0*0.5) = 0.5, cell b = 0.8 -> 0.4; entity 2: a = 0.4*0.25 = 0.1, b = 0.6 -> 0.06
+    assert sh.confidence(sh.raw) == pytest.approx([0.4, 0.06])
+
+
+def test_row_shuffler_permutes_within_attribute_and_keeps_factor():
+    sh = _shuffler_fixture()
+    # all raw = 1 -> confidence is purely the factors, whatever the permutation
+    c = sh.confidence(np.ones(len(sh.raw)))
+    assert c == pytest.approx([0.75 * 1.0, 0.25 * 1.0])
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        v = sh.shuffled(rng)
+        assert ((v >= 0) & (v <= 1)).all()
+    # the b attribute has 3 rows, a has 4: a permutation of raw within attribute preserves each attribute's multiset
+    assert sorted(sh.raw[sh.attr_rows[1]]) == [0.6, 0.8, 0.9]

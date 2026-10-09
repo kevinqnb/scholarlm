@@ -48,7 +48,8 @@ def fixture():
         'converted_value': vals, 'label': label,
         'probe_prob': probe, 'ntp_prob': np.full(40, 0.5),
     })
-    return gt, ext
+    from analysis.outlier_weight import add_outlier_columns
+    return gt, add_outlier_columns(ext, False)[0]
 
 
 def row(df, setting):
@@ -253,7 +254,7 @@ GOOD = {
         "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
-        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10,
+        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False,
     }},
 }
 
@@ -282,6 +283,8 @@ def test_good_config_loads(tmp_path):
     lambda m: m.update(thresholds=[-0.1, 0.0]),
     lambda m: m.update(thresholds=[0.0, True]),
     lambda m: m.update(min_n=0),
+    lambda m: m.pop("outlier_adjust"),
+    lambda m: m.update(outlier_adjust=1),
     lambda m: m.pop("n_shuffle_samples"),
     lambda m: m.update(n_shuffle_samples=0),
     lambda m: m.update(n_shuffle_samples=True),
@@ -337,3 +340,26 @@ def test_unit_conversion_v2_additions_only():
         assert all(UNIT_CONVERSION_V2[a][u] == f for u, f in m.items())
     with pytest.raises(AssertionError, match='unit_conversion attributes'):
         convert_units(rows, {'tn': {}}, value_col='v')
+
+
+def test_shuffled_control_with_outlier_factor():
+    """Raw confidences are permuted and each row keeps its own factor, so the shuffled
+    row count may differ from the real one (no equal-count assertion), and is reported."""
+    from analysis.meta_updated_v2 import shuffled_w1
+    gt, ext = fixture()
+    ext = ext.copy()
+    factor = np.where(np.arange(len(ext)) % 2 == 0, 1.0, 0.5)
+    ext['outlier_factor'] = factor
+    ext['probe_prob_raw'] = ext['probe_prob']
+    ext['probe_prob'] = ext['probe_prob_raw'] * factor
+    ref = gt['converted_value'].to_numpy()
+    out = shuffled_w1(ref, ext, 'probe', [0.0, 0.45], False, MIN_N, 30, 0, ECO, ATTR)
+    assert out[0.0]['n_ext_shuffled_mean'] == len(ext)            # t = 0 keeps everything
+    # real: rows with raw*factor >= 0.45 ; shuffled mean is generally not equal to it
+    real_n = int((ext['probe_prob'] >= 0.45).sum())
+    assert out[0.45]['n_ext_shuffled_mean'] != real_n
+    # with factors all 1 the old equal-count assertion still applies and the column equals real n
+    ext1 = ext.assign(outlier_factor=1.0, probe_prob=ext['probe_prob_raw'])
+    out1 = shuffled_w1(ref, ext1, 'probe', [0.45], False, MIN_N, 30, 0, ECO, ATTR)
+    assert out1[0.45]['n_ext_shuffled_mean'] == int((ext1['probe_prob'] >= 0.45).sum())
+

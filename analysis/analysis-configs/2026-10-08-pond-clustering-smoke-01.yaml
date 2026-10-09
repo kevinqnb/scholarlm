@@ -1,7 +1,7 @@
 id: 2026-10-08-pond-clustering-smoke-01
 project: scholarlm
 description: >
-  SMOKE (n_runs=2, n_random_samples=2, 3 gammas). analysis/clustering.py on the pond
+  SMOKE (n_runs=2, 3 gammas). analysis/clustering.py on the pond
   deduplicated rows (2026-10-06-pond-deduplication-01, cluster-center confidence) with the
   v4 intercept-fit recalibrated pond->pond probe / NTP confidences of
   2026-10-08-calibration-v4-gemma27b-qwen-2.5-7b-intercept-fit-sample-01 -- the same inputs as
@@ -28,5 +28,5 @@ params:
     knn_neighbors: 5
     gammas: {start: 0.0, stop: 5.0, num: 3}
     n_runs: 2
-    n_random_samples: 2
     n_shuffle_samples: 2
+    outlier_adjust: false
