@@ -1,16 +1,9 @@
-"""Non-outlier adjustment of the probe / NTP confidences.
+"""Down-weight probe / NTP confidences for extracted values that look like outliers.
 
-The stored confidences score validity only; they ignore how plausible the extracted
-number is. ``adjust_confidences`` multiplies each by the heuristic non-outlier
-probability
-
-    exp(-(x - mu)^2 / (2 sigma^2)),
-
-with mu / sigma the mean / sample std (ddof=1) of the extracted ``converted_value``s of
-the row's attribute, raw scale, pooled over every extracted row that has a value (all
-ecosystems, all documents in ``ext_df``). The factor is in (0, 1], so adjusted
-confidences stay in [0, 1]. Rows without a ``converted_value`` get NaN adjusted
-confidences (they are dropped downstream; NaN keeps a stray use loud).
+The stored confidences score validity only, not how plausible the number is.
+``add_outlier_columns`` multiplies each by exp(-(x - mu)^2 / (2 sigma^2)), with mu and
+sigma (ddof=1) taken per attribute over all valued rows of ``ext_df``. The factor is in
+(0, 1]. Rows without ``converted_value`` get NaN so any downstream use fails loudly.
 """
 from __future__ import annotations
 
@@ -21,7 +14,17 @@ PROB_COLS = ('ntp_prob', 'probe_prob')
 
 
 def attribute_moments(ext_df: pd.DataFrame) -> pd.DataFrame:
-    """Per-attribute (mu, sigma, n) of ``converted_value`` over the valued rows."""
+    """Per-attribute mean, sample std and count of ``converted_value``.
+
+    Args:
+        ext_df: Extraction rows with ``attribute`` and ``converted_value``.
+
+    Returns:
+        DataFrame indexed by attribute with columns ``mu``, ``sigma``, ``n``.
+
+    Raises:
+        ValueError: An attribute has n < 2 or zero variance.
+    """
     v = ext_df.dropna(subset=['converted_value'])
     g = v.groupby('attribute')['converted_value']
     m = pd.DataFrame({'mu': g.mean(), 'sigma': g.std(ddof=1), 'n': g.size()})
@@ -32,7 +35,15 @@ def attribute_moments(ext_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def non_outlier_factor(ext_df: pd.DataFrame, moments: pd.DataFrame) -> pd.Series:
-    """exp(-(x-mu)^2 / (2 sigma^2)) per row of ext_df; NaN where there is no value."""
+    """Gaussian non-outlier factor exp(-(x-mu)^2 / (2 sigma^2)) for each row.
+
+    Args:
+        ext_df: Extraction rows with ``attribute`` and ``converted_value``.
+        moments: Output of ``attribute_moments``.
+
+    Returns:
+        Series aligned to ``ext_df``, in (0, 1], NaN where there is no value.
+    """
     mu = ext_df['attribute'].map(moments['mu'])
     sigma = ext_df['attribute'].map(moments['sigma'])
     has_value = ext_df['converted_value'].notna()
@@ -44,14 +55,21 @@ def non_outlier_factor(ext_df: pd.DataFrame, moments: pd.DataFrame) -> pd.Series
 
 
 def add_outlier_columns(ext_df: pd.DataFrame, adjust: bool) -> tuple[pd.DataFrame, pd.DataFrame | None]:
-    """Copy of ext_df with, for each PROB_COL c, ``{c}_raw`` (the stored confidence) and a
-    per-row ``outlier_factor``; c itself becomes ``{c}_raw * outlier_factor``.
+    """Add ``{c}_raw`` and ``outlier_factor`` columns and rescale each PROB_COL ``c``.
 
-    adjust=False: factor is 1.0 everywhere and c is unchanged (moments is None).
-    adjust=True: factor as in the module docstring (NaN, hence NaN c, for rows without a
-    value). The shuffled controls permute ``{c}_raw`` and multiply by the row's own
-    factor, so they keep the outlier filter and break only the confidence-to-row link.
-    Row count / order unchanged. Returns (df, per-attribute moments for the manifest)."""
+    Shuffled controls permute ``{c}_raw`` and reapply each row's own factor, so they
+    keep the outlier filter and break only the confidence-to-row link.
+
+    Args:
+        ext_df: Extraction rows with ``ntp_prob``, ``probe_prob``, ``attribute``,
+            ``converted_value``.
+        adjust: If False, the factor is 1.0 and confidences are unchanged.
+
+    Returns:
+        Tuple of:
+            - copy of ``ext_df`` (same rows and order) with ``c = {c}_raw * outlier_factor``
+            - per-attribute moments for the manifest, or None when ``adjust`` is False
+    """
     out = ext_df.copy()
     for c in PROB_COLS:
         out[f'{c}_raw'] = ext_df[c]

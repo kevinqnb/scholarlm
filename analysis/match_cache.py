@@ -1,77 +1,20 @@
-"""Compute and cache extraction <-> ground-truth matches, by experiment id.
+"""Build the ground-truth <-> extraction match cache for each experiment id.
 
-The only job of this script: given a list of experiment ids and an explicit
-ground-truth file, load each run's extraction file, that ground truth, and
-the run's dataset's matching rules (``strict_matching``/``fuzzy_matching``/
-``fuzzy_threshold``/``numeric_coerce`` on its ``DatasetConfig``, in
-``experiments/dataset-configs/{dataset}.py`` -- see ``get_matching_config``
-below and ``DatasetConfig``'s own docstring), run match_datasets, and write
-the result to analysis/results/match-cache/<id>/match_cache.pkl (see
-``MATCH_CACHE_ROOT`` / ``match_cache_path`` -- one flat directory per
-experiment id, deliberately NOT inside the run's own experiments/results/
-directory: a cache is an analysis artifact derived from a run plus a ground
-truth file, not run output), plus a match_cache.meta.json sidecar next to it
-recording exactly which ground truth file and which extraction file it was
-built against (repo-relative path + sha256 for each, plus the ground truth's
-row count) -- see ``build_match_cache``. Caches written to the old per-run
-location (experiments/results/.../<id>/match_cache.pkl) are never read; there
-is no fallback to it. The
-extraction file is ``postprocessed.json`` (analysis/postprocessing.py's
-qualifier-fill/unit-standardization output) when it exists, else
-``final.json`` with a printed warning -- see ``extraction_path``. Always
-recomputes and overwrites -- this is the point where a fresh, authoritative
-cache gets built, not a read-through cache that might silently keep serving a
-match computed under an older matching configuration or a different ground
-truth/extraction file.
-analysis/common/metrics.py's recovery_rate/validity_rate (via analysis/common/loaders.py's
-cached_match) read the file this writes; they never write it themselves.
+Matches each run's extraction (postprocessed.json, else final.json) against an
+explicitly given ground-truth file, using the dataset's DatasetConfig matching
+rules. Writes analysis/results/match-cache/<id>/match_cache.pkl plus a
+match_cache.meta.json sidecar with both input files' paths and hashes. Always
+rebuilds; readers (common/matching.py, metrics.py) never build.
 
-The ground truth file is never inferred from the run's dataset's own
-DatasetConfig.ground_truth_file -- it is always given explicitly, either via
-an analysis config's ``params.ground_truth_file`` (see
-analysis/common/config.py) or, in ad-hoc CLI mode, ``--ground-truth-file``.
-This is deliberate: reading it implicitly off the DatasetConfig would let a
-cache (and everything scored against it) silently start using a different
-file if that config is later repointed (e.g. a revised ground-truth review
-pass), with no record of which file actually produced a given number.
-
-The cache is always built with fuzzy_threshold=0.0, regardless of the
-dataset's configured "selected" threshold -- this is the same convention
-every existing caller of cached_match already uses (recovery_rate,
-validity_rate, per_paper_metrics, calibration*.py, probe_pca.py: every one
-of them hardcodes fuzzy_threshold=0.0 in its own cached_match call and then
-filters the returned edges/edge_weights by `w >= threshold` itself; before
-2026-10-03 that compare was a strict `w > threshold`). A
-threshold only decides which strict-matched candidate edges count as a
-match; it never changes which candidates exist. Baking a non-zero threshold
-into match_datasets' own edge construction would permanently discard every
-below-threshold edge from the pickle, so a smaller/different threshold
-later could never be recovered from that cache without redoing the full
-O(n_gt * n_extraction) strict+fuzzy scan. Caching at 0.0 stores every
-strict-matched candidate once; edges_above_threshold (analysis/common/matching.py) applies
-whatever threshold is wanted on top of that, for free.
-
-This is meant to be the one centralized place matching *runs* live, reading
-matching *rules* from each dataset's own committed config (not a copy kept
-here) -- add a new dataset's rules to its DatasetConfig in
-experiments/dataset-configs/{dataset}.py rather than growing another copy of
-get_matching_rules-style logic elsewhere. This deliberately does not touch
-the legacy analysis/ablation.py/baselines.py's own get_matching_rules, which
-predates this and scores a different column shape (``converted_value``, not
-``point_value``) against an earlier extraction/judge era -- the two are
-allowed to diverge (see DatasetConfig's ``strict_matching`` docstring).
+- The ground-truth file is always explicit, so a repointed DatasetConfig can't
+  silently change results.
+- The cache is built at fuzzy_threshold 0.0 so any threshold can be applied later
+  without rescanning.
 
 Usage
 -----
-    python analysis/match_cache.py <experiment_id> [<experiment_id> ...] \\
-        --ground-truth-file <path>
+    python analysis/match_cache.py <experiment_id> [...] --ground-truth-file <path>
     python analysis/match_cache.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
-    bash analysis/match_cache.sh
-
-``--config`` reads ``params.experiment_ids`` and ``params.ground_truth_file``
-from an analysis-configs/recovery-validity/<id>.yaml (see analysis/common/config.py) instead
-of taking them as flags -- mutually exclusive with passing ids/
-``--ground-truth-file`` directly.
 """
 from __future__ import annotations
 
@@ -109,13 +52,20 @@ def cached_match(
     cache_path: Path,
     fuzzy_normalizers: dict | None = None,
 ) -> tuple:
-    """Run match_datasets at fuzzy_threshold=0.0 and write the result to
-    cache_path, overwriting any existing cache there.
+    """Run match_datasets at threshold 0.0 and overwrite the pickle at ``cache_path``.
 
-    No fuzzy_threshold parameter on purpose -- this always computes and
-    caches the full strict-matched candidate graph (see module docstring).
-    Use edges_above_threshold on the returned edges/edge_weights to apply an
-    actual threshold.
+    Takes no threshold on purpose; apply one later with ``edges_above_threshold``.
+
+    Args:
+        df_left: Ground-truth frame.
+        df_right: Extraction frame.
+        strict_matching: Exact-match column mapping.
+        fuzzy_matching: Fuzzy-match column mapping.
+        cache_path: Pickle to write.
+        fuzzy_normalizers: Per-column normalizers for fuzzy matching.
+
+    Returns:
+        ``(matching, edges, edge_weights)``.
     """
     result = match_datasets(
         df_left,
@@ -132,32 +82,22 @@ def cached_match(
 
 
 def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
-    """Compute and cache the match for one experiment id against an
-    explicitly given ground truth file. Returns the cache path.
+    """Build and write the match cache and sidecar for one experiment.
 
-    ``ground_truth_path`` has no default (CLAUDE.md: no inferred default for
-    a value that changes the reported numbers) -- callers get it from an
-    analysis config's ``params.ground_truth_file``
-    (analysis.analysis_config.get_ground_truth_path) or, in ad-hoc CLI mode,
-    ``--ground-truth-file``. Matching *rules* (strict/fuzzy/threshold/
-    numeric_coerce) still come from the experiment's own dataset's
-    DatasetConfig -- only which ground truth *rows* to match against is
-    pinned explicitly now.
+    Columns in the dataset's ``numeric_coerce`` are parsed to float first;
+    unparseable values become NaN and are printed.
 
-    The extraction file itself is resolved via extraction_path() --
-    postprocessed.json when it exists, else final.json with a warning. Which
-    one was actually used (path + sha256) is recorded in the
-    match_cache.meta.json sidecar alongside the ground truth's own, so a
-    cache built against final.json can never be silently scored later as if
-    it reflected a postprocessed.json that didn't exist yet -- see
-    analysis/recovery_validity.py's assert_extraction_matches_cache.
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file (no default; it changes the numbers).
+
+    Returns:
+        Path of the written match_cache.pkl.
 
     Raises:
-        FileNotFoundError: no postprocessed.json or final.json for this id.
-        ValueError: the ground truth and extraction frames share no
-            document_id at all -- almost certainly the wrong ground truth
-            file for this experiment's dataset, not a real zero-overlap
-            result.
+        FileNotFoundError: No postprocessed.json or final.json.
+        ValueError: Ground truth and extraction share no document_id (almost
+            certainly the wrong ground-truth file).
     """
     result_dir = paths.find_result_dir(experiment_id)
     dataset = result_dir.relative_to(paths.RESULTS_ROOT).parts[0]
@@ -201,11 +141,8 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
             df[col] = parsed
 
     cache_path = match_cache_path(experiment_id)
-    # Delete any stale sidecar before writing a new pkl -- if this call is
-    # interrupted between the pkl write and the sidecar write below, a leftover
-    # sidecar from a PREVIOUS (different) ground truth file would otherwise
-    # sit next to the new pkl and make assert_ground_truth_matches_cache
-    # wrongly pass on the next run.
+    # Remove the old sidecar first so an interrupted build can't leave a stale
+    # sidecar vouching for the new pkl.
     match_cache_meta_path(experiment_id).unlink(missing_ok=True)
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
@@ -244,6 +181,7 @@ def build_match_cache(experiment_id: str, ground_truth_path: Path) -> Path:
 
 
 def main() -> None:
+    """CLI: build caches for ids given directly or via ``--config`` (exactly one)."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to compute and cache matches for.")
     parser.add_argument(

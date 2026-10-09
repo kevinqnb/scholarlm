@@ -1,15 +1,22 @@
+"""Shared drawing helpers for reliability-diagram plots (support masking, curve drawing)."""
 import numpy as np
 import matplotlib.colors as mcolors
 from matplotlib.collections import LineCollection
 
 
 def support_mask(probs, mesh, sigma):
-    """Boolean mask of mesh points inside the data's support, padded by one kernel width.
+    """Mask of mesh points within the predictions' range, padded by one kernel width.
 
-    relplot's smoother is mu(x) = sum K(x-p_i) y_i / (sum K(x-p_i) + 1e-4), so where
-    no predictions lie near x the curve is an artifact (0/1e-4 -> 0, or an upward
-    extrapolation), not an estimate. Only mesh points in [min(p) - sigma, max(p) + sigma]
-    are drawn.
+    relplot's kernel smoother has no data far from the predictions, so the curve
+    there is an artifact rather than an estimate; those points should not be drawn.
+
+    Args:
+        probs: 1-D predicted probabilities.
+        mesh: 1-D x-grid the curve is evaluated on.
+        sigma: Kernel bandwidth used as padding.
+
+    Returns:
+        Boolean array, True for mesh points in [min(probs) - sigma, max(probs) + sigma].
     """
     probs, mesh = np.asarray(probs, dtype=float), np.asarray(mesh, dtype=float)
     assert probs.ndim == 1 and len(probs) > 0 and np.isfinite(probs).all()
@@ -23,15 +30,24 @@ def support_mask(probs, mesh, sigma):
 # toward transparent without a segment fully disappearing.
 CURVE_DENSITY_ALPHA_FLOOR = 0.15
 
-# Dashed curves as (period, on) in mesh-point units. matplotlib's own '--' restarts
-# its dash offset on every segment of a LineCollection of 2-point segments (needed
-# for per-segment alpha), which renders solid, so the "off" segments are dropped.
+# Dash pattern as (period, on) in mesh points. matplotlib's '--' renders solid on a
+# LineCollection of 2-point segments, so dashes are made by dropping "off" segments.
 DASH_PERIOD, DASH_ON = 10, 7
 
 
 def draw_reliability_curve(ax, summary, color, *, linestyle, lw, line_zorder, band_zorder):
-    """Draw one nested_bootstrap summary: the line with density-weighted alpha, and
-    its percentile band, both only on the summary's ``drawn`` mesh points."""
+    """Draw one nested_bootstrap summary: a density-faded curve plus its percentile band.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        summary: Dict with arrays ``mesh``, ``line``, ``density``, ``drawn`` (bool mask),
+            ``lower`` and ``upper`` (band edges), all the same shape.
+        color: Matplotlib color for line and band.
+        linestyle: ``'-'`` or ``'--'``.
+        lw: Line width.
+        line_zorder: z-order of the curve.
+        band_zorder: z-order of the band.
+    """
     mesh, line, density, drawn = summary['mesh'], summary['line'], summary['density'], summary['drawn']
     assert mesh.shape == line.shape == density.shape == drawn.shape
     density_norm = density / density.max() if density.max() > 0 else np.ones_like(density)

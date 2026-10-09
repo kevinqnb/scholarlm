@@ -1,6 +1,8 @@
-"""Recovery and validity rates for ScholarlM extraction evaluation: from a fresh
-matching (recovery_rate / validity_rate) or from precomputed per-row labels
-(recovery_rate_from_labels / validity_rate_from_labels)."""
+"""Recovery and validity rates, with optional Wilson 95% CIs.
+
+``recovery_rate`` / ``validity_rate`` match against ground truth; the ``_from_labels``
+variants take precomputed edges and labels.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,19 +24,22 @@ def recovery_rate(
     cache_path: Path | None = None,
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Run ``match_datasets`` and return recall/precision statistics.
+    """Fraction of ground-truth rows with at least one matching extraction.
+
+    Matching is computed (or read from cache) at threshold 0.0; edges are then kept
+    if their weight is >= ``fuzzy_threshold``.
 
     Args:
-        extraction_df: Extracted measurements (rows = measurements).
-        ground_truth_df: Manual ground truth (rows = measurements).
-        strict_matching: Exact-match column mapping passed to ``match_datasets``.
-        fuzzy_matching: Fuzzy-match column mapping passed to ``match_datasets``.
-        fuzzy_threshold: Minimum fuzzy score for a match.
-        cache_path: Optional path for a disk-cached result (see ``cached_match``).
-        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+        ground_truth_df: Manual ground truth, one row per measurement.
+        extraction_df: Extracted measurements, one row per measurement.
+        strict_matching: Exact-match column mapping.
+        fuzzy_matching: Fuzzy-match column mapping.
+        fuzzy_threshold: Minimum edge weight that counts as a match.
+        cache_path: Match cache to read or write (see ``cached_match``).
+        return_ci: Also return a Wilson 95% CI.
 
     Returns:
-        Recovery rate (float), or (rate, lower, upper) if return_ci=True.
+        Recovery rate, or ``(rate, lower, upper)`` if ``return_ci``.
     """
     matching, edges, edge_weights = cached_match(
         ground_truth_df,
@@ -65,16 +70,16 @@ def recovery_rate_from_labels(
     predicted_labels: np.ndarray,
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Compute recovery rate given pre-filtered edges and predicted labels.
-
-    ``edges`` should already be filtered by the desired fuzzy threshold — this
-    function applies no additional weight filtering.
+    """Fraction of ground-truth rows matched by at least one predicted-valid extraction.
 
     Args:
-        n_ground_truth: Total number of ground-truth rows.
-        edges: Pre-filtered (gt_idx, ex_idx) pairs from ``match_datasets``.
-        predicted_labels: Boolean array (length = n_extractions) where True = predicted valid.
-        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+        n_ground_truth: Number of ground-truth rows.
+        edges: (gt_idx, ex_idx) pairs, already filtered by threshold.
+        predicted_labels: Boolean per extraction, True = predicted valid.
+        return_ci: Also return a Wilson 95% CI.
+
+    Returns:
+        Recovery rate, or ``(rate, lower, upper)`` if ``return_ci``.
     """
     ground_truth_matched = np.zeros(n_ground_truth, dtype = bool)
     for gt_idx, ex_idx in edges:
@@ -103,26 +108,31 @@ def validity_rate(
     return_ci: bool = False,
     denominator_n: int | None = None,
 ) -> float | tuple[float, float, float]:
-    """Compute validity rate (1 - hallucination rate) from judged extraction results.
+    """Fraction of extractions that are valid (1 - hallucination rate).
+
+    A row is valid if it matches ground truth or the judge marked it valid.
+    Returns 0.0 if the denominator is 0.
 
     Args:
-        extraction_df: Extracted measurements (rows = measurements).
-        ground_truth_df: Manual ground truth (rows = measurements).
-        judged_df: DataFrame with a boolean ``label_col`` column (``True`` = valid).
-        strict_matching: Exact-match column mapping passed to ``match_datasets``.
-        fuzzy_matching: Fuzzy-match column mapping passed to ``match_datasets``.
-        fuzzy_threshold: Minimum fuzzy score for a match.
-        cache_path: Optional path for a disk-cached result (see ``cached_match``).
-        label_col: Column name for the combined judgement label.
-        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
-        denominator_n: Total number of rows the system emitted, when ``extraction_df``
-            holds only a subset of them. Callers that pre-filter unusable rows (no
-            value, no units) pass the pre-filter count here, so those rows stay in the
-            denominator and are counted invalid rather than excused. Defaults to
-            ``len(extraction_df)``, i.e. no filtering took place.
+        ground_truth_df: Manual ground truth, one row per measurement.
+        extraction_df: Extracted measurements, one row per measurement.
+        strict_matching: Exact-match column mapping.
+        fuzzy_matching: Fuzzy-match column mapping.
+        fuzzy_threshold: Minimum edge weight that counts as a match.
+        judged_df: Judge output aligned to ``extraction_df``; None means no judge labels.
+        cache_path: Match cache to read or write (see ``cached_match``).
+        label_col: Boolean judge-label column in ``judged_df``.
+        return_ci: Also return a Wilson 95% CI.
+        denominator_n: Row count before the caller filtered out unusable rows, so
+            those rows count as invalid instead of being excused. None means
+            ``len(extraction_df)``.
 
     Returns:
-        Validity rate (float), or (rate, lower, upper) if return_ci=True.
+        Validity rate, or ``(rate, lower, upper)`` if ``return_ci``.
+
+    Raises:
+        ValueError: ``judged_df`` length differs from ``extraction_df``, or
+            ``denominator_n`` is smaller than the rows scored.
     """
     if judged_df is not None and len(judged_df) != len(extraction_df):
         raise ValueError(
@@ -170,15 +180,20 @@ def validity_rate_from_labels(
     predicted_labels: np.ndarray,
     return_ci: bool = False,
 ) -> float | tuple[float, float, float]:
-    """Compute validity rate (precision) from ground-truth and predicted label arrays.
+    """Precision of predicted-valid extractions: TP / (TP + FP).
 
-    Validity = fraction of predicted-positive extractions that are truly positive,
-    i.e. TP / (TP + FP).  Returns 0.0 when no extractions are predicted positive.
+    Returns 0.0 (and a (0, 0) CI) when nothing is predicted valid.
 
     Args:
-        labels: Boolean array where True = ground-truth valid.
-        predicted_labels: Boolean array where True = predicted valid.
-        return_ci: If True, return (rate, lower, upper) Wilson 95% CI tuple.
+        labels: Boolean per extraction, True = actually valid.
+        predicted_labels: Boolean per extraction, True = predicted valid.
+        return_ci: Also return a Wilson 95% CI.
+
+    Returns:
+        Validity rate, or ``(rate, lower, upper)`` if ``return_ci``.
+
+    Raises:
+        ValueError: The two arrays differ in length.
     """
     if len(labels) != len(predicted_labels):
         raise ValueError(

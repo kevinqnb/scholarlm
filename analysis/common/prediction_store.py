@@ -1,11 +1,8 @@
 """Row identity and provenance for the 'real' cells of calibration predictions.pkl.
 
-analysis/calibration.py stores, with every real cell's score arrays, the
-measurement_id / document_id / attribute of each scored row, the sha256 of the
-final.json and combined.json they were scored from, and the Platt sample's ids.
-Consumers (common/meta_inputs.stored_prediction_rows, decision_threshold.py) then join scores to rows by
-measurement_id and verify all of it, instead of rebuilding the row selection by
-position. Import-side-effect free so it can be unit tested on a hand-built fixture.
+Each real cell stores its rows' ids, the input-file hashes and the Platt sample ids,
+so consumers (meta_inputs, decision_threshold.py) join scores by measurement_id and
+verify them rather than relying on row position.
 """
 from __future__ import annotations
 
@@ -21,9 +18,21 @@ PROVENANCE_KEYS = ("measurement_ids", "document_ids", "attributes", "final_sha25
 
 
 def real_cell_provenance(final_df, idx, platt_idx, excluded_docs, final_path, combined_path, calibration_config_id, seed) -> dict:
-    """Provenance for one real cell. ``idx`` are the final_df positions scored in the
-    cell, ``platt_idx`` the positions of the Platt-fit sample, ``excluded_docs`` the
-    documents the cell excludes. Asserts the identities are consistent before storing."""
+    """Build the provenance dict stored alongside one real cell's scores.
+
+    Args:
+        final_df: Extraction rows from final.json.
+        idx: Positions in ``final_df`` scored in this cell.
+        platt_idx: Positions of the Platt-fit sample (must not overlap ``idx``).
+        excluded_docs: Document ids excluded from the cell.
+        final_path: Path to final.json (hashed).
+        combined_path: Path to combined.json (hashed).
+        calibration_config_id: Id of the calibration config that built the cell.
+        seed: Seed used for the cell.
+
+    Returns:
+        Dict with the PROVENANCE_KEYS entries.
+    """
     assert final_df["measurement_id"].is_unique, "final.json measurement_id is not unique"
     sub = final_df.iloc[np.asarray(idx)]
     mids = sub["measurement_id"].to_numpy(dtype=np.int64)
@@ -45,9 +54,22 @@ def real_cell_provenance(final_df, idx, platt_idx, excluded_docs, final_path, co
 
 def check_real_cell(cell: dict, final_df: pd.DataFrame, excluded_docs: set, final_sha256: str,
                     calibration_config_id: str) -> pd.DataFrame:
-    """Verify a stored real cell against the final.json now in use and return its rows
-    (measurement_id, document_id, attribute, ntp_prob, probe_prob, label), in the
-    cell's order. Raises on any mismatch -- there is no positional fallback."""
+    """Verify a stored real cell against the current final.json and return its rows.
+
+    Args:
+        cell: One real cell from predictions.pkl.
+        final_df: Extraction rows from the current final.json.
+        excluded_docs: Documents the cell must exclude.
+        final_sha256: Hash of the current final.json.
+        calibration_config_id: Expected id of the config that built the cell.
+
+    Returns:
+        DataFrame (measurement_id, document_id, attribute, ntp_prob, probe_prob, label)
+        in the cell's stored order.
+
+    Raises:
+        ValueError: Any missing key, hash, id-set, length or finiteness mismatch.
+    """
     missing = [k for k in ("probe_probs", "ntp_probs", "labels", *PROVENANCE_KEYS) if k not in cell]
     if missing:
         raise ValueError(f"stored cell lacks {missing} -- predictions.pkl predates row provenance; rerun calibration")

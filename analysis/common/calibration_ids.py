@@ -1,10 +1,7 @@
-"""Run-id resolution for the calibration-family scripts
-(calibration.py, calibration_validated.py, platt_scaling.py) and
-their consumers (decision_threshold.py, meta_inputs.py).
+"""Resolve and cross-check the run ids a calibration config names.
 
-Kept apart from those scripts because they do their real data loading at import
-time -- these helpers have no side effects, so they're what can actually be unit
-tested (tests/test_calibration_ids.py, tests/test_calibration_config.py).
+Used by calibration.py, calibration_validated.py, platt_scaling.py,
+decision_threshold.py and meta_inputs.py. Side-effect free so it can be unit tested.
 """
 from __future__ import annotations
 
@@ -29,10 +26,15 @@ from analysis.common.config import (  # noqa: E402
 
 
 def resolve_run(run_id: str) -> tuple[str, str]:
-    """(dataset, experiment_type) for a result-tree run id, read from its own
-    committed config -- never trusted from a caller's registry entry, so a
-    copy-paste id pasted under the wrong dataset/type fails immediately
-    instead of quietly reading someone else's run.
+    """Look up a run's dataset and experiment type from its own committed config.
+
+    Reading these from the config (not the caller) makes a misfiled id fail loudly.
+
+    Args:
+        run_id: Experiment id.
+
+    Returns:
+        ``(dataset, experiment_type)``.
 
     Raises:
         FileNotFoundError: If no config exists for this id.
@@ -43,8 +45,15 @@ def resolve_run(run_id: str) -> tuple[str, str]:
 
 
 def pinned_run_dir(run_id: str, expected_dataset: str, expected_type: str) -> Path:
-    """experiments/results/{expected_dataset}/{expected_type}/{run_id}/, after
-    verifying the id's own config actually lives there.
+    """Result directory of a run, after checking its config matches the expected location.
+
+    Args:
+        run_id: Experiment id.
+        expected_dataset: Dataset the caller expects the run to belong to.
+        expected_type: Experiment type the caller expects.
+
+    Returns:
+        ``experiments/results/{expected_dataset}/{expected_type}/{run_id}``.
 
     Raises:
         FileNotFoundError: If no config exists for this id.
@@ -65,12 +74,23 @@ def pinned_run_dir(run_id: str, expected_dataset: str, expected_type: str) -> Pa
 
 _SYNTHETIC_PROBE_RESULTS_ROOT = analysis_results_dir("synthetic-probe")
 
-# _v<N> plus an optional letter suffix: supermat's realigned split is v3s
-# (data/supermat/realign_probe_split.py), a different corpus version from v3.
+# _v<N> plus an optional letter (e.g. supermat's realigned split v3s, distinct from v3).
 _SYN_FILE_VERSION_RE = re.compile(r"_(v\d+[a-z]?)(?:_diag)?\.json$")
 
 
 def _synthetic_file_version(run_id: str, cfg: dict) -> str:
+    """Synthetic-corpus version from a judge_interp config's ``params.synthetic_file``.
+
+    Args:
+        run_id: Experiment id (for error messages).
+        cfg: The run's experiment config.
+
+    Returns:
+        Version string such as ``"v3"`` or ``"v3s"``.
+
+    Raises:
+        ValueError: The file name has no ``_v<N>[_diag].json`` suffix.
+    """
     synthetic_file = cfg["params"].get("synthetic_file")
     match = _SYN_FILE_VERSION_RE.search(str(synthetic_file))
     if match is None:
@@ -82,40 +102,44 @@ def _synthetic_file_version(run_id: str, cfg: dict) -> str:
 
 
 def _run_config(run_id: str, expected_dataset: str, expected_type: str) -> tuple[Path, dict]:
-    """(run_dir, committed experiment config) for run_id, with its (dataset, type) verified."""
+    """Result directory and committed config of a run, with its location verified.
+
+    Args:
+        run_id: Experiment id.
+        expected_dataset: Expected dataset.
+        expected_type: Expected experiment type.
+
+    Returns:
+        ``(run_dir, experiment_config_dict)``.
+    """
     run_dir = pinned_run_dir(run_id, expected_dataset, expected_type)
     return run_dir, paths.load_experiment_config(paths.find_experiment_config(run_id))
 
 
 def resolve_calibration_inputs(cfg: dict) -> dict:
-    """Resolve and cross-check every run a calibration config names.
+    """Resolve every run a calibration config names and check they belong together.
 
-    Pure id/config/path logic: touches no activations or pickles beyond the
-    probe-training ``results.json`` existence/path check, so it can run (and be
-    unit tested) without any heavy data. Each wrong-companion-run failure mode
-    is a hard error here, because every downstream join is positional or
-    keyed by measurement_id and would otherwise silently score the wrong run:
+    Downstream joins are by position or measurement_id, so a mismatched companion
+    run would be scored silently. Checks:
+      - each id lives under the expected dataset and experiment type;
+      - judge_interp was run on this extraction, and judge_combine includes it;
+      - one judge model across all real and synthetic judge_interp runs;
+      - synthetic train and test runs share a corpus version;
+      - the synthetic-probe config is for this dataset and its trained probe exists.
 
-      - extraction/judge_interp/judge_combine/probe/test ids each live under
-        the expected dataset and experiment type (read from their own config);
-      - the real judge_interp run's params.extraction_id is the config's
-        extraction_id, and the judge_combine run's params.judge_ids contains
-        the judge_interp id (ties the judgement_p_true_<judge> column to the
-        activations that go with it);
-      - one judge model across every real/synthetic judge_interp run;
-      - synthetic train and both test runs share the synthetic-corpus version
-        (synthetic_file's _v<N> suffix), so a v3 probe is never evaluated on
-        a v2 test set;
-      - the synthetic-probe analysis config's params.dataset is this dataset,
-        and its results.json points into
-        analysis/results/synthetic-probe/<probe config id>/trained_probe/.
+    Args:
+        cfg: Loaded calibration analysis config.
 
     Returns:
-        {'judge_model': str,
-         'datasets': {ds: {'extraction_dir', 'judge_interp_dir',
-                           'judge_combine_dir', 'ground_truth_path',
-                           'syn_train_id', 'probe_dir', 'syn_test_id',
-                           'syn_test_dir'}}}
+        Dict with:
+            - ``judge_model``: the shared judge model name
+            - ``datasets``: per dataset, ``extraction_dir``, ``judge_interp_dir``,
+              ``judge_combine_dir``, ``ground_truth_path``, ``syn_train_id``,
+              ``probe_dir``, ``syn_test_id``, ``syn_test_dir``
+
+    Raises:
+        FileNotFoundError: A config, probe config or probe results.json is missing.
+        ValueError: Any of the checks above fails.
     """
     params = cfg["params"]
     judge_models: dict[str, str] = {}

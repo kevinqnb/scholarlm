@@ -1,15 +1,9 @@
-"""Fit-row sample and recalibration maps for analysis/calibration.py.
+"""Recalibration maps and the fit-row sampler used by analysis/calibration.py.
 
-Import-side-effect free so it can be unit tested on a hand-built fixture.
-
-Maps are in apply_platt's ``(coef, intercept)`` format. The first two have slope 1:
-  - prior_shift: under label shift (P(x|y) fixed between the scorer's training data and
-    the test data), Bayes' rule gives ``logit p_te(x) = logit p_tr(x) + logit pi_te -
-    logit pi_tr``, so the intercept is ``logit pi_te - logit pi_tr``.
-  - intercept_fit: the intercept MLE on labelled fit rows (scholarlm's fit_intercept),
-    so the fit rows' mapped probabilities average to their label rate.
-  - platt_fit: slope and intercept by unregularized logistic MLE on labelled fit rows
-    (scholarlm's fit_platt).
+Each map returns apply_platt's ``(coef, intercept)``:
+  - prior_shift: slope 1, intercept ``logit pi_te - logit pi_tr`` (Bayes under label shift).
+  - intercept_fit: slope 1, intercept fit so mapped fit-row probs average to their label rate.
+  - platt_fit: slope and intercept by unregularized logistic MLE on fit rows.
 """
 from __future__ import annotations
 
@@ -21,13 +15,23 @@ from sklearn.exceptions import ConvergenceWarning
 
 from scholarlm.utils.calibration import apply_platt, fit_intercept, fit_platt
 
-# fit_platt's lbfgs stops at sklearn's default gradient tolerance; its score equations
-# hold to ~1e-4 (mean over fit rows), so they are checked at 1e-3.
+# Tolerance for the Platt score-equation check; lbfgs at sklearn's default tol gets ~1e-4.
 PLATT_SCORE_TOL = 1e-3
 
 
 def prior_shift_map(pi_te: float, pi_tr: float) -> tuple[float, float]:
-    """``(1.0, logit(pi_te) - logit(pi_tr))``; both prevalences must be in (0, 1)."""
+    """Label-shift correction: keep the slope, shift the intercept by the prior log-odds.
+
+    Args:
+        pi_te: Positive rate in the test population, in (0, 1).
+        pi_tr: Positive rate in the scorer's training data, in (0, 1).
+
+    Returns:
+        ``(1.0, logit(pi_te) - logit(pi_tr))``.
+
+    Raises:
+        ValueError: A prevalence is outside (0, 1) or is a bool.
+    """
     for name, v in (("pi_te", pi_te), ("pi_tr", pi_tr)):
         if isinstance(v, bool) or not 0 < v < 1:
             raise ValueError(f"{name} must be in (0, 1), got {v!r}")
@@ -35,7 +39,15 @@ def prior_shift_map(pi_te: float, pi_tr: float) -> tuple[float, float]:
 
 
 def intercept_fit_map(probs, labels) -> tuple[float, float]:
-    """fit_intercept on these rows, checked against its score equation."""
+    """Fit an intercept-only recalibration and check mapped probs match the label rate.
+
+    Args:
+        probs: Fit-row predicted probabilities.
+        labels: Fit-row boolean labels.
+
+    Returns:
+        ``(1.0, intercept)``.
+    """
     coef, icpt = fit_intercept(probs, labels)
     assert coef == 1.0, coef
     mean = float(apply_platt(np.asarray(probs, dtype=float), coef, icpt).mean())
@@ -45,13 +57,22 @@ def intercept_fit_map(probs, labels) -> tuple[float, float]:
 
 
 def platt_fit_map(probs, labels, eps: float = 1e-6) -> tuple[float, float]:
-    """fit_platt on these rows, checked against both Platt score equations.
+    """Fit Platt scaling and check both MLE score equations hold.
 
-    On (quasi-)separable fit rows -- every positive's clipped logit on one side of every
-    negative's, ties included -- the unregularized slope has no finite MLE, and lbfgs
-    reports convergence anyway at an arbitrary large slope (e.g. 15 on a 6-row toy), so
-    that is checked up front and raised. A ConvergenceWarning is also raised as an error.
-    ``eps`` must be fit_platt's / apply_platt's clipping (their default).
+    Separable fit rows have no finite MLE, but lbfgs still "converges" to an arbitrary
+    slope, so separability is rejected up front.
+
+    Args:
+        probs: Fit-row predicted probabilities.
+        labels: Fit-row boolean labels.
+        eps: Logit clipping; must equal fit_platt / apply_platt's default.
+
+    Returns:
+        ``(coef, intercept)``.
+
+    Raises:
+        ValueError: Only one class present, or rows are (quasi-)separable in logit(p).
+        ConvergenceWarning: lbfgs did not converge (promoted to an error).
     """
     labels = np.asarray(labels, dtype=bool)
     z = logit(np.clip(np.asarray(probs, dtype=float), eps, 1 - eps))
@@ -74,9 +95,16 @@ def platt_fit_map(probs, labels, eps: float = 1e-6) -> tuple[float, float]:
 
 
 def uniform_fit_sample(n_pool: int, n: int, fit_seed: int) -> np.ndarray:
-    """``n`` distinct sorted positions in ``range(n_pool)``, drawn uniformly without
-    replacement by ``np.random.default_rng(fit_seed)``. One draw, no document resampling:
-    the fit rows are a plain random subset of the pool."""
+    """Draw the recalibration fit rows: a uniform random subset of the pool.
+
+    Args:
+        n_pool: Number of candidate rows.
+        n: Number of fit rows to draw (1..n_pool).
+        fit_seed: Seed for ``np.random.default_rng``.
+
+    Returns:
+        Sorted array of ``n`` distinct positions in ``range(n_pool)``.
+    """
     assert n_pool > 0 and 0 < n <= n_pool, (n_pool, n)
     pos = np.sort(np.random.default_rng(fit_seed).choice(n_pool, n, replace=False))
     assert len(np.unique(pos)) == n

@@ -1,30 +1,11 @@
-"""Shared loader for analysis/analysis-configs/<type>/<id>.yaml.
+"""Paths and validating loaders for analysis/analysis-configs/<type>/<id>.yaml.
 
-Reuses the harness's standard id/project/description/seed/params envelope
-(see notes/hub/conventions.md and experiments/utils.load_experiment_config's
-own copy of the same envelope check) rather than inventing a second config
-shape -- the difference from an experiments/experiment-configs/ entry is
-where it lives (analysis/analysis-configs/<type>/, one directory per analysis
-type, the same names as analysis/results/<type>/) and what params it carries.
-Every loader checks that its config sits in its own type directory
-(check_config_type), and every cross-config reference resolves through
-analysis_config_path(type, id) -- so a config filed under the wrong type is a
-hard error, not a silently-found file.
-
-Every analysis-config consumer (analysis/match_cache.py,
-analysis/recovery_validity.py, ...) shares one params.experiment_ids list --
-the ids that feed the analysis -- and one params.ground_truth_file: the exact
-ground-truth CSV/JSON that experiment_ids are scored against, declared
-explicitly here rather than read implicitly off each id's dataset's own
-DatasetConfig.ground_truth_file. That indirection would let an analysis
-config's numbers silently drift if the dataset config's ground truth file is
-later edited or repointed (a revised review pass, a new subset) -- this
-config pins the exact file an analysis was run against, so re-running it
-later reproduces the same comparison even if the dataset config has since
-moved on. A script that needs its own parameters reads them from
-params.<script_name> via get_section(), not the top level, so a stray or
-misspelled key under one script's section can never be silently ignored by
-another (or by no one).
+Configs use the harness's id/project/description/seed/params envelope. Each type has
+its own config directory and results directory, and a config filed under the wrong
+type fails to load. Ground-truth files are pinned in the config (not read from the
+DatasetConfig) so numbers can't drift if the dataset config is repointed.
+Script-specific options live in ``params.<section>`` and are checked by ``get_section``,
+so misplaced or misspelled keys fail loudly.
 """
 from __future__ import annotations
 
@@ -40,39 +21,61 @@ if str(_REPO_ROOT) not in sys.path:
 ANALYSIS_CONFIGS_ROOT = _REPO_ROOT / "analysis" / "analysis-configs"
 ANALYSIS_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results"
 
-# Analysis types: each is a subdirectory of both analysis-configs/ (the configs
-# of that type) and results/ (their outputs, by config id). recovery-validity
-# configs also drive the setup steps (postprocessing, match_cache,
-# deduplicate_cache, deduplication) on the same experiment ids; the latex
-# configs live with the analysis whose CSVs they format.
+# Types with both a config dir and a results dir. recovery-validity configs also drive
+# the setup steps (postprocessing, match_cache, deduplicate_cache, deduplication).
 ANALYSIS_TYPES = (
     "recovery-validity", "measeval", "synthetic-probe", "calibration", "calibration-validated",
     "platt-scaling", "decision-threshold", "meta", "clustering",
 )
-# Results-only types: artefacts keyed by experiment id (match-cache) or by
-# (recovery-validity config id, experiment id) (the dedup pair), with no config
-# directory of their own.
+# Types with a results dir only (keyed by experiment id, or config id + experiment id).
 RESULTS_ONLY_TYPES = ("match-cache", "deduplicate-cache", "deduplication")
 
 
 def analysis_config_path(analysis_type: str, config_id: str) -> Path:
-    """ANALYSIS_CONFIGS_ROOT/<analysis_type>/<config_id>.yaml -- the one place a
-    config path is built from an id. Does not check the file exists."""
+    """Path of an analysis config (not checked for existence).
+
+    Args:
+        analysis_type: One of ANALYSIS_TYPES.
+        config_id: Config id.
+
+    Returns:
+        ``ANALYSIS_CONFIGS_ROOT/<analysis_type>/<config_id>.yaml``.
+
+    Raises:
+        ValueError: Unknown analysis type.
+    """
     if analysis_type not in ANALYSIS_TYPES:
         raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES}")
     return ANALYSIS_CONFIGS_ROOT / analysis_type / f"{config_id}.yaml"
 
 
 def analysis_results_dir(analysis_type: str) -> Path:
-    """ANALYSIS_RESULTS_ROOT/<analysis_type>/ for a config or results-only type."""
+    """Results directory for an analysis type.
+
+    Args:
+        analysis_type: One of ANALYSIS_TYPES or RESULTS_ONLY_TYPES.
+
+    Returns:
+        ``ANALYSIS_RESULTS_ROOT/<analysis_type>``.
+
+    Raises:
+        ValueError: Unknown analysis type.
+    """
     if analysis_type not in ANALYSIS_TYPES + RESULTS_ONLY_TYPES:
         raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES + RESULTS_ONLY_TYPES}")
     return ANALYSIS_RESULTS_ROOT / analysis_type
 
 
 def check_config_type(path: Path, analysis_type: str) -> None:
-    """Raise unless ``path`` sits directly in an ``<analysis_type>/`` directory,
-    so e.g. a platt-scaling config filed under calibration/ never loads."""
+    """Fail unless a config file sits directly in its type's directory.
+
+    Args:
+        path: Config path.
+        analysis_type: Expected type.
+
+    Raises:
+        ValueError: Unknown type, or the file is in another directory.
+    """
     if analysis_type not in ANALYSIS_TYPES:
         raise ValueError(f"unknown analysis type {analysis_type!r}; known: {ANALYSIS_TYPES}")
     if Path(path).parent.name != analysis_type:
@@ -82,22 +85,24 @@ def check_config_type(path: Path, analysis_type: str) -> None:
         )
 
 
-# Every params section name a consumer script owns, so load_analysis_config
-# can reject a stray top-level key (e.g. a value meant for
-# params.recovery_validity dropped at the top level instead) instead of
-# silently ignoring it. Add a script's section name here when it grows one.
-# The dedup sections ride on recovery-validity configs (see common/dedup.py).
+# Allowed params sections, so a stray top-level key is rejected rather than ignored.
 KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation", "deduplicate_cache", "deduplication"}
 
-# Params keys for analysis/synthetic_probe_train.py, which trains on one
-# judge_interp run and so has no experiment_ids / ground_truth_file.
-# use_platt_scaling (bool, required) picks head_probe.pkl / ntp_calibrator.pkl
-# (CalibratedClassifierCV, probe_variant: platt) vs the *_noplatt.pkl variants.
+# Params of a synthetic-probe config. use_platt_scaling picks the Platt-wrapped or
+# *_noplatt pickles.
 SYNTHETIC_PROBE_STR_KEYS = ("dataset", "judge_interp_id")
 SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + ("use_platt_scaling",)
 
 
 def _resolve_ground_truth_path(ground_truth_file: str) -> Path:
+    """Resolve a ground-truth path relative to the repo root unless it is absolute.
+
+    Args:
+        ground_truth_file: Path string from a config.
+
+    Returns:
+        Absolute Path.
+    """
     path = Path(ground_truth_file)
     if not path.is_absolute():
         path = _REPO_ROOT / path
@@ -105,21 +110,31 @@ def _resolve_ground_truth_path(ground_truth_file: str) -> Path:
 
 
 def get_ground_truth_path(cfg: dict) -> Path:
-    """Resolve an already-loaded analysis config's params.ground_truth_file
-    to an absolute Path, repo-root-relative if it wasn't already absolute.
+    """Absolute path of a loaded config's ``params.ground_truth_file``.
 
-    load_analysis_config has already asserted this file exists, so callers
-    that only ever hold a config loaded that way don't need to re-check --
-    this is exposed separately only so it can be re-resolved (e.g. for a
-    freshness/hash check) without re-parsing the YAML.
+    Args:
+        cfg: Config from ``load_analysis_config`` (which already checked the file exists).
+
+    Returns:
+        Absolute Path.
     """
     return _resolve_ground_truth_path(cfg["params"]["ground_truth_file"])
 
 
 def _load_envelope(path: Path, analysis_type: str) -> dict:
-    """Parse path and check the id/project/description/seed/params envelope
-    (id == filename stem, params a mapping) and that it sits in
-    analysis-configs/<analysis_type>/ (check_config_type). Shared by every loader."""
+    """Parse a config and check its envelope and directory. Shared by every loader.
+
+    Args:
+        path: Config path.
+        analysis_type: Expected type.
+
+    Returns:
+        The parsed config dict.
+
+    Raises:
+        ValueError: Wrong directory, missing envelope key, id != filename stem, or
+            params not a mapping.
+    """
     check_config_type(path, analysis_type)
     with open(path) as f:
         cfg = yaml.safe_load(f)
@@ -137,35 +152,21 @@ def _load_envelope(path: Path, analysis_type: str) -> dict:
 
 
 def load_analysis_config(path: Path, analysis_type: str) -> dict:
-    """Load and validate an experiment-id-list analysis config: a
-    recovery-validity config (which also drives postprocessing, match_cache and
-    the dedup pair) or a measeval config -- ``analysis_type`` names which, and the
-    file must sit in that type's directory.
+    """Load a recovery-validity or measeval config (an experiment-id list plus ground truth).
 
-    Enforces the same id/project/description/seed/params envelope as
-    experiments/utils.load_experiment_config (id must match the filename
-    stem, params must be a mapping), plus checks specific to this envelope's
-    job: params.experiment_ids must be a non-empty list of strings, and
-    params.ground_truth_file must be a non-empty string naming a CSV/JSON
-    file that exists (repo-root-relative if not absolute) -- see
-    get_ground_truth_path to resolve it to a Path.
+    ``seed`` must be present but is not checked against the global seed: it seeds the
+    analysis bootstrap, not model generation, and may be varied on purpose.
 
-    Unlike an experiments/experiment-configs/ entry, ``seed`` here is NOT
-    checked against experiments/config.yaml's defaults.seed. That check
-    exists there because an experiment config's seed feeds
-    utils.set_seeds() to make a model run reproducible against the one
-    canonical value the rest of the repo's pipeline runs share. This
-    envelope's seed instead seeds recovery_validity.py's paper-clustered
-    bootstrap resample -- an unrelated RNG stream with no reason to match
-    model-generation seeding, and one an analyst may deliberately want to
-    vary (e.g. checking a CI is stable across bootstrap seeds). Only
-    required to be present and explicit (no inferred default), never
-    required to equal defaults.seed.
+    Args:
+        path: Config path.
+        analysis_type: ``"recovery-validity"`` or ``"measeval"``.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, id/filename mismatch,
-            missing/empty/non-list/duplicate experiment_ids, or a missing/
-            empty/non-string/nonexistent ground_truth_file.
+        ValueError: Bad envelope, empty or duplicate ``experiment_ids``, missing
+            ``ground_truth_file``, or an unknown top-level params key.
     """
     if analysis_type not in ("recovery-validity", "measeval"):
         raise ValueError(f"load_analysis_config serves recovery-validity and measeval configs, got {analysis_type!r}")
@@ -209,18 +210,20 @@ def load_analysis_config(path: Path, analysis_type: str) -> dict:
 def get_section(
     cfg: dict, name: str, required_keys: tuple[str, ...], optional_keys: tuple[str, ...] = (),
 ) -> dict:
-    """cfg['params'][name], asserting its keys are exactly required_keys plus
-    a subset of optional_keys -- no more, no less.
+    """Return ``cfg['params'][name]`` after checking its keys exactly.
 
-    No defaults for a required key (CLAUDE.md: no inferred defaults for a
-    value that changes the reported numbers) and no unknown key silently
-    ignored (a typo'd or misplaced key -- e.g. a recovery_validity option
-    dropped at the top level instead of under params.recovery_validity --
-    fails loud here instead of quietly doing nothing).
+    Args:
+        cfg: Loaded config.
+        name: Section name.
+        required_keys: Keys that must be present.
+        optional_keys: Keys that may be present.
+
+    Returns:
+        The section dict.
 
     Raises:
-        KeyError: the section is missing, isn't a mapping, is missing a
-            required key, or has a key outside required_keys/optional_keys.
+        KeyError: Section missing or not a mapping, a required key missing, or an
+            unknown key present.
     """
     if name not in cfg["params"]:
         raise KeyError(f"params.{name} section is required but missing")
@@ -241,21 +244,19 @@ def get_section(
 
 
 def load_synthetic_probe_config(path: Path) -> dict:
-    """Load analysis/synthetic_probe_train.py's analysis-configs/synthetic-probe/<id>.yaml.
+    """Load a synthetic-probe config for synthetic_probe_train.py.
 
-    Same envelope as load_analysis_config, but params carries exactly
-    ``dataset`` (pond / nfix / supermat), ``judge_interp_id`` (the
-    judge_interp run on the synthetic corpus to train on) and
-    ``use_platt_scaling`` (bool: True wraps the head probe / NTP calibrator in
-    CalibratedClassifierCV and saves the unsuffixed pickles; False saves the
-    ``_noplatt`` pickles) -- no experiment_ids / ground_truth_file, which belong
-    to the scoring consumers. Any other params key is an error.
+    params must be exactly ``dataset``, ``judge_interp_id`` (the synthetic-corpus
+    judge run to train on) and ``use_platt_scaling``. ``seed`` seeds the training splits.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, or params keys != SYNTHETIC_PROBE_PARAM_KEYS,
-            dataset / judge_interp_id not a non-empty string, use_platt_scaling
-            not a bool, or seed not an int.
-    ``seed`` seeds every split and LogisticRegression in synthetic_probe_train.py.
+        ValueError: Bad envelope, wrong params keys or types, or non-int seed.
     """
     cfg = _load_envelope(path, "synthetic-probe")
     keys = set(cfg["params"])
@@ -276,20 +277,14 @@ def load_synthetic_probe_config(path: Path) -> dict:
     return cfg
 
 
-# Shared by every calibration-family loader below. Per-dataset blocks carry exactly
-# CALIBRATION_DATASET_KEYS (plus a loader's own additions) for each of CALIBRATION_DATASETS:
-#   - extraction_id / judge_interp_id / judge_combine_id: the real extraction run, the
-#     qwen interp-judge run over it, and the judge_combine run holding its labels.
-#   - ground_truth_file: the ground-truth CSV/JSON this extraction is scored against
-#     (must exist; repo-root-relative if not absolute).
-#   - synthetic_probe_config: the id of the analysis-configs/synthetic-probe/ yaml (loadable by
-#     load_synthetic_probe_config) whose cached probe is applied.
-#   - syn_test_ids: {primary: <id>, diag: <id>}, this dataset's synthetic judge_interp
-#     test runs; both required, ``params.syn_split`` names which one is used.
-#   - use_matching_labels: bool. True labels a real extraction valid if the judge said
-#     so OR it matched a ground-truth row; False uses ``judgement_combined`` alone.
-# Cross-run consistency (ids really are what they claim, judge model agreement,
-# corpus-version agreement) is checked by calibration_ids.resolve_calibration_inputs.
+# Per-dataset block keys shared by every calibration-family config:
+#   extraction_id / judge_interp_id / judge_combine_id: real extraction, interp judge
+#     run over it, and the combine run holding its labels.
+#   ground_truth_file: ground truth the extraction is scored against.
+#   synthetic_probe_config: synthetic-probe config id whose trained probe is applied.
+#   syn_test_ids: {primary, diag} synthetic test runs; params.syn_split picks one.
+#   use_matching_labels: True labels a row valid if judged valid OR matched.
+# Cross-run consistency is checked by calibration_ids.resolve_calibration_inputs.
 CALIBRATION_DATASETS = ("pond", "nfix", "supermat")
 CALIBRATION_DATASET_KEYS = (
     "extraction_id", "judge_interp_id", "judge_combine_id", "ground_truth_file",
@@ -299,10 +294,20 @@ CALIBRATION_SYN_SPLITS = ("primary", "diag")
 
 
 def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datasets_expected: tuple) -> None:
-    """Checks shared by the calibration loaders: seed, probe_type/
-    probe_variant/syn_split, and every per-dataset block against ``dataset_keys``
-    (the keys of CALIBRATION_DATASET_KEYS plus whatever the caller adds, which
-    it validates itself). ``params.datasets`` must have exactly ``datasets_expected``."""
+    """Checks shared by the calibration loaders: seed, probe settings and dataset blocks.
+
+    Keys a caller adds beyond CALIBRATION_DATASET_KEYS are checked for presence only;
+    the caller validates their values.
+
+    Args:
+        path: Config path (for error messages).
+        cfg: Loaded config.
+        dataset_keys: Exact key set of each per-dataset block.
+        datasets_expected: Exact set of dataset names.
+
+    Raises:
+        ValueError: Any check fails.
+    """
     params = cfg["params"]
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
@@ -359,30 +364,30 @@ def _validate_calibration_body(path: Path, cfg: dict, dataset_keys: tuple, datas
                 )
 
 
-# Top-level keys every calibration-family config carries, and the per-dataset blocks with
-# one pi_te_estimate per dataset (the assumed prevalence of valid rows in that dataset's
-# real extraction). Named V2 after the retired calibration_updated_v2.py that introduced
-# them; calibration.py and platt_scaling.py build on both.
+# Top-level keys of every calibration-family config. pi_te_estimate is an assumed
+# prevalence of valid rows in a dataset's real extraction.
 CALIBRATION_V2_TOP_KEYS = ("probe_type", "probe_variant", "syn_split", "datasets")
 CALIBRATION_V2_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("pi_te_estimate",)
 
 
-# analysis/calibration_updated_v3.py: v2 minus pi_te_estimate. Real-extraction
-# cells are instead recalibrated on platt_n rows sampled from the test
-# dataset's own probe-training documents (labelled by judge_combine, plus
-# matching if that dataset's use_matching_labels is on), by the required
-# recalibration method: platt_fit (slope + intercept), intercept_fit (slope
-# fixed at 1, intercept by MLE) or prior_shift (label-shift correction from the
-# scorer's synthetic training prevalence to the sample's label rate).
-# CIs and curve bands come from analysis/common/nested_bootstrap.py: n_fit_samples
-# recalibration fit samples x n_doc_boot test-document resamples for real cells,
-# n_syn_boot test-document resamples for (un-recalibrated) synthetic cells.
+# v3 schema (used by calibration_validated.py; read by calibration_latex.py): real cells
+# are recalibrated on platt_n rows from the probe-training documents, with CIs from
+# nested_bootstrap.py (n_fit_samples x n_doc_boot real, n_syn_boot synthetic).
 CALIBRATION_V3_BOOTSTRAP_KEYS = ("n_fit_samples", "n_doc_boot", "n_syn_boot")
 CALIBRATION_V3_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_n", "recalibration") + CALIBRATION_V3_BOOTSTRAP_KEYS
 RECALIBRATION_METHODS = ("prior_shift", "intercept_fit", "platt_fit")
 
 
 def _validate_v3_recalibration(path: Path, params: dict) -> None:
+    """Check v3's ``platt_n``, bootstrap sizes and ``recalibration`` method.
+
+    Args:
+        path: Config path (for error messages).
+        params: The config's params.
+
+    Raises:
+        ValueError: A count is not a positive int, or the method is unknown.
+    """
     for key in ("platt_n",) + CALIBRATION_V3_BOOTSTRAP_KEYS:
         n = params[key]
         if isinstance(n, bool) or not isinstance(n, int) or n <= 0:
@@ -394,17 +399,16 @@ def _validate_v3_recalibration(path: Path, params: dict) -> None:
 
 
 def load_calibration_v3_config(path: Path) -> dict:
-    """Load a calibration_updated_v3-schema analysis-configs/calibration/<id>.yaml.
+    """Load a v3-schema calibration config (read by calibration_latex.py).
 
-    The v3 script itself is retired; this loader stays because
-    calibration_latex.py still formats v3 output and calibration_validated.py
-    shares its top-level keys. Per-dataset blocks are CALIBRATION_DATASET_KEYS
-    (no pi_te_estimate anywhere), plus required top-level ``params.platt_n``, a positive int, the
-    number of real rows per dataset each recalibrator is fit on, and
-    ``params.recalibration``, one of RECALIBRATION_METHODS.
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+        ValueError: Bad envelope, wrong keys, or bad values.
     """
     cfg = _load_envelope(path, "calibration")
     params = cfg["params"]
@@ -417,19 +421,28 @@ def load_calibration_v3_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/calibration_validated.py: v3 evaluated against human validations instead
-# of LLM+matching labels. Only the datasets with validations (pond, supermat); each
-# block additionally pins validation_sha256, the sha256 of $SCHOLARLM_VALIDATIONS_DIR/
-# <ds>.json -- those files are rebuilt as more measurements get judged, so an
-# unpinned file would change the reported numbers silently.
+# calibration_validated.py: v3 scored against human validations. Each dataset pins the
+# validations file's sha256, since the file is rebuilt as more rows are validated.
 CALIBRATION_VALIDATED_DATASETS = ("pond", "supermat")
 CALIBRATION_VALIDATED_DATASET_KEYS = CALIBRATION_DATASET_KEYS + ("validation_sha256",)
 VALIDATIONS_ENV = "SCHOLARLM_VALIDATIONS_DIR"
 
 
 def validations_path(dataset: str) -> Path:
-    """$SCHOLARLM_VALIDATIONS_DIR/<dataset>.json (the env var is read from the repo's
-    .env if not already exported). No default directory: unset is an error."""
+    """Path of a dataset's human-validation file under $SCHOLARLM_VALIDATIONS_DIR.
+
+    The env var may come from the repo's .env. There is no default directory.
+
+    Args:
+        dataset: Dataset name.
+
+    Returns:
+        ``$SCHOLARLM_VALIDATIONS_DIR/<dataset>.json``.
+
+    Raises:
+        KeyError: The env var is unset.
+        FileNotFoundError: The directory or file does not exist.
+    """
     import os
     from dotenv import load_dotenv
     load_dotenv(_REPO_ROOT / ".env")
@@ -445,17 +458,19 @@ def validations_path(dataset: str) -> Path:
 
 
 def load_calibration_validated_config(path: Path) -> dict:
-    """Load analysis/calibration_validated.py's analysis-configs/calibration-validated/<id>.yaml.
+    """Load a calibration-validated config and check each validations file's pinned hash.
 
-    Same keys as load_calibration_v3_config, except ``params.datasets`` is exactly
-    CALIBRATION_VALIDATED_DATASETS and each block also carries ``validation_sha256``.
-    Checks here (so _resolve_job.py rejects them before qsub) that
-    $SCHOLARLM_VALIDATIONS_DIR/<ds>.json exists and hashes to the pinned value.
+    Checked at load time so _resolve_job.py rejects a bad config before qsub.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types,
-            or a validations file whose sha256 differs from the pin.
-        KeyError / FileNotFoundError: env var unset / validations file missing.
+        ValueError: Bad envelope, keys or values, or a hash mismatch.
+        KeyError, FileNotFoundError: Validations env var unset or file missing.
     """
     import hashlib
     cfg = _load_envelope(path, "calibration-validated")
@@ -479,25 +494,25 @@ def load_calibration_validated_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/platt_scaling.py: the sweep's inputs and platt_ns / recalibration, but
-# no nested bootstrap -- n_train_resamples recalibration fit samples per n, each scored
-# on the fixed (un-resampled) real test set. So no n_fit_samples / n_doc_boot.
+# platt_scaling.py: n_train_resamples fit samples per fit size n, each scored on the
+# fixed real test set (no test-document bootstrap).
 PLATT_SWEEP_V2_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("platt_ns", "recalibration", "n_train_resamples")
 
 
 def load_platt_sweep_v2_config(path: Path) -> dict:
-    """Load analysis/platt_scaling.py's analysis-configs/platt-scaling/<id>.yaml.
+    """Load a platt-scaling sweep config for platt_scaling.py.
 
-    Per-dataset blocks, probe_type, probe_variant and syn_split are exactly as in
-    load_calibration_v3_config (syn_split is still required because
-    calibration_ids.resolve_calibration_inputs cross-checks both synthetic test
-    runs; the sweep itself only scores real rows). ``platt_ns`` is a strictly
-    increasing list of non-negative ints (0 = the no-recalibration baseline),
-    ``recalibration`` one of RECALIBRATION_METHODS, and ``n_train_resamples`` a
-    positive int: the number of training-pool resamples (fit samples) per n.
+    ``platt_ns`` is a strictly increasing list of fit sizes (0 = no recalibration)
+    with at least one positive entry.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types.
+        ValueError: Bad envelope, keys or values.
     """
     cfg = _load_envelope(path, "platt-scaling")
     params = cfg["params"]
@@ -523,21 +538,12 @@ def load_platt_sweep_v2_config(path: Path) -> dict:
     return cfg
 
 
-# analysis/calibration.py: one recalibration map per (scorer, test dataset),
-# fit once -- no resampling of the fit data -- with test-document bootstrap CIs (n_boot
-# resamples, real and synthetic cells alike; seeded by the envelope seed).
-#   recalibration: prior_shift   -- slope 1, intercept logit(pi_te) - logit(pi_tr).
-#                  intercept_fit -- slope 1, intercept by MLE on the fit rows.
-#                  platt_fit     -- slope and intercept by unregularized logistic MLE on
-#                                   the fit rows.
-#   fit_source:    sample -- fit_n rows drawn uniformly without replacement from the test
-#                            dataset's probe-training pool, by fit_seed (pi_te = their
-#                            label rate for prior_shift).
-#                  manual -- prior_shift only: the per-dataset pi_te_estimate.
-#                  oracle -- the evaluated real test rows themselves (pi_te = their label
-#                            rate; intercept_fit / platt_fit fit on them). Diagnostic only.
-# fit_n and fit_seed are set iff fit_source is sample, and every dataset's
-# pi_te_estimate iff it is manual; otherwise they must be null.
+# calibration.py (v4): one recalibration map per (scorer, test dataset), fit once, with
+# n_boot test-document bootstrap CIs. Methods are in common/recalibration.py.
+#   fit_source sample: fit_n rows drawn from the probe-training pool with fit_seed.
+#   fit_source manual: prior_shift only, using each dataset's pi_te_estimate.
+#   fit_source oracle: fit on the test rows themselves (diagnostic only).
+# fit_n / fit_seed are set iff sample, pi_te_estimate iff manual; otherwise null.
 CALIBRATION_V4_TOP_KEYS = CALIBRATION_V2_TOP_KEYS + ("n_boot", "recalibration", "fit_source", "fit_n", "fit_seed")
 CALIBRATION_V4_RECALIBRATIONS = ("prior_shift", "intercept_fit", "platt_fit")
 CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "intercept_fit": ("sample", "oracle"),
@@ -545,24 +551,32 @@ CALIBRATION_V4_FIT_SOURCES = {"prior_shift": ("sample", "manual", "oracle"), "in
 
 
 def is_int(v) -> bool:
+    """True for an int that is not a bool.
+
+    Args:
+        v: Any value.
+
+    Returns:
+        Whether ``v`` is a non-bool int.
+    """
     return isinstance(v, int) and not isinstance(v, bool)
 
 
 def load_calibration_v4_config(path: Path) -> dict:
-    """Load analysis/calibration.py's analysis-configs/calibration/<id>.yaml.
+    """Load a v4 calibration config for calibration.py.
 
-    Per-dataset blocks are v2's (CALIBRATION_V2_DATASET_KEYS: v1's keys plus
-    ``pi_te_estimate``). Top level: v2's keys plus ``n_boot`` (positive int),
-    ``recalibration`` (one of CALIBRATION_V4_RECALIBRATIONS), ``fit_source`` (one of
-    CALIBRATION_V4_FIT_SOURCES[recalibration]), ``fit_n`` and ``fit_seed``.
-    ``fit_n`` (positive int) and ``fit_seed`` (non-negative int) are set when
-    ``fit_source`` is 'sample' and null otherwise; each ``pi_te_estimate`` is a float in
-    (0, 1) when it is 'manual' and null otherwise -- a value the chosen source would
-    ignore is an error.
+    A value the chosen ``fit_source`` would ignore (e.g. ``fit_n`` with ``manual``)
+    is an error, not silently unused.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: malformed envelope, wrong/missing/extra keys, bad value types, or a
-            fit_source / fit_n / fit_seed / pi_te_estimate inconsistent with recalibration.
+        ValueError: Bad envelope, keys or values, or fit settings inconsistent with
+            ``recalibration`` / ``fit_source``.
     """
     cfg = _load_envelope(path, "calibration")
     params = cfg["params"]

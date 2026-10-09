@@ -1,113 +1,27 @@
-"""Compute recovery and validity for a list of experiment ids, from pre-built
-match caches (``analysis/match_cache.py``) and judge_combine judgements, with
-paper-clustered bootstrap confidence intervals.
+"""Recovery and validity per experiment id, with paper-clustered bootstrap CIs.
 
-This is the centralized replacement for the recovery/validity halves of
-``analysis/ablation.py`` and ``analysis/baselines.py`` -- same underlying
-``analysis.metrics.recovery_rate``/``validity_rate`` semantics, but:
+- recovery: fraction of ground-truth rows with any match-cache edge of weight >=
+  the dataset's fuzzy_threshold. ``recovery_max_weight_matching`` is the stricter
+  1-1 matching version, always <= recovery.
+- validity: fraction of extracted rows that are matched OR judged valid by their
+  judge_combine run, found through the judges' committed configs.
 
-  - reads matching *rules* (``strict_matching``/``fuzzy_matching``/
-    ``fuzzy_threshold``/``numeric_coerce``) off each dataset's own
-    ``DatasetConfig`` in ``experiments/dataset-configs/{dataset}.py`` -- the
-    same source ``analysis/match_cache.py`` reads via
-    ``get_matching_config`` -- rather than keeping a second copy of those
-    rules here, but reads the ground truth *rows* themselves from an
-    explicit ``ground_truth_path`` (an analysis config's own
-    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
-    mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
-    -- see analysis/common/config.py's module docstring for why;
-  - REPORTED ``recovery`` IS THE ANY-EDGE COUNT (changed 2026-10-07): a ground
-    truth row is recovered if at least one extracted row has a cached edge to
-    it with ``w >= fuzzy_threshold`` -- the same count as ``analysis.metrics.
-    recovery_rate``, cross-checked against it on every call
-    (``verify_recovery``). The max-weight 1-1 matching count over those same
-    edges (``max_weight_matching_recovered``) is kept as the secondary
-    ``recovery_max_weight_matching`` column (always <= ``recovery``), with its
-    own bootstrap CI. From 2026-10-05 until this change ``recovery`` WAS the
-    matching count (and an ``edge_filter: judge`` mode existed, now removed);
-    every ``recovery`` number this script wrote in that window means something
-    different and must be regenerated, not compared. Validity is unchanged
-    (dataset-threshold edges OR judged valid -- an extracted row counts as
-    matched if it has any threshold-surviving edge, never by matching
-    membership);
-  - reads a match cache instead of computing one (never recomputes -- run
-    ``python analysis/match_cache.py <id>`` first for any id that doesn't
-    have one yet, and refuses a cache that predates its own extraction file
-    (postprocessed.json, or final.json on fallback -- see
-    ``matching.extraction_path``) or the ground truth file rather than
-    silently matching against row positions that have since shifted
-    underneath it, or that was built against a *different* ground truth or
-    extraction file than the ones given now, per its match_cache.meta.json
-    sidecar -- see ``assert_ground_truth_matches_cache``/
-    ``assert_extraction_matches_cache``).
-    Every cache is built at ``fuzzy_threshold=0.0`` regardless of the
-    dataset's configured threshold (see ``analysis/match_cache.py``'s module
-    docstring), so this script always loads it back via
-    ``matching.load_match_cache(id, fuzzy_threshold=<the dataset's own
-    threshold>)`` -- never the raw 0.0 cache -- so the edges it works with
-    are already the ones that threshold selects, not a second manual filter
-    reimplementing the same cutoff;
-  - resolves judgements by tracing each judge_combine experiment's own
-    ``judge_ids`` back to the extraction/ablation id they judged (via each
-    judge_id's own committed config), rather than a legacy
-    ``(dataset, model, date)`` "most recent" lookup -- experiment ids for an
-    extraction and its judge runs are minted independently and share no
-    literal naming convention, so this is a real data join, not string
-    matching. Optional: pass ``compute_validity=False``
-    (``--skip-validity`` on the CLI) to report recovery only, for an id that
-    has no judge_combine coverage yet;
-  - reports a percentile bootstrap CI resampled over whole papers
-    (document_id clusters), not the analytic Wilson interval
-    ``recovery_rate``/``validity_rate`` return -- rows from the same paper
-    are correlated, so a row-level interval understates uncertainty. The
-    Wilson point estimate is still cross-checked against this script's own
-    recovered/matched masks on every call (see ``verify_recovery``/
-    ``verify_validity``) as a guard against the two silently diverging.
+Reads existing match caches (never builds them) and refuses stale or mismatched
+ones. CIs resample whole papers because rows within a paper are correlated. Point
+estimates are cross-checked against analysis/common/metrics.py on every call.
 
-Only datasets whose ``DatasetConfig`` sets ``strict_matching``/
-``fuzzy_matching``/``fuzzy_threshold`` are supported (pond, as of this
-writing) -- the same restriction match_cache.py itself has.
+An optional ``fuzzy_threshold_curve`` config block sweeps the threshold for chosen
+ids and writes a CSV and figure per id under analysis/results/recovery-validity/<config>/.
 
 Usage
 -----
-    python analysis/recovery_validity.py <id> [<id> ...] \\
-        --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
-        [--alpha 0.05] [--skip-validity] [--output PATH]
+    python analysis/recovery_validity.py <id> [...] --n-resamples N --seed S \\
+        --ground-truth-file <path> [--alpha 0.05] [--skip-validity] [--output PATH]
     python analysis/recovery_validity.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 
-``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
-defaulted (CLAUDE.md: no inferred defaults for a value that changes the
-reported numbers) -- pass the repo's own ``experiments/config.yaml``
-``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
-repo's seeding. ``--ground-truth-file`` must be the exact file the
-corresponding ````match_cache.py`` run used (its match_cache.meta.json sidecar
-is checked against it -- see ``assert_ground_truth_matches_cache``).
-
-``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
-and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
-``compute_validity``/``output``, all required with no defaults, plus an
-optional ``judge_combine_ids`` id-to-id override map) from an
-analysis-configs/recovery-validity/<id>.yaml -- see analysis/common/config.py. Mutually
-exclusive with ``experiment_ids`` and every flag above. A declared
-``judge_combine_ids`` entry is still verified against its extraction id (see
-``verify_judge_combine_id``) before use, the same way automatic resolution
-(``find_judge_combine_id``) verifies a candidate it finds by scanning -- it
-only skips the scan, never the check. Every output row also carries the
-analysis config's own ``id`` (``None`` in ad-hoc CLI mode) and the
-repo-relative ``ground_truth_file`` it was scored against, so a number can be
-traced back to exactly what produced it.
-
-An optional ``params.recovery_validity.fuzzy_threshold_curve`` block
-(``experiment_ids``: a subset of params.experiment_ids; ``thresholds``: an
-explicit, strictly increasing list in [0, 1] that must include the dataset's
-own fuzzy_threshold) additionally sweeps the fuzzy threshold for those ids
-(``fuzzy_threshold_curve``) and writes, under
-``analysis/results/recovery-validity/<config id>/``, one
-``<experiment_id>-fuzzy-threshold-curve.csv`` per id plus
-``figures/<experiment_id>.pdf`` (recovery vs validity, points coloured by
-threshold) and ``figures/fuzzy_threshold_colorbar.pdf``. Config mode only, and
-requires compute_validity. The sweep's point at the dataset threshold is
-asserted equal to the headline row for that id.
+--config is mutually exclusive with ids and every flag; its params.recovery_validity
+section requires n_resamples, alpha, compute_validity and output, plus an optional
+judge_combine_ids map (still verified) and fuzzy_threshold_curve.
 """
 from __future__ import annotations
 
@@ -130,51 +44,49 @@ from analysis.common.recovery import (
     verify_recovery, verify_validity,
 )
 
-# Loading, the cache-freshness guards, judgement resolution and the recovered/matched
-# masks with their independent re-verification live in analysis/common/{matching,
-# recovery}.py, shared with decision_threshold.py and the calibration scripts.
-
-
 def count_split_rows(extraction_df: pd.DataFrame) -> int:
-    """Number of extraction rows that share their (document_id, measurement_id)
-    with another row -- i.e. the rows whose judgement ``load_validity_labels``
-    inherited from a parent rather than received directly (0 when the
-    extraction has not been split, e.g. a final.json)."""
+    """Count rows that inherited their judge label from a split parent row.
+
+    Args:
+        extraction_df: Extraction rows.
+
+    Returns:
+        Number of rows sharing (document_id, measurement_id) with another row.
+    """
     return int(extraction_df.duplicated(["document_id", "measurement_id"], keep=False).sum())
 
 
 # ---------------------------------------------------------------------------
-# Maximum-weight 1-1 matching recovery, over an ALREADY-threshold-filtered edge list
+# Maximum-weight 1-1 matching recovery (over threshold-filtered edges)
 # ---------------------------------------------------------------------------
 
 
-# Exact-integer scaling for max_weight_matching_recovered: weights are rounded
-# to 1e-6, then each edge gets +1 after multiplying by a constant larger than
-# any possible matching size, so cardinality only ever breaks ties between
-# matchings of equal (rounded) total weight.
+# Integer edge weight = round(w * 1e6) * (max matching size + 1) + 1, so total weight
+# decides first and cardinality only breaks exact ties.
 _WEIGHT_SCALE = 10**6
 
 
 def max_weight_matching_recovered(
     n_gt: int, n_ext: int, edges: list[tuple[int, int]], edge_weights: list[float],
 ) -> tuple[np.ndarray, list[tuple[int, int]]]:
-    """Maximum-weight 1-1 matching over (already filtered) edges; every ground
-    truth row in the matching is recovered.
+    """Recover ground-truth rows through a maximum-weight 1-1 matching of surviving edges.
 
-    Same solver call as ``match_datasets`` (``nx.max_weight_matching``,
-    ``maxcardinality=False``), on a fresh graph of only the surviving edges --
-    the cached ``matching`` was solved over ALL threshold-0 edges and is not
-    reused. Weight comes first; cardinality only breaks ties between equal-
-    weight matchings (so a surviving edge of weight 0.0 can still recover its
-    ground truth row, but never displaces a positive-weight one). See
-    ``_WEIGHT_SCALE`` for the exact-integer encoding.
+    Solved fresh on the filtered edges (the cache's own matching used all
+    threshold-0 edges). Weight comes first; cardinality only breaks ties.
+
+    Args:
+        n_gt: Number of ground-truth rows.
+        n_ext: Number of extraction rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs.
+        edge_weights: Weight per edge, in [0, 1].
 
     Returns:
-        (recovered mask over n_gt, matching as sorted (gt_idx, ex_idx) pairs).
+        ``(recovered, matching)``: boolean mask over ground-truth rows, and the
+        matching as sorted (gt_idx, ex_idx) pairs.
 
     Raises:
-        ValueError: duplicate (gt_idx, ex_idx) edge, weight outside [0, 1], or
-            an edge index out of range.
+        ValueError: Length mismatch, duplicate edge, weight outside [0, 1], or an
+            index out of range.
     """
     import networkx as nx
 
@@ -213,14 +125,20 @@ def _verify_matching(
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
 ) -> None:
-    """Assert the matching is a valid 1-1 selection from ``edges``, recovers a
-    subset of what any-surviving-edge recovery would, and decomposes per paper
-    (every edge joins rows of one document_id -- the paper-clustered bootstrap
-    resamples whole papers after a single global matching, which is only
-    sound if no edge, hence no matching, crosses papers).
+    """Check the matching is 1-1, drawn from ``edges``, and never crosses papers.
+
+    No cross-paper edges is what makes resampling papers after one global matching valid.
+
+    Args:
+        matching: (gt_idx, ex_idx) pairs from ``max_weight_matching_recovered``.
+        edges: Threshold-filtered edges.
+        recovered: Matching-based recovered mask.
+        any_edge_recovered: Any-edge recovered mask (must be a superset).
+        ground_truth_df: Ground-truth frame.
+        extraction_df: Extraction frame.
 
     Raises:
-        AssertionError: any of the above fails.
+        AssertionError: Any check fails.
     """
     gts = [g for g, _ in matching]
     exs = [e for _, e in matching]
@@ -259,29 +177,20 @@ def bootstrap_cluster_rate(
     seed: int,
     alpha: float = 0.05,
 ) -> tuple[float, float, float]:
-    """Percentile bootstrap of a proportion, resampling whole clusters.
-
-    Rows sharing a cluster id (a paper's document_id) are not independent, so
-    resampling individual rows understates uncertainty -- this resamples the
-    set of clusters with replacement (each draw takes ALL of that cluster's
-    rows), which is the standard case-resampling cluster bootstrap.
+    """Percentile bootstrap CI of a proportion, resampling whole clusters (papers).
 
     Args:
-        labels: Boolean array, one entry per row.
-        clusters: Parallel array of cluster ids, same length as labels.
-        n_resamples: Number of bootstrap resamples. No default (CLAUDE.md: a
-            value like this that trades off precision for runtime doesn't
-            get an inferred default).
-        seed: RNG seed. No default, for the same reason.
-        alpha: CI significance level; returns the (alpha/2, 1-alpha/2)
-            percentiles of the bootstrap distribution.
+        labels: Boolean per row.
+        clusters: Cluster id per row.
+        n_resamples: Number of resamples.
+        seed: RNG seed.
+        alpha: CI level; returns the alpha/2 and 1 - alpha/2 percentiles.
 
     Returns:
-        (point_estimate, ci_lo, ci_hi). point_estimate is the plain
-        (unresampled) rate over all rows.
+        ``(point, ci_lo, ci_hi)``; ``point`` is the plain rate over all rows.
 
     Raises:
-        ValueError: labels/clusters length mismatch, or zero rows.
+        ValueError: Length mismatch or zero rows.
     """
     labels = np.asarray(labels, dtype=bool)
     clusters = np.asarray(clusters)
@@ -328,42 +237,26 @@ def compute_metrics_for_id(
     compute_validity: bool = True,
     judge_combine_id: str | None = None,
 ) -> dict:
-    """Compute recovery (+ validity, unless ``compute_validity=False``) with
-    paper-clustered bootstrap CIs for one experiment id.
+    """Recovery and (optionally) validity with paper-clustered CIs for one experiment.
 
-    The raw threshold-0 match-cache edges are filtered to ``w >= the dataset's
-    fuzzy_threshold``. ``recovery`` is the fraction of ground truth rows with
-    at least one surviving edge; ``recovery_max_weight_matching`` is the
-    fraction in a maximum-weight 1-1 matching over the same surviving edges
-    (``max_weight_matching_recovered``), so it is always <= ``recovery``. Both
-    get a paper-clustered bootstrap CI from the same seed. Validity labels an
-    extraction matched if it has any surviving edge (OR judged valid).
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file (must match the cache's sidecar).
+        n_resamples: Bootstrap resamples.
+        seed: Bootstrap seed (shared by all three metrics).
+        alpha: CI level.
+        compute_validity: If False, skip judge resolution; validity fields are None.
+        judge_combine_id: Declared combine id (verified), or None to search.
 
-    ``ground_truth_path`` has no default -- see module docstring: the ground
-    truth file is always given explicitly (an analysis config's
-    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
-    mode), never inferred from the experiment's dataset's own DatasetConfig.
+    Returns:
+        Output row dict: ids, input files, counts, threshold, ``recovery``,
+        ``recovery_max_weight_matching`` and ``validity`` with ``_ci_lo`` / ``_ci_hi``,
+        judge ids, and ``n_split_rows_inheriting_judgement``.
 
-    ``compute_validity=False`` skips judge_combine resolution entirely --
-    for an id that has no judge coverage yet, not a way to suppress a real
-    resolution failure. The returned row's validity-related fields are then
-    ``None``, not 0.0 or some other placeholder (CLAUDE.md: no silent
-    fallback in place of a value that was never computed).
-
-    ``judge_combine_id``, if given, is used instead of scanning for one via
-    ``find_judge_combine_id`` -- verified against ``experiment_id`` first
-    (``verify_judge_combine_id``) so a wrong caller-supplied id still fails
-    loud. Default ``None`` preserves the original scan-only behavior exactly.
-
-    Raises loud on any of: unsupported dataset, missing/stale/schema-mismatched
-    match cache, a match cache built against a different ground truth file or
-    a different extraction file (missing or mismatched match_cache.meta.json
-    sidecar -- see ``assert_ground_truth_matches_cache``/
-    ``assert_extraction_matches_cache``), an out-of-range cached edge, no
-    (or an ambiguous) judge_combine match, a combined.json/extraction
-    row-alignment problem, or the recovered/matched masks disagreeing with
-    analysis.metrics' own rates. No fallback path for any of these -- see
-    module docstring.
+    Raises:
+        FileNotFoundError, KeyError, RuntimeError, ValueError, AssertionError: A
+            missing or mismatched cache, judge resolution failure, or disagreement
+            with analysis/common/metrics.py.
     """
     inputs = load_checked_inputs(experiment_id, ground_truth_path)
     dataset = inputs["dataset"]
@@ -448,28 +341,23 @@ def compute_metrics_for_id(
 
 
 # ---------------------------------------------------------------------------
-# Validity/recovery operating curves
-#
-# Ported verbatim-in-behavior from analysis/calibration_updated.py's
-# plot_validity_recovery (2026-10-03), where recovery had no business being
-# computed. Purely additive: nothing above this section calls into it, and
-# main()/compute_metrics_for_id are unchanged. It takes already-computed score
-# arrays rather than reading anything: ``edges`` must be threshold-filtered
-# (matching.load_match_cache(id, fuzzy_threshold=...)) and indexed into the
-# same row space as ``probs``/``labels`` -- nothing here checks that, because
-# nothing here has the frames to check it against. Imports are inside the
-# functions so importing this module stays as light as before.
+# Validity/recovery operating curves for score thresholds (used by other scripts).
+# Callers must pass threshold-filtered edges indexed like ``probs``; not checked here.
 # ---------------------------------------------------------------------------
 
 
 def validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds):
-    """(validity, recovery, thresholds) of ``probs > t`` for each t in
-    ``thresholds``, skipping thresholds with no predicted positives.
+    """Validity and recovery of the rows kept by ``probs > t``, for each threshold t.
 
-    validity = analysis.metrics.validity_rate_from_labels(labels, preds);
-    recovery = analysis.metrics.recovery_rate_from_labels(n_ground_truth,
-    edges, preds). ``edges`` are (gt_idx, ex_idx) already filtered by the
-    desired fuzzy threshold, ex_idx indexing into ``probs``.
+    Args:
+        probs: Score per extraction row.
+        labels: Boolean validity label per extraction row.
+        n_ground_truth: Number of ground-truth rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs, ex_idx indexing ``probs``.
+        thresholds: Score thresholds.
+
+    Returns:
+        ``(validity, recovery, thresholds)`` arrays, skipping thresholds that keep no rows.
     """
     from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels
 
@@ -487,16 +375,20 @@ def validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds):
 
 
 def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, thresholds, n_random, seed):
-    """Save one validity-vs-recovery operating-curve figure to ``out_path``.
+    """Plot validity (y) vs recovery (x) curves plus a random-score baseline.
 
-    ``curves`` is a list of (probs, linestyle) drawn in order, later ones on
-    top (calibration drew NTP '--' first, then probe '-'). Each curve is a grey
-    line with points coloured by threshold (coolwarm, 0..1) and the point
-    nearest threshold 0.5 ringed. A dotted grey line is the random baseline:
-    validity/recovery averaged over ``n_random`` uniform-random score draws,
-    seeded by ``seed``. ``thresholds``, ``n_random`` and ``seed`` have no
-    defaults (they change the plotted numbers). The x-axis is recovery, y is
-    validity.
+    Points are coloured by threshold and the point nearest 0.5 is ringed. The dotted
+    baseline averages ``n_random`` uniform random score draws.
+
+    Args:
+        curves: List of (probs, linestyle), drawn in order (later on top).
+        labels: Boolean validity label per extraction row.
+        n_ground_truth: Number of ground-truth rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs.
+        out_path: Figure path.
+        thresholds: Score thresholds.
+        n_random: Number of random baseline draws.
+        seed: Seed for the baseline.
     """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
@@ -510,6 +402,7 @@ def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, t
     fig, ax = plt.subplots(figsize=(4.0, 3.8))
 
     def plot_vr_curve(probs, linestyle, zorder_base):
+        """Draw one curve: grey line, ~10 threshold-coloured points, ring at t=0.5."""
         v, r, ts = validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds)
         if len(ts) == 0:
             return
@@ -556,7 +449,11 @@ def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, t
 
 
 def save_validity_recovery_colorbar(out_path):
-    """Save the shared 0..1 threshold colorbar for plot_validity_recovery figures."""
+    """Save the shared 0..1 threshold colorbar for ``plot_validity_recovery`` figures.
+
+    Args:
+        out_path: Figure path.
+    """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
 
@@ -569,7 +466,11 @@ def save_validity_recovery_colorbar(out_path):
 
 
 def save_validity_recovery_legend(out_path):
-    """Save the standalone Probe (solid) / NTP (dashed) / Random (dotted) legend."""
+    """Save the standalone Probe (solid) / NTP (dashed) / Random (dotted) legend.
+
+    Args:
+        out_path: Figure path.
+    """
     import matplotlib.lines as mlines
     import matplotlib.pyplot as plt
 
@@ -591,13 +492,22 @@ def save_validity_recovery_legend(out_path):
 
 
 def _validate_threshold_grid(thresholds, dataset_threshold: float) -> list[float]:
-    """Assert ``thresholds`` is a non-empty, strictly increasing list of
-    numbers in [0, 1] that contains the dataset's own fuzzy_threshold exactly
-    (so the sweep can be checked against the headline row at that point).
+    """Validate a fuzzy-threshold sweep grid.
 
-    Thresholds must be given as explicit decimals, not generated: the edge
-    filter is inclusive (``w >= t``), so a float-noise grid value like
-    0.7000000000000001 would silently drop edges scoring exactly 0.7.
+    Must include the dataset threshold exactly, so the sweep can be checked against
+    the headline row. Write values as explicit decimals: a generated 0.7000000000000001
+    would drop edges scoring exactly 0.7.
+
+    Args:
+        thresholds: Candidate grid.
+        dataset_threshold: The dataset's fuzzy_threshold.
+
+    Returns:
+        The grid as floats.
+
+    Raises:
+        ValueError: Empty, non-numeric, outside [0, 1], not strictly increasing, or
+            missing the dataset threshold.
     """
     if not isinstance(thresholds, list) or not thresholds or not all(
         isinstance(t, (int, float)) and not isinstance(t, bool) for t in thresholds
@@ -624,23 +534,23 @@ def fuzzy_threshold_curve(
     thresholds: list[float],
     judge_combine_id: str | None = None,
 ) -> pd.DataFrame:
-    """Recovery and validity of one id at each fuzzy threshold in ``thresholds``.
+    """Recovery and validity point estimates at each fuzzy threshold (no CIs).
 
-    Exactly ``compute_metrics_for_id``'s point estimates, with the dataset's
-    fuzzy_threshold swapped for each t: recovery is the fraction of ground
-    truth rows with any cached edge ``w >= t``; validity is the fraction of
-    extraction rows judged valid OR having any edge ``w >= t``. Same cache
-    guards (``load_checked_inputs``), same judge resolution, and every point
-    is cross-checked against ``analysis.metrics`` (``verify_recovery``/
-    ``verify_validity``). No bootstrap CIs, and no max-weight matching.
+    Same guards, judge resolution and metrics.py cross-checks as
+    ``compute_metrics_for_id``.
 
-    ``thresholds`` must contain the dataset's own fuzzy_threshold (see
-    ``_validate_threshold_grid``); the caller checks that point against
-    ``compute_metrics_for_id``'s row.
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file.
+        thresholds: Grid accepted by ``_validate_threshold_grid``.
+        judge_combine_id: Declared combine id, or None to search.
+
+    Returns:
+        One row per threshold: ids, ``fuzzy_threshold``, ``is_dataset_threshold``,
+        counts, ``recovery``, ``validity``.
 
     Raises:
-        AssertionError: recovery or validity increases as the threshold rises
-            (both must be non-increasing -- raising t only removes edges).
+        AssertionError: A metric increases with the threshold (impossible).
     """
     inputs = load_checked_inputs(experiment_id, ground_truth_path)
     dataset = inputs["dataset"]
@@ -687,8 +597,15 @@ def fuzzy_threshold_curve(
 
 
 def _assert_curve_matches_row(curve: pd.DataFrame, row: dict) -> None:
-    """Known-answer check: the sweep's point at the dataset threshold must equal
-    ``compute_metrics_for_id``'s headline recovery/validity for the same id."""
+    """Known-answer check: the sweep at the dataset threshold equals the headline row.
+
+    Args:
+        curve: Output of ``fuzzy_threshold_curve``.
+        row: Output of ``compute_metrics_for_id`` for the same id.
+
+    Raises:
+        AssertionError: The two disagree, or there isn't exactly one dataset-threshold point.
+    """
     at = curve[curve["is_dataset_threshold"]]
     if len(at) != 1:
         raise AssertionError(f"{row['experiment_id']}: {len(at)} curve rows at the dataset threshold, expected 1")
@@ -705,14 +622,16 @@ _FUZZY_THRESHOLD_NORM = (0.0, 1.0)
 
 
 def plot_fuzzy_threshold_curve(curve: pd.DataFrame, out_path: Path) -> None:
-    """Save one recovery (x) vs validity (y) figure: a grey line through the
-    sweep, every point coloured by its fuzzy threshold on coolwarm with a fixed
-    0..1 norm (so colours match ``save_fuzzy_threshold_colorbar``). The
-    dataset's own fuzzy_threshold (``is_dataset_threshold``) is drawn as a
-    slightly larger diamond, every other threshold as a circle. No title.
+    """Plot validity (y) vs recovery (x) across the sweep, coloured by threshold.
+
+    The dataset threshold is a diamond; others are circles.
+
+    Args:
+        curve: Output of ``fuzzy_threshold_curve``.
+        out_path: Figure path.
 
     Raises:
-        ValueError: ``curve`` doesn't have exactly one dataset-threshold row.
+        ValueError: Not exactly one dataset-threshold row.
     """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
@@ -728,8 +647,7 @@ def plot_fuzzy_threshold_curve(curve: pd.DataFrame, out_path: Path) -> None:
         curve["recovery"][~is_selected], curve["validity"][~is_selected], c=curve["fuzzy_threshold"][~is_selected],
         cmap=plt.cm.coolwarm, norm=norm, marker="o", s=45, zorder=3,
     )
-    # Thin dark edge: the dataset thresholds (~0.53-0.58) sit at coolwarm's
-    # near-white midpoint, so fill colour alone doesn't separate the diamond.
+    # Dark edge: dataset thresholds sit near coolwarm's white midpoint.
     ax.scatter(
         curve["recovery"][is_selected], curve["validity"][is_selected], c=curve["fuzzy_threshold"][is_selected],
         cmap=plt.cm.coolwarm, norm=norm, marker="D", s=60, zorder=4, edgecolors="k", linewidths=0.9,
@@ -744,8 +662,11 @@ def plot_fuzzy_threshold_curve(curve: pd.DataFrame, out_path: Path) -> None:
 
 
 def save_fuzzy_threshold_colorbar(out_path: Path) -> None:
-    """Save the standalone 0..1 coolwarm colorbar, labelled "Fuzzy Threshold",
-    for plot_fuzzy_threshold_curve figures."""
+    """Save the 0..1 "Fuzzy Threshold" colorbar for ``plot_fuzzy_threshold_curve`` figures.
+
+    Args:
+        out_path: Figure path.
+    """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
 
@@ -758,16 +679,32 @@ def save_fuzzy_threshold_colorbar(out_path: Path) -> None:
 
 
 def fuzzy_threshold_figures_dir(analysis_config_id: str) -> Path:
-    """analysis/results/recovery-validity/<analysis config id>/figures/."""
+    """Figure directory for a recovery-validity config.
+
+    Args:
+        analysis_config_id: Config id.
+
+    Returns:
+        ``analysis/results/recovery-validity/<config id>/figures``.
+    """
     return analysis_results_dir("recovery-validity") / analysis_config_id / "figures"
 
 
 def _parse_fuzzy_threshold_curve_section(section, experiment_ids: list[str], compute_validity: bool, where: str) -> dict:
-    """Validate params.recovery_validity.fuzzy_threshold_curve: exactly
-    ``experiment_ids`` (a non-empty, duplicate-free subset of
-    params.experiment_ids) and ``thresholds`` (checked per dataset later, by
-    ``_validate_threshold_grid``). Requires compute_validity: the curve plots
-    validity, which needs judgements."""
+    """Validate the ``fuzzy_threshold_curve`` config block.
+
+    Args:
+        section: The block: exactly ``experiment_ids`` and ``thresholds``.
+        experiment_ids: The config's experiment ids (curve ids must be a subset).
+        compute_validity: Must be True, since the curve plots validity.
+        where: Config path (for error messages).
+
+    Returns:
+        ``{"experiment_ids", "thresholds"}``; thresholds are checked later per dataset.
+
+    Raises:
+        ValueError: Any check fails.
+    """
     if not isinstance(section, dict) or set(section) != {"experiment_ids", "thresholds"}:
         raise ValueError(
             f"{where}: params.recovery_validity.fuzzy_threshold_curve must be a mapping with "
@@ -797,6 +734,7 @@ def _parse_fuzzy_threshold_curve_section(section, experiment_ids: list[str], com
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """CLI argument parser (``--help`` shows the module docstring)."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -842,6 +780,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: score every id, write the CSV, and run any configured threshold sweeps.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = _build_parser()
     args = parser.parse_args(argv)
 
@@ -866,9 +809,7 @@ def main(argv: list[str] | None = None) -> None:
         cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
-        # get_section rejects unknown keys, so a config still carrying the
-        # edge_filter key (removed 2026-10-07 with the judge edge-filter mode)
-        # fails loud here rather than being silently ignored.
+        # Unknown keys (e.g. the removed edge_filter) fail here.
         section = get_section(
             cfg, "recovery_validity",
             required_keys=("n_resamples", "alpha", "compute_validity", "output"),

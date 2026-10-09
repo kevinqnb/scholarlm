@@ -1,28 +1,12 @@
-"""Config loading, input resolution and the score join for the pond meta analysis
-(analysis/pond_meta_analysis.py, analysis/pond_clustering.py; data loading in pond_meta.py).
+"""Config loading, input resolution and score joins for the pond meta analysis.
 
-Kept apart from those scripts for the same reason as calibration_ids.py: these
-helpers have no import-time side effects and need no heavy data, so they can be unit
-tested on a hand-built fixture (tests/test_meta_inputs.py).
+Used by pond_meta_analysis.py and pond_clustering.py. Confidences are not recomputed:
+they are read from calibration.py's predictions.pkl (the real cell with train ==
+test dataset) and joined to rows by ``measurement_id``.
 
-Confidences are NOT recomputed here. They are the recalibrated probe / NTP
-predictions that analysis/calibration.py stored in
-analysis/results/calibration/<calibration config id>/predictions.pkl (the 'real'
-cell with train dataset == test dataset). Each real cell stores its own
-measurement_ids (plus document_ids, attributes, the final.json / combined.json sha256
-and the Platt sample's ids; see analysis/common/prediction_store.py), so
-``stored_prediction_rows`` joins scores by id and verifies the cell against the
-final.json in use. A pickle without that provenance is refused.
-
-The one risky step is ``attach_scores``. Scores are per judged datapoint, keyed by
-``measurement_id`` (unique in final.json).
-The rows the meta-analysis weights are either those same rows (``rows: final``) or
-the deduplicated ``postprocessed.json`` records (``rows: deduplicated``). Those are
-NOT the same row set: postprocessed.json expands list-valued rows into several rows
-that all inherit their parent's ``measurement_id``, so the join is many-to-one, and a
-kept row's confidence is its parent datapoint's. ``attach_scores`` asserts the join
-neither drops nor duplicates a row, leaves no row unscored, and that each row's
-``document_id`` / ``attribute`` agree with the scored datapoint it joined to.
+The risky step is the join. Scores are per judged datapoint, but postprocessed and
+deduplicated rows can share a parent's ``measurement_id``, so the join is many-to-one;
+``attach_scores`` asserts it drops, duplicates and mislabels nothing.
 """
 from __future__ import annotations
 
@@ -51,56 +35,50 @@ SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
                    "n_shuffle_samples", "outlier_adjust", "threshold_mode")
-# Which calibration script built calibration_config_id's predictions.pkl (and so which
-# config loader validates it). Only calibration.py's are read now; the v3
-# entry was dropped with the retired v1 meta analysis.
+# calibration_version -> loader that validates the calibration config.
 CALIBRATION_LOADERS = {"v4": load_calibration_v4_config}
-# The distribution every extracted setting is compared against (Q-Q x-axis, W2):
-# ground_truth: the curated GT rows; valid: the extracted rows whose stored calibration
-# label is positive (judge OR ground-truth match) -- the same label the probe is
-# calibrated against.
+# Reference distribution for Q-Q / W2: curated ground-truth rows, or extracted rows
+# whose stored calibration label is positive.
 REFERENCE_CHOICES = ("ground_truth", "valid")
-# final: judged final.json rows (list values unexpanded); postprocessed: postprocessed.json
-# (list values expanded to one row per entry, not deduplicated); deduplicated: the
-# deduplication of postprocessed.json.
+# Rows analysed: judged final.json, postprocessed.json (lists expanded), or its deduplication.
 ROWS_CHOICES = ("final", "postprocessed", "deduplicated")
-# For rows == 'deduplicated': a kept row's probe/NTP confidence is its cluster center's
-# own (the center's parent datapoint's) or the mean over every cluster member's.
+# For deduplicated rows: confidence from the cluster center, or mean over the cluster.
 CONFIDENCE_CHOICES = ("center", "cluster_mean")
 # Columns the join compares between a kept row and the scored datapoint it joined to.
 JOIN_CHECK_COLS = ("document_id", "attribute")
 
 
 def numeric_point_value(point_value: pd.Series) -> pd.Series:
-    """The numeric value the meta analysis uses for every row: ``point_value`` parsed with
-    matching's ``parse_numeric`` (plain numbers / numeric strings and "m x 10^e"
-    scientific notation), i.e. the same numbers the ground-truth matching sees. Anything
-    that does not parse (None, "pH", "1 m^2") is NaN and is dropped downstream by
-    ``convert_units``. ``value`` is raw model text (e.g. "ca. 0.26") and is not used."""
+    """Parse ``point_value`` to float the same way ground-truth matching does.
+
+    Args:
+        point_value: Raw ``point_value`` column.
+
+    Returns:
+        Float Series, NaN where unparseable (dropped downstream by ``convert_units``).
+    """
     out = point_value.map(parse_numeric).astype(float)
     assert len(out) == len(point_value)
     return out
 
 
 def load_meta_v2_config(path: Path) -> dict:
-    """Load and validate an analysis config for pond_meta_analysis.py.
+    """Load and validate a ``meta_v2`` config for pond_meta_analysis.py.
 
-    ``params`` holds exactly the ``meta_v2`` section (SECTION_V2_KEYS: no defaults, no
-    extras). ``reference`` is one of REFERENCE_CHOICES; ``ecosystems`` / ``attributes``
-    are the cells analysed (membership in pond_meta's canonical lists is checked by the
-    script); ``qq_attributes`` must be a subset of ``attributes``.
-    ``deduplication_config_id`` and ``confidence`` are required to be present always: a
-    string (``confidence`` one of CONFIDENCE_CHOICES) iff ``rows == 'deduplicated'``,
-    null otherwise.
-    ``thresholds``: non-empty, strictly increasing list of numbers in [0, 1) starting at
-    0 -- a threshold-t setting keeps the extracted rows with confidence >= t
-    (``threshold_mode: value``) or drops the bottom fraction t of each cell's rows by
-    confidence (``threshold_mode: percentile``); either way t = 0 is the unfiltered set. ``min_n``: a
-    positive int; a Q-Q line / W1 score is only computed for a sample of at least
-    that many rows. ``n_shuffle_samples``: a positive int, the number of confidence
-    permutations behind the W1 permutation control. ``outlier_adjust``: a bool; true
-    multiplies the NTP / probe confidences by the non-outlier factor of
-    analysis/common/outlier_weight.py before thresholding.
+    Key rules: ``thresholds`` is strictly increasing in [0, 1) and starts at 0 (the
+    unfiltered set); ``threshold_mode`` is ``value`` (keep confidence >= t) or
+    ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
+    sample scored; ``n_shuffle_samples`` sizes the permutation control;
+    ``outlier_adjust`` applies outlier_weight.py before thresholding.
+
+    Args:
+        path: Path to the config YAML.
+
+    Returns:
+        The full config dict.
+
+    Raises:
+        ValueError, KeyError: Missing, extra or malformed keys.
     """
     cfg = _load_envelope(path, "meta")
     unexpected = set(cfg["params"]) - {SECTION_V2}
@@ -134,7 +112,20 @@ def load_meta_v2_config(path: Path) -> dict:
 
 
 def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> None:
-    """Checks on the input-selection and cell keys of a meta section (and the envelope seed)."""
+    """Validate a meta section's input-selection and cell keys, and the envelope seed.
+
+    ``deduplication_config_id`` and ``confidence`` must be set iff ``rows`` is
+    ``deduplicated``, and null otherwise.
+
+    Args:
+        path: Config path (for error messages).
+        cfg: Full config dict.
+        sec: The section being checked.
+        section: Section name (for error messages).
+
+    Raises:
+        ValueError: Any key is malformed.
+    """
     SECTION = section  # noqa: N806 -- error messages name the section being checked
     if not isinstance(sec["calibration_config_id"], str) or not sec["calibration_config_id"]:
         raise ValueError(f"{path}: {SECTION}.calibration_config_id must be a non-empty string")
@@ -168,21 +159,26 @@ def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> Non
 
 
 def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
-    """Resolve and cross-check every run a meta / clustering config names (pure
-    id/config/path logic). ``sec`` is the caller's config section; only its
-    ``calibration_config_id``, ``calibration_version``, ``rows`` and
-    ``deduplication_config_id`` are read.
+    """Resolve the inputs of a meta / clustering config through its calibration config.
 
-    The calibration config (validated by ``calibration_version``'s loader in
-    CALIBRATION_LOADERS) is the single source of
-    truth for the extraction, judge_combine run, ground truth file, synthetic-probe
-    run and probe variant: calibration_ids.resolve_calibration_inputs cross-checks all
-    of them against each run's own committed config. Requires ``dataset`` in its
-    datasets and a built predictions.pkl. For ``rows: deduplicated`` the deduplication
-    config must list the extraction id.
+    The calibration config is the single source of truth for the extraction, judge,
+    ground truth and probe; ``resolve_calibration_inputs`` cross-checks them.
 
-    Returns dict(dataset, calibration_config_id, calibration_version, judge_model, extraction_id, extraction_dir, judge_combine_dir,
-    ground_truth_path, probe_dir, probe_variant, predictions_path, dedup_dir | None).
+    Args:
+        sec: Config section; reads ``calibration_config_id``, ``calibration_version``,
+            ``rows``, ``deduplication_config_id``.
+        dataset: Dataset to resolve.
+
+    Returns:
+        Dict with ``dataset``, ``calibration_config_id``, ``calibration_version``,
+        ``judge_model``, ``extraction_id``, ``extraction_dir``, ``judge_combine_dir``,
+        ``ground_truth_path``, ``probe_dir``, ``probe_variant``, ``predictions_path``,
+        ``dedup_dir`` (None unless rows is ``deduplicated``).
+
+    Raises:
+        FileNotFoundError: A config or predictions.pkl is missing.
+        ValueError: Unknown version, dataset not in the calibration config, or the
+            deduplication config does not cover the extraction.
     """
     cal_id, calibration_version = sec["calibration_config_id"], sec["calibration_version"]
     cal_path = analysis_config_path("calibration", cal_id)
@@ -222,22 +218,36 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
 
 def stored_prediction_rows(final_df: pd.DataFrame, excluded_docs: set, probs: dict, final_sha256: str,
                            calibration_config_id: str) -> pd.DataFrame:
-    """Scored datapoints (one row each) for the stored calibration predictions.
+    """Verified per-datapoint scores from a stored calibration cell.
 
-    ``final_df`` is the judged final.json; ``excluded_docs`` the probe's synthetic-
-    training documents (``syn_document_ids``); ``probs`` the pickle's real cell. The
-    cell carries its own measurement_ids, so scores are keyed by id and the cell is
-    verified against final_df (``prediction_store.check_real_cell``): no positional
-    rebuild. Returns measurement_id, document_id, attribute, ntp_prob, probe_prob,
-    label.
+    Args:
+        final_df: Judged final.json rows.
+        excluded_docs: The probe's synthetic-training documents.
+        probs: The predictions.pkl real cell.
+        final_sha256: Hash of the final.json in use.
+        calibration_config_id: Expected calibration config id.
+
+    Returns:
+        DataFrame (measurement_id, document_id, attribute, ntp_prob, probe_prob, label).
     """
     return check_real_cell(probs, final_df, excluded_docs, final_sha256, calibration_config_id)
 
 
 def load_checked_dedup_rows(dedup_dir: Path, extraction_id: str, deduplication_config_id: str) -> tuple[list[dict], dict]:
-    """The kept records of a built deduplication, after checking its meta.json against
-    the postprocessed.json now on disk (a regenerated extraction cannot be silently
-    paired with a stale dedup). Returns (records, meta)."""
+    """Load a built deduplication after checking it matches the current extraction file.
+
+    Args:
+        dedup_dir: Deduplication output directory.
+        extraction_id: Expected extraction id.
+        deduplication_config_id: Expected config id.
+
+    Returns:
+        ``(records, meta)``: deduplicated.json records and its meta.json.
+
+    Raises:
+        FileNotFoundError: meta.json missing.
+        ValueError: Ids, extraction hash or row count disagree.
+    """
     meta_path = dedup_dir / "meta.json"
     if not meta_path.exists():
         raise FileNotFoundError(f"{meta_path} missing -- run analysis/deduplication.py first")
@@ -255,14 +265,20 @@ def load_checked_dedup_rows(dedup_dir: Path, extraction_id: str, deduplication_c
 
 
 def attach_scores(rows: pd.DataFrame, scored: pd.DataFrame, score_cols: list[str]) -> pd.DataFrame:
-    """Left-join per-datapoint ``score_cols`` from ``scored`` onto ``rows`` by measurement_id.
+    """Many-to-one join of per-datapoint scores onto rows by ``measurement_id``.
 
-    ``scored`` is one row per judged datapoint (unique measurement_id); ``rows`` may
-    hold several rows per measurement_id (list-expanded children share their
-    parent's id), so the join is many-to-one and each child inherits its parent's
-    scores. Fails loud if: ``scored`` ids are not unique; any row's id is absent from
-    ``scored``; the join changes the row count or order; any score is NaN; or a row's
-    ``document_id`` / ``attribute`` differs from the scored datapoint it joined to.
+    Args:
+        rows: Rows to score; several may share a parent ``measurement_id``.
+        scored: One row per datapoint, unique ``measurement_id``.
+        score_cols: Columns of ``scored`` to attach.
+
+    Returns:
+        ``rows`` (same count and order) with ``score_cols`` added.
+
+    Raises:
+        ValueError: Non-unique scored ids, unscored rows, NaN scores, or
+            document_id/attribute disagreement.
+        AssertionError: The join changed row count or order.
     """
     if not scored["measurement_id"].is_unique:
         raise ValueError("scored datapoints do not have unique measurement_id")
@@ -287,19 +303,33 @@ def attach_scores(rows: pd.DataFrame, scored: pd.DataFrame, score_cols: list[str
 
 
 def _dumps(x) -> str:
+    """JSON string of a cell value, so lists/dicts/NaN compare by content.
+
+    Args:
+        x: Any cell value.
+
+    Returns:
+        ``json.dumps(x, default=str)``.
+    """
     return json.dumps(x, default=str)
 
 
 def row_provenance(rows: pd.DataFrame) -> pd.DataFrame:
-    """Tag postprocessed.json rows with their identity. ``measurement_id`` is the PARENT
-    datapoint's id, not a row id: a list-valued datapoint is expanded into one row per
-    entry and every child keeps the parent's id. Row identity here is the position.
+    """Add row-identity columns to postprocessed.json rows.
 
-    Adds ``row`` (position 0..n-1), ``n_siblings`` (rows sharing this measurement_id) and
-    ``list_index`` (0.. among siblings, -1 for a row that is the only one with its id).
-    Fails loud unless: measurement_id is an int on every row; the rows of one id are
-    contiguous; and siblings agree on every field except ``point_value`` and
-    ``list_values`` (postprocessing.expand_list_values only sets those).
+    ``measurement_id`` is the parent datapoint's id, shared by list-expanded siblings,
+    so row identity is position.
+
+    Args:
+        rows: postprocessed.json rows in file order.
+
+    Returns:
+        Copy with ``row`` (position), ``n_siblings`` (rows sharing the id) and
+        ``list_index`` (index among siblings, -1 if the row has no siblings).
+
+    Raises:
+        ValueError: Non-int ids, non-contiguous siblings, or siblings that differ on a
+            field other than ``point_value`` / ``list_values``.
     """
     mid = rows["measurement_id"]
     if not all(isinstance(m, (int, np.integer)) and not isinstance(m, bool) for m in mid):
@@ -324,19 +354,30 @@ def row_provenance(rows: pd.DataFrame) -> pd.DataFrame:
 def dedup_rows_with_scores(kept: pd.DataFrame, post: pd.DataFrame, clusters: pd.DataFrame,
                            scored: pd.DataFrame, score_cols: list[str], mean_cols: list[str],
                            confidence: str, excluded_docs: set) -> pd.DataFrame:
-    """Deduplicated rows (outside ``excluded_docs``) with scores attached.
+    """Score deduplicated rows outside ``excluded_docs``.
 
-    ``kept`` is deduplicated.json (the cluster centers, in row order, with merged
-    provenance); ``post`` the postprocessed.json rows it was built from (output of
-    ``row_provenance``); ``clusters`` its clusters.csv (row, measurement_id, cluster_id,
-    center_row, is_center, ...); ``scored`` one row per judged final.json datapoint.
+    A kept row takes its cluster center's scores. With ``cluster_mean``, the
+    ``mean_cols`` are averaged over the cluster instead; other ``score_cols`` (e.g.
+    the judge label) stay the center's.
 
-    Every postprocessed row is scored through its parent's measurement_id (children
-    inherit). A kept row takes its center's scores (``confidence == 'center'``) or, for
-    ``mean_cols`` only, the mean over all rows in its cluster (``'cluster_mean'``);
-    the remaining ``score_cols`` (the boolean judge label) are always the center's.
-    The kept rows are located through clusters.csv and verified against ``post``;
-    clusters must lie within one document (so dropping excluded documents never splits one).
+    Args:
+        kept: deduplicated.json rows (cluster centers, in row order).
+        post: postprocessed.json rows, after ``row_provenance``.
+        clusters: clusters.csv (row, measurement_id, cluster_id, center_row,
+            is_center, cluster_size, ...).
+        scored: One row per judged datapoint.
+        score_cols: Score columns to attach.
+        mean_cols: Subset of ``score_cols`` averaged under ``cluster_mean``.
+        confidence: ``"center"`` or ``"cluster_mean"``.
+        excluded_docs: Documents to drop.
+
+    Returns:
+        Kept rows outside ``excluded_docs`` with ``row``, ``cluster_id``,
+        ``cluster_size``, ``n_siblings``, ``list_index`` and the score columns.
+
+    Raises:
+        ValueError: clusters.csv, deduplicated.json and postprocessed.json disagree, a
+            cluster spans documents, or a score is NaN.
     """
     if confidence not in CONFIDENCE_CHOICES:
         raise ValueError(f"confidence must be one of {CONFIDENCE_CHOICES}, got {confidence!r}")

@@ -1,51 +1,21 @@
-"""Compute and cache within-extraction duplicate edges, by experiment id.
+"""Build the within-extraction duplicate-candidate graph for each experiment id.
 
-The deduplication counterpart of analysis/match_cache.py. The only job of this
-script: given a recovery-validity config (analysis/analysis-configs/recovery-validity/<id>.yaml) listing
-experiment ids and a ``params.deduplicate_cache`` section, load each run's
-extraction file, apply the section's explicit pre-normalisation, score EVERY
-pair of rows that strict-matches under the same pairwise rule as
-``scholarlm.utils.deduplication.pair_score`` (itself a mirror of
-``match_datasets``' edge rule), and write the edges + weights to
-analysis/results/deduplicate-cache/<config id>/<experiment id>/
-deduplicate_cache.pkl, plus a deduplicate_cache.meta.json sidecar recording the
-extraction file (repo-relative path + sha256), row count and the exact section
-the cache was built with.
+Scores every pair of rows whose strict fields are equal (scholarlm's ``pair_score``)
+and caches all edges at threshold 0.0, so any threshold and clustering method can be
+applied later. Fields come from the config's ``deduplicate_cache`` section, so the
+cache is keyed by (config id, experiment id). Writes
+analysis/results/deduplicate-cache/<config>/<id>/deduplicate_cache.pkl plus a sidecar
+with the extraction file hash and the section used. Edges are sorted (i, j), i < j,
+by row position.
 
-Like match_cache.py the cache is built at fuzzy_threshold=0.0: it stores every
-strict-equal pair once with its mean fuzzy score, and a threshold is applied
-afterwards with ``edges_above_threshold`` (inclusive ``>=``, the same boundary
-as ``deduplicate_records`` and ``match_datasets``). Which deduplication
-*technique* is applied to those edges (greedy, connected components, complete
-linkage, ...) is deliberately NOT decided here -- this script only builds the
-pair graph those techniques reason about. Always recomputes and overwrites.
-
-Unlike match_cache.py the fields come from the analysis config, not a
-DatasetConfig (there is no dataset-level notion of "the dedup fields"), so the
-cache is keyed by (config id, experiment id): two configs with different field
-sets over the same run never overwrite each other.
-
-Edge indices are positional row indices (0..n_rows-1) into the extraction file
-as loaded; the sidecar's sha256 pins which file that was. Edges are (i, j) with
-i < j, sorted.
-
-Pre-normalisation (the dedup function compares exactly what it is given, so it
-is explicit and recorded, never inferred):
-  * ``join_list_fields``: a list-valued column (e.g. ``qualifiers``) becomes the
-    sorted '|'-joined string of its elements (empty list -> '' == null). Null
-    stays null; anything else is a hard error.
-  * ``numeric_coerce``: a strict column whose values are numeric strings in some
-    rows and floats in others (``point_value``) is parsed with match_cache's
-    ``parse_numeric``. Unlike match_cache, a value that does not parse is KEPT
-    as its original string rather than turned into NaN -- NaN would make two
-    different garbage strings (both "null") strict-equal to each other, which
-    for dedup means merging unrelated rows. The count of kept-raw values is
-    printed and stored in the sidecar.
+Pre-normalisation (explicit, recorded in the sidecar):
+  - join_list_fields: list -> sorted '|'-joined string.
+  - numeric_coerce: parse to float; unparseable values stay as raw strings,
+    because NaN would make different garbage values equal and merge them.
 
 Usage
 -----
     python analysis/deduplicate_cache.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
-    bash analysis/submit.sh deduplicate_cache <id> --walltime HH:MM:SS --omp N
 """
 from __future__ import annotations
 
@@ -76,6 +46,17 @@ import utils as paths
 
 
 def _join_list(v):
+    """Turn a list of strings into one sorted, '|'-joined string.
+
+    Args:
+        v: List of str, or a null value.
+
+    Returns:
+        Joined string, or None for null.
+
+    Raises:
+        TypeError: Non-str elements, or a value that is neither list nor null.
+    """
     if isinstance(v, list):
         if not all(isinstance(x, str) for x in v):
             raise TypeError(f"join_list_fields element is not all str: {v!r}")
@@ -86,11 +67,18 @@ def _join_list(v):
 
 
 def prepare_frame(records: list[dict], sec: dict, label: str) -> pd.DataFrame:
-    """Extraction records -> the frame whose rows are scored (positional index).
+    """Build the frame to score: strict + fuzzy columns, pre-normalised and validated.
 
-    Applies the section's explicit pre-normalisation, then the same
-    scalar-type validation ``deduplicate_records`` runs. Only strict+fuzzy
-    columns are kept.
+    Args:
+        records: Extraction records.
+        sec: The ``deduplicate_cache`` config section.
+        label: Prefix for printed messages.
+
+    Returns:
+        DataFrame with a positional index, one row per record.
+
+    Raises:
+        KeyError: A configured column is missing.
     """
     df = pd.DataFrame(records).reset_index(drop=True)
     cols = sec["strict_fields"] + sec["fuzzy_fields"]
@@ -119,8 +107,20 @@ def prepare_frame(records: list[dict], sec: dict, label: str) -> pd.DataFrame:
 
 
 def compute_edges(df: pd.DataFrame, strict_fields: list, fuzzy_fields: list) -> tuple:
-    """Every pair (i < j) of rows with all strict fields equal, scored at
-    threshold 0.0 by ``pair_score``. Returns (edges, weights, block_sizes)."""
+    """Score every pair of rows with equal strict fields, at threshold 0.0.
+
+    Args:
+        df: Output of ``prepare_frame``.
+        strict_fields: Columns that must be equal.
+        fuzzy_fields: Columns averaged into the score.
+
+    Returns:
+        Tuple of:
+            - edges: sorted (i, j) pairs, i < j
+            - weights: score per edge, in [0, 1]
+            - block_sizes: strict-block sizes, descending
+            - n_pairs: number of within-block pairs scored
+    """
     records = df.to_dict("records")
     blocks: dict = collections.defaultdict(list)
     for i, r in enumerate(records):
@@ -150,11 +150,24 @@ def compute_edges(df: pd.DataFrame, strict_fields: list, fuzzy_fields: list) -> 
 
 
 def summarise(n_rows: int, edges: list, weights: list, threshold: float) -> dict:
-    """Connected-component structure of the graph at ``threshold``."""
+    """Summarise the graph's connected components at a threshold.
+
+    Args:
+        n_rows: Number of rows (nodes).
+        edges: (i, j) pairs.
+        weights: Weight per edge.
+        threshold: Minimum weight to keep.
+
+    Returns:
+        Dict with ``threshold``, ``n_edges``, ``n_components``,
+        ``n_components_size_gt1``, ``largest_component``, ``n_non_clique_components``,
+        ``rows_in_non_clique_components``.
+    """
     kept = edges_above_threshold(edges, weights, threshold)
     parent = list(range(n_rows))
 
     def find(x):
+        """Union-find root of ``x``, with path halving."""
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
@@ -180,7 +193,20 @@ def summarise(n_rows: int, edges: list, weights: list, threshold: float) -> dict
 
 
 def build_deduplicate_cache(config_id: str, experiment_id: str, sec: dict) -> Path:
-    """Compute and cache the within-extraction duplicate graph for one id."""
+    """Build and write the duplicate-candidate cache and sidecar for one experiment.
+
+    Args:
+        config_id: Recovery-validity config id.
+        experiment_id: Extraction experiment id.
+        sec: The ``deduplicate_cache`` config section.
+
+    Returns:
+        Path of the written deduplicate_cache.pkl.
+
+    Raises:
+        FileNotFoundError: The extraction file is missing.
+        ValueError: The extraction file is not a non-empty list.
+    """
     result_dir = paths.find_result_dir(experiment_id)
     extraction_file = result_dir / sec["extraction_file"]
     if not extraction_file.exists():
@@ -232,6 +258,7 @@ def build_deduplicate_cache(config_id: str, experiment_id: str, sec: dict) -> Pa
 
 
 def main() -> None:
+    """CLI: build the cache for every experiment id in ``--config``."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True,
                         help="analysis-configs/recovery-validity/<id>.yaml with params.deduplicate_cache")

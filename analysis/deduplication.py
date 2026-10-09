@@ -1,49 +1,22 @@
-"""Deduplicate an extraction with exact weighted correlation clustering, keeping each cluster's center.
+"""Deduplicate an extraction by exact weighted correlation clustering, keeping each cluster's center.
 
-Reads the within-extraction duplicate graph cached by analysis/deduplicate_cache.py
-on the same recovery-validity config (every strict-equal row pair with its mean
-fuzzy score ``w``) and the extraction file that cache was built against, then:
+Reads the duplicate-candidate graph from deduplicate_cache.py (checked against the
+current extraction file), then:
+1. Clusters rows. With tau = the dataset's fuzzy_threshold, separating a pair costs
+   max(w - tau, 0) and joining costs max(tau - w, 0). Pairs that aren't strict-equal
+   can never share a cluster (isclose is not transitive, so connected components
+   could wrongly merge them). Each component of the w >= tau graph is solved to
+   proven optimality with an integer program; otherwise it is a hard error.
+2. Keeps each cluster's center: the member with the highest mean raw weight to the
+   others. Ties go to the lowest (measurement_id, row) and are counted in meta.json.
+Kept rows are the original records; provenance fields hold the center's entries
+followed by the dropped members' entries.
 
-(a) clusters the rows by weighted correlation clustering. With ``tau`` = the
-    experiment's dataset's ``DatasetConfig.fuzzy_threshold``, a pair of rows costs
-    ``max(w - tau, 0)`` to separate and ``max(tau - w, 0)`` to join (``s = w - tau``
-    centred on the threshold; a pair scoring exactly ``tau`` is free either way).
-    Pairs that are not strict-equal (absent from the cache) can never share a
-    cluster -- a hard constraint, not a cost. This matters: numeric strict equality
-    uses ``isclose``, which is not transitive, so connected components or a greedy
-    walk can put two non-strict-equal rows in one group. The problem splits exactly
-    into the connected components of the ``w >= tau`` graph and each component is
-    solved to PROVEN optimality (0% MIP gap) as an integer program with transitivity
-    constraints (``scipy.optimize.milp`` / HiGHS). A component that is not proven
-    optimal within ``solver_time_limit_s`` is a hard error -- there is no heuristic
-    fallback.
-(b) keeps one row per cluster, its center: the member with the highest mean RAW
-    cached weight ``w`` to the other members (not ``w - tau``). A singleton is its own
-    center. Ties (within 1e-12, a float-noise tolerance, not a tunable) go to the
-    lowest ``(measurement_id, row position)`` -- ``measurement_id`` alone is not
-    unique in postprocessed.json (list-expanded child rows inherit their parent's
-    id, see analysis/postprocessing.py), so the row position breaks the remaining
-    tie; every cluster whose center was decided that way is
-    counted in the metadata as ``n_centers_decided_by_tiebreak``, because for 2-row
-    clusters and all-1.0 cliques the choice is arbitrary by construction.
-
-The kept rows are the ORIGINAL extraction records (same schema, same row order, not
-the normalised frame the cache was scored on), except that each ``provenance_fields``
-list is the center's own entries followed by its dropped cluster members' entries in
-row order. Other list fields (e.g. ``attribute_terms``) are the center's own.
-
-Output, per experiment id, under analysis/results/deduplication/<config id>/<id>/:
-  deduplicated.json   the kept records
-  clusters.csv        one row per input row: cluster assignment, center, mean weight
-  meta.json           provenance + counts (extraction/cache sha256, tau, solver stats)
-Always recomputes and overwrites. Row indices throughout are positions in the
-extraction file; the cache sidecar's sha256 and row count are checked against the
-file first, so a regenerated extraction cannot be silently mismatched.
+Writes analysis/results/deduplication/<config>/<id>/{deduplicated.json, clusters.csv, meta.json}.
 
 Usage
 -----
     python analysis/deduplication.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
-    bash analysis/submit.sh deduplication <id> --walltime HH:MM:SS --omp N
 """
 from __future__ import annotations
 
@@ -80,7 +53,17 @@ _TIE_ATOL = 1e-12  # float-noise tolerance when comparing mean weights
 
 
 def get_threshold(experiment_id: str) -> float:
-    """The experiment's dataset's DatasetConfig.fuzzy_threshold (fails if unset)."""
+    """The clustering threshold tau: the experiment's dataset's fuzzy_threshold.
+
+    Args:
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        tau in [0, 1].
+
+    Raises:
+        ValueError: The threshold is unset or out of range.
+    """
     dataset = paths.find_result_dir(experiment_id).relative_to(paths.RESULTS_ROOT).parts[0]
     tau = load_dataset_config(dataset).fuzzy_threshold
     if tau is None or isinstance(tau, bool) or not isinstance(tau, (int, float)) or not 0.0 <= tau <= 1.0:
@@ -93,9 +76,19 @@ def get_threshold(experiment_id: str) -> float:
 # ---------------------------------------------------------------------------
 
 def connected_components(n: int, pairs) -> list[list[int]]:
+    """Connected components of a graph on nodes 0..n-1 (union-find).
+
+    Args:
+        n: Number of nodes.
+        pairs: Edges as (i, j).
+
+    Returns:
+        List of components, each a list of node ids.
+    """
     parent = list(range(n))
 
     def find(x):
+        """Union-find root of ``x``, with path halving."""
         while parent[x] != x:
             parent[x] = parent[parent[x]]
             x = parent[x]
@@ -110,13 +103,32 @@ def connected_components(n: int, pairs) -> list[list[int]]:
 
 
 def pair_costs(w: float, tau: float) -> tuple[float, float]:
-    """(cost to separate, cost to join) a strict-equal pair scoring ``w``."""
+    """Correlation-clustering costs for a strict-equal pair.
+
+    Args:
+        w: Pair weight.
+        tau: Threshold.
+
+    Returns:
+        ``(cost_to_separate, cost_to_join)`` = ``(max(w - tau, 0), max(tau - w, 0))``.
+    """
     return max(w - tau, 0.0), max(tau - w, 0.0)
 
 
 def partition_cost(clusters, W: dict, tau: float) -> float:
-    """Weighted correlation-clustering cost of a partition of one component.
-    Raises if it joins a pair that is not strict-equal (absent from W)."""
+    """Total correlation-clustering cost of a partition.
+
+    Args:
+        clusters: Partition of the rows, as lists.
+        W: (i, j) -> weight for strict-equal pairs, i < j.
+        tau: Threshold.
+
+    Returns:
+        Sum of separate/join costs over all pairs in W.
+
+    Raises:
+        AssertionError: A cluster joins a pair absent from W.
+    """
     cl = {v: k for k, g in enumerate(clusters) for v in g}
     cost = 0.0
     for a, b in itertools.combinations(sorted(cl), 2):
@@ -131,11 +143,20 @@ def partition_cost(clusters, W: dict, tau: float) -> float:
 
 
 def solve_component(members: list[int], W: dict, tau: float, time_limit_s: float) -> tuple[list[list[int]], float, float]:
-    """Exact weighted correlation clustering of one component.
+    """Solve one component exactly as a MILP with transitivity constraints.
 
-    ``W`` maps (i, j), i < j, to the cached weight for every strict-equal pair
-    among ``members`` (pairs absent from W are forced apart). Returns
-    (clusters, cost, seconds). Raises if the solver does not prove optimality.
+    Args:
+        members: Row ids in the component.
+        W: (i, j) -> weight for strict-equal pairs within ``members``; absent pairs
+            are forced apart.
+        tau: Threshold.
+        time_limit_s: Solver time limit.
+
+    Returns:
+        ``(clusters, cost, seconds)``.
+
+    Raises:
+        RuntimeError: The solver did not prove optimality in time.
     """
     members = sorted(members)
     if len(members) == 1:
@@ -155,6 +176,7 @@ def solve_component(members: list[int], W: dict, tau: float, time_limit_s: float
         coef[idx] = c_join - c_sep
 
     def key(a, b):
+        """Pair as (min, max)."""
         return (a, b) if a < b else (b, a)
 
     rows, cols, vals, r = [], [], [], 0
@@ -186,6 +208,7 @@ def solve_component(members: list[int], W: dict, tau: float, time_limit_s: float
     parent = {v: v for v in members}
 
     def find(v):
+        """Union-find root of ``v``, with path halving."""
         while parent[v] != v:
             parent[v] = parent[parent[v]]
             v = parent[v]
@@ -204,8 +227,19 @@ def solve_component(members: list[int], W: dict, tau: float, time_limit_s: float
 
 
 def cluster_rows(n: int, edges: list, weights: list, tau: float, time_limit_s: float) -> dict:
-    """Partition rows 0..n-1. Returns dict with clusters (sorted by first row), total
-    cost, component stats."""
+    """Cluster all rows, solving each component of the w >= tau graph separately.
+
+    Args:
+        n: Number of rows.
+        edges: Cached (i, j) pairs, i < j.
+        weights: Weight per edge.
+        tau: Threshold.
+        time_limit_s: Per-component solver time limit.
+
+    Returns:
+        Dict with ``clusters`` (sorted by first row), ``cost``, ``n_components``,
+        ``largest_component``, ``slowest_solve_s``.
+    """
     W = {tuple(e): float(w) for e, w in zip(edges, weights)}
     assert len(W) == len(edges), "duplicate edges in cache"
     assert all(i < j for i, j in W) and all(0 <= i and j < n for i, j in W)
@@ -229,7 +263,18 @@ def cluster_rows(n: int, edges: list, weights: list, tau: float, time_limit_s: f
 
 
 def pick_center(cluster: list[int], W: dict, measurement_ids: list) -> tuple[int, dict, bool]:
-    """(center row, {row: mean raw weight to the others}, decided_by_tiebreak)."""
+    """Pick the member with the highest mean raw weight to the rest of its cluster.
+
+    Ties (within _TIE_ATOL) go to the lowest (measurement_id, row).
+
+    Args:
+        cluster: Row ids.
+        W: (i, j) -> weight, i < j.
+        measurement_ids: measurement_id per row.
+
+    Returns:
+        ``(center_row, {row: mean weight}, decided_by_tiebreak)``; singletons get NaN.
+    """
     if len(cluster) == 1:
         return cluster[0], {cluster[0]: float("nan")}, False
     mean = {}
@@ -247,6 +292,22 @@ def pick_center(cluster: list[int], W: dict, measurement_ids: list) -> tuple[int
 # ---------------------------------------------------------------------------
 
 def _check_cache_matches_extraction(cache_config_id, cache_section, experiment_id, extraction_file, records):
+    """Check the cache sidecar matches this extraction file and config section.
+
+    Args:
+        cache_config_id: Config id the cache was built under.
+        cache_section: Current ``deduplicate_cache`` section.
+        experiment_id: Extraction experiment id.
+        extraction_file: Extraction file in use.
+        records: Its loaded records.
+
+    Returns:
+        The sidecar dict.
+
+    Raises:
+        FileNotFoundError: No sidecar.
+        ValueError: Path, sha256, row count or section differs.
+    """
     meta_path = dedup.deduplicate_cache_meta_path(cache_config_id, experiment_id)
     if not meta_path.exists():
         raise FileNotFoundError(f"{experiment_id}: no cache sidecar {meta_path}; build the deduplicate cache first")
@@ -266,8 +327,22 @@ def _check_cache_matches_extraction(cache_config_id, cache_section, experiment_i
 
 
 def merge_provenance(records: list[dict], clusters: list[list[int]], centers: list[int], fields: list[str]) -> list[dict]:
-    """Original records of the centers (in row order); each provenance list is the
-    center's own entries then the other members' entries in row order."""
+    """Center records with their cluster's provenance entries merged in.
+
+    Args:
+        records: Original extraction records.
+        clusters: Clusters, aligned with ``centers``.
+        centers: Center row of each cluster.
+        fields: Provenance fields to merge (list-valued, equal length per row).
+
+    Returns:
+        One record per center, in row order. Each provenance list is the center's
+        entries, then other members' entries in row order.
+
+    Raises:
+        TypeError: A provenance value is not a list.
+        ValueError: A row's provenance lists differ in length.
+    """
     for f in fields:
         bad = [i for i, r in enumerate(records) if not isinstance(r.get(f), list)]
         if bad:
@@ -294,6 +369,22 @@ def merge_provenance(records: list[dict], clusters: list[list[int]], centers: li
 
 
 def build_deduplication(config_id: str, experiment_id: str, sec: dict, cache_config_id: str, cache_section: dict) -> Path:
+    """Cluster one extraction and write deduplicated.json, clusters.csv and meta.json.
+
+    Args:
+        config_id: Config id the outputs are filed under.
+        experiment_id: Extraction experiment id.
+        sec: The ``deduplication`` config section.
+        cache_config_id: Config id the deduplicate cache was built under.
+        cache_section: The ``deduplicate_cache`` config section.
+
+    Returns:
+        Output directory.
+
+    Raises:
+        FileNotFoundError: Extraction file or cache missing.
+        ValueError: Cache/extraction mismatch, empty extraction, or non-int measurement_id.
+    """
     t0 = time.time()
     extraction_file = paths.find_result_dir(experiment_id) / cache_section["extraction_file"]
     if not extraction_file.exists():
@@ -361,7 +452,18 @@ def build_deduplication(config_id: str, experiment_id: str, sec: dict, cache_con
 
 
 def load_deduplicated(config_id: str, experiment_id: str) -> list[dict]:
-    """The kept records of a built deduplication. Never builds anything."""
+    """Read a built deduplicated.json (never builds one).
+
+    Args:
+        config_id: Config id.
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        The kept records.
+
+    Raises:
+        FileNotFoundError: Not built.
+    """
     path = deduplication_dir(config_id, experiment_id) / "deduplicated.json"
     if not path.exists():
         raise FileNotFoundError(f"No deduplication for ({config_id!r}, {experiment_id!r}) at {path}")
@@ -369,13 +471,14 @@ def load_deduplicated(config_id: str, experiment_id: str) -> list[dict]:
 
 
 def main() -> None:
+    """CLI: deduplicate every experiment id in ``--config``."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True,
                         help="analysis-configs/recovery-validity/<id>.yaml with params.deduplicate_cache and params.deduplication")
     args = parser.parse_args()
     cfg = load_deduplication_config(args.config)
     sec = get_section(cfg, SECTION, SECTION_KEYS)
-    # The caches this clusters were built by deduplicate_cache.py on this same config.
+    # The caches were built by deduplicate_cache.py on this same config.
     cache_section = get_section(cfg, dedup.CACHE_SECTION, dedup.CACHE_SECTION_KEYS)
     for experiment_id in cfg["params"]["experiment_ids"]:
         build_deduplication(cfg["id"], experiment_id, sec, cfg["id"], cache_section)

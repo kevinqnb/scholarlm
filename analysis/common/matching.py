@@ -1,9 +1,8 @@
-"""Match-cache access and the per-dataset matching rules: where analysis/match_cache.py
-writes each experiment's ground-truth <-> extraction candidate graph, how other analysis
-code loads and thresholds it, and which extraction file it is built from.
+"""Read match caches, apply matching rules, and guard against stale or mismatched caches.
 
-Building a cache (match_datasets over every candidate pair) stays in
-analysis/match_cache.py; nothing here ever computes a matching.
+analysis/match_cache.py builds each experiment's ground-truth <-> extraction candidate
+graph. This module locates, loads, thresholds and verifies it, and never computes a
+matching itself.
 """
 from __future__ import annotations
 
@@ -27,49 +26,26 @@ from analysis.common.provenance import repo_relative, sha256_file  # noqa: E402
 from experiments.run_extraction import load_dataset_config  # noqa: E402
 from analysis.common.config import analysis_results_dir  # noqa: E402
 
-# Where every match cache lives: MATCH_CACHE_ROOT/<experiment id>/{match_cache.pkl,
-# match_cache.meta.json}. A per-id directory (not a flat <id>.pkl) because
-# analysis/recovery_validity.py locates the sidecar as
-# ``cache_path.with_name("match_cache.meta.json")``.
+# Each cache lives in MATCH_CACHE_ROOT/<experiment id>/ as match_cache.pkl plus a
+# match_cache.meta.json sidecar recording the input files it was built from.
 MATCH_CACHE_ROOT = analysis_results_dir("match-cache")
 
-# ---------------------------------------------------------------------------
-# Per-dataset matching configuration
-#
-# strict / fuzzy: column-name mapping from ground-truth df -> extraction df,
-# passed straight through to match_datasets (df_left=ground_truth,
-# df_right=extraction). "units" below is the real column name on both sides
-# (there is no separate singular "unit" column).
-#
-# numeric_coerce: subset of strict's keys (ground-truth column names) that
-# must be forced to float on both sides before matching. Needed because
-# match_datasets' strict equality only takes the numeric (np.isclose) path
-# when BOTH sides are already a numeric Python type -- point_value is
-# numeric in ground truth but a raw LLM-output string (e.g. "0.26") in
-# final.json (ParseQuantityResponse types it str | None), so left uncoerced
-# it silently falls through to string comparison and never matches.
-#
-# Coercion goes through parse_numeric (below), not bare pd.to_numeric:
-# real point_value output includes unicode scientific notation ("1.5 ×
-# 10^8", observed in pond's 2026-09-21-pond-extraction-gemma27b-full-01)
-# that float() can't parse on its own. Values parse_numeric can't make
-# sense of at all (label-echo garbage like "pH", "TN") become NaN, and
-# match_datasets treats NaN as null. Strict null semantics are: null on one
-# side only never matches, but null on BOTH sides matches. So a garbage
-# extraction value never strict-matches a ground-truth row that has a real
-# value in that column, but it DOES strict-match a ground-truth row whose
-# value in that column is itself null/NaN (the other strict fields must then
-# carry the match). build_match_cache prints every value that fell through to
-# NaN, so a genuinely new garbage pattern doesn't disappear silently.
-# ---------------------------------------------------------------------------
+# Matching rules come from each DatasetConfig:
+#   strict / fuzzy: ground-truth column -> extraction column, passed to match_datasets.
+#   numeric_coerce: strict columns forced to float on both sides first. Extracted
+#     point_value is an LLM string ("0.26"), and match_datasets only compares
+#     numerically when both sides are numbers, so uncoerced values never match.
+# Unparseable values become NaN. match_datasets treats NaN as null, and null matches
+# null, so such a row can still strict-match a ground-truth row that is null there.
 
 def parse_numeric(x):
-    """Parse a value into a float for strict-match coercion.
+    """Parse a value to float for strict-match coercion.
 
-    Handles plain numbers/numeric strings and "<mantissa> × 10^<exponent>"
-    scientific notation (SCI_NOTATION_RE, shared with
-    scholarlm.utils.parsing.parse_quantity_shape's own plain-value check).
-    Anything else (None, or a string that is neither) returns NaN.
+    Args:
+        x: Number, numeric string, or ``"<mantissa> × 10^<exponent>"`` string.
+
+    Returns:
+        The float, or NaN for None, bools, other types and unparseable strings.
     """
     if x is None:
         return np.nan
@@ -89,22 +65,17 @@ def parse_numeric(x):
     return np.nan
 
 def get_matching_config(dataset_config) -> dict:
-    """Read this dataset's matching rules off its own DatasetConfig, in the
-    ``{"strict": ..., "fuzzy": ..., "fuzzy_threshold": ..., "numeric_coerce": ...}``
-    shape the rest of this module (and analysis/recovery_validity.py) expects.
+    """Read a dataset's matching rules from its DatasetConfig.
 
-    The single place that bridges DatasetConfig's ``strict_matching``/
-    ``fuzzy_matching``/``fuzzy_threshold``/``numeric_coerce`` fields (see
-    their docstrings in ``scholarlm.config.DatasetConfig``) into this
-    module's own dict shape -- callers should use this rather than reading
-    those fields off a DatasetConfig directly, so there is one place to
-    change if that shape ever does.
+    Args:
+        dataset_config: The dataset's ``DatasetConfig``.
+
+    Returns:
+        Dict with ``strict``, ``fuzzy``, ``fuzzy_threshold``, ``numeric_coerce``
+        (default []) and ``fuzzy_normalizers`` (default {}).
 
     Raises:
-        KeyError: ``strict_matching`` or ``fuzzy_matching``/``fuzzy_threshold``
-            is unset on this dataset's config -- add them to
-            experiments/dataset-configs/{dataset}.py before using this
-            dataset through match_cache.py/recovery_validity.py.
+        KeyError: ``strict_matching``, ``fuzzy_matching`` or ``fuzzy_threshold`` is unset.
     """
     missing = [
         field for field in ("strict_matching", "fuzzy_matching", "fuzzy_threshold")
@@ -129,15 +100,15 @@ def get_matching_config(dataset_config) -> dict:
 def edges_above_threshold(
     edges: list[tuple[int, int]], edge_weights: list[float], fuzzy_threshold: float,
 ) -> list[tuple[int, int]]:
-    """Filter a 0.0-threshold-cached edge list down to the edges some
-    fuzzy_threshold selects: ``w >= fuzzy_threshold`` (inclusive), the same
-    boundary as match_datasets' own construction-time filter (it drops
-    ``score < fuzzy_threshold``) and as every post-hoc caller (analysis/
-    metrics.py, calibration*.py, probe_pca.py, validity_evaluation.py). Before
-    2026-10-03 the post-hoc callers used strict ``>`` while match_datasets
-    kept ``>=``, so an edge scoring exactly the threshold was dropped by them
-    but not by it; that is fixed, and it invalidates any recovery/validity
-    number computed with the old strict-greater-than compare.
+    """Keep edges with weight >= ``fuzzy_threshold`` (same boundary as match_datasets).
+
+    Args:
+        edges: (gt_idx, ex_idx) pairs from a threshold-0.0 cache.
+        edge_weights: Weight per edge.
+        fuzzy_threshold: Minimum weight to keep, inclusive.
+
+    Returns:
+        The kept (gt_idx, ex_idx) pairs, in input order.
     """
     return [
         (gt_idx, ex_idx)
@@ -147,20 +118,25 @@ def edges_above_threshold(
 
 
 def match_cache_path(experiment_id: str) -> Path:
-    """The match_cache.pkl path for an experiment id
-    (``MATCH_CACHE_ROOT/<id>/match_cache.pkl``), whether or not it has been
-    built yet. The one place this path gets constructed -- other scripts should
-    call this rather than hand-building it. Does not check that the id names a
-    real run; the build step (``build_match_cache``) does that.
+    """Path of an experiment's match cache (whether or not it exists).
+
+    Args:
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        ``MATCH_CACHE_ROOT/<experiment_id>/match_cache.pkl``.
     """
     return MATCH_CACHE_ROOT / experiment_id / "match_cache.pkl"
 
 
 def match_cache_meta_path(experiment_id: str) -> Path:
-    """The match_cache.meta.json sidecar path for an experiment id -- records
-    which ground truth file (repo-relative path, sha256, row count) the
-    match_cache.pkl at match_cache_path(experiment_id) was built against. See
-    build_match_cache / recovery_validity.assert_ground_truth_matches_cache.
+    """Path of the sidecar recording which input files a match cache was built from.
+
+    Args:
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        ``MATCH_CACHE_ROOT/<experiment_id>/match_cache.meta.json``.
     """
     return match_cache_path(experiment_id).with_name("match_cache.meta.json")
 
@@ -168,20 +144,15 @@ def match_cache_meta_path(experiment_id: str) -> Path:
 def load_match_cache(
     experiment_id: str, fuzzy_threshold: float | None = None,
 ) -> tuple | list[tuple[int, int]]:
-    """Load an already-built match_cache.pkl for use in another script.
-
-    Reads only from ``match_cache_path(experiment_id)`` under MATCH_CACHE_ROOT --
-    never from the old per-run location. Never computes anything -- raises if
-    build_match_cache hasn't been run for this experiment_id yet, rather than silently building one inline (a
-    fresh build takes O(n_gt * n_extraction) strict+fuzzy scoring, tens of
-    minutes for a real run; see analysis/match_cache.sh).
+    """Load a built match cache. Never builds one (a build takes tens of minutes).
 
     Args:
-        experiment_id: The experiment id whose match_cache.pkl to load.
-        fuzzy_threshold: If given, returns just the edges surviving this
-            threshold (via edges_above_threshold) -- what recovery/validity-
-            style code wants. If None (default), returns the raw cached
-            (matching, edges, edge_weights) tuple as written by cached_match.
+        experiment_id: Extraction experiment id.
+        fuzzy_threshold: If given, return only edges with weight >= this.
+
+    Returns:
+        ``(matching, edges, edge_weights)``, or the filtered edge list when
+        ``fuzzy_threshold`` is set.
 
     Raises:
         FileNotFoundError: If no match_cache.pkl exists for this id.
@@ -200,17 +171,15 @@ def load_match_cache(
 
 
 def extraction_path(experiment_id: str) -> tuple:
-    """Resolve the extraction file to match experiment_id against:
-    postprocessed.json (analysis/postprocessing.py's qualifier-fill/unit-
-    standardization output) if it exists, else final.json, with a printed
-    warning -- the one place this preference is decided, so
-    build_match_cache and analysis/recovery_validity.py's load_frames can't
-    drift apart on it.
+    """Pick the extraction file to match: postprocessed.json, else final.json with a warning.
+
+    Defined once so cache building and cache reading always agree.
+
+    Args:
+        experiment_id: Extraction experiment id.
 
     Returns:
-        (path, used_fallback). used_fallback=True means postprocessed.json
-        didn't exist and final.json was used instead (analysis/
-        postprocessing.py hasn't been run for this id yet).
+        ``(path, used_fallback)``; ``used_fallback`` is True when final.json was used.
 
     Raises:
         FileNotFoundError: neither file exists for this id.
@@ -234,22 +203,18 @@ def extraction_path(experiment_id: str) -> tuple:
 
 
 def load_frames(experiment_id: str, ground_truth_path: Path):
-    """Load an experiment's ground truth + extraction frames exactly as
-    ````match_cache.build_match_cache`` did when it built this id's cache
-    (reset_index, no unit conversion, no row filtering) -- the cached
-    (gt_idx, ex_idx) edges are positions into frames loaded this same way,
-    so loading them any other way would silently misalign the cache. The
-    extraction file itself is resolved via ``extraction_path``,
-    the same postprocessed.json-else-final.json preference
-    ``build_match_cache`` used.
+    """Load ground-truth and extraction frames exactly as match_cache.py did.
 
-    ``ground_truth_path`` has no default -- see module docstring for why the
-    ground truth file is always given explicitly rather than read off the
-    dataset's own DatasetConfig.
+    Cached edges are row positions, so the frames must be loaded the same way
+    (reset_index, no conversion, no filtering) or the cache silently misaligns.
+
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file, given explicitly.
 
     Returns:
-        (dataset, dataset_config, ground_truth_df, extraction_df,
-        extraction_file_path, ground_truth_path).
+        Tuple of ``(dataset, dataset_config, ground_truth_df, extraction_df,
+        extraction_file_path, ground_truth_path)``.
 
     Raises:
         FileNotFoundError: no results directory, or no postprocessed.json/
@@ -277,13 +242,14 @@ def load_frames(experiment_id: str, ground_truth_path: Path):
     return dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path
 
 def assert_cache_fresh(cache_path: Path, *source_paths: Path) -> None:
-    """Raise if cache_path is older than any of source_paths.
+    """Fail if a cache is older than any of its source files.
 
-    A match cache's (gt_idx, ex_idx) edges are only meaningful against the
-    exact frames that were loaded when it was built -- if the ground truth
-    or the extraction file (postprocessed.json/final.json) has changed
-    since, those indices may now point at different rows. Refuse rather than
-    guess.
+    Args:
+        cache_path: The cache file.
+        *source_paths: Files the cache was built from.
+
+    Raises:
+        RuntimeError: A source file is newer than the cache.
     """
     cache_mtime = cache_path.stat().st_mtime
     stale = [p for p in source_paths if p.stat().st_mtime > cache_mtime]
@@ -297,26 +263,20 @@ def assert_cache_fresh(cache_path: Path, *source_paths: Path) -> None:
 def assert_ground_truth_matches_cache(
     experiment_id: str, cache_path: Path, ground_truth_path: Path, ground_truth_df: pd.DataFrame,
 ) -> None:
-    """Raise unless match_cache.py's own match_cache.meta.json sidecar
-    confirms cache_path was built against this exact ground_truth_path.
+    """Fail unless the cache sidecar records this exact ground-truth file (path, hash, rows).
 
-    The mtime check in assert_cache_fresh only catches a cache older than
-    its sources -- it says nothing about WHICH ground truth file a cache was
-    built against, now that the file is an explicit, selectable parameter
-    rather than always the one true value on the run's DatasetConfig. A cache
-    built against ground truth A and then scored here against ground truth B
-    would otherwise pass every existing guard (both older than the cache,
-    edges in-range for n_gt/n_ext) while silently misaligning every cached
-    (gt_idx, ex_idx) pair -- exactly the "runs cleanly, produces a wrong
-    number" failure mode this repo is built to avoid. Checked by content hash,
-    not just path string, so an edited-in-place ground truth file is also
-    caught.
+    The mtime check cannot tell which ground truth a cache used; a different one
+    would silently misalign every cached edge.
+
+    Args:
+        experiment_id: Extraction experiment id.
+        cache_path: The match cache.
+        ground_truth_path: Ground-truth file in use now.
+        ground_truth_df: Its loaded frame (for the row count).
 
     Raises:
-        FileNotFoundError: no match_cache.meta.json sidecar (a cache built
-            before this check existed) -- rebuild it rather than trust it.
-        RuntimeError: the sidecar's ground_truth_file/sha256/n_gt disagree
-            with ground_truth_path/ground_truth_df.
+        FileNotFoundError: No sidecar.
+        RuntimeError: Sidecar path, sha256 or row count differs.
     """
     meta_path = cache_path.with_name("match_cache.meta.json")
     if not meta_path.exists():
@@ -351,30 +311,19 @@ def assert_ground_truth_matches_cache(
 def assert_extraction_matches_cache(
     experiment_id: str, cache_path: Path, extraction_file_path: Path,
 ) -> None:
-    """Raise unless match_cache.py's own match_cache.meta.json sidecar
-    confirms cache_path was built against this exact extraction_file_path
-    (postprocessed.json, or final.json on fallback -- see
-    extraction_path).
+    """Fail unless the cache sidecar records this exact extraction file (path and hash).
 
-    Mirrors assert_ground_truth_matches_cache, for the other file a cache's
-    (gt_idx, ex_idx) edges are positions into. Without this, a cache built
-    from final.json (before analysis/postprocessing.py had ever run for this
-    id) would look perfectly valid by every other guard -- same row count,
-    fresher mtime -- if later scored against a postprocessed.json with
-    different point_value/units values for the same rows: the cached edges
-    would silently no longer reflect what ext_matched_mask/validity actually
-    read, exactly the "runs clean, wrong number" failure this repo is built
-    to avoid. Checked by content hash, not just which filename was used, so
-    an edited-in-place postprocessed.json (e.g. after widening
-    parsing.py's unit-variant table and rerunning analysis/postprocessing.py)
-    is also caught.
+    Catches a cache built from final.json (or an older postprocessed.json) being
+    scored against different extraction rows.
+
+    Args:
+        experiment_id: Extraction experiment id.
+        cache_path: The match cache.
+        extraction_file_path: Extraction file in use now.
 
     Raises:
-        FileNotFoundError: no match_cache.meta.json sidecar, or one that
-            predates extraction-file tracking (built before this check
-            existed).
-        RuntimeError: the sidecar's extraction_file/sha256 disagree with
-            extraction_file_path.
+        FileNotFoundError: No sidecar, or one without extraction-file fields.
+        RuntimeError: Sidecar path or sha256 differs.
     """
     meta_path = cache_path.with_name("match_cache.meta.json")
     if not meta_path.exists():
@@ -415,18 +364,17 @@ def assert_extraction_matches_cache(
 def assert_matching_columns_present(
     ground_truth_df: pd.DataFrame, extraction_df: pd.DataFrame, cfg: dict,
 ) -> None:
-    """Raise if a column the dataset's matching config names isn't in the
-    current frames.
+    """Fail if a column named by the matching config is missing from either frame.
 
-    The mtime check above only catches a cache that predates its OWN source
-    files -- it says nothing about whether that cache was ever built under
-    the CURRENT matching config in the first place. A match_cache.pkl left
-    over from a different matching-rules era (different strict/fuzzy column
-    names, e.g. a legacy ``value``/``converted_value`` cache sitting where a
-    ``point_value``-keyed one is now expected) can still look "fresh" by
-    mtime alone. This is a cheap, independent guard: match_datasets can't
-    have produced today's cache from a frame that doesn't even have the
-    columns today's config asks it to match on.
+    A cheap check that the cache could have been built under the current rules.
+
+    Args:
+        ground_truth_df: Ground-truth frame.
+        extraction_df: Extraction frame.
+        cfg: Output of ``get_matching_config``.
+
+    Raises:
+        KeyError: Any strict/fuzzy column is missing.
     """
     missing_gt = sorted({
         col for col in list(cfg["strict"]) + list(cfg.get("fuzzy") or {})
@@ -449,28 +397,22 @@ def assert_matching_columns_present(
 
 
 def load_cached_matching(extraction_id: str, ground_truth_path: Path):
-    """Frames + thresholded match edges for one extraction, from the
-    match_cache.pkl analysis/match_cache.py already built. Never computes a
-    matching: a missing, stale, or wrong-provenance cache is a hard error.
+    """Load frames and verified, thresholded match edges for one extraction.
 
-    Reuses analysis/recovery_validity.py's own loading and guards, so
-    calibration reads the exact frames (postprocessed.json if present, else
-    final.json -- no unit conversion, no row filtering) and the exact
-    dataset-config matching rules/threshold recovery_validity.py does:
+    Runs every cache guard (columns present, freshness, ground-truth and extraction
+    provenance, edges in range) and applies the dataset's fuzzy_threshold.
 
-      - the cache's match_cache.meta.json must record this ground_truth_path
-        (sha256 + n_gt) and this extraction file (sha256);
-      - the cache must be newer than both source files;
-      - the dataset config's strict/fuzzy columns must exist in both frames;
-      - every selected edge must index inside the current frames.
-
-    The cache holds every strict-matched candidate (built at threshold 0.0);
-    the dataset config's own fuzzy_threshold is applied here via
-    load_match_cache(..., fuzzy_threshold=...).
+    Args:
+        extraction_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file.
 
     Returns:
-        (ground_truth_df, extraction_df, edges) -- edges are (gt_idx, ex_idx)
-        positions into those two frames.
+        Tuple of ``(ground_truth_df, extraction_df, edges)``; edges are (gt_idx, ex_idx)
+        positions into the two frames.
+
+    Raises:
+        FileNotFoundError: No cache or sidecar.
+        KeyError, RuntimeError: A guard fails.
     """
     _dataset, dataset_config, gt_df, ext_df, ext_path, gt_path = load_frames(
         extraction_id, ground_truth_path,
@@ -500,27 +442,22 @@ def load_cached_matching(extraction_id: str, ground_truth_path: Path):
     return gt_df, ext_df, edges
 
 def edges_to_judged_rows(edges, ext_df, judged_df):
-    """Re-index cached (gt_idx, ex_idx) edges from the match cache's extraction
-    frame onto the judged rows (combined.json / the judge's activations).
+    """Map cached edges from postprocessed extraction rows onto judged rows.
 
-    match_cache.py matches against postprocessed.json, which list-expands a row
-    into several rows sharing one ``measurement_id`` (see analysis/
-    postprocessing.py); the judge, its activations and combined.json are per
-    original row. Each edge's ex_idx is mapped through ``measurement_id`` to the
-    judged row's position, and duplicates collapse -- so a judged row "has an
-    edge" if any of its expanded rows matched, and a GT row is recovered by a
-    judged row if any of that row's expanded rows matched it.
+    postprocessed.json may split one judged row into several sharing a
+    ``measurement_id``; edges are mapped back through that id and deduplicated.
 
-    Position-only alignment is never assumed: judged_df's measurement_ids must
-    be exactly range(n) in row order, every ext_df measurement_id must be one of
-    them, and ext_df/judged_df must agree on document_id and attribute at every
-    shared measurement_id (same check as recovery_validity.load_validity_labels).
+    Args:
+        edges: (gt_idx, ex_idx) pairs into ``ext_df``.
+        ext_df: Extraction frame the cache was built on.
+        judged_df: Judged rows, with ``measurement_id`` equal to range(n) in order.
 
     Returns:
-        Sorted list of unique (gt_idx, judged_row_idx).
+        Sorted unique (gt_idx, judged_row_idx) pairs.
 
     Raises:
-        ValueError: any alignment condition above fails.
+        ValueError: Ids are not aligned, document_id/attribute disagree, or an edge
+            is out of range.
     """
     n = len(judged_df)
     judged_mids = judged_df["measurement_id"].tolist()

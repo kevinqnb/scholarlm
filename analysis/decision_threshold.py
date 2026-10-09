@@ -1,40 +1,18 @@
-"""Recovery/validity curves over a decision threshold on probe / NTP probabilities.
+"""Recovery vs validity as a decision threshold on probe / NTP probability is raised.
 
-For each configured (train, test) calibration cell and each method (probe, NTP),
-extractions whose predicted probability is ``>= t`` are kept and scored at every
-threshold t: recovery is the fraction of ground-truth rows with a dataset-threshold
-match edge to a KEPT extraction (any-edge, the same headline definition as
-analysis/recovery_validity.py), validity the fraction of kept extractions that are
-judged valid OR matched (recovery_validity.py's validity labels, unchanged).
+For each configured (train, test) cell and method, keep extractions with prob >= t
+and compute recovery and validity as in recovery_validity.py. Probabilities come
+from a v4 calibration run's real cells. Split postprocessed rows inherit their
+parent's probability. Only documents the calibration scored are used, so the t = 0
+point (asserted equal to recovery_validity's masks on those documents) differs from
+the all-document headline numbers. A permutation control (shuffled probabilities)
+is plotted alongside; its validity should stay near the base rate.
 
-Probabilities are the recalibrated ``probe_probs`` / ``ntp_probs`` of a v4 calibration
-run's ``real`` cells (analysis/calibration.py's predictions.pkl). Those are
-scored per final.json row and exist only for the test documents (the fit pool and the
-probe's synthetic-training documents are excluded), so:
-
-  - scoring happens on recovery_validity.py's own row space -- postprocessed.json
-    extractions, ground truth from the calibration config's ground_truth_file, edges
-    from the match cache at the dataset's fuzzy_threshold -- loaded through its own
-    guarded loader (``load_checked_inputs``), with split postprocessed rows
-    inheriting their parent's probability by measurement_id, exactly as they inherit
-    its judgement;
-  - ground truth AND extractions are restricted to documents outside the cell's
-    ``excluded_documents``. The t = 0 point (everything kept) is asserted equal to
-    recovery_validity.py's verified full-frame recovered/validity masks restricted to
-    those documents -- it does NOT equal the published all-document numbers.
-
-A permutation control (probabilities shuffled across scored rows, ``n_permutations``
-draws seeded by the envelope seed) is written and plotted alongside: its validity
-should stay near the base rate at every threshold.
+Writes analysis/results/decision-threshold/<config id>/curves.csv and figures/.
 
 Usage
 -----
     python analysis/decision_threshold.py analysis/analysis-configs/decision-threshold/<id>.yaml
-    bash analysis/submit.sh decision_threshold <id> --walltime HH:MM:SS --omp N
-
-Writes analysis/results/decision-threshold/<config id>/curves.csv and
-figures/<train>-<test>-<method>.pdf (+ decision_threshold_colorbar.pdf,
-decision_threshold_legend.pdf).
 """
 from __future__ import annotations
 
@@ -71,27 +49,33 @@ _THRESHOLD_NORM = (0.0, 1.0)
 
 
 def _is_number(v) -> bool:
+    """True for an int or float that is not a bool.
+
+    Args:
+        v: Any value.
+
+    Returns:
+        Whether ``v`` is a non-bool number.
+    """
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
 def load_decision_threshold_config(path: Path) -> dict:
-    """Load and validate an analysis-configs/decision-threshold/<id>.yaml.
+    """Load and validate a decision-threshold config.
 
-    ``params`` holds exactly PARAM_KEYS:
-      - calibration_config_id: a v4 calibration config (its predictions.pkl is read);
-      - cells: non-empty list of unique {train, test} mappings, both datasets of that
-        calibration config;
-      - thresholds: explicit, strictly increasing numbers in [0, 1], containing 0.0
-        (the known-answer point) -- explicit, not generated, since the filter is
-        inclusive and float-noise grid values would move rows across it;
-      - highlight_threshold: one of thresholds (drawn as a diamond);
-      - n_permutations: positive int, permutation-control draws;
-      - invalid_datasets: mapping dataset -> reason (may be empty); every output row
-        of a cell testing on that dataset carries the reason.
+    ``thresholds`` must be explicit decimals, strictly increasing in [0, 1], and include
+    0.0 (the known-answer point). ``highlight_threshold`` must be one of them.
+    ``invalid_datasets`` maps a dataset to a reason that is copied onto its output rows.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
 
     Raises:
-        ValueError: any of the above fails.
-        FileNotFoundError: the calibration config does not exist.
+        ValueError: A key is missing or malformed.
+        FileNotFoundError: The calibration config does not exist.
     """
     cfg = _load_envelope(path, "decision-threshold")
     params = cfg["params"]
@@ -144,13 +128,19 @@ def load_decision_threshold_config(path: Path) -> dict:
 
 
 def restrict_to_scored_documents(gt_df: pd.DataFrame, ext_df: pd.DataFrame, edges, excluded_documents: set):
-    """Masks of the ground-truth / extraction rows outside ``excluded_documents``, and
-    ``edges`` re-indexed into those kept rows. Document ids are compared as strings,
-    as recovery_validity._verify_matching does.
+    """Keep rows outside the excluded documents and re-index edges onto them.
+
+    Args:
+        gt_df: Ground-truth frame.
+        ext_df: Extraction frame.
+        edges: (gt_idx, ex_idx) pairs.
+        excluded_documents: Document ids to drop (compared as strings).
+
+    Returns:
+        ``(gt_keep, ext_keep, sub_edges)``: boolean masks and re-indexed edges.
 
     Raises:
-        AssertionError: an edge touches an excluded row (edges never cross documents,
-            so either both ends are kept or both are excluded).
+        AssertionError: An edge joins a kept row to an excluded one.
     """
     excluded = {str(d) for d in excluded_documents}
     gt_keep = ~gt_df["document_id"].astype(str).isin(excluded).to_numpy()
@@ -167,8 +157,15 @@ def restrict_to_scored_documents(gt_df: pd.DataFrame, ext_df: pd.DataFrame, edge
 
 
 def row_probabilities(ext_df: pd.DataFrame, scored: pd.DataFrame, column: str) -> np.ndarray:
-    """``scored[column]`` for every ``ext_df`` row, joined on measurement_id (split
-    postprocessed rows share their parent's id and so its probability).
+    """Per-extraction-row probability, joined on measurement_id (children inherit the parent's).
+
+    Args:
+        ext_df: Extraction rows.
+        scored: One row per scored datapoint.
+        column: Probability column of ``scored``.
+
+    Returns:
+        Float array aligned to ``ext_df``.
 
     Raises:
         ValueError: scored measurement_ids are not unique, the two sides' id sets
@@ -199,10 +196,18 @@ def decision_threshold_curve(n_gt: int, edges, validity_labels: np.ndarray, prob
                              thresholds) -> pd.DataFrame:
     """Recovery and validity of the rows with ``probs >= t``, for each t.
 
-    ``edges`` are (gt_idx, ex_idx) already at the dataset fuzzy threshold, indexed into
-    ``validity_labels``/``probs``. Each point is computed by analysis.metrics and
-    cross-checked against an independent vectorised computation. With nothing kept,
-    recovery is 0 and validity is NaN (undefined, not 0).
+    Each point comes from metrics.py and is cross-checked by a vectorised computation.
+    With nothing kept, recovery is 0 and validity is NaN.
+
+    Args:
+        n_gt: Number of ground-truth rows.
+        edges: Fuzzy-threshold-filtered (gt_idx, ex_idx) pairs.
+        validity_labels: Boolean per extraction row.
+        probs: Probability per extraction row.
+        thresholds: Decision thresholds.
+
+    Returns:
+        DataFrame with ``threshold``, ``n_kept``, ``recovery``, ``validity``.
 
     Raises:
         AssertionError: the two computations disagree, or recovery / n_kept increase
@@ -237,10 +242,24 @@ def decision_threshold_curve(n_gt: int, edges, validity_labels: np.ndarray, prob
 def permutation_control(n_gt: int, edges, validity_labels: np.ndarray, ext_df: pd.DataFrame,
                         scored: pd.DataFrame, column: str, thresholds, *, n_permutations: int,
                         seed: int) -> pd.DataFrame:
-    """Mean curve over ``n_permutations`` shuffles of ``scored[column]`` across scored
-    rows (split children still share their parent's shuffled value). Validity is
-    averaged over the draws that kept at least one row; NaN if none did. The kept-row
-    count is a mean (``n_kept_mean``), not a count."""
+    """Mean curve over random shuffles of the scored probabilities.
+
+    Validity is averaged only over draws that kept at least one row (NaN if none did).
+
+    Args:
+        n_gt: Number of ground-truth rows.
+        edges: Fuzzy-threshold-filtered edges.
+        validity_labels: Boolean per extraction row.
+        ext_df: Extraction rows.
+        scored: One row per scored datapoint.
+        column: Probability column to shuffle.
+        thresholds: Decision thresholds.
+        n_permutations: Number of shuffles.
+        seed: RNG seed.
+
+    Returns:
+        DataFrame with ``threshold``, ``n_kept_mean``, ``recovery``, ``validity``.
+    """
     rng = np.random.default_rng(seed)
     curves = []
     for _ in range(n_permutations):
@@ -268,10 +287,16 @@ def permutation_control(n_gt: int, edges, validity_labels: np.ndarray, ext_df: p
 
 def plot_decision_threshold_curve(curve: pd.DataFrame, permuted: pd.DataFrame, highlight: float,
                                   out_path: Path) -> None:
-    """Recovery (x) vs validity (y): grey line through the observed sweep, points
-    coloured by threshold on coolwarm (fixed 0..1 norm), the highlight threshold a
-    black-edged diamond, the permutation control a dotted grey line. Thresholds that
-    keep no rows have no validity and are not drawn.
+    """Plot validity (y) vs recovery (x) for the observed and permuted curves.
+
+    Points are coloured by threshold and the highlight threshold is a diamond.
+    Thresholds that keep no rows are not drawn.
+
+    Args:
+        curve: Observed curve.
+        permuted: Permutation-control curve.
+        highlight: Threshold to mark.
+        out_path: Figure path.
 
     Raises:
         ValueError: the highlight threshold is absent or keeps no rows.
@@ -304,6 +329,11 @@ def plot_decision_threshold_curve(curve: pd.DataFrame, permuted: pd.DataFrame, h
 
 
 def save_decision_threshold_colorbar(out_path: Path) -> None:
+    """Save the 0..1 "Decision Threshold" colorbar.
+
+    Args:
+        out_path: Figure path.
+    """
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
 
@@ -316,6 +346,11 @@ def save_decision_threshold_colorbar(out_path: Path) -> None:
 
 
 def save_decision_threshold_legend(out_path: Path) -> None:
+    """Save the Observed (solid) / Permuted (dotted) legend.
+
+    Args:
+        out_path: Figure path.
+    """
     import matplotlib.lines as mlines
     import matplotlib.pyplot as plt
 
@@ -334,8 +369,17 @@ def save_decision_threshold_legend(out_path: Path) -> None:
 
 
 def resolve_inputs(cfg: dict) -> dict:
-    """The calibration config, its resolved run directories (calibration_ids), and the
-    path of its predictions.pkl -- everything a run reads, checked to exist."""
+    """Resolve the calibration config, its runs, and its predictions.pkl.
+
+    Args:
+        cfg: Loaded decision-threshold config.
+
+    Returns:
+        Dict with ``calibration_config``, ``calibration_inputs``, ``predictions_path``.
+
+    Raises:
+        FileNotFoundError: predictions.pkl does not exist.
+    """
     from analysis.common import calibration_ids as cids
 
     cal_id = cfg["params"]["calibration_config_id"]
@@ -348,7 +392,21 @@ def resolve_inputs(cfg: dict) -> dict:
 
 
 def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str) -> pd.DataFrame:
-    """Observed and permuted curves for both methods of one (train, test) cell."""
+    """Observed and permuted curves for both methods of one (train, test) cell.
+
+    Args:
+        cfg: Loaded decision-threshold config.
+        inputs: Output of ``resolve_inputs``.
+        predictions: Loaded predictions.pkl.
+        train: Probe training dataset.
+        test: Test dataset.
+
+    Returns:
+        Long DataFrame: one row per (method, curve, threshold) plus cell metadata.
+
+    Raises:
+        ValueError: combined.json changed since predictions.pkl was built.
+    """
     from analysis.common import recovery
     from analysis.common.provenance import repo_relative, sha256_file
     from analysis.common.prediction_store import check_real_cell
@@ -421,6 +479,11 @@ def score_cell(cfg: dict, inputs: dict, predictions: dict, train: str, test: str
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: score every configured cell, plot each method, and write curves.csv.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("config", type=Path, help="analysis/analysis-configs/decision-threshold/<id>.yaml")
     args = parser.parse_args(argv)

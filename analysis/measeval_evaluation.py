@@ -1,75 +1,24 @@
-"""Official MeasEval (SemEval-2021 Task 8) scoring for measeval extraction runs.
+"""Score measeval extraction runs with the official, unmodified MeasEval (SemEval-2021 Task 8) scorer.
 
-``analysis/ablation.py``'s ``get_matching_rules``/``recovery_rate``/``validity_rate``
-compute this repo's own recovery/validity methodology, which is NOT the same
-number as the published MeasEval leaderboard score -- see
-``data/measeval/README.md``'s "Train/trial/eval and comparability" section. This
-module instead exports a run's predictions into the exact TSV format the
-official, unmodified scorer (``data/measeval/raw/eval/measeval-eval.py``)
-expects, and invokes that script directly, to get a number that IS comparable
-to published results.
+This repo's recovery/validity is not the leaderboard metric. This script exports a
+run as MeasEval TSVs and runs data/measeval/raw/eval/measeval-eval.py, so the
+numbers are comparable to published results.
 
-Scope -- deliberately narrow, confirmed with Kevin before writing any of this
---------------------------------------------------------------------------
-Only three of MeasEval's nine scored components are attempted here: **Quantity**,
-**Unit**, and **MeasuredEntity**. Everything else is out of scope for this
-module:
+Scope: only Quantity, Unit and MeasuredEntity are emitted and reported.
+MeasuredProperty, Qualifier, modifiers and relations are not. Each entity row
+carries a placeholder HasQuantity relation only because the scorer crashes on an
+empty ``other`` field.
 
-- **MeasuredProperty** (our ``property`` field) is never emitted.
-- **Qualifier** -- a MeasEval annotation type, not to be confused with anything
-  below -- is an open-text span (e.g. "under standard conditions") that nothing
-  in this pipeline extracts. Not attempted.
-- **Modifiers** -- MeasEval's name for the tag list our pipeline calls
-  ``qualifiers`` (``IsMean``/``IsRange``/``HasTolerance``/etc., produced by
-  ``MeasurementLM._parse_quantities()``). Also not attempted here, despite
-  being cheap to add later (our atomic tags would need a mapping table onto
-  MeasEval's fixed 11-value *compound* vocabulary, e.g.
-  ``["IsMean","HasSD"]`` -> ``"IsMeanHasSD"``).
-- **Relations** (HasQuantity, HasProperty, Qualifies) are not computed or
-  reported. They cannot be *omitted* from the submission TSV, though: the
-  official script unconditionally JSON-parses every MeasuredEntity row's
-  ``other`` field for relation scoring and crashes on an empty one
-  (``json.loads('')`` raises). Every MeasuredEntity row we emit therefore
-  carries a placeholder ``other = {"HasQuantity": "<sibling Quantity annotId>"}``
-  purely so the (unmodified, never-patched) third-party script doesn't crash --
-  the HasQuantity/HasProperty/Qualifies numbers it computes as a side effect are
-  never read back or reported by this module.
+Span recovery: the pipeline outputs text, not offsets, so spans are found verbatim
+in the OCR text (same offsets as ground_truth.json).
+  - Quantity: try "value units", then "valueunits", then "value"; take the leftmost hit.
+  - Entity: ``name``, taking the occurrence nearest the chosen Quantity.
+  - Unlocatable records are dropped and counted in ``Coverage``, never guessed.
 
-Span-identification heuristic -- documented in full, per Kevin's explicit request
------------------------------------------------------------------------------
-The official scorer keys everything on character offsets. Our extraction
-pipeline never computes one -- it only copies text. This module recovers
-offsets by searching for the extracted text, verbatim, in
-``data/measeval/ocr_output_raw/{document_id}.txt`` (with the ``<page
-number="N">...</page>`` wrapper stripped exactly as
-``data/measeval/preprocessing.py`` wrote it, so offsets land on the same
-coordinate system as ``ground_truth.json``'s own ``entity_start``/etc. columns).
-
-- **Quantity.** Our pipeline splits the original phrase into separate
-  ``value``/``units`` fields (e.g. ``"25"`` / ``"°C"``), but MeasEval's gold
-  Quantity span is the one contiguous original phrase (``"25 °C"``). We try,
-  in order: ``f"{value} {units}"``, then ``f"{value}{units}"``, then ``value``
-  alone if ``units`` is null or neither concatenation is found verbatim. The
-  first candidate that appears in the text is used.
-- **MeasuredEntity.** We search ``name`` verbatim.
-- **Disambiguation.** Measured directly against real ground truth (see
-  ``data/measeval/README.md``): 38% of gold ``name`` spans and 16% of gold
-  ``quantity`` spans occur more than once in their own paragraph, so a plain
-  first-match ``str.find`` mislocates roughly a third of them. When a candidate
-  string has more than one occurrence, the Quantity span is resolved first
-  (leftmost occurrence when still ambiguous -- there is no other information to
-  break the tie), then the Entity span is resolved by picking whichever of its
-  occurrences is *nearest* to the chosen Quantity offset (gold entity/quantity
-  pairs are always within the same sentence). This is a heuristic tie-break, not
-  a guarantee of correctness.
-- **No match found means the record is dropped, not guessed.** Every drop is
-  counted and surfaced in the coverage report (see ``Coverage`` below) rather
-  than silently shrinking the submission -- see CLAUDE.md's "quietly wrong
-  result" failure mode.
-
-Not attempted: improving this heuristic (e.g. fuzzy/normalized matching) if its
-recovery rate turns out low on real predictions. That would be a measured
-limitation to report, not something to loosen until numbers "look right."
+Usage
+-----
+    python analysis/measeval_evaluation.py --experiment-id <id> [--dev] [--out-dir DIR]
+    python analysis/measeval_evaluation.py --config analysis/analysis-configs/measeval/<id>.yaml
 """
 from __future__ import annotations
 
@@ -98,14 +47,10 @@ RAW_DATA_DIR = MEASEVAL_ROOT / "raw" / "data"
 DIRECTORY_FILE = MEASEVAL_ROOT / "directory.json"
 EVAL_SCRIPT = MEASEVAL_ROOT / "raw" / "eval" / "measeval-eval.py"
 
-# Matches exactly how data/measeval/preprocessing.py wrote the file
-# (f'<page number="0">\n{text}\n</page>\n'), so stripping it recovers the same
-# coordinate system ground_truth.json's own offset columns are computed against.
+# The <page> wrapper preprocessing.py adds; stripping it restores ground_truth.json's offsets.
 _PAGE_WRAPPER_RE = re.compile(r'^<page number="\d+">\n|\n</page>\s*$')
 
-# Values the pipeline sometimes emits as the literal string "None" instead of a
-# real null (an observed model-output quirk, not a serialization issue) --
-# treated the same as a missing field for span lookup.
+# Treated as missing for span lookup (models sometimes emit the string "None").
 _NULLISH = {None, "None", ""}
 
 
@@ -114,13 +59,30 @@ _NULLISH = {None, "None", ""}
 # ---------------------------------------------------------------------------
 
 def load_doc_text(document_id: str) -> str:
-    """Load a measeval document's reference text, offsets-compatible with ground_truth.json."""
+    """Load a document's OCR text with offsets matching ground_truth.json.
+
+    Args:
+        document_id: MeasEval document id.
+
+    Returns:
+        Text with the <page> wrapper removed.
+    """
     raw = (OCR_DIR / f"{document_id}.txt").read_text(encoding="utf-8")
     return _PAGE_WRAPPER_RE.sub("", raw)
 
 
 def doc_split(document_id: str) -> str:
-    """train/trial/eval split for a document_id, per data/measeval/directory.json."""
+    """Official split of a document, from data/measeval/directory.json.
+
+    Args:
+        document_id: MeasEval document id.
+
+    Returns:
+        ``"train"``, ``"trial"`` or ``"eval"``.
+
+    Raises:
+        KeyError: Unknown document.
+    """
     directory = json.loads(DIRECTORY_FILE.read_text())
     if document_id not in directory:
         raise KeyError(f"{document_id!r} not found in {DIRECTORY_FILE}")
@@ -132,7 +94,18 @@ def doc_split(document_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _find_all(haystack: str, needle: str) -> list[tuple[int, int]]:
-    """All (start, end) occurrences of ``needle`` in ``haystack``, non-overlapping."""
+    """Every occurrence of ``needle`` in ``haystack``.
+
+    The search advances one character after each hit, so overlapping matches are
+    included.
+
+    Args:
+        haystack: Text to search.
+        needle: Substring.
+
+    Returns:
+        List of (start, end) offsets.
+    """
     positions = []
     start = 0
     while True:
@@ -145,7 +118,15 @@ def _find_all(haystack: str, needle: str) -> list[tuple[int, int]]:
 
 
 def _nearest(candidates: list[tuple[int, int]], anchor: tuple[int, int] | None) -> tuple[int, int]:
-    """Pick the candidate span closest (by midpoint) to ``anchor``; leftmost if no anchor."""
+    """Pick the candidate span whose midpoint is closest to ``anchor``.
+
+    Args:
+        candidates: Non-empty (start, end) spans, in text order.
+        anchor: Reference span, or None.
+
+    Returns:
+        The chosen span (the first candidate when there is no anchor).
+    """
     if anchor is None or len(candidates) == 1:
         return candidates[0]
     anchor_mid = (anchor[0] + anchor[1]) / 2
@@ -153,12 +134,17 @@ def _nearest(candidates: list[tuple[int, int]], anchor: tuple[int, int] | None) 
 
 
 def resolve_quantity_span(doc_text: str, value, units) -> tuple[int, int, str] | None:
-    """Locate the Quantity span for an extracted (value, units) pair.
+    """Locate the Quantity span for an extracted value and unit.
 
-    Tries the contiguous "value units" / "valueunits" forms first (matching
-    MeasEval's own single-span Quantity convention), falling back to ``value``
-    alone. Returns (start, end, text) for the first candidate found verbatim in
-    ``doc_text``, or None if none of them appear at all.
+    Tries "value units", then "valueunits", then "value"; the first found wins (leftmost hit).
+
+    Args:
+        doc_text: Document text.
+        value: Extracted value.
+        units: Extracted units, or null.
+
+    Returns:
+        ``(start, end, text)``, or None if no candidate appears.
     """
     if value in _NULLISH:
         return None
@@ -181,7 +167,16 @@ def resolve_quantity_span(doc_text: str, value, units) -> tuple[int, int, str] |
 def resolve_entity_span(
     doc_text: str, name, anchor: tuple[int, int] | None
 ) -> tuple[int, int, str] | None:
-    """Locate the MeasuredEntity span for an extracted ``name``, nearest to ``anchor``."""
+    """Locate the MeasuredEntity span for an extracted name.
+
+    Args:
+        doc_text: Document text.
+        name: Extracted entity name.
+        anchor: Quantity span to stay near, or None.
+
+    Returns:
+        ``(start, end, text)`` of the nearest occurrence, or None if not found.
+    """
     if name in _NULLISH:
         return None
     positions = _find_all(doc_text, str(name))
@@ -197,10 +192,9 @@ def resolve_entity_span(
 
 @dataclass
 class Coverage:
-    """Records how many candidate rows survived span-recovery, and why the rest didn't.
+    """Counts of records whose spans were located or dropped, by reason.
 
-    Printed alongside the official scorer's numbers so a shrunk submission is
-    visible, not silently folded into a lower recall.
+    Reported with the scores so a shrunk submission is visible.
     """
 
     total_records: int = 0
@@ -212,17 +206,21 @@ class Coverage:
     entity_located: int = 0
 
     def as_dict(self) -> dict:
+        """All counters as a plain dict."""
         return {k: getattr(self, k) for k in self.__dataclass_fields__}
 
 
 def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
-    """Write one MeasEval-format TSV per document into ``out_dir``.
+    """Write one MeasEval TSV per document with Quantity and MeasuredEntity rows.
 
-    ``df`` must have ``document_id``, ``name``, ``value``, ``units`` columns
-    (one row per extracted measurement). Only Quantity and MeasuredEntity rows
-    are emitted -- see module docstring for scope. Every emitted row's ``text``
-    field is the literal substring at its offsets (required by the official
-    scorer's length validator), never the model's own copy.
+    Each row's ``text`` is the document substring at its offsets, as the scorer requires.
+
+    Args:
+        df: One row per extraction, with document_id, name, value, units.
+        out_dir: Submission directory.
+
+    Returns:
+        Span-recovery ``Coverage``.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -247,10 +245,7 @@ def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
             qstart, qend, qtext = quantity
 
             annot_set += 1
-            # annotId must fully match vladiate's r'T?\d*-?\d+' -- letters not
-            # allowed. Follows gold's own "T<type-slot>-<annotSet>" convention
-            # (see data/measeval/README.md's worked example): 1=Quantity,
-            # 2=MeasuredEntity.
+            # annotId must match r'T?\d*-?\d+'; gold uses T<type>-<annotSet> (1=Quantity, 2=Entity).
             q_annot_id = f"T1-{annot_set}"
             units = rec.get("units")
             other = json.dumps({"unit": str(units)}) if units not in _NULLISH else ""
@@ -271,7 +266,7 @@ def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
             coverage.entity_located += 1
             estart, eend, etext = entity
             e_annot_id = f"T2-{annot_set}"
-            # Placeholder relation only -- see module docstring "Relations" section.
+            # Placeholder relation: the scorer crashes on an empty `other`. Never reported.
             rows.append({
                 "docId": document_id, "annotSet": annot_set, "annotType": "MeasuredEntity",
                 "startOffset": estart, "endOffset": eend, "annotId": e_annot_id,
@@ -292,13 +287,21 @@ def build_submission_tsv(df: pd.DataFrame, out_dir: Path) -> Coverage:
 # ---------------------------------------------------------------------------
 
 def run_official_eval(submission_dir: Path, gold_dir: Path, mode: str = "class") -> str:
-    """Invoke the unmodified official scorer as a subprocess. Returns its stdout.
+    """Run the official scorer as a subprocess.
 
-    measeval-eval.py opens "../fileCategories.txt" as a path relative to its own
-    location, so it must be run with cwd=EVAL_SCRIPT.parent; -g/-s are passed as
-    absolute paths so that requirement doesn't also constrain them. Never passes
-    -l/--limit: that flag silently restricts gold to docs present in the
-    submission, which is locally valid but not leaderboard-comparable.
+    It runs from its own directory (the script uses a relative path) and is never
+    given -l/--limit, which would restrict gold to submitted docs and break comparability.
+
+    Args:
+        submission_dir: Submission TSV directory.
+        gold_dir: Gold TSV directory.
+        mode: Scorer ``-m`` mode.
+
+    Returns:
+        The scorer's stdout.
+
+    Raises:
+        RuntimeError: Nonzero exit, or the scorer reported invalid TSV data (it exits 0 then).
     """
     submission_dir = Path(submission_dir).resolve()
     gold_dir = Path(gold_dir).resolve()
@@ -317,8 +320,7 @@ def run_official_eval(submission_dir: Path, gold_dir: Path, mode: str = "class")
             f"measeval-eval.py exited {result.returncode}\n"
             f"--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"
         )
-    # The script calls a bare exit() (code 0) on a validation failure -- a
-    # nonzero returncode alone won't catch it, so check the message too.
+    # The scorer exits 0 on a validation failure, so check its message too.
     if "You have invalid tsv data in your submission" in result.stdout:
         raise RuntimeError(
             f"measeval-eval.py rejected the submission TSVs as invalid "
@@ -328,35 +330,13 @@ def run_official_eval(submission_dir: Path, gold_dir: Path, mode: str = "class")
 
 
 # ---------------------------------------------------------------------------
-# Calibration placeholder rows -- a second, independent workaround from the
-# HasQuantity placeholder above. Discovered empirically: measeval-eval.py
-# crashes (ValueError: Columns must be same length as key) when a submission
-# has literally zero MeasuredProperty or Qualifier rows -- which is guaranteed
-# under this module's scope, since we never emit either. The crash is
-# `propertyMatches.apply(lambda x: calcF1(x), axis=1)` (and the identical
-# pattern for qualifierMatches): pandas can't safely probe calcF1 (which reads
-# row.aText/row.gText) on a genuinely empty frame, and falls back to returning
-# the frame unchanged instead of an empty Series. Not a pandas-version issue
-# (verified) -- a latent bug in the 2021 script that a normal MeasEval
-# submission would never trigger, since normal submissions guess *something*
-# for every component.
-#
-# Fix (confirmed with Kevin): inject one small, fully self-authored
-# calibration document into both submission and gold dirs on every run, with a
-# Quantity+MeasuredProperty+Qualifier triple that matches itself perfectly (we
-# control both sides, so alignment is exact by construction). This keeps
-# propertyMatches/qualifierMatches non-empty so the script completes. It does
-# NOT touch MeasuredEntity (the calibration doc has no MeasuredEntity row), so
-# MeasuredEntity's reported numbers are never contaminated. It DOES add
-# exactly one guaranteed true positive to Quantity and Unit, which
-# `_correct_for_calibration` below subtracts back out before reporting, so the
-# numbers Kevin sees reflect only the real run, not our own scaffolding.
-#
-# S0927024813002961 is a real MeasEval article_id (from data/measeval's own
-# worked README example) reused here only so the script's unconditional
-# subject-category lookup (`cats[docId.split("-")[0]]`, which KeyErrors on an
-# unrecognized prefix) succeeds; "-9999" is not a real MeasEval document id
-# (verified against data/measeval/directory.json).
+# Calibration placeholder document. The scorer crashes when a submission has no
+# MeasuredProperty or Qualifier rows, which we never emit. So one self-matching
+# document (Quantity + MeasuredProperty + Qualifier, no MeasuredEntity) is written
+# to both gold and submission. It adds exactly one true positive to Quantity and
+# Unit, which _correct_for_calibration subtracts before reporting.
+# The id prefix is a real MeasEval article id (the scorer looks up its category);
+# the "-9999" suffix is not a real document.
 # ---------------------------------------------------------------------------
 
 _CALIBRATION_DOC_ID = "S0927024813002961-9999"
@@ -364,9 +344,15 @@ _CALIBRATION_TEXT = "The control sample weighed 5 g under standard conditions."
 
 
 def _calibration_tsv_rows() -> list[dict]:
+    """TSV rows of the calibration document: one Quantity, MeasuredProperty and Qualifier.
+
+    Returns:
+        List of row dicts in the scorer's TSV schema.
+    """
     text = _CALIBRATION_TEXT
 
     def span(s: str) -> tuple[int, int]:
+        """(start, end) of ``s`` in the calibration text."""
         i = text.index(s)
         return i, i + len(s)
 
@@ -385,7 +371,11 @@ def _calibration_tsv_rows() -> list[dict]:
 
 
 def write_calibration_doc(directory: Path) -> None:
-    """Write the calibration doc's TSV into ``directory`` (used for both gold and submission)."""
+    """Write the calibration document's TSV (used for both gold and submission).
+
+    Args:
+        directory: Target directory.
+    """
     rows = _calibration_tsv_rows()
     pd.DataFrame(rows, columns=[
         "docId", "annotSet", "annotType", "startOffset", "endOffset", "annotId", "text", "other",
@@ -393,14 +383,16 @@ def write_calibration_doc(directory: Path) -> None:
 
 
 def _correct_for_calibration(scores: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
-    """Subtract the calibration doc's known, exact contribution from Quantity/Unit.
+    """Remove the calibration document's one perfect match from Quantity and Unit.
 
-    The calibration doc contributes exactly one perfect match (EM=1.0, F1=1.0,
-    true positive, no corresponding false positive/negative) to Quantity and
-    Unit specifically -- never to MeasuredEntity, which the calibration doc
-    doesn't touch. Recomputes precision/recall/F-measure and the EM/F1 means
-    from the corrected counts rather than trusting the script's own printed
-    aggregate, since those means can't be corrected by simple subtraction.
+    Precision, recall, F and the EM/F1 means are recomputed from the corrected counts.
+    A type with missing metrics or no true positive is left uncorrected.
+
+    Args:
+        scores: Output of ``parse_class_scores``.
+
+    Returns:
+        Corrected copy of ``scores``.
     """
     corrected = {k: dict(v) for k, v in scores.items()}
     for annot_type in ("Quantity", "Unit"):
@@ -439,14 +431,19 @@ _CLASS_LINE_RE = re.compile(
     r"Exact Match Score|F1 \(Overlap\) Score) for (.+?): (.+)$"
 )
 
-# The 3 components this module attempts; everything else the official scorer
-# also prints (MeasuredProperty, Qualifier, modifier, HasQuantity, HasProperty,
-# Qualifies) is intentionally discarded here -- see module docstring "Scope".
+# The only components reported; the scorer's other outputs are discarded.
 _IN_SCOPE_TYPES = {"Quantity", "MeasuredEntity", "Unit"}
 
 
 def parse_class_scores(stdout: str) -> dict[str, dict[str, float]]:
-    """Pull only the Quantity/MeasuredEntity/Unit metric lines out of -m class stdout."""
+    """Parse Quantity / MeasuredEntity / Unit metrics from the scorer's class-mode output.
+
+    Args:
+        stdout: Scorer stdout.
+
+    Returns:
+        ``{annot_type: {metric name: value}}``; unparseable values kept as strings.
+    """
     scores: dict[str, dict[str, float]] = {t: {} for t in _IN_SCOPE_TYPES}
     for line in stdout.splitlines():
         m = _CLASS_LINE_RE.match(line.strip())
@@ -467,13 +464,16 @@ def parse_class_scores(stdout: str) -> dict[str, dict[str, float]]:
 # ---------------------------------------------------------------------------
 
 def load_extraction_df(experiment_id: str) -> pd.DataFrame:
-    """Load an extraction run's final.json into a (document_id, name, value, units) frame.
+    """Load a measeval run's final.json, without normalization (span search needs verbatim text).
 
-    Fails loud if the run isn't a measeval run -- this module is measeval-only.
-    Deliberately does NOT run analysis.baselines.normalize_baseline_extraction:
-    that rewrites value/units into ground-truth notation (parses value to a
-    float, canonicalizes units) for this repo's own fuzzy/strict matching, which
-    would destroy the verbatim text this module's span search depends on.
+    Args:
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        DataFrame with document_id, name, value, units.
+
+    Raises:
+        ValueError: Not a measeval run, or required columns missing.
     """
     run_dir = paths.find_result_dir(experiment_id)
     metadata = paths.load_run_metadata(run_dir)
@@ -502,27 +502,24 @@ def evaluate(
     dev: bool = False,
     out_dir: Path | None = None,
 ) -> dict:
-    """Export an extraction run to MeasEval TSVs and score it with the official scorer.
+    """Export a run to MeasEval TSVs and score it with the official scorer.
 
-    dev=False (default): filters the run's predictions down to documents in
-    the official `eval` split before scoring, then scores against the FULL
-    eval gold set, for a number that is actually comparable to published
-    results. This filtering is required, not just a convenience: the official
-    scorer loads every submission docId unconditionally (never passed
-    -l/--limit -- see run_official_eval) and joins it to gold on docId with no
-    fallback, so a submission-only docId (i.e. a train/trial document with no
-    corresponding eval-split gold row) doesn't get skipped -- it silently
-    becomes a guaranteed false positive for every Quantity/Unit/MeasuredEntity
-    row on that document, deflating precision. Excluded documents/records are
-    counted and returned under "excluded_non_eval", never silently dropped.
-    Raises if filtering leaves zero eval-split documents -- nothing to score.
+    Default: keep only eval-split documents (non-eval predictions would all count
+    as false positives) and score against the full eval gold set. Excluded documents
+    are counted. ``dev=True`` scores against gold for this run's own documents only,
+    as a plumbing check, never a benchmark number.
 
-    dev=True: plumbing-only mode for runs against train/trial documents (e.g.
-    the tinye2e smoke configs). Gold is restricted to exactly the documents
-    present in this run (copied from their real train/trial/eval tsv), so the
-    printed numbers are about this run's own documents, not swamped by ~230
-    other documents this run made no predictions for. NOT a comparable number --
-    never report a dev=True result as a benchmark figure.
+    Args:
+        experiment_id: Measeval extraction experiment id.
+        dev: Plumbing-only mode.
+        out_dir: Working directory; default analysis/out/measeval/<id>/.
+
+    Returns:
+        Dict with ``experiment_id``, ``dev``, ``documents``, ``excluded_non_eval``,
+        ``coverage``, ``scores`` (calibration-corrected), the raw scores and stdout.
+
+    Raises:
+        ValueError: No eval-split documents (non-dev mode).
     """
     df = load_extraction_df(experiment_id)
     doc_ids = sorted(df["document_id"].unique())
@@ -558,9 +555,7 @@ def evaluate(
     coverage = build_submission_tsv(df, submission_dir)
 
     if dev:
-        # Copy only this run's own documents' real gold tsv -- not -l/--limit
-        # (which the eval script applies to ALL gold files present anywhere),
-        # so this stays legible as "the doc(s) we ran," not a leaderboard claim.
+        # Copy gold for this run's documents only (documents with no gold TSV are skipped).
         for doc_id, split_dir in gold_source_dirs.items():
             src = split_dir / f"{doc_id}.tsv"
             if src.exists():
@@ -569,10 +564,7 @@ def evaluate(
         for src in (RAW_DATA_DIR / "eval" / "tsv").glob("*.tsv"):
             (gold_dir / src.name).write_text(src.read_text())
 
-    # Required so the script doesn't crash -- see "Calibration placeholder
-    # rows" above. Written identically to both sides so it's a perfect,
-    # self-contained match; its known contribution is subtracted back out of
-    # Quantity/Unit below before these numbers are reported.
+    # Calibration document keeps the scorer from crashing; its effect is subtracted below.
     write_calibration_doc(submission_dir)
     write_calibration_doc(gold_dir)
 
@@ -593,6 +585,11 @@ def evaluate(
 
 
 def _print_result(result: dict) -> None:
+    """Print one ``evaluate`` result: documents, exclusions, coverage, scores.
+
+    Args:
+        result: Output of ``evaluate``.
+    """
     print(f"experiment_id: {result['experiment_id']}")
     print(f"dev mode: {result['dev']}" + (" (NOT a comparable score)" if result["dev"] else ""))
     print(f"documents: {result['documents']}")
@@ -612,8 +609,7 @@ def _print_result(result: dict) -> None:
         print()
 
 
-# Maps the official scorer's verbose metric names (as parse_class_scores keys
-# them) onto the flat snake_case columns a config-loop CSV row uses.
+# Scorer metric name -> CSV column.
 _METRIC_COLUMNS = {
     "True positives (matching rows)": "true_positives",
     "False positives (submission only)": "false_positives",
@@ -627,7 +623,15 @@ _METRIC_COLUMNS = {
 
 
 def _result_rows(result: dict, analysis_config_id: str) -> list[dict]:
-    """Flatten one evaluate() result into one CSV row per scored annotation type."""
+    """Flatten one ``evaluate`` result into CSV rows.
+
+    Args:
+        result: Output of ``evaluate``.
+        analysis_config_id: Config id stamped on each row.
+
+    Returns:
+        One row per annotation type.
+    """
     coverage = result["coverage"]
     excluded = result["excluded_non_eval"]
     rows = []
@@ -652,6 +656,11 @@ def _result_rows(result: dict, analysis_config_id: str) -> list[dict]:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: score one ``--experiment-id``, or every id in ``--config`` into one CSV.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--experiment-id", default=None,
                          help="A single measeval run to score. Mutually exclusive with --config.")

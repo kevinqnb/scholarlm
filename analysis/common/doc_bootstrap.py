@@ -1,18 +1,8 @@
-"""Document-level bootstrap of an evaluation set's calibration, for calibration.py.
+"""Document-level bootstrap for calibration metrics and recalibration fit samples.
 
-Every smoothed quantity is relplot's own: ``relplot.prepare_rel_diagram`` gives the
-SmECE, the reliability curve on relplot's fixed mesh, the prediction density, and the
-bandwidth it chose for those. It is called once on the full evaluation set (the point
-estimate) and once per document resample; this module only supplies the resamples and
-takes percentiles. relplot's own bootstraps (BaggingRegressor bands, a scipy CI on the
-smECE) resample rows, not documents, and are switched off.
-
-Binned calibration errors (scholarlm's compute_ece) are computed on the same resamples.
-
-Also supplies platt_scaling.py's training-pool resamples: the pool's documents
-resampled, then n rows drawn from it, keeping only two-class draws.
-
-Import-side-effect free so it can be unit tested on a hand-built fixture.
+Rows within a paper are correlated, so resampling is done over documents. The
+smoothed curve and SmECE come from relplot, with its row-level bootstraps turned
+off. Binned ECEs come from scholarlm's compute_ece on the same resamples.
 """
 from __future__ import annotations
 
@@ -29,15 +19,32 @@ METRICS = ('SmECE', 'ECE', 'ECE_em', 'RMSCE_db')
 
 
 def resample_rng(seed: int, dtype: str, test_ds: str) -> np.random.Generator:
-    """RNG for one evaluation set's document resamples, keyed by its name."""
+    """RNG for one evaluation set's document resamples.
+
+    Args:
+        seed: Global seed.
+        dtype: Dataset name, part of the stream key.
+        test_ds: Evaluation-set name, part of the stream key.
+
+    Returns:
+        Generator seeded by ``[seed, crc32("dtype/test_ds")]``.
+    """
     return np.random.default_rng([seed, zlib.crc32(f'{dtype}/{test_ds}'.encode())])
 
 
 def document_resamples(doc_ids, n_boot: int, rng: np.random.Generator) -> list[np.ndarray]:
-    """``n_boot`` document-level resamples of the rows, as row-index arrays.
+    """Draw document-level bootstrap resamples of the rows.
 
-    Each resample draws as many documents as there are, uniformly with replacement,
-    and takes every row of each drawn document once per draw.
+    Each resample draws n_docs documents with replacement and includes every row of
+    each drawn document once per draw.
+
+    Args:
+        doc_ids: Per-row document id (1-D, non-empty).
+        n_boot: Number of resamples.
+        rng: Random generator.
+
+    Returns:
+        List of ``n_boot`` row-index arrays.
     """
     doc_ids = np.asarray(doc_ids)
     assert doc_ids.ndim == 1 and len(doc_ids) > 0 and n_boot > 0, (doc_ids.shape, n_boot)
@@ -48,34 +55,43 @@ def document_resamples(doc_ids, n_boot: int, rng: np.random.Generator) -> list[n
 
 
 # ── Training-pool resamples (platt_scaling.py) ────────────────────────────
-# A run fails rather than draw more than this many resamples per wanted resample:
-# that many skipped draws means n is too large for the pool or too small for its
-# label rate.
+# Draw budget per wanted sample. Exceeding it means n is too large for the pool or too
+# small for its label rate, so the run fails instead of looping.
 MAX_DRAWS_PER_SAMPLE = 10
 
 
 def fit_resample_rng(seed: int, ds: str, r: int) -> np.random.Generator:
     """RNG for training-pool resample ``r`` of dataset ``ds``.
 
-    SeedSequence zero-pads entropy, so ``[seed, h]`` and ``[seed, h, 0]`` are the same
-    stream: a bare extra word would collide with resample_rng at r=0. The constant
-    second word (0xF17) keeps these streams apart from resample_rng's ``[seed, crc32]``.
+    The constant 0xF17 word keeps these streams distinct from ``resample_rng``
+    (SeedSequence zero-pads, so ``[seed, h, 0]`` would equal ``[seed, h]``).
+
+    Args:
+        seed: Global seed.
+        ds: Dataset name.
+        r: Resample index (>= 0).
+
+    Returns:
+        Generator for this resample.
     """
     assert r >= 0, r
     return np.random.default_rng([seed, 0xF17, zlib.crc32(ds.encode()), r])
 
 
 def resampled_fit_sample(pool_doc_ids, n: int, rng: np.random.Generator) -> np.ndarray | None:
-    """One fit sample: ``n`` sorted positions into the pool (repeats possible), or None
-    if the document resample has fewer than ``n`` rows.
+    """Draw one fit sample: resample documents, then draw ``n`` of the resampled rows.
 
-    The pool's documents are resampled once (document_resamples), then ``n`` of the
-    resampled rows are drawn uniformly without replacement. A row whose document was
-    drawn k times has k copies to draw from; in a fit a repeat is a weight. The document
-    resample is drawn first, so a fresh RNG in the same state resamples the same
-    documents whatever ``n`` is. Documents differ in size, so a resample that misses
-    the large ones can hold fewer than ``n`` rows; it then has no size-``n`` sample and
-    None is returned for the caller to skip (two_class_fit_samples counts these).
+    Documents are drawn first, so the same RNG state gives the same documents for any
+    ``n``. A row whose document was drawn k times can appear up to k times.
+
+    Args:
+        pool_doc_ids: Per-row document id of the training pool.
+        n: Sample size.
+        rng: Random generator.
+
+    Returns:
+        Sorted pool positions (may repeat), or None if the document resample has
+        fewer than ``n`` rows.
     """
     assert n > 0, n
     expanded = document_resamples(pool_doc_ids, 1, rng)[0]
@@ -85,21 +101,27 @@ def resampled_fit_sample(pool_doc_ids, n: int, rng: np.random.Generator) -> np.n
 
 
 def two_class_fit_samples(pool_doc_ids, pool_labels, n: int, n_samples: int, seed: int, ds: str):
-    """``n_samples`` fit samples of size ``n`` that contain both classes.
+    """Draw fit samples until ``n_samples`` contain both classes.
 
-    Draw r is ``resampled_fit_sample(pool_doc_ids, n, fit_resample_rng(seed, ds, r))``
-    for r = 0, 1, ... Two kinds of draw are skipped, and drawing continues at the next r:
-      - short pool: the document resample has fewer than ``n`` rows;
-      - single class: the sample has one class, so no recalibration map can be fit.
-    Both condition the kept samples (on resampled pools of at least n rows, and on both
-    classes being present); the skip counts are returned so the output can report them.
+    Draws that are too short (fewer than ``n`` rows) or single-class are skipped and
+    counted, since they condition the kept samples and should be reported.
+
+    Args:
+        pool_doc_ids: Per-row document id of the training pool.
+        pool_labels: Per-row boolean labels of the pool.
+        n: Sample size.
+        n_samples: Number of usable samples wanted.
+        seed: Global seed.
+        ds: Dataset name (RNG key).
 
     Returns:
-        (kept, n_draws, skips): the kept ``(r, positions)`` pairs, the number of draws
-        made, and ``{'short_pool': int, 'single_class': int}`` (summing to
-        n_draws - n_samples).
+        Tuple of:
+            - kept: list of ``(r, positions)`` for the usable draws
+            - n_draws: total draws made
+            - skips: ``{'short_pool': int, 'single_class': int}``
+
     Raises:
-        RuntimeError past MAX_DRAWS_PER_SAMPLE * n_samples draws.
+        RuntimeError: More than ``MAX_DRAWS_PER_SAMPLE * n_samples`` draws needed.
     """
     pool_labels = np.asarray(pool_labels, dtype=bool)
     assert len(pool_labels) == len(pool_doc_ids) > 0 and n_samples > 0, (len(pool_labels), len(pool_doc_ids))
@@ -124,12 +146,30 @@ def two_class_fit_samples(pool_doc_ids, pool_labels, n: int, n_samples: int, see
 
 
 def _relplot(probs, labels) -> dict:
-    # Point curve + smECE only: no row-level bootstrap band, no scipy CI.
+    """relplot's smoothed reliability diagram, without its row-level bootstrap or CI.
+
+    Args:
+        probs: Predicted probabilities.
+        labels: Boolean labels.
+
+    Returns:
+        relplot diagram dict (``mesh``, ``mu``, ``density``, ``sigma``, ``ce``, ...).
+    """
     return relplot.prepare_rel_diagram(probs, labels, plot_confidence_band=False, report_CE=True,
                                        report_CE_std=False)
 
 
 def _errors(probs, labels, diagram) -> dict:
+    """Every metric in METRICS for one set of rows.
+
+    Args:
+        probs: Predicted probabilities.
+        labels: Boolean labels.
+        diagram: ``_relplot`` output for the same rows (supplies SmECE).
+
+    Returns:
+        Dict mapping metric name to float.
+    """
     return dict(
         SmECE=float(diagram['ce']),
         ECE=compute_ece(probs, labels, binning='equal_width', p=1),
@@ -139,18 +179,22 @@ def _errors(probs, labels, diagram) -> dict:
 
 
 def doc_bootstrap_calibration(probs, labels, resamples) -> dict:
-    """Calibration of one evaluation set with document-bootstrap intervals.
+    """Calibration metrics and reliability curve with document-bootstrap intervals.
 
     Args:
-        probs, labels: the evaluation rows' predictions and binary labels.
-        resamples: row-index arrays from ``document_resamples``.
+        probs: Predicted probabilities of the evaluation rows.
+        labels: Boolean labels of the evaluation rows.
+        resamples: Row-index arrays from ``document_resamples``.
+
     Returns:
-        dict with ``point`` / ``lo`` / ``hi`` per metric in METRICS (point = full set,
-        interval = percentiles over resamples) and ``replicates`` (per metric, one value
-        per resample); the curve ``mesh``, ``line`` (relplot's curve on the full set),
-        ``lower`` / ``upper`` (pointwise percentiles of the resampled relplot curves),
-        ``density`` and ``sigma`` (relplot's, full set) and ``drawn`` (support_mask at that
-        sigma); and ``n_boot``.
+        Dict with:
+            - ``point``, ``lo``, ``hi``: per-metric full-set value and CI_LEVEL percentiles
+            - ``replicates``: per-metric array, one value per resample
+            - ``mesh``, ``line``: relplot curve on the full set
+            - ``lower``, ``upper``: pointwise percentiles of the resampled curves
+            - ``density``, ``sigma``: relplot's density and bandwidth on the full set
+            - ``drawn``: ``support_mask`` at that bandwidth
+            - ``n_boot``: number of resamples
     """
     f = np.asarray(probs, dtype=float)
     y = np.asarray(labels, dtype=bool)

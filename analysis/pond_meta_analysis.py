@@ -1,64 +1,22 @@
-"""Meta-analysis, v2: does an LLM-extracted dataset reproduce the per-ecosystem
-attribute distributions of the human-curated ground truth -- and does keeping only
-the confidently-scored extractions bring it closer?
+"""Pond meta-analysis: do confidence-filtered extractions reproduce the ground truth's distributions?
 
-Simplified from the retired v1, analysis/meta_updated.py (removed 2026-10-09):
+For each (ecosystem, attribute) cell and method (NTP, probe), extracted rows are
+hard-filtered at each confidence threshold t, and the distribution is compared to a
+reference (ground truth or valid extractions) with Q-Q plots and Wasserstein-1 (W1).
+- threshold_mode ``value`` keeps confidence >= t; ``percentile`` drops the bottom
+  fraction t of the cell. t = 0 is the unfiltered set.
+- Samples are unweighted: Hazen quantiles, scipy W1, and scipy percentile-bootstrap CIs.
+- Permutation control: shuffle the raw confidences within a cell (keeping each row's
+  outlier factor) and recompute W1. A real W1 inside the shuffled range means the
+  filter does no better than random rows of the same count.
+- Log-scale attributes drop non-positive values from log Q-Q / log W1 only.
 
-1. Confidence is used as a HARD filter, not a weight: for each method (NTP, probe)
-   and each t in params.meta_v2.thresholds, one setting per t. params.meta_v2.threshold_mode
-   says what t means:
-   - 'value':      ``{method}_ge_{t:.2f}`` keeps the held-out extracted rows with
-                   confidence >= t (ties at t are kept).
-   - 'percentile': ``{method}_pct_{t:.2f}`` drops the bottom fraction t of the cell's
-                   (ecosystem, attribute) extracted rows by confidence: it keeps rows with
-                   confidence >= np.quantile(cell confidences, t, method='lower') (ties at
-                   the cutoff are kept, so slightly fewer than a fraction t may be removed).
-                   The cutoff is computed per cell and per method, on the cell's t = 0 set.
-   The grid must start at t = 0, which keeps every row in both modes: it IS the unfiltered
-   extracted set (there is no separate ``extracted`` setting in the tables or figures).
-   The confidence is the adjusted one when params.meta_v2.outlier_adjust.
-2. Every sample is unweighted, so quantiles, Q-Q lines and distances come straight
-   from library functions: np.quantile(method='hazen') for quantiles (both Q-Q axes,
-   stats table), scipy.stats.wasserstein_distance (W1, over the full empirical
-   distributions -- not comparable to v1's trimmed quantile-W2), and
-   scipy.stats.bootstrap (percentile) for the reference band and the W1 CIs.
-3. Data filtering is limited to what pond_meta.load_data does: GT and extracted rows each drop the probe/NTP
-   training documents (scores exist, and are out-of-sample, only outside them) but
-   are NOT restricted to documents both sides cover; a row with an
-   unparseable point_value or a unit not in UNIT_CONVERSION_V2 has no standard-unit
-   value; and a converted value outside PHYSICAL_BOUNDS is dropped. Nothing else --
-   no Kish/n_eff gates. A Q-Q line or W1 score needs at least params.meta_v2.min_n
-   rows. On log axes (LOG_SCALE_ATTRIBUTES) non-positive values cannot be drawn: they
-   are left out of the log Q-Q line / log10 W1 only, and counted (n_nonpos) in the
-   CSVs; the stats table and raw W1 keep them.
+Outputs in analysis/results/meta/<config id>/: meta_stats.csv, survival.csv,
+wasserstein.csv, qq_lines.csv, meta.json, and Q-Q and W1-vs-threshold figures.
 
-Outputs under analysis/results/meta/<config id>/:
-  meta_stats.csv   n, n_docs, mean, std, Hazen Q1/median/Q3 per (ecosystem,
-                   attribute, setting), plus method/threshold columns.
-  survival.csv     per (ecosystem, attribute, method, threshold): rows and documents the
-                   threshold keeps (n_ext, n_docs_ext), the reference's n_ref, and the
-                   fractions of the t = 0 rows / documents that survive.
-  wasserstein.csv  W1 (raw, and log10 for LOG_SCALE_ATTRIBUTES) from each compared
-                   setting to the reference, two-sample percentile bootstrap CI, and
-                   the permutation control w1_shuffled_{mean,lo,hi}[_log]: over
-                   params.meta_v2.n_shuffle_samples permutations of the method's RAW
-                   confidences within the cell, each multiplied by its row's own
-                   non-outlier factor (1 unless params.meta_v2.outlier_adjust); mean and
-                   2.5/97.5 percentiles of the resulting W1. The percentile rule is applied to each
-                   shuffled score vector, so in 'percentile' mode the shuffled and real
-                   subsets have the same size up to ties at the cutoff; in 'value' mode
-                   they have the same size only without adjustment. Realized size:
-                   n_ext_shuffled_mean. A real W1 inside that range means thresholding on the confidence
-                   does no better than keeping the same number of random rows. NB the
-                   shuffled subsets spread over more documents than a real high-t
-                   subset (n_docs_ext_shuffled_mean vs n_docs_ext).
-  qq_lines.csv     per Q-Q line: n, n_docs, n_nonpos, whether it was drawn.
-  figures/qq_{method}_{ecosystem}.pdf, figures/qq_legend.pdf
-  figures/w1_vs_threshold_{ecosystem}.pdf, figures/w1_vs_threshold_legend.pdf
-                   one panel per attribute, drawn from wasserstein.csv: raw-scale W1 to
-                   the reference divided by the reference's range (ref_range), vs threshold
-                   for NTP and probe (no CI drawn) and each method's shuffled
-                   control (mean, 2.5-97.5 percentile band).
+Usage
+-----
+    python analysis/pond_meta_analysis.py analysis/analysis-configs/meta/<id>.yaml
 """
 from __future__ import annotations
 
@@ -93,10 +51,8 @@ from analysis.common.meta_inputs import SECTION_V2, load_meta_v2_config, resolve
 
 mpl.rcParams.update(PAPER_RCPARAMS)
 
-# Non-threshold settings, per reference: the reference's own setting first. `valid` is
-# the extracted rows whose stored calibration label is positive (judge OR GT match).
-# v1's judge-only `judge_filtered` is dropped (it is `valid` minus the GT matches), and
-# so is `extracted` (it is the t = 0 threshold setting).
+# Non-threshold settings per reference. `valid` = extracted rows labelled valid
+# (judge OR GT match). The unfiltered set is the t = 0 threshold setting.
 BASE_SETTINGS = {
     'ground_truth': ['ground_truth', 'valid'],
     'valid':        ['ground_truth', 'valid'],
@@ -106,9 +62,7 @@ QQ_BASE_LINES = {
     'ground_truth': ['valid'],
     'valid':        ['ground_truth'],
 }
-# Line colors: every threshold line (t = 0, the unfiltered set, is just the first of them)
-# is solid, stepped evenly from the cool end to the warm end of THRESHOLD_CMAP; valid is
-# a black dotted line.
+# Threshold lines are solid, stepped cool -> warm along THRESHOLD_CMAP.
 THRESHOLD_CMAP = mpl.colormaps['coolwarm']
 QQ_BASE_STYLE = {
     'ground_truth': dict(color='#2a7d3a', linestyle=(0, (6, 2)), linewidth=1.6),
@@ -118,12 +72,8 @@ QQ_BASE_LEGEND = {
     'ground_truth': 'Ground truth',
     'valid':        'Valid extracted (judge or GT match)',
 }
-# v1's UNIT_CONVERSION plus pond schema units it lacked (experiments/dataset-configs/
-# pond.py lists them as extraction units): mi^2, and ppm / ppb for tn / tp / chla, taken
-# as mg/L / µg/L (mass ratios in dilute water, density ~1 kg/L). Still deliberately
-# unconvertible: µg/cm^2 (an areal density, not a water concentration) and molar chla
-# (chl-a is essentially never reported in µmol/L; such a row is far more likely a
-# mislabeled unit than a real measurement).
+# UNIT_CONVERSION plus pond schema units it lacks: mi^2, and ppm / ppb as mg/L / µg/L
+# (dilute water). µg/cm^2 and molar chla stay unconvertible (likely mislabelled units).
 _V2_ADDED_UNITS = {
     'surface_area': {'mi^2': 2589988.110336},
     'tn':   {'ppm': 1000.0, 'ppb': 1.0},
@@ -139,13 +89,19 @@ SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
 # Offset added to a method's code for its shuffled-confidence permutation stream.
 SHUFFLE_STREAM = 100
 
-# W1-vs-threshold curves: tab10 colors mixed with white into pastels (NTP = tab10 blue,
-# probe = tab10 green); real arm solid and thick, its shuffled control dotted.
+# W1-vs-threshold curves: pastel tab10 (NTP blue, probe green); real solid, shuffled dotted.
 PASTEL_WHITE_FRACTION = 0.35
 
 
 def _pastel(color) -> tuple:
-    """`color` mixed with PASTEL_WHITE_FRACTION white."""
+    """Lighten a color by mixing in PASTEL_WHITE_FRACTION white.
+
+    Args:
+        color: Any matplotlib color.
+
+    Returns:
+        RGB tuple.
+    """
     rgb = np.array(mcolors.to_rgb(color))
     return tuple((1 - PASTEL_WHITE_FRACTION) * rgb + PASTEL_WHITE_FRACTION)
 
@@ -166,11 +122,28 @@ THRESHOLD_AXIS_LABEL = {'value': r'Confidence threshold $t$',
 
 
 def threshold_setting(method: str, t: float, mode: str) -> str:
+    """Setting name for a threshold, e.g. ``probe_ge_0.50`` or ``ntp_pct_0.25``.
+
+    Args:
+        method: ``"ntp"`` or ``"probe"``.
+        t: Threshold.
+        mode: ``"value"`` or ``"percentile"``.
+
+    Returns:
+        Setting name.
+    """
     return f'{method}{SETTING_INFIX[mode]}{t:.2f}'
 
 
 def parse_threshold_setting(setting: str):
-    """(method, mode, t) of a '{method}_ge_{t}' / '{method}_pct_{t}' setting, else None."""
+    """Inverse of ``threshold_setting``.
+
+    Args:
+        setting: Setting name.
+
+    Returns:
+        ``(method, mode, t)``, or None for a non-threshold setting.
+    """
     for mode, infix in SETTING_INFIX.items():
         method, sep, t = setting.partition(infix)
         if sep:
@@ -180,9 +153,19 @@ def parse_threshold_setting(setting: str):
 
 
 def keep_mask(prob: np.ndarray, t: float, mode: str) -> np.ndarray:
-    """Rows kept at t of one cell's confidences `prob`: value mode prob >= t; percentile mode
-    prob >= the `t` quantile (method='lower', an actual score) of `prob` itself, so t = 0 keeps
-    everything and ties at the cutoff are kept."""
+    """Which rows of one cell survive threshold t.
+
+    Value mode keeps prob >= t. Percentile mode keeps prob >= the lower t-quantile
+    of ``prob``, so ties at the cutoff are kept.
+
+    Args:
+        prob: The cell's confidences.
+        t: Threshold (or fraction to drop).
+        mode: ``"value"`` or ``"percentile"``.
+
+    Returns:
+        Boolean keep mask.
+    """
     assert prob.ndim == 1 and np.isfinite(prob).all(), 'confidence missing or misshapen'
     if mode == 'value':
         return prob >= t
@@ -193,20 +176,47 @@ def keep_mask(prob: np.ndarray, t: float, mode: str) -> np.ndarray:
 
 
 def threshold_style(t: float, thresholds: list[float]) -> dict:
-    """Solid line, the i-th of k thresholds (t = 0 is i = 0, like any other) at
-    THRESHOLD_CMAP(i / (k - 1)): first threshold the cool end, last the warm end."""
+    """Line style for a threshold, coloured by its position in the grid (cool to warm).
+
+    Args:
+        t: Threshold (must be in ``thresholds``).
+        thresholds: Full grid, starting at 0.
+
+    Returns:
+        matplotlib line kwargs.
+    """
     assert thresholds[0] == 0.0 and len(thresholds) > 1, thresholds
     return dict(color=THRESHOLD_CMAP(thresholds.index(t) / (len(thresholds) - 1)), linestyle='-', linewidth=1.5)
 
 
 def threshold_label(t: float) -> str:
+    """LaTeX legend label "Confidence >= t".
+
+    Args:
+        t: Threshold.
+
+    Returns:
+        Label string.
+    """
     return rf'Confidence $\geq {t:g}$'
 
 
 def _rng(seed: int, ecosystem: str, attribute: str, code: int, t: float, log: bool) -> np.random.Generator:
-    """Deterministic RNG per (cell, setting, threshold, scale): a cell's CI never
-    depends on which other cells/thresholds the config selects or their order.
-    Keyed on the canonical ECOSYSTEMS/ATTRIBUTES positions and t in 1e-4 units."""
+    """Bootstrap RNG for one (cell, setting, threshold, scale).
+
+    Keyed on canonical positions, so a cell's CI doesn't depend on what else the config selects.
+
+    Args:
+        seed: Global seed.
+        ecosystem: Ecosystem (position in ECOSYSTEMS).
+        attribute: Attribute (position in ATTRIBUTES).
+        code: SETTING_CODES value.
+        t: Threshold (in 1e-4 units in the key).
+        log: Log-scale stream.
+
+    Returns:
+        Generator.
+    """
     return np.random.default_rng([int(seed), ECOSYSTEMS.index(ecosystem), ATTRIBUTES.index(attribute),
                                   int(code), int(round(t * 10_000)), int(log)])
 
@@ -214,19 +224,32 @@ def _rng(seed: int, ecosystem: str, attribute: str, code: int, t: float, log: bo
 # ── Settings ────────────────────────────────────────────────────────────────
 
 def cell_rows(gt_df: pd.DataFrame, ext_df: pd.DataFrame, ecosystem: str, attribute: str):
-    """(GT rows, extracted rows) of one cell that carry a standard-unit value."""
+    """Ground-truth and extracted rows of one cell that have a converted value.
+
+    Args:
+        gt_df: Ground-truth rows.
+        ext_df: Extracted rows.
+        ecosystem: Ecosystem bucket.
+        attribute: Attribute.
+
+    Returns:
+        ``(gt_rows, ext_rows)``.
+    """
     g = gt_df[(gt_df['ecosystem_bucket'] == ecosystem) & (gt_df['attribute'] == attribute)]
     e = ext_df[(ext_df['ecosystem_bucket'] == ecosystem) & (ext_df['attribute'] == attribute)]
     return g.dropna(subset=['converted_value']), e.dropna(subset=['converted_value'])
 
 
 def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFrame:
-    """Rows of one cell (gt/ext from cell_rows) belonging to `setting`.
+    """Rows of one cell belonging to a setting.
 
-    Unfiltered: ground_truth, extracted, valid
-    (stored calibration label, judge OR GT match). Thresholded: '{method}_ge_{t:.2f}'
-    keeps extracted rows whose METHOD_PROB_COL[method] >= t; '{method}_pct_{t:.2f}' drops
-    the bottom fraction t of them by that confidence (see keep_mask).
+    Args:
+        setting: ``ground_truth``, ``extracted``, ``valid``, or a threshold setting.
+        gt: The cell's ground-truth rows.
+        ext: The cell's extracted rows.
+
+    Returns:
+        The selected rows.
     """
     if setting == 'ground_truth':
         return gt
@@ -244,12 +267,30 @@ def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFr
 
 
 def all_settings(reference: str, thresholds: list[float], threshold_mode: str) -> list[str]:
+    """Every setting compared for a reference: base settings, then each method x threshold.
+
+    Args:
+        reference: ``"ground_truth"`` or ``"valid"``.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+
+    Returns:
+        Setting names.
+    """
     names = BASE_SETTINGS[reference] + [threshold_setting(m, t, threshold_mode) for m in METHODS for t in thresholds]
     assert len(set(names)) == len(names), f'threshold settings collide at 2 decimals: {thresholds}'
     return names
 
 
 def _setting_meta(setting: str) -> dict:
+    """Method / mode / threshold columns for a setting (blank and NaN if not thresholded).
+
+    Args:
+        setting: Setting name.
+
+    Returns:
+        Dict with ``method``, ``threshold_mode``, ``threshold``.
+    """
     parsed = parse_threshold_setting(setting)
     if parsed is None:
         return dict(method='', threshold_mode='', threshold=np.nan)
@@ -260,7 +301,14 @@ def _setting_meta(setting: str) -> dict:
 # ── Stats table ─────────────────────────────────────────────────────────────
 
 def summary_stats(x: np.ndarray) -> dict:
-    """Mean, sample std (ddof=1), Hazen Q1/median/Q3 of an unweighted sample."""
+    """Mean, sample std and Hazen quartiles of a sample (NaN if empty).
+
+    Args:
+        x: 1-D finite values.
+
+    Returns:
+        Dict with ``mean``, ``std``, ``q1``, ``median``, ``q3``.
+    """
     assert x.ndim == 1 and np.isfinite(x).all()
     if x.size == 0:
         return dict(mean=np.nan, std=np.nan, q1=np.nan, median=np.nan, q3=np.nan)
@@ -270,6 +318,20 @@ def summary_stats(x: np.ndarray) -> dict:
 
 
 def build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode) -> pd.DataFrame:
+    """Summary statistics per (ecosystem, attribute, setting).
+
+    Args:
+        gt_df: Ground-truth rows.
+        ext_df: Extracted rows.
+        reference: Reference setting.
+        ecosystems: Ecosystems to include.
+        attributes: Attributes to include.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+
+    Returns:
+        meta_stats.csv rows: n, n_docs, n_nonpos and ``summary_stats`` per setting.
+    """
     rows = []
     for ecosystem in ecosystems:
         for attribute in attributes:
@@ -287,9 +349,16 @@ def build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, threshol
 # ── Survival table ──────────────────────────────────────────────────────────
 
 def build_survival_table(stats_df: pd.DataFrame, reference: str) -> pd.DataFrame:
-    """Rows / documents surviving each threshold, from build_stats_table's output: one row
-    per (ecosystem, attribute, method, threshold) with n_ref (the `reference` setting's n),
-    n_ext, n_docs_ext and their fractions of the t = 0 (unfiltered) values."""
+    """How many rows and documents survive each threshold.
+
+    Args:
+        stats_df: Output of ``build_stats_table``.
+        reference: Reference setting (for ``n_ref``).
+
+    Returns:
+        One row per (ecosystem, attribute, method, threshold) with ``n_ref``, ``n_ext``,
+        ``n_docs_ext`` and their fractions of the t = 0 values.
+    """
     ref = stats_df[stats_df['setting'] == reference].set_index(['ecosystem', 'attribute'])
     assert ref.index.is_unique and len(ref) > 0, 'reference setting missing or duplicated in the stats table'
     thr = stats_df[stats_df['method'].isin(METHODS)]
@@ -312,15 +381,34 @@ def build_survival_table(stats_df: pd.DataFrame, reference: str) -> pd.DataFrame
 # ── W1 table ────────────────────────────────────────────────────────────────
 
 def _scale(x: np.ndarray, log: bool) -> np.ndarray:
+    """log10 of the positive values if ``log``, else ``x`` unchanged.
+
+    Args:
+        x: Values.
+        log: Use log10.
+
+    Returns:
+        Scaled values (non-positive dropped when ``log``).
+    """
     return np.log10(x[x > 0]) if log else x
 
 
 def w1_with_ci(ref_x, ext_x, min_n: int, n_boot: int, rng: np.random.Generator, ci: float = 0.95) -> dict:
-    """scipy W1 between two unweighted samples plus a two-sample (unpaired) percentile
-    bootstrap CI. NaN, with a skip reason, when either sample has < min_n rows.
+    """W1 between two samples with an unpaired percentile-bootstrap CI.
 
-    The plug-in W1 is biased upward (two samples from one distribution still give
-    W1 > 0), so the CI is the spread of the estimate, never a test against 0."""
+    Plug-in W1 is biased upward, so the CI shows spread and is not a test against 0.
+
+    Args:
+        ref_x: Reference sample.
+        ext_x: Compared sample.
+        min_n: Minimum size of each sample.
+        n_boot: Bootstrap resamples.
+        rng: Random generator.
+        ci: Confidence level.
+
+    Returns:
+        Dict with ``w1``, ``w1_lo``, ``w1_hi``, ``w1_skip`` (NaN and a reason if too small).
+    """
     if ref_x.size < min_n:
         return dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='ref_n<min_n')
     if ext_x.size < min_n:
@@ -334,15 +422,32 @@ def w1_with_ci(ref_x, ext_x, min_n: int, n_boot: int, rng: np.random.Generator, 
 
 
 def _shuffle_rng(seed: int, ecosystem: str, attribute: str, method: str, sample: int) -> np.random.Generator:
-    """RNG of shuffle `sample` of `method`'s confidences in one cell. Five seed words,
-    so it never coincides with a six-word _rng bootstrap stream."""
+    """RNG for one confidence shuffle in one cell (distinct from the ``_rng`` streams).
+
+    Args:
+        seed: Global seed.
+        ecosystem: Ecosystem.
+        attribute: Attribute.
+        method: ``"ntp"`` or ``"probe"``.
+        sample: Shuffle index.
+
+    Returns:
+        Generator.
+    """
     return np.random.default_rng([int(seed), ECOSYSTEMS.index(ecosystem), ATTRIBUTES.index(attribute),
                                   SHUFFLE_STREAM + SETTING_CODES[method], int(sample)])
 
 
 def _summarize_shuffles(vals: np.ndarray, ci: float) -> dict:
-    """Mean and central `ci` percentile range of the per-shuffle W1s -- only when every
-    shuffle produced one (a partial set is not averaged; NaN + skip reason instead)."""
+    """Mean and percentile range of per-shuffle W1s, only if every shuffle produced one.
+
+    Args:
+        vals: One W1 per shuffle (NaN where skipped).
+        ci: Range coverage.
+
+    Returns:
+        Dict with ``mean``, ``lo``, ``hi``, ``n_ok``, ``skip`` (NaN and a reason if any shuffle failed).
+    """
     n_ok = int(np.isfinite(vals).sum())
     if n_ok < vals.size:
         return dict(mean=np.nan, lo=np.nan, hi=np.nan, n_ok=n_ok, skip='none_ok' if n_ok == 0 else 'partial_ok')
@@ -353,24 +458,31 @@ def _summarize_shuffles(vals: np.ndarray, ci: float) -> dict:
 
 def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: list[float], threshold_mode: str,
                 log_scale: bool, min_n: int, n_shuffle: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
-    """Permutation control for one (cell, method): per shuffle, permute the method's RAW
-    confidences (``{prob_col}_raw``) over the cell's extracted rows, multiply by each row's
-    own ``outlier_factor`` (so the non-outlier filter is kept and only the link between
-    the model's confidence and the row is broken), then apply every threshold (one
-    permutation shared by all thresholds, so shuffled subsets are nested like the real
-    ones) and take W1 to `ref`.
+    """Permutation control for one (cell, method).
 
-    The threshold rule (keep_mask, `threshold_mode`) is applied to each shuffled score
-    vector. With no outlier adjustment every factor is 1, the shuffled scores are a
-    permutation of the real ones, and a threshold keeps exactly as many rows as the real
-    one in either mode (asserted). With adjustment the products form a different multiset:
-    in 'value' mode the shuffled row count then differs from the real one; in 'percentile'
-    mode it matches up to ties at the cutoff. The realized size is reported as
-    n_ext_shuffled_mean, since W1 depends on the sample size.
+    Each shuffle permutes the raw confidences, reapplies each row's own outlier factor,
+    applies every threshold, and takes W1 to ``ref``. Without outlier adjustment the
+    shuffled subsets keep exactly the real row counts (asserted); with it, counts can
+    differ, so the realized size is reported.
 
-    Returns {t: dict(w1_shuffled_{mean,lo,hi,n_ok,skip}, w1_shuffled_log_*,
-    n_docs_ext_shuffled_mean, n_ext_shuffled_mean)}; log columns NaN / 'n/a' off
-    LOG_SCALE_ATTRIBUTES."""
+    Args:
+        ref: Reference sample.
+        ext: The cell's extracted rows.
+        method: ``"ntp"`` or ``"probe"``.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+        log_scale: Also compute log10 W1.
+        min_n: Minimum sample size for W1.
+        n_shuffle: Number of shuffles.
+        seed: Global seed.
+        ecosystem: Ecosystem (RNG key).
+        attribute: Attribute (RNG key).
+        ci: Range coverage.
+
+    Returns:
+        ``{t: {w1_shuffled_*, w1_shuffled_log_*, n_docs_ext_shuffled_mean, n_ext_shuffled_mean}}``;
+        log fields are NaN / 'n/a' for linear-scale attributes.
+    """
     col = METHOD_PROB_COL[method]
     raw = ext[f'{col}_raw'].to_numpy(dtype=float)
     factor = ext['outlier_factor'].to_numpy(dtype=float)
@@ -415,10 +527,24 @@ def shuffled_w1(ref: np.ndarray, ext: pd.DataFrame, method: str, thresholds: lis
 
 def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode,
                    min_n: int, n_boot: int, n_shuffle: int, seed: int) -> pd.DataFrame:
-    """One row per (ecosystem, attribute, compared setting): W1 from that setting to the
-    `reference` setting, raw and (LOG_SCALE_ATTRIBUTES) log10 units, with its bootstrap
-    CI, plus the shuffled_w1 permutation control (over `n_shuffle` permutations) on the
-    threshold settings -- NaN for the non-threshold settings.
+    """W1 from every compared setting to the reference, with CIs and the permutation control.
+
+    Args:
+        gt_df: Ground-truth rows.
+        ext_df: Extracted rows.
+        reference: Reference setting.
+        ecosystems: Ecosystems to include.
+        attributes: Attributes to include.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+        min_n: Minimum sample size.
+        n_boot: Bootstrap resamples.
+        n_shuffle: Permutation-control shuffles.
+        seed: Global seed.
+
+    Returns:
+        wasserstein.csv: one row per (ecosystem, attribute, setting) with raw and log W1,
+        CIs, reference IQR/range, and shuffled-control columns (NaN for non-threshold settings).
     """
     rows = []
     for ecosystem in ecosystems:
@@ -462,9 +588,15 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
 # ── Q-Q figures ─────────────────────────────────────────────────────────────
 
 def qq_levels(n_ref: int, n_ext: int) -> np.ndarray:
-    """QLEVELS inside both samples' Hazen range [0.5/n, 1-0.5/n], where np.quantile
-    interpolates rather than clamping to the sample min/max (a clamped tail reads as
-    a flat artifact)."""
+    """QLEVELS that both samples can interpolate (see ``_valid_range``).
+
+    Args:
+        n_ref: Reference sample size.
+        n_ext: Compared sample size.
+
+    Returns:
+        Quantile levels.
+    """
     lo_r, hi_r = _valid_range(n_ref)
     lo_e, hi_e = _valid_range(n_ext)
     lo, hi = max(lo_r, lo_e), min(hi_r, hi_e)
@@ -472,8 +604,16 @@ def qq_levels(n_ref: int, n_ext: int) -> np.ndarray:
 
 
 def qq_line(ref_x: np.ndarray, ext_x: np.ndarray, min_n: int):
-    """(reference quantiles, extracted quantiles), both np.quantile(method='hazen'), or
-    None if the extracted sample has < min_n rows."""
+    """Q-Q line of Hazen quantiles.
+
+    Args:
+        ref_x: Reference sample.
+        ext_x: Compared sample.
+        min_n: Minimum compared-sample size.
+
+    Returns:
+        ``(reference quantiles, extracted quantiles)``, or None if ``ext_x`` is too small.
+    """
     if ext_x.size < min_n:
         return None
     levels = qq_levels(ref_x.size, ext_x.size)
@@ -482,9 +622,18 @@ def qq_line(ref_x: np.ndarray, ext_x: np.ndarray, min_n: int):
 
 
 def reference_band(ref_x: np.ndarray, levels: np.ndarray, n_boot: int, rng: np.random.Generator, ci: float = 0.95):
-    """Percentile bootstrap band (scipy.stats.bootstrap) of the reference sample's Hazen
-    quantiles at `levels`: the reference's own sampling noise, nothing about the
-    extracted lines."""
+    """Percentile-bootstrap band of the reference's own quantiles (its sampling noise).
+
+    Args:
+        ref_x: Reference sample.
+        levels: Quantile levels.
+        n_boot: Bootstrap resamples.
+        rng: Random generator.
+        ci: Confidence level.
+
+    Returns:
+        ``(lo, hi)`` arrays at ``levels``.
+    """
     res = stats.bootstrap((ref_x,), lambda s, axis: np.quantile(s, levels, method='hazen', axis=axis),
                           vectorized=True, n_resamples=n_boot, confidence_level=ci, method='percentile',
                           random_state=rng)
@@ -495,10 +644,28 @@ def reference_band(ref_x: np.ndarray, levels: np.ndarray, n_boot: int, rng: np.r
 
 def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds, threshold_mode, min_n, n_boot, seed,
             out_path: Path) -> list[dict]:
-    """One Q-Q figure for (ecosystem, method), one panel per attribute: x = reference
-    quantiles, y = extracted quantiles, one line per threshold (threshold_style) plus the
-    QQ_BASE_LINES, the y=x diagonal and the reference bootstrap band.
-    Returns one record per line for qq_lines.csv."""
+    """Save a Q-Q figure for one (ecosystem, method), one panel per attribute.
+
+    Each panel shows one line per threshold plus the base lines, the diagonal, and
+    the reference bootstrap band.
+
+    Args:
+        gt_df: Ground-truth rows.
+        ext_df: Extracted rows.
+        reference: Reference setting (x-axis).
+        ecosystem: Ecosystem.
+        method: ``"ntp"`` or ``"probe"``.
+        attributes: Panel attributes.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+        min_n: Minimum sample size per line.
+        n_boot: Bootstrap resamples for the band.
+        seed: Global seed.
+        out_path: Figure path.
+
+    Returns:
+        One qq_lines.csv record per line.
+    """
     ref_label = REFERENCE_AXIS_LABEL[reference]
     fig, axes = plt.subplots(1, len(attributes), figsize=(2.6 * len(attributes), 2.9), squeeze=False)
     records = []
@@ -558,9 +725,14 @@ def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds,
 
 
 def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float], threshold_mode: str):
-    """Key for the Q-Q figures: a discrete color bar for the threshold lines (one cell per
-    threshold, in the colors threshold_style draws, labelled with t), plus a legend for
-    the QQ_BASE_LINES and the band."""
+    """Save the Q-Q key: a discrete threshold colour bar plus base-line and band legend.
+
+    Args:
+        out_path: Figure path.
+        reference: Reference setting.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+    """
     colors = [threshold_style(t, thresholds)['color'] for t in thresholds]
     k = len(thresholds)
     fig = plt.figure(figsize=(7.0, 1.0))
@@ -582,7 +754,18 @@ def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float], thre
 # ── W1 vs threshold ─────────────────────────────────────────────────────────
 
 def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thresholds: list[float]) -> pd.DataFrame:
-    """The (ecosystem, attribute, method) threshold rows of wasserstein.csv, in grid order."""
+    """One method's threshold rows for a cell from wasserstein.csv, in grid order.
+
+    Args:
+        w1_df: wasserstein.csv frame.
+        ecosystem: Ecosystem.
+        attribute: Attribute.
+        method: ``"ntp"`` or ``"probe"``.
+        thresholds: Expected grid.
+
+    Returns:
+        The rows, sorted by threshold.
+    """
     c = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['method'] == method)]
     c = c.sort_values('threshold')
     assert np.allclose(c['threshold'].to_numpy(dtype=float), thresholds), (ecosystem, attribute, method)
@@ -591,16 +774,20 @@ def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thr
 
 def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
                    threshold_mode: str, out_path: Path):
-    """One figure per ecosystem, one panel per attribute: W1 to the reference against the
-    confidence threshold t. Per method, the real filter (solid) and its shuffled control
-    (dotted; band = the 2.5-97.5 percentile range
-    over permutations). The real curve has no CI band (the bootstrap CI stays in
-    wasserstein.csv, not drawn). Raw-scale W1 (no log, even for LOG_SCALE_ATTRIBUTES) divided by the
-    cell's reference range (`ref_range` = max - min of the reference sample: fixed per
-    cell, so it rescales without changing a curve's shape or the real-vs-shuffled
-    comparison). The y-label is on the leftmost panel only. The extracted sample can lie
-    outside the reference range, so the ratio is not bounded by 1. A point the
-    table skipped (n < min_n) is a gap in its line."""
+    """Save W1 vs threshold for one ecosystem, one panel per attribute.
+
+    Plots raw-scale W1 divided by the reference's range (a per-cell constant, so curve
+    shapes are unchanged). Real curves are solid with no CI drawn; shuffled controls
+    are dotted with their percentile band. Skipped points are gaps.
+
+    Args:
+        w1_df: wasserstein.csv frame.
+        ecosystem: Ecosystem.
+        attributes: Panel attributes.
+        thresholds: Threshold grid.
+        threshold_mode: ``"value"`` or ``"percentile"``.
+        out_path: Figure path.
+    """
     fig, axes = plt.subplots(1, len(attributes), figsize=(3.0 * len(attributes), 2.8), squeeze=False)
     for i, (ax, attribute) in enumerate(zip(axes[0], attributes)):
         for method in METHODS:
@@ -629,7 +816,11 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
 
 
 def plot_w1_curves_legend(out_path: Path):
-    """Line key (as clustering.plot_legend) plus the meaning of the shuffled band."""
+    """Save the W1-curve legend (real / shuffled per method, plus the band).
+
+    Args:
+        out_path: Figure path.
+    """
     order = ('probe', 'ntp', 'probe_shuffled', 'ntp_shuffled')
     handles = [Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
                       linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
@@ -645,6 +836,7 @@ def plot_w1_curves_legend(out_path: Path):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    """CLI: load inputs, build every table and figure, and write meta.json."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('config', type=Path, help="analysis/analysis-configs/meta/<id>.yaml with params.meta_v2")
     args = parser.parse_args()
@@ -660,9 +852,8 @@ def main():
     input_keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
     inputs = resolve_meta_inputs(sec, DATASET)
     gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
-    # Thresholds, survival and the real W1 read ext_df's ntp_prob / probe_prob (adjusted when
-    # outlier_adjust); the shuffled control permutes the *_raw columns and re-applies the
-    # row's own outlier_factor (see shuffled_w1).
+    # Real settings use ntp_prob / probe_prob (adjusted if outlier_adjust); the shuffled
+    # control permutes the *_raw columns (see shuffled_w1).
     ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
     if moments is not None:
         print(f"[meta_v2] outlier_adjust: confidences x exp(-(x-mu)^2/2sigma^2)\n{moments}")

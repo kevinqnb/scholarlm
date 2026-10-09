@@ -1,11 +1,8 @@
-"""Head-probe feature matrices read from a judge run's attention_outputs.npz, each row
-decompressed at most once.
+"""Cached head-probe feature matrices from a judge run's attention_outputs.npz.
 
-attention_outputs.npz holds one compressed (n_layers, n_heads, d_head) array per
-measurement_id. A head probe's features for a row are its top heads' d_head vectors,
-concatenated in the probe's top_k_heads order. Slicing that per head re-decompresses the
-whole array once per head (and again for every probe scored on the same rows); this cache
-keeps only the union of the heads any probe needs, per row, the first time the row is read.
+The npz holds one compressed (n_layers, n_heads, d_head) array per measurement_id.
+Slicing it per head re-decompresses the whole array each time, so this cache
+decompresses each row once and keeps only the heads any probe needs.
 """
 from __future__ import annotations
 
@@ -15,14 +12,22 @@ import numpy as np
 
 
 class HeadActivationCache:
-    """Per-row cache of the ``union_heads`` slices of every attention_outputs.npz it reads.
+    """Per-row cache of the ``union_heads`` slices of each attention_outputs.npz read.
 
     Args:
-        union_heads: every (layer, head) any caller will request; a request for a head
-            outside it is a hard error.
+        union_heads: Every (layer, head) any caller will request. Requesting a head
+            outside this set raises KeyError.
     """
 
     def __init__(self, union_heads):
+        """Index the heads to keep.
+
+        Args:
+            union_heads: Iterable of (layer, head) pairs.
+
+        Raises:
+            ValueError: ``union_heads`` is empty.
+        """
         heads = sorted({(int(l), int(h)) for l, h in union_heads})
         if not heads:
             raise ValueError("union_heads is empty")
@@ -32,9 +37,16 @@ class HeadActivationCache:
         self._rows: dict[Path, dict[str, np.ndarray]] = {}
 
     def features(self, act_dir: Path, mids, top_k_heads) -> np.ndarray:
-        """``(len(mids), len(top_k_heads) * d_head)`` float32: for each row, the d_head
-        vectors of ``top_k_heads`` concatenated in that order (same layout as stacking per
-        head and concatenating along axis 1)."""
+        """Feature matrix for a head probe: each row's top-head vectors, concatenated.
+
+        Args:
+            act_dir: Judge run directory containing attention_outputs.npz.
+            mids: Measurement ids (npz keys), one per output row.
+            top_k_heads: The probe's (layer, head) pairs, in feature order.
+
+        Returns:
+            float32 array of shape ``(len(mids), len(top_k_heads) * d_head)``.
+        """
         sel = [self._pos[(int(l), int(h))] for l, h in top_k_heads]
         rows = self._rows.setdefault(Path(act_dir), {})
         missing = [str(m) for m in mids if str(m) not in rows]

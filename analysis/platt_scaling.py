@@ -1,35 +1,20 @@
-"""Recalibration-sample-size sweep, training-resample variability only.
+"""smECE of recalibrated probe / NTP scores vs. recalibration sample size n.
 
-Calibration error of recalibrated probe / NTP scores vs. the number of real rows n the
-recalibration is fit on, for each n in params.platt_ns. Same inputs, labels, Platt pool
-and test rows as calibration.py; replaces the nested bootstrap of the retired v1 sweep
-(removed 2026-10-09). Per (train probe, test dataset, method, n):
+Same inputs, labels, pool and test rows as calibration.py. For each (train probe, test
+dataset, method, n in params.platt_ns):
+  - draw n_train_resamples two-class fit samples of n pool rows (doc_bootstrap.two_class_fit_samples);
+  - fit a map on each, apply it to the fixed test rows, and score smECE;
+  - report the mean and the 2.5 / 97.5 percentiles.
+n = 0 is the unrecalibrated baseline (zero-width interval).
 
-  - n_train_resamples fit samples from doc_bootstrap.two_class_fit_samples: the test
-    dataset's pool documents resampled with replacement, then n rows drawn uniformly
-    without replacement from the resampled pool. Draws whose resampled pool has fewer
-    than n rows, and single-class draws, are skipped ('Fit draws' counts every draw;
-    'Short-pool skips' / 'Single-class skips' count each kind).
-  - each sample's recalibration map (prior_shift / intercept_fit from
-    analysis/common/recalibration.py, platt_fit from scholarlm's fit_platt) is applied to the
-    fixed test rows and scored by relplot's smECE, exactly as doc_bootstrap computes it.
-  - point = mean of the n_train_resamples smECE values, interval = their 2.5 / 97.5
-    percentiles.
-  - n = 0 is the no-recalibration baseline: the raw probe / NTP-calibrator scores on
-    the same test rows (Recalibration 'none'), one deterministic value, so its interval
-    is that value (zero width) and it has no per-resample rows.
+The interval covers fit-sample variability only; test rows are not resampled.
 
-The band is the spread over training resamples ONLY: the test rows are not resampled,
-so test-document sampling noise is not in it. It is narrower than, and not comparable
-with, the retired v1 sweep's nested-bootstrap intervals.
+Writes smece_vs_platt_n.csv, smece_train_resamples.csv and figures/ to
+analysis/results/platt-scaling/<config id>/.
 
-Fit sample r of test dataset ds resamples the same pool documents at every n, and is
-shared by every train probe and method.
-
-No flags: one positional config (analysis/analysis-configs/platt-scaling/<id>.yaml, see
-load_platt_sweep_v2_config), normally run through
-`bash analysis/submit.sh platt_scaling <id> --walltime HH:MM:SS --omp N`. Output goes
-to analysis/results/platt-scaling/<config id>/.
+Usage
+-----
+    python analysis/platt_scaling.py analysis/analysis-configs/platt-scaling/<id>.yaml
 """
 import sys
 from pathlib import Path
@@ -94,7 +79,23 @@ _PLOT_NS = [0, 100, 500]
 
 
 def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, float]:
-    """``(coef, intercept)`` for apply_platt, fit on these rows."""
+    """Fit a recalibration map on some rows.
+
+    platt_fit calls scholarlm's fit_platt directly, without the separability and
+    convergence checks of ``recalibration.platt_fit_map``.
+
+    Args:
+        recalibration: ``"prior_shift"``, ``"intercept_fit"`` or ``"platt_fit"``.
+        probs: Fit-row probabilities.
+        labels: Fit-row labels.
+        pi_tr: Scorer's training prevalence (prior_shift only).
+
+    Returns:
+        ``(coef, intercept)`` for apply_platt.
+
+    Raises:
+        ValueError: Unknown method.
+    """
     labels = np.asarray(labels, dtype=bool)
     if recalibration == 'prior_shift':
         return prior_shift_map(float(labels.mean()), pi_tr)
@@ -108,12 +109,28 @@ def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, flo
 
 
 def smece(probs, labels) -> float:
-    """relplot's smECE, exactly as doc_bootstrap (and so calibration v4) computes it."""
+    """relplot's smECE, computed exactly as in doc_bootstrap / calibration.py.
+
+    Args:
+        probs: Predicted probabilities.
+        labels: Binary labels.
+
+    Returns:
+        smECE.
+    """
     return float(db._relplot(np.asarray(probs, dtype=float), np.asarray(labels, dtype=bool))['ce'])
 
 
 def summarize(values, ci_level=db.CI_LEVEL) -> dict:
-    """Mean and central ``ci_level`` percentile interval of per-resample values."""
+    """Mean and central percentile interval of per-resample smECE values.
+
+    Args:
+        values: One smECE per fit sample.
+        ci_level: Interval coverage.
+
+    Returns:
+        ``{'SmECE', 'SmECE_lo', 'SmECE_hi'}``.
+    """
     values = np.asarray(values, dtype=float)
     assert values.ndim == 1 and len(values) > 0 and np.isfinite(values).all(), values.shape
     alpha = (1 - ci_level) / 2
@@ -122,10 +139,18 @@ def summarize(values, ci_level=db.CI_LEVEL) -> dict:
 
 
 class SweepInputs:
-    """Trained probes / NTP calibrators and real labels, pool and test rows per dataset,
-    loaded as in calibration.py."""
+    """Trained probes and calibrators plus each dataset's real labels, pool and test rows.
+
+    Args:
+        cfg: Loaded platt-scaling config.
+    """
 
     def __init__(self, cfg):
+        """Resolve inputs and load every artifact and dataset (as in calibration.py).
+
+        Args:
+            cfg: Loaded platt-scaling config.
+        """
         params = cfg['params']
         self.cfg = cfg
         self.seed = cfg['seed']
@@ -134,7 +159,7 @@ class SweepInputs:
         self.inputs = cids.resolve_calibration_inputs(cfg)
         self.judge_model = self.inputs['judge_model']
 
-        # None -> Platt-scaled baseline filenames; 'noplatt' picks the suffixed variant.
+        # None selects the Platt-scaled filenames; 'noplatt' the suffixed ones.
         variant_kw = None if params['probe_variant'] == 'platt' else params['probe_variant']
         ntp_name = 'ntp_calibrator.pkl' if variant_kw is None else 'ntp_calibrator_noplatt.pkl'
         probe_name = ('layer_probe.pkl' if self.probe_type == 'layer'
@@ -147,6 +172,18 @@ class SweepInputs:
         self.data = {ds: self._load_real(ds) for ds in self.datasets}
 
     def _load_artifact(self, train_ds, filename):
+        """Load a probe or calibrator pickle and check its judge and dataset.
+
+        Args:
+            train_ds: Dataset it was trained on.
+            filename: File in that dataset's probe_dir.
+
+        Returns:
+            The artifact dict.
+
+        Raises:
+            FileNotFoundError: Not trained yet.
+        """
         path = self.inputs['datasets'][train_ds]['probe_dir'] / filename
         if not path.exists():
             raise FileNotFoundError(
@@ -158,6 +195,14 @@ class SweepInputs:
         return artifact
 
     def _load_real(self, ds):
+        """Load one dataset's judged real rows, labels, and pool / test split.
+
+        Args:
+            ds: Dataset name.
+
+        Returns:
+            Dict with ``real_df``, ``labels``, ``pool_docs``, ``pool_idx``, ``test_idx``.
+        """
         ds_inputs = self.inputs['datasets'][ds]
         block = self.cfg['params']['datasets'][ds]
         with open(ds_inputs['judge_combine_dir'] / 'combined.json') as f:
@@ -170,8 +215,7 @@ class SweepInputs:
             assert final_df[col].tolist() == real_df[col].tolist(), (
                 f'{ds}: final.json and combined.json disagree on {col}')
 
-        # Labels: judgement_combined, OR'd with a cached ground-truth match when the
-        # dataset's use_matching_labels is on.
+        # Label = judgement_combined, OR ground-truth match if use_matching_labels.
         jlabels = real_df['judgement_combined'].to_numpy(dtype=bool)
         if block['use_matching_labels']:
             _gt_df, ext_df, cached_edges = matching.load_cached_matching(
@@ -186,8 +230,7 @@ class SweepInputs:
             print(f'  {ds}: matching labels off -- labels are judgement_combined alone')
             labels = jlabels.copy()
 
-        # Pool: this dataset's real rows whose document was in its own synthetic-probe
-        # training set. Test rows: every other real row.
+        # Pool = rows from the probe's training documents; test = all other rows.
         pool_docs = set(self.probe[ds]['syn_document_ids'])
         in_pool = real_df['document_id'].isin(pool_docs).to_numpy()
         pool_idx, test_idx = np.where(in_pool)[0], np.where(~in_pool)[0]
@@ -200,7 +243,16 @@ class SweepInputs:
                 'pool_idx': pool_idx, 'test_idx': test_idx}
 
     def score_rows(self, train_ds, test_ds, idx):
-        """Raw (un-mapped) probe and NTP-calibrator probabilities for real_df rows ``idx``."""
+        """Unrecalibrated probe and NTP-calibrator probabilities for some real rows.
+
+        Args:
+            train_ds: Dataset whose probe and calibrator are applied.
+            test_ds: Dataset whose rows are scored.
+            idx: Row positions in that dataset's ``real_df``.
+
+        Returns:
+            ``{'probe': array, 'ntp': array}``.
+        """
         real_df = self.data[test_ds]['real_df']
         act_dir = self.inputs['datasets'][test_ds]['judge_interp_dir']
         mids = real_df['measurement_id'].iloc[idx].tolist()
@@ -221,9 +273,19 @@ class SweepInputs:
 
 
 def run_sweep(inp, platt_ns, recalibration, n_resamples):
-    """smECE per (train_ds, test_ds, method, n, fit sample).
+    """Compute smECE for every (train_ds, test_ds, method, n, fit sample).
 
-    Returns the summary table (one row per cell and n) and the per-resample table.
+    Fit samples depend only on (test_ds, n), so all probes and methods share them.
+
+    Args:
+        inp: Loaded ``SweepInputs``.
+        platt_ns: Fit sizes (0 = baseline).
+        recalibration: Recalibration method.
+        n_resamples: Fit samples per n.
+
+    Returns:
+        ``(summary, samples_df)``: one row per (cell, n) with mean and interval, and
+        one row per fit sample with its map and smECE.
     """
     # Fit samples depend only on (test_ds, n): shared by every train probe and method.
     samples = {}
@@ -308,9 +370,17 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
 
 
 def plot_sweep(df, datasets, platt_ns, figures_dir):
-    # One figure per (method, train_ds): a group of bars per n in _PLOT_NS, one bar per
-    # test_ds, colored by test_ds. Bar = mean over training resamples; error bar = their
-    # 2.5-97.5 percentiles (no test noise; zero width at the n = 0 baseline).
+    """Save bar charts of smECE vs n (one per method and train dataset) and a legend.
+
+    Bars are grouped by n in _PLOT_NS and coloured by test dataset; error bars are
+    the fit-sample percentile interval.
+
+    Args:
+        df: Summary from ``run_sweep``.
+        datasets: Dataset names.
+        platt_ns: Config's fit sizes (must include _PLOT_NS).
+        figures_dir: Output directory.
+    """
     missing = [n for n in _PLOT_NS if n not in platt_ns]
     assert not missing, f'plotted ns {missing} are not in params.platt_ns {platt_ns}'
     x = np.arange(len(_PLOT_NS))
@@ -353,6 +423,11 @@ def plot_sweep(df, datasets, platt_ns, figures_dir):
 
 
 def main(config_path):
+    """Run the sweep for one config and write CSVs and figures.
+
+    Args:
+        config_path: platt-scaling config path.
+    """
     cfg = load_platt_sweep_v2_config(Path(config_path))
     p = cfg['params']
     platt_ns, recalibration, n_resamples = list(p['platt_ns']), p['recalibration'], p['n_train_resamples']

@@ -1,15 +1,9 @@
-"""Deduplication caches and outputs: where analysis/deduplicate_cache.py writes each
-extraction's pairwise duplicate-candidate graph and analysis/deduplication.py its
-clustering, the two config loaders, and the cache reader. Shared with
-analysis/common/meta_inputs.py (rows: deduplicated) and analysis/_resolve_job.py.
+"""Paths, config loaders and cache reader for the deduplication step.
 
-Both run on a recovery-validity config (analysis-configs/recovery-validity/<id>.yaml):
-the same experiment_ids / ground_truth_file that postprocessing, match_cache and
-recovery_validity read, plus a ``deduplicate_cache`` and a ``deduplication`` section.
-So one setup config builds everything downstream analyses need for its ids, and the
-deduplication of a config always reads the cache built under that same config id.
-
-Building either artefact stays in its script; nothing here computes edges or clusters.
+analysis/deduplicate_cache.py builds each extraction's duplicate-candidate graph and
+analysis/deduplication.py clusters it. Both read the ``deduplicate_cache`` /
+``deduplication`` sections of a recovery-validity config, so a config's clustering
+always reads the cache built under that same config id.
 """
 from __future__ import annotations
 
@@ -39,23 +33,40 @@ CACHE_SECTION_KEYS = (
 EXTRACTION_FILES = ("final.json", "postprocessed.json")
 
 def deduplicate_cache_path(config_id: str, experiment_id: str) -> Path:
-    """DEDUP_CACHE_ROOT/<config id>/<experiment id>/deduplicate_cache.pkl -- the
-    one place this path is built."""
+    """Path of the duplicate-candidate cache for one experiment under one config.
+
+    Args:
+        config_id: Recovery-validity config id.
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        ``DEDUP_CACHE_ROOT/<config_id>/<experiment_id>/deduplicate_cache.pkl``.
+    """
     return DEDUP_CACHE_ROOT / config_id / experiment_id / "deduplicate_cache.pkl"
 
 def deduplicate_cache_meta_path(config_id: str, experiment_id: str) -> Path:
+    """Path of the provenance sidecar next to the deduplicate cache.
+
+    Args:
+        config_id: Recovery-validity config id.
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        ``.../deduplicate_cache.meta.json``.
+    """
     return deduplicate_cache_path(config_id, experiment_id).with_name("deduplicate_cache.meta.json")
 
 def load_deduplicate_cache_config(path: Path) -> dict:
-    """Load and validate a recovery-validity config for deduplicate_cache.
+    """Load a recovery-validity config and validate its ``deduplicate_cache`` section.
 
-    The envelope, experiment_ids and ground_truth_file are checked by
-    load_analysis_config; ``seed`` is unused here (the build is deterministic). The
-    ``deduplicate_cache`` section is required (CACHE_SECTION_KEYS, no defaults, no
-    extras).
+    Args:
+        path: Path to the config YAML.
+
+    Returns:
+        The full config dict.
 
     Raises:
-        ValueError / KeyError on anything malformed.
+        ValueError, KeyError: Missing, extra or malformed keys.
     """
     cfg = load_analysis_config(path, "recovery-validity")
     sec = get_section(cfg, CACHE_SECTION, CACHE_SECTION_KEYS)
@@ -82,9 +93,20 @@ def load_deduplicate_cache_config(path: Path) -> dict:
     return cfg
 
 def load_deduplicate_cache(config_id: str, experiment_id: str, fuzzy_threshold: float | None = None):
-    """Load a built cache. Returns the dict {"edges","edge_weights","n_rows"},
-    or, with ``fuzzy_threshold``, just the edges with weight >= it. Never
-    builds anything; raises if the cache has not been built."""
+    """Read a built deduplicate cache (never builds one).
+
+    Args:
+        config_id: Recovery-validity config id.
+        experiment_id: Extraction experiment id.
+        fuzzy_threshold: If given, return only edges with weight >= this.
+
+    Returns:
+        Dict ``{"edges", "edge_weights", "n_rows"}``, or the filtered edge list when
+        ``fuzzy_threshold`` is set.
+
+    Raises:
+        FileNotFoundError: The cache has not been built.
+    """
     path = deduplicate_cache_path(config_id, experiment_id)
     if not path.exists():
         raise FileNotFoundError(
@@ -105,18 +127,32 @@ DEDUP_SECTION = "deduplication"
 DEDUP_SECTION_KEYS = ("solver_time_limit_s", "provenance_fields")
 
 def deduplication_dir(config_id: str, experiment_id: str) -> Path:
-    """DEDUP_ROOT/<config id>/<experiment id>/ -- the one place this path is built."""
+    """Output directory for one experiment's deduplication under one config.
+
+    Args:
+        config_id: Recovery-validity config id.
+        experiment_id: Extraction experiment id.
+
+    Returns:
+        ``DEDUP_ROOT/<config_id>/<experiment_id>``.
+    """
     return DEDUP_ROOT / config_id / experiment_id
 
 def load_deduplication_config(path: Path) -> dict:
-    """Load and validate a recovery-validity config for deduplication.
+    """Load a recovery-validity config and validate its ``deduplication`` section.
 
-    The config must also be a valid deduplicate_cache config
-    (load_deduplicate_cache_config): its clustering reads the caches built under this
-    same config id. The ``deduplication`` section is DEDUP_SECTION_KEYS (no defaults,
-    no extras); the provenance fields must not be match fields of the
-    ``deduplicate_cache`` section (a field cannot both decide duplication and be
-    merged). ``seed`` is unused (the solve is deterministic).
+    The config must also pass ``load_deduplicate_cache_config``. Provenance fields
+    may not also be match fields, since a field cannot both decide duplication and
+    be merged across duplicates.
+
+    Args:
+        path: Path to the config YAML.
+
+    Returns:
+        The full config dict.
+
+    Raises:
+        ValueError, KeyError: Missing, extra or malformed keys.
     """
     cfg = load_deduplicate_cache_config(path)
     sec = get_section(cfg, DEDUP_SECTION, DEDUP_SECTION_KEYS)

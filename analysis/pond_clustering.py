@@ -1,67 +1,26 @@
-"""Downstream clustering: does weighting extracted entities by probe / NTP confidence
-make a KMeans fit on the LLM-extracted pond data recover the ground truth's clusters?
+"""Does weighting extracted pond entities by probe / NTP confidence make KMeans recover the ground truth's clusters?
 
-    python analysis/pond_clustering.py analysis/analysis-configs/clustering/<id>.yaml
-    bash analysis/submit.sh pond_clustering <id> --walltime HH:MM:SS --omp N
+Usage: python analysis/pond_clustering.py analysis/analysis-configs/clustering/<id>.yaml
 
-Pipeline (pond only; every value below that changes between runs is a key of
-params.clustering, see load_clustering_config):
+1. Rows and confidences come from pond_meta.load_data (held-out documents only).
+2. Build entity x attribute matrices: one cell per (entity, attribute), holding the
+   median value and mean confidence of its rows. GT entities are distinct (document_id,
+   name, ecosystem); extracted entities are entity_ids.
+3. Pick the attributes: a fixed list, or the subset (of the given sizes) whose densified
+   GT matrix maximises n_rows * d.
+4. Densify, KNN-impute and standardize the GT and extracted matrices separately. Entity
+   confidence = product of its observed cells' confidences.
+5. KMeans on the GT gives reference centroids. For each gamma, run KMeans on the
+   extraction with weights conf ** gamma and score the mean Hungarian-matched centroid
+   distance. A shuffled-confidence arm per method is the permutation control.
 
-1. Rows and confidences come from pond_meta.load_data, exactly as for
-   pond_meta_analysis.py: GT and extracted rows outside the probe/NTP
-   training documents, values parsed from point_value and converted to standard units
-   (pond_meta.convert_units), and the stored recalibrated probe / NTP confidences of
-   the calibration config's real pond->pond cell, joined by measurement_id onto
-   ``rows`` (final / postprocessed / deduplicated). Nothing is recomputed from
-   activations.
-2. Entity x attribute matrices (cell_matrix): a GT entity is a distinct
-   (document_id, name, ecosystem) -- the pond EntitySchema's identifying fields
-   (experiments/dataset-configs/pond.py; ``location`` was dropped from it 2026-09-20,
-   ``identifiers`` are aliases, not a key); an extracted entity is its entity_id
-   (asserted to lie within one document). A cell holding several rows (time series,
-   repeated mentions) takes the MEDIAN converted value and the MEAN confidence of
-   exactly those rows -- value and confidence always come from the same rows, and a
-   row without a standard-unit value contributes neither.
-3. Attribute set, exactly one of two modes (params.clustering.attributes /
-   attribute_set_sizes: one is a value, the other must be null):
-   - attributes: [..] -- cluster on exactly those attributes (fixed_attribute_set); each
-     must have valued GT and extracted rows, else a hard error. No search.
-   - attribute_set_sizes: [..] -- enumerate_attribute_sets: for every subset of the GT's
-     attributes of each size, greedily drop the entity with the most missing cells until
-     the missing fraction is <= missing_threshold (dense_submatrix); keep the subset
-     with the largest n_rows * d (ties: first in enumeration order).
-4. GT and extracted matrices are each restricted to that subset, made dense the same
-   way, KNN-imputed and standardized INDEPENDENTLY (each in its own scale). An
-   extracted entity's confidence is the product of its observed cells' confidences;
-   imputed cells contribute nothing.
-5. KMeans(n_clusters) on the GT gives the reference centroids (random_state = seed).
-   For every gamma, KMeans on the extracted matrix with sample_weight = conf ** gamma,
-   scored by the mean optimal-assignment (Hungarian) distance between its centroids
-   and the GT's. Arms: ntp / probe (n_runs KMeans seeds, seed + run).
-   Permutation control: ntp_shuffled / probe_shuffled (n_shuffle_samples draws, rng
-   [seed, sample, SHUFFLE_STREAMS[arm]], KMeans seed seed + sample). Without outlier_adjust
-   each draw permutes the real entity confidences: the weights keep their exact
-   distribution (same n_eff) but lose their link to the entities. If the real arm does no
-   better than its shuffled arm, the confidence carries no entity-level signal for this task.
+With outlier_adjust, row confidences are first scaled by outlier_weight.py, and the
+shuffled arms permute raw row confidences (RowShuffler). Asserted known answers: the
+GT refit is at distance 0, and at gamma = 0 all arms give identical fits.
 
-With params.clustering.outlier_adjust each row's confidence is first multiplied by
-exp(-(x-mu)^2 / (2 sigma^2)) (analysis/common/outlier_weight.py; mu / sigma per attribute over
-the extracted rows). The shuffled arms then permute the RAW row confidences within each
-attribute and re-apply each row's own factor (RowShuffler), so the control keeps the
-outlier filter and breaks only the model-confidence-to-row link. Its n_eff is then not
-the real arm's, and is the mean over the draws.
-
-Known answers, asserted: refitting the GT matrix with the reference seed is at distance 0
-from the GT centroids; and at gamma = 0 every weight is 1, so the ntp and probe arms are
-the same fits (bit-identical distances), and so are the shuffled arms on the shared seeds.
-
-Outputs under analysis/results/clustering/<config id>/:
-  attribute_sets.csv      every enumerated subset (or the one fixed subset): d, n_rows, missing_frac, score, chosen.
-  centroid_distance.csv   per (arm, gamma): n, mean, se (= std / sqrt(n)), and n_eff, the Kish
-                          effective number of entities under the weights conf**gamma.
-  distances.npz           raw per-run distances, one (n, len(gammas)) array per arm.
-  meta.json               config, resolved inputs + sha256s, keep_attrs, row/entity counts.
-  figures/center_dist.pdf, figures/legend.pdf
+Outputs in analysis/results/clustering/<config id>/: attribute_sets.csv,
+centroid_distance.csv (mean, se, Kish n_eff per arm and gamma), distances.npz,
+meta.json, figures/.
 """
 from __future__ import annotations
 
@@ -101,8 +60,7 @@ mpl.rcParams.update(PAPER_RCPARAMS)
 
 SECTION = 'clustering'
 SECTION_KEYS = (
-    # inputs: the calibration config is the source of truth; extraction / judge ids are
-    # declared here too and cross-checked against it (resolve_clustering_inputs).
+    # inputs (ids are also declared here and cross-checked against the calibration config)
     'calibration_config_id', 'calibration_version', 'extraction_id', 'judge_combine_id', 'judge_model',
     'probe_train_dataset', 'rows', 'deduplication_config_id', 'confidence',
     # method
@@ -110,10 +68,7 @@ SECTION_KEYS = (
     'n_runs', 'n_shuffle_samples', 'outlier_adjust',
 )
 GAMMA_KEYS = ('start', 'stop', 'num')
-# Only the in-domain cell is wired up: pond_meta._load_stored_scores reads
-# predictions.pkl['real'][judge][DATASET][DATASET] and the pond probe's training
-# documents. A cross-domain cell (e.g. nfix -> pond) excludes different documents and
-# would need that function generalized first.
+# Only pond -> pond is supported; load_data reads that cell only.
 PROBE_TRAIN_DATASETS = (DATASET,)
 GT_ENTITY_COLS = ['document_id', 'name', 'ecosystem']
 CONF_COLS = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
@@ -136,23 +91,31 @@ ARM_STYLE = {
 
 
 def _is_pos_int(v) -> bool:
+    """True for a non-bool int > 0.
+
+    Args:
+        v: Any value.
+
+    Returns:
+        Whether ``v`` is a positive int.
+    """
     return is_int(v) and v > 0
 
 
 def load_clustering_config(path: Path) -> dict:
-    """Load and validate an analysis config for pond_clustering.py.
+    """Load and validate a clustering config.
 
-    ``params`` holds exactly the ``clustering`` section (SECTION_KEYS: no defaults, no
-    extras). ``rows`` / ``deduplication_config_id`` / ``confidence`` follow the meta
-    configs: the latter two are strings iff rows == 'deduplicated', null otherwise.
-    ``probe_train_dataset`` must be one of PROBE_TRAIN_DATASETS. ``missing_threshold``
-    in [0, 1); exactly one of ``attributes`` (non-empty list of distinct non-empty strings:
-    cluster on exactly these) and ``attribute_set_sizes`` (non-empty strictly increasing list
-    of ints >= 1: search subsets of those sizes) is set, the other is null;
-    ``n_clusters`` >= 2; ``knn_neighbors``, ``n_runs``, ``n_shuffle_samples`` positive
-    ints; ``outlier_adjust`` a bool (true: multiply the confidences by the non-outlier
-    factor of analysis/common/outlier_weight.py); ``gammas`` {start, stop, num} for np.linspace, start == 0 (the gamma = 0
-    known-answer check needs it), stop > start, num >= 2. ``seed`` an int.
+    Exactly one of ``attributes`` and ``attribute_set_sizes`` is set. ``gammas`` is
+    {start, stop, num} for np.linspace with start == 0 (needed for the gamma = 0 check).
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
+
+    Raises:
+        ValueError, KeyError: A key is missing, extra or malformed.
     """
     cfg = _load_envelope(path, 'clustering')
     unexpected = set(cfg['params']) - {SECTION}
@@ -217,14 +180,30 @@ def load_clustering_config(path: Path) -> dict:
 
 
 def gamma_grid(sec: dict) -> np.ndarray:
+    """The gamma sweep from the config.
+
+    Args:
+        sec: The ``clustering`` section.
+
+    Returns:
+        ``np.linspace(start, stop, num)``.
+    """
     g = sec['gammas']
     return np.linspace(float(g['start']), float(g['stop']), g['num'])
 
 
 def resolve_clustering_inputs(cfg: dict) -> dict:
-    """resolve_meta_inputs on the calibration config (which cross-checks every run it
-    names), then check the extraction / judge_combine / judge model this config
-    declares are the ones the calibration config actually uses."""
+    """Resolve inputs and check the declared extraction, judge_combine and judge match them.
+
+    Args:
+        cfg: Loaded clustering config.
+
+    Returns:
+        Output of ``resolve_meta_inputs``.
+
+    Raises:
+        ValueError: A declared id or judge differs from the calibration config's.
+    """
     sec = cfg['params'][SECTION]
     inputs = resolve_meta_inputs(sec, DATASET)
     got = {'extraction_id': inputs['extraction_id'], 'judge_combine_id': inputs['judge_combine_dir'].name,
@@ -239,13 +218,24 @@ def resolve_clustering_inputs(cfg: dict) -> dict:
 # ── Matrices ────────────────────────────────────────────────────────────────
 
 def cell_matrix(df: pd.DataFrame, entity_col: str, conf_cols: list[str]):
-    """Entity x attribute matrices from long rows.
+    """Pivot long rows into entity x attribute matrices.
 
-    Rows without a ``converted_value`` are dropped first. A cell's value is the median
-    ``converted_value`` of its rows; each ``conf_cols`` column is the mean over the
-    same rows. Returns (value, {col: conf}, rows_per_cell): value / conf share index
-    (sorted entity ids) and columns (sorted attributes), and a conf cell is NaN
-    exactly where the value cell is.
+    Rows without ``converted_value`` are dropped. A cell's value is the median of its
+    rows and each confidence the mean over the same rows.
+
+    Args:
+        df: Long rows.
+        entity_col: Entity id column.
+        conf_cols: Confidence columns to aggregate.
+
+    Returns:
+        Tuple of:
+            - value matrix (sorted entities x sorted attributes)
+            - ``{col: confidence matrix}``, NaN exactly where value is NaN
+            - row count per (entity, attribute) cell
+
+    Raises:
+        ValueError: NaN confidence or missing entity id on a valued row.
     """
     d = df.dropna(subset=['converted_value'])
     if d[conf_cols].isna().any().any():
@@ -270,8 +260,15 @@ def cell_matrix(df: pd.DataFrame, entity_col: str, conf_cols: list[str]):
 
 
 def dense_submatrix(m: pd.DataFrame, threshold: float) -> pd.DataFrame:
-    """Drop the row with the most NaNs (first such row on ties) until the missing
-    fraction is <= threshold. Returns an empty frame if no row subset gets there."""
+    """Greedily drop the row with the most NaNs until the missing fraction is <= threshold.
+
+    Args:
+        m: Matrix with NaNs.
+        threshold: Maximum missing fraction.
+
+    Returns:
+        Remaining rows (may be empty).
+    """
     out = m
     while len(out) and out.isna().to_numpy().mean() > threshold:
         out = out.drop(index=out.isna().sum(axis=1).idxmax())
@@ -279,8 +276,20 @@ def dense_submatrix(m: pd.DataFrame, threshold: float) -> pd.DataFrame:
 
 
 def enumerate_attribute_sets(value: pd.DataFrame, sizes: list[int], threshold: float) -> pd.DataFrame:
-    """One row per attribute subset (in combinations order over value's columns) of each
-    size: its dense_submatrix's n_rows and missing fraction, score = n_rows * d."""
+    """Score every attribute subset of the given sizes by its densified size.
+
+    Args:
+        value: GT value matrix.
+        sizes: Subset sizes to try.
+        threshold: Missing-fraction threshold for ``dense_submatrix``.
+
+    Returns:
+        One row per subset (combinations order): attributes, d, n_rows, missing_frac,
+        score = n_rows * d.
+
+    Raises:
+        ValueError: A size exceeds the number of attributes.
+    """
     if max(sizes) > value.shape[1]:
         raise ValueError(f'attribute_set_sizes {sizes} exceed the {value.shape[1]} attributes {list(value.columns)}')
     rows = []
@@ -294,7 +303,19 @@ def enumerate_attribute_sets(value: pd.DataFrame, sizes: list[int], threshold: f
 
 
 def fixed_attribute_set(value: pd.DataFrame, attrs: list[str], threshold: float) -> pd.DataFrame:
-    """enumerate_attribute_sets' single-row analogue for a user-specified attribute list."""
+    """Like ``enumerate_attribute_sets`` but for one given attribute list.
+
+    Args:
+        value: GT value matrix.
+        attrs: Attributes to use.
+        threshold: Missing-fraction threshold.
+
+    Returns:
+        One-row DataFrame with the same columns.
+
+    Raises:
+        ValueError: An attribute has no valued rows.
+    """
     missing = [a for a in attrs if a not in value.columns]
     if missing:
         raise ValueError(f'attributes {missing} have no valued rows; available: {list(value.columns)}')
@@ -305,7 +326,15 @@ def fixed_attribute_set(value: pd.DataFrame, attrs: list[str], threshold: float)
 
 
 def process_matrix(m: pd.DataFrame, knn_neighbors: int) -> np.ndarray:
-    """KNN-impute (distance-weighted) then standardize, both fit on m alone."""
+    """KNN-impute (distance-weighted) and standardize, both fit on ``m`` alone.
+
+    Args:
+        m: Dense-ish matrix with NaNs.
+        knn_neighbors: Neighbours for imputation.
+
+    Returns:
+        Finite standardized array of the same shape.
+    """
     imputed = KNNImputer(n_neighbors=knn_neighbors, weights='distance').fit_transform(m)
     assert imputed.shape == m.shape, f'KNNImputer changed shape {m.shape} -> {imputed.shape} (an all-NaN column?)'
     X = StandardScaler().fit_transform(imputed)
@@ -314,7 +343,17 @@ def process_matrix(m: pd.DataFrame, knn_neighbors: int) -> np.ndarray:
 
 
 def entity_confidence(conf: pd.DataFrame) -> np.ndarray:
-    """Product of an entity's observed cell confidences (imputed cells excluded)."""
+    """Entity confidence: product of its observed cells' confidences.
+
+    Args:
+        conf: Entity x attribute confidence matrix (NaN = unobserved).
+
+    Returns:
+        One confidence per entity, in [0, 1].
+
+    Raises:
+        ValueError: An entity has no observed cell.
+    """
     if conf.isna().all(axis=1).any():
         raise ValueError(f'{int(conf.isna().all(axis=1).sum())} entities have no observed cell')
     p = conf.prod(axis=1, min_count=1).to_numpy(dtype=float)
@@ -323,16 +362,21 @@ def entity_confidence(conf: pd.DataFrame) -> np.ndarray:
 
 
 class RowShuffler:
-    """Row-level permutation control for one method when outlier_adjust is on.
+    """Row-level permutation control for one method, used when outlier_adjust is on.
 
-    A cell's confidence is mean(raw * factor) over its rows, so the raw/factor split cannot
-    be undone at entity level. Instead each draw permutes the method's RAW row confidences
-    within an attribute (over every extracted row with a value for it, not only the dense
-    entities'), keeps each row's own outlier_factor, and re-aggregates exactly like
-    cell_matrix / entity_confidence (cell mean, product over observed cells). Rows that
-    belong to no kept entity still take part in the permutation."""
+    Each draw permutes raw row confidences within each attribute (over all valued rows),
+    reapplies each row's outlier factor, and re-aggregates like cell_matrix /
+    entity_confidence.
+
+    Args:
+        ext_df: Extracted rows with ``{prob_col}_raw`` and ``outlier_factor``.
+        prob_col: Confidence column.
+        dense_index: Entity ids of the dense matrix.
+        keep_attrs: Attributes clustered on.
+    """
 
     def __init__(self, ext_df: pd.DataFrame, prob_col: str, dense_index: pd.Index, keep_attrs: list[str]):
+        """Precompute row-to-cell and cell-to-matrix indices (see class docstring for args)."""
         d = ext_df.dropna(subset=['converted_value'])
         d = d[d['attribute'].isin(keep_attrs)]
         self.raw = d[f'{prob_col}_raw'].to_numpy(dtype=float)
@@ -353,12 +397,28 @@ class RowShuffler:
         self.shape = (len(dense_index), len(keep_attrs))
 
     def confidence(self, raw: np.ndarray) -> np.ndarray:
+        """Entity confidences from per-row raw confidences.
+
+        Args:
+            raw: Raw confidence per valued row (same order as ``self.raw``).
+
+        Returns:
+            One confidence per dense entity.
+        """
         cell_mean = np.bincount(self.cell_code, weights=raw * self.factor, minlength=self.n_cells) / self.cell_count
         m = np.full(self.shape, np.nan)
         m[self.cell_ent[self.in_dense], self.cell_attr[self.in_dense]] = cell_mean[self.in_dense]
         return entity_confidence(pd.DataFrame(m))
 
     def shuffled(self, rng: np.random.Generator) -> np.ndarray:
+        """Entity confidences after permuting raw row confidences within each attribute.
+
+        Args:
+            rng: Random generator.
+
+        Returns:
+            One confidence per dense entity.
+        """
         raw = self.raw.copy()
         for rows in self.attr_rows:
             raw[rows] = rng.permutation(self.raw[rows])
@@ -366,7 +426,16 @@ class RowShuffler:
 
 
 def centroid_matching_distance(A: np.ndarray, B: np.ndarray, metric: str = 'euclidean') -> float:
-    """Mean optimal-assignment distance between two sets of centroids."""
+    """Mean distance between two centroid sets under the optimal (Hungarian) matching.
+
+    Args:
+        A: Centroids, (k, d).
+        B: Centroids, (k, d).
+        metric: cdist metric.
+
+    Returns:
+        Mean matched distance.
+    """
     D = cdist(A, B, metric=metric)
     row_ind, col_ind = linear_sum_assignment(D, maximize=False)
     return float(D[row_ind, col_ind].mean())
@@ -374,10 +443,22 @@ def centroid_matching_distance(A: np.ndarray, B: np.ndarray, metric: str = 'eucl
 
 def distance_curve(X: np.ndarray, conf: np.ndarray, gt_centers: np.ndarray, n_clusters: int,
                    gammas: np.ndarray, kmeans_seed: int) -> np.ndarray:
-    """Centroid matching distance to gt_centers of KMeans(sample_weight=conf**gamma), per gamma.
+    """Centroid distance to the GT of weighted KMeans, for each gamma.
 
-    A ConvergenceWarning (e.g. fewer distinct points carrying weight than n_clusters) is
-    raised as an error, not passed over across millions of fits."""
+    Args:
+        X: Extracted feature matrix.
+        conf: Entity confidences (weights are conf ** gamma).
+        gt_centers: Reference centroids.
+        n_clusters: Number of clusters.
+        gammas: Weight exponents.
+        kmeans_seed: KMeans random_state.
+
+    Returns:
+        One distance per gamma.
+
+    Raises:
+        ConvergenceWarning: KMeans did not converge (promoted to an error).
+    """
     out = np.empty(len(gammas))
     for i, gamma in enumerate(gammas):
         km = KMeans(n_clusters=n_clusters, random_state=kmeans_seed, n_init='auto')
@@ -389,7 +470,14 @@ def distance_curve(X: np.ndarray, conf: np.ndarray, gt_centers: np.ndarray, n_cl
 
 
 def kish_n_eff(w: np.ndarray) -> float:
-    """Kish effective sample size (sum w)^2 / sum w^2 of nonnegative weights."""
+    """Kish effective sample size (sum w)^2 / sum w^2.
+
+    Args:
+        w: Nonnegative weights with positive sum.
+
+    Returns:
+        Effective sample size.
+    """
     assert (w >= 0).all() and w.sum() > 0
     return float(w.sum() ** 2 / (w ** 2).sum())
 
@@ -397,6 +485,7 @@ def kish_n_eff(w: np.ndarray) -> float:
 # ── Plots ───────────────────────────────────────────────────────────────────
 
 def _apply_style() -> None:
+    """Switch matplotlib to this script's smaller figure style."""
     mpl.rcParams.update({
         "font.family": "serif",
         "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
@@ -419,7 +508,12 @@ def _apply_style() -> None:
 
 
 def plot_legend(out_path: Path) -> None:
-    order = ('probe', 'ntp', 'probe_shuffled', 'ntp_shuffled')
+    """Save the standalone legend for the four arms.
+
+    Args:
+        out_path: Figure path.
+    """
+    order =('probe', 'ntp', 'probe_shuffled', 'ntp_shuffled')
     handles = [mlines.Line2D([], [], color=ARM_STYLE[a]['color'], lw=4 if ARM_STYLE[a]['ls'] == '-' else 2.5,
                              linestyle=ARM_STYLE[a]['ls'], label=ARM_STYLE[a]['label'])
                for a in order]
@@ -431,6 +525,13 @@ def plot_legend(out_path: Path) -> None:
 
 
 def plot_center_dist(summary: pd.DataFrame, gammas: np.ndarray, out_path: Path) -> None:
+    """Plot mean centroid distance (± se) vs gamma for every arm.
+
+    Args:
+        summary: centroid_distance.csv frame.
+        gammas: Gamma grid.
+        out_path: Figure path.
+    """
     fig, ax = plt.subplots(figsize=(3.5, 2.8))
     for arm in ARMS:
         s = summary[summary['arm'] == arm].sort_values('gamma')
@@ -451,6 +552,7 @@ def plot_center_dist(summary: pd.DataFrame, gammas: np.ndarray, out_path: Path) 
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """CLI: build matrices, run all sweeps and known-answer checks, write outputs."""
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('config', type=Path, help='analysis/analysis-configs/clustering/<id>.yaml')
     args = ap.parse_args()
@@ -467,8 +569,7 @@ def main() -> None:
 
     inputs = resolve_clustering_inputs(cfg)
     gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION)
-    # Row-level, before cell_matrix: a cell's confidence is then the mean of its rows'
-    # adjusted confidences, an entity's the product over its cells.
+    # Adjust per row, before aggregation into cells and entities.
     ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
     if moments is not None:
         print(f"[clustering] outlier_adjust: confidences x exp(-(x-mu)^2/2sigma^2)\n{moments}")
@@ -515,9 +616,8 @@ def main() -> None:
     for r in range(sec['n_runs']):
         for arm in CONF_COLS:
             dist[arm][r] = distance_curve(X_ext, conf[arm], gt_centers, n_clusters, gammas, seed + r)
-    # Shuffled arms. Without outlier_adjust: permute the entities' final confidences. With
-    # it: RowShuffler (permute raw row confidences, keep each row's own factor), whose
-    # unpermuted aggregation must reproduce the real entity confidences exactly.
+    # Shuffled arms: permute entity confidences, or with outlier_adjust use RowShuffler
+    # (checked to reproduce the real confidences when unpermuted).
     shufflers = {}
     if sec['outlier_adjust']:
         for arm, col in CONF_COLS.items():
@@ -544,9 +644,8 @@ def main() -> None:
         assert np.array_equal(dist[f'{arm}_shuffled'][:k, 0], dist['ntp'][:k, 0]), (
             f'gamma=0: {arm}_shuffled arm differs on shared seeds')
 
-    # Kish n_eff of the weights conf**gamma: how many entities effectively drive the fit.
-    # Shuffled arms: a permutation of the entity confidences leaves n_eff unchanged; the
-    # row-level shuffle (outlier_adjust) does not, so it is the mean over its draws.
+    # Kish n_eff of conf**gamma. Entity permutation leaves it unchanged; the row-level
+    # shuffle doesn't, so that arm reports the mean over draws.
     n_eff = {arm: [kish_n_eff(conf[arm] ** g) for g in gammas] for arm in CONF_COLS}
     for arm in CONF_COLS:
         n_eff[f'{arm}_shuffled'] = n_eff_shuf[arm].mean(axis=0).tolist() if sec['outlier_adjust'] else n_eff[arm]

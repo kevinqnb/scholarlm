@@ -1,3 +1,18 @@
+"""Probe and NTP calibration with real test cells scored against human-validated labels.
+
+Same cells as calibration.py, but uses the v3 scheme: real cells are recalibrated on
+n_fit_samples resampled fit samples of platt_n rows (fit labels are LLM + matching,
+since the pool has no human labels), and only human-validated test rows are scored.
+CIs come from the nested bootstrap (common/nested_bootstrap.py). Runs at import time.
+
+Outputs in analysis/results/calibration-validated/<config id>/: predictions.pkl,
+nested_bootstrap.pkl, platt_fits.csv, human_vs_llm_matching.csv,
+metrics_{probe,ntp}.csv, figures/.
+
+Usage
+-----
+    python analysis/calibration_validated.py analysis/analysis-configs/calibration-validated/<id>.yaml
+"""
 import sys
 from pathlib import Path
 
@@ -54,8 +69,7 @@ mpl.rcParams.update({
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)
 
-# One consistent color per dataset, reused across every plot (synthetic/real,
-# within/cross) so a dataset is always the same color regardless of role.
+# One fixed color per dataset across every plot.
 _DS_COLORS = {
     'pond':     palette[7],
     'nfix':     palette[1],
@@ -66,17 +80,8 @@ _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# One positional analysis config (analysis/analysis-configs/calibration-validated/<id>.yaml, loaded by
-# common.config.load_calibration_validated_config) names every run this script reads:
-# per dataset, the real extraction + its qwen interp-judge run + judge_combine
-# run, the synthetic-probe analysis config whose cached probe is applied, and
-# the synthetic test runs. calibration_ids.resolve_calibration_inputs
-# cross-checks all of those ids against each run's own committed config before
-# anything is loaded. No flags or defaults (the one env var, SCHOLARLM_VALIDATIONS_DIR,
-# only locates the human-validation files, whose sha256 the config pins): the config id is the
-# run's identity, and every figure/CSV/pickle goes under
-# analysis/results/calibration-validated/<config id>/.
 def _parse_args():
+    """Parse the single positional calibration-validated config path."""
     parser = argparse.ArgumentParser(
         description="Probe/NTP calibration analysis (v3 recalibration, but real test cells are scored against human-validated labels)."
     )
@@ -93,23 +98,15 @@ _PARAMS = _CFG['params']
 PROBE_TYPE   = _PARAMS['probe_type']
 PROBE_VARIANT = _PARAMS['probe_variant']
 SYN_SPLIT    = _PARAMS['syn_split']
-# Number of real rows per dataset used to fit each Platt scaler (config: platt_n);
-# these stay labelled by LLM + matching (the training split has no human labels).
+# Rows per recalibration fit sample (LLM + matching labels).
 PLATT_N = _PARAMS['platt_n']
-# Nested-bootstrap sizes (see analysis/common/nested_bootstrap.py): real cells are refit on
-# N_FIT_SAMPLES independent platt_n-row samples, each crossed with N_DOC_BOOT test-document
-# resamples; synthetic cells (never recalibrated) get N_SYN_BOOT document resamples.
+# Nested bootstrap: N_FIT_SAMPLES fit samples x N_DOC_BOOT test-document resamples for
+# real cells; N_SYN_BOOT document resamples for synthetic cells.
 N_FIT_SAMPLES = _PARAMS['n_fit_samples']
 N_DOC_BOOT    = _PARAMS['n_doc_boot']
 N_SYN_BOOT    = _PARAMS['n_syn_boot']
-# How the real cells are recalibrated on that sample (config: recalibration), per method
-# (probe / NTP), always as expit(coef * logit(p) + intercept):
-#   platt_fit     -- coef and intercept by unregularized logistic MLE (Platt).
-#   intercept_fit -- coef fixed at 1, intercept by MLE: the scaled sample probabilities
-#                    average to the sample's label rate.
-#   prior_shift   -- coef fixed at 1, intercept logit(sample label rate) - logit(pi_tr),
-#                    pi_tr = the scorer's synthetic training prevalence (label-shift
-#                    correction, as calibration_updated.py did with a hand-set pi_te).
+# Recalibration method (platt_fit / intercept_fit / prior_shift), as
+# expit(coef * logit(p) + intercept); see common/recalibration.py.
 RECALIBRATION = _PARAMS['recalibration']
 assert tuple(RECALIBRATION_METHODS) == tuple(_CFG_RECALIBRATION_METHODS), (RECALIBRATION_METHODS, _CFG_RECALIBRATION_METHODS)
 assert RECALIBRATION in RECALIBRATION_METHODS, RECALIBRATION
@@ -124,10 +121,10 @@ OUT_DIR = analysis_results_dir("calibration-validated") / CONFIG_ID
 FIGURES_DIR = OUT_DIR / "figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
-# None reproduces the Platt-scaled baseline filenames; only 'noplatt' picks the suffixed variant.
+# None selects the Platt-scaled filenames; 'noplatt' the suffixed ones.
 _PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
 
-_DTYPES = ['syn', 'real']  # both always available: every dataset has a synthetic probe + test set and real judge_interp data
+_DTYPES = ['syn', 'real']
 
 print(f'[calibration validated] config: {CONFIG_ID} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
       f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | platt_n: {PLATT_N} | recalibration: {RECALIBRATION} '
@@ -148,13 +145,12 @@ for _train_ds in TRAIN_DATASETS:
     ntp_cal_cache[_train_ds] = {JUDGE_MODEL: load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _ntp_cal_filename, _train_ds, JUDGE_MODEL)}
     probe_cache[_train_ds]   = {JUDGE_MODEL: load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _probe_filename, _train_ds, JUDGE_MODEL)}
 
-# Head features: each activation row is decompressed once per run, keeping the union of
-# every train probe's top heads (see analysis/common/head_activations.py).
+# Decompress each activation row once, keeping the union of all probes' top heads.
 _HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr][JUDGE_MODEL]['top_k_heads']])
               if PROBE_TYPE == 'head' else None)
 
 
-# Pre-load all test data, including matching results, to avoid redundant loading and matching within the loop
+# Load each test dataset once: rows, labels, human validations and fit samples.
 test_data = {}
 for ds in DATASETS:
     print(f'Loading test data for {ds}...')
@@ -164,10 +160,7 @@ for ds in DATASETS:
         real_df = pd.DataFrame(json.load(f))
     assert f'judgement_p_true_{JUDGE_MODEL}' in real_df.columns, (ds, JUDGE_MODEL)
 
-    # Calibration is always scored on the final.json datapoints -- the rows the
-    # judge saw. Labels and activations are per row, so combined.json must be
-    # row-for-row the same run as final.json: same measurement_id, document_id
-    # and attribute sequences, not just the same length.
+    # Scored on final.json rows; combined.json must match them row for row.
     with open(ds_inputs['extraction_dir'] / 'final.json') as f:
         final_records = json.load(f)
     final_df = pd.DataFrame(final_records)
@@ -176,15 +169,8 @@ for ds in DATASETS:
             f'{ds}: final.json and combined.json disagree on {col}')
 
     jlabels = real_df['judgement_combined'].to_numpy(dtype=bool)
-    # Per-dataset switch (config: use_matching_labels): True counts a row valid if
-    # the judge said so OR it matched ground truth; False is the judge alone and
-    # reads no matching at all. Matchings are never built here: when on, edges come
-    # from the match_cache.pkl analysis/match_cache.py already built (validated
-    # against this ground truth file and extraction file, thresholded at the
-    # dataset config's own fuzzy_threshold). That cache indexes postprocessed.json's
-    # rows -- every final.json measurement_id, with list-valued rows expanded into
-    # several -- so a final.json row counts as matched if any of its expanded rows
-    # did. Recovery is not computed here (see analysis/recovery_validity.py).
+    # Label = judge, OR ground-truth match if use_matching_labels (from the verified
+    # match cache; a row matches if any of its postprocessed children did).
     if _PARAMS['datasets'][ds]['use_matching_labels']:
         _gt_df, ext_df, cached_edges = matching.load_cached_matching(
             _PARAMS['datasets'][ds]['extraction_id'], ds_inputs['ground_truth_path'])
@@ -198,12 +184,8 @@ for ds in DATASETS:
         print(f'  {ds}: matching labels off -- labels are judgement_combined alone')
         combined_labels = jlabels.copy()
 
-    # Human validations (pinned by sha256 in the config; the loader already checked it).
-    # Used only as the *test* labels. They are joined to final.json rows by
-    # measurement_id, and every validated row must be the same extraction row the
-    # humans saw: all of its `fields` equal the final.json record (bar the site's own
-    # `sampled` key), plus document_id agreement. Platt below stays fit on the LLM +
-    # matching labels, since the training split has no human labels.
+    # Human validations: test labels only. Each must match its final.json row on
+    # document_id and every validated field (except `sampled`).
     _vpath = validations_path(ds)
     _vart = json.loads(_vpath.read_bytes())
     assert _vart['schema_version'] == 1 and _vart['dataset'] == ds, (ds, _vart['schema_version'], _vart['dataset'])
@@ -232,16 +214,9 @@ for ds in DATASETS:
     print(f'  {ds}: {len(val_pos)} human-validated rows ({int(val_labels.sum())} valid, '
           f'{int(val_flagged.sum())} flagged, {int(val_example.sum())} example; all kept)')
 
-    # Platt training pool: this dataset's real rows whose document was in its own
-    # synthetic-probe training set (the "training split" of the real data). Each of
-    # the N_FIT_SAMPLES Platt samples resamples the pool's documents with replacement,
-    # then draws PLATT_N rows uniformly from that resampled pool
-    # (nb.pool_resampled_fit_sample): its label rate targets the per-row rate the
-    # test metrics weight by, and the spread over samples covers which documents
-    # happened to form the pool. A row can repeat within a sample (its document was
-    # drawn twice); in the fit that is a weight. predictions.pkl stores sample 0.
-    # Every real test cell for this dataset excludes the whole pool, so Platt-train
-    # and test rows never overlap whichever sample or probe is used.
+    # Fit pool = real rows from the probe's training documents, excluded from every
+    # test cell. Each fit sample resamples the pool's documents, then draws PLATT_N
+    # rows (see nb.pool_resampled_fit_sample). predictions.pkl stores sample 0.
     pool_docs = set(probe_cache[ds][JUDGE_MODEL]['syn_document_ids'])
     pool_idx = np.where(real_df['document_id'].isin(pool_docs).to_numpy())[0]
     assert len(pool_idx) >= PLATT_N, f'{ds}: Platt pool has {len(pool_idx)} rows < platt_n={PLATT_N}'
@@ -274,7 +249,18 @@ for ds in DATASETS:
 
 
 def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
-    """Raw (un-rescaled) probe and NTP-calibrator probabilities for these rows."""
+    """Unrecalibrated probe and NTP-calibrator probabilities for some rows.
+
+    Args:
+        train_ds: Dataset whose probe and calibrator are applied.
+        test_ds: Dataset being scored (for error messages).
+        mids: Measurement ids (activation keys).
+        raw_ntp_probs: Judge p(true) per row.
+        act_dir: Judge run directory holding the activations.
+
+    Returns:
+        ``(probe_probs, ntp_probs)``, one per row.
+    """
     pd_data = probe_cache[train_ds][JUDGE_MODEL]
     ntp_cal_data = ntp_cal_cache[train_ds][JUDGE_MODEL]
     top = pd_data['top_layer'] if PROBE_TYPE == 'layer' else pd_data['top_k_heads']
@@ -292,17 +278,20 @@ def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
 
 
 def compute_predictions(load_from_precomputed=False):
-    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs, ntp_probs, labels, platt, ...}}}}}
-    # Every (train_ds, test_ds) pair is scored separately, for both 'syn' (test_ds's
-    # own synthetic test set) and 'real' (test_ds's real extraction, excluding
-    # test_ds's Platt pool and train_ds's probe-training documents). 'real' cells
-    # are recalibrated by RECALIBRATION -- probe and NTP separately -- with one map per
-    # fit sample (fit_maps[method][r], each fit on test_ds's PLATT_N-row sample r);
-    # probe_probs/ntp_probs and 'platt' are fit sample 0's. 'syn' cells are not scaled
-    # and carry platt=None, fit_maps=None ('platt' holds the (coef, intercept) pair
-    # whatever the method; 'recalibration' names the method). probe_raw/ntp_raw are
-    # the un-recalibrated scores, document_ids the rows' documents (the nested
-    # bootstrap's clusters). Also writes platt_fits.csv (one row per fitted map).
+    """Score every cell, fit one map per real fit sample, and save predictions.pkl.
+
+    Also writes platt_fits.csv and human_vs_llm_matching.csv.
+
+    Args:
+        load_from_precomputed: Reuse an existing predictions.pkl after checking it
+            still matches the inputs and config.
+
+    Returns:
+        ``{dtype: {judge: {train_ds: {test_ds: cell}}}}``. Real cells hold
+        ``fit_maps[method][r]`` (one per fit sample), ``platt`` (sample 0's map),
+        evaluated probs from sample 0, raw scores, human labels and provenance.
+        Syn cells have ``platt`` and ``fit_maps`` = None.
+    """
 
     cache_file = OUT_DIR / 'predictions.pkl'
 
@@ -357,10 +346,8 @@ def compute_predictions(load_from_precomputed=False):
                     act_dir  = _INPUTS['datasets'][test_ds]['judge_interp_dir']
                     col      = f'judgement_p_true_{judge_model}'
 
-                    # Recalibration maps: one per fit sample and method, each fit on that
-                    # sample of test_ds's pool. pi_tr (used only by prior_shift) is train_ds's
-                    # scorer's synthetic training prevalence. Every row in any fit sample is
-                    # scored once.
+                    # One map per fit sample and method. pi_tr (prior_shift only) is the
+                    # scorer's synthetic training prevalence. Fit rows are scored once.
                     pi = td['platt_idx']
                     fit_union = np.unique(np.concatenate(td['fit_idx']))
                     u_probe, u_ntp = _score_rows(
@@ -399,10 +386,8 @@ def compute_predictions(load_from_precomputed=False):
                     assert len(idx_all) > 0, f'{train_ds} probe -> {test_ds}: no real test rows'
                     assert not set(idx_all.tolist()) & set(fit_union.tolist()), (train_ds, test_ds)
 
-                    # Scored rows: only the human-validated rows that are also test rows.
-                    # Validated rows inside the Platt pool or the probe's training documents
-                    # cannot be scored (the scaler/probe saw those documents) and are dropped
-                    # here, loudly -- never silently.
+                    # Score only validated rows that are test rows; the rest are dropped
+                    # (their documents were seen in training) and the count is printed.
                     in_test = np.isin(td['val_pos'], idx_all)
                     idx = td['val_pos'][in_test]
                     n_dropped = int((~in_test).sum())
@@ -469,8 +454,7 @@ def compute_predictions(load_from_precomputed=False):
     return setting_results
 
 
-# (display name, method key in setting_results / nested-bootstrap cells, linestyle).
-# Probe and NTP are never drawn on the same axes or reported in the same table rows.
+# (display name, method key, linestyle). Probe and NTP are plotted and tabled separately.
 _METHODS = [
     ('Probe', 'probe', '-'),
     ('NTP',   'ntp',   '--'),
@@ -478,9 +462,12 @@ _METHODS = [
 
 
 def plot_calibration_curves(boot, dtype):
-    # One figure per (method, train_ds): the train_ds probe (or NTP calibrator)
-    # evaluated on every test dataset, one curve per test_ds, colored by test_ds.
-    # Line, band and drawn region are the cell's nested-bootstrap summary.
+    """Save one reliability diagram per (method, train dataset), one curve per test dataset.
+
+    Args:
+        boot: Output of ``nb.bootstrap_cells``.
+        dtype: ``"syn"`` or ``"real"``.
+    """
     for judge_model in JUDGE_MODELS:
         for method, key, linestyle in _METHODS:
             for train_ds in DATASETS:
@@ -513,13 +500,18 @@ def plot_calibration_curves(boot, dtype):
 
 
 def compute_metrics(setting_results, boot):
-    # One row per (dtype, train_ds, test_ds, method). Calibration errors (ECE, ECE_em,
-    # RMSCE_db, SmECE) are nested-bootstrap point estimates with percentile intervals;
-    # threshold metrics and AUROC are averaged over fit samples on the un-resampled
-    # test set (synthetic cells: the single raw set). 'Label rate' is the evaluated
-    # labels' positive rate (diagnostic only); 'Platt N' the size of each real-data
-    # fit sample (NaN for syn); 'Fit samples' x 'Doc resamples' the replicates behind
-    # each interval; 'Curve sigma' the reliability curve's bandwidth.
+    """Build the metrics table: one row per (dtype, train_ds, test_ds, method).
+
+    Calibration errors are nested-bootstrap points with intervals; threshold metrics
+    and AUROC are averaged over fit samples on the un-resampled test set.
+
+    Args:
+        setting_results: Output of ``compute_predictions``.
+        boot: Output of ``nb.bootstrap_cells``.
+
+    Returns:
+        Metrics DataFrame.
+    """
     rows = []
     for dtype in setting_results:
         for judge_model in setting_results[dtype]:

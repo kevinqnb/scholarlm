@@ -1,11 +1,9 @@
-"""Recovery / validity building blocks shared by analysis/recovery_validity.py (the
-paper-clustered bootstrap report) and analysis/decision_threshold.py: loading one
-extraction's checked inputs from its match cache, resolving and verifying its
-judge_combine run and validity labels, and the recovery / validity masks with their
-independent re-verification.
+"""Recovery / validity building blocks shared by recovery_validity.py and decision_threshold.py.
 
-Moved verbatim out of recovery_validity.py; see that module's docstring for the
-definitions (recovery = any surviving edge; validity = judged valid OR matched).
+Loads an extraction's checked match-cache inputs, finds and verifies its
+judge_combine run and labels, and builds recovery / validity masks, cross-checked
+against analysis/common/metrics.py. Recovery = ground-truth row has any surviving
+edge; validity = judged valid OR matched.
 """
 from __future__ import annotations
 
@@ -31,16 +29,14 @@ from analysis.common.metrics import recovery_rate as _recovery_rate, validity_ra
 
 
 def _resolve_judged_extraction_ids(judge_ids: list[str]) -> tuple[set[str], str | None]:
-    """The set of extraction_id(s) that judge_ids' own committed configs
-    (``params.extraction_id``) resolve to -- the per-candidate check shared
-    by find_judge_combine_id's scan and verify_judge_combine_id's single-
-    candidate check, factored out so the two never drift apart.
+    """Extraction ids that the judge runs' committed configs point at.
+
+    Args:
+        judge_ids: Judge experiment ids from a judge_combine config.
 
     Returns:
-        (judged_extraction_ids, skip_reason). skip_reason is None on full
-        success; otherwise judged_extraction_ids is incomplete and the
-        caller decides whether that's a skip (scanning) or a hard error
-        (a config-declared id, which has no other candidate to fall back to).
+        ``(judged_extraction_ids, skip_reason)``. ``skip_reason`` is None on success;
+        otherwise the set is incomplete and the caller decides whether to skip or fail.
     """
     judged_extraction_ids: set[str] = set()
     for judge_id in judge_ids:
@@ -55,12 +51,17 @@ def _resolve_judged_extraction_ids(judge_ids: list[str]) -> tuple[set[str], str 
     return judged_extraction_ids, None
 
 def _cross_check_judge_run_metadata(combine_id: str, judge_ids: list[str], extraction_id: str) -> None:
-    """Raise if a judge_id has actually run (has a run_metadata.json) and its
-    recorded extraction_id disagrees with its own committed config -- shared
-    tail check for find_judge_combine_id and verify_judge_combine_id.
+    """Fail if a finished judge run's run_metadata.json names a different extraction.
+
+    Catches a judge run executed before its config was edited.
+
+    Args:
+        combine_id: judge_combine id (for error messages).
+        judge_ids: Judge experiment ids.
+        extraction_id: Extraction the configs point at.
 
     Raises:
-        ValueError: a judge_id's run_metadata.json disagrees with its config.
+        ValueError: A run_metadata.json disagrees with its config.
     """
     for judge_id in judge_ids:
         try:
@@ -77,29 +78,23 @@ def _cross_check_judge_run_metadata(combine_id: str, judge_ids: list[str], extra
             )
 
 def verify_judge_combine_id(dataset: str, judge_combine_id: str, extraction_id: str) -> list[str]:
-    """Validate a config-DECLARED judge_combine_id against extraction_id, for
-    an analysis config's optional ``params.recovery_validity.judge_combine_ids``
-    override (see analysis/common/config.py) -- so a wrong declared id
-    still fails loud rather than being trusted blindly.
+    """Check a judge_combine id declared in an analysis config judges this extraction.
 
-    Runs the exact same per-candidate check find_judge_combine_id applies to
-    every candidate it finds by scanning, just against this one id instead of
-    all of experiment-configs/{dataset}/judge_combine/*/*.yaml -- it never
-    replaces or loosens that check, only skips the scan. This also means it
-    can disambiguate a case where more than one judge_combine run judges the
-    same extraction, which find_judge_combine_id itself would refuse
-    (ValueError: ambiguous).
+    Same check ``find_judge_combine_id`` applies per candidate, without the scan.
+    Use it to pick one when several combines judge the same extraction.
+
+    Args:
+        dataset: Dataset name.
+        judge_combine_id: Declared judge_combine id.
+        extraction_id: Extraction it should judge.
 
     Returns:
-        judge_ids -- same shape as find_judge_combine_id's second return value.
+        The combine's judge_ids.
 
     Raises:
-        FileNotFoundError: no committed config for judge_combine_id, or one
-            of its own judge_ids has no committed config.
-        ValueError: judge_combine_id isn't under
-            experiment-configs/{dataset}/judge_combine/, its judge_ids
-            disagree with each other or don't resolve to extraction_id, or a
-            judge_id's run_metadata.json disagrees with its committed config.
+        FileNotFoundError: Missing config for the combine or one of its judges.
+        ValueError: Wrong dataset/type, judges resolve to another extraction, or a
+            run_metadata.json disagrees with its config.
     """
     config_path = paths.find_experiment_config(judge_combine_id)
     if config_path.parts[-4] != dataset or config_path.parts[-3] != "judge_combine":
@@ -124,43 +119,24 @@ def verify_judge_combine_id(dataset: str, judge_combine_id: str, extraction_id: 
     return judge_ids
 
 def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[str]]:
-    """Find the judge_combine experiment whose judge_ids all judged extraction_id.
+    """Find the one judge_combine run whose judges all judged this extraction.
 
-    Scans ``experiments/experiment-configs/{dataset}/judge_combine/*/*.yaml``
-    and, for each one, resolves its ``params.judge_ids`` back to the
-    extraction/ablation id each judge run judges, by reading each judge_id's
-    own COMMITTED config (``params.extraction_id``) -- not that judge run's
-    ``run_metadata.json``, which only exists after the run has finished and
-    would otherwise force an unrelated, not-yet-run candidate to be treated
-    as unresolvable. Never inferred from the id strings themselves -- an
-    extraction id and the judge/combine ids that judge it are minted
-    independently and share no literal substring convention (e.g.
-    ``2026-05-05-pond-gemma-3-27b-extraction-01`` is judged by
-    ``2026-09-13-pond-gemma3-27b-extraction-judge-combine-01``).
+    Scans the dataset's judge_combine configs and follows each judge's committed
+    ``params.extraction_id`` (ids share no naming convention, so they are never
+    string-matched). Candidates that can't be resolved, such as synthetic judges,
+    are skipped and reported.
 
-    Once exactly one combine matches, its judge_ids' own run_metadata.json
-    (where a run has actually completed) is cross-checked against their
-    committed extraction_id, so a judge run executed against a since-edited
-    config still gets caught rather than silently trusted.
-
-    A candidate combine whose own judge_ids can't all be resolved this way
-    (missing config, or a judge config with no ``params.extraction_id`` --
-    e.g. a synthetic-probe judge) is not a hard error by itself, since it can
-    never be the id being searched for either way, but it is never silent:
-    every skip is collected and named in the eventual no-match error, and
-    printed even when a match is found.
+    Args:
+        dataset: Dataset name.
+        extraction_id: Extraction experiment id.
 
     Returns:
-        (judge_combine_id, judge_ids).
+        ``(judge_combine_id, judge_ids)``.
 
     Raises:
-        FileNotFoundError: no judge_combine config's judge_ids all resolve to
-            extraction_id.
-        ValueError: more than one does (ambiguous which ground truth to use),
-            a single combine's own judge_ids disagree with each other about
-            which extraction they judged (a malformed combine config), or
-            the winning combine's judge_ids' run_metadata.json disagrees with
-            their own committed config.
+        FileNotFoundError: No combine matches.
+        ValueError: Several match, a combine's judges disagree on the extraction,
+            or the winner's run_metadata.json disagrees with its config.
     """
     combine_dir = paths.EXPERIMENT_CONFIGS_ROOT / dataset / "judge_combine"
     matches: list[tuple[str, list[str]]] = []
@@ -206,27 +182,23 @@ def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[s
     return winning_id, winning_judge_ids
 
 def load_validity_labels(judge_combine_id: str, extraction_df: pd.DataFrame) -> np.ndarray:
-    """Load combined.json for judge_combine_id and return one bool judgement
-    per extraction_df row, joined on ``(document_id, measurement_id)``.
+    """Per-row judge labels from combined.json, joined on (document_id, measurement_id).
 
-    ``measurement_id`` is unique per row in final.json, but
-    analysis/postprocessing.py can split one multi-value row (e.g. ``"3,4"``)
-    into several postprocessed.json rows that all keep the parent's
-    measurement_id. The judges only ever saw the parent, so every split child
-    INHERITS its parent's judgement -- including a child the judges never saw
-    on its own (a decimal-comma value split into two bogus values inherits the
-    parent's label). Use ``count_split_rows`` to report how many rows that is.
+    Rows split by postprocessing inherit their parent's label, even though the judge
+    never saw them individually (see ``count_split_rows`` in recovery_validity.py).
+    The key sets must match exactly and attributes must agree.
 
-    The join is exact: combined.json's keys must be unique and must equal
-    extraction_df's key set (no judged measurement missing from the extraction,
-    no extracted measurement unjudged), and ``attribute`` must agree between the
-    two sides at every key. Row order in either file is irrelevant.
+    Args:
+        judge_combine_id: judge_combine experiment id.
+        extraction_df: Extraction rows to label.
+
+    Returns:
+        Boolean array, one label per ``extraction_df`` row.
 
     Raises:
-        FileNotFoundError: no combined.json for judge_combine_id.
-        ValueError: duplicate keys in combined.json, a missing measurement_id
-            column, a key set mismatch between the two sides, an attribute
-            disagreement at a shared key, or a non-bool judgement_combined.
+        FileNotFoundError: No combined.json.
+        ValueError: Non-bool labels, duplicate keys, key-set mismatch, attribute
+            mismatch, or no measurement_id column.
     """
     combined_path = paths.find_result_dir(judge_combine_id) / "combined.json"
     if not combined_path.exists():
@@ -279,12 +251,30 @@ def load_validity_labels(judge_combine_id: str, extraction_df: pd.DataFrame) -> 
     return np.array([by_key[key]["judgement_combined"] for key in ext_keys], dtype=bool)
 
 def gt_recovered_mask(n_gt: int, edges: list[tuple[int, int]]) -> np.ndarray:
+    """Mark ground-truth rows that have at least one edge.
+
+    Args:
+        n_gt: Number of ground-truth rows.
+        edges: (gt_idx, ex_idx) pairs.
+
+    Returns:
+        Boolean array of length ``n_gt``.
+    """
     mask = np.zeros(n_gt, dtype=bool)
     for gt_idx, _ex_idx in edges:
         mask[gt_idx] = True
     return mask
 
 def ext_matched_mask(n_ext: int, edges: list[tuple[int, int]]) -> np.ndarray:
+    """Mark extraction rows that have at least one edge.
+
+    Args:
+        n_ext: Number of extraction rows.
+        edges: (gt_idx, ex_idx) pairs.
+
+    Returns:
+        Boolean array of length ``n_ext``.
+    """
     mask = np.zeros(n_ext, dtype=bool)
     for _gt_idx, ex_idx in edges:
         mask[ex_idx] = True
@@ -293,9 +283,18 @@ def ext_matched_mask(n_ext: int, edges: list[tuple[int, int]]) -> np.ndarray:
 def filter_edges_by_threshold(
     edges: list[tuple[int, int]], edge_weights: list[float], fuzzy_threshold: float,
 ) -> tuple[list[tuple[int, int]], list[float]]:
-    """(edges, weights) with ``w >= fuzzy_threshold`` -- the same inclusive
-    boundary as ``matching.edges_above_threshold``, but keeping the weights
-    (which the matching needs) aligned with the surviving edges.
+    """Like ``matching.edges_above_threshold``, but also returns the kept weights.
+
+    Args:
+        edges: (gt_idx, ex_idx) pairs.
+        edge_weights: Weight per edge.
+        fuzzy_threshold: Minimum weight to keep, inclusive.
+
+    Returns:
+        ``(kept_edges, kept_weights)``, aligned.
+
+    Raises:
+        ValueError: ``edges`` and ``edge_weights`` differ in length.
     """
     if len(edges) != len(edge_weights):
         raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
@@ -310,21 +309,21 @@ def verify_recovery(
     cache_path: Path,
     recovered: np.ndarray,
 ) -> None:
-    """Assert this script's threshold-filtered any-edge recovered mask -- the
-    reported ``recovery`` -- agrees with ``analysis.metrics.recovery_rate``
-    computed against the exact same cache. (The secondary
-    ``recovery_max_weight_matching`` is guarded separately, by
-    ``_verify_matching``.)
+    """Check the recovered mask against ``metrics.recovery_rate`` on the same cache.
 
-    ``gt_recovered_mask``/``ext_matched_mask`` above are a near-duplicate of
-    metrics.py's own internal edge-filtering loop (kept separate only
-    because metrics.py doesn't expose the boolean arrays) -- this guards
-    against that duplication silently diverging from the reviewed eval code
-    it mirrors, per CLAUDE.md's rule against re-deriving evaluation logic
-    unchecked.
+    The masks here duplicate metrics.py's loop (which doesn't expose them), so this
+    guards against the two silently diverging.
+
+    Args:
+        ground_truth_df: Ground-truth frame.
+        extraction_df: Extraction frame.
+        cfg: Output of ``get_matching_config``.
+        threshold: Fuzzy threshold applied.
+        cache_path: Match cache.
+        recovered: Boolean mask per ground-truth row.
 
     Raises:
-        AssertionError: the two recovery computations disagree.
+        AssertionError: The two recovery rates differ.
     """
     ref_recovery = _recovery_rate(
         ground_truth_df, extraction_df,
@@ -347,12 +346,22 @@ def verify_validity(
     matched: np.ndarray,
     judged_labels: np.ndarray,
 ) -> np.ndarray:
-    """Assert this script's matched/judged masks agree with
-    ``analysis.metrics.validity_rate`` computed against the exact same
-    cache, then return the OR'd validity-label array. See ``verify_recovery``.
+    """Check matched-OR-judged labels against ``metrics.validity_rate``, then return them.
+
+    Args:
+        ground_truth_df: Ground-truth frame.
+        extraction_df: Extraction frame.
+        cfg: Output of ``get_matching_config``.
+        threshold: Fuzzy threshold applied.
+        cache_path: Match cache.
+        matched: Boolean mask per extraction row.
+        judged_labels: Boolean judge label per extraction row.
+
+    Returns:
+        Validity labels, ``judged_labels | matched``.
 
     Raises:
-        AssertionError: the two validity computations disagree.
+        AssertionError: The two validity rates differ.
     """
     judged_df = pd.DataFrame({"judgement_combined": judged_labels})
     ref_validity = _validity_rate(
@@ -370,14 +379,22 @@ def verify_validity(
     return validity_labels
 
 def load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
-    """Load one id's frames, matching config and raw threshold-0 cache edges,
-    running every cache guard -- the shared front half of
-    ``compute_metrics_for_id`` and ``fuzzy_threshold_curve``.
+    """Load one extraction's frames, matching rules and unthresholded cache edges.
 
-    Returns a dict with keys dataset, ground_truth_df, extraction_df,
-    extraction_file_path, ground_truth_path, cfg, cache_path, raw_edges,
-    raw_weights. Raises loud on everything ``compute_metrics_for_id``'s
-    docstring lists for the cache.
+    Runs every cache guard (columns, freshness, provenance, edge range).
+
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file.
+
+    Returns:
+        Dict with ``dataset``, ``ground_truth_df``, ``extraction_df``,
+        ``extraction_file_path``, ``ground_truth_path``, ``cfg``, ``cache_path``,
+        ``raw_edges``, ``raw_weights``.
+
+    Raises:
+        FileNotFoundError: No cache or sidecar.
+        KeyError, RuntimeError: A guard fails.
     """
     dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path = load_frames(
         experiment_id, ground_truth_path,
@@ -398,8 +415,7 @@ def load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
     assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
 
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
-    # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
-    # module docstring): the raw edge list is every strict-matched candidate.
+    # Cache is built at threshold 0.0, so these are all strict-matched candidates.
     _matching, raw_edges, raw_weights = matching.load_match_cache(experiment_id)
     for gt_idx, ex_idx in raw_edges:
         if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
@@ -425,9 +441,17 @@ def load_checked_inputs(experiment_id: str, ground_truth_path: Path) -> dict:
 def resolve_judged_labels(
     dataset: str, experiment_id: str, judge_combine_id: str | None, extraction_df: pd.DataFrame,
 ) -> tuple[str, list[str], np.ndarray]:
-    """(judge_combine_id, judge_ids, per-row judged labels) for experiment_id:
-    a declared judge_combine_id is verified (``verify_judge_combine_id``),
-    otherwise one is found by scanning (``find_judge_combine_id``)."""
+    """Resolve the judge_combine run for an extraction and load its per-row labels.
+
+    Args:
+        dataset: Dataset name.
+        experiment_id: Extraction experiment id.
+        judge_combine_id: Declared combine id to verify, or None to search.
+        extraction_df: Extraction rows to label.
+
+    Returns:
+        ``(judge_combine_id, judge_ids, labels)``.
+    """
     if judge_combine_id is not None:
         judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
     else:

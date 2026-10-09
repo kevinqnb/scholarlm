@@ -1,10 +1,8 @@
-"""Pond meta-analysis data layer, shared by analysis/pond_meta_analysis.py and
-analysis/pond_clustering.py: the canonical ecosystem/attribute universe, unit conversion and
-plausibility bounds, the ground-truth unit fix, and ``load_data`` (held-out GT +
-extraction rows with their stored, recalibrated NTP / probe confidences).
+"""Pond meta-analysis data layer, shared by pond_meta_analysis.py and pond_clustering.py.
 
-Extracted from the retired analysis/meta_updated.py (v1). Pond-specific throughout:
-the ecosystem bucketing, ATTRIBUTES and PHYSICAL_BOUNDS only make sense for pond.
+Defines the ecosystem/attribute universe, unit conversion and plausibility bounds,
+and ``load_data``, which returns held-out ground-truth and extraction rows with
+their stored NTP / probe confidences. Pond-specific throughout.
 """
 from __future__ import annotations
 
@@ -25,13 +23,10 @@ from analysis.common.meta_inputs import (
 from analysis.common.provenance import repo_relative, sha256_file
 from experiments.run_extraction import load_dataset_config
 
-# Paper figure style (ACL-style Times metrics). Not applied on import: each plotting
-# entry point calls mpl.rcParams.update(PAPER_RCPARAMS) itself.
+# Paper figure style (ACL Times metrics). Applied by each plotting entry point, not on import.
 PAPER_RCPARAMS = {
     "font.family": "serif",
-    # Nimbus Roman / Liberation Serif are the metric-compatible Times substitutes that
-    # LaTeX's `times` package resolves to on Linux -- i.e. the actual glyphs an ACL-style
-    # (\usepackage{times}) PDF renders with, not just a Times New Roman lookalike.
+    # Times substitutes that match what LaTeX's `times` package renders on Linux.
     "font.serif": ["Nimbus Roman", "Liberation Serif", "Times New Roman", "Times", "DejaVu Serif"],
     "mathtext.fontset": "stix",  # STIX matches Times metrics; "cm" (Computer Modern) clashes visually
     "text.usetex": False,
@@ -50,20 +45,14 @@ PAPER_RCPARAMS = {
     "pdf.fonttype": 42, "ps.fonttype": 42,
 }
 
-# Every run the meta analysis reads is named by one analysis config
-# (analysis/analysis-configs/meta/<id>.yaml, see meta_inputs.load_meta_v2_config); outputs go to
-# analysis/results/meta/<config id>/. Nothing is read from the legacy data/experiments tree.
+# Outputs go to analysis/results/meta/<config id>/.
 META_ROOT = analysis_results_dir("meta")
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# Label for the `dataset` column of the output CSVs. The ecosystem bucketing,
-# ATTRIBUTES and PHYSICAL_BOUNDS below are pond-specific; resolve_meta_inputs is always
-# called with this dataset, so a config whose calibration has no pond block fails there.
 DATASET = 'pond'
 
-# Canonical universe of cells. A config's ecosystems / attributes pick the subset actually
-# analysed; pond_meta_analysis.py keys its RNG streams on positions in THESE lists, so
-# subsetting never changes a retained cell's CI -- never reorder them.
+# Canonical cells. Configs pick a subset. RNG streams are keyed on positions in these
+# lists so subsetting never changes a cell's CI -- never reorder them.
 ECOSYSTEMS = ['pond', 'lake', 'wetland']
 ATTRIBUTES = ['surface_area', 'max_depth', 'vegetation_cover', 'ph', 'tn', 'tp', 'chla']
 
@@ -78,10 +67,8 @@ STANDARD_UNITS = {
     'tn': 'µg/L', 'tp': 'µg/L', 'chla': 'µg/L', 'ph': None,
 }
 
-# Multiply-to-standard factors: standard_value = raw_value * UNIT_CONVERSION[attr][unit].
-# Units not listed here are treated as unconvertible for that attribute (row dropped) --
-# this includes fundamentally different measurands (e.g. µg/cm^2 chla, % dry wt tn/tp,
-# pounds surface_area) that must not be silently passed through.
+# standard_value = raw_value * UNIT_CONVERSION[attr][unit]. Unlisted units are dropped,
+# so different measurands (µg/cm^2 chla, % dry wt tn/tp) never pass through.
 UNIT_CONVERSION = {
     'max_depth':        {'m': 1.0, 'cm': 0.01, 'feet': 0.3048, 'ft': 0.3048, 'km': 1000.0},
     'surface_area':     {'m^2': 1.0, 'm²': 1.0, 'km^2': 1e6, 'km²': 1e6, 'ha': 1e4,
@@ -95,28 +82,11 @@ UNIT_CONVERSION = {
     'ph': {},  # dimensionless: any unit string accepted, factor 1.0 (handled specially below)
 }
 
-# Physical/domain plausibility bounds, in the standard unit for each attribute.
-# Values outside these bounds are dropped (-> NaN), same as an unrecognized unit.
-#
-# Deliberately "reasonably unlikely" rather than "physically impossible": world-record
-# ceilings (Caspian Sea, Lake Baikal, ...) let through a specific recurring extraction
-# bug where a real, correctly-read reference/comparison lake cited in a source paper's
-# table (e.g. Lake Superior at 8.2e10 m^2, cited for context in a pond/wetland paper)
-# gets extracted as if it were one of the paper's own study systems -- the number is
-# faithful to the text, so no confidence signal catches it, but it has no business in
-# a per-ecosystem pond/lake/wetland comparison. Same story for tn/tp/chla: a "mg/L"
-# unit tag that should have been "mg/m^3" (numerically = ug/L, 1000x smaller) survives
-# UNIT_CONVERSION as a legally recognized unit and inflates the tail by exactly 1000x.
-#
-# Each ceiling below is calibrated against the empirical max observed in the *full*
-# ground-truth corpus (all documents, not just the held-out set used for the final
-# comparison, to avoid tuning bounds to the eval slice) plus a several-fold safety
-# margin -- generous enough to keep legitimate extremes on record (e.g. a 1704 ug/L
-# chla reading from a genuinely tiny, bloom-choked shallow pond; a 9850 ug/L tp
-# reading from Lake Nakuru, a documented hypereutrophic soda lake), while sitting
-# far below the contaminating values found in practice (reference lakes at 1e9-1e11
-# m^2; a mg/L-mislabeled tp cluster at 31,000-44,000 ug/L; mg/L-mislabeled chla at
-# 5,000-10,000 ug/L). See docs/plans or commit history for the full audit.
+# Plausibility bounds in standard units; values outside are dropped like unknown units.
+# Set to "reasonably unlikely", not "physically impossible", to drop two recurring
+# errors: cited reference lakes extracted as study systems (1e9-1e11 m^2), and mg/m^3
+# mislabelled mg/L (1000x too large). Ceilings are the full-corpus ground-truth max
+# (all documents, not the eval slice) times a safety margin.
 PHYSICAL_BOUNDS = {
     'max_depth':        (0, 50),          # full-corpus GT max observed: 9 m
     'surface_area':     (0, 1e6),         # full-corpus GT max observed: 1.938e5 m^2
@@ -127,25 +97,26 @@ PHYSICAL_BOUNDS = {
     'chla':              (0, 3_000),      # full-corpus GT max observed: 1,704 ug/L
 }
 
-# Log-scale attributes span several orders of magnitude; the rest read fine on a linear axis.
-# max_depth is log-scale too: extraction noise includes implausible outliers (e.g. a
-# 108,000 m "depth" for a wetland treatment cell) that otherwise flatten the whole panel.
+# Attributes plotted on a log axis (they span orders of magnitude, or have outliers).
 LOG_SCALE_ATTRIBUTES = {'surface_area', 'max_depth', 'tn', 'tp', 'chla'}
 
-# Quantile probability grid for the Q-Q lines, capped to [0.025, 0.975] so a single
-# extreme outlier in either tail can't stretch the panel.
+# Q-Q quantile levels, capped at [0.025, 0.975] so one extreme value can't stretch a panel.
 QLEVELS = np.linspace(0.025, 0.975, 100)
 
 
 # ── Ecosystem bucketing ─────────────────────────────────────────────────────
 
 def bucket_ecosystem(raw: str | None) -> str:
-    """Map a raw free-text ecosystem string to pond / lake / wetland / other.
+    """Bucket a free-text ecosystem string into pond / lake / wetland / other.
 
-    Single-keyword strings (containing exactly one of wetland/pond/pool/lake)
-    are bucketed to that class. Compounds ("wetland vs. lake") and terms with
-    no keyword match ("pothole", "reservoir") fall to 'other' and are excluded
-    from the analysis, per instructions to disregard the 'other' category.
+    ``pool`` counts as pond. Strings matching zero or several buckets become 'other',
+    which the analysis excludes.
+
+    Args:
+        raw: Ecosystem text, or None.
+
+    Returns:
+        ``'pond'``, ``'lake'``, ``'wetland'`` or ``'other'``.
     """
     if not raw:
         return 'other'
@@ -158,11 +129,17 @@ def bucket_ecosystem(raw: str | None) -> str:
 # ── Unit conversion ─────────────────────────────────────────────────────────
 
 def fix_fish_production_units(gt_df: pd.DataFrame, config) -> pd.DataFrame:
-    """Fix a data bug: 56 GT surface_area rows for 'fish_production_in_lakes' have
-    `units` corrupted with a near-duplicate of `value` instead of the real unit.
-    The paper's actual surface_area unit ('acres') is recovered from directory.json.
+    """Repair corrupted ground-truth units for one paper (ground truth only, never extractions).
 
-    NOTE: This is not for extracted data at all. We are fixing the GROUND TRUTH ONLY. 
+    The surface_area rows of 'fish_production_in_lakes' have a copy of ``value`` in
+    ``units``; the real unit is read from the dataset's directory.json.
+
+    Args:
+        gt_df: Ground-truth rows.
+        config: Pond DatasetConfig (for ``metadata_file``).
+
+    Returns:
+        Copy of ``gt_df`` with those units fixed.
     """
     gt_df = gt_df.copy()
     metadata_path = REPO_ROOT / config.metadata_file
@@ -186,30 +163,24 @@ def convert_units(
     attribute_col: str = 'attribute',
     out_col: str = 'converted_value',
 ) -> pd.DataFrame:
-    """Convert values to the standard unit per attribute; unconvertible rows -> NaN.
+    """Convert values to each attribute's standard unit, NaN where not convertible.
 
-    ``unit_conversion`` is the caller's multiply-to-standard table, shaped like
-    UNIT_CONVERSION (exactly the same attribute keys, asserted): pond_clustering.py passes
-    UNIT_CONVERSION, pond_meta_analysis.py its own UNIT_CONVERSION_V2.
+    Unlike scholarlm's apply_unit_conversion, an unknown unit gives NaN rather than
+    passing through at factor 1. Negative results (often log-scale values with a
+    physical unit attached) and values outside PHYSICAL_BOUNDS are also NaN. pH
+    accepts any unit string.
 
-    Unlike scholarlm.utils.unit_conversion.apply_unit_conversion, a unit that is not
-    in unit_conversion[attribute] yields NaN (dropped), not a factor-of-1.0 passthrough
-    -- we do not want to silently treat e.g. a 'pounds' surface_area as if it were m^2.
-    pH is the one exception: it is dimensionless, so any unit string is accepted.
+    Args:
+        df: Rows to convert.
+        unit_conversion: Multiply-to-standard table with the same attributes as
+            UNIT_CONVERSION.
+        value_col: Numeric value column.
+        unit_col: Unit column.
+        attribute_col: Attribute column.
+        out_col: Output column name.
 
-    All of these attributes (surface_area, max_depth, vegetation_cover, tn, tp, chla,
-    ph) are non-negative physical quantities, so a negative converted value is never a
-    real measurement -- it is dropped (-> NaN) rather than plotted as-is. In practice
-    this catches cases where the source paper reported a log-transformed value (e.g.
-    "value": -0.54, sometimes labeled "units": "log") that the extraction model
-    mislabeled with a real physical unit on some duplicate mentions of the same entity,
-    producing a nonsensical negative area/depth/concentration after conversion.
-
-    Values are also dropped (-> NaN) if they fall outside PHYSICAL_BOUNDS for their
-    attribute -- e.g. a "53,010,000 km^2" lake surface area, which is larger than
-    Earth. These bounds are real-world extremes chosen independent of this dataset
-    (see PHYSICAL_BOUNDS), applied uniformly to ground truth and extraction alike, so
-    this is a plausibility check, not a fit to what we expect the answer to be.
+    Returns:
+        Copy of ``df`` with ``out_col`` added.
     """
     assert set(unit_conversion) == set(UNIT_CONVERSION), (
         f'unit_conversion attributes {sorted(unit_conversion)} != {sorted(UNIT_CONVERSION)}')
@@ -240,16 +211,22 @@ def convert_units(
 # ── Data loading ─────────────────────────────────────────────────────────────
 
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
-    """Recalibrated NTP / probe confidence for the judged datapoints, read from the
-    predictions analysis/calibration.py stored -- nothing is recomputed.
+    """Read stored recalibrated NTP / probe confidences for the judged datapoints.
 
-    Uses the 'real' cell with train dataset == test dataset (this dataset's own probe on
-    its own real extraction); see meta_inputs.stored_prediction_rows for how the pickle's
-    rows are mapped back to measurement_ids. Returns (scored_df, syn_docs, input_files);
-    scored_df has measurement_id, document_id, attribute, judgement_combined, ntp_prob,
-    probe_prob, label, one row per datapoint outside the probe's training documents.
-    ``label`` is the stored calibration label (judge OR ground-truth match): the
-    'valid' reference setting filters on it.
+    Uses the pond-on-pond real cell of calibration.py's predictions.pkl and checks
+    that both confidence models and the recalibration fit rows exclude held-out documents.
+
+    Args:
+        final_df: Judged final.json rows.
+        combined_df: combined.json rows, aligned to ``final_df``.
+        inputs: Output of ``resolve_meta_inputs``.
+
+    Returns:
+        Tuple of:
+            - scored: measurement_id, document_id, attribute, judgement_combined,
+              ntp_prob, probe_prob, label (judge OR match), one row per held-out datapoint
+            - syn_docs: the probe's training documents
+            - input files read (for the manifest)
     """
     judge = inputs['judge_model']
     for col in ('measurement_id', 'document_id', 'attribute'):
@@ -291,20 +268,21 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
 
 
 def load_data(sec: dict, inputs: dict, unit_conversion: dict):
-    """Load GT + extraction rows, restrict to held-out documents, and attach
-    judgement_combined / ntp_prob / probe_prob to the extraction rows.
+    """Load held-out ground-truth and extraction rows with scores and converted values.
 
-    Held-out means outside the probe/NTP training documents (syn_document_ids). Each
-    side keeps all its held-out documents: GT and extraction need not cover the same
-    documents. ``unit_conversion`` is the table convert_units applies to both sides (no
-    default: each caller names its own, see convert_units); it is recorded in the manifest.
+    Held-out means outside the probe's training documents. The two sides need not
+    cover the same documents.
 
-    ``sec`` is the caller's config section; only its ``rows``, ``confidence`` and
-    ``deduplication_config_id`` are read. Scores are computed on the judged run's
-    final.json rows and joined by measurement_id onto the rows named by ``rows``
-    (final.json itself, postprocessed.json, or the deduplicated records -- see
-    meta_inputs.attach_scores for the many-to-one join).
-    Returns (gt_df, ext_df, manifest) where manifest records row counts and input hashes.
+    Args:
+        sec: Config section; reads ``rows``, ``confidence``, ``deduplication_config_id``.
+        inputs: Output of ``resolve_meta_inputs``.
+        unit_conversion: Table passed to ``convert_units`` for both sides.
+
+    Returns:
+        Tuple of:
+            - gt_df: ground truth with ``ecosystem_bucket``, ``meta_value``, ``converted_value``
+            - ext_df: same columns plus judgement_combined, label, ntp_prob, probe_prob
+            - manifest: row counts, input hashes and the unit table
     """
     config = load_dataset_config(DATASET)
 
@@ -316,16 +294,14 @@ def load_data(sec: dict, inputs: dict, unit_conversion: dict):
     final_df = pd.DataFrame(json.loads(final_path.read_text()))
     combined_df = pd.DataFrame(json.loads(combined_path.read_text()))
     scored, syn_docs, scored_inputs = _load_stored_scores(final_df, combined_df, inputs)
-    # label (judge OR match) is boolean like judgement_combined: a deduplicated row
-    # always takes its cluster center's (dedup_rows_with_scores), never a mean.
+    # Boolean label columns always take the cluster center's value, never a mean.
     score_cols = ['judgement_combined', 'label', 'ntp_prob', 'probe_prob']
 
     input_files = [inputs['ground_truth_path'], final_path, combined_path, *scored_inputs]
     if sec['rows'] == 'final':
         rows_df = final_df
         n_rows = len(rows_df)
-        # Rows from the probe's own training documents have no held-out score (and are
-        # excluded below anyway); drop them before the join so every remaining row must score.
+        # Drop training-document rows first (they have no score) so every remaining row must score.
         rows_df = rows_df[~rows_df['document_id'].isin(syn_docs)].reset_index(drop=True)
         ext_df = attach_scores(rows_df, scored, score_cols)
     else:
@@ -362,9 +338,7 @@ def load_data(sec: dict, inputs: dict, unit_conversion: dict):
     gt_df['ecosystem_bucket'] = gt_df['ecosystem'].map(bucket_ecosystem)
     ext_df['ecosystem_bucket'] = ext_df['ecosystem'].map(bucket_ecosystem)
 
-    # Every row's numeric value is its parsed point_value (see numeric_point_value). In the
-    # ground truth point_value == value numerically (asserted), so only the extraction side
-    # changes relative to reading `value`.
+    # Numeric value = parsed point_value. In ground truth it must equal `value` (asserted).
     gt_df['meta_value'] = numeric_point_value(gt_df['point_value'])
     gt_value = pd.to_numeric(gt_df['value'], errors='coerce')
     assert ((gt_df['meta_value'] == gt_value) | (gt_df['meta_value'].isna() & gt_value.isna())).all(), (
@@ -392,13 +366,18 @@ def load_data(sec: dict, inputs: dict, unit_conversion: dict):
 # ── Q-Q quantile helpers ────────────────────────────────────────────────────
 
 def _valid_range(n: int, lo_cap: float = QLEVELS.min(), hi_cap: float = QLEVELS.max()) -> tuple[float, float]:
-    """Probability range for which Hazen quantiles of an n-point sample are true
-    interpolations rather than clamped to the sample min/max.
+    """Quantile-level range that Hazen positions of an n-point sample can interpolate.
 
-    Hazen plotting positions are (i-0.5)/n for i=1..n, so the smallest and largest
-    representable probabilities are 0.5/n and 1-0.5/n; requesting a level outside that
-    range makes np.interp silently clamp to the extreme observed value, which reads as
-    a flat, artifactual tail rather than genuine distributional agreement/disagreement.
+    Outside [0.5/n, 1 - 0.5/n], np.interp clamps to the sample extreme, which draws a
+    flat, artificial tail.
+
+    Args:
+        n: Sample size.
+        lo_cap: Lowest level allowed.
+        hi_cap: Highest level allowed.
+
+    Returns:
+        ``(lo, hi)`` quantile levels.
     """
     lo = max(lo_cap, 0.5 / n)
     hi = min(hi_cap, 1 - 0.5 / n)
@@ -406,12 +385,29 @@ def _valid_range(n: int, lo_cap: float = QLEVELS.min(), hi_cap: float = QLEVELS.
 
 
 def _attr_title(attribute: str) -> str:
+    """Panel title for an attribute, with its standard unit.
+
+    Args:
+        attribute: Attribute key.
+
+    Returns:
+        E.g. ``"max depth (m)"``; no unit for pH and percentages.
+    """
     unit = STANDARD_UNITS[attribute]
     unit_str = f' ({unit})' if unit and unit != 'percent' else ''
     return attribute.replace('_', ' ') + unit_str
 
 
 def _axis_limits(values: np.ndarray, log: bool) -> tuple[float, float]:
+    """Axis limits padding the data range by 5% (multiplicatively on a log axis).
+
+    Args:
+        values: Plotted values.
+        log: Whether the axis is log-scaled.
+
+    Returns:
+        ``(low, high)`` limits.
+    """
     vmin, vmax = float(np.min(values)), float(np.max(values))
     if log:
         pad = (vmax / vmin) ** 0.05 if vmax > vmin else 1.1

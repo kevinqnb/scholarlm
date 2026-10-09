@@ -1,3 +1,15 @@
+"""Train the attention-head validity probe and NTP calibrator on one synthetic judge run.
+
+Ranks every (layer, head) by grouped-CV F1, trains a logistic probe on the top
+TOP_K heads, and fits a 1-D calibrator on the judge's p(true). Both are saved under
+analysis/results/synthetic-probe/<config id>/trained_probe/ (Platt-wrapped or
+``_noplatt``, per ``params.use_platt_scaling``), with heatmaps and results.json
+alongside.
+
+Usage
+-----
+    python analysis/synthetic_probe_train.py analysis/analysis-configs/synthetic-probe/<id>.yaml
+"""
 import sys
 from pathlib import Path
 import argparse
@@ -54,15 +66,8 @@ mpl.rcParams.update({
 RESULTS_ROOT = analysis_results_dir("synthetic-probe")
 
 
-# ─────────────────────────────────────────────────────────────────
-# Run config: one analysis-configs/synthetic-probe/<id>.yaml (see
-# analysis/common/config.load_synthetic_probe_config) naming the dataset and
-# the judge_interp run on the synthetic corpus to train on. No flags, no env
-# vars, no defaults -- the config id is the run's identity, and figures/results
-# are written under RESULTS_ROOT/<config id>/.
-
-
 def _parse_args():
+    """Parse the single positional synthetic-probe config path."""
     parser = argparse.ArgumentParser(
         description="Train the head probe + NTP calibrator on one synthetic judge_interp run."
     )
@@ -73,25 +78,19 @@ def _parse_args():
 
 
 def _load_synthetic_run(run_id: str, dataset: str):
-    """Resolve a ``judge_interp`` synthetic run by experiment id and load its
-    responses/activations/layer-outputs straight off the id-addressed tree.
+    """Load a synthetic judge_interp run's responses and activations.
 
-    Unlike the legacy (dataset, judge_model, judge_date) lookup, an id names
-    exactly one run -- judge_model is read from the run's own committed
-    config rather than repeated by hand, and there's no "most recent date"
-    ambiguity to resolve. ``dataset`` (from the analysis config) is checked
-    against the dataset the run's config lives under.
+    Args:
+        run_id: judge_interp experiment id.
+        dataset: Expected dataset (checked against the run's config location).
 
     Returns:
-        (judge_model, syn_responses, syn_activations, syn_layer_outputs)
+        Tuple of ``(judge_model, responses, attention_outputs npz, layer_outputs npz)``.
 
     Raises:
-        FileNotFoundError: If the config or any of its three output files is missing.
-        ValueError: If the analysis config's dataset disagrees with the run's
-            own dataset, if params.judge is missing, or run_metadata.json's
-            judge_model disagrees with params.judge (two names for the same
-            run that have drifted apart), or the responses/activations
-            measurement_id sets don't match.
+        FileNotFoundError: Config or an output file missing.
+        ValueError: Dataset mismatch, missing params.judge, run_metadata.json
+            disagreeing with params.judge, or response/activation id sets differ.
     """
     config_path = paths.find_experiment_config(run_id)
     cfg = paths.load_experiment_config(config_path)
@@ -138,31 +137,29 @@ def _load_synthetic_run(run_id: str, dataset: str):
 TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
 
-# Platt scaling (CalibratedClassifierCV) on the training data is set per run by
-# the analysis config's required params.use_platt_scaling (no default).
-# False fits the base Pipeline's own .fit()/.predict_proba() directly, saved
-# under a '_noplatt' filename suffix -- calibration configs must use
-# probe_variant: noplatt to load these. True wraps the head probe / NTP
-# calibrator in CalibratedClassifierCV (saved under the unsuffixed
-# 'head_probe.pkl' / 'ntp_calibrator.pkl', matching probe_variant: platt).
-# NOTE: 2026-08-10-no-platt-scaling-01 found no-Platt worse than train-side
-# Platt under the OLD pipeline (no downstream Platt); that comparison does not
-# apply now that v3 recalibrates, but the old numbers are not comparable.
+# use_platt_scaling (config) picks Platt-wrapped artifacts (probe_variant: platt) or
+# unwrapped '_noplatt' ones (probe_variant: noplatt).
 
-# Layer-output probe training + its combined cross-model plot (bottom of this
-# file). Set False to skip both and only train/save the head probe + NTP
-# calibrator. Flip back to True to restore the original behavior exactly.
-# 2026-08-10-qwen-base-answer-cue-01: head probe only, matching both
-# baselines it's compared against -- no layer-probe training needed.
+# Also train the layer-output probe and its cross-model plot. Off: head probe only.
 TRAIN_LAYER_PROBE = False
 # ─────────────────────────────────────────────────────────────────
 
-# Dictionary to collect layer F1 scores for all judge models
+# Layer F1 scores per judge model and dataset, for the combined plot.
 collected_layer_f1_scores = {}
 
 
-# Score candidate probes by F1 and ECE
 def cv_score(probe, X, y, kfold_cv):
+    """Grouped-CV F1 and ECE of a probe.
+
+    Args:
+        probe: sklearn estimator (refit on each fold).
+        X: Features.
+        y: Binary labels.
+        kfold_cv: List of (train_idx, test_idx) folds.
+
+    Returns:
+        ``(mean_f1, fold_f1s, mean_ece, fold_eces)``.
+    """
     fold_f1s, fold_eces = [], []
     for train_idx, test_idx in kfold_cv:
         probe.fit(X[train_idx], y[train_idx])
@@ -179,14 +176,18 @@ def cv_score(probe, X, y, kfold_cv):
 
 def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed,
                     use_platt_scaling):
-    """Train the head probe + NTP calibrator (and, if TRAIN_LAYER_PROBE, the
-    layer probe) for one (dataset, judge_model) synthetic run and save them
-    under ``probe_dir`` (``out_dir``/trained_probe, where
-    analysis/common/calibration_ids.py resolves them). Figures and results.json go
-    under ``out_dir`` (RESULTS_ROOT/<analysis config id>/). ``seed`` (the
-    analysis config's) seeds every split and LogisticRegression.
-    ``use_platt_scaling`` (the analysis config's params.use_platt_scaling)
-    picks the CalibratedClassifierCV-wrapped vs ``_noplatt`` artifacts.
+    """Train and save the head probe and NTP calibrator (and optionally the layer probe).
+
+    Args:
+        DATASET: Dataset name.
+        JUDGE_MODEL: Judge model name.
+        syn_responses: Judge responses with label, document_id, judgement_p_true.
+        syn_activations: attention_outputs npz, keyed by measurement_id.
+        syn_layer_outputs: layer_outputs npz, keyed by measurement_id.
+        probe_dir: Where the probe pickles go.
+        out_dir: Where figures, head_scores.npz and results.json go.
+        seed: Seeds every split and LogisticRegression.
+        use_platt_scaling: Wrap probe and calibrator in CalibratedClassifierCV.
     """
     print(f'\n{"="*60}\nDataset: {DATASET}   Judge: {JUDGE_MODEL}\n{"="*60}')
 
@@ -200,13 +201,12 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     syn_groups          = syn_df['document_id'].to_numpy()
     # ─────────────────────────────────────────────────────────────────
 
-    # Use all synthetic data for training (no calibration holdout).
-    # Group-aware split ensures no paper appears in both train and CV test folds.
+    # All synthetic rows train; CV folds are grouped by paper.
     syn_train_idx, syn_cal_idx, syn_test_idx = grouped_holdout_split(
         syn_groups, train_frac=1.0, cal_frac=0.0, random_state=seed
     )
 
-    # Papers with really really large tables that seem to throw off the activations...
+    # Exclude two papers whose very large tables distort the activations.
     keep_mask = (syn_df.iloc[syn_train_idx]['document_id'] != 'habitat_characteristics') & (syn_df.iloc[syn_train_idx]['document_id'] != 'R164')
     syn_train_idx = syn_train_idx[keep_mask.values]
 
@@ -321,7 +321,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     print(f"  AUROC     : {train_metrics['auroc']:.4f}")
     print(f"  ECE       : {train_metrics['ece']:.4f}")
 
-    # Save probe + metadata for use in synthetic_probe_test.ipynb
+    # Save probe + metadata (read by calibration scripts via load_probe_artifact).
     probe_dir.mkdir(parents=True, exist_ok=True)
     probe_filename = 'head_probe.pkl' if use_platt_scaling else 'head_probe_noplatt.pkl'
     probe_path = probe_dir / probe_filename
@@ -343,9 +343,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     print(f'  Top-{TOP_K} heads        : {top_k_heads}')
     # ─────────────────────────────────────────────────────────────────
 
-    # Fit NTP calibrator — Platt scaling via 1-D logistic regression on
-    # judgement_p_true, using the same CV splits as the probe so that
-    # calibration is not overfit on the training labels.
+    # NTP calibrator: 1-D logistic regression on judgement_p_true, same CV folds as the probe.
     ntp_probs_train = syn_df['judgement_p_true'].to_numpy()[syn_train_idx].reshape(-1, 1)
 
     ntp_base = Pipeline([
@@ -488,7 +486,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         print(f"  AUROC     : {roc_auc_score(y_train_lo, y_probs_lo):.4f}")
         print(f"  ECE       : {compute_ece(y_probs_lo, y_train_lo):.4f}")
 
-        # Save probe + metadata for use in synthetic_probe_test.ipynb
+        # Save layer probe + metadata.
         probe_dir.mkdir(parents=True, exist_ok=True)
         probe_path = probe_dir / 'layer_probe.pkl'
 
@@ -509,6 +507,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
 
 
 def main():
+    """CLI: load the config and synthetic run, train, and save under RESULTS_ROOT/<config id>/."""
     args = _parse_args()
     cfg = load_synthetic_probe_config(args.config)
     run_id = cfg['params']['judge_interp_id']

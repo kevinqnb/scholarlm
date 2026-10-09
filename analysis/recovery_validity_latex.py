@@ -1,36 +1,19 @@
-"""Render pre-computed ``analysis/recovery_validity.py`` result CSVs as one LaTeX
-table: a row per method, a column per dataset (row groups split by one rule), each cell a (recovery, validity)
-pair with its bootstrap interval.
+"""Format recovery_validity.py result CSVs as a LaTeX table (methods x datasets).
 
-This only *formats* numbers that ``recovery_validity.py`` already wrote -- it
-computes no metric and never re-reads a match cache, so it cannot change a
-reported number. What it does guard is the mapping from table cell to CSV row:
+Each cell is (recovery, validity) as percentages with bootstrap intervals; the best
+point per column and metric is bolded. Formatting only: no metric is computed. The
+cell-to-row mapping is guarded: ids are explicit (null renders "--"), each column's
+CSV must belong to its named config and hold exactly that config's ids, and each
+value must lie in its interval.
 
-  - every cell names its experiment id explicitly in the table spec (no id is
-    inferred from a method name, and a cell that has no run is an explicit
-    ``null``, rendered ``--``, never a silent blank);
-  - each dataset column points at the *analysis config* that produced its CSV;
-    the CSV path is read off that config's ``recovery_validity.output``, and the
-    CSV must (a) carry that config's id in ``analysis_config_id`` on every row,
-    and (b) contain exactly that config's ``experiment_ids`` -- a CSV left over
-    from before the config was edited is a hard error, not a table;
-  - the row's dataset, the validity columns (present, not NaN), and
-    ``ci_lo <= point <= ci_hi`` are asserted for every cell used;
-  - every id in the spec must be unique, so one run cannot fill two cells.
-
-Interval format (``ci_format``, required): the bootstrap intervals are
-*percentile* intervals and need not be symmetric about the point estimate.
-``pm`` prints ``point $\\pm$ (hi - lo) / 2`` (the half-width), which is exact only
-for a symmetric interval; ``interval`` prints ``point [lo, hi]`` and is always
-exact. Values are percentages. The best point estimate per column and metric is bolded
-(the number only, not its interval).
+``ci_format``: ``pm`` prints the half-width (exact only for symmetric intervals);
+``interval`` prints [lo, hi].
 
 Usage
 -----
     python analysis/recovery_validity_latex.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 
-Table spec (``params.recovery_validity_latex`` in the analysis config; every key
-required, no defaults)::
+Table spec (``params.recovery_validity_latex``, every key required)::
 
     datasets:            # ordered: column order. key = column header
       PLW: {dataset: pond, analysis_config: <recovery_validity analysis config id>}
@@ -65,9 +48,8 @@ SECTION_KEYS = ("datasets", "decimals", "ci_format", "output", "caption", "label
 CI_FORMATS = ("pm", "interval")
 MISSING_CELL = "--"
 
-# recovery_max_weight_matching is not rendered; requiring it rejects a CSV written
-# before 2026-10-07, whose `recovery` column was the max-weight matching count rather
-# than today's any-edge count (see analysis/recovery_validity.py's module docstring).
+# recovery_max_weight_matching isn't rendered; requiring it rejects older CSVs whose
+# `recovery` column meant the matching count.
 _NEEDED_COLUMNS = (
     "experiment_id", "dataset", "analysis_config_id",
     "recovery", "recovery_ci_lo", "recovery_ci_hi", "recovery_max_weight_matching",
@@ -81,13 +63,17 @@ _NEEDED_COLUMNS = (
 
 
 def load_spec(path: Path) -> dict:
-    """Load and validate the table-spec analysis config; returns the
-    ``params.recovery_validity_latex`` section (with the envelope checked).
+    """Load and validate a table-spec config.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The ``params.recovery_validity_latex`` section.
 
     Raises:
-        ValueError/KeyError: malformed envelope or section, bad types, a block
-            row whose ``ids`` keys are not exactly the dataset column keys, or
-            an experiment id used in more than one cell of the same column.
+        ValueError, KeyError: Bad envelope, keys or types, a row whose ids don't
+            cover exactly the dataset columns, or an id reused within a column.
     """
     cfg = _load_envelope(path, "recovery-validity")
     if set(cfg["params"]) != {SECTION}:
@@ -140,8 +126,15 @@ def load_spec(path: Path) -> dict:
 
 
 def load_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFrame:
-    """The recovery_validity CSV written by ``analysis_config_id``, indexed by
-    experiment_id, after checking it really is that config's output.
+    """Load the results CSV a recovery-validity config wrote, after checking it is current.
+
+    Args:
+        col: Table column key (for error messages).
+        dataset: Expected dataset.
+        analysis_config_id: Config that wrote the CSV.
+
+    Returns:
+        Results indexed by experiment_id.
 
     Raises:
         FileNotFoundError: the referenced analysis config or its CSV is missing.
@@ -192,8 +185,18 @@ def load_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFram
 def format_estimate(
     point: float, lo: float, hi: float, *, decimals: int, ci_format: str, bold: bool = False,
 ) -> str:
-    """One metric as a percentage with its interval, e.g. ``38.8 $\\pm$ 5.4``.
-    ``bold`` wraps only the point estimate in ``\\textbf``, never the interval.
+    """Format one rate as a percentage with its interval, e.g. ``38.8 $\\pm$ 5.4``.
+
+    Args:
+        point: Point estimate in [0, 1].
+        lo: Interval lower bound.
+        hi: Interval upper bound.
+        decimals: Decimal places.
+        ci_format: ``"pm"`` or ``"interval"``.
+        bold: Bold the point estimate only.
+
+    Returns:
+        LaTeX string.
 
     Raises:
         ValueError: any value is NaN or outside [0, 1], or lo <= point <= hi fails.
@@ -216,7 +219,21 @@ def format_estimate(
 def format_cell(
     row: pd.Series, *, decimals: int, ci_format: str, bold_recovery: bool = False, bold_validity: bool = False,
 ) -> str:
-    """``(recovery, validity)`` for one result row."""
+    """Format one table cell as ``(recovery, validity)``.
+
+    Args:
+        row: One results row.
+        decimals: Decimal places.
+        ci_format: ``"pm"`` or ``"interval"``.
+        bold_recovery: Bold the recovery point.
+        bold_validity: Bold the validity point.
+
+    Returns:
+        LaTeX string.
+
+    Raises:
+        ValueError: A value is invalid (message prefixed with the experiment id).
+    """
     try:
         recovery = format_estimate(
             row["recovery"], row["recovery_ci_lo"], row["recovery_ci_hi"], decimals=decimals, ci_format=ci_format, bold=bold_recovery)
@@ -229,11 +246,20 @@ def format_cell(
 
 
 def build_table(spec: dict, results: dict[str, pd.DataFrame]) -> str:
-    """The full ``table`` environment as a string. ``results`` maps each
-    dataset column key to its (experiment_id-indexed) result frame."""
+    """Render the full LaTeX ``table`` environment.
+
+    Args:
+        spec: Output of ``load_spec``.
+        results: Column key -> results frame from ``load_results``.
+
+    Returns:
+        LaTeX source.
+
+    Raises:
+        KeyError: A spec id is missing from its column's CSV.
+    """
     cols = list(spec["datasets"])
-    # Best (max raw point estimate) recovery / validity among the rows actually
-    # shown in each column; exact ties are all bolded.
+    # Best point per column among the rows shown; exact ties are all bolded.
     best: dict[str, dict[str, float]] = {}
     for col in cols:
         shown = [r["ids"][col] for b in spec["blocks"] for r in b["rows"] if r["ids"][col] is not None]
@@ -272,6 +298,11 @@ def build_table(spec: dict, results: dict[str, pd.DataFrame]) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: build the table from ``--config``, write it, and print it.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True, help="analysis-configs/recovery-validity/<id>.yaml table spec")
     args = parser.parse_args(argv)

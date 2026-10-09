@@ -1,49 +1,25 @@
-"""Render the ``metrics_{probe,ntp}.csv`` files written by
-``analysis/calibration_updated_v3.py`` as LaTeX tables, one set per test setting
-(synthetic and real are never mixed in a table).
+"""Format v3-schema calibration metrics CSVs as LaTeX tables (formatting only).
 
-Also renders ``analysis/calibration_validated.py``'s CSVs (same schema; real cells
-scored against human validity labels): ``labels`` in the spec says which, and picks
-the loader for the referenced calibration config and the real-setting caption.
+Reads metrics_{probe,ntp}.csv from a v3 calibration config (``labels: llm_matching``)
+or a calibration_validated config (``labels: human_validated``). It cannot read v4
+calibration.py output. For each of syn and real it writes three tables into
+``output_dir``:
+  - calibration_{setting}_smece.tex: smooth ECE, training-dataset rows x test-dataset columns.
+  - calibration_{setting}_classification.tex: N, label rate, Acc/Prec/Rec/F1/AUROC.
+  - calibration_{setting}_ece_variants.tex: ECE, adaptive ECE, debiased RMSCE.
 
-This only *formats* numbers that calibration_updated_v3.py already wrote; it
-computes no metric. Per setting it writes three files into ``output_dir``:
-
-  calibration_{setting}_smece.tex       main table: smooth ECE (+ interval).
-        Rows: an NTP block then a Probe block (one midrule between), each with
-        one row per *training* dataset (the probe / NTP calibrator was trained
-        on that dataset's synthetic data). Columns: the *test* dataset.
-  calibration_{setting}_classification.tex   N, label rate, Acc, Prec, Rec, F1, AUROC
-        (point estimates; the CSV stores no intervals for these). 18 rows:
-        {NTP, Probe} x train x test.
-  calibration_{setting}_ece_variants.tex     ECE, adaptive (equal-mass) ECE and
-        debiased RMSCE, each with its interval. Same 18 rows.
-
-Not shown: ``Validity``. It is Precision by definition (TP / (TP + FP)), so it is
-asserted equal to Precision and omitted rather than printed twice.
-
-Guards (the CSVs carry no config id, so provenance cannot be fully proven here):
-  - each CSV has exactly {syn, real} x train x test rows, no duplicate keys, its
-    ``Type`` column matches the file, and both files share one ``Judge model``;
-  - the dataset sets equal the calibration config's ``datasets``; ``Platt N`` is
-    NaN on syn rows and equals the config's ``platt_n`` on real rows;
-  - every cell used is finite (NaN is an error, never rendered) -- except Precision
-    and F1 when no row is predicted valid (Recall == 0, stored Validity == 0), which
-    print as ``--`` with a caption note and a console line naming the cells; the point
-    estimate lies in [0, 1] (the smooth-ECE interval is never clipped: its
-    lower bound can be negative);
-  - ``lo <= point <= hi`` is asserted for every interval except the plug-in ECE
-    and adaptive-ECE columns: their percentile-bootstrap intervals can sit above
-    the point estimate when the true ECE is near zero (expected; e.g. syn NTP
-    nfix->nfix), so those print as ``point [lo, hi]`` exactly as stored.
+Validity is asserted equal to Precision and not printed. CSV rows must exactly
+cover the config's datasets. Non-finite values are errors, except Precision/F1 with
+no predicted positives, which print as "--". Intervals are printed as stored
+([lo, hi]); for |gap|-type errors they may lie above the point.
 
 Usage
 -----
     python analysis/calibration_latex.py --config analysis/analysis-configs/<calibration | calibration-validated>/<id>.yaml
 
-Table spec (``params.calibration_latex``; every key required, no defaults)::
+Table spec (``params.calibration_latex``, every key required)::
 
-    calibration_config: <id of a calibration_updated_v3 or calibration_validated analysis config>
+    calibration_config: <id of a v3 calibration or calibration_validated analysis config>
     labels: llm_matching | human_validated   # v3 config | calibration_validated config
     datasets: {PLW: pond, NF: nfix, SM: supermat}   # ordered; key = label
     decimals: 3
@@ -71,8 +47,7 @@ SECTION = "calibration_latex"
 SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "output_dir", "label_prefix")
 # Real-cell label source -> loader for the referenced calibration config.
 LABEL_LOADERS = {"llm_matching": load_calibration_v3_config, "human_validated": load_calibration_validated_config}
-# Real-cell label source -> analysis type of the referenced calibration config, its
-# results, and this latex config itself (it lives with the analysis it formats).
+# Real-cell label source -> analysis type (of the calibration config, its results, and this config).
 LABEL_TYPES = {"llm_matching": "calibration", "human_validated": "calibration-validated"}
 MISSING_CELL = "--"
 SETTINGS = {"syn": "synthetic", "real": "real"}
@@ -82,11 +57,8 @@ METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file
 CLASSIFICATION = (("Accuracy", "Acc."), ("Precision", "Prec."), ("Recall", "Rec."),
                   ("F1", "F1"), ("AUROC", "AUROC"))
 # (CSV value column, lo column, hi column, header) -- intervals in the variants table.
-# Every calibration error is a nested-bootstrap point estimate with a percentile
-# interval (analysis/common/nested_bootstrap.py). Resampling inflates |gap|-type statistics,
-# so the interval can lie entirely above the point when calibration is near perfect:
-# intervals are printed as exact [lo, hi], never as a +- half-width, and lo <= point
-# is not required.
+# Resampling inflates |gap|-type errors, so an interval can sit above its point; they
+# are printed as exact [lo, hi] and lo <= point is not required.
 ECE_VARIANTS = (("ECE", "ECE_lo", "ECE_hi", "ECE"),
                 ("ECE_em", "ECE_em_lo", "ECE_em_hi", "Adaptive ECE"),
                 ("RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi", "Debiased RMSCE"))
@@ -108,11 +80,16 @@ _NEEDED_COLUMNS = (
 
 
 def load_spec(path: Path) -> dict:
-    """The ``params.calibration_latex`` section, validated.
+    """Load and validate a calibration_latex table spec.
+
+    Args:
+        path: Config path (in calibration/ or calibration-validated/, matching ``labels``).
+
+    Returns:
+        The ``params.calibration_latex`` section.
 
     Raises:
-        ValueError/KeyError: malformed envelope or section, bad value types, or
-            dataset labels/names that are empty or repeated.
+        ValueError, KeyError: Bad location, envelope, keys or values, or repeated datasets.
     """
     if Path(path).parent.name not in LABEL_TYPES.values():
         raise ValueError(f"{path}: a calibration_latex config must live in one of "
@@ -141,18 +118,30 @@ def load_spec(path: Path) -> dict:
 
 
 def load_calibration_config(spec: dict) -> dict:
-    """The referenced calibration config, via the loader ``spec["labels"]`` names
-    (a v3 config fails the validated loader and vice versa)."""
+    """Load the referenced calibration config with the loader for ``spec["labels"]``.
+
+    Args:
+        spec: Output of ``load_spec``.
+
+    Returns:
+        The calibration config dict.
+    """
     return LABEL_LOADERS[spec["labels"]](analysis_config_path(LABEL_TYPES[spec["labels"]], spec["calibration_config"]))
 
 
 def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
-    """``{Type: frame}`` for NTP and Probe, plus the single judge model, after
-    validating the CSVs against the referenced calibration config.
+    """Load and validate both metrics CSVs against the referenced calibration config.
+
+    Args:
+        spec: Output of ``load_spec``.
+
+    Returns:
+        ``({"NTP": df, "Probe": df}, judge_model)``.
 
     Raises:
-        FileNotFoundError: a metrics CSV is missing.
-        ValueError: any guard in the module docstring fails.
+        FileNotFoundError: A metrics CSV is missing.
+        ValueError: Wrong columns, rows, Platt N, datasets or judges, or a
+            recalibration other than platt_fit.
     """
     cal_id = spec["calibration_config"]
     cal_cfg = load_calibration_config(spec)
@@ -201,14 +190,31 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
 
 
 def _check_finite(name: str, v: float) -> None:
+    """Fail unless ``v`` is a finite number.
+
+    Args:
+        name: Value name (for the message).
+        v: Value.
+
+    Raises:
+        ValueError: ``v`` is non-numeric or non-finite.
+    """
     if not (isinstance(v, (int, float)) and math.isfinite(v)):
         raise ValueError(f"{name}={v!r} is not finite")
 
 
 def format_estimate(point: float, lo: float, hi: float, *, decimals: int, bold: bool = False) -> str:
-    """``point`` with its percentile interval, e.g. ``0.051 [0.042, 0.060]``; ``bold``
-    wraps only the point estimate. The interval need not contain the point (see
-    ECE_VARIANTS); bounds are never clipped.
+    """Format a value with its interval, e.g. ``0.051 [0.042, 0.060]`` (bounds not clipped).
+
+    Args:
+        point: Point estimate in [0, 1].
+        lo: Interval lower bound.
+        hi: Interval upper bound.
+        decimals: Decimal places.
+        bold: Bold the point only.
+
+    Returns:
+        LaTeX string.
 
     Raises:
         ValueError: a value is non-finite, the point is outside [0, 1], or lo > hi.
@@ -226,6 +232,18 @@ def format_estimate(point: float, lo: float, hi: float, *, decimals: int, bold: 
 
 
 def format_point(v: float, *, decimals: int) -> str:
+    """Format a finite value in [0, 1] with fixed decimals.
+
+    Args:
+        v: Value.
+        decimals: Decimal places.
+
+    Returns:
+        Formatted string.
+
+    Raises:
+        ValueError: Non-finite or outside [0, 1].
+    """
     _check_finite("value", v)
     if not 0.0 <= v <= 1.0:
         raise ValueError(f"value {v} outside [0, 1]")
@@ -233,6 +251,17 @@ def format_point(v: float, *, decimals: int) -> str:
 
 
 def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False) -> str:
+    """Format one interval cell, prefixing errors with the row's identity.
+
+    Args:
+        row: Metrics row.
+        cols: (value, lo, hi) column names.
+        spec: Table spec (for ``decimals``).
+        bold: Bold the point.
+
+    Returns:
+        LaTeX string.
+    """
     try:
         return format_estimate(row[cols[0]], row[cols[1]], row[cols[2]], decimals=spec["decimals"], bold=bold)
     except ValueError as e:
@@ -241,7 +270,15 @@ def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False) -> str
 
 
 def _lookup(frames: dict[str, pd.DataFrame], setting: str) -> dict[tuple[str, str, str], pd.Series]:
-    """(Type, train, test) -> row, for one setting."""
+    """Index one setting's rows by (Type, train dataset, test dataset).
+
+    Args:
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+
+    Returns:
+        ``{(Type, train, test): row}``.
+    """
     out = {}
     for kind, df in frames.items():
         for _, r in df[df["Dataset type"] == setting].iterrows():
@@ -250,6 +287,19 @@ def _lookup(frames: dict[str, pd.DataFrame], setting: str) -> dict[tuple[str, st
 
 
 def _wrap(spec: dict, setting: str, name: str, body: list[str], caption: str, colspec: str) -> str:
+    """Wrap table body lines in a LaTeX ``table`` / ``tabular`` environment.
+
+    Args:
+        spec: Table spec (for ``label_prefix``).
+        setting: ``"syn"`` or ``"real"`` (part of the label).
+        name: Table name (part of the label).
+        body: Rows, including the header.
+        caption: Caption text.
+        colspec: tabular column spec.
+
+    Returns:
+        LaTeX source.
+    """
     return "\n".join([
         "\\begin{table}[t]", "\\centering", "\\small",
         f"\\caption{{{caption}}}",
@@ -259,12 +309,33 @@ def _wrap(spec: dict, setting: str, name: str, body: list[str], caption: str, co
 
 
 def _n_constant_down_columns(frames: dict, setting: str) -> bool:
-    """True iff every (method, train) row shares one N for each test dataset."""
+    """Whether N is constant down each test-dataset column.
+
+    Args:
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+
+    Returns:
+        True if every (method, train) row has the same N for each test dataset.
+    """
     df = pd.concat(frames.values())
     return bool(df[df["Dataset type"] == setting].groupby("Test dataset")["N"].nunique().eq(1).all())
 
 
 def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: int, *, with_ci: bool = True) -> str:
+    """Shared caption text: test setting, recalibration, judge, row meaning, intervals.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        judge: Judge model name.
+        platt_n: Rows per recalibration fit sample.
+        with_ci: Include the interval description.
+
+    Returns:
+        Caption text.
+    """
     labels = ", ".join(f"{k}: {v}" for k, v in spec["datasets"].items())
     ci = ("bracketed 95\\% percentile interval of a document-level bootstrap of the test set" + (
         "" if setting == "syn" else ", crossed with refitting the recalibration on independent labelled samples")
@@ -277,7 +348,7 @@ def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: i
                  "LLM+matching-labelled rows per test dataset.")
         else:
             s = f"Real extractions, Platt-scaled on {platt_n} labelled rows per test dataset."
-        # Stated from the data, not assumed: exclusion is per cell, so N may or may not vary.
+        # Checked from the data: exclusion is per cell, so N may vary.
         n_note = ("$N$ is the same down each column" if _n_constant_down_columns(frames, setting)
                   else "$N$ differs down a column")
         s += f" Test rows exclude that Platt pool and the training probe's documents; {n_note}."
@@ -285,7 +356,18 @@ def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: i
 
 
 def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
-    """Main table: smooth ECE, NTP block then Probe block, train rows x test columns."""
+    """Main table: smooth ECE, NTP then Probe blocks, train rows x test columns, best bolded.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        judge: Judge model name.
+        platt_n: Rows per recalibration fit sample.
+
+    Returns:
+        LaTeX source.
+    """
     lk = _lookup(frames, setting)
     labels = spec["datasets"]
     # Lowest smECE per test column across every row shown; exact ties all bold.
@@ -306,7 +388,17 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_
 
 
 def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
-    """18-row body: NTP block, midrule, Probe block; stub columns method / train / test."""
+    """Body rows for the long tables: method x train x test, NTP block then Probe block.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        cell_fn: Row -> LaTeX cells after the three stub columns.
+
+    Returns:
+        Body lines.
+    """
     lk = _lookup(frames, setting)
     labels = spec["datasets"]
     body = []
@@ -319,15 +411,29 @@ def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
 
 
 def build_classification_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
+    """Classification table: N, label rate and threshold-0.5 metrics per cell.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        judge: Judge model name.
+        platt_n: Rows per recalibration fit sample.
+
+    Returns:
+        LaTeX source.
+
+    Raises:
+        ValueError: Validity != Precision, or a value is invalid.
+    """
     d = spec["decimals"]
 
     undefined: list[str] = []
 
     def cells(r: pd.Series) -> str:
+        """LaTeX cells for one row; Precision/F1 print "--" when nothing is predicted positive."""
         where = f"{setting}/{r['Type']} train={r['Train dataset']} test={r['Test dataset']}"
-        # No predicted positives: Precision is 0/0 and F1 follows. Rendered as an explicit
-        # marker only when the row is consistent with that (Recall == 0 and stored
-        # Validity == 0.0, which validity_rate_from_labels returns for that case).
+        # No predicted positives (Precision NaN, Recall 0, Validity 0.0): print "--".
         no_pred_pos = math.isnan(r["Precision"]) and r["Recall"] == 0.0 and r["Validity"] == 0.0
         if no_pred_pos:
             undefined.append(where)
@@ -360,7 +466,20 @@ def build_classification_table(spec: dict, frames: dict, setting: str, judge: st
 
 
 def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
+    """ECE-variants table: ECE, adaptive ECE and debiased RMSCE with intervals.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        judge: Judge model name.
+        platt_n: Rows per recalibration fit sample.
+
+    Returns:
+        LaTeX source.
+    """
     def cells(r: pd.Series) -> str:
+        """Interval cells for each ECE variant in one row."""
         return " & ".join(_cell(r, v[:3], spec=spec) for v in ECE_VARIANTS)
 
     body = ["Method & Train & Test & " + " & ".join(v[3] for v in ECE_VARIANTS) + " \\\\",
@@ -371,7 +490,17 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, pla
 
 
 def build_tables(spec: dict, frames: dict, judge: str, platt_n: int) -> dict[str, str]:
-    """``{filename: tex}`` for every table, both settings."""
+    """Build all three tables for both settings.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        judge: Judge model name.
+        platt_n: Rows per recalibration fit sample.
+
+    Returns:
+        ``{filename: LaTeX source}``.
+    """
     out = {}
     for setting in SETTINGS:
         for name, fn in (("smece", build_smece_table), ("classification", build_classification_table),
@@ -381,6 +510,11 @@ def build_tables(spec: dict, frames: dict, judge: str, platt_n: int) -> dict[str
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: build every table from ``--config`` and write it to ``output_dir``.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, required=True, help="analysis-configs/<calibration | calibration-validated>/<id>.yaml table spec")
     args = parser.parse_args(argv)
