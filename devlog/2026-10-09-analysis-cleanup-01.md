@@ -25,3 +25,22 @@ kind: build
 - `08d9dba` analysis/common: drop dead loaders, dedupe copied helpers
 - `a61d844` analysis: rename the current scripts; document the new layout
 - `eb806ee` analysis/README: restore the judge_combine_ids fixture-verified caveat
+
+## Session 2026-10-09 (config refresh)
+
+### Prompts
+- "Please help me continue the `analysis/` directory cleanup happening over the last few commits. We're going to focus on the configs in the `analysis-configs` directory. Essentially, I want to re-run all the experiments so I'm looking to create a totally fresh set of configs. These can be based off the old ones: there's already a lot of good material. But we need to be very concrete about parameter choices. In addition, this config directory needs to be more organized. It CANNOT live as a single list: configs should be separated by analysis *type* like they are in the `results/` directory. One thing I don't like about that current setup is that platt scaling analyses fall under the `calibration/` type. That should no longer be the case, they should get their own `platt-scaling/` type. Before writing anything we should go to the scripts that use these and make sure this is adjusted." The request then defined the dataset / extractor / baseline / ablation / judge sets, the 11 analyses to configure (setup, synthetic probes with Platt scaling on, main and ablation recovery-validity with latex tables, MeasEval, calibration, validated calibration, Platt scaling, decision threshold, pond meta analysis, pond clustering) with their parameters, asked whether NTP also uses Platt scaling when the flag is on, required the supermat v3s probe set wherever the probe split is used, and asked for ~2000 bootstrap/resample draws, flagging where that doesn't fit.
+- Decisions: hyphenated type directories for configs and results; seed 0 everywhere; write the calibration-latex and calibration-validated configs now, best effort; "Run on recovery configs, but could we also configure deduplication to run on these as well? That way we really have one uniform setup config."
+- "Good point -- it wasn't intended to and I should have left supermat out of the ablation datasets."
+- On deduplication failing for baselines' scalar provenance fields: "Is this something that would be better placed into postprocessing?" then "I wouldn't fail for a mix of lists and non-lists. Parse every entry individually. Go ahead an implement it there."
+- "Just to confirm -- the standard notation used by the full extraction pipeline has all provenance fields as lists and not just page numbers?"
+- "Drop the resolve_job test, then commit with your proposed split. Then add a /devlog note."
+
+### Implemented
+Analysis configs now live in `analysis/analysis-configs/<type>/<id>.yaml`, with outputs in `analysis/results/<type>/`. Platt scaling and validated calibration have their own types, every loader rejects a config filed under the wrong type, and cross-config ids resolve through `common.config.analysis_config_path`. One recovery-validity config now drives postprocessing, match caching, both deduplication steps and recovery/validity. `analysis/postprocessing.py` gives every record list-valued provenance fields, so baselines can be deduplicated; no matching rule reads those fields. `common/calibration_ids.py` accepts the supermat `v3s` corpus version. The 116 old configs are replaced by 43 new ones dated 2026-10-09 across all nine types. All of them load and cross-check, except the latex configs held back for the pending `calibration_latex.py` update. Nothing has been run yet.
+
+### Commits
+- `7cc648a` calibration_ids: accept the supermat v3s corpus version
+- `7b67b66` analysis: configs by analysis type; one recovery-validity config drives setup
+- `1a7a841` postprocessing: give every record list-valued provenance fields
+- `eb85920` analysis-configs: fresh 2026-10-09 config set for the full rerun
