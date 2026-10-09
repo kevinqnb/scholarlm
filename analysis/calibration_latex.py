@@ -1,15 +1,15 @@
-"""Format v3-schema calibration metrics CSVs as LaTeX tables (formatting only).
+"""Format v4 calibration metrics CSVs as LaTeX tables (formatting only).
 
-Reads metrics_{probe,ntp}.csv from a v3 calibration config (``labels: llm_matching``)
-or a calibration_validated config (``labels: human_validated``). It cannot read v4
-calibration.py output. For each of syn and real it writes three tables into
-``output_dir``:
+Reads metrics_{probe,ntp}.csv written by calibration.py (``labels: llm_matching``) or
+calibration_validated.py (``labels: human_validated``) for a v4 config. Captions state the
+config's recalibration method and fit settings, which the CSVs are checked against.
+For each of syn and real it writes three tables into ``output_dir``:
   - calibration_{setting}_smece.tex: smooth ECE, training-dataset rows x test-dataset columns.
   - calibration_{setting}_classification.tex: N, label rate, Acc/Prec/Rec/F1/AUROC.
   - calibration_{setting}_ece_variants.tex: ECE, adaptive ECE, debiased RMSCE.
 
 Validity is asserted equal to Precision and not printed. CSV rows must exactly
-cover the config's datasets. Non-finite values are errors, except Precision/F1 with
+cover the config's datasets, and their recalibration columns must match the config. Non-finite values are errors, except Precision/F1 with
 no predicted positives, which print as "--". Intervals are printed as stored
 ([lo, hi]); for |gap|-type errors they may lie above the point.
 
@@ -19,8 +19,8 @@ Usage
 
 Table spec (``params.calibration_latex``, every key required)::
 
-    calibration_config: <id of a v3 calibration or calibration_validated analysis config>
-    labels: llm_matching | human_validated   # v3 config | calibration_validated config
+    calibration_config: <id of a v4 calibration or calibration-validated analysis config>
+    labels: llm_matching | human_validated   # calibration config | calibration-validated config
     datasets: {PLW: pond, NF: nfix, SM: supermat}   # ordered; key = label
     decimals: 3
     output_dir: analysis/results/<calibration | calibration-validated>/<name>
@@ -39,16 +39,18 @@ _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    _load_envelope, analysis_config_path, analysis_results_dir, get_section, load_calibration_v3_config,
+    _load_envelope, analysis_config_path, analysis_results_dir, get_section, load_calibration_v4_config,
     load_calibration_validated_config,
 )
 
 SECTION = "calibration_latex"
 SECTION_KEYS = ("calibration_config", "labels", "datasets", "decimals", "output_dir", "label_prefix")
 # Real-cell label source -> loader for the referenced calibration config.
-LABEL_LOADERS = {"llm_matching": load_calibration_v3_config, "human_validated": load_calibration_validated_config}
+LABEL_LOADERS = {"llm_matching": load_calibration_v4_config, "human_validated": load_calibration_validated_config}
 # Real-cell label source -> analysis type (of the calibration config, its results, and this config).
 LABEL_TYPES = {"llm_matching": "calibration", "human_validated": "calibration-validated"}
+# Real-cell label source -> script that writes the metrics CSVs (for error messages).
+LABEL_SCRIPTS = {"llm_matching": "calibration.py", "human_validated": "calibration_validated.py"}
 MISSING_CELL = "--"
 SETTINGS = {"syn": "synthetic", "real": "real"}
 METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file>.csv suffix)
@@ -67,7 +69,7 @@ SMECE = ("SmECE", "SmECE_lo", "SmECE_hi")
 _KEY = ["Dataset type", "Train dataset", "Test dataset", "Type"]
 _NEEDED_COLUMNS = (
     ["Dataset type", "Judge model", "Train dataset", "Test dataset", "Type", "N", "Label rate",
-     "Platt N", "Validity"]
+     "Recalibration", "Fit source", "Fit n", "Fit seed", "pi_te", "Doc resamples", "Validity"]
     + [c for c, _ in CLASSIFICATION]
     + [c for v in ECE_VARIANTS for c in v[:3]]
     + list(SMECE)
@@ -129,6 +131,50 @@ def load_calibration_config(spec: dict) -> dict:
     return LABEL_LOADERS[spec["labels"]](analysis_config_path(LABEL_TYPES[spec["labels"]], spec["calibration_config"]))
 
 
+def _check_recalibration_columns(df: pd.DataFrame, cal_params: dict, csv_path: Path) -> None:
+    """Check a metrics CSV's recalibration columns against the config that should have written it.
+
+    Syn rows are never recalibrated, so their columns are empty. Real rows carry the
+    config's method, fit source and fit seed; ``Fit n`` is ``fit_n`` for sample, 0 for
+    manual and the evaluated row count for oracle; ``pi_te`` is the config's
+    ``pi_te_estimate`` for manual (otherwise it is read from the fit rows, so only finite).
+
+    Args:
+        df: One metrics CSV.
+        cal_params: ``params`` of the calibration config.
+        csv_path: Path (for messages).
+
+    Raises:
+        ValueError: Any column disagrees with the config.
+    """
+    cols = ["Recalibration", "Fit source", "Fit n", "Fit seed", "pi_te"]
+    syn, real = df[df["Dataset type"] == "syn"], df[df["Dataset type"] == "real"]
+    if syn[cols].notna().any().any():
+        raise ValueError(f"{csv_path}: syn rows have recalibration columns {syn[cols].notna().any().to_dict()}")
+    source = cal_params["fit_source"]
+    for col, want in (("Recalibration", cal_params["recalibration"]), ("Fit source", source)):
+        if not (real[col] == want).all():
+            raise ValueError(f"{csv_path}: real rows' {col} {sorted(set(real[col]))} != config {want!r}")
+    if source == "sample":
+        if not (real["Fit n"] == cal_params["fit_n"]).all() or not (real["Fit seed"] == cal_params["fit_seed"]).all():
+            raise ValueError(f"{csv_path}: real rows' Fit n / Fit seed {sorted(set(real['Fit n']))} / "
+                             f"{sorted(set(real['Fit seed']))} != config {cal_params['fit_n']} / {cal_params['fit_seed']}")
+    elif source == "oracle":
+        if not (real["Fit n"] == real["N"]).all() or real["Fit seed"].notna().any():
+            raise ValueError(f"{csv_path}: oracle rows must fit on all N evaluated rows and carry no Fit seed")
+    else:
+        if not (real["Fit n"] == 0).all() or real["Fit seed"].notna().any():
+            raise ValueError(f"{csv_path}: manual rows must have Fit n 0 and no Fit seed")
+        for ds, block in cal_params["datasets"].items():
+            got = real.loc[real["Test dataset"] == ds, "pi_te"]
+            if not (got == block["pi_te_estimate"]).all():
+                raise ValueError(f"{csv_path}: {ds} pi_te {sorted(set(got))} != config {block['pi_te_estimate']}")
+    if not (real["pi_te"].between(0, 1, inclusive="neither")).all():
+        raise ValueError(f"{csv_path}: real rows' pi_te outside (0, 1)")
+    if not (df["Doc resamples"] == cal_params["n_boot"]).all():
+        raise ValueError(f"{csv_path}: Doc resamples {sorted(set(df['Doc resamples']))} != config n_boot {cal_params['n_boot']}")
+
+
 def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
     """Load and validate both metrics CSVs against the referenced calibration config.
 
@@ -140,26 +186,21 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
 
     Raises:
         FileNotFoundError: A metrics CSV is missing.
-        ValueError: Wrong columns, rows, Platt N, datasets or judges, or a
-            recalibration other than platt_fit.
+        ValueError: Wrong columns, rows, datasets or judges, or recalibration columns
+            that disagree with the config.
     """
     cal_id = spec["calibration_config"]
     cal_cfg = load_calibration_config(spec)
     config_datasets = set(cal_cfg["params"]["datasets"])
     if set(spec["datasets"].values()) != config_datasets:
         raise ValueError(f"spec datasets {sorted(spec['datasets'].values())} != {cal_id} datasets {sorted(config_datasets)}")
-    platt_n = cal_cfg["params"]["platt_n"]
-    # Captions below describe Platt scaling; other recalibration methods need their own wording.
-    if cal_cfg["params"]["recalibration"] != "platt_fit":
-        raise ValueError(f"{cal_id}: recalibration {cal_cfg['params']['recalibration']!r} -- "
-                         "captions are written for platt_fit only")
     results_dir = analysis_results_dir(LABEL_TYPES[spec["labels"]]) / cal_id
 
     frames, judges = {}, set()
     for kind, suffix in METHODS:
         csv_path = results_dir / f"metrics_{suffix}.csv"
         if not csv_path.exists():
-            raise FileNotFoundError(f"{csv_path} does not exist -- run calibration_updated_v3.py on {cal_id} first")
+            raise FileNotFoundError(f"{csv_path} does not exist -- run analysis/{LABEL_SCRIPTS[spec['labels']]} on {cal_id} first")
         df = pd.read_csv(csv_path)
         missing = [c for c in _NEEDED_COLUMNS if c not in df.columns]
         if missing:
@@ -172,11 +213,7 @@ def load_metrics(spec: dict) -> tuple[dict[str, pd.DataFrame], str]:
         got = set(zip(df["Dataset type"], df["Train dataset"], df["Test dataset"]))
         if got != expected or len(df) != len(expected):
             raise ValueError(f"{csv_path}: rows {len(df)} do not cover exactly {{syn,real}} x train x test of {sorted(config_datasets)}")
-        syn, real = df[df["Dataset type"] == "syn"], df[df["Dataset type"] == "real"]
-        if syn["Platt N"].notna().any():
-            raise ValueError(f"{csv_path}: syn rows have a Platt N")
-        if not (real["Platt N"] == platt_n).all():
-            raise ValueError(f"{csv_path}: real rows' Platt N {sorted(set(real['Platt N']))} != config platt_n {platt_n}")
+        _check_recalibration_columns(df, cal_cfg["params"], csv_path)
         judges |= set(df["Judge model"])
         frames[kind] = df
     if len(judges) != 1:
@@ -322,7 +359,52 @@ def _n_constant_down_columns(frames: dict, setting: str) -> bool:
     return bool(df[df["Dataset type"] == setting].groupby("Test dataset")["N"].nunique().eq(1).all())
 
 
-def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: int, *, with_ci: bool = True) -> str:
+def _auto_label_text(cal: dict) -> str:
+    """Name the automatic (non-human) validity label the config used.
+
+    Args:
+        cal: ``params`` of the calibration config.
+
+    Returns:
+        ``"judge-or-match"`` if every dataset uses matching labels, else ``"judge"``.
+
+    Raises:
+        ValueError: Datasets disagree, so one caption cannot describe them.
+    """
+    flags = {block["use_matching_labels"] for block in cal["datasets"].values()}
+    if len(flags) != 1:
+        raise ValueError(f"datasets mix use_matching_labels {flags}; the caption cannot name one label source")
+    return "judge-or-match" if flags.pop() else "judge"
+
+
+def _recalibration_text(cal: dict) -> str:
+    """Caption sentence describing the real-cell recalibration the config used.
+
+    Args:
+        cal: ``params`` of the calibration config.
+
+    Returns:
+        One sentence (no trailing period).
+    """
+    n, seed, source = cal["fit_n"], cal["fit_seed"], cal["fit_source"]
+    auto = _auto_label_text(cal)
+    method = cal["recalibration"]
+    if method == "intercept_fit":
+        how = "a single intercept shift (slope 1) fitted by maximum likelihood"
+    elif method == "platt_fit":
+        how = "Platt scaling (slope and intercept) fitted by maximum likelihood"
+    else:
+        how = "a prior-shift correction (slope 1; intercept moved by the log-odds change from the training prevalence)"
+    if source == "sample":
+        return (f"Recalibrated by {how} on {n} {auto}-labelled rows drawn once (seed {seed}) "
+                "from the probe's training documents")
+    if source == "manual":
+        return f"Recalibrated by {how}, to an assumed valid rate per test dataset"
+    return (f"Recalibrated by {how} on the evaluated rows themselves (oracle fit, a diagnostic that overstates "
+            "calibration)")
+
+
+def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, cal: dict, *, with_ci: bool = True) -> str:
     """Shared caption text: test setting, recalibration, judge, row meaning, intervals.
 
     Args:
@@ -330,32 +412,31 @@ def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, platt_n: i
         frames: Output of ``load_metrics``.
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
-        platt_n: Rows per recalibration fit sample.
+        cal: ``params`` of the calibration config.
         with_ci: Include the interval description.
 
     Returns:
         Caption text.
     """
     labels = ", ".join(f"{k}: {v}" for k, v in spec["datasets"].items())
-    ci = ("bracketed 95\\% percentile interval of a document-level bootstrap of the test set" + (
-        "" if setting == "syn" else ", crossed with refitting the recalibration on independent labelled samples")
-        + "; point: the un-resampled value" + ("" if setting == "syn" else ", averaged over those samples"))
+    ci = (f"bracketed 95\\% percentile interval over {cal['n_boot']} document-level bootstrap resamples of the "
+          "evaluation set; point: the un-resampled value")
     if setting == "syn":
         s = "Synthetic test sets; no recalibration."
     else:
+        s = _recalibration_text(cal) + "."
         if spec["labels"] == "human_validated":
-            s = (f"Real extractions scored against human validity labels; Platt scalers fitted on {platt_n} "
-                 "LLM+matching-labelled rows per test dataset.")
+            s += " Scored against human validity labels on the validated rows"
         else:
-            s = f"Real extractions, Platt-scaled on {platt_n} labelled rows per test dataset."
+            s += f" Scored against {_auto_label_text(cal)} validity labels"
         # Checked from the data: exclusion is per cell, so N may vary.
         n_note = ("$N$ is the same down each column" if _n_constant_down_columns(frames, setting)
                   else "$N$ differs down a column")
-        s += f" Test rows exclude that Platt pool and the training probe's documents; {n_note}."
+        s += f", all outside the probe's training documents; {n_note}."
     return f"{s} Judge model \\texttt{{{judge}}}. Rows: dataset the probe / NTP calibrator was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else "")
 
 
-def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
+def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
     """Main table: smooth ECE, NTP then Probe blocks, train rows x test columns, best bolded.
 
     Args:
@@ -363,7 +444,7 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_
         frames: Output of ``load_metrics``.
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
-        platt_n: Rows per recalibration fit sample.
+        cal: ``params`` of the calibration config.
 
     Returns:
         LaTeX source.
@@ -383,7 +464,7 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, platt_
             cells = [_cell(lk[(kind, tr, te)], SMECE, spec=spec, bold=lk[(kind, tr, te)][SMECE[0]] == best[te])
                      for te in labels.values()]
             body.append(f"{kind} ({tl}) & " + " & ".join(cells) + " \\\\")
-    caption = f"Smooth ECE (lower is better; best per column in bold). " + _caption_tail(spec, frames, setting, judge, platt_n)
+    caption = f"Smooth ECE (lower is better; best per column in bold). " + _caption_tail(spec, frames, setting, judge, cal)
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
@@ -410,7 +491,7 @@ def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
     return body
 
 
-def build_classification_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
+def build_classification_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
     """Classification table: N, label rate and threshold-0.5 metrics per cell.
 
     Args:
@@ -418,7 +499,7 @@ def build_classification_table(spec: dict, frames: dict, setting: str, judge: st
         frames: Output of ``load_metrics``.
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
-        platt_n: Rows per recalibration fit sample.
+        cal: ``params`` of the calibration config.
 
     Returns:
         LaTeX source.
@@ -461,11 +542,11 @@ def build_classification_table(spec: dict, frames: dict, setting: str, judge: st
         note = (f" -- : undefined (no row predicted valid at threshold 0.5; {len(undefined)} cell(s)"
                 " in this table).")
     caption = ("Classification metrics at threshold 0.5 (no intervals stored). Pos. rate: fraction of "
-               "test rows labelled valid." + note + " " + _caption_tail(spec, frames, setting, judge, platt_n, with_ci=False))
+               "test rows labelled valid." + note + " " + _caption_tail(spec, frames, setting, judge, cal, with_ci=False))
     return _wrap(spec, setting, "classification", body, caption, "lll" + "r" + "c" * (1 + len(CLASSIFICATION)))
 
 
-def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, platt_n: int) -> str:
+def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
     """ECE-variants table: ECE, adaptive ECE and debiased RMSCE with intervals.
 
     Args:
@@ -473,7 +554,7 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, pla
         frames: Output of ``load_metrics``.
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
-        platt_n: Rows per recalibration fit sample.
+        cal: ``params`` of the calibration config.
 
     Returns:
         LaTeX source.
@@ -485,18 +566,18 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, pla
     body = ["Method & Train & Test & " + " & ".join(v[3] for v in ECE_VARIANTS) + " \\\\",
             *_long_rows(spec, frames, setting, cells)]
     caption = ("Alternative calibration errors: equal-width ECE, equal-mass (adaptive) ECE, and debiased "
-               "RMSCE (Kumar et al., 2019). " + _caption_tail(spec, frames, setting, judge, platt_n))
+               "RMSCE (Kumar et al., 2019). " + _caption_tail(spec, frames, setting, judge, cal))
     return _wrap(spec, setting, "ece-variants", body, caption, "lll" + "c" * len(ECE_VARIANTS))
 
 
-def build_tables(spec: dict, frames: dict, judge: str, platt_n: int) -> dict[str, str]:
+def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, str]:
     """Build all three tables for both settings.
 
     Args:
         spec: Table spec.
         frames: Output of ``load_metrics``.
         judge: Judge model name.
-        platt_n: Rows per recalibration fit sample.
+        cal: ``params`` of the calibration config.
 
     Returns:
         ``{filename: LaTeX source}``.
@@ -505,7 +586,7 @@ def build_tables(spec: dict, frames: dict, judge: str, platt_n: int) -> dict[str
     for setting in SETTINGS:
         for name, fn in (("smece", build_smece_table), ("classification", build_classification_table),
                          ("ece_variants", build_variants_table)):
-            out[f"calibration_{setting}_{name}.tex"] = fn(spec, frames, setting, judge, platt_n)
+            out[f"calibration_{setting}_{name}.tex"] = fn(spec, frames, setting, judge, cal)
     return out
 
 
@@ -521,8 +602,7 @@ def main(argv: list[str] | None = None) -> None:
 
     spec = load_spec(args.config)
     frames, judge = load_metrics(spec)
-    platt_n = load_calibration_config(spec)["params"]["platt_n"]
-    tables = build_tables(spec, frames, judge, platt_n)
+    tables = build_tables(spec, frames, judge, load_calibration_config(spec)["params"])
     out_dir = Path(spec["output_dir"])
     out_dir = out_dir if out_dir.is_absolute() else _REPO_ROOT / out_dir
     out_dir.mkdir(parents=True, exist_ok=True)

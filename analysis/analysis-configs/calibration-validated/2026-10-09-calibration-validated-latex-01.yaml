@@ -1,9 +1,9 @@
 id: 2026-10-09-calibration-validated-latex-01
 project: scholarlm
 description: >
-  NOT YET VALID: analysis/calibration_latex.py's captions are written for platt_fit only, and 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01
-  is intercept_fit; fails until the latex script is updated. LaTeX tables for 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01.
-  Formatting only; seed unused.
+  LaTeX tables (synthetic and real) for 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01. Formatting
+  only; seed unused. Needs that config's metrics CSVs, so it cannot run until the synthetic probes are trained and
+  calibration_validated.py has run.
 seed: 0
 params:
   calibration_latex:
