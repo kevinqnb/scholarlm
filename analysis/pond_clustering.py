@@ -572,7 +572,7 @@ def main() -> None:
     # Adjust per row, before aggregation into cells and entities.
     ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
     if moments is not None:
-        print(f"[clustering] outlier_adjust: confidences x exp(-(x-mu)^2/2sigma^2)\n{moments}")
+        print(f"[clustering] outlier_adjust: confidences x exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
 
     # ── Entity x attribute matrices ──
     span = ext_df.groupby('entity_id')['document_id'].nunique()
@@ -665,7 +665,7 @@ def main() -> None:
         analysis_config_id=cfg['id'], script='analysis/pond_clustering.py', seed=seed, params=sec,
         inputs={k: str(v) for k, v in inputs.items()},
         outlier_adjust=sec['outlier_adjust'],
-        outlier_moments=None if moments is None else moments.to_dict('index'),
+        outlier_moments=None if moments is None else moments.to_dict('records'),
         keep_attrs=keep_attrs, n_tied_attribute_sets=n_ties,
         n_gt_entities=int(len(gt_val)), n_ext_entities=int(len(ext_val)),
         n_gt_multi_row_cells=int((gt_cell_rows > 1).sum()), n_ext_multi_row_cells=int((ext_cell_rows > 1).sum()),

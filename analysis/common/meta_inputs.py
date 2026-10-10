@@ -34,7 +34,9 @@ from analysis.common.provenance import sha256_file
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
-                   "n_shuffle_samples", "outlier_adjust", "threshold_mode")
+                   "n_shuffle_samples", "outlier_adjust", "threshold_mode", "w1_curve_scale")
+# Which W1 the W1-vs-threshold figure plots: on raw values, or on log10 of the positive values.
+W1_CURVE_SCALES = ("raw", "log")
 # calibration_version -> loader that validates the calibration config.
 CALIBRATION_LOADERS = {"v4": load_calibration_v4_config}
 # Reference distribution for Q-Q / W2: curated ground-truth rows, or extracted rows
@@ -69,7 +71,8 @@ def load_meta_v2_config(path: Path) -> dict:
     unfiltered set); ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
     sample scored; ``n_shuffle_samples`` sizes the permutation control;
-    ``outlier_adjust`` applies outlier_weight.py before thresholding.
+    ``outlier_adjust`` applies outlier_weight.py before thresholding; ``w1_curve_scale``
+    is one of W1_CURVE_SCALES.
 
     Args:
         path: Path to the config YAML.
@@ -108,6 +111,9 @@ def load_meta_v2_config(path: Path) -> dict:
     mn = sec["min_n"]
     if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")
+    if sec["w1_curve_scale"] not in W1_CURVE_SCALES:
+        raise ValueError(f"{path}: {SECTION_V2}.w1_curve_scale must be one of {W1_CURVE_SCALES}, "
+                         f"got {sec['w1_curve_scale']!r}")
     return cfg
 
 

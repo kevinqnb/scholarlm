@@ -94,7 +94,7 @@ GOOD = {
         "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
-        "thresholds": [0.0, 0.5], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False,
+        "thresholds": [0.0, 0.5], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False, "w1_curve_scale": "raw",
         "threshold_mode": "value",
     }},
 }
