@@ -384,6 +384,11 @@ def _valid_range(n: int, lo_cap: float = QLEVELS.min(), hi_cap: float = QLEVELS.
     return lo, hi
 
 
+# Figure text for attribute keys and unit strings that don't read correctly as-is.
+ATTRIBUTE_DISPLAY = {'ph': 'pH'}
+UNIT_DISPLAY = {'m^2': r'$m^2$'}
+
+
 def _attr_title(attribute: str) -> str:
     """Panel title for an attribute, with its standard unit.
 
@@ -394,8 +399,8 @@ def _attr_title(attribute: str) -> str:
         E.g. ``"max depth (m)"``; no unit for pH and percentages.
     """
     unit = STANDARD_UNITS[attribute]
-    unit_str = f' ({unit})' if unit and unit != 'percent' else ''
-    return attribute.replace('_', ' ') + unit_str
+    unit_str = f' ({UNIT_DISPLAY.get(unit, unit)})' if unit and unit != 'percent' else ''
+    return ATTRIBUTE_DISPLAY.get(attribute, attribute.replace('_', ' ')) + unit_str
 
 
 def _axis_limits(values: np.ndarray, log: bool) -> tuple[float, float]:

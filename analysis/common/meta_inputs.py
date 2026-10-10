@@ -35,8 +35,9 @@ SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
                    "n_shuffle_samples", "outlier_adjust", "threshold_mode", "w1_curve_scale")
-# Which W1 the W1-vs-threshold figure plots: on raw values, or on log10 of the positive values.
-W1_CURVE_SCALES = ("raw", "log")
+# Which W1 the W1-vs-threshold figure plots: raw values for every attribute, or each
+# attribute's native scale (log10 values for pond_meta.LOG_SCALE_ATTRIBUTES, raw otherwise).
+W1_CURVE_SCALES = ("raw", "native")
 # calibration_version -> loader that validates the calibration config.
 CALIBRATION_LOADERS = {"v4": load_calibration_v4_config}
 # Reference distribution for Q-Q / W2: curated ground-truth rows, or extracted rows
@@ -70,7 +71,7 @@ def load_meta_v2_config(path: Path) -> dict:
     Key rules: ``thresholds`` is strictly increasing in [0, 1) and starts at 0 (the
     unfiltered set); ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
-    sample scored; ``n_shuffle_samples`` sizes the permutation control;
+    sample scored; ``n_shuffle_samples`` is the number of random-subset draws in the baseline;
     ``outlier_adjust`` applies outlier_weight.py before thresholding; ``w1_curve_scale``
     is one of W1_CURVE_SCALES.
 

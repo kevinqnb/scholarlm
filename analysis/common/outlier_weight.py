@@ -71,8 +71,8 @@ def non_outlier_factor(ext_df: pd.DataFrame, moments: pd.DataFrame) -> pd.Series
 def add_outlier_columns(ext_df: pd.DataFrame, adjust: bool) -> tuple[pd.DataFrame, pd.DataFrame | None]:
     """Add ``{c}_raw`` and ``outlier_factor`` columns and rescale each PROB_COL ``c``.
 
-    Shuffled controls permute ``{c}_raw`` and reapply each row's own factor, so they
-    keep the outlier filter and break only the confidence-to-row link.
+    ``{c}_raw`` keeps the unadjusted confidence: pond_clustering's shuffled control
+    permutes it and reapplies each row's own factor.
 
     Args:
         ext_df: Extraction rows with ``ntp_prob``, ``probe_prob``, ``ecosystem_bucket``,
