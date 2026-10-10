@@ -2,24 +2,37 @@
 
 Usage: python analysis/pond_clustering.py analysis/analysis-configs/clustering/<id>.yaml
 
-1. Rows and confidences come from pond_meta.load_data (held-out documents only).
-2. Build entity x attribute matrices: one cell per (entity, attribute), holding the
+1. Rows and confidences come from pond_meta.load_data (held-out documents only), with
+   pond_meta_analysis.py's unit table (UNIT_CONVERSION_V2) and therefore the same
+   PHYSICAL_BOUNDS filter. Each extracted row gets outlier_weight.py's non-outlier
+   factor, computed on all rows exactly as in pond_meta_analysis.py.
+2. Both sides are restricted to rows whose ecosystem bucket is pond, lake or wetland
+   (ECOSYSTEMS), and non-positive values of LOG_SCALE_ATTRIBUTES are dropped (they have
+   no log10).
+3. Build entity x attribute matrices: one cell per (entity, attribute), holding the
    median value and mean confidence of its rows. GT entities are distinct (document_id,
    name, ecosystem); extracted entities are entity_ids.
-3. Pick the attributes: a fixed list, or the subset (of the given sizes) whose densified
+4. Pick the attributes: a fixed list, or the subset (of the given sizes) whose densified
    GT matrix maximises n_rows * d.
-4. Densify, KNN-impute and standardize the GT and extracted matrices separately. Entity
-   confidence = product of its observed cells' confidences.
-5. KMeans on the GT gives reference centroids. For each gamma, run KMeans on the
-   extraction with weights conf ** gamma and score the mean Hungarian-matched centroid
-   distance. A shuffled-confidence arm per method is the permutation control.
+5. Densify; log10 the LOG_SCALE_ATTRIBUTES; standardize both sides with one scaler fit
+   on the GT (NaN-aware), so both live in GT-standard-deviation coordinates; KNN-impute
+   each side on its own. Entity confidence = mean of its observed cells' confidences.
+6. n_init single-start KMeans fits on the GT give n_init reference centroid sets. For
+   each reference fit i, each arm and each gamma, n_runs single-start KMeans fits on the
+   extraction with weights conf ** gamma are scored by the mean Hungarian-matched
+   centroid distance to reference i. Every (i, r) trial uses the same KMeans seed in
+   every arm.
 
-With outlier_adjust, row confidences are first scaled by outlier_weight.py, and the
-shuffled arms permute raw row confidences (RowShuffler). Asserted known answers: the
-GT refit is at distance 0, and at gamma = 0 all arms give identical fits.
+Arms: ``ntp_conf`` / ``probe_conf`` (confidence alone), ``ntp`` / ``probe`` (confidence
+x non-outlier factor), and ``random`` (a fresh U(0, 1) confidence per entity per trial).
+
+Each curve is the mean over the n_init x n_runs trials. Its band is a 95% CI over KMeans
+initializations only -- a t-interval over the n_init per-reference-fit means -- and says
+nothing about document / entity sampling. Asserted known answers: each GT refit with its
+own seed is at distance 0, and at gamma = 0 every arm gives identical fits.
 
 Outputs in analysis/results/clustering/<config id>/: attribute_sets.csv,
-centroid_distance.csv (mean, se, Kish n_eff per arm and gamma), distances.npz,
+centroid_distance.csv (mean, CI, Kish n_eff per arm and gamma), distances.npz,
 meta.json, figures/.
 """
 from __future__ import annotations
@@ -41,8 +54,10 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import seaborn as sns
+from scipy import stats
 from sklearn.cluster import KMeans
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.preprocessing import StandardScaler
@@ -53,9 +68,10 @@ from scipy.spatial.distance import cdist
 from analysis.common.config import _load_envelope, analysis_results_dir, get_section, is_int
 from analysis.common.outlier_weight import add_outlier_columns
 from analysis.common.meta_inputs import CALIBRATION_LOADERS, CONFIDENCE_CHOICES, ROWS_CHOICES, resolve_meta_inputs
-from analysis.common.pond_meta import DATASET, PAPER_RCPARAMS, UNIT_CONVERSION, load_data
+from analysis.common.pond_meta import (
+    DATASET, ECOSYSTEMS, LOG_SCALE_ATTRIBUTES, PAPER_RCPARAMS, UNIT_CONVERSION_V2, load_data,
+)
 
-# Base style; _apply_style() overrides part of it before plotting.
 mpl.rcParams.update(PAPER_RCPARAMS)
 
 SECTION = 'clustering'
@@ -65,26 +81,50 @@ SECTION_KEYS = (
     'probe_train_dataset', 'rows', 'deduplication_config_id', 'confidence',
     # method
     'missing_threshold', 'attributes', 'attribute_set_sizes', 'n_clusters', 'knn_neighbors', 'gammas',
-    'n_runs', 'n_shuffle_samples', 'outlier_adjust',
+    'n_init', 'n_runs',
 )
 GAMMA_KEYS = ('start', 'stop', 'num')
 # Only pond -> pond is supported; load_data reads that cell only.
 PROBE_TRAIN_DATASETS = (DATASET,)
 GT_ENTITY_COLS = ['document_id', 'name', 'ecosystem']
-CONF_COLS = {'ntp': 'ntp_prob', 'probe': 'probe_prob'}
-ARMS = ('ntp', 'probe', 'ntp_shuffled', 'probe_shuffled')
-# Third rng seed word per shuffled arm (rng [seed, sample, stream]).
-SHUFFLE_STREAMS = {'ntp': 1, 'probe': 2}
+# Confidence column per arm: *_raw is the confidence alone, the plain column is
+# confidence x non-outlier factor (see outlier_weight.add_outlier_columns).
+ARM_PROB_COL = {'ntp_conf': 'ntp_prob_raw', 'probe_conf': 'probe_prob_raw', 'ntp': 'ntp_prob', 'probe': 'probe_prob'}
+RANDOM_ARM = 'random'
+ARMS = (*ARM_PROB_COL, RANDOM_ARM)
+# Second seed word per RNG use (seeds are [seed, stream, ...]).
+GT_STREAM, EXT_STREAM, RANDOM_STREAM = 0, 1, 100
+CI_LEVEL = 0.95
 CLUSTERING_ROOT = analysis_results_dir('clustering')
 
-# blue: 7, orange: 1, red: 0, green: 4
-palette = sns.color_palette('husl', 10)
-ARM_STYLE = {
-    'ntp':    dict(color=palette[2], ls='-', lw=3.0, alpha=0.85, label='NTP'),
-    'probe':  dict(color=palette[7], ls='-', lw=3.0, label='Probe'),
-    'ntp_shuffled':   dict(color=palette[2], ls=':', lw=2.0, alpha=0.85, label='NTP (shuffled)'),
-    'probe_shuffled': dict(color=palette[7], ls=':', lw=2.0, alpha=0.85, label='Probe (shuffled)'),
+# Curves, as pond_meta_analysis.py's W1-vs-threshold curves: pastel tab10 (NTP blue,
+# probe green); confidence x factor solid, confidence only dashed, the random baseline
+# grey dotted.
+PASTEL_WHITE_FRACTION = 0.35
+
+
+def _pastel(color) -> tuple:
+    """Lighten a color by mixing in PASTEL_WHITE_FRACTION white.
+
+    Args:
+        color: Any matplotlib color.
+
+    Returns:
+        RGB tuple.
+    """
+    rgb = np.array(mcolors.to_rgb(color))
+    return tuple((1 - PASTEL_WHITE_FRACTION) * rgb + PASTEL_WHITE_FRACTION)
+
+
+_TAB10 = sns.color_palette('tab10', 10)
+CURVE_STYLE = {
+    'ntp':        dict(color=_pastel(_TAB10[0]), ls='-', lw=2.5, label='NTP'),
+    'probe':      dict(color=_pastel(_TAB10[2]), ls='-', lw=2.5, label='Probe'),
+    'ntp_conf':   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (confidence only)'),
+    'probe_conf': dict(color=_pastel(_TAB10[2]), ls='--', lw=1.8, label='Probe (confidence only)'),
+    'random':     dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random'),
 }
+assert set(CURVE_STYLE) == set(ARMS)
 
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -107,6 +147,7 @@ def load_clustering_config(path: Path) -> dict:
 
     Exactly one of ``attributes`` and ``attribute_set_sizes`` is set. ``gammas`` is
     {start, stop, num} for np.linspace with start == 0 (needed for the gamma = 0 check).
+    ``n_init`` (GT reference fits) must be >= 2 for the CI.
 
     Args:
         path: Config path.
@@ -165,11 +206,12 @@ def load_clustering_config(path: Path) -> dict:
                          f"positive ints, got {sizes!r}")
     if not is_int(sec['n_clusters']) or sec['n_clusters'] < 2:
         raise ValueError(f"{path}: {SECTION}.n_clusters must be an int >= 2, got {sec['n_clusters']!r}")
-    for k in ('knn_neighbors', 'n_runs', 'n_shuffle_samples'):
+    for k in ('knn_neighbors', 'n_runs'):
         if not _is_pos_int(sec[k]):
             raise ValueError(f"{path}: {SECTION}.{k} must be a positive int, got {sec[k]!r}")
-    if not isinstance(sec['outlier_adjust'], bool):
-        raise ValueError(f"{path}: {SECTION}.outlier_adjust must be a bool, got {sec['outlier_adjust']!r}")
+    if not is_int(sec['n_init']) or sec['n_init'] < 2:
+        raise ValueError(f"{path}: {SECTION}.n_init must be an int >= 2 (the CI needs two GT fits), "
+                         f"got {sec['n_init']!r}")
     g = sec['gammas']
     if not isinstance(g, dict) or set(g) != set(GAMMA_KEYS):
         raise ValueError(f"{path}: {SECTION}.gammas must have exactly the keys {list(GAMMA_KEYS)}, got {g!r}")
@@ -213,6 +255,41 @@ def resolve_clustering_inputs(cfg: dict) -> dict:
         raise ValueError(f"{cfg['id']}: declared != calibration config {sec['calibration_config_id']} "
                          f"(declared, actual): {bad}")
     return inputs
+
+
+# ── Row filters ─────────────────────────────────────────────────────────────
+
+def filter_ecosystems(df: pd.DataFrame, entity_cols: list[str]) -> pd.DataFrame:
+    """Keep rows whose ecosystem bucket is in ECOSYSTEMS (drops 'other').
+
+    Args:
+        df: Rows with ``ecosystem_bucket``.
+        entity_cols: Columns identifying an entity; each entity must have one bucket,
+            so the filter keeps or drops whole entities.
+
+    Returns:
+        The kept rows (index reset).
+
+    Raises:
+        ValueError: An entity's rows span several buckets.
+    """
+    n_buckets = df.groupby(entity_cols, dropna=False)['ecosystem_bucket'].nunique()
+    if (n_buckets > 1).any():
+        raise ValueError(f'{int((n_buckets > 1).sum())} entities span several ecosystem buckets')
+    return df[df['ecosystem_bucket'].isin(ECOSYSTEMS)].reset_index(drop=True)
+
+
+def drop_nonpositive_log(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop valued rows of LOG_SCALE_ATTRIBUTES with converted_value <= 0 (no log10).
+
+    Args:
+        df: Rows with ``attribute`` and ``converted_value``.
+
+    Returns:
+        The kept rows (index reset).
+    """
+    bad = df['attribute'].isin(LOG_SCALE_ATTRIBUTES) & (df['converted_value'] <= 0)
+    return df[~bad].reset_index(drop=True)
 
 
 # ── Matrices ────────────────────────────────────────────────────────────────
@@ -325,25 +402,84 @@ def fixed_attribute_set(value: pd.DataFrame, attrs: list[str], threshold: float)
                               score=len(sub) * len(attrs))])
 
 
-def process_matrix(m: pd.DataFrame, knn_neighbors: int) -> np.ndarray:
-    """KNN-impute (distance-weighted) and standardize, both fit on ``m`` alone.
+def log_scale(m: pd.DataFrame) -> pd.DataFrame:
+    """log10 the LOG_SCALE_ATTRIBUTES columns; other columns unchanged.
 
     Args:
-        m: Dense-ish matrix with NaNs.
+        m: Matrix with NaNs; log columns must be > 0 where observed.
+
+    Returns:
+        Copy with log columns replaced by their log10.
+
+    Raises:
+        ValueError: A non-positive value in a log column.
+    """
+    x = m.copy()
+    for c in x.columns:
+        if c in LOG_SCALE_ATTRIBUTES:
+            if (x[c] <= 0).any():
+                raise ValueError(f'{int((x[c] <= 0).sum())} non-positive values in log-scaled column {c!r}')
+            x[c] = np.log10(x[c])
+    return x
+
+
+def _impute(scaled: np.ndarray, knn_neighbors: int) -> np.ndarray:
+    """KNN-impute (distance-weighted) a scaled matrix, fit on that matrix alone.
+
+    Args:
+        scaled: Standardized matrix with NaNs.
         knn_neighbors: Neighbours for imputation.
 
     Returns:
-        Finite standardized array of the same shape.
+        Finite array of the same shape.
     """
-    imputed = KNNImputer(n_neighbors=knn_neighbors, weights='distance').fit_transform(m)
-    assert imputed.shape == m.shape, f'KNNImputer changed shape {m.shape} -> {imputed.shape} (an all-NaN column?)'
-    X = StandardScaler().fit_transform(imputed)
-    assert np.isfinite(X).all(), 'non-finite values after imputation / scaling (a constant column?)'
+    X = KNNImputer(n_neighbors=knn_neighbors, weights='distance').fit_transform(scaled)
+    assert X.shape == scaled.shape, f'KNNImputer changed shape {scaled.shape} -> {X.shape} (an all-NaN column?)'
+    assert np.isfinite(X).all(), 'non-finite values after scaling / imputation'
     return X
 
 
+def process_matrices(gt: pd.DataFrame, ext: pd.DataFrame, knn_neighbors: int):
+    """log10, then standardize both sides with a scaler fit on the GT alone, then KNN-impute each side.
+
+    One GT-fitted transform puts both sides (and so both centroid sets) in the same
+    coordinates -- GT standard deviations from the GT mean -- so a systematic shift or
+    inflated spread in the extraction shows up as distance instead of being scaled away.
+    The scaler ignores NaNs, so imputation runs on scaled features; each side's imputer
+    is fit on that side only.
+
+    Args:
+        gt: GT dense matrix with NaNs.
+        ext: Extracted dense matrix, same columns in the same order.
+        knn_neighbors: Neighbours for imputation.
+
+    Returns:
+        Tuple of:
+            - X_gt, X_ext: finite arrays of the input shapes
+            - the scaler's per-column ``mean`` and ``scale`` (log10 units for log columns)
+
+    Raises:
+        ValueError: Column mismatch, a non-positive value in a log column, or a GT column
+            with fewer than two distinct observed values.
+    """
+    if list(gt.columns) != list(ext.columns):
+        raise ValueError(f'GT columns {list(gt.columns)} != extracted columns {list(ext.columns)}')
+    gt_log, ext_log = log_scale(gt), log_scale(ext)
+    for c in gt_log.columns:
+        if gt_log[c].nunique() < 2:
+            raise ValueError(f'GT column {c!r} has fewer than two distinct observed values: cannot standardize')
+    scaler = StandardScaler().fit(gt_log)
+    out = []
+    for x in (gt_log, ext_log):
+        scaled = scaler.transform(x)
+        assert (np.isnan(scaled) == x.isna().to_numpy()).all(), 'scaling changed the NaN pattern'
+        out.append(_impute(scaled, knn_neighbors))
+    params = {c: dict(mean=float(mu), scale=float(s)) for c, mu, s in zip(gt.columns, scaler.mean_, scaler.scale_)}
+    return out[0], out[1], params
+
+
 def entity_confidence(conf: pd.DataFrame) -> np.ndarray:
-    """Entity confidence: product of its observed cells' confidences.
+    """Entity confidence: mean of its observed cells' confidences.
 
     Args:
         conf: Entity x attribute confidence matrix (NaN = unobserved).
@@ -356,73 +492,42 @@ def entity_confidence(conf: pd.DataFrame) -> np.ndarray:
     """
     if conf.isna().all(axis=1).any():
         raise ValueError(f'{int(conf.isna().all(axis=1).sum())} entities have no observed cell')
-    p = conf.prod(axis=1, min_count=1).to_numpy(dtype=float)
+    p = conf.mean(axis=1, skipna=True).to_numpy(dtype=float)
     assert np.isfinite(p).all() and ((p >= 0) & (p <= 1)).all(), 'entity confidence outside [0, 1]'
     return p
 
 
-class RowShuffler:
-    """Row-level permutation control for one method, used when outlier_adjust is on.
+# ── Clustering ──────────────────────────────────────────────────────────────
 
-    Each draw permutes raw row confidences within each attribute (over all valued rows),
-    reapplies each row's outlier factor, and re-aggregates like cell_matrix /
-    entity_confidence.
+def kmeans_seed(*words: int) -> int:
+    """A KMeans random_state derived from integer seed words.
 
     Args:
-        ext_df: Extracted rows with ``{prob_col}_raw`` and ``outlier_factor``.
-        prob_col: Confidence column.
-        dense_index: Entity ids of the dense matrix.
-        keep_attrs: Attributes clustered on.
+        words: Seed words, e.g. (seed, stream, i, r).
+
+    Returns:
+        A uint32-range int.
     """
+    return int(np.random.SeedSequence([int(w) for w in words]).generate_state(1)[0])
 
-    def __init__(self, ext_df: pd.DataFrame, prob_col: str, dense_index: pd.Index, keep_attrs: list[str]):
-        """Precompute row-to-cell and cell-to-matrix indices (see class docstring for args)."""
-        d = ext_df.dropna(subset=['converted_value'])
-        d = d[d['attribute'].isin(keep_attrs)]
-        self.raw = d[f'{prob_col}_raw'].to_numpy(dtype=float)
-        self.factor = d['outlier_factor'].to_numpy(dtype=float)
-        assert np.isfinite(self.raw).all() and np.isfinite(self.factor).all()
-        attr_pos = pd.Categorical(d['attribute'], categories=keep_attrs).codes
-        self.attr_rows = [np.flatnonzero(attr_pos == j) for j in range(len(keep_attrs))]
-        assert all(len(r) > 0 for r in self.attr_rows), 'a kept attribute has no valued extracted rows'
-        code = d.groupby(['entity_id', 'attribute'], sort=False).ngroup().to_numpy()
-        self.cell_code, self.n_cells = code, int(code.max()) + 1
-        self.cell_count = np.bincount(code, minlength=self.n_cells)
-        first = pd.DataFrame({'code': code, 'entity_id': d['entity_id'].to_numpy(),
-                              'attr_pos': attr_pos}).drop_duplicates('code').sort_values('code')
-        assert len(first) == self.n_cells
-        self.cell_ent = dense_index.get_indexer(first['entity_id'])
-        self.cell_attr = first['attr_pos'].to_numpy()
-        self.in_dense = self.cell_ent >= 0
-        self.shape = (len(dense_index), len(keep_attrs))
 
-    def confidence(self, raw: np.ndarray) -> np.ndarray:
-        """Entity confidences from per-row raw confidences.
+def fit_kmeans(X: np.ndarray, n_clusters: int, random_state: int, sample_weight=None) -> KMeans:
+    """One single-start (n_init=1) KMeans fit; a ConvergenceWarning is an error.
 
-        Args:
-            raw: Raw confidence per valued row (same order as ``self.raw``).
+    Args:
+        X: Feature matrix.
+        n_clusters: Number of clusters.
+        random_state: KMeans seed.
+        sample_weight: Optional per-row weights.
 
-        Returns:
-            One confidence per dense entity.
-        """
-        cell_mean = np.bincount(self.cell_code, weights=raw * self.factor, minlength=self.n_cells) / self.cell_count
-        m = np.full(self.shape, np.nan)
-        m[self.cell_ent[self.in_dense], self.cell_attr[self.in_dense]] = cell_mean[self.in_dense]
-        return entity_confidence(pd.DataFrame(m))
-
-    def shuffled(self, rng: np.random.Generator) -> np.ndarray:
-        """Entity confidences after permuting raw row confidences within each attribute.
-
-        Args:
-            rng: Random generator.
-
-        Returns:
-            One confidence per dense entity.
-        """
-        raw = self.raw.copy()
-        for rows in self.attr_rows:
-            raw[rows] = rng.permutation(self.raw[rows])
-        return self.confidence(raw)
+    Returns:
+        The fitted KMeans.
+    """
+    km = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=1)
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', ConvergenceWarning)
+        km.fit(X, sample_weight=sample_weight)
+    return km
 
 
 def centroid_matching_distance(A: np.ndarray, B: np.ndarray, metric: str = 'euclidean') -> float:
@@ -442,7 +547,7 @@ def centroid_matching_distance(A: np.ndarray, B: np.ndarray, metric: str = 'eucl
 
 
 def distance_curve(X: np.ndarray, conf: np.ndarray, gt_centers: np.ndarray, n_clusters: int,
-                   gammas: np.ndarray, kmeans_seed: int) -> np.ndarray:
+                   gammas: np.ndarray, random_state: int) -> np.ndarray:
     """Centroid distance to the GT of weighted KMeans, for each gamma.
 
     Args:
@@ -451,22 +556,31 @@ def distance_curve(X: np.ndarray, conf: np.ndarray, gt_centers: np.ndarray, n_cl
         gt_centers: Reference centroids.
         n_clusters: Number of clusters.
         gammas: Weight exponents.
-        kmeans_seed: KMeans random_state.
+        random_state: KMeans seed, the same for every gamma.
 
     Returns:
         One distance per gamma.
-
-    Raises:
-        ConvergenceWarning: KMeans did not converge (promoted to an error).
     """
     out = np.empty(len(gammas))
     for i, gamma in enumerate(gammas):
-        km = KMeans(n_clusters=n_clusters, random_state=kmeans_seed, n_init='auto')
-        with warnings.catch_warnings():
-            warnings.simplefilter('error', ConvergenceWarning)
-            km.fit(X, sample_weight=conf ** gamma)
+        km = fit_kmeans(X, n_clusters, random_state, sample_weight=conf ** gamma)
         out[i] = centroid_matching_distance(gt_centers, km.cluster_centers_)
     return out
+
+
+def random_confidence(seed: int, i: int, r: int, n: int) -> np.ndarray:
+    """The random arm's U(0, 1) entity confidences for trial (i, r).
+
+    Args:
+        seed: Global seed.
+        i: GT reference fit.
+        r: Extraction run.
+        n: Number of entities.
+
+    Returns:
+        ``n`` draws from U(0, 1).
+    """
+    return np.random.default_rng([seed, RANDOM_STREAM, i, r]).uniform(0.0, 1.0, n)
 
 
 def kish_n_eff(w: np.ndarray) -> float:
@@ -482,71 +596,72 @@ def kish_n_eff(w: np.ndarray) -> float:
     return float(w.sum() ** 2 / (w ** 2).sum())
 
 
+def block_mean_ci(d: np.ndarray, level: float = CI_LEVEL) -> dict:
+    """Grand mean and t-interval over the per-reference-fit (block) means.
+
+    Trials sharing a GT reference fit are correlated, so the n_init block means, not
+    the n_init x n_runs trials, are treated as the independent units.
+
+    Args:
+        d: Distances, (n_init, n_runs).
+        level: Confidence level.
+
+    Returns:
+        Dict with ``mean``, ``ci_lo``, ``ci_hi``, ``se`` (SE of the grand mean).
+    """
+    assert d.ndim == 2 and d.shape[0] >= 2 and np.isfinite(d).all(), d.shape
+    blocks = d.mean(axis=1)
+    mean = float(blocks.mean())
+    se = float(blocks.std(ddof=1) / np.sqrt(blocks.size))
+    half = float(stats.t.ppf(0.5 + level / 2, blocks.size - 1)) * se
+    return dict(mean=mean, ci_lo=mean - half, ci_hi=mean + half, se=se)
+
+
 # ── Plots ───────────────────────────────────────────────────────────────────
 
-def _apply_style() -> None:
-    """Switch matplotlib to this script's smaller figure style."""
-    mpl.rcParams.update({
-        "font.family": "serif",
-        "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-        "mathtext.fontset": "cm",
-        "text.usetex": False,
-        "font.size": 11, "axes.labelsize": 11, "axes.titlesize": 11,
-        "xtick.labelsize": 10, "ytick.labelsize": 10,
-        "legend.fontsize": 10, "legend.title_fontsize": 11,
-        "axes.linewidth": 0.6,
-        "xtick.direction": "in", "ytick.direction": "in",
-        "xtick.major.size": 3, "ytick.major.size": 3,
-        "xtick.major.width": 0.6, "ytick.major.width": 0.6,
-        "lines.linewidth": 1.2, "lines.markersize": 4,
-        "legend.frameon": False,
-        "figure.dpi": 150, "savefig.dpi": 300,
-        "savefig.format": "pdf", "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.02,
-        "pdf.fonttype": 42, "ps.fonttype": 42,
-    })
-
-
 def plot_legend(out_path: Path) -> None:
-    """Save the standalone legend for the four arms.
+    """Save the standalone legend for the five arms (pond_meta_analysis.py style; 3 columns pair solid / dashed / random).
 
     Args:
         out_path: Figure path.
     """
-    order =('probe', 'ntp', 'probe_shuffled', 'ntp_shuffled')
-    handles = [mlines.Line2D([], [], color=ARM_STYLE[a]['color'], lw=4 if ARM_STYLE[a]['ls'] == '-' else 2.5,
-                             linestyle=ARM_STYLE[a]['ls'], label=ARM_STYLE[a]['label'])
-               for a in order]
-    fig, ax = plt.subplots(figsize=(10.0, 0.45))
+    order = ('probe', 'ntp', 'probe_conf', 'ntp_conf', 'random')
+    handles = [mlines.Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
+                             linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
+    fig, ax = plt.subplots(figsize=(10.0, 0.7))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=len(order), fontsize=13, frameon=False, handlelength=2.0)
+    ax.legend(handles=handles, loc='center', ncol=3, fontsize=12, frameon=False, handlelength=2.0)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
+    print(f"[clustering] wrote {out_path}")
 
 
 def plot_center_dist(summary: pd.DataFrame, gammas: np.ndarray, out_path: Path) -> None:
-    """Plot mean centroid distance (± se) vs gamma for every arm.
+    """Plot mean centroid distance vs gamma for every arm, with its 95% CI over KMeans initializations.
 
     Args:
         summary: centroid_distance.csv frame.
         gammas: Gamma grid.
         out_path: Figure path.
     """
-    fig, ax = plt.subplots(figsize=(3.5, 2.8))
+    fig, ax = plt.subplots(figsize=(3.0, 2.8))
     for arm in ARMS:
         s = summary[summary['arm'] == arm].sort_values('gamma')
         assert np.allclose(s['gamma'].to_numpy(), gammas)
-        mean, se = s['mean'].to_numpy(), s['se'].to_numpy()
-        ax.plot(gammas, mean, **ARM_STYLE[arm])
-        ax.fill_between(gammas, mean - se, mean + se, color=ARM_STYLE[arm]['color'], alpha=0.2)
-    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+        style = CURVE_STYLE[arm]
+        ax.plot(gammas, s['mean'].to_numpy(), **style)
+        ax.fill_between(gammas, s['ci_lo'].to_numpy(), s['ci_hi'].to_numpy(), color=style['color'], alpha=0.2,
+                        linewidth=0)
     ax.set_xlabel('$\\gamma$', fontsize=11)
     ax.set_ylabel('Mean Centroid Distance', fontsize=11)
     ax.set_xlim(gammas[0], gammas[-1])
     ax.yaxis.set_major_formatter(mpl.ticker.FormatStrFormatter('%.2f'))
+    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax.set_axisbelow(True)
     fig.tight_layout()
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
+    print(f"[clustering] wrote {out_path}")
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
@@ -562,17 +677,27 @@ def main() -> None:
     seed = cfg['seed']
     gammas = gamma_grid(sec)
     n_clusters, threshold = sec['n_clusters'], sec['missing_threshold']
+    n_init, n_runs = sec['n_init'], sec['n_runs']
     out_dir = CLUSTERING_ROOT / cfg['id']
     figures_dir = out_dir / 'figures'
     figures_dir.mkdir(parents=True, exist_ok=True)
-    _apply_style()
 
     inputs = resolve_clustering_inputs(cfg)
-    gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION)
-    # Adjust per row, before aggregation into cells and entities.
-    ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
-    if moments is not None:
-        print(f"[clustering] outlier_adjust: confidences x exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
+    gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
+    # Per-row factor on all rows, as in pond_meta_analysis.py (it is per (bucket, attribute),
+    # so the ecosystem filter below doesn't change kept rows' factors).
+    ext_df, moments = add_outlier_columns(ext_df, True)
+    print(f"[clustering] non-outlier factor: exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
+
+    # ── Row filters ──
+    n_rows_loaded = {'gt': len(gt_df), 'ext': len(ext_df)}
+    gt_df = filter_ecosystems(gt_df, GT_ENTITY_COLS)
+    ext_df = filter_ecosystems(ext_df, ['entity_id'])
+    n_rows_ecosystem = {'gt': len(gt_df), 'ext': len(ext_df)}
+    gt_df, ext_df = drop_nonpositive_log(gt_df), drop_nonpositive_log(ext_df)
+    n_rows_kept = {'gt': len(gt_df), 'ext': len(ext_df)}
+    print(f"[clustering] rows: loaded {n_rows_loaded} -> ecosystems {ECOSYSTEMS} {n_rows_ecosystem} "
+          f"-> positive log-scale values {n_rows_kept}")
 
     # ── Entity x attribute matrices ──
     span = ext_df.groupby('entity_id')['document_id'].nunique()
@@ -580,8 +705,7 @@ def main() -> None:
     gt_df = gt_df.copy()
     gt_df['gt_entity'] = gt_df.groupby(GT_ENTITY_COLS, dropna=False).ngroup()
     gt_val, _, gt_cell_rows = cell_matrix(gt_df, 'gt_entity', [])
-    conf_cols = list(CONF_COLS.values())
-    ext_val, ext_conf, ext_cell_rows = cell_matrix(ext_df, 'entity_id', conf_cols)
+    ext_val, ext_conf, ext_cell_rows = cell_matrix(ext_df, 'entity_id', list(ARM_PROB_COL.values()))
 
     # ── Attribute subset, chosen on the GT ──
     if sec['attributes'] is not None:
@@ -602,76 +726,75 @@ def main() -> None:
     ext_dense = dense_submatrix(ext_val[keep_attrs], threshold)
     for name, m in (('gt', gt_dense), ('ext', ext_dense)):
         assert len(m) >= n_clusters, f'{name} dense matrix has {len(m)} entities < n_clusters={n_clusters}'
-    X_gt = process_matrix(gt_dense, sec['knn_neighbors'])
-    X_ext = process_matrix(ext_dense, sec['knn_neighbors'])
-    conf = {arm: entity_confidence(ext_conf[col].loc[ext_dense.index, keep_attrs]) for arm, col in CONF_COLS.items()}
-    print(f"[clustering] dense matrices: gt {X_gt.shape}, ext {X_ext.shape}")
+    X_gt, X_ext, scaler_params = process_matrices(gt_dense, ext_dense, sec['knn_neighbors'])
+    conf = {arm: entity_confidence(ext_conf[col].loc[ext_dense.index, keep_attrs])
+            for arm, col in ARM_PROB_COL.items()}
+    gt_bucket = gt_df.groupby('gt_entity')['ecosystem_bucket'].first()
+    ext_bucket = ext_df.groupby('entity_id')['ecosystem_bucket'].first()
+    dense_by_eco = {'gt': gt_bucket.loc[gt_dense.index].value_counts().to_dict(),
+                    'ext': ext_bucket.loc[ext_dense.index].value_counts().to_dict()}
+    print(f"[clustering] dense matrices: gt {X_gt.shape}, ext {X_ext.shape}; by ecosystem {dense_by_eco}")
 
     # ── Sweeps ──
-    gt_centers = KMeans(n_clusters=n_clusters, random_state=seed, n_init='auto').fit(X_gt).cluster_centers_
-    # Known answer: refitting the GT itself with the reference seed recovers gt_centers.
-    self_dist = distance_curve(X_gt, np.ones(len(X_gt)), gt_centers, n_clusters, np.array([0.0]), seed)[0]
-    assert self_dist < 1e-9, f'GT refit is {self_dist} from its own centroids (reference fit / matching broken)'
-    dist = {arm: np.empty((sec['n_runs'], len(gammas))) for arm in CONF_COLS}
-    for r in range(sec['n_runs']):
-        for arm in CONF_COLS:
-            dist[arm][r] = distance_curve(X_ext, conf[arm], gt_centers, n_clusters, gammas, seed + r)
-    # Shuffled arms: permute entity confidences, or with outlier_adjust use RowShuffler
-    # (checked to reproduce the real confidences when unpermuted).
-    shufflers = {}
-    if sec['outlier_adjust']:
-        for arm, col in CONF_COLS.items():
-            shufflers[arm] = RowShuffler(ext_df, col, ext_dense.index, keep_attrs)
-            assert np.allclose(shufflers[arm].confidence(shufflers[arm].raw), conf[arm], rtol=1e-12, atol=0), (
-                f'{arm}: RowShuffler does not reproduce the real entity confidences')
-    n_eff_shuf = {}
-    for arm in CONF_COLS:
-        dist[f'{arm}_shuffled'] = np.empty((sec['n_shuffle_samples'], len(gammas)))
-        neff = np.empty((sec['n_shuffle_samples'], len(gammas)))
-        for s in range(sec['n_shuffle_samples']):
-            rng = np.random.default_rng([seed, s, SHUFFLE_STREAMS[arm]])
-            sconf = shufflers[arm].shuffled(rng) if sec['outlier_adjust'] else rng.permutation(conf[arm])
-            dist[f'{arm}_shuffled'][s] = distance_curve(X_ext, sconf, gt_centers, n_clusters, gammas, seed + s)
-            neff[s] = [kish_n_eff(sconf ** g) for g in gammas]
-        n_eff_shuf[arm] = neff
-    assert set(dist) == set(ARMS), sorted(dist)
+    gt_centers = []
+    for i in range(n_init):
+        rs = kmeans_seed(seed, GT_STREAM, i)
+        centers = fit_kmeans(X_gt, n_clusters, rs).cluster_centers_
+        # Known answer: refitting the GT with the same seed recovers its centroids.
+        self_dist = centroid_matching_distance(centers, fit_kmeans(X_gt, n_clusters, rs).cluster_centers_)
+        assert self_dist < 1e-9, f'GT fit {i}: refit is {self_dist} from its own centroids'
+        gt_centers.append(centers)
+    gt_spread = [centroid_matching_distance(gt_centers[0], c) for c in gt_centers[1:]]
+    print(f"[clustering] GT reference fits: mean distance of fits 1.. to fit 0 = {np.mean(gt_spread):.3f}")
 
-    # Known answer: gamma = 0 makes every weight 1, so the arms are the same KMeans fits.
+    dist = {arm: np.empty((n_init, n_runs, len(gammas))) for arm in ARMS}
+    n_eff_random = np.empty((n_init, n_runs, len(gammas)))
+    for i in range(n_init):
+        for r in range(n_runs):
+            rs = kmeans_seed(seed, EXT_STREAM, i, r)   # shared by every arm
+            rconf = random_confidence(seed, i, r, len(X_ext))
+            for arm in ARMS:
+                c = rconf if arm == RANDOM_ARM else conf[arm]
+                dist[arm][i, r] = distance_curve(X_ext, c, gt_centers[i], n_clusters, gammas, rs)
+            n_eff_random[i, r] = [kish_n_eff(rconf ** g) for g in gammas]
+        print(f"[clustering] GT fit {i + 1}/{n_init} done")
+
+    # Known answer: gamma = 0 makes every weight 1, so every arm runs the same KMeans fits.
     assert gammas[0] == 0
-    assert np.array_equal(dist['ntp'][:, 0], dist['probe'][:, 0]), 'gamma=0: ntp and probe arms differ'
-    k = min(sec['n_runs'], sec['n_shuffle_samples'])
-    for arm in CONF_COLS:
-        assert np.array_equal(dist[f'{arm}_shuffled'][:k, 0], dist['ntp'][:k, 0]), (
-            f'gamma=0: {arm}_shuffled arm differs on shared seeds')
+    for arm in ARMS:
+        assert np.array_equal(dist[arm][:, :, 0], dist[ARMS[0]][:, :, 0]), f'gamma=0: {arm} differs from {ARMS[0]}'
 
-    # Kish n_eff of conf**gamma. Entity permutation leaves it unchanged; the row-level
-    # shuffle doesn't, so that arm reports the mean over draws.
-    n_eff = {arm: [kish_n_eff(conf[arm] ** g) for g in gammas] for arm in CONF_COLS}
-    for arm in CONF_COLS:
-        n_eff[f'{arm}_shuffled'] = n_eff_shuf[arm].mean(axis=0).tolist() if sec['outlier_adjust'] else n_eff[arm]
+    # Kish n_eff of conf**gamma; the random arm's is the mean over its draws.
+    n_eff = {arm: [kish_n_eff(conf[arm] ** g) for g in gammas] for arm in ARM_PROB_COL}
+    n_eff[RANDOM_ARM] = n_eff_random.mean(axis=(0, 1)).tolist()
     summary = pd.DataFrame([
-        dict(arm=arm, gamma=float(g), n=v.shape[0], mean=float(v[:, i].mean()),
-             se=float(v[:, i].std() / np.sqrt(v.shape[0])), n_eff=n_eff[arm][i])
-        for arm, v in dist.items() for i, g in enumerate(gammas)
+        dict(arm=arm, gamma=float(g), n_init=n_init, n_runs=n_runs, **block_mean_ci(v[:, :, j]), n_eff=n_eff[arm][j])
+        for arm, v in dist.items() for j, g in enumerate(gammas)
     ])
 
     # ── Outputs ──
     sets.to_csv(out_dir / 'attribute_sets.csv', index=False)
     summary.to_csv(out_dir / 'centroid_distance.csv', index=False)
-    np.savez(out_dir / 'distances.npz', gammas=gammas, **dist)
+    np.savez(out_dir / 'distances.npz', gammas=gammas, gt_centers=np.stack(gt_centers), **dist)
     plot_center_dist(summary, gammas, figures_dir / 'center_dist.pdf')
     plot_legend(figures_dir / 'legend.pdf')
     manifest.update(
         analysis_config_id=cfg['id'], script='analysis/pond_clustering.py', seed=seed, params=sec,
         inputs={k: str(v) for k, v in inputs.items()},
-        outlier_adjust=sec['outlier_adjust'],
-        outlier_moments=None if moments is None else moments.to_dict('records'),
+        arms={**ARM_PROB_COL, RANDOM_ARM: 'U(0, 1) per entity per (i, r) trial'},
+        ci=f'{CI_LEVEL:.0%} t-interval over the n_init per-GT-fit mean distances (KMeans initializations only)',
+        outlier_moments=moments.to_dict('records'),
+        ecosystems=ECOSYSTEMS, log_scale_attributes=sorted(set(keep_attrs) & LOG_SCALE_ATTRIBUTES),
+        gt_fitted_scaler=scaler_params,
+        n_rows_loaded=n_rows_loaded, n_rows_after_ecosystem_filter=n_rows_ecosystem,
+        n_rows_after_nonpositive_log_drop=n_rows_kept,
         keep_attrs=keep_attrs, n_tied_attribute_sets=n_ties,
         n_gt_entities=int(len(gt_val)), n_ext_entities=int(len(ext_val)),
         n_gt_multi_row_cells=int((gt_cell_rows > 1).sum()), n_ext_multi_row_cells=int((ext_cell_rows > 1).sum()),
-        n_gt_dense=int(len(gt_dense)), n_ext_dense=int(len(ext_dense)),
+        n_gt_dense=int(len(gt_dense)), n_ext_dense=int(len(ext_dense)), n_dense_by_ecosystem=dense_by_eco,
         gt_dense_missing_frac=float(gt_dense.isna().to_numpy().mean()),
         ext_dense_missing_frac=float(ext_dense.isna().to_numpy().mean()),
+        gt_reference_fit_spread=float(np.mean(gt_spread)),
         ext_confidence_mean={arm: float(c.mean()) for arm, c in conf.items()},
     )
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2, default=str))

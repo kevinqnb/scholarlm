@@ -9,8 +9,17 @@ Known answers (stated before running):
   - dense_submatrix on a 4x2 matrix whose rows have 0, 1, 2, 0 NaNs (missing 3/8):
     threshold 0.2 drops the 2-NaN row (-> 1/6 <= 0.2); threshold 0.1 also drops the 1-NaN
     row (-> 0); an all-NaN matrix ends empty.
-  - entity_confidence: product of observed cells only ([0.5, NaN] -> 0.5); an all-NaN
-    entity is an error.
+  - entity_confidence: mean of observed cells only ([0.5, NaN] -> 0.5, [0.2, 0.5] -> 0.35);
+    an all-NaN entity is an error.
+  - process_matrices: GT surface_area (log-scaled) 1, 10, 100, 1000 -> log10 0..3 -> standardized
+    +-1.3416, +-0.4472; with knn_neighbors=1 the missing ph of the 1000 row is imputed from its
+    nearest row (100, ph 3) in the *scaled* space: (3 - 2) / std(1, 2, 3) = 1.2247, not 3.
+    The extraction is the GT with surface_area x10 (log +1) and ph +1. The scaler is fit on the
+    GT only, so the extraction sits at GT + 1 / 1.1180 = +0.8944 on surface_area and
+    + 1 / 0.8165 = +1.2247 on ph (its missing ph imputed from its own row 2: 2.4495). Separate
+    per-side scaling would have made the two matrices identical.
+  - block_mean_ci on [[1, 3], [3, 5], [5, 7]]: block means 2, 4, 6 -> mean 4, se 2 / sqrt(3),
+    half-width t(0.975, 2) * se = 4.3027 * 1.1547 = 4.9683.
 """
 import copy
 
@@ -20,8 +29,9 @@ import pytest
 import yaml
 
 from analysis.pond_clustering import (
-    cell_matrix, centroid_matching_distance, dense_submatrix, entity_confidence,
-    enumerate_attribute_sets, fixed_attribute_set, load_clustering_config, process_matrix,
+    block_mean_ci, cell_matrix, centroid_matching_distance, dense_submatrix, drop_nonpositive_log, entity_confidence,
+    enumerate_attribute_sets, filter_ecosystems, fit_kmeans, fixed_attribute_set, kmeans_seed, load_clustering_config,
+    process_matrices, random_confidence,
 )
 
 
@@ -82,15 +92,67 @@ def test_fixed_attribute_set():
 
 def test_entity_confidence_observed_cells_only():
     conf = pd.DataFrame({'a': [0.5, 0.2], 'b': [np.nan, 0.5]})
-    assert entity_confidence(conf) == pytest.approx([0.5, 0.1])
+    assert entity_confidence(conf) == pytest.approx([0.5, 0.35])
     with pytest.raises(ValueError, match='no observed cell'):
         entity_confidence(pd.DataFrame({'a': [np.nan], 'b': [np.nan]}))
 
 
-def test_process_matrix_standardizes():
-    m = pd.DataFrame({'a': [1.0, 2.0, 3.0, np.nan], 'b': [2.0, 4.0, 6.0, 8.0]})
-    X = process_matrix(m, 2)
-    assert X.shape == (4, 2) and np.allclose(X.mean(axis=0), 0) and np.allclose(X.std(axis=0), 1)
+def test_process_matrices_gt_fitted_scaler_then_impute():
+    gt = pd.DataFrame({'surface_area': [1.0, 10.0, 100.0, 1000.0], 'ph': [1.0, 2.0, 3.0, np.nan]})
+    ext = pd.DataFrame({'surface_area': gt['surface_area'] * 10, 'ph': gt['ph'] + 1})
+    X_gt, X_ext, params = process_matrices(gt, ext, 1)
+    assert X_gt[:, 0] == pytest.approx([-1.3416408, -0.4472136, 0.4472136, 1.3416408])
+    assert X_gt[:3, 1] == pytest.approx([-1.2247449, 0.0, 1.2247449])
+    assert X_gt[3, 1] == pytest.approx(1.2247449)
+    assert X_ext[:, 0] - X_gt[:, 0] == pytest.approx([0.8944272] * 4)
+    assert X_ext[:3, 1] - X_gt[:3, 1] == pytest.approx([1.2247449] * 3)
+    assert X_ext[3, 1] == pytest.approx(2.4494897)
+    assert params['surface_area'] == pytest.approx(dict(mean=1.5, scale=1.1180340))
+    assert params['ph'] == pytest.approx(dict(mean=2.0, scale=0.8164966))
+
+
+def test_process_matrices_rejects_bad_inputs():
+    ok = pd.DataFrame({'max_depth': [1.0, 2.0, 3.0], 'ph': [1.0, 2.0, 3.0]})
+    with pytest.raises(ValueError, match='non-positive'):
+        process_matrices(ok, ok.assign(max_depth=[0.0, 1.0, 2.0]), 1)
+    with pytest.raises(ValueError, match='distinct'):
+        process_matrices(ok.assign(ph=[7.0, 7.0, np.nan]), ok, 1)
+    with pytest.raises(ValueError, match='columns'):
+        process_matrices(ok, ok[['ph', 'max_depth']], 1)
+
+
+def test_block_mean_ci():
+    r = block_mean_ci(np.array([[1.0, 3.0], [3.0, 5.0], [5.0, 7.0]]))
+    assert r['mean'] == pytest.approx(4.0) and r['se'] == pytest.approx(2 / np.sqrt(3))
+    assert r['ci_hi'] - r['mean'] == pytest.approx(4.302653 * 2 / np.sqrt(3), rel=1e-5)
+    assert r['mean'] - r['ci_lo'] == pytest.approx(r['ci_hi'] - r['mean'])
+
+
+def test_filter_ecosystems_drops_other_and_rejects_mixed_entities():
+    df = pd.DataFrame({'eid': [1, 1, 2, 3, 4], 'ecosystem_bucket': ['pond', 'pond', 'other', 'lake', 'wetland']})
+    assert list(filter_ecosystems(df, ['eid'])['eid']) == [1, 1, 3, 4]
+    with pytest.raises(ValueError, match='several ecosystem buckets'):
+        filter_ecosystems(df.assign(ecosystem_bucket=['pond', 'lake', 'other', 'lake', 'wetland']), ['eid'])
+
+
+def test_drop_nonpositive_log_only_touches_log_attributes():
+    df = pd.DataFrame({'attribute': ['surface_area', 'max_depth', 'ph', 'vegetation_cover', 'surface_area', 'ph'],
+                       'converted_value': [0.0, -1.0, 0.0, 0.0, 5.0, np.nan]})
+    out = drop_nonpositive_log(df)
+    assert list(out['attribute']) == ['ph', 'vegetation_cover', 'surface_area', 'ph']
+
+
+def test_random_confidence_deterministic_and_distinct_per_trial():
+    a = random_confidence(0, 1, 2, 50)
+    assert np.array_equal(a, random_confidence(0, 1, 2, 50)) and ((a >= 0) & (a < 1)).all()
+    assert not np.array_equal(a, random_confidence(0, 2, 1, 50))
+
+
+def test_fit_kmeans_single_start_and_seeded():
+    X = np.random.default_rng(0).normal(size=(30, 2))
+    a, b = fit_kmeans(X, 3, 7), fit_kmeans(X, 3, 7)
+    assert a.n_init == 1 and np.array_equal(a.cluster_centers_, b.cluster_centers_)
+    assert kmeans_seed(0, 1, 2, 3) == kmeans_seed(0, 1, 2, 3) != kmeans_seed(0, 1, 3, 2)
 
 
 # ── Config loader ──
@@ -102,7 +164,7 @@ BASE = {
         'judge_combine_id': 'jc', 'judge_model': 'qwen-2.5-7b', 'probe_train_dataset': 'pond',
         'rows': 'deduplicated', 'deduplication_config_id': 'dd', 'confidence': 'center',
         'missing_threshold': 0.2, 'attributes': None, 'attribute_set_sizes': [2, 3], 'n_clusters': 5, 'knn_neighbors': 5,
-        'gammas': {'start': 0.0, 'stop': 5.0, 'num': 3}, 'n_runs': 2, 'n_shuffle_samples': 2, 'outlier_adjust': False,
+        'gammas': {'start': 0.0, 'stop': 5.0, 'num': 3}, 'n_init': 2, 'n_runs': 2,
     }},
 }
 
@@ -126,10 +188,11 @@ def test_config_valid_fixed_attributes(tmp_path):
 
 @pytest.mark.parametrize('mutate, match', [
     (lambda s: s.pop('n_runs'), 'missing required'),
-    (lambda s: s.pop("outlier_adjust"), "missing required"),
-    (lambda s: s.update(outlier_adjust=1), "outlier_adjust"),
-    (lambda s: s.pop('n_shuffle_samples'), 'missing required'),
-    (lambda s: s.update(n_shuffle_samples=0), 'n_shuffle_samples'),
+    (lambda s: s.pop('n_init'), 'missing required'),
+    (lambda s: s.update(n_init=1), 'n_init'),
+    (lambda s: s.update(n_runs=0), 'n_runs'),
+    (lambda s: s.update(outlier_adjust=True), 'unexpected'),
+    (lambda s: s.update(n_shuffle_samples=2), 'unexpected'),
     (lambda s: s.update(extra=1), 'unexpected'),
     (lambda s: s.update(probe_train_dataset='nfix'), 'probe_train_dataset'),
     (lambda s: s.update(rows='final'), 'must be null'),
@@ -156,35 +219,3 @@ def test_kish_n_eff():
     assert kish_n_eff(np.array([1.0, 0.0, 0.0])) == pytest.approx(1)
 
 
-# ── RowShuffler (outlier_adjust shuffled control) ──
-
-def _shuffler_fixture():
-    from analysis.pond_clustering import RowShuffler
-    # entities 1, 2 (dense) and 3 (outside the dense index); attributes a, b.
-    ext = pd.DataFrame({
-        'entity_id': [1, 1, 1, 2, 2, 3, 3],
-        'attribute': ['a', 'a', 'b', 'a', 'b', 'a', 'b'],
-        'converted_value': [1., 2., 3., 4., 5., 6., 7.],
-        'probe_prob_raw': [0.5, 1.0, 0.8, 0.4, 0.6, 0.9, 0.9],
-        'outlier_factor': [1.0, 0.5, 1.0, 0.25, 1.0, 1.0, 1.0],
-    })
-    return RowShuffler(ext, 'probe_prob', pd.Index([1, 2]), ['a', 'b'])
-
-
-def test_row_shuffler_hand_computed_real_confidence():
-    sh = _shuffler_fixture()
-    # entity 1: cell a = mean(0.5*1, 1.0*0.5) = 0.5, cell b = 0.8 -> 0.4; entity 2: a = 0.4*0.25 = 0.1, b = 0.6 -> 0.06
-    assert sh.confidence(sh.raw) == pytest.approx([0.4, 0.06])
-
-
-def test_row_shuffler_permutes_within_attribute_and_keeps_factor():
-    sh = _shuffler_fixture()
-    # all raw = 1 -> confidence is purely the factors, whatever the permutation
-    c = sh.confidence(np.ones(len(sh.raw)))
-    assert c == pytest.approx([0.75 * 1.0, 0.25 * 1.0])
-    rng = np.random.default_rng(0)
-    for _ in range(20):
-        v = sh.shuffled(rng)
-        assert ((v >= 0) & (v <= 1)).all()
-    # the b attribute has 3 rows, a has 4: a permutation of raw within attribute preserves each attribute's multiset
-    assert sorted(sh.raw[sh.attr_rows[1]]) == [0.6, 0.8, 0.9]
