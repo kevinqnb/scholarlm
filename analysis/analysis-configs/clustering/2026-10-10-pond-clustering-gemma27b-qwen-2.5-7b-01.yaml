@@ -1,0 +1,32 @@
+id: 2026-10-10-pond-clustering-gemma27b-qwen-2.5-7b-01
+project: scholarlm
+description: >
+  Pond downstream clustering (analysis/pond_clustering.py) on the deduplicated gemma27b rows (deduplication of 2026-10-09-pond-main-recovery-01,
+  cluster-center confidence) with the pond->pond intercept_fit probe / NTP confidences of 2026-10-09-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01.
+  Rows restricted to the pond / lake / wetland ecosystem buckets; 3 clusters, one per bucket. Attribute set fixed to
+  surface_area, max_depth, ph (log10 on surface_area and max_depth); KNN k = 5, missing_threshold 0.2, gamma 0..5 in 101 steps.
+  Arms: confidence only, confidence x non-outlier factor (NTP and probe each), and U(0, 1) random confidences.
+  10 GT reference KMeans fits x 10 weighted extraction fits per arm and gamma.
+seed: 0
+params:
+  clustering:
+    calibration_config_id: 2026-10-09-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01
+    calibration_version: v4
+    extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+    judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+    judge_model: qwen-2.5-7b
+    probe_train_dataset: pond
+    rows: deduplicated
+    deduplication_config_id: 2026-10-09-pond-main-recovery-01
+    confidence: center
+    missing_threshold: 0.2
+    attributes: [surface_area, max_depth, ph]
+    attribute_set_sizes: null
+    n_clusters: 3
+    knn_neighbors: 5
+    gammas:
+      start: 0.0
+      stop: 5.0
+      num: 101
+    n_init: 10
+    n_runs: 10
