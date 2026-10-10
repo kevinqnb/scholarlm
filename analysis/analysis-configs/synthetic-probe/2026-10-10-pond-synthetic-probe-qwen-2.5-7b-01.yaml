@@ -1,0 +1,17 @@
+id: 2026-10-10-pond-synthetic-probe-qwen-2.5-7b-01
+project: scholarlm
+description: >
+  Head probe for qwen-2.5-7b on the pond v3 synthetic corpus, from judge_interp run 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01.
+  Re-run of 2026-10-09-pond-synthetic-probe-qwen-2.5-7b-01 after commit cc3036f, which removed the synthetic-trained NTP calibrator (NTP is now
+  the judge's raw p(true)); same params and seed, so the head probe should be identical to 2026-10-09-pond-synthetic-probe-qwen-2.5-7b-01's.
+  use_platt_scaling: true wraps the head probe in CalibratedClassifierCV (sigmoid, k-fold); calibration configs
+  must use probe_variant: platt. The probe's syn_document_ids define the real-data train/test split every
+  calibration-family analysis uses.
+seed: 0
+params:
+  dataset: pond
+  judge_interp_id: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01
+  use_platt_scaling: true
+  exclude_documents:
+    - document_id: habitat_characteristics
+      reason: 'Very large tables in this paper distort the attention-head activations (Kevin, original 2026-05 analysis; the claim is trusted, not re-measured).'

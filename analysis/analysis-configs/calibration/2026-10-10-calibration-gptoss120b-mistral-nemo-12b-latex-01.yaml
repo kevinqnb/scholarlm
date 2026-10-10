@@ -1,0 +1,16 @@
+id: 2026-10-10-calibration-gptoss120b-mistral-nemo-12b-latex-01
+project: scholarlm
+description: >
+  LaTeX tables (synthetic and real) for 2026-10-10-calibration-gptoss120b-mistral-nemo-12b-intercept-fit-01. Formatting only; seed unused. One NTP row per test set (NTP is the judge's raw p(true) and has no training dataset).
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-10-calibration-gptoss120b-mistral-nemo-12b-intercept-fit-01
+    labels: llm_matching
+    datasets:
+      PLW: pond
+      NF: nfix
+      SM: supermat
+    decimals: 3
+    output_dir: analysis/results/calibration/2026-10-10-calibration-gptoss120b-mistral-nemo-12b-intercept-fit-01/latex
+    label_prefix: tab:calibration-gptoss120b-mistral-nemo-12b
