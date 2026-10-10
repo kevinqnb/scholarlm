@@ -13,7 +13,7 @@ import numpy as np
 from scipy.special import expit, logit
 from sklearn.exceptions import ConvergenceWarning
 
-from scholarlm.utils.calibration import apply_platt, fit_intercept, fit_platt
+from scholarlm.utils.calibration import LOGIT_CLIP_EPS, apply_platt, fit_intercept, fit_platt
 
 # Tolerance for the Platt score-equation check; lbfgs at sklearn's default tol gets ~1e-4.
 PLATT_SCORE_TOL = 1e-3
@@ -56,7 +56,7 @@ def intercept_fit_map(probs, labels) -> tuple[float, float]:
     return coef, icpt
 
 
-def platt_fit_map(probs, labels, eps: float = 1e-6) -> tuple[float, float]:
+def platt_fit_map(probs, labels, eps: float = LOGIT_CLIP_EPS) -> tuple[float, float]:
     """Fit Platt scaling and check both MLE score equations hold.
 
     Separable fit rows have no finite MLE, but lbfgs still "converges" to an arbitrary
@@ -65,7 +65,7 @@ def platt_fit_map(probs, labels, eps: float = 1e-6) -> tuple[float, float]:
     Args:
         probs: Fit-row predicted probabilities.
         labels: Fit-row boolean labels.
-        eps: Logit clipping; must equal fit_platt / apply_platt's default.
+        eps: Logit clipping; must equal fit_platt / apply_platt's (LOGIT_CLIP_EPS).
 
     Returns:
         ``(coef, intercept)``.

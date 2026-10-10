@@ -436,3 +436,44 @@ def test_prior_shift_rejects_degenerate_pi_tr(pi_tr):
 def test_dispatch_rejects_unknown_method():
     with pytest.raises(ValueError):
         fit_recalibration('platt', np.array([0.2, 0.8]), np.array([0, 1]), pi_tr=0.5)
+
+
+# ── Logit clipping (LOGIT_CLIP_EPS) ───────────────────────────────────────────
+from scipy.special import logit as _logit  # noqa: E402
+from scholarlm.utils.calibration import LOGIT_CLIP_EPS, fit_intercept  # noqa: E402
+
+
+def test_logit_clip_eps_is_1e_10():
+    assert LOGIT_CLIP_EPS == 1e-10
+
+
+def test_identity_map_does_not_clip_small_raw_judge_probs():
+    # Known answer: qwen-2.5-7b's smallest raw p(true) (4.9e-9) passes through the identity
+    # map unchanged; under the old 1e-6 clip it came back as 1e-6.
+    p = np.array([4.94e-9, 1e-7, 1e-6, 0.5])
+    assert np.allclose(apply_platt(p, 1.0, 0.0), p, rtol=1e-9, atol=0)
+
+
+def test_exact_zero_and_one_land_on_the_clip_boundary():
+    out = apply_platt(np.array([0.0, 1.0]), 1.0, 0.0)
+    assert np.isfinite(_logit(out)).all()
+    assert out[0] == pytest.approx(LOGIT_CLIP_EPS, rel=1e-6) and out[1] == pytest.approx(1 - LOGIT_CLIP_EPS, rel=1e-12)
+
+
+def test_small_probs_stay_distinct_after_intercept_fit():
+    # Rows below the old 1e-6 clip keep their order (no tie) after fitting and applying an intercept.
+    p = np.array([5e-9, 5e-8, 5e-7, 0.2, 0.6, 0.9])
+    y = np.array([False, False, True, False, True, True])
+    coef, icpt = fit_intercept(p, y)
+    out = apply_platt(p, coef, icpt)
+    assert len(np.unique(out[:3])) == 3 and np.all(np.diff(out) > 0)
+    assert out.mean() == pytest.approx(y.mean(), abs=1e-10)
+
+
+def test_platt_fit_map_default_eps_matches_library():
+    import inspect
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from analysis.common import recalibration
+    assert inspect.signature(recalibration.platt_fit_map).parameters["eps"].default == LOGIT_CLIP_EPS

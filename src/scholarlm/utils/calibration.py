@@ -25,8 +25,18 @@ import numpy as np
 
 from scipy.special import logit, expit
 
+# Logit clipping for the Platt-family recalibration maps (fit_platt / fit_intercept /
+# apply_platt, and analysis/common/recalibration.platt_fit_map): probs are clipped to
+# [LOGIT_CLIP_EPS, 1 - LOGIT_CLIP_EPS] before the logit so exact 0 / 1 stay finite
+# (|logit| <= ~23). Was 1e-6 until 2026-10-10: raw qwen-2.5-7b judge p(true) reaches
+# 4.9e-9, and at 1e-6 up to ~45% of real supermat rows collapsed onto one clipped
+# logit (-13.8), visibly moving SmECE / AUROC. 1e-10 sits below every observed raw
+# p(true) on the low side, so the clip only catches values that are exactly 0 / 1 to
+# within float64 resolution near 1.
+LOGIT_CLIP_EPS = 1e-10
 
-def fit_platt(probs: np.ndarray, labels: np.ndarray, eps: float = 1e-6):
+
+def fit_platt(probs: np.ndarray, labels: np.ndarray, eps: float = LOGIT_CLIP_EPS):
     """Fit a Platt scaler (1-D logistic regression on logit(probs)), unregularized.
 
     Args:
@@ -65,7 +75,7 @@ def _check_fit_inputs(probs: np.ndarray, labels: np.ndarray):
     return probs, labels
 
 
-def fit_intercept(probs: np.ndarray, labels: np.ndarray, eps: float = 1e-6):
+def fit_intercept(probs: np.ndarray, labels: np.ndarray, eps: float = LOGIT_CLIP_EPS):
     """Fit an intercept-only Platt scaler: slope fixed at 1, intercept by maximum likelihood.
 
     The MLE intercept ``b`` of ``expit(logit(clip(p)) + b)`` solves the score equation
@@ -129,7 +139,7 @@ def fit_recalibration(method: str, probs: np.ndarray, labels: np.ndarray, pi_tr:
     raise ValueError(f"unknown recalibration method {method!r}; expected one of {RECALIBRATION_METHODS}")
 
 
-def apply_platt(probs: np.ndarray, coef: float, intercept: float, eps: float = 1e-6):
+def apply_platt(probs: np.ndarray, coef: float, intercept: float, eps: float = LOGIT_CLIP_EPS):
     """Apply a scaler from ``fit_platt``; same clipping as the fit."""
     probs = np.asarray(probs, dtype=float)
     if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
