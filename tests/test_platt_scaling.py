@@ -212,3 +212,34 @@ def test_fit_map_prior_shift_without_training_prevalence_raises():
         ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), None)
     # The probe (which has a training prevalence) is unaffected.
     assert ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), 0.5) == (1.0, 0.0)
+
+
+def _sweep_summary(ntp_offset_for=None):
+    """Hand-built run_sweep summary: 3 datasets, probe smECE varies by train, NTP does not."""
+    import pandas as pd
+    ds = ["pond", "nfix", "supermat"]
+    rows = []
+    for i, tr in enumerate(ds):
+        for j, te in enumerate(ds):
+            for n in ps2._PLOT_NS:
+                for method in ("Probe", "NTP"):
+                    v = 0.1 + 0.01 * j + 0.001 * n / 100 + (0.02 * i if method == "Probe" else 0.0)
+                    if method == "NTP" and tr == ntp_offset_for:
+                        v += 1e-9
+                    rows.append({"Train dataset": tr, "Test dataset": te, "Type": method, "Platt N": n,
+                                 "SmECE": v, "SmECE_lo": v - 0.01, "SmECE_hi": v + 0.01})
+    return pd.DataFrame(rows), ds
+
+
+def test_plot_sweep_one_ntp_figure_and_one_probe_figure_per_train(tmp_path):
+    df, ds = _sweep_summary()
+    ps2.plot_sweep(df, ds, ps2._PLOT_NS, tmp_path)
+    assert sorted(p.name for p in tmp_path.glob("*.pdf")) == sorted(
+        ["legend_smece_vs_n.pdf", "smece_vs_n_train_resample_ntp.pdf"]
+        + [f"smece_vs_n_train_resample_probe_train-{d}.pdf" for d in ds])
+
+
+def test_plot_sweep_rejects_train_dependent_ntp(tmp_path):
+    df, ds = _sweep_summary(ntp_offset_for="supermat")
+    with pytest.raises(AssertionError, match="NTP smECE differs between train pond and supermat"):
+        ps2.plot_sweep(df, ds, ps2._PLOT_NS, tmp_path)

@@ -425,46 +425,82 @@ def compute_predictions():
     return setting_results
 
 
-# (display name, method key, linestyle). Probe and NTP are plotted and tabled separately.
+# (display name, method key). Probe and NTP are tabled separately.
 _METHODS = [
-    ('Probe', 'probe', '-'),
-    ('NTP',   'ntp',   '--'),
+    ('Probe', 'probe'),
+    ('NTP',   'ntp'),
 ]
 
 
+def _assert_ntp_train_independent(by_train, dtype):
+    """Assert the NTP bootstrap summaries are identical for every train dataset.
+
+    NTP is the judge's raw p(true) and real-cell fit rows depend only on the test
+    dataset, so nothing in an NTP cell may depend on the train dataset.
+
+    Args:
+        by_train: ``boot[dtype][JUDGE_MODEL]``.
+        dtype: ``"syn"`` or ``"real"`` (for error messages).
+    """
+    ref = by_train[DATASETS[0]]
+    for train_ds in DATASETS[1:]:
+        for test_ds in DATASETS:
+            a, b = ref[test_ds]['ntp'], by_train[train_ds][test_ds]['ntp']
+            same = all(np.array_equal(a[k], b[k], equal_nan=True) for k in ('line', 'lower', 'upper'))
+            same &= all(np.array_equal(a[s][m], b[s][m], equal_nan=True)
+                        for s in ('point', 'lo', 'hi') for m in a[s])
+            assert same, f'{dtype} NTP -> {test_ds}: differs between train {DATASETS[0]} and {train_ds}'
+
+
+def _save_reliability_panel(by_test, key, title, ylabel, path):
+    """Save one reliability diagram with one solid curve per test dataset.
+
+    Args:
+        by_test: ``{test_ds: {method: doc_bootstrap_calibration summary}}``.
+        key: Method key (``"probe"`` or ``"ntp"``).
+        title: Axes title.
+        ylabel: y-axis label, or None for none.
+        path: Output PDF.
+    """
+    assert set(by_test) == set(DATASETS), (path, sorted(by_test))
+    fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+    ax_cal.plot([0, 1], [0, 1], 'k:', lw=1.0, alpha=0.5, zorder=1)
+    for test_ds in DATASETS:
+        draw_reliability_curve(
+            ax_cal, by_test[test_ds][key], _DS_COLORS[test_ds],
+            linestyle='-', lw=2.5, line_zorder=3, band_zorder=1,
+        )
+    ax_cal.set_xlim(-0.02, 1.02)
+    ax_cal.set_ylim(-0.02, 1.02)
+    ax_cal.set_xlabel('Predicted Probability')
+    if ylabel is not None:
+        ax_cal.set_ylabel(ylabel)
+    ax_cal.set_title(title, fontsize=15, style='italic')
+    ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax_cal.set_axisbelow(True)
+    fig_cal.tight_layout()
+    fig_cal.savefig(path, bbox_inches='tight', dpi=200)
+    plt.close(fig_cal)
+
+
 def plot_calibration_curves(boot, dtype):
-    """Save one reliability diagram per (method, train dataset), one curve per test dataset.
+    """Save one NTP reliability diagram and one probe diagram per train dataset.
+
+    NTP has no train dataset, so it gets a single figure (asserted train-independent
+    first); only it carries the y-axis label. Curves are colored by test dataset.
 
     Args:
         boot: Output of ``bootstrap_calibration``.
         dtype: ``"syn"`` or ``"real"``.
     """
-    for method, key, linestyle in _METHODS:
-        for train_ds in DATASETS:
-            train_dict = boot[dtype][JUDGE_MODEL][train_ds]
-            assert set(train_dict) == set(DATASETS), (dtype, train_ds, sorted(train_dict))
-
-            fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-            ax_cal.plot([0, 1], [0, 1], 'k:', lw=1.0, alpha=0.5, zorder=1)
-            for test_ds in DATASETS:
-                draw_reliability_curve(
-                    ax_cal, train_dict[test_ds][key], _DS_COLORS[test_ds],
-                    linestyle=linestyle, lw=2.5, line_zorder=3, band_zorder=1,
-                )
-            ax_cal.set_xlim(-0.02, 1.02)
-            ax_cal.set_ylim(-0.02, 1.02)
-            ax_cal.set_xlabel('Predicted Probability')
-            if method == 'NTP':
-                ax_cal.set_ylabel('Observed Frequency')
-            ax_cal.set_title(method, fontsize=15, style='italic')
-            ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-            ax_cal.set_axisbelow(True)
-            fig_cal.tight_layout()
-            fig_cal.savefig(
-                FIGURES_DIR / f'cal_{dtype}_{method.lower()}_train-{train_ds}.pdf',
-                bbox_inches='tight', dpi=200,
-            )
-            plt.close(fig_cal)
+    by_train = boot[dtype][JUDGE_MODEL]
+    assert set(by_train) == set(DATASETS), (dtype, sorted(by_train))
+    _assert_ntp_train_independent(by_train, dtype)
+    _save_reliability_panel(by_train[DATASETS[0]], 'ntp', 'NTP', 'Observed Frequency',
+                            FIGURES_DIR / f'cal_{dtype}_ntp.pdf')
+    for train_ds in DATASETS:
+        _save_reliability_panel(by_train[train_ds], 'probe', f'Probe ({_DS_LABELS[train_ds]})', None,
+                                FIGURES_DIR / f'cal_{dtype}_probe_train-{train_ds}.pdf')
 
 
 def bootstrap_calibration(setting_results):
@@ -493,7 +529,7 @@ def bootstrap_calibration(setting_results):
                 print(f'  document bootstrap {dtype} {train_ds} -> {test_ds}: {N_BOOT} resamples')
                 out[dtype][JUDGE_MODEL][train_ds][test_ds] = {
                     key: db.doc_bootstrap_calibration(cell[f'{key}_probs'], cell['labels'], resamples[dtype, test_ds][1])
-                    for _, key, _ in _METHODS
+                    for _, key in _METHODS
                 }
     return out
 
@@ -540,7 +576,7 @@ def compute_metrics(setting_results, boot):
     for dtype in setting_results:
         for train_ds, by_test in setting_results[dtype][JUDGE_MODEL].items():
             for test_ds, rdict in by_test.items():
-                for kind, key, _ in _METHODS:
+                for kind, key in _METHODS:
                     t = _threshold_metrics(rdict[f'{key}_probs'], rdict['labels'])
                     b = boot[dtype][JUDGE_MODEL][train_ds][test_ds][key]
                     assert b['n_boot'] == N_BOOT, b['n_boot']
@@ -588,7 +624,7 @@ if __name__ == "__main__":
     for _dt in _DTYPES:
         plot_calibration_curves(boot, dtype=_dt)
     metrics_df = compute_metrics(setting_results, boot)
-    for _kind, _, _ in _METHODS:
+    for _kind, _ in _METHODS:
         _sub = metrics_df[metrics_df['Type'] == _kind]
         print(f'\n=== {_kind} ===')
         print(_sub.to_string(index=False, float_format='{:.3f}'.format))

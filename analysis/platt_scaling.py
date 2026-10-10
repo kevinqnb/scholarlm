@@ -70,10 +70,10 @@ palette = sns.color_palette("husl", 10)
 _DS_COLORS = {'pond': palette[7], 'nfix': palette[1], 'supermat': palette[0]}
 _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
-# (display name, key in the scored dict, linestyle).
+# (display name, key in the scored dict).
 _METHODS = [
-    ('Probe', 'probe', '-'),
-    ('NTP',   'ntp',   '--'),
+    ('Probe', 'probe'),
+    ('NTP',   'ntp'),
 ]
 
 # Recalibration sample sizes drawn in the figures (the CSVs keep every n in params.platt_ns).
@@ -327,7 +327,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
                 t_n = time.time()
                 if n == 0:
                     # Baseline: no recalibration map, the raw scores themselves.
-                    for method, key, _ in _METHODS:
+                    for method, key in _METHODS:
                         v = smece(test_scores[key], test_labels)
                         rows.append({
                             'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': 0,
@@ -337,7 +337,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
                         })
                     continue
                 kept, n_draws, skips = samples[test_ds, n]
-                for method, key, _ in _METHODS:
+                for method, key in _METHODS:
                     values, rates = [], []
                     for r, s in kept:
                         y = pool_labels[s]
@@ -374,11 +374,70 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
     return summary, samples_df
 
 
-def plot_sweep(df, datasets, platt_ns, figures_dir):
-    """Save bar charts of smECE vs n (one per method and train dataset) and a legend.
+def _assert_ntp_train_independent(df, datasets):
+    """Assert the NTP summary rows are identical for every train dataset.
 
-    Bars are grouped by n in _PLOT_NS and coloured by test dataset; error bars are
-    the fit-sample percentile interval.
+    NTP is the judge's raw p(true) and fit samples depend only on (test_ds, n), so no
+    NTP number may depend on the train dataset.
+
+    Args:
+        df: Summary from ``run_sweep``.
+        datasets: Dataset names.
+    """
+    cols = ['Test dataset', 'Platt N', 'SmECE', 'SmECE_lo', 'SmECE_hi']
+    ntp = df[df['Type'] == 'NTP']
+    ref = ntp[ntp['Train dataset'] == datasets[0]][cols].sort_values(cols[:2]).reset_index(drop=True)
+    for train_ds in datasets[1:]:
+        other = ntp[ntp['Train dataset'] == train_ds][cols].sort_values(cols[:2]).reset_index(drop=True)
+        assert ref.equals(other), f'NTP smECE differs between train {datasets[0]} and {train_ds}'
+
+
+def _save_bar_panel(df, method, train_ds, datasets, title, ylabel, path):
+    """Save one bar chart of smECE vs n, grouped by n and coloured by test dataset.
+
+    Args:
+        df: Summary from ``run_sweep``.
+        method: ``"Probe"`` or ``"NTP"``.
+        train_ds: Train dataset whose rows are drawn.
+        datasets: Dataset names.
+        title: Axes title.
+        ylabel: y-axis label, or None for none.
+        path: Output PDF.
+    """
+    x = np.arange(len(_PLOT_NS))
+    width = 0.8 / len(datasets)
+    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+    for i, test_ds in enumerate(datasets):
+        sub = df[(df['Type'] == method) & (df['Train dataset'] == train_ds)
+                 & (df['Test dataset'] == test_ds) & df['Platt N'].isin(_PLOT_NS)].sort_values('Platt N')
+        assert sub['Platt N'].tolist() == _PLOT_NS, (method, train_ds, test_ds)
+        mean = sub['SmECE'].to_numpy()
+        yerr = np.stack([mean - sub['SmECE_lo'].to_numpy(), sub['SmECE_hi'].to_numpy() - mean])
+        ax.bar(x + (i - (len(datasets) - 1) / 2) * width, mean, width, yerr=yerr,
+               color=_DS_COLORS[test_ds], edgecolor='black', linewidth=0.4,
+               error_kw={'elinewidth': 0.8, 'capsize': 2.5, 'capthick': 0.8}, zorder=3)
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(n) for n in _PLOT_NS])
+    ax.minorticks_off()
+    ax.set_ylim(bottom=0)
+    ax.set_xlabel('Platt Training Samples')
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=15, style='italic')
+    ax.grid(axis='y', alpha=0.25, linestyle='-', linewidth=0.4)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+def plot_sweep(df, datasets, platt_ns, figures_dir):
+    """Save bar charts of smECE vs n and a legend.
+
+    One NTP chart (NTP has no train dataset; asserted train-independent first, and the
+    only chart with a y-axis label) and one probe chart per train dataset. Bars are
+    grouped by n in _PLOT_NS and coloured by test dataset; error bars are the
+    fit-sample percentile interval.
 
     Args:
         df: Summary from ``run_sweep``.
@@ -388,34 +447,12 @@ def plot_sweep(df, datasets, platt_ns, figures_dir):
     """
     missing = [n for n in _PLOT_NS if n not in platt_ns]
     assert not missing, f'plotted ns {missing} are not in params.platt_ns {platt_ns}'
-    x = np.arange(len(_PLOT_NS))
-    width = 0.8 / len(datasets)
-    for method, _, _ in _METHODS:
-        for train_ds in datasets:
-            fig, ax = plt.subplots(figsize=(4.0, 3.8))
-            for i, test_ds in enumerate(datasets):
-                sub = df[(df['Type'] == method) & (df['Train dataset'] == train_ds)
-                         & (df['Test dataset'] == test_ds) & df['Platt N'].isin(_PLOT_NS)].sort_values('Platt N')
-                assert sub['Platt N'].tolist() == _PLOT_NS, (method, train_ds, test_ds)
-                mean = sub['SmECE'].to_numpy()
-                yerr = np.stack([mean - sub['SmECE_lo'].to_numpy(), sub['SmECE_hi'].to_numpy() - mean])
-                ax.bar(x + (i - (len(datasets) - 1) / 2) * width, mean, width, yerr=yerr,
-                       color=_DS_COLORS[test_ds], edgecolor='black', linewidth=0.4,
-                       error_kw={'elinewidth': 0.8, 'capsize': 2.5, 'capthick': 0.8}, zorder=3)
-            ax.set_xticks(x)
-            ax.set_xticklabels([str(n) for n in _PLOT_NS])
-            ax.minorticks_off()
-            ax.set_ylim(bottom=0)
-            ax.set_xlabel('Platt Training Samples')
-            if method == 'NTP':
-                ax.set_ylabel('SmECE')
-            ax.set_title(method, fontsize=15, style='italic')
-            ax.grid(axis='y', alpha=0.25, linestyle='-', linewidth=0.4)
-            ax.set_axisbelow(True)
-            fig.tight_layout()
-            fig.savefig(figures_dir / f'smece_vs_n_train_resample_{method.lower()}_train-{train_ds}.pdf',
-                        bbox_inches='tight', dpi=200)
-            plt.close(fig)
+    _assert_ntp_train_independent(df, datasets)
+    _save_bar_panel(df, 'NTP', datasets[0], datasets, 'NTP', 'SmECE',
+                    figures_dir / 'smece_vs_n_train_resample_ntp.pdf')
+    for train_ds in datasets:
+        _save_bar_panel(df, 'Probe', train_ds, datasets, f'Probe ({_DS_LABELS[train_ds]})', None,
+                        figures_dir / f'smece_vs_n_train_resample_probe_train-{train_ds}.pdf')
 
     handles = [mpatches.Patch(facecolor=_DS_COLORS[ds], edgecolor='black', linewidth=0.4, label=_DS_LABELS[ds])
                for ds in datasets]

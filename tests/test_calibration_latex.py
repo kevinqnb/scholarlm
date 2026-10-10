@@ -51,12 +51,19 @@ def _row(setting, kind, tr, te, smece, cal=None):
 
 
 def _frames(cal=None):
+    # Probe smECE varies by train dataset; NTP (raw judge p(true)) is identical across train copies.
     out = {}
     for kind in ("NTP", "Probe"):
-        rows = [_row(s, kind, tr, te, 0.1 + 0.01 * DS.index(tr) + (0.2 if kind == "NTP" else 0), cal)
+        rows = [_row(s, kind, tr, te, 0.3 if kind == "NTP" else 0.1 + 0.01 * DS.index(tr), cal)
                 for s in ("syn", "real") for tr in DS for te in DS]
         out[kind] = pd.DataFrame(rows)
     return out
+
+
+def _set_ntp(f, setting, te, cols, vals):
+    """Set columns on every train copy of one NTP (setting, test) cell, keeping them identical."""
+    df = f["NTP"]
+    df.loc[(df["Dataset type"] == setting) & (df["Test dataset"] == te), cols] = vals
 
 
 def test_format_known_answer():
@@ -89,8 +96,8 @@ def test_nan_raises():
 def test_smece_table_structure_and_bold():
     tex = cl.build_smece_table(SPEC, _frames(), "real", "j", CAL)
     lines = tex.splitlines()
-    assert sum(l == "\\midrule" for l in lines) == 2  # one before each block
-    assert tex.count("Probe (") == 3 and tex.count("NTP (") == 3
+    assert sum(l == "\\midrule" for l in lines) == 2  # before the NTP row and before the probe block
+    assert tex.count("Probe (") == 3 and sum(l.startswith("NTP & ") for l in lines) == 1 and "NTP (" not in tex
     # Probe train=pond (0.100) is the column-min for test pond only through ties across rows:
     assert tex.count("\\textbf{0.100}") == 3  # Probe (PLW) bold in every column
     assert "\\textbf{0.110}" not in tex
@@ -99,7 +106,7 @@ def test_smece_table_structure_and_bold():
 
 def test_smece_row_order_is_ntp_then_probe():
     tex = cl.build_smece_table(SPEC, _frames(), "syn", "j", CAL)
-    assert tex.index("NTP (PLW)") < tex.index("NTP (SM)") < tex.index("Probe (PLW)") < tex.index("Probe (SM)")
+    assert tex.index("\nNTP & ") < tex.index("Probe (PLW)") < tex.index("Probe (NF)") < tex.index("Probe (SM)")
 
 
 def test_classification_rejects_validity_mismatch():
@@ -111,14 +118,14 @@ def test_classification_rejects_validity_mismatch():
 
 def test_classification_nan_precision_inconsistent_raises():
     f = _frames()  # Recall 0.7, Validity 0.8: NaN precision is not explained by "no predicted positives"
-    f["NTP"].loc[0, "Precision"] = float("nan")
+    _set_ntp(f, "syn", "pond", "Precision", float("nan"))
     with pytest.raises(ValueError, match="Validity"):
         cl.build_classification_table(SPEC, f, "syn", "j", CAL)
 
 
 def test_classification_no_predicted_positives_renders_marker():
     f = _frames()
-    f["NTP"].loc[0, ["Precision", "F1", "Recall", "Validity"]] = [float("nan"), float("nan"), 0.0, 0.0]
+    _set_ntp(f, "syn", "pond", ["Precision", "F1", "Recall", "Validity"], [float("nan"), float("nan"), 0.0, 0.0])
     tex = cl.build_classification_table(SPEC, f, "syn", "j", CAL)
     assert "0.900 & -- & 0.000 & -- & 0.950" in tex
     assert "undefined" in tex and "nan" not in tex.lower()
@@ -126,28 +133,40 @@ def test_classification_no_predicted_positives_renders_marker():
 
 def test_classification_nan_accuracy_still_raises():
     f = _frames()
-    f["NTP"].loc[0, "Accuracy"] = float("nan")
+    _set_ntp(f, "syn", "pond", "Accuracy", float("nan"))
     with pytest.raises(ValueError, match="not finite"):
         cl.build_classification_table(SPEC, f, "syn", "j", CAL)
 
 
-def test_classification_and_variants_have_18_rows_two_blocks():
+def test_classification_and_variants_have_one_ntp_row_per_test_set():
     for fn in (cl.build_classification_table, cl.build_variants_table):
-        tex = fn(SPEC, _frames(), "real", "j", CAL)
-        assert sum(l.startswith(("NTP &", "Probe &")) for l in tex.splitlines()) == 18
-        assert tex.count("\\midrule") == 2
+        lines = fn(SPEC, _frames(), "real", "j", CAL).splitlines()
+        ntp = [l for l in lines if l.startswith("NTP &")]
+        assert [l.split(" & ")[1:3] for l in ntp] == [["", "PLW"], ["", "NF"], ["", "SM"]]  # empty train cell
+        assert sum(l.startswith("Probe &") for l in lines) == 9
+        assert lines.count("\\midrule") == 2
+
+
+@pytest.mark.parametrize("fn", [cl.build_smece_table, cl.build_classification_table, cl.build_variants_table])
+def test_tables_reject_train_dependent_ntp(fn):
+    f = _frames()
+    df = f["NTP"]
+    df.loc[(df["Dataset type"] == "real") & (df["Train dataset"] == "supermat") & (df["Test dataset"] == "nfix"),
+           "SmECE"] = 0.31
+    with pytest.raises(ValueError, match="real/NTP test=nfix: rows differ between train pond and supermat"):
+        fn(SPEC, f, "real", "j", CAL)
 
 
 def test_variants_plugin_ece_point_outside_interval_renders_exact_interval():
     f = _frames()
-    f["NTP"].loc[3, ["ECE", "ECE_lo", "ECE_hi"]] = [0.0071, 0.0083, 0.0489]
+    _set_ntp(f, "syn", "pond", ["ECE", "ECE_lo", "ECE_hi"], [0.0071, 0.0083, 0.0489])
     tex = cl.build_variants_table(SPEC, f, "syn", "j", CAL)
     assert "0.007 [0.008, 0.049]" in tex
 
 
 def test_variants_rmsce_point_outside_interval_renders_exact_interval():
     f = _frames()
-    f["NTP"].loc[3, ["RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi"]] = [0.5, 0.06, 0.09]
+    _set_ntp(f, "syn", "pond", ["RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi"], [0.5, 0.06, 0.09])
     tex = cl.build_variants_table(SPEC, f, "syn", "j", CAL)
     assert "0.500 [0.060, 0.090]" in tex
 

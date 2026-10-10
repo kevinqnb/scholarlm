@@ -4,7 +4,11 @@ Reads metrics_{probe,ntp}.csv written by calibration.py (``labels: llm_matching`
 calibration_validated.py (``labels: human_validated``) for a v4 config. Captions state the
 config's recalibration method and fit settings, which the CSVs are checked against.
 For each of syn and real it writes three tables into ``output_dir``:
-  - calibration_{setting}_smece.tex: smooth ECE, training-dataset rows x test-dataset columns.
+  - calibration_{setting}_smece.tex: smooth ECE; one NTP row, then one probe row per training
+    dataset, x test-dataset columns.
+NTP is the judge's raw p(true) and has no training dataset: the CSVs still carry one NTP
+row per (train, test) cell, which must be identical across train datasets, and the
+tables print it once per test dataset.
   - calibration_{setting}_classification.tex: N, label rate, Acc/Prec/Rec/F1/AUROC.
   - calibration_{setting}_ece_variants.tex: ECE, adaptive ECE, debiased RMSCE.
 
@@ -323,6 +327,37 @@ def _lookup(frames: dict[str, pd.DataFrame], setting: str) -> dict[tuple[str, st
     return out
 
 
+def _ntp_lookup(frames: dict[str, pd.DataFrame], setting: str, spec: dict) -> dict[str, pd.Series]:
+    """One NTP row per test dataset, after checking every train dataset's copy is identical.
+
+    NTP has no training dataset, so its (train, test) rows must agree on every column
+    the tables use; any difference means something train-dependent reached NTP.
+
+    Args:
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        spec: Table spec (for the dataset order).
+
+    Returns:
+        ``{test_ds: row}``.
+
+    Raises:
+        ValueError: The NTP rows of some test dataset differ between train datasets.
+    """
+    lk = _lookup(frames, setting)
+    cols = [c for c in _NEEDED_COLUMNS if c != "Train dataset"]
+    trains = list(spec["datasets"].values())
+    out = {}
+    for te in trains:
+        ref = lk[("NTP", trains[0], te)][cols]
+        for tr in trains[1:]:
+            if not ref.equals(lk[("NTP", tr, te)][cols]):
+                raise ValueError(f"{setting}/NTP test={te}: rows differ between train {trains[0]} and {tr}; "
+                                 "NTP has no training dataset, so they must be identical")
+        out[te] = lk[("NTP", trains[0], te)]
+    return out
+
+
 def _wrap(spec: dict, setting: str, name: str, body: list[str], caption: str, colspec: str) -> str:
     """Wrap table body lines in a LaTeX ``table`` / ``tabular`` environment.
 
@@ -433,11 +468,12 @@ def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, cal: dict,
         n_note = ("$N$ is the same down each column" if _n_constant_down_columns(frames, setting)
                   else "$N$ differs down a column")
         s += f", all outside the probe's training documents; {n_note}."
-    return f"{s} Judge model \\texttt{{{judge}}}. Rows: dataset the probe was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else "")
+    return (f"{s} Judge model \\texttt{{{judge}}}. NTP: the judge's raw p(true), which has no training dataset. "
+            f"Probe rows: dataset the probe was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else ""))
 
 
 def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
-    """Main table: smooth ECE, NTP then Probe blocks, train rows x test columns, best bolded.
+    """Main table: smooth ECE, one NTP row then one Probe row per train dataset, best bolded.
 
     Args:
         spec: Table spec.
@@ -450,26 +486,29 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: d
         LaTeX source.
     """
     lk = _lookup(frames, setting)
+    ntp = _ntp_lookup(frames, setting, spec)
     labels = spec["datasets"]
+    # (row label, {test_ds: row}) for every row shown: NTP once, then each probe.
+    shown = [("NTP", ntp)] + [(f"Probe ({tl})", {te: lk[("Probe", tr, te)] for te in labels.values()})
+                              for tl, tr in labels.items()]
     # Lowest smECE per test column across every row shown; exact ties all bold.
-    best = {te: min(lk[(k, tr, te)][SMECE[0]] for k, _ in METHODS for tr in labels.values()) for te in labels.values()}
+    best = {te: min(rows[te][SMECE[0]] for _, rows in shown) for te in labels.values()}
     body = [
         f"& \\multicolumn{{{len(labels)}}}{{c}}{{Test dataset}} \\\\",
         f"\\cmidrule(l){{2-{len(labels) + 1}}}",
         "Method (train) & " + " & ".join(labels) + " \\\\",
     ]
-    for i, (kind, _) in enumerate(METHODS):
-        body.append("\\midrule")
-        for tl, tr in labels.items():
-            cells = [_cell(lk[(kind, tr, te)], SMECE, spec=spec, bold=lk[(kind, tr, te)][SMECE[0]] == best[te])
-                     for te in labels.values()]
-            body.append(f"{kind} ({tl}) & " + " & ".join(cells) + " \\\\")
+    for i, (name, rows) in enumerate(shown):
+        if i <= 1:  # before the NTP row and before the probe block
+            body.append("\\midrule")
+        cells = [_cell(rows[te], SMECE, spec=spec, bold=rows[te][SMECE[0]] == best[te]) for te in labels.values()]
+        body.append(f"{name} & " + " & ".join(cells) + " \\\\")
     caption = f"Smooth ECE (lower is better; best per column in bold). " + _caption_tail(spec, frames, setting, judge, cal)
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
 def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
-    """Body rows for the long tables: method x train x test, NTP block then Probe block.
+    """Body rows for the long tables: NTP x test (train cell empty), then Probe x train x test.
 
     Args:
         spec: Table spec.
@@ -481,13 +520,15 @@ def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
         Body lines.
     """
     lk = _lookup(frames, setting)
+    ntp = _ntp_lookup(frames, setting, spec)
     labels = spec["datasets"]
-    body = []
-    for kind, _ in METHODS:
-        body.append("\\midrule")
-        for tl, tr in labels.items():
-            for tel, te in labels.items():
-                body.append(f"{kind} & {tl} & {tel} & " + cell_fn(lk[(kind, tr, te)]) + " \\\\")
+    body = ["\\midrule"]
+    for tel, te in labels.items():
+        body.append(f"NTP &  & {tel} & " + cell_fn(ntp[te]) + " \\\\")
+    body.append("\\midrule")
+    for tl, tr in labels.items():
+        for tel, te in labels.items():
+            body.append(f"Probe & {tl} & {tel} & " + cell_fn(lk[("Probe", tr, te)]) + " \\\\")
     return body
 
 
