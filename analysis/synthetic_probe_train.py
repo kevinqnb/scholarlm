@@ -1,10 +1,10 @@
-"""Train the attention-head validity probe and NTP calibrator on one synthetic judge run.
+"""Train the attention-head validity probe on one synthetic judge run.
 
-Ranks every (layer, head) by grouped-CV F1, trains a logistic probe on the top
-TOP_K heads, and fits a 1-D calibrator on the judge's p(true). Both are saved under
-analysis/results/synthetic-probe/<config id>/trained_probe/ (Platt-wrapped or
-``_noplatt``, per ``params.use_platt_scaling``), with heatmaps and results.json
-alongside.
+Ranks every (layer, head) by grouped-CV F1 and trains a logistic probe on the top
+TOP_K heads. It is saved under analysis/results/synthetic-probe/<config id>/trained_probe/
+(Platt-wrapped or ``_noplatt``, per ``params.use_platt_scaling``), with heatmaps and
+results.json alongside. Nothing is fit on the judge's NTP p(true): downstream scripts
+use it raw.
 
 Usage
 -----
@@ -69,7 +69,7 @@ RESULTS_ROOT = analysis_results_dir("synthetic-probe")
 def _parse_args():
     """Parse the single positional synthetic-probe config path."""
     parser = argparse.ArgumentParser(
-        description="Train the head probe + NTP calibrator on one synthetic judge_interp run."
+        description="Train the head probe on one synthetic judge_interp run."
     )
     parser.add_argument('config', type=Path,
                         help="analysis/analysis-configs/synthetic-probe/<id>.yaml with params.dataset and "
@@ -176,18 +176,18 @@ def cv_score(probe, X, y, kfold_cv):
 
 def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed,
                     use_platt_scaling, exclude_documents):
-    """Train and save the head probe and NTP calibrator (and optionally the layer probe).
+    """Train and save the head probe (and optionally the layer probe).
 
     Args:
         DATASET: Dataset name.
         JUDGE_MODEL: Judge model name.
-        syn_responses: Judge responses with label, document_id, judgement_p_true.
+        syn_responses: Judge responses with label and document_id.
         syn_activations: attention_outputs npz, keyed by measurement_id.
         syn_layer_outputs: layer_outputs npz, keyed by measurement_id.
         probe_dir: Where the probe pickles go.
         out_dir: Where figures, head_scores.npz and results.json go.
         seed: Seeds every split and LogisticRegression.
-        use_platt_scaling: Wrap probe and calibrator in CalibratedClassifierCV.
+        use_platt_scaling: Wrap the head probe in CalibratedClassifierCV.
         exclude_documents: ``{document_id, reason}`` entries dropped from training
             (config ``params.exclude_documents``). Each must occur in the synthetic run.
 
@@ -353,36 +353,8 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     print(f'  Top-{TOP_K} heads        : {top_k_heads}')
     # ─────────────────────────────────────────────────────────────────
 
-    # NTP calibrator: 1-D logistic regression on judgement_p_true, same CV folds as the probe.
-    ntp_probs_train = syn_df['judgement_p_true'].to_numpy()[syn_train_idx].reshape(-1, 1)
-
-    ntp_base = Pipeline([
-        ('clf', LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000, random_state=seed))
-    ])
-    if use_platt_scaling:
-        ntp_calibrated = CalibratedClassifierCV(
-            estimator=ntp_base,
-            method='sigmoid',
-            cv=kfold_cv,
-        ).fit(ntp_probs_train, y_train)
-    else:
-        ntp_calibrated = ntp_base.fit(ntp_probs_train, y_train)
-
-    ntp_cal_probs_tr = ntp_calibrated.predict_proba(ntp_probs_train)[:, 1]
-    ntp_train_ece = float(compute_ece(ntp_cal_probs_tr, y_train))
-    print(f"  NTP calibrator train ECE: {ntp_train_ece:.4f}")
-
-    ntp_cal_filename = 'ntp_calibrator.pkl' if use_platt_scaling else 'ntp_calibrator_noplatt.pkl'
-    ntp_cal_path = probe_dir / ntp_cal_filename
-    joblib.dump({
-        'calibrator':       ntp_calibrated,
-        'train_prevalence': float(y_train.mean()),
-        'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
-        'judge_model':      JUDGE_MODEL,
-        'dataset':          DATASET,
-    }, ntp_cal_path)
-    print(f'NTP calibrator saved → {ntp_cal_path}')
-
+    # No NTP model is trained: downstream scripts use the judge's raw judgement_p_true,
+    # recalibrated (if at all) in calibration.py / platt_scaling.py.
     np.savez(out_dir / 'head_scores.npz', f1=head_scores_f1, ece=head_scores_ece)
     with open(out_dir / 'results.json', 'w') as f:
         json.dump({
@@ -397,9 +369,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
             'use_platt_scaling':  use_platt_scaling,
             'exclude_documents':  exclude_documents,
             'head_probe_train':   train_metrics,
-            'ntp_calibrator_train_ece': ntp_train_ece,
             'probe_path':         str(probe_path),
-            'ntp_calibrator_path': str(ntp_cal_path),
         }, f, indent=2)
     print(f'Results saved → {out_dir}')
     # ─────────────────────────────────────────────────────────────────

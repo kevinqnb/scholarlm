@@ -2,7 +2,8 @@
 
 For every (train dataset, test dataset) pair, scores the synthetic test set (never
 recalibrated) and the real held-out rows. Real rows are recalibrated by one map per
-method (prior_shift, intercept_fit or platt_fit), fit once from ``fit_source``.
+method (intercept_fit or platt_fit), fit once from ``fit_source``. The probe is the
+trained synthetic-probe artifact; NTP is the judge's raw p(true), with no trained model.
 Calibration errors get document-bootstrap CIs. Runs at import time from one config.
 
 Outputs in analysis/results/calibration/<config id>/: predictions.pkl (with row
@@ -40,8 +41,8 @@ from analysis.common.prediction_store import real_cell_provenance
 from analysis.common.calibration_plot_utils import draw_reliability_curve
 from analysis.common.head_activations import HeadActivationCache
 from analysis.common.loaders import load_probe_artifact
-from analysis.common.recalibration import prior_shift_map, intercept_fit_map, platt_fit_map, uniform_fit_sample
-from scholarlm.utils.calibration import apply_platt, fit_prior_shift
+from analysis.common.recalibration import intercept_fit_map, platt_fit_map, uniform_fit_sample
+from scholarlm.utils.calibration import apply_platt
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -130,17 +131,19 @@ if FIT_SOURCE == 'oracle':
     print('[calibration v4] ORACLE fit: maps are fit on the evaluated rows themselves -- diagnostic only.')
 
 
-_ntp_cal_filename = 'ntp_calibrator.pkl' if _PROBE_VARIANT_KW is None else 'ntp_calibrator_noplatt.pkl'
+# NTP is the judge's raw p(true); only the probe is a trained artifact.
+if RECALIBRATION == 'prior_shift':
+    raise ValueError('prior_shift needs a training prevalence per scorer; raw NTP p(true) was never '
+                     'trained on the synthetic set, so it has none. Use intercept_fit or platt_fit.')
 _probe_filename = (
     'layer_probe.pkl' if PROBE_TYPE == 'layer'
     else ('head_probe.pkl' if _PROBE_VARIANT_KW is None else 'head_probe_noplatt.pkl')
 )
-ntp_cal_cache, probe_cache = {}, {}
+probe_cache = {}
 for _train_ds in TRAIN_DATASETS:
-    print(f'Loading trained probe/NTP calibrator ({_train_ds}, {JUDGE_MODEL}) '
+    print(f'Loading trained probe ({_train_ds}, {JUDGE_MODEL}) '
           f'from {_INPUTS["datasets"][_train_ds]["syn_train_id"]}...')
-    ntp_cal_cache[_train_ds] = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _ntp_cal_filename, _train_ds, JUDGE_MODEL)
-    probe_cache[_train_ds]   = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _probe_filename, _train_ds, JUDGE_MODEL)
+    probe_cache[_train_ds] = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _probe_filename, _train_ds, JUDGE_MODEL)
 
 # Decompress each activation row once, keeping the union of all probes' top heads.
 _HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr]['top_k_heads']])
@@ -216,13 +219,13 @@ for ds in DATASETS:
 
 
 def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
-    """Unrecalibrated probe and NTP-calibrator probabilities for some rows.
+    """Unrecalibrated probe probabilities and raw NTP p(true) for some rows.
 
     Args:
-        train_ds: Dataset whose probe and calibrator are applied.
+        train_ds: Dataset whose probe is applied.
         test_ds: Dataset being scored (for error messages).
         mids: Measurement ids (activation keys).
-        raw_ntp_probs: Judge p(true) per row.
+        raw_ntp_probs: Judge p(true) per row, returned unchanged as the NTP score.
         act_dir: Judge run directory holding the activations.
 
     Returns:
@@ -230,7 +233,8 @@ def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
     """
     pd_data = probe_cache[train_ds]
     top = pd_data['top_layer'] if PROBE_TYPE == 'layer' else pd_data['top_k_heads']
-    ntp_probs = ntp_cal_cache[train_ds]['calibrator'].predict_proba(raw_ntp_probs.reshape(-1, 1))[:, 1]
+    ntp_probs = np.asarray(raw_ntp_probs, dtype=float)
+    assert ((ntp_probs >= 0) & (ntp_probs <= 1)).all(), (train_ds, test_ds, 'judge p(true) outside [0, 1]')
     if PROBE_TYPE == "layer":
         lo = np.load(act_dir / 'layer_outputs.npz')
         X = np.stack([np.array(lo[str(mid)], dtype=np.float32)[top] for mid in mids], axis=0)
@@ -305,17 +309,10 @@ def compute_predictions():
                                 real_df[col].iloc[fit_idx].to_numpy(), act_dir)
                             fit_raw = {'probe': f_probe, 'ntp': f_ntp}
 
-                    pi_tr = {'probe': pd_data['train_prevalence'],
-                             'ntp': ntp_cal_cache[train_ds]['train_prevalence']}
+                    # prior_shift is rejected at load time (raw NTP has no training prevalence).
                     maps = {}
                     for meth in ('probe', 'ntp'):
-                        if RECALIBRATION == 'prior_shift':
-                            coef, icpt = prior_shift_map(td['pi_te'], pi_tr[meth])
-                            if FIT_SOURCE != 'manual':
-                                # Known answer: the library's prior_shift fit on the same rows.
-                                ref = fit_prior_shift(fit_labels, pi_tr[meth])
-                                assert ref == (coef, icpt), (train_ds, test_ds, meth, ref, (coef, icpt))
-                        elif RECALIBRATION == 'intercept_fit':
+                        if RECALIBRATION == 'intercept_fit':
                             # Asserts its score equation: mapped fit rows average to their label rate.
                             coef, icpt = intercept_fit_map(fit_raw[meth], fit_labels)
                         else:
@@ -331,7 +328,7 @@ def compute_predictions():
                         map_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': meth,
                                          'Recalibration': RECALIBRATION, 'Fit source': FIT_SOURCE,
                                          'Fit n': len(fit_idx), 'Fit seed': FIT_SEED, 'pi_te': td['pi_te'],
-                                         'Train prevalence': float(pi_tr[meth]), 'coef': coef, 'intercept': icpt,
+                                         'coef': coef, 'intercept': icpt,
                                          'N test': len(idx), 'Test label rate': float(labels.mean()),
                                          'Raw mean prob': float(raw[meth].mean()),
                                          'Mapped mean prob': float(mapped.mean())})

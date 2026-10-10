@@ -62,40 +62,6 @@ def load_ground_truth_file(path: Path) -> "pd.DataFrame":
     raise ValueError(f"Unsupported ground truth file format: {path.suffix} (expected .csv or .json)")
 
 
-def load_trained_ntp_calibrator(
-    dataset: str, judge_model: str, variant: str | None = None, source: str | None = None
-) -> dict:
-    """Load an NTP calibrator saved by synthetic_probe_train.py.
-
-    Args:
-        dataset: Training dataset name.
-        judge_model: Judge model name.
-        variant: None for the Platt-scaled calibrator, ``"noplatt"`` for the unwrapped one.
-        source: Synthetic corpus (e.g. ``"v2"``); None for the default ``trained_probe/``.
-
-    Returns:
-        Dict with ``calibrator``, ``train_prevalence``, ``syn_document_ids``,
-        ``judge_model``, ``dataset``.
-
-    Raises:
-        ValueError: If variant is not one of (None, "noplatt").
-        FileNotFoundError: If no calibrator has been saved for this (dataset, judge_model, variant).
-    """
-    import joblib
-
-    if variant not in (None, "noplatt"):
-        raise ValueError(f"Unknown variant {variant!r}; expected None or 'noplatt'")
-    filename = "ntp_calibrator.pkl" if variant is None else "ntp_calibrator_noplatt.pkl"
-    path = _paths.trained_probe_dir(dataset, judge_model, source=source) / filename
-    if not path.exists():
-        raise FileNotFoundError(
-            f"NTP calibrator not found: {path}. "
-            f"Run synthetic_probe_train.py for dataset='{dataset}' judge='{judge_model}' "
-            f"variant={variant!r} source={source!r} first."
-        )
-    return joblib.load(path)
-
-
 def load_trained_probe(
     dataset: str, judge_model: str, ptype: str = "head",
     variant: str | None = None, source: str | None = None,
@@ -192,7 +158,7 @@ def cached_match(
 
 
 def load_probe_artifact(probe_dir: Path, filename: str, dataset: str, judge_model: str) -> dict:
-    """Load a trained probe or NTP calibrator and check it was built for this dataset/judge.
+    """Load a trained probe and check it was built for this dataset/judge.
 
     Args:
         probe_dir: synthetic_probe_train.py's ``trained_probe`` directory.

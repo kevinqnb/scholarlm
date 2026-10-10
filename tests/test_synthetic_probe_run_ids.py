@@ -202,7 +202,6 @@ def test_main_noplatt_saves_plain_pipeline_under_analysis_results(run_main):
     out_dir, probe_dir, run_dir = run_main(False)
 
     assert (probe_dir / "head_probe_noplatt.pkl").exists()
-    assert (probe_dir / "ntp_calibrator_noplatt.pkl").exists()
     assert not (probe_dir / "head_probe.pkl").exists()
     assert not (run_dir / "trained_probe").exists()  # never the judge_interp run dir
 
@@ -210,7 +209,6 @@ def test_main_noplatt_saves_plain_pipeline_under_analysis_results(run_main):
     assert type(probe_data["probe"]) is Pipeline  # one fit, no CalibratedClassifierCV ensemble
     assert probe_data["dataset"] == "pond"
     assert probe_data["judge_model"] == "qwen-2.5-7b"
-    assert type(joblib.load(probe_dir / "ntp_calibrator_noplatt.pkl")["calibrator"]) is Pipeline
 
     results = json.loads((out_dir / "results.json").read_text())
     assert results["use_platt_scaling"] is False
@@ -222,17 +220,23 @@ def test_main_platt_saves_calibrated_ensemble_unsuffixed(run_main):
     out_dir, probe_dir, run_dir = run_main(True)
 
     assert (probe_dir / "head_probe.pkl").exists()
-    assert (probe_dir / "ntp_calibrator.pkl").exists()
     assert not (probe_dir / "head_probe_noplatt.pkl").exists()
     assert not (run_dir / "trained_probe").exists()
 
     probe_data = joblib.load(probe_dir / "head_probe.pkl")
     assert type(probe_data["probe"]) is CalibratedClassifierCV
     assert len(probe_data["probe"].calibrated_classifiers_) == spt.N_FOLDS
-    # use_platt_scaling also wraps the NTP calibrator, not just the head probe
-    ntp = joblib.load(probe_dir / "ntp_calibrator.pkl")["calibrator"]
-    assert type(ntp) is CalibratedClassifierCV and len(ntp.calibrated_classifiers_) == spt.N_FOLDS
-    assert json.loads((out_dir / "results.json").read_text())["use_platt_scaling"] is True
+    results = json.loads((out_dir / "results.json").read_text())
+    assert results["use_platt_scaling"] is True
+    assert "ntp_calibrator_path" not in results
+
+
+@pytest.mark.parametrize("use_platt", [False, True])
+def test_main_writes_no_ntp_artifact(run_main, use_platt):
+    # NTP p(true) is used raw downstream; training must not fit or save anything on it.
+    out_dir, probe_dir, _ = run_main(use_platt)
+    assert not list(probe_dir.glob("ntp_*")), sorted(p.name for p in probe_dir.iterdir())
+    assert not any(k.startswith("ntp") for k in json.loads((out_dir / "results.json").read_text()))
 
 
 def test_main_same_seed_is_deterministic(run_main):

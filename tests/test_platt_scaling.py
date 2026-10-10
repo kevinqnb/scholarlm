@@ -143,7 +143,6 @@ class _FakeInputs:
             "labels": self.labels, "pool_docs": set(range(6)),
             "pool_idx": np.arange(n_pool), "test_idx": np.arange(n_pool, n_pool + 4)}}
         self.probe = {"pond": {"train_prevalence": 0.5, "syn_document_ids": list(range(6))}}
-        self.ntp_cal = {"pond": {"train_prevalence": 0.4}}
         rng = np.random.default_rng(0)
         self.raw = {"probe": rng.uniform(0.1, 0.9, len(docs)), "ntp": rng.uniform(0.1, 0.9, len(docs))}
 
@@ -165,3 +164,51 @@ def test_run_sweep_baseline_is_raw_scores():
     # n > 0 rows unaffected: 5 resamples each, and the baseline has no per-resample rows.
     assert (summary[summary["Platt N"] == 8]["Train resamples"] == 5).all()
     assert len(samples_df) == 2 * 5 and (samples_df["Platt N"] == 8).all()
+
+
+class _ConstProbe:
+    """predict_proba stand-in: constant 0.7 for every row."""
+
+    def predict_proba(self, X):
+        return np.tile([0.3, 0.7], (len(X), 1))
+
+
+class _FakeHeadActs:
+    def features(self, act_dir, mids, top):
+        return np.zeros((len(mids), 2), dtype=np.float32)
+
+
+def test_score_rows_ntp_is_raw_judge_p_true():
+    # Known answer: with no trained NTP model, the NTP score is the judge's p(true) itself,
+    # including the boundary values 0 and 1.
+    import pandas as pd
+    inp = object.__new__(ps2.SweepInputs)
+    inp.judge_model, inp.probe_type = "j", "head"
+    p_true = np.array([0.0, 0.25, 0.5, 0.9, 1.0])
+    inp.data = {"pond": {"real_df": pd.DataFrame({"measurement_id": list("abcde"), "judgement_p_true_j": p_true})}}
+    inp.inputs = {"datasets": {"pond": {"judge_interp_dir": Path("/nonexistent")}}}
+    inp.probe = {"pond": {"probe": _ConstProbe(), "top_k_heads": [(0, 0)]}}
+    inp.head_acts = _FakeHeadActs()
+    idx = np.array([4, 0, 2])
+    out = inp.score_rows("pond", "pond", idx)
+    assert np.array_equal(out["ntp"], p_true[idx])
+    assert np.array_equal(out["probe"], np.full(3, 0.7))
+
+
+def test_score_rows_rejects_ntp_outside_unit_interval():
+    import pandas as pd
+    inp = object.__new__(ps2.SweepInputs)
+    inp.judge_model, inp.probe_type = "j", "head"
+    inp.data = {"pond": {"real_df": pd.DataFrame({"measurement_id": ["a"], "judgement_p_true_j": [1.2]})}}
+    inp.inputs = {"datasets": {"pond": {"judge_interp_dir": Path("/nonexistent")}}}
+    inp.probe = {"pond": {"probe": _ConstProbe(), "top_k_heads": [(0, 0)]}}
+    inp.head_acts = _FakeHeadActs()
+    with pytest.raises(AssertionError):
+        inp.score_rows("pond", "pond", np.array([0]))
+
+
+def test_fit_map_prior_shift_without_training_prevalence_raises():
+    with pytest.raises(ValueError, match="training prevalence"):
+        ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), None)
+    # The probe (which has a training prevalence) is unaffected.
+    assert ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), 0.5) == (1.0, 0.0)

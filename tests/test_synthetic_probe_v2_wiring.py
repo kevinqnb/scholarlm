@@ -9,7 +9,7 @@ Covered:
   * ``paths.trained_probe_dir`` — default path byte-for-byte unchanged; a
     ``source`` routes to the parallel ``synthetic_probe_<source>`` tree; a
     malformed source is a hard error.
-  * ``loaders.load_trained_probe`` / ``load_trained_ntp_calibrator`` — the
+  * ``loaders.load_trained_probe`` — the
     ``source`` kwarg reaches ``trained_probe_dir`` (checked via the path named
     in the FileNotFoundError, and via a real round-trip through a fake artifact).
 """
@@ -73,9 +73,3 @@ def test_load_trained_probe_roundtrip_from_v2_dir(tmp_path, monkeypatch):
     joblib.dump(sentinel, d / "head_probe.pkl")
     got = loaders.load_trained_probe("pond", "qwen-2.5-7b", source="v2")
     assert got["probe"] == "SENTINEL"
-
-
-def test_load_ntp_calibrator_source_in_error_path(tmp_path, monkeypatch):
-    monkeypatch.setattr(paths, "EXPERIMENTS_ROOT", tmp_path)
-    with pytest.raises(FileNotFoundError, match=r"synthetic_probe_v2/.*ntp_calibrator\.pkl"):
-        loaders.load_trained_ntp_calibrator("pond", "qwen-2.5-7b", source="v2")

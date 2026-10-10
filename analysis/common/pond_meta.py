@@ -250,12 +250,8 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     probe_path = inputs['probe_dir'] / f'head_probe{suffix}.pkl'
     probe_art = joblib.load(probe_path)  # only for syn_document_ids; its predict_proba is never called
     assert probe_art['judge_model'] == judge and probe_art['dataset'] == DATASET, probe_path
+    # The probe is the only trained confidence model (NTP is the judge's raw p(true)).
     syn_docs = set(probe_art['syn_document_ids'])
-    # Held-out must mean held out from BOTH confidence models: the NTP calibrator's
-    # training documents have to be the probe's.
-    ntp_path = inputs['probe_dir'] / f'ntp_calibrator{suffix}.pkl'
-    assert set(joblib.load(ntp_path)['syn_document_ids']) == syn_docs, (
-        f'{ntp_path} was trained on different documents than {probe_path}')
 
     with open(inputs['predictions_path'], 'rb') as f:
         cell = pickle.load(f)['real'][judge][DATASET][DATASET]

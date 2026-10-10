@@ -433,7 +433,7 @@ def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, cal: dict,
         n_note = ("$N$ is the same down each column" if _n_constant_down_columns(frames, setting)
                   else "$N$ differs down a column")
         s += f", all outside the probe's training documents; {n_note}."
-    return f"{s} Judge model \\texttt{{{judge}}}. Rows: dataset the probe / NTP calibrator was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else "")
+    return f"{s} Judge model \\texttt{{{judge}}}. Rows: dataset the probe was trained on; {labels}." + (f" Intervals: {ci}." if with_ci else "")
 
 
 def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:

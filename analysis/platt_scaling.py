@@ -2,6 +2,8 @@
 
 Same inputs, labels, pool and test rows as calibration.py. For each (train probe, test
 dataset, method, n in params.platt_ns):
+Probe scores come from the trained synthetic probe; NTP scores are the judge's raw
+p(true), with no trained model.
   - draw n_train_resamples two-class fit samples of n pool rows (doc_bootstrap.two_class_fit_samples);
   - fit a map on each, apply it to the fixed test rows, and score smECE;
   - report the mean and the 2.5 / 97.5 percentiles.
@@ -78,7 +80,7 @@ _METHODS = [
 _PLOT_NS = [0, 100, 500]
 
 
-def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, float]:
+def fit_map(recalibration: str, probs, labels, pi_tr: float | None) -> tuple[float, float]:
     """Fit a recalibration map on some rows.
 
     platt_fit calls scholarlm's fit_platt directly, without the separability and
@@ -88,16 +90,19 @@ def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, flo
         recalibration: ``"prior_shift"``, ``"intercept_fit"`` or ``"platt_fit"``.
         probs: Fit-row probabilities.
         labels: Fit-row labels.
-        pi_tr: Scorer's training prevalence (prior_shift only).
+        pi_tr: Scorer's training prevalence (prior_shift only); None for raw NTP,
+            which has no training set.
 
     Returns:
         ``(coef, intercept)`` for apply_platt.
 
     Raises:
-        ValueError: Unknown method.
+        ValueError: Unknown method, or prior_shift with ``pi_tr`` None.
     """
     labels = np.asarray(labels, dtype=bool)
     if recalibration == 'prior_shift':
+        if pi_tr is None:
+            raise ValueError('prior_shift needs a training prevalence; raw NTP p(true) has none')
         return prior_shift_map(float(labels.mean()), pi_tr)
     if recalibration == 'intercept_fit':
         return intercept_fit_map(probs, labels)
@@ -139,7 +144,7 @@ def summarize(values, ci_level=db.CI_LEVEL) -> dict:
 
 
 class SweepInputs:
-    """Trained probes and calibrators plus each dataset's real labels, pool and test rows.
+    """Trained probes plus each dataset's real labels, pool and test rows.
 
     Args:
         cfg: Loaded platt-scaling config.
@@ -161,10 +166,8 @@ class SweepInputs:
 
         # None selects the Platt-scaled filenames; 'noplatt' the suffixed ones.
         variant_kw = None if params['probe_variant'] == 'platt' else params['probe_variant']
-        ntp_name = 'ntp_calibrator.pkl' if variant_kw is None else 'ntp_calibrator_noplatt.pkl'
         probe_name = ('layer_probe.pkl' if self.probe_type == 'layer'
                       else ('head_probe.pkl' if variant_kw is None else 'head_probe_noplatt.pkl'))
-        self.ntp_cal = {ds: self._load_artifact(ds, ntp_name) for ds in self.datasets}
         self.probe = {ds: self._load_artifact(ds, probe_name) for ds in self.datasets}
         # Each activation row decompressed once, keeping every train probe's top heads.
         self.head_acts = (HeadActivationCache([lh for ds in self.datasets for lh in self.probe[ds]['top_k_heads']])
@@ -172,7 +175,7 @@ class SweepInputs:
         self.data = {ds: self._load_real(ds) for ds in self.datasets}
 
     def _load_artifact(self, train_ds, filename):
-        """Load a probe or calibrator pickle and check its judge and dataset.
+        """Load a probe pickle and check its judge and dataset.
 
         Args:
             train_ds: Dataset it was trained on.
@@ -243,10 +246,10 @@ class SweepInputs:
                 'pool_idx': pool_idx, 'test_idx': test_idx}
 
     def score_rows(self, train_ds, test_ds, idx):
-        """Unrecalibrated probe and NTP-calibrator probabilities for some real rows.
+        """Unrecalibrated probe probabilities and raw NTP p(true) for some real rows.
 
         Args:
-            train_ds: Dataset whose probe and calibrator are applied.
+            train_ds: Dataset whose probe is applied.
             test_ds: Dataset whose rows are scored.
             idx: Row positions in that dataset's ``real_df``.
 
@@ -259,7 +262,8 @@ class SweepInputs:
         raw_ntp = real_df[f'judgement_p_true_{self.judge_model}'].iloc[idx].to_numpy()
         pd_data = self.probe[train_ds]
         top = pd_data['top_layer'] if self.probe_type == 'layer' else pd_data['top_k_heads']
-        ntp_probs = self.ntp_cal[train_ds]['calibrator'].predict_proba(raw_ntp.reshape(-1, 1))[:, 1]
+        ntp_probs = np.asarray(raw_ntp, dtype=float)
+        assert ((ntp_probs >= 0) & (ntp_probs <= 1)).all(), (train_ds, test_ds, 'judge p(true) outside [0, 1]')
         if self.probe_type == 'layer':
             lo = np.load(act_dir / 'layer_outputs.npz')
             X = np.stack([np.array(lo[str(m)], dtype=np.float32)[top] for m in mids], axis=0)
@@ -300,8 +304,8 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
 
     rows, sample_rows = [], []
     for train_ds in inp.datasets:
-        pi_tr = {'probe': inp.probe[train_ds]['train_prevalence'],
-                 'ntp': inp.ntp_cal[train_ds]['train_prevalence']}
+        # Raw NTP has no training prevalence (prior_shift on it raises in fit_map).
+        pi_tr = {'probe': inp.probe[train_ds]['train_prevalence'], 'ntp': None}
         for test_ds in inp.datasets:
             d = inp.data[test_ds]
             real_df, pool_idx, test_idx = d['real_df'], d['pool_idx'], d['test_idx']
@@ -344,7 +348,8 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
                         sample_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method,
                                             'Platt N': n, 'Recalibration': recalibration, 'Fit sample': r,
                                             'coef': coef, 'intercept': icpt, 'Label rate': rates[-1],
-                                            'Train prevalence': float(pi_tr[key]), 'SmECE': v})
+                                            'Train prevalence': np.nan if pi_tr[key] is None else float(pi_tr[key]),
+                                            'SmECE': v})
                     rows.append({
                         'Train dataset': train_ds, 'Test dataset': test_ds, 'Type': method, 'Platt N': n,
                         'Recalibration': recalibration, 'Train resamples': len(values), 'Fit draws': n_draws,
@@ -431,6 +436,9 @@ def main(config_path):
     cfg = load_platt_sweep_v2_config(Path(config_path))
     p = cfg['params']
     platt_ns, recalibration, n_resamples = list(p['platt_ns']), p['recalibration'], p['n_train_resamples']
+    if recalibration == 'prior_shift':
+        raise ValueError('prior_shift needs a training prevalence per scorer; raw NTP p(true) was never '
+                         'trained on the synthetic set, so it has none. Use intercept_fit or platt_fit.')
     print(f"[platt sweep v2] config: {cfg['id']} | ns: {platt_ns} | recalibration: {recalibration} | "
           f"train resamples: {n_resamples}")
     out_dir = analysis_results_dir('platt-scaling') / cfg['id']
