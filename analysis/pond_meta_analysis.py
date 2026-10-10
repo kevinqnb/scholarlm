@@ -49,7 +49,7 @@ from scipy import stats
 
 from analysis.common.pond_meta import (
     ATTRIBUTES, DATASET, ECOSYSTEMS, LOG_SCALE_ATTRIBUTES, META_ROOT, METHOD_PROB_COL, METHODS, PAPER_RCPARAMS,
-    QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION,
+    QLEVELS, REFERENCE_AXIS_LABEL, STANDARD_UNITS, UNIT_CONVERSION_V2,
     _attr_title, _axis_limits, _valid_range, load_data,
 )
 from analysis.common.outlier_weight import add_outlier_columns
@@ -96,17 +96,6 @@ QQ_BASE_LEGEND = {
     'ground_truth': 'Ground truth',
     'valid':        'Valid extracted (judge or GT match)',
 }
-# UNIT_CONVERSION plus pond schema units it lacks: mi^2, and ppm / ppb as mg/L / µg/L
-# (dilute water). µg/cm^2 and molar chla stay unconvertible (likely mislabelled units).
-_V2_ADDED_UNITS = {
-    'surface_area': {'mi^2': 2589988.110336},
-    'tn':   {'ppm': 1000.0, 'ppb': 1.0},
-    'tp':   {'ppm': 1000.0, 'ppb': 1.0},
-    'chla': {'ppm': 1000.0, 'ppb': 1.0},
-}
-assert all(u not in UNIT_CONVERSION[a] for a, m in _V2_ADDED_UNITS.items() for u in m), 'v2 addition already in v1'
-UNIT_CONVERSION_V2 = {a: {**m, **_V2_ADDED_UNITS.get(a, {})} for a, m in UNIT_CONVERSION.items()}
-
 # Codes keying the per-(cell, setting) bootstrap RNG (see _rng); stable across configs,
 # so retired settings keep their codes unused (6: factor-only).
 SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,

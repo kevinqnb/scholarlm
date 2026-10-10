@@ -504,8 +504,7 @@ def test_threshold_styles():
 def test_unit_conversion_v2_additions_only():
     """v2's table is v1's plus mi^2 and ppm / ppb for tn / tp / chla; v1 is untouched,
     and µg/cm^2 and molar chla stay unconvertible in both."""
-    from analysis.common.pond_meta import UNIT_CONVERSION, convert_units
-    from analysis.pond_meta_analysis import UNIT_CONVERSION_V2
+    from analysis.common.pond_meta import UNIT_CONVERSION, UNIT_CONVERSION_V2, convert_units
     rows = pd.DataFrame({
         'attribute': ['surface_area', 'tn', 'tp', 'chla', 'chla', 'chla', 'chla', 'tn'],
         'units':     ['mi^2',         'ppm', 'ppb', 'ppm', 'µg/cm^2', 'µmol/L', 'μmol/L', 'mg/L'],

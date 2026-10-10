@@ -82,6 +82,18 @@ UNIT_CONVERSION = {
     'ph': {},  # dimensionless: any unit string accepted, factor 1.0 (handled specially below)
 }
 
+# UNIT_CONVERSION plus pond schema units it lacks: mi^2, and ppm / ppb as mg/L / µg/L
+# (dilute water). µg/cm^2 and molar chla stay unconvertible (likely mislabelled units).
+# Used by pond_meta_analysis.py and pond_clustering.py.
+_V2_ADDED_UNITS = {
+    'surface_area': {'mi^2': 2589988.110336},
+    'tn':   {'ppm': 1000.0, 'ppb': 1.0},
+    'tp':   {'ppm': 1000.0, 'ppb': 1.0},
+    'chla': {'ppm': 1000.0, 'ppb': 1.0},
+}
+assert all(u not in UNIT_CONVERSION[a] for a, m in _V2_ADDED_UNITS.items() for u in m), 'v2 addition already in v1'
+UNIT_CONVERSION_V2 = {a: {**m, **_V2_ADDED_UNITS.get(a, {})} for a, m in UNIT_CONVERSION.items()}
+
 # Plausibility bounds in standard units; values outside are dropped like unknown units.
 # Set to "reasonably unlikely", not "physically impossible", to drop two recurring
 # errors: cited reference lakes extracted as study systems (1e9-1e11 m^2), and mg/m^3
