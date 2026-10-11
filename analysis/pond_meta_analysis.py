@@ -104,9 +104,9 @@ SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
 # Stream code for the random-subset control's draws (outside SETTING_CODES).
 RANDOM_STREAM = 100
 
-# W1-vs-threshold curves: pastel tab10 (NTP blue, probe green); confidence x factor solid,
-# confidence only dashed, the random-subset baseline grey dotted, and (GT reference only)
-# the valid extracted rows' W1 as a flat black dash-dot line.
+# W1-vs-threshold curves: pastel tab10 (NTP blue, probe rose red); confidence x factor solid,
+# confidence only dashed, and behind them the random-subset baseline pastel-grey dotted and
+# (GT reference only) the valid extracted rows' W1 as a flat grey dash-dot line.
 PASTEL_WHITE_FRACTION = 0.35
 
 
@@ -124,14 +124,18 @@ def _pastel(color) -> tuple:
 
 
 _TAB10 = sns.color_palette('tab10', 10)
+# Probe colour: tab10 red mixed half-and-half with tab10 pink, for a rose red.
+_ROSE = tuple(0.5 * np.array(_TAB10[3]) + 0.5 * np.array(_TAB10[6]))
 CURVE_STYLE = {
     'ntp':            dict(color=_pastel(_TAB10[0]), ls='-', lw=2.5, label='NTP'),
-    'probe':          dict(color=_pastel(_TAB10[2]), ls='-', lw=2.5, label='Probe'),
-    CONF_ONLY['ntp']:   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (confidence only)'),
-    CONF_ONLY['probe']: dict(color=_pastel(_TAB10[2]), ls='--', lw=1.8, label='Probe (confidence only)'),
-    'random':         dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random'),
-    'valid':          dict(color='black', ls='-.', lw=1.5, label='Valid extracted (judge or GT match)'),
+    'probe':          dict(color=_pastel(_ROSE), ls='-', lw=2.5, label='Probe'),
+    CONF_ONLY['ntp']:   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (v-prob. only)'),
+    CONF_ONLY['probe']: dict(color=_pastel(_ROSE), ls='--', lw=1.8, label='Probe (v-prob. only)'),
+    'random':         dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random', zorder=1.5),
+    'valid':          dict(color=_TAB10[7], ls='-.', lw=1.5, label='Valid (judge or GT match)', zorder=1.5),
 }
+# Random band under the background lines; method curves keep matplotlib's default line zorder (2).
+RANDOM_BAND_ZORDER = 1
 
 
 THRESHOLD_MODES = ('value', 'percentile')
@@ -835,8 +839,8 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
     the random baseline at the same thresholds. Real curves are solid with no CI drawn,
     confidence-only curves (if in ``sources``) are dashed, and in percentile mode the one
     random-subset baseline is grey dotted with its percentile band. Under the ground-truth
-    reference, the valid extracted rows' W1 (no thresholding) is a flat black dash-dot
-    line. Skipped points are gaps.
+    reference, the valid extracted rows' W1 (no thresholding) is a flat grey dash-dot
+    line. The baseline and valid line sit behind the method curves. Skipped points are gaps.
 
     Args:
         w1_df: wasserstein.csv frame.
@@ -864,7 +868,8 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
                 np.testing.assert_array_equal(_curve(w1_df, ecosystem, attribute, src, thresholds)[base_cols].to_numpy(), base)
             style = CURVE_STYLE['random']
             ax.plot(thresholds, base[:, 0], **style)
-            ax.fill_between(thresholds, base[:, 1], base[:, 2], color=style['color'], alpha=0.2, linewidth=0)
+            ax.fill_between(thresholds, base[:, 1], base[:, 2], color=style['color'], alpha=0.2, linewidth=0,
+                            zorder=RANDOM_BAND_ZORDER)
         if w1_df['reference'].iloc[0] == 'ground_truth':
             v = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['setting'] == 'valid')]
             assert len(v) == 1, f'expected one valid row for {ecosystem}/{attribute}, got {len(v)}'
@@ -900,7 +905,7 @@ def plot_w1_curves_legend(out_path: Path, reference: str, threshold_mode: str, s
                       linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
     fig, ax = plt.subplots(figsize=(10.0, 0.7))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=4, fontsize=12, frameon=False, handlelength=2.0)
+    ax.legend(handles=handles, loc='center', ncol=3, fontsize=12, frameon=False, handlelength=2.0)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta_v2] wrote {out_path}")

@@ -98,8 +98,8 @@ CI_LEVEL = 0.95
 CLUSTERING_ROOT = analysis_results_dir('clustering')
 
 # Curves, as pond_meta_analysis.py's W1-vs-threshold curves: pastel tab10 (NTP blue,
-# probe green); confidence x factor solid, confidence only dashed, the random baseline
-# grey dotted.
+# probe rose red); confidence x factor solid, confidence only dashed, and behind them the
+# random baseline pastel-grey dotted.
 PASTEL_WHITE_FRACTION = 0.35
 
 
@@ -117,14 +117,18 @@ def _pastel(color) -> tuple:
 
 
 _TAB10 = sns.color_palette('tab10', 10)
+# Probe colour: tab10 red mixed half-and-half with tab10 pink, for a rose red.
+_ROSE = tuple(0.5 * np.array(_TAB10[3]) + 0.5 * np.array(_TAB10[6]))
 CURVE_STYLE = {
     'ntp':        dict(color=_pastel(_TAB10[0]), ls='-', lw=2.5, label='NTP'),
-    'probe':      dict(color=_pastel(_TAB10[2]), ls='-', lw=2.5, label='Probe'),
-    'ntp_conf':   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (confidence only)'),
-    'probe_conf': dict(color=_pastel(_TAB10[2]), ls='--', lw=1.8, label='Probe (confidence only)'),
-    'random':     dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random'),
+    'probe':      dict(color=_pastel(_ROSE), ls='-', lw=2.5, label='Probe'),
+    'ntp_conf':   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (v-prob. only)'),
+    'probe_conf': dict(color=_pastel(_ROSE), ls='--', lw=1.8, label='Probe (v-prob. only)'),
+    'random':     dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random', zorder=1.5),
 }
 assert set(CURVE_STYLE) == set(ARMS)
+# Random band under the random line; the method curves keep matplotlib's default line zorder (2).
+RANDOM_BAND_ZORDER = 1
 
 
 # ── Config ──────────────────────────────────────────────────────────────────
@@ -651,7 +655,7 @@ def plot_center_dist(summary: pd.DataFrame, gammas: np.ndarray, out_path: Path) 
         style = CURVE_STYLE[arm]
         ax.plot(gammas, s['mean'].to_numpy(), **style)
         ax.fill_between(gammas, s['ci_lo'].to_numpy(), s['ci_hi'].to_numpy(), color=style['color'], alpha=0.2,
-                        linewidth=0)
+                        linewidth=0, **({'zorder': RANDOM_BAND_ZORDER} if arm == RANDOM_ARM else {}))
     ax.set_xlabel('$\\gamma$', fontsize=11)
     ax.set_ylabel('Mean Centroid Distance', fontsize=11)
     ax.set_xlim(gammas[0], gammas[-1])
