@@ -27,9 +27,14 @@ Confidences are no longer multiplied by the robust outlier factor. `analysis/com
 - "Or better yet, is there some processing we could add on top of the results to make the curves smoother?" → "Something very minimal"
 - "Leave t=0 unsmoothed. Use window 5 and run the new configs."
 - "Commit the changes."
+- "Alot better, but let's do a window of 9" → "commit the -05 configs"
+- "Do we have binary true or false responses from the interp model (qwen or llama) that we could use as another baseline in the wasserstein figures? It would work exactly how the current valid baseline does -- filter all data according to those binary labels and compute the W1 distance once (plot as a grey horizontal line, different line style)."
+- "Let's make the valid line solid grey, and this new 'Response' line the linestyle which is currently used for valid. 2 rows of 3 in the legend. [...] Don't write new configs, just add this on and rerun as is."
 
 ### Implemented
-The four new configs were submitted through `analysis/submit.sh`. The meta `-03` NTP/probe W1 values reproduce the earlier confidence-only values exactly at every shared threshold. `analysis/pond_meta_analysis.py` now draws the W1 curves and random band with a centred moving average, plot only: t = 0 is left unsmoothed and the CSVs keep raw values. The window is set by a new required `w1_smooth_window` key, validated in `analysis/common/meta_inputs.py`. The y-axis top is now set by the plotted lines rather than the random band. New configs: `analysis/analysis-configs/meta/2026-10-10-pond-meta-gemma27b-{qwen-2.5-7b,llama-3.1-8b}-04.yaml` (window 5).
+The four new configs were submitted through `analysis/submit.sh`. The meta `-03` NTP/probe W1 values reproduce the earlier confidence-only values exactly at every shared threshold. `analysis/pond_meta_analysis.py` now draws the W1 curves and random band with a centred moving average, plot only: t = 0 is left unsmoothed and the CSVs keep raw values. The window is set by a new required `w1_smooth_window` key, validated in `analysis/common/meta_inputs.py`. The y-axis top is now set by the plotted lines rather than the random band. New configs: `analysis/analysis-configs/meta/2026-10-10-pond-meta-gemma27b-{qwen-2.5-7b,llama-3.1-8b}-04.yaml` (window 5) and `-05.yaml` (window 9). The W1 figures also gain a flat grey dash-dot "Response" line: W1 of the rows the interp judge answered true, loaded from its `judge_interp` responses in `analysis/common/pond_meta.py`. The valid line is now solid and the legend is 2 rows of 3. The `-05` configs were re-run in place.
 
 ### Commits
 - `661d2cf` meta: plot-only moving-average smoothing of W1 curves, y-axis top set by lines
+- `f2084d7` configs: meta gemma27b-{qwen-2.5-7b,llama-3.1-8b}-05 (W1 smoothing window 9)
+- `77195ca` meta: Response baseline (interp judge's binary answer), solid valid line, 2x3 legend
