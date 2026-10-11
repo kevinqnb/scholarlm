@@ -6,7 +6,7 @@ description: >
   experiment). One config drives every setup step for its ids, in this order: postprocessing -> match_cache -> deduplicate_cache
   -> deduplication -> recovery_validity (bash analysis/submit.sh <script> <id> ...). Dedup fields as in the 2026-10-06
   dedup configs: name and date fuzzy, everything else strict; provenance lists merged into each cluster center (postprocessing
-  wraps scalar / absent provenance into lists, so baselines and ablations 1/7 dedup too). solver_time_limit_s 600
+  wraps scalar / absent provenance into lists, so baselines and ablations 1/7 dedup too). solver_time_limit_s 3600
   is per connected component; a component not solved to proven optimality in that time is a hard error. Recovery/validity:
   paper-clustered bootstrap, 2000 resamples, 95% intervals.
 seed: 0
@@ -36,7 +36,7 @@ params:
     join_list_fields: [qualifiers]
     summary_thresholds: [1.0, 0.9, 0.8]
   deduplication:
-    solver_time_limit_s: 600
+    solver_time_limit_s: 3600
     provenance_fields: [page_number, table_number, row_index, column_index, source, context]
   recovery_validity:
     n_resamples: 2000
