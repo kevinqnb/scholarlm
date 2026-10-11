@@ -85,8 +85,6 @@ SECTION_KEYS = (
     'n_init', 'n_runs',
 )
 GAMMA_KEYS = ('start', 'stop', 'num')
-# Only pond -> pond is supported; load_data reads that cell only.
-PROBE_TRAIN_DATASETS = (DATASET,)
 GT_ENTITY_COLS = ['document_id', 'name', 'ecosystem']
 # Score column per arm: each method's confidence, and the robust z-score's non-outlier
 # score exp(-z^2/2) (see outlier_weight.add_outlier_columns).
@@ -175,9 +173,11 @@ def load_clustering_config(path: Path) -> dict:
     if sec['calibration_version'] not in CALIBRATION_LOADERS:
         raise ValueError(f"{path}: {SECTION}.calibration_version must be one of {sorted(CALIBRATION_LOADERS)}, "
                          f"got {sec['calibration_version']!r}")
-    if sec['probe_train_dataset'] not in PROBE_TRAIN_DATASETS:
-        raise ValueError(f"{path}: {SECTION}.probe_train_dataset must be one of {PROBE_TRAIN_DATASETS}, "
-                         f"got {sec['probe_train_dataset']!r} (cross-domain cells are not wired up)")
+    # Any synthetic set the calibration config trained a probe on (checked in resolve_meta_inputs);
+    # the probe is always recalibrated on pond rows.
+    if not isinstance(sec['probe_train_dataset'], str) or not sec['probe_train_dataset']:
+        raise ValueError(f"{path}: {SECTION}.probe_train_dataset must be a non-empty string, "
+                         f"got {sec['probe_train_dataset']!r}")
     if sec['rows'] not in ROWS_CHOICES:
         raise ValueError(f"{path}: {SECTION}.rows must be one of {ROWS_CHOICES}, got {sec['rows']!r}")
     if sec['rows'] == 'deduplicated':

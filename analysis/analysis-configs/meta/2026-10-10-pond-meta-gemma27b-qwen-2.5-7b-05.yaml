@@ -17,6 +17,7 @@ params:
   meta_v2:
     calibration_config_id: 2026-10-10-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01
     calibration_version: v4
+    probe_train_dataset: pond
     rows: deduplicated
     deduplication_config_id: 2026-10-09-pond-main-recovery-01
     confidence: center

@@ -91,7 +91,7 @@ def test_nan_score_raises():
 GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
     "params": {"meta_v2": {
-        "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
+        "calibration_config_id": "cal", "calibration_version": "v4", "probe_train_dataset": "pond", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
         "qq_thresholds": [0.0, 0.5], "w1_thresholds": [0.0, 0.5], "min_n": 5, "n_shuffle_samples": 10, "w1_curve_scale": "raw", "w1_smooth_window": 1,

@@ -422,7 +422,7 @@ def test_qq_line_identical_samples_is_diagonal_and_min_n():
 GOOD = {
     "id": "t", "project": "scholarlm", "description": "d", "seed": 0,
     "params": {"meta_v2": {
-        "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
+        "calibration_config_id": "cal", "calibration_version": "v4", "probe_train_dataset": "pond", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
         "qq_thresholds": [0.0, 0.5], "w1_thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "threshold_mode": "value",
@@ -481,6 +481,9 @@ def test_fine_w1_grid_with_coarse_qq_grid_loads(tmp_path):
     lambda m: m.update(qq_attributes=["ph"]),
     lambda m: m.pop("w1_curve_scale"),          # no default scale
     lambda m: m.pop("w1_smooth_window"),        # no default window
+    lambda m: m.pop("probe_train_dataset"),     # no default training set
+    lambda m: m.update(probe_train_dataset=""),
+    lambda m: m.update(probe_train_dataset=None),
     lambda m: m.update(w1_smooth_window=4),     # even: not centred
     lambda m: m.update(w1_smooth_window=0),
     lambda m: m.update(w1_smooth_window=True),

@@ -977,7 +977,7 @@ def main():
     n_shuffle, threshold_mode = sec['n_shuffle_samples'], sec['threshold_mode']
     sources = THRESHOLD_SOURCES
 
-    input_keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
+    input_keys = ('calibration_config_id', 'probe_train_dataset', 'rows', 'deduplication_config_id', 'confidence')
     inputs = resolve_meta_inputs(sec, DATASET)
     gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
     # The zscore source thresholds outlier_factor; confidences are thresholded as stored.

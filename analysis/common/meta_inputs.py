@@ -32,7 +32,8 @@ from analysis.common.provenance import sha256_file
 
 # pond_meta_analysis.py's config section: hard confidence thresholds.
 SECTION_V2 = "meta_v2"
-SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
+SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "probe_train_dataset", "rows",
+                   "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "qq_thresholds", "w1_thresholds", "min_n",
                    "n_shuffle_samples", "threshold_mode", "w1_curve_scale", "w1_smooth_window")
 # Which W1 the W1-vs-threshold figure plots: raw values for every attribute, or each
@@ -74,7 +75,9 @@ def load_meta_v2_config(path: Path) -> dict:
     ``qq_thresholds`` must be a subset of ``w1_thresholds``; ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
     sample scored; ``n_shuffle_samples`` is the number of random-subset draws in the baseline;
-    ``w1_curve_scale`` is one of W1_CURVE_SCALES; ``w1_smooth_window`` is the odd number
+    ``probe_train_dataset`` names the synthetic set the probe was trained on (checked
+    against the calibration config in ``resolve_meta_inputs``; the probe is always
+    recalibrated on pond rows); ``w1_curve_scale`` is one of W1_CURVE_SCALES; ``w1_smooth_window`` is the odd number
     of W1-grid points in the plot-only moving average (1 = unsmoothed).
 
     Args:
@@ -109,6 +112,9 @@ def load_meta_v2_config(path: Path) -> dict:
     mn = sec["min_n"]
     if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")
+    if not isinstance(sec["probe_train_dataset"], str) or not sec["probe_train_dataset"]:
+        raise ValueError(f"{path}: {SECTION_V2}.probe_train_dataset must be a non-empty string, "
+                         f"got {sec['probe_train_dataset']!r}")
     sw = sec["w1_smooth_window"]
     if isinstance(sw, bool) or not isinstance(sw, int) or sw < 1 or sw % 2 == 0:
         raise ValueError(f"{path}: {SECTION_V2}.w1_smooth_window must be a positive odd int, got {sw!r}")
@@ -197,19 +203,21 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
 
     Args:
         sec: Config section; reads ``calibration_config_id``, ``calibration_version``,
-            ``rows``, ``deduplication_config_id``.
+            ``probe_train_dataset``, ``rows``, ``deduplication_config_id``.
         dataset: Dataset to resolve.
 
     Returns:
         Dict with ``dataset``, ``calibration_config_id``, ``calibration_version``,
         ``judge_model``, ``extraction_id``, ``extraction_dir``, ``judge_combine_dir``, ``judge_interp_dir``,
-        ``ground_truth_path``, ``probe_dir``, ``probe_variant``, ``predictions_path``,
+        ``ground_truth_path``, ``probe_dir`` (``dataset``'s own probe: its training documents
+        define the held-out set and the recalibration pool), ``probe_train_dataset``,
+        ``train_probe_dir`` (the scoring probe's directory), ``probe_variant``, ``predictions_path``,
         ``dedup_dir`` (None unless rows is ``deduplicated``).
 
     Raises:
         FileNotFoundError: A config or predictions.pkl is missing.
-        ValueError: Unknown version, dataset not in the calibration config, or the
-            deduplication config does not cover the extraction.
+        ValueError: Unknown version, dataset or probe_train_dataset not in the calibration
+            config, or the deduplication config does not cover the extraction.
     """
     cal_id, calibration_version = sec["calibration_config_id"], sec["calibration_version"]
     cal_path = analysis_config_path("calibration", cal_id)
@@ -220,6 +228,9 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
     cal_cfg = CALIBRATION_LOADERS[calibration_version](cal_path)
     if dataset not in cal_cfg["params"]["datasets"]:
         raise ValueError(f"{cal_id}: no {dataset!r} block (has {sorted(cal_cfg['params']['datasets'])})")
+    train = sec["probe_train_dataset"]
+    if train not in cal_cfg["params"]["datasets"]:
+        raise ValueError(f"{cal_id}: no probe for probe_train_dataset {train!r} (has {sorted(cal_cfg['params']['datasets'])})")
     cal_inputs = cids.resolve_calibration_inputs(cal_cfg)
     ds = cal_inputs["datasets"][dataset]
     extraction_id = cal_cfg["params"]["datasets"][dataset]["extraction_id"]
@@ -244,6 +255,7 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
                 extraction_dir=ds["extraction_dir"], judge_combine_dir=ds["judge_combine_dir"],
                 judge_interp_dir=ds["judge_interp_dir"],
                 ground_truth_path=ds["ground_truth_path"], probe_dir=ds["probe_dir"],
+                probe_train_dataset=train, train_probe_dir=cal_inputs["datasets"][train]["probe_dir"],
                 probe_variant=cal_cfg["params"]["probe_variant"], predictions_path=predictions_path,
                 dedup_dir=dedup_dir)
 

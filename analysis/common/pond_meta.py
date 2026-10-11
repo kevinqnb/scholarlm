@@ -256,8 +256,11 @@ def load_interp_responses(judge_interp_dir: Path, judge: str, extraction_id: str
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
     """Read stored recalibrated NTP / probe confidences for the judged datapoints.
 
-    Uses the pond-on-pond real cell of calibration.py's predictions.pkl and checks
-    that both confidence models and the recalibration fit rows exclude held-out documents.
+    Uses the (probe_train_dataset -> pond) real cell of calibration.py's predictions.pkl:
+    a probe trained on that synthetic set, recalibrated on pond rows. The pond probe's
+    training documents define the held-out set and the recalibration pool for every
+    cell; a cross-domain cell also excludes its own probe's training documents, which
+    must not occur in the pond extraction (so the scored rows are the same).
 
     Args:
         final_df: Judged final.json rows.
@@ -284,9 +287,21 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     assert probe_art['judge_model'] == judge and probe_art['dataset'] == DATASET, probe_path
     # The probe is the only trained confidence model (NTP is the judge's raw p(true)).
     syn_docs = set(probe_art['syn_document_ids'])
+    probe_files = [probe_path]
+
+    train = inputs['probe_train_dataset']
+    excluded = set(syn_docs)
+    if train != DATASET:
+        train_path = inputs['train_probe_dir'] / f'head_probe{suffix}.pkl'
+        train_art = joblib.load(train_path)  # only for syn_document_ids
+        assert train_art['judge_model'] == judge and train_art['dataset'] == train, train_path
+        train_docs = set(train_art['syn_document_ids'])
+        assert not train_docs & set(final_df['document_id']), f'{train} probe training documents occur in the {DATASET} extraction'
+        excluded |= train_docs
+        probe_files.append(train_path)
 
     with open(inputs['predictions_path'], 'rb') as f:
-        cell = pickle.load(f)['real'][judge][DATASET][DATASET]
+        cell = pickle.load(f)['real'][judge][train][DATASET]
     # v4 real cells are recalibrated by a map fit once on rows outside the scored set.
     assert inputs['calibration_version'] == 'v4', inputs['calibration_version']
     assert cell['recal_map'] is not None and cell['fit_on_test_rows'] is False, (
@@ -295,8 +310,9 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     # different measurement_ids (check_real_cell checks only the latter).
     fit_docs = set(final_df.set_index('measurement_id').loc[cell['platt_measurement_ids'], 'document_id'])
     assert fit_docs <= syn_docs, f'recalibration fit rows from held-out documents: {sorted(fit_docs - syn_docs)}'
-    scored = stored_prediction_rows(final_df, syn_docs, cell, sha256_file(inputs['extraction_dir'] / 'final.json'),
+    scored = stored_prediction_rows(final_df, excluded, cell, sha256_file(inputs['extraction_dir'] / 'final.json'),
                                     inputs['calibration_config_id'])
+    assert not set(scored['document_id']) & syn_docs
 
     # Every row the judge accepted is a positive label in the pickle (labels = judge OR matched).
     jc = combined_df.set_index('measurement_id')['judgement_combined'].astype(bool)
@@ -310,7 +326,7 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     assert not missing, f'{len(missing)} scored datapoints have no interp-judge response'
     scored['response'] = resp.loc[scored['measurement_id']].to_numpy()
     assert scored['response'].dtype == bool
-    return scored, syn_docs, [probe_path, inputs['predictions_path'],
+    return scored, syn_docs, [*probe_files, inputs['predictions_path'],
                               inputs['judge_interp_dir'] / 'responses.json', inputs['judge_interp_dir'] / 'run_metadata.json']
 
 

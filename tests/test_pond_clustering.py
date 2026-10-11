@@ -194,7 +194,8 @@ def test_config_valid_fixed_attributes(tmp_path):
     (lambda s: s.update(outlier_adjust=True), 'unexpected'),
     (lambda s: s.update(n_shuffle_samples=2), 'unexpected'),
     (lambda s: s.update(extra=1), 'unexpected'),
-    (lambda s: s.update(probe_train_dataset='nfix'), 'probe_train_dataset'),
+    (lambda s: s.update(probe_train_dataset=''), 'probe_train_dataset'),
+    (lambda s: s.update(probe_train_dataset=None), 'probe_train_dataset'),
     (lambda s: s.update(rows='final'), 'must be null'),
     (lambda s: s.update(gammas={'start': 0.5, 'stop': 5.0, 'num': 3}), 'gammas'),
     (lambda s: s.update(attribute_set_sizes=[3, 2]), 'attribute_set_sizes'),
@@ -231,3 +232,9 @@ def test_arms_and_legend(tmp_path, monkeypatch):
     m.plot_legend(tmp_path / 'leg.pdf')
     texts = [t.get_text() for t in saved['fig'].axes[0].get_legend().get_texts()]
     assert texts == ['Probe', 'NTP', '$z$-score', 'Random']
+
+
+def test_config_accepts_cross_domain_probe(tmp_path):
+    cfg = copy.deepcopy(BASE)
+    cfg['params']['clustering']['probe_train_dataset'] = 'supermat'
+    assert load_clustering_config(_write(tmp_path, cfg))['params']['clustering']['probe_train_dataset'] == 'supermat'
