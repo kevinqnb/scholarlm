@@ -426,7 +426,7 @@ GOOD = {
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
         "qq_thresholds": [0.0, 0.5], "w1_thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "threshold_mode": "value",
-        "w1_curve_scale": "native", "w1_smooth_window": 3,
+        "w1_curve_scale": "native", "w1_smooth_window": 3, "w1_mode": "threshold", "w1_gammas": None,
     }},
 }
 
@@ -482,6 +482,16 @@ def test_fine_w1_grid_with_coarse_qq_grid_loads(tmp_path):
     lambda m: m.pop("w1_curve_scale"),          # no default scale
     lambda m: m.pop("w1_smooth_window"),        # no default window
     lambda m: m.pop("probe_train_dataset"),     # no default training set
+    lambda m: m.pop("w1_mode"),
+    lambda m: m.pop("w1_gammas"),
+    lambda m: m.update(w1_mode="soft"),
+    lambda m: m.update(w1_gammas={"start": 0, "stop": 5, "num": 11}),            # gammas set in threshold mode
+    lambda m: m.update(w1_mode="weight"),                                         # weight mode without gammas
+    lambda m: m.update(w1_mode="weight", w1_gammas={"start": 1, "stop": 5, "num": 11}),   # must start at 0
+    lambda m: m.update(w1_mode="weight", w1_gammas={"start": 0, "stop": 0, "num": 11}),
+    lambda m: m.update(w1_mode="weight", w1_gammas={"start": 0, "stop": 5, "num": 1}),
+    lambda m: m.update(w1_mode="weight", w1_gammas={"start": 0, "stop": 5, "num": 11.0}),
+    lambda m: m.update(w1_mode="weight", w1_gammas={"start": 0, "stop": 5}),
     lambda m: m.update(probe_train_dataset=""),
     lambda m: m.update(probe_train_dataset=None),
     lambda m: m.update(w1_smooth_window=4),     # even: not centred
@@ -691,3 +701,103 @@ def test_load_interp_responses_known_answer_and_loud_failures(tmp_path):
     d = _interp_dir(tmp_path, [{'measurement_id': 'a', 'judgement': True}, {'measurement_id': 'a', 'judgement': False}])
     with pytest.raises(ValueError, match='repeats'):
         load_interp_responses(d, 'qwen-2.5-7b', 'ext-1')
+
+
+
+# ── weighted W1 (w1_mode: weight) ──
+
+def test_weight_mode_config_loads(tmp_path):
+    cfg = copy.deepcopy(GOOD)
+    cfg["params"]["meta_v2"].update(w1_mode="weight", w1_gammas={"start": 0, "stop": 5, "num": 101})
+    sec = load_meta_v2_config(write(tmp_path, cfg))["params"]["meta_v2"]
+    from analysis.pond_meta_analysis import gamma_grid, gamma_ticks
+    g = gamma_grid(sec["w1_gammas"])
+    assert len(g) == 101 and g[0] == 0.0 and g[-1] == 5.0 and gamma_ticks(g) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    assert gamma_ticks([0.0, 0.25, 0.5]) == [0.0, 0.5]   # fewer than two integers: the ends
+
+
+def test_kish_n_eff_known_answers():
+    from analysis.pond_meta_analysis import kish_n_eff
+    assert kish_n_eff(np.ones(7)) == 7.0
+    assert kish_n_eff(np.r_[1.0, np.zeros(5)]) == 1.0
+    assert kish_n_eff(np.zeros(3)) == 0.0
+    assert kish_n_eff(np.array([1.0, 1.0, 2.0])) == pytest.approx(16 / 6)
+
+
+def test_weighted_w1_known_answers():
+    from analysis.pond_meta_analysis import weighted_w1_with_ci
+    rng = np.random.default_rng(0)
+    ref, x = rng.normal(size=30), rng.normal(1.0, 1.0, size=12)
+    def w1(w):
+        return weighted_w1_with_ci(ref, x, w, MIN_N, 20, np.random.default_rng(1))
+    assert w1(np.ones(12))['w1'] == pytest.approx(stats.wasserstein_distance(ref, x))            # unit weights = unweighted
+    w = np.r_[np.full(4, 2.0), np.ones(8)]                                                       # integer weights = repeated rows
+    assert w1(w)['w1'] == pytest.approx(stats.wasserstein_distance(ref, np.r_[x[:4], x]))
+    z = np.r_[np.zeros(4), np.ones(8)]                                                           # zero weights drop rows
+    assert w1(z)['w1'] == pytest.approx(stats.wasserstein_distance(ref, x[4:]))
+    r = w1(np.ones(12))
+    assert r['w1_lo'] <= r['w1'] <= r['w1_hi'] and r['w1_skip'] == ''
+    assert w1(np.r_[1.0, np.zeros(11)])['w1_skip'] == 'ext_neff<min_n'                          # n_eff 1 < min_n
+    assert weighted_w1_with_ci(ref[:3], x, np.ones(12), MIN_N, 20, np.random.default_rng(1))['w1_skip'] == 'ref_n<min_n'
+
+
+def test_gamma_table_known_answers():
+    from analysis.pond_meta_analysis import build_w1_gamma_table
+    gt, ext = zscore_fixture()       # probe 0.9 / 0.5 / 0.1 by block; z-score factor 1 / 0.8 / 0.5 / 0
+    src = ['ntp', 'probe', 'zscore']
+    gammas = [0.0, 1.0, 60.0]
+    df = build_w1_gamma_table(gt, ext, 'ground_truth', [ECO], [ATTR], gammas, src, MIN_N, n_boot=10, n_shuffle=5, seed=0)
+    ref, x = gt['converted_value'].to_numpy(), ext['converted_value'].to_numpy()
+    full = stats.wasserstein_distance(ref, x)
+    # gamma = 0: every source and the random mean are the unweighted W1 of all 40 rows (also asserted in the builder)
+    for m in src:
+        r = df[(df['method'] == m) & (df['gamma'] == 0.0)].iloc[0]
+        assert r['w1'] == pytest.approx(full) and r['n_eff'] == 40.0 and r['w1_random_mean'] == pytest.approx(full)
+    # NTP is a constant 0.5: weighting by 0.5 ** gamma never changes the W1
+    assert np.allclose(df[df['method'] == 'ntp']['w1'], full)
+    # probe ** 60: 0.5 ** 60 / 0.9 ** 60 ~ 1e-15, so only the 20 rows at 0.9 carry weight
+    p60 = df[(df['method'] == 'probe') & (df['gamma'] == 60.0)].iloc[0]
+    assert p60['w1'] == pytest.approx(stats.wasserstein_distance(ref, x[:20]), rel=1e-9) and p60['n_eff'] == pytest.approx(20.0)
+    # z-score: factor 0 rows (30-39, document e3) weigh 0 for every gamma > 0
+    z1 = df[(df['method'] == 'zscore') & (df['gamma'] == 1.0)].iloc[0]
+    w = np.repeat([1.0, 0.8, 0.5, 0.0], 10)
+    assert z1['w1'] == pytest.approx(stats.wasserstein_distance(ref, x, v_weights=w)) and z1['n_docs_ext'] == 3
+    # base settings are unweighted and carry no gamma or random control
+    v = row(df, 'valid')
+    assert np.isnan(v['gamma']) and v['w1_random_skip'] == 'n/a' and v['n_ext'] == 20
+    # one random baseline per (cell, gamma), copied onto every source
+    cols = [c for c in df.columns if 'random' in c]
+    for g in gammas:
+        assert (df[df['gamma'] == g][cols].nunique(dropna=False) == 1).all()
+
+
+def test_gamma_table_seed_determinism():
+    from analysis.pond_meta_analysis import build_w1_gamma_table
+    gt, ext = zscore_fixture()
+    a, b, c = (build_w1_gamma_table(gt, ext, 'ground_truth', [ECO], [ATTR], [0.0, 2.0], ['probe'], MIN_N, n_boot=10,
+                                    n_shuffle=5, seed=s) for s in (0, 0, 1))
+    pd.testing.assert_frame_equal(a, b)
+    assert not a['w1_random_mean'].equals(c['w1_random_mean'])
+
+
+def test_weight_mode_plot_axis_and_legend(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.pond_meta_analysis as m
+    gt, ext = zscore_fixture()
+    gammas = [round(0.25 * i, 2) for i in range(9)]
+    df = m.build_w1_gamma_table(gt, ext, 'ground_truth', [ECO], [ATTR], gammas, m.THRESHOLD_SOURCES, MIN_N, n_boot=5,
+                                n_shuffle=5, seed=0)
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_w1_curves(df, ECO, [ATTR], gammas, 'weight', m.THRESHOLD_SOURCES, 'native', m.gamma_ticks(gammas), 1,
+                     tmp_path / 'w1.pdf')
+    ax = saved.pop('fig').axes[0]
+    lines = {l.get_label(): l for l in ax.lines}
+    assert ax.get_xlabel() == r'$\gamma$' and list(ax.get_xticks()) == [0.0, 1.0, 2.0]
+    probe = df[df['method'] == 'probe'].sort_values('gamma')
+    np.testing.assert_allclose(lines['Probe'].get_xdata(), gammas)
+    np.testing.assert_allclose(lines['Probe'].get_ydata(), probe['w1_log'].to_numpy(), equal_nan=True)
+    assert 'Random' in lines
+    m.plot_w1_curves_legend(tmp_path / 'leg.pdf', 'ground_truth', 'weight', m.THRESHOLD_SOURCES)
+    texts = [t.get_text() for t in saved['fig'].axes[0].get_legend().get_texts()]
+    assert 'Random' in texts and len(texts) == 6

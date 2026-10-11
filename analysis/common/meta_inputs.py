@@ -35,7 +35,10 @@ SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "probe_train_dataset", "rows",
                    "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "qq_thresholds", "w1_thresholds", "min_n",
-                   "n_shuffle_samples", "threshold_mode", "w1_curve_scale", "w1_smooth_window")
+                   "n_shuffle_samples", "threshold_mode", "w1_mode", "w1_gammas", "w1_curve_scale", "w1_smooth_window")
+# What the W1 curves sweep: hard score thresholds (w1_thresholds) or weights score ** gamma (w1_gammas).
+W1_MODES = ("threshold", "weight")
+W1_GAMMA_KEYS = ("start", "stop", "num")
 # Which W1 the W1-vs-threshold figure plots: raw values for every attribute, or each
 # attribute's native scale (log10 values for pond_meta.LOG_SCALE_ATTRIBUTES, raw otherwise).
 W1_CURVE_SCALES = ("raw", "native")
@@ -75,6 +78,10 @@ def load_meta_v2_config(path: Path) -> dict:
     ``qq_thresholds`` must be a subset of ``w1_thresholds``; ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
     sample scored; ``n_shuffle_samples`` is the number of random-subset draws in the baseline;
+    ``w1_mode`` (W1_MODES) picks what the W1 curves sweep: ``threshold`` filters at
+    ``w1_thresholds``; ``weight`` weights every row by score ** gamma over ``w1_gammas``
+    = {start: 0, stop, num} (np.linspace), which must be null in threshold mode. Q-Q
+    plots and the stats / survival tables always use the threshold grids.
     ``probe_train_dataset`` names the synthetic set the probe was trained on (checked
     against the calibration config in ``resolve_meta_inputs``; the probe is always
     recalibrated on pond rows); ``w1_curve_scale`` is one of W1_CURVE_SCALES; ``w1_smooth_window`` is the odd number
@@ -115,6 +122,19 @@ def load_meta_v2_config(path: Path) -> dict:
     if not isinstance(sec["probe_train_dataset"], str) or not sec["probe_train_dataset"]:
         raise ValueError(f"{path}: {SECTION_V2}.probe_train_dataset must be a non-empty string, "
                          f"got {sec['probe_train_dataset']!r}")
+    if sec["w1_mode"] not in W1_MODES:
+        raise ValueError(f"{path}: {SECTION_V2}.w1_mode must be one of {W1_MODES}, got {sec['w1_mode']!r}")
+    g = sec["w1_gammas"]
+    if sec["w1_mode"] == "threshold":
+        if g is not None:
+            raise ValueError(f"{path}: {SECTION_V2}.w1_gammas must be null when w1_mode is 'threshold', got {g!r}")
+    else:
+        if not isinstance(g, dict) or set(g) != set(W1_GAMMA_KEYS):
+            raise ValueError(f"{path}: {SECTION_V2}.w1_gammas must have exactly the keys {list(W1_GAMMA_KEYS)}, got {g!r}")
+        if (any(isinstance(g[k], bool) or not isinstance(g[k], (int, float)) for k in ("start", "stop"))
+                or g["start"] != 0 or not g["stop"] > 0 or isinstance(g["num"], bool) or not isinstance(g["num"], int)
+                or g["num"] < 2):
+            raise ValueError(f"{path}: {SECTION_V2}.w1_gammas must have start == 0, stop > 0, int num >= 2, got {g!r}")
     sw = sec["w1_smooth_window"]
     if isinstance(sw, bool) or not isinstance(sw, int) or sw < 1 or sw % 2 == 0:
         raise ValueError(f"{path}: {SECTION_V2}.w1_smooth_window must be a positive odd int, got {sw!r}")

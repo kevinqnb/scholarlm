@@ -8,6 +8,11 @@ hard-filtered at each threshold t, and the distribution is compared to a referen
   per confidence method).
 - threshold_mode ``value`` keeps score >= t; ``percentile`` drops the bottom
   fraction t of the cell. t = 0 is the unfiltered set.
+- ``w1_mode: weight`` replaces the W1 thresholds with soft weights: each source's
+  curve is the weighted W1 with every row weighted by score ** gamma over ``w1_gammas``
+  (gamma = 0 is the unweighted set), a point needs Kish n_eff >= min_n, and the random
+  baseline weights rows by U(0, 1) ** gamma (as pond_clustering's random arm). Q-Q
+  plots and the stats / survival tables still use the threshold grids.
 - W1 curves are drawn with a centred moving average over ``w1_smooth_window`` grid points
   (plot only; every CSV keeps the raw values).
 - Two grids: ``w1_thresholds`` (W1 curves and the stats / survival / W1 tables; can be
@@ -627,6 +632,200 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
     return pd.DataFrame(rows)
 
 
+# ── Weighted W1 (w1_mode: weight) ───────────────────────────────────────────
+
+def gamma_grid(w1_gammas: dict) -> list[float]:
+    """The gamma sweep: np.linspace(start, stop, num), as floats.
+
+    Args:
+        w1_gammas: Config ``{start, stop, num}``.
+
+    Returns:
+        Gamma values, starting at 0.
+    """
+    g = np.linspace(float(w1_gammas['start']), float(w1_gammas['stop']), w1_gammas['num'])
+    assert g[0] == 0.0, g
+    return g.tolist()
+
+
+def kish_n_eff(w: np.ndarray) -> float:
+    """Kish effective sample size (sum w)^2 / sum w^2 (0 if every weight is 0).
+
+    Args:
+        w: Nonnegative weights.
+
+    Returns:
+        Effective sample size.
+    """
+    assert w.ndim == 1 and (w >= 0).all(), 'weights must be nonnegative'
+    s2 = float((w ** 2).sum())
+    return 0.0 if s2 == 0 else float(w.sum() ** 2 / s2)
+
+
+def weighted_w1_with_ci(ref_x: np.ndarray, ext_x: np.ndarray, w: np.ndarray, min_n: int, n_boot: int,
+                        rng: np.random.Generator, ci: float = 0.95) -> dict:
+    """W1 from ``ref_x`` to ``ext_x`` weighted by ``w``, with an unpaired percentile-bootstrap CI.
+
+    Each resample redraws the reference rows and the extracted (value, weight) pairs.
+
+    Args:
+        ref_x: Reference sample (unweighted).
+        ext_x: Compared sample.
+        w: Nonnegative weight per ``ext_x`` value.
+        min_n: Minimum reference size and minimum Kish n_eff of ``w``.
+        n_boot: Bootstrap resamples.
+        rng: Random generator.
+        ci: Confidence level.
+
+    Returns:
+        Dict with ``w1``, ``w1_lo``, ``w1_hi``, ``w1_skip`` (NaN and a reason if too small).
+    """
+    assert ext_x.shape == w.shape and np.isfinite(w).all()
+    if ref_x.size < min_n:
+        return dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='ref_n<min_n')
+    if kish_n_eff(w) < min_n:
+        return dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='ext_neff<min_n')
+    w1 = stats.wasserstein_distance(ref_x, ext_x, v_weights=w)
+    boot = np.empty(n_boot)
+    for b in range(n_boot):
+        ri, ei = rng.integers(0, ref_x.size, ref_x.size), rng.integers(0, ext_x.size, ext_x.size)
+        wb = w[ei]
+        boot[b] = stats.wasserstein_distance(ref_x[ri], ext_x[ei], v_weights=wb) if wb.sum() > 0 else np.nan
+    assert np.isfinite(boot).all(), 'a bootstrap resample drew only zero-weight rows'
+    alpha = (1.0 - ci) / 2.0
+    lo, hi = np.quantile(boot, [alpha, 1.0 - alpha])
+    return dict(w1=float(w1), w1_lo=float(lo), w1_hi=float(hi), w1_skip='')
+
+
+def random_weighted_w1(ref: np.ndarray, ext: pd.DataFrame, gammas: list[float], log_scale: bool, min_n: int,
+                       n_draws: int, seed: int, ecosystem: str, attribute: str, ci: float = 0.95) -> dict:
+    """Random baseline for one cell: W1 with rows weighted by U(0, 1) ** gamma.
+
+    Each draw gives every row a fresh U(0, 1) score (same stream as ``random_w1``'s
+    draws), shared by every gamma. It uses no real scores, so it is shared by every source.
+
+    Args:
+        ref: Reference sample.
+        ext: The cell's extracted rows.
+        gammas: Gamma grid.
+        log_scale: Also compute log10 W1 (LOG_SCALE_ATTRIBUTES only); else its columns are 'n/a'.
+        min_n: Minimum reference size and Kish n_eff.
+        n_draws: Number of draws.
+        seed: Global seed.
+        ecosystem: Ecosystem (RNG key).
+        attribute: Attribute (RNG key).
+        ci: Range coverage.
+
+    Returns:
+        ``{gamma: _control_columns(...)}``; ``n_ext_random`` is the mean Kish n_eff over
+        draws and ``n_docs_ext_random_mean`` the cell's document count (no weight is 0).
+    """
+    x = ext['converted_value'].to_numpy(dtype=float)
+    pos = x > 0
+    ref_log, x_log = _scale(ref, True), _scale(x, True)
+    w_raw = {g: np.full(n_draws, np.nan) for g in gammas}
+    lg = {g: np.full(n_draws, np.nan) for g in gammas}
+    n_eff = {g: np.zeros(n_draws) for g in gammas}
+    for s in range(n_draws):
+        u = _random_rng(seed, ecosystem, attribute, s).uniform(0.0, 1.0, x.size)
+        for g in gammas:
+            w = u ** g
+            n_eff[g][s] = kish_n_eff(w)
+            if ref.size >= min_n and n_eff[g][s] >= min_n:
+                w_raw[g][s] = stats.wasserstein_distance(ref, x, v_weights=w)
+            if log_scale and ref_log.size >= min_n and kish_n_eff(w[pos]) >= min_n:
+                lg[g][s] = stats.wasserstein_distance(ref_log, x_log, v_weights=w[pos])
+    n_docs = float(ext['document_id'].nunique())
+    return {g: _control_columns(_summarize_draws(w_raw[g], ci), _summarize_draws(lg[g], ci) if log_scale else NO_DRAWS,
+                                float(n_eff[g].mean()), n_docs)
+            for g in gammas}
+
+
+def build_w1_gamma_table(gt_df, ext_df, reference, ecosystems, attributes, gammas: list[float], sources: list[str],
+                         min_n: int, n_boot: int, n_shuffle: int, seed: int) -> pd.DataFrame:
+    """Weighted-W1 version of ``build_w1_table``: one row per (cell, source, gamma) plus the base settings.
+
+    Source rows weight every extracted row by its score ** gamma (``THRESHOLD_PROB_COL``);
+    base settings (valid, response, and ground truth under the valid reference) are
+    unweighted, as in threshold mode. Known answers asserted per cell: at gamma = 0 every
+    source and the random mean equal the unweighted W1 of all extracted rows.
+
+    Args:
+        gt_df: Ground-truth rows.
+        ext_df: Extracted rows.
+        reference: Reference setting.
+        ecosystems: Ecosystems to include.
+        attributes: Attributes to include.
+        gammas: Gamma grid (``gamma_grid``).
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
+        min_n: Minimum reference size and Kish n_eff.
+        n_boot: Bootstrap resamples.
+        n_shuffle: Random-baseline draws.
+        seed: Global seed.
+
+    Returns:
+        wasserstein.csv: the ``build_w1_table`` columns (``threshold`` NaN) plus ``gamma``,
+        ``n_eff`` and ``n_eff_log`` (Kish n_eff of the weights; NaN on base rows). Random
+        columns are copied onto every source row of a (cell, gamma), 'n/a' on base rows.
+    """
+    assert gammas[0] == 0.0, gammas
+    rows = []
+    for ecosystem in ecosystems:
+        for attribute in attributes:
+            log_scale = attribute in LOG_SCALE_ATTRIBUTES
+            gt, ext = cell_rows(gt_df, ext_df, ecosystem, attribute)
+            ref = setting_rows(reference, gt, ext)['converted_value'].to_numpy(dtype=float)
+            ref_log = _scale(ref, True)
+            ref_stats = summary_stats(ref)
+            ref_iqr = ref_stats['q3'] - ref_stats['q1']
+            ref_range = float(ref.max() - ref.min()) if ref.size else np.nan
+            common = dict(dataset=DATASET, ecosystem=ecosystem, attribute=attribute, reference=reference,
+                          threshold_mode='', threshold=np.nan, unit=STANDARD_UNITS[attribute], n_ref=int(ref.size),
+                          ref_iqr=ref_iqr, ref_range=ref_range, n_ref_log=int(ref_log.size) if log_scale else np.nan)
+            for setting in BASE_SETTINGS[reference]:
+                if setting == reference:
+                    continue
+                sub = setting_rows(setting, gt, ext)
+                x = sub['converted_value'].to_numpy(dtype=float)
+                code = SETTING_CODES[setting]
+                row = dict(common, setting=setting, method='', gamma=np.nan, n_ext=int(x.size),
+                           n_docs_ext=int(sub['document_id'].nunique()), n_eff=np.nan, n_eff_log=np.nan,
+                           n_ext_log=int(_scale(x, True).size) if log_scale else np.nan)
+                row.update(w1_with_ci(ref, x, min_n, n_boot, _rng(seed, ecosystem, attribute, code, 0.0, False)))
+                lg = (w1_with_ci(ref_log, _scale(x, True), min_n, n_boot, _rng(seed, ecosystem, attribute, code, 0.0, True))
+                      if log_scale else dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='n/a'))
+                row.update({k.replace('w1', 'w1_log'): v for k, v in lg.items()})
+                row.update(NO_CONTROL)
+                rows.append(row)
+            baseline = random_weighted_w1(ref, ext, gammas, log_scale, min_n, n_shuffle, seed, ecosystem, attribute)
+            x = ext['converted_value'].to_numpy(dtype=float)
+            pos = x > 0
+            for src in sources:
+                prob = ext[THRESHOLD_PROB_COL[src]].to_numpy(dtype=float)
+                assert prob.shape == x.shape and np.isfinite(prob).all() and (prob >= 0).all(), f'{src} scores misshapen'
+                for g in gammas:
+                    w = prob ** g
+                    row = dict(common, setting=f'{src}_gamma_{g:.3f}', method=src, gamma=g, n_ext=int(x.size),
+                               n_docs_ext=int(ext.loc[w > 0, 'document_id'].nunique()), n_eff=kish_n_eff(w),
+                               n_eff_log=kish_n_eff(w[pos]) if log_scale else np.nan,
+                               n_ext_log=int(pos.sum()) if log_scale else np.nan)
+                    rng_code = SETTING_CODES[src]
+                    row.update(weighted_w1_with_ci(ref, x, w, min_n, n_boot, _rng(seed, ecosystem, attribute, rng_code, g, False)))
+                    lg = (weighted_w1_with_ci(ref_log, np.log10(x[pos]), w[pos], min_n, n_boot,
+                                              _rng(seed, ecosystem, attribute, rng_code, g, True))
+                          if log_scale else dict(w1=np.nan, w1_lo=np.nan, w1_hi=np.nan, w1_skip='n/a'))
+                    row.update({k.replace('w1', 'w1_log'): v for k, v in lg.items()})
+                    row.update(baseline[g])
+                    rows.append(row)
+            # Known answer: gamma = 0 weights every row 1, so every source and the random mean are the unweighted W1.
+            if ref.size >= min_n and x.size >= min_n:
+                full = stats.wasserstein_distance(ref, x)
+                at0 = [r for r in rows[-len(sources) * len(gammas):] if r['gamma'] == 0.0]
+                assert len(at0) == len(sources) and all(np.isclose(r['w1'], full, rtol=1e-12) for r in at0), (ecosystem, attribute)
+                assert np.isclose(baseline[0.0]['w1_random_mean'], full, rtol=1e-12), (ecosystem, attribute)
+    return pd.DataFrame(rows)
+
+
 # ── Q-Q figures ─────────────────────────────────────────────────────────────
 
 def qq_levels(n_ref: int, n_ext: int) -> np.ndarray:
@@ -794,7 +993,17 @@ def plot_qq_legend(out_path: Path, reference: str, thresholds: list[float]):
 
 # ── W1 vs threshold ─────────────────────────────────────────────────────────
 
-def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thresholds: list[float]) -> pd.DataFrame:
+# W1-curve x axis per mode: the wasserstein.csv column swept, its axis label, and
+# whether the random baseline exists (not in value-threshold mode: no single subset size).
+W1_X = {
+    'value':      dict(col='threshold', label=FILTER_LEVEL_LABEL, baseline=False),
+    'percentile': dict(col='threshold', label=FILTER_LEVEL_LABEL, baseline=True),
+    'weight':     dict(col='gamma', label=r'$\gamma$', baseline=True),
+}
+
+
+def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, grid: list[float],
+           x_col: str = 'threshold') -> pd.DataFrame:
     """One threshold source's rows for a cell from wasserstein.csv, in grid order.
 
     Args:
@@ -802,15 +1011,29 @@ def _curve(w1_df: pd.DataFrame, ecosystem: str, attribute: str, method: str, thr
         ecosystem: Ecosystem.
         attribute: Attribute.
         method: A threshold source (key of THRESHOLD_PROB_COL).
-        thresholds: Expected grid.
+        grid: Expected grid (thresholds or gammas).
+        x_col: ``"threshold"`` or ``"gamma"``.
 
     Returns:
-        The rows, sorted by threshold.
+        The rows, sorted by ``x_col``.
     """
     c = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['method'] == method)]
-    c = c.sort_values('threshold')
-    assert np.allclose(c['threshold'].to_numpy(dtype=float), thresholds), (ecosystem, attribute, method)
+    c = c.sort_values(x_col)
+    assert np.allclose(c[x_col].to_numpy(dtype=float), grid), (ecosystem, attribute, method)
     return c
+
+
+def gamma_ticks(gammas: list[float]) -> list[float]:
+    """x ticks for a gamma sweep: its integer grid points, or its two ends if fewer than two.
+
+    Args:
+        gammas: Gamma grid.
+
+    Returns:
+        Tick positions (grid points only).
+    """
+    ints = [g for g in gammas if float(g).is_integer()]
+    return ints if len(ints) >= 2 else [gammas[0], gammas[-1]]
 
 
 def w1_suffix(scale: str, attribute: str) -> str:
@@ -858,7 +1081,7 @@ LOG_TITLE_MARK = r', $\log_{10}$'
 def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
                    threshold_mode: str, sources: list[str], scale: str, ticks: list[float], smooth_window: int,
                    out_path: Path):
-    """Save W1 vs threshold for one ecosystem, one panel per attribute.
+    """Save W1 vs threshold (or vs gamma in weight mode) for one ecosystem, one panel per attribute.
 
     Plots unnormalized W1 on the chosen scale: what matters is each real curve against
     the random baseline at the same thresholds. Each source's curve is solid with no CI
@@ -873,30 +1096,33 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
         w1_df: wasserstein.csv frame.
         ecosystem: Ecosystem.
         attributes: Panel attributes.
-        thresholds: Threshold grid.
-        threshold_mode: ``"value"`` or ``"percentile"`` (only the latter has a baseline).
+        thresholds: Threshold grid, or the gamma grid in weight mode.
+        threshold_mode: ``"value"``, ``"percentile"`` or ``"weight"`` (``W1_X``; only the
+            last two have a baseline).
         sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
         scale: ``"raw"``, or ``"native"``: log10-value W1 for LOG_SCALE_ATTRIBUTES (marked in
             the panel title), raw W1 for the rest.
-        ticks: x tick candidates (the Q-Q grid), a subset of ``thresholds``; every third
-            is used when there are more than 6.
+        ticks: x tick candidates (the Q-Q grid, or ``gamma_ticks``), a subset of
+            ``thresholds``; every third is used when there are more than 6.
         smooth_window: ``smooth_curve`` window in grid points (1 = raw).
         out_path: Figure path.
     """
     assert set(ticks) <= set(thresholds), (ticks, thresholds)
+    xm = W1_X[threshold_mode]
     fig, axes = plt.subplots(1, len(attributes), figsize=(3.0 * len(attributes), 2.8), squeeze=False)
     for i, (ax, attribute) in enumerate(zip(axes[0], attributes)):
         sfx = w1_suffix(scale, attribute)
         lines = []
         for src in sources:
-            c = _curve(w1_df, ecosystem, attribute, src, thresholds)
+            c = _curve(w1_df, ecosystem, attribute, src, thresholds, xm['col'])
             lines.append(smooth_curve(c[f'w1{sfx}'].to_numpy(dtype=float), smooth_window))
             ax.plot(thresholds, lines[-1], **CURVE_STYLE[src])
-        if threshold_mode == 'percentile':
+        if xm['baseline']:
             base_cols = [f'w1_random{sfx}_{k}' for k in ('mean', 'lo', 'hi')]
-            base = _curve(w1_df, ecosystem, attribute, METHODS[0], thresholds)[base_cols].to_numpy()
+            base = _curve(w1_df, ecosystem, attribute, METHODS[0], thresholds, xm['col'])[base_cols].to_numpy()
             for src in sources[1:]:   # one baseline per cell, copied onto every source's rows
-                np.testing.assert_array_equal(_curve(w1_df, ecosystem, attribute, src, thresholds)[base_cols].to_numpy(), base)
+                np.testing.assert_array_equal(
+                    _curve(w1_df, ecosystem, attribute, src, thresholds, xm['col'])[base_cols].to_numpy(), base)
             style = CURVE_STYLE['random']
             mean, lo, hi = (smooth_curve(base[:, k].astype(float), smooth_window) for k in range(3))
             lines.append(mean)
@@ -915,7 +1141,7 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
         lo_y, hi_y = ax.get_ylim()[0], np.nanmax(np.concatenate(lines))
         ax.set_ylim(lo_y, hi_y + Y_TOP_MARGIN * (hi_y - lo_y))
         ax.set_title(_attr_title(attribute) + (LOG_TITLE_MARK if sfx else ''), fontsize=13, style='italic')
-        ax.set_xlabel(FILTER_LEVEL_LABEL, fontsize=11)
+        ax.set_xlabel(xm['label'], fontsize=11)
         if i == 0:
             ax.set_ylabel('$W_1$', fontsize=11)
         ax.set_xlim(thresholds[0], thresholds[-1])
@@ -938,10 +1164,11 @@ def plot_w1_curves_legend(out_path: Path, reference: str, threshold_mode: str, s
     Args:
         out_path: Figure path.
         reference: Reference setting (the valid line is drawn only against ground truth).
-        threshold_mode: ``"value"`` or ``"percentile"`` (only the latter has a baseline).
+        threshold_mode: ``"value"``, ``"percentile"`` or ``"weight"`` (``W1_X``; only the
+            last two have a baseline).
         sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
     """
-    baseline = threshold_mode == 'percentile'
+    baseline = W1_X[threshold_mode]['baseline']
     order = (*[a for a in ('probe', 'ntp', ZSCORE) if a in sources],
              *(['valid'] if reference == 'ground_truth' else []), 'response', *(['random'] if baseline else []))
     # Legend fills column-major; reorder so it reads row by row (methods, then baselines).
@@ -996,14 +1223,21 @@ def main():
     survival_df.to_csv(out_dir / 'survival.csv', index=False)
     print(f"[meta_v2] wrote {out_dir / 'survival.csv'}")
 
-    w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode, sources,
-                           min_n, n_boot, n_shuffle, seed)
+    if sec['w1_mode'] == 'threshold':
+        w1_df = build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds, threshold_mode, sources,
+                               min_n, n_boot, n_shuffle, seed)
+        w1_thr = w1_df[w1_df['method'].isin(sources)]
+        check = survival_df.merge(w1_thr, on=['ecosystem', 'attribute', 'method', 'threshold'], suffixes=('', '_w1'))
+        assert len(check) == len(survival_df) == len(w1_thr), 'survival / W1 tables cover different cells'
+        assert (check['n_ext'] == check['n_ext_w1']).all() and (check['n_docs_ext'] == check['n_docs_ext_w1']).all() \
+            and (check['n_ref'] == check['n_ref_w1']).all(), 'survival.csv disagrees with wasserstein.csv on row/doc counts'
+        w1_grid, w1_x_mode, w1_ticks, w1_fig = thresholds, threshold_mode, qq_thresholds, 'w1_vs_threshold'
+    else:
+        gammas = gamma_grid(sec['w1_gammas'])
+        w1_df = build_w1_gamma_table(gt_df, ext_df, reference, ecosystems, attributes, gammas, sources,
+                                     min_n, n_boot, n_shuffle, seed)
+        w1_grid, w1_x_mode, w1_ticks, w1_fig = gammas, 'weight', gamma_ticks(gammas), 'w1_vs_gamma'
     w1_df.to_csv(out_dir / 'wasserstein.csv', index=False)
-    w1_thr = w1_df[w1_df['method'].isin(sources)]
-    check = survival_df.merge(w1_thr, on=['ecosystem', 'attribute', 'method', 'threshold'], suffixes=('', '_w1'))
-    assert len(check) == len(survival_df) == len(w1_thr), 'survival / W1 tables cover different cells'
-    assert (check['n_ext'] == check['n_ext_w1']).all() and (check['n_docs_ext'] == check['n_docs_ext_w1']).all() \
-        and (check['n_ref'] == check['n_ref_w1']).all(), 'survival.csv disagrees with wasserstein.csv on row/doc counts'
     print(f"[meta_v2] wrote {out_dir / 'wasserstein.csv'}")
     print(w1_df[['ecosystem', 'attribute', 'setting', 'n_ext', 'n_docs_ext', 'w1', 'w1_lo', 'w1_hi',
                  'w1_random_mean', 'w1_log', 'w1_random_log_mean']].to_string(index=False, float_format='{:.3g}'.format))
@@ -1016,15 +1250,15 @@ def main():
     pd.DataFrame(records).to_csv(out_dir / 'qq_lines.csv', index=False)
     plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, qq_thresholds)
     for ecosystem in ecosystems:
-        plot_w1_curves(w1_df, ecosystem, attributes, thresholds, threshold_mode, sources, sec['w1_curve_scale'],
-                       qq_thresholds, sec['w1_smooth_window'], figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
-    plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf', reference, threshold_mode, sources)
+        plot_w1_curves(w1_df, ecosystem, attributes, w1_grid, w1_x_mode, sources, sec['w1_curve_scale'],
+                       w1_ticks, sec['w1_smooth_window'], figures_dir / f'{w1_fig}_{ecosystem}.pdf')
+    plot_w1_curves_legend(figures_dir / f'{w1_fig}_legend.pdf', reference, w1_x_mode, sources)
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/pond_meta_analysis.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
                     reference=reference, ecosystems=ecosystems, attributes=attributes, w1_thresholds=thresholds, qq_thresholds=qq_thresholds, threshold_mode=threshold_mode,
                     min_n=min_n, threshold_sources=sources, w1_curve_scale=sec['w1_curve_scale'],
-                    w1_smooth_window=sec['w1_smooth_window'],
+                    w1_smooth_window=sec['w1_smooth_window'], w1_mode=sec['w1_mode'], w1_gammas=sec['w1_gammas'],
                     outlier_moments=moments.to_dict('records'),
                     calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))

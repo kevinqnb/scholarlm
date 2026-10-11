@@ -33,5 +33,7 @@ params:
     min_n: 5
     n_shuffle_samples: 2000
     threshold_mode: percentile
+    w1_mode: threshold
+    w1_gammas: null
     w1_curve_scale: native
     w1_smooth_window: 9
