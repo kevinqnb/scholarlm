@@ -273,11 +273,6 @@ notes
 CLAUDE.local.md
 ISSUE-*.md
 
-# Match caches (analysis/match_cache.py): derived pickles + sidecars, rebuilt on demand, never committed.
-analysis/results/match_cache/
-
-# Deduplicate caches (analysis/deduplicate_cache.py): derived pickles + sidecars, rebuilt on demand, never committed.
-analysis/results/deduplicate_cache/
-
-# Deduplicated datasets (analysis/deduplication.py): derived, heavy (full context text), rebuilt on demand, never committed.
-analysis/results/deduplication/
+# Analysis outputs (match/dedup caches, deduplicated datasets, figures, CSVs): derived from
+# analysis/analysis-configs/, rebuilt on demand, never committed.
+analysis/results/
