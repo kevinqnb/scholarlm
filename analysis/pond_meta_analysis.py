@@ -1,12 +1,15 @@
 """Pond meta-analysis: do confidence-filtered extractions reproduce the ground truth's distributions?
 
-For each (ecosystem, attribute) cell and method (NTP, probe), extracted rows are
-hard-filtered at each confidence threshold t, and the distribution is compared to a
-reference (ground truth or valid extractions) with Q-Q plots and Wasserstein-1 (W1).
-- threshold_mode ``value`` keeps confidence >= t; ``percentile`` drops the bottom
+For each (ecosystem, attribute) cell and threshold source, extracted rows are
+hard-filtered at each threshold t, and the distribution is compared to a reference
+(ground truth or valid extractions) with Q-Q plots and Wasserstein-1 (W1).
+- Threshold sources: NTP and probe confidence, and ``zscore``, outlier_weight.py's
+  non-outlier score exp(-z^2/2) of the robust z-score (W1 curves only; Q-Q figures are
+  per confidence method).
+- threshold_mode ``value`` keeps score >= t; ``percentile`` drops the bottom
   fraction t of the cell. t = 0 is the unfiltered set.
-- With outlier_adjust, confidences are multiplied by outlier_weight.py's non-outlier
-  factor, and ``ntp_conf`` / ``probe_conf`` settings threshold the confidence alone.
+- Two grids: ``w1_thresholds`` (W1 curves and the stats / survival / W1 tables; can be
+  fine, e.g. steps of 0.01) and ``qq_thresholds`` (one Q-Q line each, a subset of it).
 - Samples are unweighted: Hazen quantiles, scipy W1, and scipy percentile-bootstrap CIs.
 - Random baseline (percentile mode only): W1 of uniformly random row subsets of each
   threshold's quantile size, shared by every threshold source. A real W1 inside its
@@ -57,23 +60,11 @@ from analysis.common.meta_inputs import SECTION_V2, load_meta_v2_config, resolve
 
 mpl.rcParams.update(PAPER_RCPARAMS)
 
-# Thresholded column per source: each method's confidence (x factor when outlier_adjust),
-# and each method's confidence alone (its *_raw column).
-CONF_ONLY = {m: f'{m}_conf' for m in METHODS}
-THRESHOLD_PROB_COL = {**METHOD_PROB_COL, **{CONF_ONLY[m]: f'{METHOD_PROB_COL[m]}_raw' for m in METHODS}}
-
-
-def threshold_sources(outlier_adjust: bool) -> list[str]:
-    """What gets thresholded: each method, plus, when the factor is applied, each
-    method's confidence alone (without it they equal the method itself).
-
-    Args:
-        outlier_adjust: Whether confidences carry the non-outlier factor.
-
-    Returns:
-        Source names (keys of THRESHOLD_PROB_COL).
-    """
-    return METHODS + [CONF_ONLY[m] for m in METHODS] if outlier_adjust else list(METHODS)
+# Thresholded column per source: each method's confidence, and the robust z-score's
+# non-outlier score exp(-z^2/2) (outlier_weight.add_outlier_columns).
+ZSCORE = 'zscore'
+THRESHOLD_PROB_COL = {**METHOD_PROB_COL, ZSCORE: 'outlier_factor'}
+THRESHOLD_SOURCES = [*METHODS, ZSCORE]
 
 # Non-threshold settings per reference. `valid` = extracted rows labelled valid
 # (judge OR GT match). The unfiltered set is the t = 0 threshold setting.
@@ -94,19 +85,19 @@ QQ_BASE_STYLE = {
 }
 QQ_BASE_LEGEND = {
     'ground_truth': 'Ground truth',
-    'valid':        'Valid extracted (judge or GT match)',
+    'valid':        'Valid (judge or GT match)',
 }
 # Codes keying the per-(cell, setting) bootstrap RNG (see _rng); stable across configs,
-# so retired settings keep their codes unused (6: factor-only).
+# so retired settings keep their codes unused (6: factor-only, 7-8: confidence-only
+# beside confidence x factor).
 SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
-                 **{m: 4 + i for i, m in enumerate(METHODS)},
-                 **{CONF_ONLY[m]: 7 + i for i, m in enumerate(METHODS)}}
+                 **{m: 4 + i for i, m in enumerate(METHODS)}, ZSCORE: 9}
 # Stream code for the random-subset control's draws (outside SETTING_CODES).
 RANDOM_STREAM = 100
 
-# W1-vs-threshold curves: pastel tab10 (NTP blue, probe rose red); confidence x factor solid,
-# confidence only dashed, and behind them the random-subset baseline pastel-grey dotted and
-# (GT reference only) the valid extracted rows' W1 as a flat grey dash-dot line.
+# W1-vs-threshold curves: pastel tab10 (NTP blue, probe rose red, z-score orange), solid, and
+# behind them the random-subset baseline pastel-grey dotted and (GT reference only) the valid
+# extracted rows' W1 as a flat grey dash-dot line.
 PASTEL_WHITE_FRACTION = 0.35
 
 
@@ -129,8 +120,7 @@ _ROSE = tuple(0.5 * np.array(_TAB10[3]) + 0.5 * np.array(_TAB10[6]))
 CURVE_STYLE = {
     'ntp':            dict(color=_pastel(_TAB10[0]), ls='-', lw=2.5, label='NTP'),
     'probe':          dict(color=_pastel(_ROSE), ls='-', lw=2.5, label='Probe'),
-    CONF_ONLY['ntp']:   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (v-prob. only)'),
-    CONF_ONLY['probe']: dict(color=_pastel(_ROSE), ls='--', lw=1.8, label='Probe (v-prob. only)'),
+    ZSCORE:           dict(color=_pastel(_TAB10[1]), ls='-', lw=2.5, label='$z$-score'),
     'random':         dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random', zorder=1.5),
     'valid':          dict(color=_TAB10[7], ls='-.', lw=1.5, label='Valid (judge or GT match)', zorder=1.5),
 }
@@ -145,7 +135,7 @@ FILTER_LEVEL_LABEL = 'Filter Level'
 
 
 def threshold_setting(method: str, t: float, mode: str) -> str:
-    """Setting name for a threshold, e.g. ``probe_ge_0.50`` or ``ntp_conf_pct_0.25``.
+    """Setting name for a threshold, e.g. ``probe_ge_0.50`` or ``zscore_pct_0.25``.
 
     Args:
         method: A threshold source (key of THRESHOLD_PROB_COL).
@@ -296,7 +286,7 @@ def all_settings(reference: str, thresholds: list[float], threshold_mode: str, s
         reference: ``"ground_truth"`` or ``"valid"``.
         thresholds: Threshold grid.
         threshold_mode: ``"value"`` or ``"percentile"``.
-        sources: Output of ``threshold_sources``.
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
 
     Returns:
         Setting names.
@@ -353,7 +343,7 @@ def build_stats_table(gt_df, ext_df, reference, ecosystems, attributes, threshol
         attributes: Attributes to include.
         thresholds: Threshold grid.
         threshold_mode: ``"value"`` or ``"percentile"``.
-        sources: Output of ``threshold_sources``.
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
 
     Returns:
         meta_stats.csv rows: n, n_docs, n_nonpos and ``summary_stats`` per setting.
@@ -574,7 +564,7 @@ def build_w1_table(gt_df, ext_df, reference, ecosystems, attributes, thresholds,
         attributes: Attributes to include.
         thresholds: Threshold grid.
         threshold_mode: ``"value"`` or ``"percentile"``.
-        sources: Output of ``threshold_sources``.
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
         min_n: Minimum sample size.
         n_boot: Bootstrap resamples.
         n_shuffle: Random-baseline draws.
@@ -832,13 +822,12 @@ LOG_TITLE_MARK = r', $\log_{10}$'
 
 
 def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
-                   threshold_mode: str, sources: list[str], scale: str, out_path: Path):
+                   threshold_mode: str, sources: list[str], scale: str, ticks: list[float], out_path: Path):
     """Save W1 vs threshold for one ecosystem, one panel per attribute.
 
     Plots unnormalized W1 on the chosen scale: what matters is each real curve against
-    the random baseline at the same thresholds. Real curves are solid with no CI drawn,
-    confidence-only curves (if in ``sources``) are dashed, and in percentile mode the one
-    random-subset baseline is grey dotted with its percentile band. Under the ground-truth
+    the random baseline at the same thresholds. Each source's curve is solid with no CI
+    drawn, and in percentile mode the one random-subset baseline is grey dotted with its percentile band. Under the ground-truth
     reference, the valid extracted rows' W1 (no thresholding) is a flat grey dash-dot
     line. The baseline and valid line sit behind the method curves. Skipped points are gaps.
 
@@ -848,19 +837,20 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
         attributes: Panel attributes.
         thresholds: Threshold grid.
         threshold_mode: ``"value"`` or ``"percentile"`` (only the latter has a baseline).
-        sources: Output of ``threshold_sources``.
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
         scale: ``"raw"``, or ``"native"``: log10-value W1 for LOG_SCALE_ATTRIBUTES (marked in
             the panel title), raw W1 for the rest.
+        ticks: x tick candidates (the Q-Q grid), a subset of ``thresholds``; every third
+            is used when there are more than 6.
         out_path: Figure path.
     """
+    assert set(ticks) <= set(thresholds), (ticks, thresholds)
     fig, axes = plt.subplots(1, len(attributes), figsize=(3.0 * len(attributes), 2.8), squeeze=False)
     for i, (ax, attribute) in enumerate(zip(axes[0], attributes)):
         sfx = w1_suffix(scale, attribute)
-        for method in METHODS:
-            for src in (CONF_ONLY[method], method):
-                if src in sources:
-                    c = _curve(w1_df, ecosystem, attribute, src, thresholds)
-                    ax.plot(thresholds, c[f'w1{sfx}'], **CURVE_STYLE[src])
+        for src in sources:
+            c = _curve(w1_df, ecosystem, attribute, src, thresholds)
+            ax.plot(thresholds, c[f'w1{sfx}'], **CURVE_STYLE[src])
         if threshold_mode == 'percentile':
             base_cols = [f'w1_random{sfx}_{k}' for k in ('mean', 'lo', 'hi')]
             base = _curve(w1_df, ecosystem, attribute, METHODS[0], thresholds)[base_cols].to_numpy()
@@ -879,7 +869,7 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
         if i == 0:
             ax.set_ylabel('$W_1$', fontsize=11)
         ax.set_xlim(thresholds[0], thresholds[-1])
-        ax.set_xticks(thresholds if len(thresholds) <= 6 else thresholds[::3])   # grid points only, never interpolated ticks
+        ax.set_xticks(ticks if len(ticks) <= 6 else ticks[::3])   # grid points only, never interpolated ticks
         ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
         ax.set_axisbelow(True)
     fig.tight_layout()
@@ -889,23 +879,23 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
 
 
 def plot_w1_curves_legend(out_path: Path, reference: str, threshold_mode: str, sources: list[str]):
-    """Save the W1-curve legend: each method, and whichever of the confidence-only
-    curves, the valid line and the random baseline the curves draw (not its band).
+    """Save the W1-curve legend: each threshold source, and whichever of the valid line
+    and the random baseline the curves draw (not its band), in one row.
 
     Args:
         out_path: Figure path.
         reference: Reference setting (the valid line is drawn only against ground truth).
         threshold_mode: ``"value"`` or ``"percentile"`` (only the latter has a baseline).
-        sources: Output of ``threshold_sources``.
+        sources: Threshold sources (THRESHOLD_SOURCES, or a subset).
     """
     baseline = threshold_mode == 'percentile'
-    order = ('probe', 'ntp', *[CONF_ONLY[m] for m in ('probe', 'ntp') if CONF_ONLY[m] in sources],
+    order = (*[a for a in ('probe', 'ntp', ZSCORE) if a in sources],
              *(['valid'] if reference == 'ground_truth' else []), *(['random'] if baseline else []))
     handles = [Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
                       linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
     fig, ax = plt.subplots(figsize=(10.0, 0.7))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=3, fontsize=12, frameon=False, handlelength=2.0)
+    ax.legend(handles=handles, loc='center', ncol=5, fontsize=12, frameon=False, handlelength=2.0)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta_v2] wrote {out_path}")
@@ -924,17 +914,19 @@ def main():
     ecosystems, attributes, reference = sec['ecosystems'], sec['attributes'], sec['reference']
     assert not set(ecosystems) - set(ECOSYSTEMS), f"ecosystems not in ECOSYSTEMS: {ecosystems}"
     assert not set(attributes) - set(ATTRIBUTES), f"attributes not in ATTRIBUTES: {attributes}"
-    thresholds, min_n, n_boot, seed = sec['thresholds'], sec['min_n'], sec['n_boot'], cfg['seed']
+    # W1 grid drives the tables and W1 curves; the Q-Q grid (a subset) the Q-Q lines.
+    thresholds, qq_thresholds = sec['w1_thresholds'], sec['qq_thresholds']
+    assert set(qq_thresholds) <= set(thresholds), 'qq_thresholds not a subset of w1_thresholds'
+    min_n, n_boot, seed = sec['min_n'], sec['n_boot'], cfg['seed']
     n_shuffle, threshold_mode = sec['n_shuffle_samples'], sec['threshold_mode']
-    sources = threshold_sources(sec['outlier_adjust'])
+    sources = THRESHOLD_SOURCES
 
     input_keys = ('calibration_config_id', 'rows', 'deduplication_config_id', 'confidence')
     inputs = resolve_meta_inputs(sec, DATASET)
     gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
-    # Real settings threshold ntp_prob / probe_prob, already x factor when outlier_adjust.
-    ext_df, moments = add_outlier_columns(ext_df, sec['outlier_adjust'])
-    if moments is not None:
-        print(f"[meta_v2] outlier_adjust: confidences x exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
+    # The zscore source thresholds outlier_factor; confidences are thresholded as stored.
+    ext_df, moments = add_outlier_columns(ext_df)
+    print(f"[meta_v2] zscore source: exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
 
     out_dir = META_ROOT / cfg['id']
     figures_dir = out_dir / 'figures'
@@ -963,20 +955,20 @@ def main():
     records = []
     for method in METHODS:
         for ecosystem in ecosystems:
-            records += plot_qq(gt_df, ext_df, reference, ecosystem, method, sec['qq_attributes'], thresholds,
+            records += plot_qq(gt_df, ext_df, reference, ecosystem, method, sec['qq_attributes'], qq_thresholds,
                                threshold_mode, min_n, n_boot, seed, figures_dir / f'qq_{method}_{ecosystem}.pdf')
     pd.DataFrame(records).to_csv(out_dir / 'qq_lines.csv', index=False)
-    plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, thresholds)
+    plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, qq_thresholds)
     for ecosystem in ecosystems:
         plot_w1_curves(w1_df, ecosystem, attributes, thresholds, threshold_mode, sources, sec['w1_curve_scale'],
-                       figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
+                       qq_thresholds, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
     plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf', reference, threshold_mode, sources)
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/pond_meta_analysis.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
-                    reference=reference, ecosystems=ecosystems, attributes=attributes, thresholds=thresholds, threshold_mode=threshold_mode,
-                    min_n=min_n, outlier_adjust=sec['outlier_adjust'], w1_curve_scale=sec['w1_curve_scale'],
-                    outlier_moments=None if moments is None else moments.to_dict('records'),
+                    reference=reference, ecosystems=ecosystems, attributes=attributes, w1_thresholds=thresholds, qq_thresholds=qq_thresholds, threshold_mode=threshold_mode,
+                    min_n=min_n, threshold_sources=sources, w1_curve_scale=sec['w1_curve_scale'],
+                    outlier_moments=moments.to_dict('records'),
                     calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))
 

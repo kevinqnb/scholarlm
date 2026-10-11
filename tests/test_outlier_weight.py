@@ -29,7 +29,7 @@ def test_mad_constant_is_gaussian_consistent():
 
 
 def test_hand_checked_factors_per_ecosystem():
-    out, m = add_outlier_columns(_df(), True)
+    out, m = add_outlier_columns(_df())
     pa = m[(m['ecosystem_bucket'] == 'pond') & (m['attribute'] == 'a')].iloc[0]
     la = m[(m['ecosystem_bucket'] == 'lake') & (m['attribute'] == 'a')].iloc[0]
     assert (pa['median'], pa['mad'], pa['n']) == (1.5, 1.0, 4)
@@ -39,35 +39,31 @@ def test_hand_checked_factors_per_ecosystem():
     np.testing.assert_allclose(f[4:7], factor(np.array([2.0, 0.0, 3.0]), 2.0))
     assert f[5] == 1.0                                            # at the median: factor 1
     np.testing.assert_allclose(f[7:9], factor(np.array([5.0, 5.0]), 5.0))
-    assert out['probe_prob'].iloc[3] == pytest.approx(1.0 * factor(8.5, 1.0))
-    assert out[['ntp_prob', 'probe_prob', 'outlier_factor']].iloc[9].isna().all()   # no value -> NaN
+    assert np.isnan(out['outlier_factor'].iloc[9])   # no value -> NaN
 
 
 def test_zero_mad_fails_loud():
     df = _df()
     df.loc[(df['ecosystem_bucket'] == 'lake'), 'converted_value'] = [4.0, 4.0, 9.0]   # median 4, |dev| 0, 0, 5 -> MAD 0
     with pytest.raises(ValueError, match='MAD'):
-        add_outlier_columns(df, True)
+        add_outlier_columns(df)
 
 
 def test_missing_ecosystem_bucket_fails_loud():
     with pytest.raises(KeyError):
-        add_outlier_columns(_df().drop(columns='ecosystem_bucket'), True)
+        add_outlier_columns(_df().drop(columns='ecosystem_bucket'))
 
 
 def test_far_value_underflows_to_zero_and_is_counted():
     df = _df()
     df.loc[3, 'converted_value'] = 1e3   # z = 998.5 / 1.4826 ~ 673: exp(-z^2/2) is 0.0 in float64
-    out, m = add_outlier_columns(df, True)
-    assert out['outlier_factor'].iloc[3] == 0.0 and out['probe_prob'].iloc[3] == 0.0
+    out, m = add_outlier_columns(df)
+    assert out['outlier_factor'].iloc[3] == 0.0
     assert m.set_index(['ecosystem_bucket', 'attribute']).loc[('pond', 'a'), 'n_zero_factor'] == 1
     assert m['n_zero_factor'].sum() == 1
 
 
-def test_raw_columns_and_no_adjust_identity():
-    out, m = add_outlier_columns(_df(), True)
-    assert (out['ntp_prob_raw'] == _df()['ntp_prob']).all()
-    assert out['ntp_prob'].iloc[:9].to_numpy() == pytest.approx((out['ntp_prob_raw'] * out['outlier_factor']).iloc[:9].to_numpy())
-    off, m0 = add_outlier_columns(_df(), False)
-    assert m0 is None and (off['outlier_factor'] == 1.0).all()
-    assert off['ntp_prob'].equals(_df()['ntp_prob']) and off['probe_prob'].equals(_df()['probe_prob'])
+def test_confidences_untouched_one_column_added():
+    out, _ = add_outlier_columns(_df())
+    assert list(out.columns) == list(_df().columns) + ['outlier_factor']
+    pd.testing.assert_frame_equal(out.drop(columns='outlier_factor'), _df())

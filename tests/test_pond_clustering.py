@@ -219,3 +219,15 @@ def test_kish_n_eff():
     assert kish_n_eff(np.array([1.0, 0.0, 0.0])) == pytest.approx(1)
 
 
+
+
+def test_arms_and_legend(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.pond_clustering as m
+    assert m.ARMS == ('ntp', 'probe', 'zscore', 'random')
+    assert m.ARM_PROB_COL == {'ntp': 'ntp_prob', 'probe': 'probe_prob', 'zscore': 'outlier_factor'}
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_legend(tmp_path / 'leg.pdf')
+    texts = [t.get_text() for t in saved['fig'].axes[0].get_legend().get_texts()]
+    assert texts == ['Probe', 'NTP', '$z$-score', 'Random']

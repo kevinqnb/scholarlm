@@ -1,11 +1,12 @@
-"""Does weighting extracted pond entities by probe / NTP confidence make KMeans recover the ground truth's clusters?
+"""Does weighting extracted pond entities by probe / NTP confidence (or a robust z-score) make KMeans recover the ground truth's clusters?
 
 Usage: python analysis/pond_clustering.py analysis/analysis-configs/clustering/<id>.yaml
 
 1. Rows and confidences come from pond_meta.load_data (held-out documents only), with
    pond_meta_analysis.py's unit table (UNIT_CONVERSION_V2) and therefore the same
    PHYSICAL_BOUNDS filter. Each extracted row gets outlier_weight.py's non-outlier
-   factor, computed on all rows exactly as in pond_meta_analysis.py.
+   score exp(-z^2/2) of its robust z-score, computed on all rows exactly as in
+   pond_meta_analysis.py.
 2. Both sides are restricted to rows whose ecosystem bucket is pond, lake or wetland
    (ECOSYSTEMS), and non-positive values of LOG_SCALE_ATTRIBUTES are dropped (they have
    no log10).
@@ -23,8 +24,8 @@ Usage: python analysis/pond_clustering.py analysis/analysis-configs/clustering/<
    centroid distance to reference i. Every (i, r) trial uses the same KMeans seed in
    every arm.
 
-Arms: ``ntp_conf`` / ``probe_conf`` (confidence alone), ``ntp`` / ``probe`` (confidence
-x non-outlier factor), and ``random`` (a fresh U(0, 1) confidence per entity per trial).
+Arms: ``ntp`` / ``probe`` (confidence), ``zscore`` (the non-outlier score exp(-z^2/2) in
+place of a confidence), and ``random`` (a fresh U(0, 1) confidence per entity per trial).
 
 Each curve is the mean over the n_init x n_runs trials. Its band is a 95% CI over KMeans
 initializations only -- a t-interval over the n_init per-reference-fit means -- and says
@@ -87,9 +88,9 @@ GAMMA_KEYS = ('start', 'stop', 'num')
 # Only pond -> pond is supported; load_data reads that cell only.
 PROBE_TRAIN_DATASETS = (DATASET,)
 GT_ENTITY_COLS = ['document_id', 'name', 'ecosystem']
-# Confidence column per arm: *_raw is the confidence alone, the plain column is
-# confidence x non-outlier factor (see outlier_weight.add_outlier_columns).
-ARM_PROB_COL = {'ntp_conf': 'ntp_prob_raw', 'probe_conf': 'probe_prob_raw', 'ntp': 'ntp_prob', 'probe': 'probe_prob'}
+# Score column per arm: each method's confidence, and the robust z-score's non-outlier
+# score exp(-z^2/2) (see outlier_weight.add_outlier_columns).
+ARM_PROB_COL = {'ntp': 'ntp_prob', 'probe': 'probe_prob', 'zscore': 'outlier_factor'}
 RANDOM_ARM = 'random'
 ARMS = (*ARM_PROB_COL, RANDOM_ARM)
 # Second seed word per RNG use (seeds are [seed, stream, ...]).
@@ -98,8 +99,7 @@ CI_LEVEL = 0.95
 CLUSTERING_ROOT = analysis_results_dir('clustering')
 
 # Curves, as pond_meta_analysis.py's W1-vs-threshold curves: pastel tab10 (NTP blue,
-# probe rose red); confidence x factor solid, confidence only dashed, and behind them the
-# random baseline pastel-grey dotted.
+# probe rose red, z-score orange) solid, and behind them the random baseline pastel-grey dotted.
 PASTEL_WHITE_FRACTION = 0.35
 
 
@@ -122,8 +122,7 @@ _ROSE = tuple(0.5 * np.array(_TAB10[3]) + 0.5 * np.array(_TAB10[6]))
 CURVE_STYLE = {
     'ntp':        dict(color=_pastel(_TAB10[0]), ls='-', lw=2.5, label='NTP'),
     'probe':      dict(color=_pastel(_ROSE), ls='-', lw=2.5, label='Probe'),
-    'ntp_conf':   dict(color=_pastel(_TAB10[0]), ls='--', lw=1.8, label='NTP (v-prob. only)'),
-    'probe_conf': dict(color=_pastel(_ROSE), ls='--', lw=1.8, label='Probe (v-prob. only)'),
+    'zscore':     dict(color=_pastel(_TAB10[1]), ls='-', lw=2.5, label='$z$-score'),
     'random':     dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random', zorder=1.5),
 }
 assert set(CURVE_STYLE) == set(ARMS)
@@ -624,17 +623,17 @@ def block_mean_ci(d: np.ndarray, level: float = CI_LEVEL) -> dict:
 # ── Plots ───────────────────────────────────────────────────────────────────
 
 def plot_legend(out_path: Path) -> None:
-    """Save the standalone legend for the five arms (pond_meta_analysis.py style; 3 columns pair solid / dashed / random).
+    """Save the standalone legend for the four arms (pond_meta_analysis.py style, 2 x 2).
 
     Args:
         out_path: Figure path.
     """
-    order = ('probe', 'ntp', 'probe_conf', 'ntp_conf', 'random')
+    order = ('probe', 'ntp', 'zscore', 'random')
     handles = [mlines.Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
                              linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
     fig, ax = plt.subplots(figsize=(10.0, 0.7))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=3, fontsize=12, frameon=False, handlelength=2.0)
+    ax.legend(handles=handles, loc='center', ncol=2, fontsize=12, frameon=False, handlelength=2.0)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[clustering] wrote {out_path}")
@@ -688,10 +687,10 @@ def main() -> None:
 
     inputs = resolve_clustering_inputs(cfg)
     gt_df, ext_df, manifest = load_data(sec, inputs, unit_conversion=UNIT_CONVERSION_V2)
-    # Per-row factor on all rows, as in pond_meta_analysis.py (it is per (bucket, attribute),
-    # so the ecosystem filter below doesn't change kept rows' factors).
-    ext_df, moments = add_outlier_columns(ext_df, True)
-    print(f"[clustering] non-outlier factor: exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
+    # Per-row z-score arm score on all rows, as in pond_meta_analysis.py (it is per (bucket,
+    # attribute), so the ecosystem filter below doesn't change kept rows' scores).
+    ext_df, moments = add_outlier_columns(ext_df)
+    print(f"[clustering] zscore arm: exp(-z^2/2), robust z per (ecosystem, attribute)\n{moments}")
 
     # ── Row filters ──
     n_rows_loaded = {'gt': len(gt_df), 'ext': len(ext_df)}

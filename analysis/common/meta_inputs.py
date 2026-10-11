@@ -33,8 +33,8 @@ from analysis.common.provenance import sha256_file
 # pond_meta_analysis.py's config section: hard confidence thresholds.
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
-                   "reference", "ecosystems", "attributes", "qq_attributes", "thresholds", "min_n",
-                   "n_shuffle_samples", "outlier_adjust", "threshold_mode", "w1_curve_scale")
+                   "reference", "ecosystems", "attributes", "qq_attributes", "qq_thresholds", "w1_thresholds", "min_n",
+                   "n_shuffle_samples", "threshold_mode", "w1_curve_scale")
 # Which W1 the W1-vs-threshold figure plots: raw values for every attribute, or each
 # attribute's native scale (log10 values for pond_meta.LOG_SCALE_ATTRIBUTES, raw otherwise).
 W1_CURVE_SCALES = ("raw", "native")
@@ -68,12 +68,13 @@ def numeric_point_value(point_value: pd.Series) -> pd.Series:
 def load_meta_v2_config(path: Path) -> dict:
     """Load and validate a ``meta_v2`` config for pond_meta_analysis.py.
 
-    Key rules: ``thresholds`` is strictly increasing in [0, 1) and starts at 0 (the
-    unfiltered set); ``threshold_mode`` is ``value`` (keep confidence >= t) or
+    Key rules: ``qq_thresholds`` (one Q-Q line each) and ``w1_thresholds`` (W1 curves and
+    the stats / survival / W1 tables) are each strictly increasing in [0, 1), start at 0
+    (the unfiltered set) and have at most 2 decimals (setting names round to 2);
+    ``qq_thresholds`` must be a subset of ``w1_thresholds``; ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
     sample scored; ``n_shuffle_samples`` is the number of random-subset draws in the baseline;
-    ``outlier_adjust`` applies outlier_weight.py before thresholding; ``w1_curve_scale``
-    is one of W1_CURVE_SCALES.
+    ``w1_curve_scale`` is one of W1_CURVE_SCALES.
 
     Args:
         path: Path to the config YAML.
@@ -90,14 +91,11 @@ def load_meta_v2_config(path: Path) -> dict:
         raise ValueError(f"{path}: unexpected params key(s) {sorted(unexpected)}")
     sec = get_section(cfg, SECTION_V2, SECTION_V2_KEYS)
     _check_common_section(path, cfg, sec, SECTION_V2)
-    th = sec["thresholds"]
-    if (not isinstance(th, list) or not th
-            or not all(isinstance(t, (int, float)) and not isinstance(t, bool) for t in th)):
-        raise ValueError(f"{path}: {SECTION_V2}.thresholds must be a non-empty list of numbers")
-    if not all(0.0 <= t < 1.0 for t in th) or not all(a < b for a, b in zip(th, th[1:])):
-        raise ValueError(f"{path}: {SECTION_V2}.thresholds must be strictly increasing, in [0, 1), got {th}")
-    if th[0] != 0:
-        raise ValueError(f"{path}: {SECTION_V2}.thresholds must start at 0 (the unfiltered set), got {th}")
+    for key in ("qq_thresholds", "w1_thresholds"):
+        _check_threshold_grid(path, key, sec[key])
+    extra = sorted(set(sec["qq_thresholds"]) - set(sec["w1_thresholds"]))
+    if extra:
+        raise ValueError(f"{path}: {SECTION_V2}.qq_thresholds must be a subset of w1_thresholds; not in it: {extra}")
     if sec["calibration_version"] not in CALIBRATION_LOADERS:
         raise ValueError(f"{path}: {SECTION_V2}.calibration_version must be one of {sorted(CALIBRATION_LOADERS)}, "
                          f"got {sec['calibration_version']!r}")
@@ -107,8 +105,6 @@ def load_meta_v2_config(path: Path) -> dict:
     if sec["threshold_mode"] not in ("value", "percentile"):
         raise ValueError(f"{path}: {SECTION_V2}.threshold_mode must be 'value' or 'percentile', "
                          f"got {sec['threshold_mode']!r}")
-    if not isinstance(sec["outlier_adjust"], bool):
-        raise ValueError(f"{path}: {SECTION_V2}.outlier_adjust must be a bool, got {sec['outlier_adjust']!r}")
     mn = sec["min_n"]
     if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")
@@ -116,6 +112,30 @@ def load_meta_v2_config(path: Path) -> dict:
         raise ValueError(f"{path}: {SECTION_V2}.w1_curve_scale must be one of {W1_CURVE_SCALES}, "
                          f"got {sec['w1_curve_scale']!r}")
     return cfg
+
+
+def _check_threshold_grid(path: Path, key: str, th) -> None:
+    """Validate one meta_v2 threshold grid (see ``load_meta_v2_config``).
+
+    Args:
+        path: Config path (for messages).
+        key: Section key being checked.
+        th: The grid.
+
+    Raises:
+        ValueError: Not a non-empty strictly increasing list in [0, 1) starting at 0 with
+            at most 2 decimals.
+    """
+    if (not isinstance(th, list) or not th
+            or not all(isinstance(t, (int, float)) and not isinstance(t, bool) for t in th)):
+        raise ValueError(f"{path}: {SECTION_V2}.{key} must be a non-empty list of numbers")
+    if not all(0.0 <= t < 1.0 for t in th) or not all(a < b for a, b in zip(th, th[1:])):
+        raise ValueError(f"{path}: {SECTION_V2}.{key} must be strictly increasing, in [0, 1), got {th}")
+    if th[0] != 0:
+        raise ValueError(f"{path}: {SECTION_V2}.{key} must start at 0 (the unfiltered set), got {th}")
+    finer = [t for t in th if t != round(t, 2)]
+    if finer:
+        raise ValueError(f"{path}: {SECTION_V2}.{key} must have at most 2 decimals (setting names round to 2), got {finer}")
 
 
 def _check_common_section(path: Path, cfg: dict, sec: dict, section: str) -> None:

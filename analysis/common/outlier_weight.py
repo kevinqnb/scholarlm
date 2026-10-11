@@ -1,10 +1,12 @@
-"""Down-weight probe / NTP confidences for extracted values that look like outliers.
+"""Robust non-outlier score for extracted values.
 
 The stored confidences score validity only, not how plausible the number is.
-``add_outlier_columns`` multiplies each by exp(-z^2 / 2), with the robust z-score
+``add_outlier_columns`` adds ``outlier_factor`` = exp(-z^2 / 2), with the robust z-score
 z = (x - median) / (MAD_TO_SIGMA * MAD) taken per (ecosystem_bucket, attribute) over
 the valued rows of ``ext_df``. Median and MAD are used instead of mean and SD because
 the outliers being targeted would otherwise inflate the scale they are measured by.
+The factor is its own score (thresholded / used as a weight in place of a confidence);
+it is not multiplied into the confidences.
 
 The factor is in [0, 1]: for |z| beyond ~38 exp(-z^2 / 2) underflows to exactly 0.0,
 which is kept and counted (``n_zero_factor``). Rows without ``converted_value`` get NaN
@@ -16,7 +18,6 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-PROB_COLS = ('ntp_prob', 'probe_prob')
 GROUP_COLS = ['ecosystem_bucket', 'attribute']
 # Makes MAD a consistent estimator of sigma for Gaussian data (~1.4826).
 MAD_TO_SIGMA = 1.0 / stats.norm.ppf(0.75)
@@ -68,35 +69,22 @@ def non_outlier_factor(ext_df: pd.DataFrame, moments: pd.DataFrame) -> pd.Series
     return f
 
 
-def add_outlier_columns(ext_df: pd.DataFrame, adjust: bool) -> tuple[pd.DataFrame, pd.DataFrame | None]:
-    """Add ``{c}_raw`` and ``outlier_factor`` columns and rescale each PROB_COL ``c``.
-
-    ``{c}_raw`` keeps the unadjusted confidence: pond_clustering's shuffled control
-    permutes it and reapplies each row's own factor.
+def add_outlier_columns(ext_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Add an ``outlier_factor`` column; confidences are left unchanged.
 
     Args:
-        ext_df: Extraction rows with ``ntp_prob``, ``probe_prob``, ``ecosystem_bucket``,
-            ``attribute``, ``converted_value``.
-        adjust: If False, the factor is 1.0 and confidences are unchanged.
+        ext_df: Extraction rows with ``ecosystem_bucket``, ``attribute``, ``converted_value``.
 
     Returns:
         Tuple of:
-            - copy of ``ext_df`` (same rows and order) with ``c = {c}_raw * outlier_factor``
+            - copy of ``ext_df`` (same rows and order) plus ``outlier_factor``
             - for the manifest, one row per (ecosystem_bucket, attribute) with ``median``,
-              ``mad``, ``n``, ``n_zero_factor``; None when ``adjust`` is False
+              ``mad``, ``n``, ``n_zero_factor``
     """
-    out = ext_df.copy()
-    for c in PROB_COLS:
-        out[f'{c}_raw'] = ext_df[c]
-    if not adjust:
-        out['outlier_factor'] = 1.0
-        return out, None
     moments = robust_moments(ext_df)
     f = non_outlier_factor(ext_df, moments)
+    out = ext_df.copy()
     out['outlier_factor'] = f
-    for c in PROB_COLS:
-        assert ext_df.loc[f.notna(), c].between(0, 1).all(), f'{c} outside [0, 1] before adjustment'
-        out[c] = ext_df[c] * f
     assert len(out) == len(ext_df) and out.index.equals(ext_df.index)
     zero = (f == 0.0).groupby([ext_df[c] for c in GROUP_COLS]).sum()
     moments['n_zero_factor'] = zero.reindex(moments.index).astype(int)

@@ -31,7 +31,7 @@ from analysis.pond_meta_analysis import (
 
 ECO, ATTR = 'pond', 'tn'
 THRESHOLDS = [0.0, 0.5, 0.6]
-SRC = ['ntp', 'probe']   # threshold_sources(False): the fixture has no outlier factor
+SRC = ['ntp', 'probe']   # confidence sources only; zscore tests set outlier_factor by hand
 MIN_N = 5
 
 
@@ -50,7 +50,7 @@ def fixture():
         'probe_prob': probe, 'ntp_prob': np.full(40, 0.5),
     })
     from analysis.common.outlier_weight import add_outlier_columns
-    return gt, add_outlier_columns(ext, False)[0]
+    return gt, add_outlier_columns(ext)[0]
 
 
 def row(df, setting):
@@ -137,7 +137,7 @@ def _plotted(tmp_path, monkeypatch, df, attributes, sources, scale, mode='percen
     import analysis.pond_meta_analysis as m
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves(df, ECO, attributes, THRESHOLDS, mode, sources, scale, tmp_path / 'w1.pdf')
+    m.plot_w1_curves(df, ECO, attributes, THRESHOLDS, mode, sources, scale, THRESHOLDS, tmp_path / 'w1.pdf')
     return saved['fig']
 
 
@@ -197,55 +197,48 @@ def test_w1_curve_ylabel_only_on_leftmost_panel(tmp_path, monkeypatch):
     assert left.get_xlabel() == right.get_xlabel() == 'Filter Level'   # x labels stay on every panel
 
 
-# ── confidence-only threshold sources ──
+# ── z-score threshold source ──
 
-def factor_fixture():
-    """The base fixture with a hand-set outlier factor: rows 0-9 get 1.0, 10-19 get 0.8,
-    20-29 get 0.5, 30-39 get 0.0 (an underflowed outlier). Confidences = raw x factor."""
+def zscore_fixture():
+    """The base fixture with a hand-set non-outlier score: rows 0-9 get 1.0, 10-19 get 0.8,
+    20-29 get 0.5, 30-39 get 0.0 (an underflowed outlier). Confidences are as stored."""
     gt, ext = fixture()
-    ext = ext.copy()
-    f = np.repeat([1.0, 0.8, 0.5, 0.0], 10)
-    ext['outlier_factor'] = f
-    for c in ('ntp_prob', 'probe_prob'):
-        ext[c] = ext[f'{c}_raw'] * f
-    return gt, ext
+    return gt, ext.assign(outlier_factor=np.repeat([1.0, 0.8, 0.5, 0.0], 10))
 
 
-def test_confidence_only_settings_and_rows():
-    from analysis.pond_meta_analysis import SETTING_CODES, threshold_sources
-    assert threshold_sources(False) == ['ntp', 'probe']
-    assert threshold_sources(True) == ['ntp', 'probe', 'ntp_conf', 'probe_conf']
-    assert not any(s.startswith('factor') for s in all_settings('ground_truth', THRESHOLDS, 'value', threshold_sources(True)))
-    gt, ext = factor_fixture()
+def test_zscore_settings_and_rows():
+    from analysis.pond_meta_analysis import SETTING_CODES, THRESHOLD_SOURCES
+    assert THRESHOLD_SOURCES == ['ntp', 'probe', 'zscore']
+    assert not any('conf' in s or s.startswith('factor')
+                   for s in all_settings('ground_truth', THRESHOLDS, 'value', THRESHOLD_SOURCES))
+    gt, ext = zscore_fixture()
     g, e = cell_rows(gt, ext, ECO, ATTR)
-    # value mode on probe x factor: 0.9*1, 0.9*0.8, 0.5*0.5, 0.1*0 -> >= 0.6 keeps rows 0-19
+    # value mode on the score: 1.0 / 0.8 / 0.5 / 0.0
+    assert list(setting_rows('zscore_ge_0.90', g, e).index) == list(range(10))
+    assert list(setting_rows('zscore_ge_0.50', g, e).index) == list(range(30))
+    assert len(setting_rows('zscore_ge_0.00', g, e)) == 40
+    # confidences ignore the score: probe 0.9 / 0.5 / 0.1 -> >= 0.6 keeps rows 0-19 (not 0-9)
     assert list(setting_rows('probe_ge_0.60', g, e).index) == list(range(20))
-    # confidence only ignores the factor: probe_raw 0.9 / 0.5 / 0.1 -> >= 0.5 keeps rows 0-29,
-    # where probe x factor (0.9, 0.72, 0.25, 0) keeps rows 0-19
-    assert list(setting_rows('probe_conf_ge_0.50', g, e).index) == list(range(30))
-    assert list(setting_rows('probe_ge_0.50', g, e).index) == list(range(20))
-    assert len(setting_rows('ntp_conf_ge_0.50', g, e)) == 40   # constant raw NTP 0.5
+    assert len(setting_rows('ntp_ge_0.50', g, e)) == 40   # constant NTP 0.5
     assert len(set(SETTING_CODES.values())) == len(SETTING_CODES)   # distinct bootstrap streams
-    assert (SETTING_CODES['ntp_conf'], SETTING_CODES['probe_conf']) == (7, 8)   # unchanged by retiring factor-only (6)
+    assert SETTING_CODES['zscore'] == 9 and not {6, 7, 8} & set(SETTING_CODES.values())   # retired codes unused
 
 
-def test_confidence_only_curves_drawn_with_factor(tmp_path, monkeypatch):
-    from analysis.pond_meta_analysis import threshold_sources
-    gt, ext = factor_fixture()
-    src = threshold_sources(True)
-    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'percentile', src, MIN_N, n_boot=20, n_shuffle=5, seed=0)
-    lines = {l.get_label(): l for l in _plotted(tmp_path, monkeypatch, df, [ATTR], src, 'native').axes[0].lines}
-    for m, label in (('ntp', 'NTP (confidence only)'), ('probe', 'Probe (confidence only)')):
-        c = df[df['method'] == f'{m}_conf'].sort_values('threshold')
+def test_zscore_curve_matches_table(tmp_path, monkeypatch):
+    from analysis.pond_meta_analysis import THRESHOLD_SOURCES
+    gt, ext = zscore_fixture()
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'percentile', THRESHOLD_SOURCES, MIN_N,
+                        n_boot=20, n_shuffle=5, seed=0)
+    lines = {l.get_label(): l for l in _plotted(tmp_path, monkeypatch, df, [ATTR], THRESHOLD_SOURCES, 'native').axes[0].lines}
+    for src, label in (('ntp', 'NTP'), ('probe', 'Probe'), ('zscore', '$z$-score')):
+        c = df[df['method'] == src].sort_values('threshold')
         np.testing.assert_allclose(lines[label].get_ydata(), c['w1_log'].to_numpy(), equal_nan=True)
-    plain = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'percentile', SRC, MIN_N, n_boot=20, n_shuffle=5, seed=0)
-    assert not any('confidence only' in l.get_label() for l in _plotted(tmp_path, monkeypatch, plain, [ATTR], SRC, 'native').axes[0].lines)
+    assert not any('only' in label for label in lines)
 
 
 def test_threshold_rows_share_the_random_baseline():
-    from analysis.pond_meta_analysis import threshold_sources
-    gt, ext = factor_fixture()
-    src = threshold_sources(True)
+    from analysis.pond_meta_analysis import THRESHOLD_SOURCES as src
+    gt, ext = zscore_fixture()
     # percentile mode: one baseline per (cell, t), copied onto every source's row; none on base settings
     pct = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'percentile', src, MIN_N, n_boot=20, n_shuffle=5, seed=0)
     cols = [c for c in pct.columns if 'random' in c]
@@ -253,11 +246,12 @@ def test_threshold_rows_share_the_random_baseline():
         rows = pct[pct['threshold'] == t][cols]
         assert len(rows) == len(src) and (rows.nunique(dropna=False) == 1).all()
     assert row(pct, 'valid')['w1_random_skip'] == 'n/a'
-    # tied raw probe scores (0.1 / 0.5 / 0.9) keep more rows than the quantile size: reported, not forced equal
-    r = row(pct, 'probe_conf_pct_0.50')
+    # tied probe scores (0.1 / 0.5 / 0.9) keep more rows than the quantile size: reported, not forced equal
+    r = row(pct, 'probe_pct_0.50')
     assert (r['n_ext'], r['n_ext_random']) == (30, 21)
     sv = build_survival_table(build_stats_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'value', src), 'ground_truth')
-    assert [int(sv[(sv['method'] == 'probe_conf') & (sv['threshold'] == t)]['n_ext'].iloc[0]) for t in THRESHOLDS] == [40, 30, 20]
+    assert [int(sv[(sv['method'] == 'probe') & (sv['threshold'] == t)]['n_ext'].iloc[0]) for t in THRESHOLDS] == [40, 30, 20]
+    assert [int(sv[(sv['method'] == 'zscore') & (sv['threshold'] == t)]['n_ext'].iloc[0]) for t in THRESHOLDS] == [40, 30, 20]
     assert set(sv['method']) == set(src)
 
 
@@ -269,7 +263,7 @@ def _ten_x_cell(attribute):
                         'converted_value': np.r_[10 * ref, 0.0], 'label': True,
                         'probe_prob': 0.5, 'ntp_prob': 0.5})
     from analysis.common.outlier_weight import add_outlier_columns
-    return gt, add_outlier_columns(ext, False)[0]
+    return gt, add_outlier_columns(ext)[0]
 
 
 def test_log_w1_only_for_log_scale_attributes():
@@ -300,7 +294,7 @@ def test_native_scale_plots_log_only_for_log_scale_attributes(tmp_path, monkeypa
     for scale, tn_col in (('native', 'w1_log'), ('raw', 'w1')):
         saved = {}
         monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-        m.plot_w1_curves(df, ECO, ['tn', 'ph'], [0.0, 0.5], 'percentile', SRC, scale, tmp_path / 'w1.pdf')
+        m.plot_w1_curves(df, ECO, ['tn', 'ph'], [0.0, 0.5], 'percentile', SRC, scale, [0.0, 0.5], tmp_path / 'w1.pdf')
         tn_ax, ph_ax = saved['fig'].axes
         for ax, attr, col in ((tn_ax, 'tn', tn_col), (ph_ax, 'ph', 'w1')):
             probe = next(l for l in ax.lines if l.get_label() == 'Probe')
@@ -344,7 +338,7 @@ def ranked_fixture():
     """The base fixture with distinct probe scores, highest on the 20 GT-like rows: no ties,
     so every percentile cut keeps exactly the quantile size."""
     gt, ext = fixture()
-    return gt, ext.assign(probe_prob=np.linspace(1.0, 0.01, 40), probe_prob_raw=np.linspace(1.0, 0.01, 40))
+    return gt, ext.assign(probe_prob=np.linspace(1.0, 0.01, 40))
 
 
 def test_random_baseline_band_and_docs():
@@ -427,7 +421,7 @@ GOOD = {
         "calibration_config_id": "cal", "calibration_version": "v4", "rows": "final",
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
-        "thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "outlier_adjust": False, "threshold_mode": "value",
+        "qq_thresholds": [0.0, 0.5], "w1_thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "threshold_mode": "value",
         "w1_curve_scale": "native",
     }},
 }
@@ -441,27 +435,40 @@ def write(tmp_path, cfg):
 
 
 def test_good_config_loads(tmp_path):
-    assert load_meta_v2_config(write(tmp_path, GOOD))["params"]["meta_v2"]["thresholds"] == [0.0, 0.25, 0.5, 0.75]
+    sec = load_meta_v2_config(write(tmp_path, GOOD))["params"]["meta_v2"]
+    assert sec["w1_thresholds"] == [0.0, 0.25, 0.5, 0.75] and sec["qq_thresholds"] == [0.0, 0.5]
+
+
+def test_fine_w1_grid_with_coarse_qq_grid_loads(tmp_path):
+    cfg = copy.deepcopy(GOOD)
+    cfg["params"]["meta_v2"].update(w1_thresholds=[round(0.01 * i, 2) for i in range(100)],
+                                    qq_thresholds=[round(0.1 * i, 1) for i in range(10)])
+    sec = load_meta_v2_config(write(tmp_path, cfg))["params"]["meta_v2"]
+    assert len(sec["w1_thresholds"]) == 100 and sec["w1_thresholds"][-1] == 0.99 and len(sec["qq_thresholds"]) == 10
 
 
 @pytest.mark.parametrize("mutate", [
-    lambda m: m.pop("thresholds"),
+    lambda m: m.pop("qq_thresholds"),
+    lambda m: m.pop("w1_thresholds"),
+    lambda m: m.update(thresholds=[0.0, 0.5]),  # retired single grid
+    lambda m: m.update(qq_thresholds=[0.0, 0.3]),  # not a subset of w1_thresholds
+    lambda m: m.update(w1_thresholds=[0.0, 0.005, 0.5]),  # 3 decimals: setting names collide
+    lambda m: m.update(qq_thresholds=[0.25, 0.5]),  # Q-Q grid must start at 0 too
     lambda m: m.pop("min_n"),
     lambda m: m.pop("calibration_version"),     # no default loader
     lambda m: m.update(calibration_version="v5"),
     lambda m: m.update(poster=False),          # v1-only key
-    lambda m: m.update(thresholds=[]),
-    lambda m: m.update(thresholds=[0.25, 0.5]),  # must start at 0 (the unfiltered set)
-    lambda m: m.update(thresholds=[0.5, 0.2]),  # not increasing
-    lambda m: m.update(thresholds=[0.5, 0.5]),
-    lambda m: m.update(thresholds=[0.5, 1.0]),  # >= 1 keeps nothing
-    lambda m: m.update(thresholds=[-0.1, 0.0]),
-    lambda m: m.update(thresholds=[0.0, True]),
+    lambda m: m.update(w1_thresholds=[]),
+    lambda m: m.update(w1_thresholds=[0.25, 0.5]),  # must start at 0 (the unfiltered set)
+    lambda m: m.update(w1_thresholds=[0.5, 0.2]),  # not increasing
+    lambda m: m.update(w1_thresholds=[0.5, 0.5]),
+    lambda m: m.update(w1_thresholds=[0.5, 1.0]),  # >= 1 keeps nothing
+    lambda m: m.update(w1_thresholds=[-0.1, 0.0]),
+    lambda m: m.update(w1_thresholds=[0.0, True]),
     lambda m: m.update(min_n=0),
-    lambda m: m.pop("outlier_adjust"),
+    lambda m: m.update(outlier_adjust=True),     # retired key
     lambda m: m.pop("threshold_mode"),
     lambda m: m.update(threshold_mode="quantile"),
-    lambda m: m.update(outlier_adjust=1),
     lambda m: m.pop("n_shuffle_samples"),
     lambda m: m.update(n_shuffle_samples=0),
     lambda m: m.update(n_shuffle_samples=True),
@@ -562,6 +569,25 @@ def test_panel_titles_and_w1_legend_text(tmp_path, monkeypatch):
     assert _attr_title('ph') == 'pH' and _attr_title('max_depth') == 'max depth (m)'
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves_legend(tmp_path / 'leg.pdf', 'ground_truth', 'percentile', m.threshold_sources(True))
+    m.plot_w1_curves_legend(tmp_path / 'leg.pdf', 'ground_truth', 'percentile', m.THRESHOLD_SOURCES)
     texts = [t.get_text() for t in saved['fig'].axes[0].get_legend().get_texts()]
-    assert 'Random' in texts and not any('95%' in x for x in texts)
+    assert texts == ['Probe', 'NTP', '$z$-score', 'Valid (judge or GT match)', 'Random']
+
+
+def test_fine_w1_grid_plots_every_point_with_qq_grid_ticks(tmp_path, monkeypatch):
+    """A 0.01-step W1 grid draws one point per threshold; x ticks come from the 0.1-step Q-Q grid."""
+    import matplotlib.pyplot as plt
+    import analysis.pond_meta_analysis as m
+    fine, coarse = [round(0.01 * i, 2) for i in range(91)], [round(0.1 * i, 1) for i in range(10)]
+    gt, ext = ranked_fixture()
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], fine, 'percentile', SRC, MIN_N, n_boot=5, n_shuffle=3, seed=0)
+    assert set(df['setting']) >= {'probe_pct_0.07', 'ntp_pct_0.90'} and len(df[df['method'] == 'probe']) == 91
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', coarse, tmp_path / 'w1.pdf')
+    ax = saved['fig'].axes[0]
+    lines = {l.get_label(): l for l in ax.lines}
+    np.testing.assert_allclose(lines['Probe'].get_xdata(), fine)
+    np.testing.assert_allclose(ax.get_xticks(), [0.0, 0.3, 0.6, 0.9])
+    with pytest.raises(AssertionError):
+        m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', [0.0, 0.95], tmp_path / 'w1.pdf')
