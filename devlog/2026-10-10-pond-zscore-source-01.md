@@ -18,3 +18,18 @@ Confidences are no longer multiplied by the robust outlier factor. `analysis/com
 
 ### Commits
 - `cfa20ad` meta/clustering: z-score as its own source/arm, drop confidence x factor; split W1 / Q-Q threshold grids
+
+## Session 2026-10-10 (continued)
+
+### Prompts
+- "run the four new configs"
+- "Meta finished, they look good but I have to say I was hoping that increasing the number of thresholds would make the lines smoother. Instead they are considerably more choppy. Maybe we should try 0.025? Also, I think the upper y-axis limits could be brought down a little -- in some plots it's hard to see what's going on in the important areas."
+- "Or better yet, is there some processing we could add on top of the results to make the curves smoother?" → "Something very minimal"
+- "Leave t=0 unsmoothed. Use window 5 and run the new configs."
+- "Commit the changes."
+
+### Implemented
+The four new configs were submitted through `analysis/submit.sh`. The meta `-03` NTP/probe W1 values reproduce the earlier confidence-only values exactly at every shared threshold. `analysis/pond_meta_analysis.py` now draws the W1 curves and random band with a centred moving average, plot only: t = 0 is left unsmoothed and the CSVs keep raw values. The window is set by a new required `w1_smooth_window` key, validated in `analysis/common/meta_inputs.py`. The y-axis top is now set by the plotted lines rather than the random band. New configs: `analysis/analysis-configs/meta/2026-10-10-pond-meta-gemma27b-{qwen-2.5-7b,llama-3.1-8b}-04.yaml` (window 5).
+
+### Commits
+- `661d2cf` meta: plot-only moving-average smoothing of W1 curves, y-axis top set by lines
