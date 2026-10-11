@@ -137,7 +137,7 @@ def _plotted(tmp_path, monkeypatch, df, attributes, sources, scale, mode='percen
     import analysis.pond_meta_analysis as m
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves(df, ECO, attributes, THRESHOLDS, mode, sources, scale, THRESHOLDS, tmp_path / 'w1.pdf')
+    m.plot_w1_curves(df, ECO, attributes, THRESHOLDS, mode, sources, scale, THRESHOLDS, 1, tmp_path / 'w1.pdf')
     return saved['fig']
 
 
@@ -294,7 +294,7 @@ def test_native_scale_plots_log_only_for_log_scale_attributes(tmp_path, monkeypa
     for scale, tn_col in (('native', 'w1_log'), ('raw', 'w1')):
         saved = {}
         monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-        m.plot_w1_curves(df, ECO, ['tn', 'ph'], [0.0, 0.5], 'percentile', SRC, scale, [0.0, 0.5], tmp_path / 'w1.pdf')
+        m.plot_w1_curves(df, ECO, ['tn', 'ph'], [0.0, 0.5], 'percentile', SRC, scale, [0.0, 0.5], 1, tmp_path / 'w1.pdf')
         tn_ax, ph_ax = saved['fig'].axes
         for ax, attr, col in ((tn_ax, 'tn', tn_col), (ph_ax, 'ph', 'w1')):
             probe = next(l for l in ax.lines if l.get_label() == 'Probe')
@@ -422,7 +422,7 @@ GOOD = {
         "deduplication_config_id": None, "confidence": None, "n_boot": 10, "reference": "valid",
         "ecosystems": ["pond"], "attributes": ["tn", "tp"], "qq_attributes": ["tn"],
         "qq_thresholds": [0.0, 0.5], "w1_thresholds": [0.0, 0.25, 0.5, 0.75], "min_n": 5, "n_shuffle_samples": 10, "threshold_mode": "value",
-        "w1_curve_scale": "native",
+        "w1_curve_scale": "native", "w1_smooth_window": 3,
     }},
 }
 
@@ -476,6 +476,10 @@ def test_fine_w1_grid_with_coarse_qq_grid_loads(tmp_path):
     lambda m: m.update(reference="gt"),         # shared check still applies
     lambda m: m.update(qq_attributes=["ph"]),
     lambda m: m.pop("w1_curve_scale"),          # no default scale
+    lambda m: m.pop("w1_smooth_window"),        # no default window
+    lambda m: m.update(w1_smooth_window=4),     # even: not centred
+    lambda m: m.update(w1_smooth_window=0),
+    lambda m: m.update(w1_smooth_window=True),
     lambda m: m.update(w1_curve_scale="log10"),
     lambda m: m.update(w1_curve_scale="log"),   # replaced by "native"
 ])
@@ -584,10 +588,45 @@ def test_fine_w1_grid_plots_every_point_with_qq_grid_ticks(tmp_path, monkeypatch
     assert set(df['setting']) >= {'probe_pct_0.07', 'ntp_pct_0.90'} and len(df[df['method'] == 'probe']) == 91
     saved = {}
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
-    m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', coarse, tmp_path / 'w1.pdf')
+    m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', coarse, 1, tmp_path / 'w1.pdf')
     ax = saved['fig'].axes[0]
     lines = {l.get_label(): l for l in ax.lines}
     np.testing.assert_allclose(lines['Probe'].get_xdata(), fine)
     np.testing.assert_allclose(ax.get_xticks(), [0.0, 0.3, 0.6, 0.9])
     with pytest.raises(AssertionError):
-        m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', [0.0, 0.95], tmp_path / 'w1.pdf')
+        m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', [0.0, 0.95], 1, tmp_path / 'w1.pdf')
+
+
+def test_smooth_curve_known_answers():
+    from analysis.pond_meta_analysis import smooth_curve
+    y = np.array([0.0, 3.0, 6.0, 9.0, 12.0])
+    np.testing.assert_array_equal(smooth_curve(y, 1), y)
+    # window 3, shrinking at the end, t = 0 kept raw: [0, mean(0,3,6), ..., mean(9,12)]
+    np.testing.assert_allclose(smooth_curve(y, 3), [0.0, 3.0, 6.0, 9.0, 10.5])
+    # a NaN stays a gap and is left out of its neighbours' means
+    g = smooth_curve(np.array([0.0, 2.0, np.nan, 4.0, 6.0]), 3)
+    assert np.isnan(g[2])
+    np.testing.assert_allclose(g[[0, 1, 3, 4]], [0.0, 1.0, 5.0, 5.0])
+
+
+def test_w1_panel_smoothed_and_top_set_by_lines_not_band(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.pond_meta_analysis as m
+    fine = [round(0.01 * i, 2) for i in range(91)]
+    gt, ext = ranked_fixture()
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], fine, 'percentile', SRC, MIN_N, n_boot=5, n_shuffle=20, seed=0)
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    m.plot_w1_curves(df, ECO, [ATTR], fine, 'percentile', SRC, 'native', fine[::10], 5, tmp_path / 'w1.pdf')
+    ax = saved['fig'].axes[0]
+    lines = {l.get_label(): l.get_ydata() for l in ax.lines}
+    raw = df[df['method'] == 'probe'].sort_values('threshold')['w1_log'].to_numpy()
+    np.testing.assert_allclose(lines['Probe'], m.smooth_curve(raw, 5), equal_nan=True)   # plotted = smoothed
+    # t = 0 is raw, so every source and the random mean still share their first point
+    assert lines['Probe'][0] == lines['NTP'][0] == raw[0] and lines['Random'][0] == pytest.approx(raw[0])
+    assert np.nanstd(np.diff(lines['Probe'])) < np.nanstd(np.diff(raw))
+    top = np.nanmax(np.concatenate([lines[k] for k in ('Probe', 'NTP', 'Random', 'Valid (judge or GT match)')]))
+    lo = ax.get_ylim()[0]
+    assert ax.get_ylim()[1] == pytest.approx(top + m.Y_TOP_MARGIN * (top - lo))
+    # the CSV is untouched: the table still holds the raw values
+    assert not np.allclose(raw, m.smooth_curve(raw, 5), equal_nan=True)

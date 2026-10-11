@@ -8,6 +8,8 @@ hard-filtered at each threshold t, and the distribution is compared to a referen
   per confidence method).
 - threshold_mode ``value`` keeps score >= t; ``percentile`` drops the bottom
   fraction t of the cell. t = 0 is the unfiltered set.
+- W1 curves are drawn with a centred moving average over ``w1_smooth_window`` grid points
+  (plot only; every CSV keeps the raw values).
 - Two grids: ``w1_thresholds`` (W1 curves and the stats / survival / W1 tables; can be
   fine, e.g. steps of 0.01) and ``qq_thresholds`` (one Q-Q line each, a subset of it).
 - Samples are unweighted: Hazen quantiles, scipy W1, and scipy percentile-bootstrap CIs.
@@ -817,12 +819,37 @@ def w1_suffix(scale: str, attribute: str) -> str:
     return '_log' if scale == 'native' and attribute in LOG_SCALE_ATTRIBUTES else ''
 
 
+def smooth_curve(y: np.ndarray, window: int) -> np.ndarray:
+    """Centred moving average for display; the window shrinks at the grid ends.
+
+    The first point (t = 0, the unfiltered set, where every source and the random
+    baseline coincide) is kept unsmoothed. NaN points (skipped W1s) are left out of their neighbours' averages and stay NaN,
+    so gaps stay gaps.
+
+    Args:
+        y: One value per threshold, in grid order.
+        window: Odd number of grid points (1 returns ``y`` unchanged).
+
+    Returns:
+        Smoothed array of the same shape.
+    """
+    assert y.ndim == 1 and window >= 1 and window % 2 == 1, (y.shape, window)
+    out = pd.Series(y).rolling(window, center=True, min_periods=1).mean().to_numpy()
+    out[np.isnan(y)] = np.nan
+    out[0] = y[0]
+    return out
+
+
+# Headroom above the highest plotted line on a W1 panel, as a fraction of the line span.
+Y_TOP_MARGIN = 0.05
+
 # Appended to a W1-curve panel title when it plots log10-value W1.
 LOG_TITLE_MARK = r', $\log_{10}$'
 
 
 def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], thresholds: list[float],
-                   threshold_mode: str, sources: list[str], scale: str, ticks: list[float], out_path: Path):
+                   threshold_mode: str, sources: list[str], scale: str, ticks: list[float], smooth_window: int,
+                   out_path: Path):
     """Save W1 vs threshold for one ecosystem, one panel per attribute.
 
     Plots unnormalized W1 on the chosen scale: what matters is each real curve against
@@ -830,6 +857,9 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
     drawn, and in percentile mode the one random-subset baseline is grey dotted with its percentile band. Under the ground-truth
     reference, the valid extracted rows' W1 (no thresholding) is a flat grey dash-dot
     line. The baseline and valid line sit behind the method curves. Skipped points are gaps.
+    Source curves and the random mean and band are smoothed with ``smooth_curve``. The
+    y-axis top is set by the lines (curves, random mean, valid), not the band, which is
+    clipped where it runs higher.
 
     Args:
         w1_df: wasserstein.csv frame.
@@ -842,28 +872,36 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
             the panel title), raw W1 for the rest.
         ticks: x tick candidates (the Q-Q grid), a subset of ``thresholds``; every third
             is used when there are more than 6.
+        smooth_window: ``smooth_curve`` window in grid points (1 = raw).
         out_path: Figure path.
     """
     assert set(ticks) <= set(thresholds), (ticks, thresholds)
     fig, axes = plt.subplots(1, len(attributes), figsize=(3.0 * len(attributes), 2.8), squeeze=False)
     for i, (ax, attribute) in enumerate(zip(axes[0], attributes)):
         sfx = w1_suffix(scale, attribute)
+        lines = []
         for src in sources:
             c = _curve(w1_df, ecosystem, attribute, src, thresholds)
-            ax.plot(thresholds, c[f'w1{sfx}'], **CURVE_STYLE[src])
+            lines.append(smooth_curve(c[f'w1{sfx}'].to_numpy(dtype=float), smooth_window))
+            ax.plot(thresholds, lines[-1], **CURVE_STYLE[src])
         if threshold_mode == 'percentile':
             base_cols = [f'w1_random{sfx}_{k}' for k in ('mean', 'lo', 'hi')]
             base = _curve(w1_df, ecosystem, attribute, METHODS[0], thresholds)[base_cols].to_numpy()
             for src in sources[1:]:   # one baseline per cell, copied onto every source's rows
                 np.testing.assert_array_equal(_curve(w1_df, ecosystem, attribute, src, thresholds)[base_cols].to_numpy(), base)
             style = CURVE_STYLE['random']
-            ax.plot(thresholds, base[:, 0], **style)
-            ax.fill_between(thresholds, base[:, 1], base[:, 2], color=style['color'], alpha=0.2, linewidth=0,
+            mean, lo, hi = (smooth_curve(base[:, k].astype(float), smooth_window) for k in range(3))
+            lines.append(mean)
+            ax.plot(thresholds, mean, **style)
+            ax.fill_between(thresholds, lo, hi, color=style['color'], alpha=0.2, linewidth=0,
                             zorder=RANDOM_BAND_ZORDER)
         if w1_df['reference'].iloc[0] == 'ground_truth':
             v = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['setting'] == 'valid')]
             assert len(v) == 1, f'expected one valid row for {ecosystem}/{attribute}, got {len(v)}'
-            ax.plot(thresholds, np.full(len(thresholds), v[f'w1{sfx}'].iloc[0]), **CURVE_STYLE['valid'])
+            lines.append(np.full(len(thresholds), v[f'w1{sfx}'].iloc[0]))
+            ax.plot(thresholds, lines[-1], **CURVE_STYLE['valid'])
+        lo_y, hi_y = ax.get_ylim()[0], np.nanmax(np.concatenate(lines))
+        ax.set_ylim(lo_y, hi_y + Y_TOP_MARGIN * (hi_y - lo_y))
         ax.set_title(_attr_title(attribute) + (LOG_TITLE_MARK if sfx else ''), fontsize=13, style='italic')
         ax.set_xlabel(FILTER_LEVEL_LABEL, fontsize=11)
         if i == 0:
@@ -961,13 +999,14 @@ def main():
     plot_qq_legend(figures_dir / 'qq_legend.pdf', reference, qq_thresholds)
     for ecosystem in ecosystems:
         plot_w1_curves(w1_df, ecosystem, attributes, thresholds, threshold_mode, sources, sec['w1_curve_scale'],
-                       qq_thresholds, figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
+                       qq_thresholds, sec['w1_smooth_window'], figures_dir / f'w1_vs_threshold_{ecosystem}.pdf')
     plot_w1_curves_legend(figures_dir / 'w1_vs_threshold_legend.pdf', reference, threshold_mode, sources)
 
     manifest.update(analysis_config_id=cfg['id'], script='analysis/pond_meta_analysis.py', seed=seed, n_boot=n_boot,
                     n_shuffle_samples=n_shuffle,
                     reference=reference, ecosystems=ecosystems, attributes=attributes, w1_thresholds=thresholds, qq_thresholds=qq_thresholds, threshold_mode=threshold_mode,
                     min_n=min_n, threshold_sources=sources, w1_curve_scale=sec['w1_curve_scale'],
+                    w1_smooth_window=sec['w1_smooth_window'],
                     outlier_moments=moments.to_dict('records'),
                     calibration_version=sec['calibration_version'], extraction_id=inputs['extraction_id'], **{k: sec[k] for k in input_keys})
     (out_dir / 'meta.json').write_text(json.dumps(manifest, indent=2))

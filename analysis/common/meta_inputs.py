@@ -34,7 +34,7 @@ from analysis.common.provenance import sha256_file
 SECTION_V2 = "meta_v2"
 SECTION_V2_KEYS = ("calibration_config_id", "calibration_version", "rows", "deduplication_config_id", "confidence", "n_boot",
                    "reference", "ecosystems", "attributes", "qq_attributes", "qq_thresholds", "w1_thresholds", "min_n",
-                   "n_shuffle_samples", "threshold_mode", "w1_curve_scale")
+                   "n_shuffle_samples", "threshold_mode", "w1_curve_scale", "w1_smooth_window")
 # Which W1 the W1-vs-threshold figure plots: raw values for every attribute, or each
 # attribute's native scale (log10 values for pond_meta.LOG_SCALE_ATTRIBUTES, raw otherwise).
 W1_CURVE_SCALES = ("raw", "native")
@@ -74,7 +74,8 @@ def load_meta_v2_config(path: Path) -> dict:
     ``qq_thresholds`` must be a subset of ``w1_thresholds``; ``threshold_mode`` is ``value`` (keep confidence >= t) or
     ``percentile`` (drop the bottom fraction t per cell); ``min_n`` is the smallest
     sample scored; ``n_shuffle_samples`` is the number of random-subset draws in the baseline;
-    ``w1_curve_scale`` is one of W1_CURVE_SCALES.
+    ``w1_curve_scale`` is one of W1_CURVE_SCALES; ``w1_smooth_window`` is the odd number
+    of W1-grid points in the plot-only moving average (1 = unsmoothed).
 
     Args:
         path: Path to the config YAML.
@@ -108,6 +109,9 @@ def load_meta_v2_config(path: Path) -> dict:
     mn = sec["min_n"]
     if isinstance(mn, bool) or not isinstance(mn, int) or mn <= 0:
         raise ValueError(f"{path}: {SECTION_V2}.min_n must be a positive int, got {mn!r}")
+    sw = sec["w1_smooth_window"]
+    if isinstance(sw, bool) or not isinstance(sw, int) or sw < 1 or sw % 2 == 0:
+        raise ValueError(f"{path}: {SECTION_V2}.w1_smooth_window must be a positive odd int, got {sw!r}")
     if sec["w1_curve_scale"] not in W1_CURVE_SCALES:
         raise ValueError(f"{path}: {SECTION_V2}.w1_curve_scale must be one of {W1_CURVE_SCALES}, "
                          f"got {sec['w1_curve_scale']!r}")
