@@ -202,7 +202,7 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
 
     Returns:
         Dict with ``dataset``, ``calibration_config_id``, ``calibration_version``,
-        ``judge_model``, ``extraction_id``, ``extraction_dir``, ``judge_combine_dir``,
+        ``judge_model``, ``extraction_id``, ``extraction_dir``, ``judge_combine_dir``, ``judge_interp_dir``,
         ``ground_truth_path``, ``probe_dir``, ``probe_variant``, ``predictions_path``,
         ``dedup_dir`` (None unless rows is ``deduplicated``).
 
@@ -242,6 +242,7 @@ def resolve_meta_inputs(sec: dict, dataset: str) -> dict:
     return dict(dataset=dataset, calibration_config_id=cal_id, calibration_version=calibration_version,
                 judge_model=cal_inputs["judge_model"], extraction_id=extraction_id,
                 extraction_dir=ds["extraction_dir"], judge_combine_dir=ds["judge_combine_dir"],
+                judge_interp_dir=ds["judge_interp_dir"],
                 ground_truth_path=ds["ground_truth_path"], probe_dir=ds["probe_dir"],
                 probe_variant=cal_cfg["params"]["probe_variant"], predictions_path=predictions_path,
                 dedup_dir=dedup_dir)

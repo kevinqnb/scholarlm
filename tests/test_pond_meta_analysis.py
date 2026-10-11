@@ -7,6 +7,8 @@ Hand-built fixture, one (pond, tn) cell -- tn is a LOG_SCALE attribute:
     calibration label and probe confidence 0.9; rows 20-29 have probe confidence
     exactly 0.5 (a tie at the 0.5 threshold); rows 30-39 have 0.1. NTP confidence is
     a constant 0.5. Row 39's value is 0 (allowed by PHYSICAL_BOUNDS, not log-plottable).
+    The interp judge's binary response is true on rows 0-9 and 30-39 (one valid block,
+    one low-confidence block), false elsewhere.
 
 Known answers (stated before running):
   - probe_ge_0.00 / ntp_ge_0.00 are every extracted row (the unfiltered set): same stats, same W1;
@@ -14,7 +16,8 @@ Known answers (stated before running):
   - ntp_ge_0.50 keeps all 40, ntp_ge_0.60 keeps none (NaN W1, skip ext_n<min_n);
   - under reference 'valid', probe_ge_0.60 is exactly the valid rows, so W1 = 0;
   - an extracted sample equal to the reference shifted by c has W1 = |c|;
-  - the zero-valued row is counted in n_nonpos and excluded from the log W1 only.
+  - the zero-valued row is counted in n_nonpos and excluded from the log W1 only;
+  - the response setting keeps exactly rows 0-9 and 30-39 (20 rows, documents e0 and e3).
 """
 import copy
 
@@ -48,6 +51,7 @@ def fixture():
         'ecosystem_bucket': ECO, 'attribute': ATTR, 'document_id': np.repeat(['e0', 'e1', 'e2', 'e3'], 10),
         'converted_value': vals, 'label': label,
         'probe_prob': probe, 'ntp_prob': np.full(40, 0.5),
+        'response': np.r_[np.ones(10, bool), np.zeros(20, bool), np.ones(10, bool)],
     })
     from analysis.common.outlier_weight import add_outlier_columns
     return gt, add_outlier_columns(ext)[0]
@@ -261,7 +265,7 @@ def _ten_x_cell(attribute):
     gt = pd.DataFrame({'ecosystem_bucket': ECO, 'attribute': attribute, 'document_id': 'g', 'converted_value': ref})
     ext = pd.DataFrame({'ecosystem_bucket': ECO, 'attribute': attribute, 'document_id': 'e',
                         'converted_value': np.r_[10 * ref, 0.0], 'label': True,
-                        'probe_prob': 0.5, 'ntp_prob': 0.5})
+                        'probe_prob': 0.5, 'ntp_prob': 0.5, 'response': True})
     from analysis.common.outlier_weight import add_outlier_columns
     return gt, add_outlier_columns(ext)[0]
 
@@ -557,7 +561,7 @@ def test_percentile_settings_and_nesting():
     assert len(setting_rows('probe_pct_0.30', g, e)) == 30
     assert len(setting_rows('probe_pct_0.60', g, e)) == 20
     assert set(all_settings('ground_truth', [0.0, 0.3], 'percentile', SRC)) == {
-        'ground_truth', 'valid', 'ntp_pct_0.00', 'ntp_pct_0.30', 'probe_pct_0.00', 'probe_pct_0.30'}
+        'ground_truth', 'valid', 'response', 'ntp_pct_0.00', 'ntp_pct_0.30', 'probe_pct_0.00', 'probe_pct_0.30'}
 
 
 def keep_mask_n(p, t):
@@ -575,7 +579,10 @@ def test_panel_titles_and_w1_legend_text(tmp_path, monkeypatch):
     monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
     m.plot_w1_curves_legend(tmp_path / 'leg.pdf', 'ground_truth', 'percentile', m.THRESHOLD_SOURCES)
     texts = [t.get_text() for t in saved['fig'].axes[0].get_legend().get_texts()]
-    assert texts == ['Probe', 'NTP', '$z$-score', 'Valid (judge or GT match)', 'Random']
+    # 2 rows of 3, read row by row: methods, then baselines (handles reordered for column-major fill)
+    leg = saved['fig'].axes[0].get_legend()
+    assert leg._ncols == 3
+    assert texts == ['Probe', 'Valid (judge or GT match)', 'NTP', 'Response', '$z$-score', 'Random']
 
 
 def test_fine_w1_grid_plots_every_point_with_qq_grid_ticks(tmp_path, monkeypatch):
@@ -630,3 +637,54 @@ def test_w1_panel_smoothed_and_top_set_by_lines_not_band(tmp_path, monkeypatch):
     assert ax.get_ylim()[1] == pytest.approx(top + m.Y_TOP_MARGIN * (top - lo))
     # the CSV is untouched: the table still holds the raw values
     assert not np.allclose(raw, m.smooth_curve(raw, 5), equal_nan=True)
+
+
+def test_response_setting_rows_and_flat_line(tmp_path, monkeypatch):
+    import analysis.pond_meta_analysis as m
+    gt, ext = fixture()
+    g, e = cell_rows(gt, ext, ECO, ATTR)
+    r = setting_rows('response', g, e)
+    assert list(r.index) == list(range(10)) + list(range(30, 40))
+    assert set(r['document_id']) == {'e0', 'e3'}
+    df = build_w1_table(gt, ext, 'ground_truth', [ECO], [ATTR], THRESHOLDS, 'percentile', SRC, MIN_N, n_boot=20, n_shuffle=5, seed=0)
+    resp = row(df, 'response')
+    x = r['converted_value'].to_numpy()
+    assert resp['n_ext'] == 20 and resp['w1'] == stats.wasserstein_distance(gt['converted_value'].to_numpy(), x)
+    assert resp['w1_random_skip'] == 'n/a'   # a flat baseline, no random control
+    lines = {l.get_label(): l for l in _plotted(tmp_path, monkeypatch, df, [ATTR], SRC, 'native').axes[0].lines}
+    np.testing.assert_allclose(lines['Response'].get_ydata(), resp['w1_log'])
+    assert lines['Response'].get_linestyle() == '-.' and lines['Valid (judge or GT match)'].get_linestyle() == '-'
+    assert lines['Response'].get_color() == lines['Valid (judge or GT match)'].get_color()   # both grey
+
+
+def test_response_requires_bool_column():
+    gt, ext = fixture()
+    g, e = cell_rows(gt, ext.assign(response=ext['response'].astype(int)), ECO, ATTR)
+    with pytest.raises(AssertionError):
+        setting_rows('response', g, e)
+
+
+def _interp_dir(tmp_path, rows, judge='qwen-2.5-7b', extraction='ext-1'):
+    import json
+    d = tmp_path / 'interp'
+    d.mkdir(exist_ok=True)
+    (d / 'run_metadata.json').write_text(json.dumps({'judge_model': judge, 'extraction_id': extraction}))
+    (d / 'responses.json').write_text(json.dumps(rows))
+    return d
+
+
+def test_load_interp_responses_known_answer_and_loud_failures(tmp_path):
+    from analysis.common.pond_meta import load_interp_responses
+    d = _interp_dir(tmp_path, [{'measurement_id': 'a', 'judgement': True}, {'measurement_id': 'b', 'judgement': False}])
+    s = load_interp_responses(d, 'qwen-2.5-7b', 'ext-1')
+    assert s.dtype == bool and s.to_dict() == {'a': True, 'b': False}
+    with pytest.raises(ValueError, match='expected'):
+        load_interp_responses(d, 'llama-3.1-8b', 'ext-1')          # wrong judge
+    with pytest.raises(ValueError, match='expected'):
+        load_interp_responses(d, 'qwen-2.5-7b', 'ext-2')           # wrong extraction
+    d = _interp_dir(tmp_path, [{'measurement_id': 'a', 'judgement': 'true'}])
+    with pytest.raises(ValueError, match='non-bool'):
+        load_interp_responses(d, 'qwen-2.5-7b', 'ext-1')
+    d = _interp_dir(tmp_path, [{'measurement_id': 'a', 'judgement': True}, {'measurement_id': 'a', 'judgement': False}])
+    with pytest.raises(ValueError, match='repeats'):
+        load_interp_responses(d, 'qwen-2.5-7b', 'ext-1')

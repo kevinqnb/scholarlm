@@ -13,6 +13,8 @@ hard-filtered at each threshold t, and the distribution is compared to a referen
 - Two grids: ``w1_thresholds`` (W1 curves and the stats / survival / W1 tables; can be
   fine, e.g. steps of 0.01) and ``qq_thresholds`` (one Q-Q line each, a subset of it).
 - Samples are unweighted: Hazen quantiles, scipy W1, and scipy percentile-bootstrap CIs.
+- Flat baselines (no thresholding): ``valid`` extracted rows (judge OR GT match) and
+  ``response`` rows, which the interp judge (whose p(true) is NTP) answered true.
 - Random baseline (percentile mode only): W1 of uniformly random row subsets of each
   threshold's quantile size, shared by every threshold source. A real W1 inside its
   range means the filter does no better than random rows of the same count.
@@ -69,10 +71,11 @@ THRESHOLD_PROB_COL = {**METHOD_PROB_COL, ZSCORE: 'outlier_factor'}
 THRESHOLD_SOURCES = [*METHODS, ZSCORE]
 
 # Non-threshold settings per reference. `valid` = extracted rows labelled valid
-# (judge OR GT match). The unfiltered set is the t = 0 threshold setting.
+# (judge OR GT match); `response` = rows the interp judge answered true. The unfiltered
+# set is the t = 0 threshold setting.
 BASE_SETTINGS = {
-    'ground_truth': ['ground_truth', 'valid'],
-    'valid':        ['ground_truth', 'valid'],
+    'ground_truth': ['ground_truth', 'valid', 'response'],
+    'valid':        ['ground_truth', 'valid', 'response'],
 }
 # Non-threshold lines drawn on every Q-Q panel, over the threshold lines.
 QQ_BASE_LINES = {
@@ -93,13 +96,14 @@ QQ_BASE_LEGEND = {
 # so retired settings keep their codes unused (6: factor-only, 7-8: confidence-only
 # beside confidence x factor).
 SETTING_CODES = {'ground_truth': 0, 'extracted': 1, 'valid': 3,
-                 **{m: 4 + i for i, m in enumerate(METHODS)}, ZSCORE: 9}
+                 **{m: 4 + i for i, m in enumerate(METHODS)}, ZSCORE: 9, 'response': 10}
 # Stream code for the random-subset control's draws (outside SETTING_CODES).
 RANDOM_STREAM = 100
 
 # W1-vs-threshold curves: pastel tab10 (NTP blue, probe rose red, z-score orange), solid, and
-# behind them the random-subset baseline pastel-grey dotted and (GT reference only) the valid
-# extracted rows' W1 as a flat grey dash-dot line.
+# behind them the random-subset baseline pastel-grey dotted, (GT reference only) the valid
+# extracted rows' W1 as a flat solid grey line, and the interp judge's true rows' W1 as a flat
+# grey dash-dot line.
 PASTEL_WHITE_FRACTION = 0.35
 
 
@@ -124,7 +128,8 @@ CURVE_STYLE = {
     'probe':          dict(color=_pastel(_ROSE), ls='-', lw=2.5, label='Probe'),
     ZSCORE:           dict(color=_pastel(_TAB10[1]), ls='-', lw=2.5, label='$z$-score'),
     'random':         dict(color=_pastel(_TAB10[7]), ls=':', lw=2.0, label='Random', zorder=1.5),
-    'valid':          dict(color=_TAB10[7], ls='-.', lw=1.5, label='Valid (judge or GT match)', zorder=1.5),
+    'valid':          dict(color=_TAB10[7], ls='-', lw=1.5, label='Valid (judge or GT match)', zorder=1.5),
+    'response':       dict(color=_TAB10[7], ls='-.', lw=1.5, label='Response', zorder=1.5),
 }
 # Random band under the background lines; method curves keep matplotlib's default line zorder (2).
 RANDOM_BAND_ZORDER = 1
@@ -259,7 +264,7 @@ def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFr
     """Rows of one cell belonging to a setting.
 
     Args:
-        setting: ``ground_truth``, ``extracted``, ``valid``, or a threshold setting.
+        setting: ``ground_truth``, ``extracted``, ``valid``, ``response``, or a threshold setting.
         gt: The cell's ground-truth rows.
         ext: The cell's extracted rows.
 
@@ -273,6 +278,9 @@ def setting_rows(setting: str, gt: pd.DataFrame, ext: pd.DataFrame) -> pd.DataFr
     if setting == 'valid':
         assert ext['label'].dtype == bool, ext['label'].dtype
         return ext[ext['label']]
+    if setting == 'response':
+        assert ext['response'].dtype == bool, ext['response'].dtype
+        return ext[ext['response']]
     parsed = parse_threshold_setting(setting)
     assert parsed is not None, f'unknown setting {setting!r}'
     method, mode, t = parsed
@@ -855,8 +863,8 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
     Plots unnormalized W1 on the chosen scale: what matters is each real curve against
     the random baseline at the same thresholds. Each source's curve is solid with no CI
     drawn, and in percentile mode the one random-subset baseline is grey dotted with its percentile band. Under the ground-truth
-    reference, the valid extracted rows' W1 (no thresholding) is a flat grey dash-dot
-    line. The baseline and valid line sit behind the method curves. Skipped points are gaps.
+    reference, the valid extracted rows' W1 (no thresholding) is a flat solid grey line,
+    and under either reference the interp judge's true rows' W1 is a flat grey dash-dot line. The baseline and valid line sit behind the method curves. Skipped points are gaps.
     Source curves and the random mean and band are smoothed with ``smooth_curve``. The
     y-axis top is set by the lines (curves, random mean, valid), not the band, which is
     clipped where it runs higher.
@@ -900,6 +908,10 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
             assert len(v) == 1, f'expected one valid row for {ecosystem}/{attribute}, got {len(v)}'
             lines.append(np.full(len(thresholds), v[f'w1{sfx}'].iloc[0]))
             ax.plot(thresholds, lines[-1], **CURVE_STYLE['valid'])
+        r = w1_df[(w1_df['ecosystem'] == ecosystem) & (w1_df['attribute'] == attribute) & (w1_df['setting'] == 'response')]
+        assert len(r) == 1, f'expected one response row for {ecosystem}/{attribute}, got {len(r)}'
+        lines.append(np.full(len(thresholds), r[f'w1{sfx}'].iloc[0]))
+        ax.plot(thresholds, lines[-1], **CURVE_STYLE['response'])
         lo_y, hi_y = ax.get_ylim()[0], np.nanmax(np.concatenate(lines))
         ax.set_ylim(lo_y, hi_y + Y_TOP_MARGIN * (hi_y - lo_y))
         ax.set_title(_attr_title(attribute) + (LOG_TITLE_MARK if sfx else ''), fontsize=13, style='italic')
@@ -916,9 +928,12 @@ def plot_w1_curves(w1_df: pd.DataFrame, ecosystem: str, attributes: list[str], t
     print(f"[meta_v2] wrote {out_path}")
 
 
+LEGEND_NCOL = 3
+
+
 def plot_w1_curves_legend(out_path: Path, reference: str, threshold_mode: str, sources: list[str]):
-    """Save the W1-curve legend: each threshold source, and whichever of the valid line
-    and the random baseline the curves draw (not its band), in one row.
+    """Save the W1-curve legend: each threshold source, the response line, and whichever
+    of the valid line and the random baseline the curves draw (not its band), in rows of 3.
 
     Args:
         out_path: Figure path.
@@ -928,12 +943,15 @@ def plot_w1_curves_legend(out_path: Path, reference: str, threshold_mode: str, s
     """
     baseline = threshold_mode == 'percentile'
     order = (*[a for a in ('probe', 'ntp', ZSCORE) if a in sources],
-             *(['valid'] if reference == 'ground_truth' else []), *(['random'] if baseline else []))
-    handles = [Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if CURVE_STYLE[a]['ls'] == '-' else 2.5,
+             *(['valid'] if reference == 'ground_truth' else []), 'response', *(['random'] if baseline else []))
+    # Legend fills column-major; reorder so it reads row by row (methods, then baselines).
+    nrows = -(-len(order) // LEGEND_NCOL)
+    order = [order[r * LEGEND_NCOL + c] for c in range(LEGEND_NCOL) for r in range(nrows) if r * LEGEND_NCOL + c < len(order)]
+    handles = [Line2D([], [], color=CURVE_STYLE[a]['color'], lw=4 if a in THRESHOLD_SOURCES else 2.5,
                       linestyle=CURVE_STYLE[a]['ls'], label=CURVE_STYLE[a]['label']) for a in order]
     fig, ax = plt.subplots(figsize=(10.0, 0.7))
     ax.axis('off')
-    ax.legend(handles=handles, loc='center', ncol=5, fontsize=12, frameon=False, handlelength=2.0)
+    ax.legend(handles=handles, loc='center', ncol=LEGEND_NCOL, fontsize=12, frameon=False, handlelength=2.0)
     fig.savefig(out_path, bbox_inches='tight', dpi=200)
     plt.close(fig)
     print(f"[meta_v2] wrote {out_path}")

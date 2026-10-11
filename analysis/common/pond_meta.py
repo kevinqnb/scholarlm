@@ -222,6 +222,37 @@ def convert_units(
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 
+def load_interp_responses(judge_interp_dir: Path, judge: str, extraction_id: str) -> pd.Series:
+    """The interp judge's binary answer per measurement_id (its generated true / false).
+
+    This is the judge whose p(true) is the NTP score. It does not vote in judge_combine.
+
+    Args:
+        judge_interp_dir: run_judge_interp.py output directory.
+        judge: Expected judge model key (checked against run_metadata.json).
+        extraction_id: Expected extraction (checked against run_metadata.json).
+
+    Returns:
+        Boolean Series indexed by measurement_id.
+
+    Raises:
+        ValueError: Run metadata names another judge or extraction, a judgement is not a
+            bool, or a measurement_id repeats.
+    """
+    meta = json.loads((judge_interp_dir / 'run_metadata.json').read_text())
+    if (meta['judge_model'], meta['extraction_id']) != (judge, extraction_id):
+        raise ValueError(f"{judge_interp_dir}: run is ({meta['judge_model']}, {meta['extraction_id']}), "
+                         f"expected ({judge}, {extraction_id})")
+    rows = json.loads((judge_interp_dir / 'responses.json').read_text())
+    bad = [r['measurement_id'] for r in rows if not isinstance(r['judgement'], bool)]
+    if bad:
+        raise ValueError(f'{judge_interp_dir}: {len(bad)} non-bool judgements, e.g. {bad[:3]}')
+    s = pd.Series({r['measurement_id']: r['judgement'] for r in rows}, dtype=bool)
+    if len(s) != len(rows):
+        raise ValueError(f'{judge_interp_dir}: responses.json repeats a measurement_id')
+    return s
+
+
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
     """Read stored recalibrated NTP / probe confidences for the judged datapoints.
 
@@ -236,7 +267,8 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     Returns:
         Tuple of:
             - scored: measurement_id, document_id, attribute, judgement_combined,
-              ntp_prob, probe_prob, label (judge OR match), one row per held-out datapoint
+              ntp_prob, probe_prob, label (judge OR match), response (the interp judge's
+              binary answer), one row per held-out datapoint
             - syn_docs: the probe's training documents
             - input files read (for the manifest)
     """
@@ -272,7 +304,14 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
     scored['judgement_combined'] = jc.loc[scored['measurement_id']].to_numpy()
     assert scored.loc[scored['judgement_combined'], 'label'].all(), 'stored labels disagree with judgement_combined'
     assert scored['label'].dtype == bool
-    return scored, syn_docs, [probe_path, inputs['predictions_path']]
+
+    resp = load_interp_responses(inputs['judge_interp_dir'], judge, inputs['extraction_id'])
+    missing = set(scored['measurement_id']) - set(resp.index)
+    assert not missing, f'{len(missing)} scored datapoints have no interp-judge response'
+    scored['response'] = resp.loc[scored['measurement_id']].to_numpy()
+    assert scored['response'].dtype == bool
+    return scored, syn_docs, [probe_path, inputs['predictions_path'],
+                              inputs['judge_interp_dir'] / 'responses.json', inputs['judge_interp_dir'] / 'run_metadata.json']
 
 
 def load_data(sec: dict, inputs: dict, unit_conversion: dict):
@@ -289,7 +328,7 @@ def load_data(sec: dict, inputs: dict, unit_conversion: dict):
     Returns:
         Tuple of:
             - gt_df: ground truth with ``ecosystem_bucket``, ``meta_value``, ``converted_value``
-            - ext_df: same columns plus judgement_combined, label, ntp_prob, probe_prob
+            - ext_df: same columns plus judgement_combined, label, response, ntp_prob, probe_prob
             - manifest: row counts, input hashes and the unit table
     """
     config = load_dataset_config(DATASET)
@@ -303,7 +342,7 @@ def load_data(sec: dict, inputs: dict, unit_conversion: dict):
     combined_df = pd.DataFrame(json.loads(combined_path.read_text()))
     scored, syn_docs, scored_inputs = _load_stored_scores(final_df, combined_df, inputs)
     # Boolean label columns always take the cluster center's value, never a mean.
-    score_cols = ['judgement_combined', 'label', 'ntp_prob', 'probe_prob']
+    score_cols = ['judgement_combined', 'label', 'response', 'ntp_prob', 'probe_prob']
 
     input_files = [inputs['ground_truth_path'], final_path, combined_path, *scored_inputs]
     if sec['rows'] == 'final':
