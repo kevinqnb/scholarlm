@@ -240,6 +240,30 @@ def test_zscore_curve_matches_table(tmp_path, monkeypatch):
     assert not any('only' in label for label in lines)
 
 
+def test_zscore_qq_lines_known_answers(tmp_path, monkeypatch):
+    import matplotlib.pyplot as plt
+    import analysis.pond_meta_analysis as m
+    gt, ext = zscore_fixture()
+    th = [0.0, 0.5, 0.9]
+    saved = {}
+    monkeypatch.setattr(plt, 'close', lambda fig: saved.setdefault('fig', fig))
+    recs = pd.DataFrame(m.plot_qq(gt, ext, 'ground_truth', ECO, 'zscore', [ATTR], th, 'value', MIN_N, 20, 0,
+                                  tmp_path / 'qq.pdf'))
+    thr = recs[recs['method'] == 'zscore'].set_index('threshold')
+    assert (recs['panel_method'] == 'zscore').all() and list(thr.index) == th
+    # score 1.0 / 0.8 / 0.5 / 0.0 by block; tn is log-scale, so row 39's zero is dropped at t = 0
+    assert list(thr['n']) == [39, 30, 10] and list(thr['n_nonpos_excluded']) == [1, 0, 0]
+    assert list(thr['n_docs']) == [4, 3, 1] and thr['drawn'].all()
+    # the >= 0.9 line is rows 0-9 against GT, in Hazen quantiles
+    ref, x = gt['converted_value'].to_numpy(), ext['converted_value'].to_numpy()[:10]
+    want = m.qq_line(ref, x, MIN_N)
+    top = m.threshold_style(0.9, th)['color']
+    got = [l for l in saved['fig'].axes[0].lines if l.get_color() == top]
+    assert len(got) == 1
+    np.testing.assert_array_equal(got[0].get_xdata(), want[0])
+    np.testing.assert_array_equal(got[0].get_ydata(), want[1])
+
+
 def test_threshold_rows_share_the_random_baseline():
     from analysis.pond_meta_analysis import THRESHOLD_SOURCES as src
     gt, ext = zscore_fixture()

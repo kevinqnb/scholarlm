@@ -4,8 +4,8 @@ For each (ecosystem, attribute) cell and threshold source, extracted rows are
 hard-filtered at each threshold t, and the distribution is compared to a reference
 (ground truth or valid extractions) with Q-Q plots and Wasserstein-1 (W1).
 - Threshold sources: NTP and probe confidence, and ``zscore``, outlier_weight.py's
-  non-outlier score exp(-z^2/2) of the robust z-score (W1 curves only; Q-Q figures are
-  per confidence method).
+  non-outlier score exp(-z^2/2) of the robust z-score. Each source gets its own Q-Q
+  figures (``qq_<source>_<ecosystem>.pdf``).
 - threshold_mode ``value`` keeps score >= t; ``percentile`` drops the bottom
   fraction t of the cell. t = 0 is the unfiltered set.
 - ``w1_mode: weight`` replaces the W1 thresholds with soft weights: each source's
@@ -895,7 +895,7 @@ def plot_qq(gt_df, ext_df, reference, ecosystem, method, attributes, thresholds,
         ext_df: Extracted rows.
         reference: Reference setting (x-axis).
         ecosystem: Ecosystem.
-        method: ``"ntp"`` or ``"probe"``.
+        method: A threshold source (``"ntp"``, ``"probe"`` or ``"zscore"``).
         attributes: Panel attributes.
         thresholds: Threshold grid.
         threshold_mode: ``"value"`` or ``"percentile"``.
@@ -1243,7 +1243,7 @@ def main():
                  'w1_random_mean', 'w1_log', 'w1_random_log_mean']].to_string(index=False, float_format='{:.3g}'.format))
 
     records = []
-    for method in METHODS:
+    for method in sources:
         for ecosystem in ecosystems:
             records += plot_qq(gt_df, ext_df, reference, ecosystem, method, sec['qq_attributes'], qq_thresholds,
                                threshold_mode, min_n, n_boot, seed, figures_dir / f'qq_{method}_{ecosystem}.pdf')
