@@ -2,7 +2,9 @@
 
 Rows within a paper are correlated, so resampling is done over documents. The
 smoothed curve and SmECE come from relplot, with its row-level bootstraps turned
-off. Binned ECEs come from scholarlm's compute_ece on the same resamples.
+off. Binned ECEs come from scholarlm's compute_ece on the same resamples. The Brier
+score (BS) and Brier skill score (BSS) use the same resamples; BSS's reference is a
+forecaster that always predicts the scored rows' own label rate, recomputed per resample.
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from analysis.common.calibration_plot_utils import support_mask
 from scholarlm.utils.calibration import compute_ece
 
 CI_LEVEL = 0.95
-METRICS = ('SmECE', 'ECE', 'ECE_em', 'RMSCE_db')
+METRICS = ('SmECE', 'ECE', 'ECE_em', 'RMSCE_db', 'BS', 'BSS')
 
 
 def resample_rng(seed: int, dtype: str, test_ds: str) -> np.random.Generator:
@@ -169,13 +171,41 @@ def _errors(probs, labels, diagram) -> dict:
 
     Returns:
         Dict mapping metric name to float.
+
+    Raises:
+        ValueError: The rows are single-class, so BSS's reference Brier score is 0.
     """
+    bs, ref = brier_score(probs, labels)
     return dict(
         SmECE=float(diagram['ce']),
         ECE=compute_ece(probs, labels, binning='equal_width', p=1),
         ECE_em=compute_ece(probs, labels, binning='equal_mass', p=1),
         RMSCE_db=compute_ece(probs, labels, binning='equal_mass', p=2, debiased=True),
+        BS=bs,
+        BSS=1.0 - bs / ref,
     )
+
+
+def brier_score(probs, labels) -> tuple[float, float]:
+    """Brier score and the reference Brier score of predicting the rows' own label rate.
+
+    Args:
+        probs: Predicted probabilities.
+        labels: Boolean labels.
+
+    Returns:
+        ``(mean((p - y)^2), r * (1 - r))`` with ``r`` the label rate.
+
+    Raises:
+        ValueError: The rows are single-class (reference is 0, BSS undefined).
+    """
+    p = np.asarray(probs, dtype=float)
+    y = np.asarray(labels, dtype=bool)
+    assert p.shape == y.shape and p.ndim == 1 and len(p) > 0, (p.shape, y.shape)
+    rate = float(y.mean())
+    if rate in (0.0, 1.0):
+        raise ValueError(f'single-class rows (label rate {rate}, n={len(y)}): Brier skill score undefined')
+    return float(np.mean((p - y) ** 2)), rate * (1.0 - rate)
 
 
 def doc_bootstrap_calibration(probs, labels, resamples) -> dict:

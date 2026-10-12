@@ -63,6 +63,32 @@ def test_point_estimates_are_relplot_and_compute_ece():
     assert out["n_boot"] == 5 and all(len(v) == 5 for v in out["replicates"].values())
 
 
+def test_brier_hand_computed():
+    # (p - y)^2 = 0.01, 0.09, 0.36, 0.36 -> BS = 0.82 / 4 = 0.205; label rate 0.5 -> ref 0.25.
+    bs, ref = db.brier_score([0.9, 0.3, 0.6, 0.4], np.array([1, 0, 0, 1], dtype=bool))
+    assert np.isclose(bs, 0.205) and ref == 0.25
+    # Label rate 0.25 -> ref = 0.25 * 0.75 = 0.1875.
+    assert db.brier_score([0.5, 0.5, 0.5, 0.5], np.array([1, 0, 0, 0], dtype=bool))[1] == 0.1875
+
+
+def test_bss_known_answers():
+    f, y, docs = _fixture()
+    res = db.document_resamples(docs, 5, np.random.default_rng(0))
+    perfect = db.doc_bootstrap_calibration(y.astype(float), y, res)
+    assert perfect["point"]["BS"] == 0.0 and perfect["point"]["BSS"] == 1.0
+    # Always predicting the rows' own label rate is the reference forecaster itself.
+    base = db.doc_bootstrap_calibration(np.full(f.shape, y.mean()), y, res)
+    assert np.isclose(base["point"]["BSS"], 0.0)
+    out = db.doc_bootstrap_calibration(f, y, res)
+    assert np.isclose(out["point"]["BSS"], 1 - np.mean((f - y) ** 2) / (y.mean() * (1 - y.mean())))
+
+
+def test_bss_single_class_raises():
+    import pytest
+    with pytest.raises(ValueError, match="single-class"):
+        db.brier_score([0.2, 0.7, 0.9], np.ones(3, dtype=bool))
+
+
 def test_identical_documents_give_zero_width():
     # Every document holds the same rows, so every resample is the same multiset of rows:
     # every replicate equals the point estimate and the band collapses onto the line.
