@@ -3,9 +3,11 @@
 Reads metrics_{probe,ntp}.csv written by calibration.py (``labels: llm_matching``) or
 calibration_validated.py (``labels: human_validated``) for a v4 config. Captions state the
 config's recalibration method and fit settings, which the CSVs are checked against.
-For each of syn and real it writes three tables into ``output_dir``:
+For each of syn and real it writes four tables into ``output_dir``:
   - calibration_{setting}_smece.tex: smooth ECE; one NTP row, then one probe row per training
     dataset, x test-dataset columns.
+  - calibration_{setting}_summary.tex: same rows; SmECE, Brier skill score and AUROC points
+    (no intervals) under each test dataset.
 NTP is the judge's raw p(true) and has no training dataset: the CSVs still carry one NTP
 row per (train, test) cell, which must be identical across train datasets, and the
 tables print it once per test dataset.
@@ -69,11 +71,14 @@ ECE_VARIANTS = (("ECE", "ECE_lo", "ECE_hi", "ECE"),
                 ("ECE_em", "ECE_em_lo", "ECE_em_hi", "Adaptive ECE"),
                 ("RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi", "Debiased RMSCE"))
 SMECE = ("SmECE", "SmECE_lo", "SmECE_hi")
+# (CSV column, header, best = min | max) -- points in the summary table.
+SUMMARY = (("SmECE", "SmECE$\\downarrow$", min), ("BSS", "BSS$\\uparrow$", max),
+           ("AUROC", "AUROC$\\uparrow$", max))
 
 _KEY = ["Dataset type", "Train dataset", "Test dataset", "Type"]
 _NEEDED_COLUMNS = (
     ["Dataset type", "Judge model", "Train dataset", "Test dataset", "Type", "N", "Label rate",
-     "Recalibration", "Fit source", "Fit n", "Fit seed", "pi_te", "Doc resamples", "Validity"]
+     "Recalibration", "Fit source", "Fit n", "Fit seed", "pi_te", "Doc resamples", "Validity", "BSS"]
     + [c for c, _ in CLASSIFICATION]
     + [c for v in ECE_VARIANTS for c in v[:3]]
     + list(SMECE)
@@ -289,6 +294,25 @@ def format_point(v: float, *, decimals: int) -> str:
     if not 0.0 <= v <= 1.0:
         raise ValueError(f"value {v} outside [0, 1]")
     return f"{v:.{decimals}f}"
+
+
+def format_skill(v: float, *, decimals: int) -> str:
+    """Format a finite skill score <= 1 (may be negative), with a math minus sign.
+
+    Args:
+        v: Value.
+        decimals: Decimal places.
+
+    Returns:
+        Formatted string.
+
+    Raises:
+        ValueError: Non-finite or above 1.
+    """
+    _check_finite("value", v)
+    if v > 1.0:
+        raise ValueError(f"skill score {v} above 1")
+    return f"{v:.{decimals}f}".replace("-", "$-$")
 
 
 def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False) -> str:
@@ -507,6 +531,57 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: d
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
+def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
+    """Summary table: SmECE, BSS and AUROC points per test dataset, rows as in the smECE table.
+
+    Args:
+        spec: Table spec.
+        frames: Output of ``load_metrics``.
+        setting: ``"syn"`` or ``"real"``.
+        judge: Judge model name.
+        cal: ``params`` of the calibration config.
+
+    Returns:
+        LaTeX source.
+
+    Raises:
+        ValueError: A value is non-finite or out of range.
+    """
+    lk = _lookup(frames, setting)
+    ntp = _ntp_lookup(frames, setting, spec)
+    labels = spec["datasets"]
+    shown = [("NTP", ntp)] + [(f"Probe ({tl})", {te: lk[("Probe", tr, te)] for te in labels.values()})
+                              for tl, tr in labels.items()]
+    # Best per (test dataset, metric) across every row shown; exact ties all bold.
+    best = {(te, c): pick(rows[te][c] for _, rows in shown) for te in labels.values() for c, _, pick in SUMMARY}
+    k = len(SUMMARY)
+    body = [
+        "& " + " & ".join(f"\\multicolumn{{{k}}}{{c}}{{{tl}}}" for tl in labels) + " \\\\",
+        " ".join(f"\\cmidrule(lr){{{2 + i * k}-{1 + (i + 1) * k}}}" for i in range(len(labels))),
+        "Method (train) & " + " & ".join(h for _ in labels for _, h, _ in SUMMARY) + " \\\\",
+    ]
+    for i, (name, rows) in enumerate(shown):
+        if i <= 1:  # before the NTP row and before the probe block
+            body.append("\\midrule")
+        cells = []
+        for te in labels.values():
+            r = rows[te]
+            for c, _, _ in SUMMARY:
+                try:
+                    fmt = format_skill if c == "BSS" else format_point
+                    s = fmt(r[c], decimals=spec["decimals"])
+                except ValueError as e:
+                    raise ValueError(f"{setting}/{r['Type']} train={r['Train dataset']} test={te} {c}: {e}") from e
+                cells.append(f"\\textbf{{{s}}}" if r[c] == best[(te, c)] else s)
+        body.append(f"{name} & " + " & ".join(cells) + " \\\\")
+    caption = ("Smooth ECE (lower is better), Brier skill score and AUROC (higher is better); best per column "
+               "in bold. BSS $= 1 - \\mathrm{BS}/(r(1-r))$, with $r$ the test rows' label rate: 0 matches always "
+               "predicting $r$, negative is worse. Points only; SmECE intervals in "
+               f"Table~\\ref{{{spec['label_prefix']}-{setting}-smece}}. "
+               + _caption_tail(spec, frames, setting, judge, cal, with_ci=False))
+    return _wrap(spec, setting, "summary", body, caption, "l" + "c" * (k * len(labels)))
+
+
 def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
     """Body rows for the long tables: NTP x test (train cell empty), then Probe x train x test.
 
@@ -612,7 +687,7 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, cal
 
 
 def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, str]:
-    """Build all three tables for both settings.
+    """Build all four tables for both settings.
 
     Args:
         spec: Table spec.
@@ -625,7 +700,8 @@ def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, s
     """
     out = {}
     for setting in SETTINGS:
-        for name, fn in (("smece", build_smece_table), ("classification", build_classification_table),
+        for name, fn in (("smece", build_smece_table), ("summary", build_summary_table),
+                         ("classification", build_classification_table),
                          ("ece_variants", build_variants_table)):
             out[f"calibration_{setting}_{name}.tex"] = fn(spec, frames, setting, judge, cal)
     return out

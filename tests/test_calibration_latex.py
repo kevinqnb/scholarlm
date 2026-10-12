@@ -33,7 +33,7 @@ def _cal(recalibration="intercept_fit", source="sample", **over):
 CAL = _cal()
 
 
-def _row(setting, kind, tr, te, smece, cal=None):
+def _row(setting, kind, tr, te, smece, cal=None, bss=-0.05, auroc=0.95):
     cal = cal or CAL
     syn = setting == "syn"
     manual = cal["fit_source"] == "manual"
@@ -43,7 +43,8 @@ def _row(setting, kind, tr, te, smece, cal=None):
          "Fit n": NAN if syn else (0 if manual else cal["fit_n"]),
          "Fit seed": NAN if syn or manual else cal["fit_seed"],
          "pi_te": NAN if syn else (0.4 if manual else 0.55), "Doc resamples": cal["n_boot"],
-         "Accuracy": 0.9, "Precision": 0.8, "Recall": 0.7, "F1": 0.75, "AUROC": 0.95, "Validity": 0.8,
+         "Accuracy": 0.9, "Precision": 0.8, "Recall": 0.7, "F1": 0.75, "AUROC": auroc, "Validity": 0.8,
+         "BSS": bss,
          "ECE": 0.05, "ECE_lo": 0.04, "ECE_hi": 0.07, "ECE_em": 0.06, "ECE_em_lo": 0.05, "ECE_em_hi": 0.08,
          "RMSCE_db": 0.07, "RMSCE_db_lo": 0.06, "RMSCE_db_hi": 0.09,
          "SmECE": smece, "SmECE_lo": smece - 0.01, "SmECE_hi": smece + 0.03}
@@ -51,10 +52,13 @@ def _row(setting, kind, tr, te, smece, cal=None):
 
 
 def _frames(cal=None):
-    # Probe smECE varies by train dataset; NTP (raw judge p(true)) is identical across train copies.
+    # Probe smECE/BSS/AUROC vary by train dataset; NTP (raw judge p(true)) is identical across
+    # train copies, with BSS -0.05 and AUROC 0.95 (so NTP has the best AUROC, PLW the best smECE/BSS).
     out = {}
     for kind in ("NTP", "Probe"):
-        rows = [_row(s, kind, tr, te, 0.3 if kind == "NTP" else 0.1 + 0.01 * DS.index(tr), cal)
+        rows = [_row(s, kind, tr, te, 0.3, cal) if kind == "NTP" else
+                _row(s, kind, tr, te, 0.1 + 0.01 * DS.index(tr), cal,
+                     bss=0.5 - 0.1 * DS.index(tr), auroc=0.90 + 0.01 * DS.index(tr))
                 for s in ("syn", "real") for tr in DS for te in DS]
         out[kind] = pd.DataFrame(rows)
     return out
@@ -109,6 +113,38 @@ def test_smece_row_order_is_ntp_then_probe():
     assert tex.index("\nNTP & ") < tex.index("Probe (PLW)") < tex.index("Probe (NF)") < tex.index("Probe (SM)")
 
 
+def test_format_skill_allows_negative_rejects_above_one():
+    assert cl.format_skill(-0.0814, decimals=3) == "$-$0.081"
+    assert cl.format_skill(0.25, decimals=2) == "0.25"
+    with pytest.raises(ValueError, match="above 1"):
+        cl.format_skill(1.01, decimals=3)
+    with pytest.raises(ValueError, match="not finite"):
+        cl.format_skill(float("nan"), decimals=3)
+
+
+def test_summary_table_known_answer():
+    tex = cl.build_summary_table(SPEC, _frames(), "real", "j", CAL)
+    lines = tex.splitlines()
+    assert sum(l == "\\midrule" for l in lines) == 2
+    assert "\\cmidrule(lr){2-4} \\cmidrule(lr){5-7} \\cmidrule(lr){8-10}" in tex
+    assert lines[lines.index("\\toprule") + 3].count("SmECE$\\downarrow$") == 3
+    # Per test column: NTP has the best AUROC; Probe (PLW) the best smECE and BSS.
+    ntp = next(l for l in lines if l.startswith("NTP & "))
+    assert ntp == "NTP & " + " & ".join(["0.300 & $-$0.050 & \\textbf{0.950}"] * 3) + " \\\\"
+    plw = next(l for l in lines if l.startswith("Probe (PLW) & "))
+    assert plw == "Probe (PLW) & " + " & ".join(["\\textbf{0.100} & \\textbf{0.500} & 0.900"] * 3) + " \\\\"
+    sm = next(l for l in lines if l.startswith("Probe (SM) & "))
+    assert sm == "Probe (SM) & " + " & ".join(["0.120 & 0.300 & 0.920"] * 3) + " \\\\"
+    assert "Table~\\ref{tab:t-real-smece}" in tex and "\\label{tab:t-real-summary}" in tex
+
+
+def test_summary_table_nan_bss_raises():
+    f = _frames()
+    _set_ntp(f, "syn", "nfix", "BSS", float("nan"))
+    with pytest.raises(ValueError, match="syn/NTP train=pond test=nfix BSS"):
+        cl.build_summary_table(SPEC, f, "syn", "j", CAL)
+
+
 def test_classification_rejects_validity_mismatch():
     f = _frames()
     f["Probe"].loc[0, "Validity"] = 0.1
@@ -147,7 +183,8 @@ def test_classification_and_variants_have_one_ntp_row_per_test_set():
         assert lines.count("\\midrule") == 2
 
 
-@pytest.mark.parametrize("fn", [cl.build_smece_table, cl.build_classification_table, cl.build_variants_table])
+@pytest.mark.parametrize("fn", [cl.build_smece_table, cl.build_summary_table, cl.build_classification_table,
+                                cl.build_variants_table])
 def test_tables_reject_train_dependent_ntp(fn):
     f = _frames()
     df = f["NTP"]
