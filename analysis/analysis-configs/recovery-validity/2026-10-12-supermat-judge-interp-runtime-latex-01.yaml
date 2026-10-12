@@ -1,0 +1,36 @@
+id: 2026-10-12-supermat-judge-interp-runtime-latex-01
+project: scholarlm
+description: >
+  LaTeX table of runtime and compute for the NNsight interp judges (llama-3.1-8b, qwen-2.5-7b) over the supermat
+  gemma-3-27b full pipeline (2026-09-21-supermat-extraction-gemma27b-full-01), companion to
+  2026-10-12-supermat-runtime-latex-01. Time is runtime_seconds (judging loop + output writes, excluding model
+  load); both runs were checked against their SGE logs on 2026-10-12 to be a single invocation with no traceback.
+  run_judge_interp.py records no token counts, so input tokens are recomputed by rebuilding the judge prompts
+  with the runner's own code; the rebuilt longest prompt must equal each run's recorded max_prompt_tokens (42,562
+  llama, 44,630 qwen -- both matched on 2026-10-12) and the prompt count its responses.json rows (4,085). "Memory"
+  is two columns, per the requester: judge model weight size on disk, and on-disk size of the stored activations
+  (attention_outputs.npz + layer_outputs.npz, compressed). Peak GPU memory was never recorded. Formatting only;
+  seed unused.
+seed: 0
+params:
+  judge_runtime:
+    dataset: supermat
+    extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+    decimals:
+      seconds: 0
+      tokens_millions: 1
+      size_gb: 1
+    gpu_labels:
+      NVIDIA L40S: L40S
+    output: analysis/results/recovery-validity/2026-10-12-supermat-judge-interp-runtime.tex
+    caption: 'Runtime and compute of the interpretability judges on SM (supermat), judging the
+      \texttt{gemma-3-27b} pipeline extractions (4,085 rows, one forward pass each). Time excludes model loading.
+      Input tokens are summed over all judge prompts, in millions. Weights is the on-disk checkpoint weight size;
+      Activations is the on-disk size of the stored attention and residual-stream activations (compressed);
+      1 GB = $10^9$ bytes. One GPU per run.'
+    label: tab:runtime-judge-interp-supermat
+    rows:
+    - label: \texttt{llama-3.1-8b}
+      id: 2026-09-27-supermat-extraction-gemma27b-llama8b-judge-interp-01
+    - label: \texttt{qwen-2.5-7b}
+      id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01

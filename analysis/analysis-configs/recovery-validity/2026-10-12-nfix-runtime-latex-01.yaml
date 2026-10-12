@@ -1,0 +1,57 @@
+id: 2026-10-12-nfix-runtime-latex-01
+project: scholarlm
+description: >
+  LaTeX table of runtime and compute (time, input/output tokens, model weight size, GPU) for the nfix runs in
+  2026-10-09-nfix-main-recovery-01. nfix was chosen over pond and supermat because it has one run with a known
+  token over-count (the next sentence) against two each in the others: pond's gemma-3-27b pipeline run is a
+  final-only rerun on another run's values.json, whose tokens can't be separated out; and every nfix run of a given
+  model ran on one GPU type, so time is comparable within a model. 2026-09-21-nfix-extraction-gemma27b-full-01 had
+  its final step rerun with --step final (2026-09-24) after the full 7-step run: run_metadata replaced the final
+  step's timing but summed its tokens, so its token counts include the discarded first final step (amount not
+  recoverable; footnoted). All other nfix rows were checked against their SGE logs on 2026-10-12 to be a single
+  invocation, so their runtime_seconds is complete. Formatting only; seed unused.
+seed: 0
+params:
+  runtime:
+    analysis_config: 2026-10-09-nfix-main-recovery-01
+    dataset: nfix
+    decimals:
+      seconds: 0
+      tokens_millions: 1
+      size_gb: 1
+    gpu_labels:
+      NVIDIA L40S: L40S
+      NVIDIA RTX PRO 6000 Blackwell Server Edition: RTX PRO 6000
+      NVIDIA H200 NVL: H200 NVL
+    footnotes:
+      2026-09-21-nfix-extraction-gemma27b-full-01: Includes the tokens of one discarded run of the final
+        (standardization and deduplication) step, which was rerun after the full pipeline.
+    output: analysis/results/recovery-validity/2026-10-12-nfix-runtime.tex
+    caption: 'Runtime and compute on NF (nfix). Time is the sum of the seven pipeline step timings for the full
+      pipeline, and runner wall-clock time otherwise; neither includes model loading or model-server startup. Tokens are summed over
+      all LLM calls, in millions; -- means the method records none (GLiNER makes no LLM calls; LangExtract does not
+      expose its token counts). Size is the on-disk checkpoint weight size (1 GB = $10^9$ bytes). One GPU per run.'
+    label: tab:runtime-nfix
+    blocks:
+    - rows:
+      - label: GLiNER-large
+        id: 2026-09-25-nfix-gliner-large-noqualifiers-full-01
+      - label: LangExtract
+        id: 2026-09-25-nfix-langextract-gemma27b-noqualifiers-full-01
+      - label: NuExtract3
+        id: 2026-09-25-nfix-nuextract3-noqualifiers-full-01
+      - label: ChatExtract
+        id: 2026-09-26-nfix-chatextract-gemma27b-full-01
+      - label: Ablation 1, \texttt{llama-3.1-8b}
+        id: 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gemma-3-27b}
+        id: 2026-09-25-nfix-ablation1-gemma27b-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gpt-oss-120b}
+        id: 2026-09-26-nfix-ablation1-gptoss120b-noqualifiers-full-01
+    - rows:
+      - label: Pipeline (\texttt{llama-3.1-8b})
+        id: 2026-09-26-nfix-extraction-llama8b-reppen-full-01
+      - label: Pipeline (\texttt{gemma-3-27b})
+        id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      - label: Pipeline (\texttt{gpt-oss-120b})
+        id: 2026-09-25-nfix-extraction-gptoss120b-full-02
