@@ -21,6 +21,7 @@ analysis/
   deduplication.py           exact clustering of that graph -> deduplicated.json
   recovery_validity.py       recovery/validity with paper-clustered bootstrap CIs
   recovery_validity_latex.py LaTeX tables from recovery_validity CSVs
+  runtime.py                 LaTeX runtime/compute tables: extraction methods, or interp judges over one extraction
   measeval_evaluation.py     MeasEval official-scorer cross-check
   synthetic_probe_train.py   train + pre-calibrate the synthetic probe / NTP calibrator
   calibration.py             calibration of the trained probe / NTP on real + synthetic test data (v4)
@@ -66,7 +67,7 @@ type directory, and every cross-config reference (a calibration config's
 
 | type | scripts | results |
 |---|---|---|
-| `recovery-validity` | setup: `postprocessing`, `match_cache`, `deduplicate_cache`, `deduplication`; then `recovery_validity`, `recovery_validity_latex` | `recovery-validity/`, plus `match-cache/<experiment id>/`, `deduplicate-cache/<config id>/`, `deduplication/<config id>/` |
+| `recovery-validity` | setup: `postprocessing`, `match_cache`, `deduplicate_cache`, `deduplication`; then `recovery_validity`, `recovery_validity_latex`, `runtime` | `recovery-validity/`, plus `match-cache/<experiment id>/`, `deduplicate-cache/<config id>/`, `deduplication/<config id>/` |
 | `measeval` | `measeval_evaluation` | `measeval/` |
 | `synthetic-probe` | `synthetic_probe_train` | `synthetic-probe/` |
 | `calibration` | `calibration`, `calibration_latex` (`labels: llm_matching`) | `calibration/` |
