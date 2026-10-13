@@ -3,11 +3,12 @@
 Reads metrics_{probe,ntp}.csv written by calibration.py (``labels: llm_matching``) or
 calibration_validated.py (``labels: human_validated``) for a v4 config. Captions state the
 config's recalibration method and fit settings, which the CSVs are checked against.
-For each of syn and real it writes four tables into ``output_dir``:
+For each of syn and real it writes five tables into ``output_dir``:
   - calibration_{setting}_smece.tex: smooth ECE; one NTP row, then one probe row per training
     dataset, x test-dataset columns.
   - calibration_{setting}_summary.tex: same rows; SmECE, Brier skill score and AUROC under each
-    test dataset, the point with its exact 95% [lo, hi] bootstrap interval beneath it in
+    test dataset except nfix (``SPLIT_DATASET``, whose columns go to
+    calibration_{setting}_summary_nfix.tex with the same rows), the point with its exact 95% [lo, hi] bootstrap interval beneath it in
     \\scriptsize (needs ``\\shortstack``, which is core LaTeX).
 NTP is the judge's raw p(true) and has no training dataset: the CSVs still carry one NTP
 row per (train, test) cell, which must be identical across train datasets, and the
@@ -59,6 +60,8 @@ LABEL_TYPES = {"llm_matching": "calibration", "human_validated": "calibration-va
 # Real-cell label source -> script that writes the metrics CSVs (for error messages).
 LABEL_SCRIPTS = {"llm_matching": "calibration.py", "human_validated": "calibration_validated.py"}
 MISSING_CELL = "--"
+# Test dataset (by name) whose summary columns go in their own table; must be in the spec's datasets.
+SPLIT_DATASET = "nfix"
 SETTINGS = {"syn": "synthetic", "real": "real"}
 METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file>.csv suffix)
 
@@ -557,8 +560,12 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: d
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
-def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
+def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict, *,
+                        split: bool) -> str:
     """Summary table: SmECE, BSS and AUROC per test dataset with intervals beneath, rows as in the smECE table.
+
+    Rows are the same in both variants (NTP, then one Probe row per training dataset); only the
+    test-dataset columns differ.
 
     Args:
         spec: Table spec.
@@ -566,31 +573,36 @@ def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal:
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
         cal: ``params`` of the calibration config.
+        split: False = every test dataset except ``SPLIT_DATASET``; True = only ``SPLIT_DATASET``.
 
     Returns:
         LaTeX source.
 
     Raises:
-        ValueError: A value is non-finite or out of range.
+        ValueError: A value is non-finite or out of range, or ``SPLIT_DATASET`` is not in the spec.
     """
     lk = _lookup(frames, setting)
     ntp = _ntp_lookup(frames, setting, spec)
     labels = spec["datasets"]
+    if SPLIT_DATASET not in labels.values():
+        raise ValueError(f"SPLIT_DATASET {SPLIT_DATASET!r} not in spec datasets {sorted(labels.values())}")
+    tests = {tl: te for tl, te in labels.items() if (te == SPLIT_DATASET) == split}
+    assert tests, (split, labels)
     shown = [("NTP", ntp)] + [(f"Probe ({tl})", {te: lk[("Probe", tr, te)] for te in labels.values()})
                               for tl, tr in labels.items()]
     # Best per (test dataset, metric) across every row shown; exact ties all bold.
-    best = {(te, c): pick(rows[te][c] for _, rows in shown) for te in labels.values() for c, _, pick in SUMMARY}
+    best = {(te, c): pick(rows[te][c] for _, rows in shown) for te in tests.values() for c, _, pick in SUMMARY}
     k = len(SUMMARY)
     body = [
-        "& " + " & ".join(f"\\multicolumn{{{k}}}{{c}}{{{tl}}}" for tl in labels) + " \\\\",
-        " ".join(f"\\cmidrule(lr){{{2 + i * k}-{1 + (i + 1) * k}}}" for i in range(len(labels))),
-        "Method (train) & " + " & ".join(h for _ in labels for _, h, _ in SUMMARY) + " \\\\",
+        "& " + " & ".join(f"\\multicolumn{{{k}}}{{c}}{{{tl}}}" for tl in tests) + " \\\\",
+        " ".join(f"\\cmidrule(lr){{{2 + i * k}-{1 + (i + 1) * k}}}" for i in range(len(tests))),
+        "Method (train) & " + " & ".join(h for _ in tests for _, h, _ in SUMMARY) + " \\\\",
     ]
     for i, (name, rows) in enumerate(shown):
         if i <= 1:  # before the NTP row and before the probe block
             body.append("\\midrule")
         cells = []
-        for te in labels.values():
+        for te in tests.values():
             r = rows[te]
             for c, _, _ in SUMMARY:
                 try:
@@ -607,12 +619,13 @@ def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal:
                 except ValueError as e:
                     raise ValueError(f"{setting}/{r['Type']} train={r['Train dataset']} test={te} {c}: {e}") from e
         body.append(f"{name} & " + " & ".join(cells) + " \\\\")
-    caption = ("Smooth ECE (lower is better), Brier skill score and AUROC (higher is better); best per column "
+    caption = (("Test dataset " + ", ".join(tests) + " only (split out of the main summary table). " if split else "")
+               + "Smooth ECE (lower is better), Brier skill score and AUROC (higher is better); best per column "
                "in bold. BSS $= 1 - \\mathrm{BS}/(r(1-r))$, with $r$ the test rows' label rate: 0 matches always "
                "predicting $r$, negative is worse. Small type under each value: exact 95\\% interval "
                "(bounds not clipped; SmECE intervals can lie above the point). "
                + _caption_tail(spec, frames, setting, judge, cal))
-    return _wrap(spec, setting, "summary", body, caption, "l" + "c" * (k * len(labels)))
+    return _wrap(spec, setting, "summary-nfix" if split else "summary", body, caption, "l" + "c" * (k * len(tests)))
 
 
 def _long_rows(spec: dict, frames: dict, setting: str, cell_fn) -> list[str]:
@@ -720,7 +733,7 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, cal
 
 
 def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, str]:
-    """Build all four tables for both settings.
+    """Build all five tables for both settings.
 
     Args:
         spec: Table spec.
@@ -733,7 +746,9 @@ def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, s
     """
     out = {}
     for setting in SETTINGS:
-        for name, fn in (("smece", build_smece_table), ("summary", build_summary_table),
+        for name, fn in (("smece", build_smece_table),
+                         ("summary", lambda *a: build_summary_table(*a, split=False)),
+                         ("summary_nfix", lambda *a: build_summary_table(*a, split=True)),
                          ("classification", build_classification_table),
                          ("ece_variants", build_variants_table)):
             out[f"calibration_{setting}_{name}.tex"] = fn(spec, frames, setting, judge, cal)
