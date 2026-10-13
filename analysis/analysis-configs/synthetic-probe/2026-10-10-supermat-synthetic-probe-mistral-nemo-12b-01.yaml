@@ -12,4 +12,7 @@ params:
   dataset: supermat
   judge_interp_id: 2026-10-08-supermat-v3s-mistral-nemo-12b-synthetic-judge-train-01
   use_platt_scaling: true
+  head_selection_C: 1.0
+  probe_C: 1.0
+  top_k: 10
   exclude_documents: []

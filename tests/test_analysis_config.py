@@ -269,7 +269,8 @@ def _write_probe(tmp_path, name, cfg):
 
 def _probe_cfg(**params_override):
     params = {"dataset": "pond", "judge_interp_id": "2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-train-01",
-              "use_platt_scaling": False, "exclude_documents": []}
+              "use_platt_scaling": False, "exclude_documents": [],
+              "head_selection_C": 1.0, "probe_C": 1e-4, "top_k": 10}
     params.update(params_override)
     return {"id": "probe-01", "project": "scholarlm", "description": "d", "seed": GOOD_SEED, "params": params}
 
@@ -320,6 +321,27 @@ def test_synthetic_probe_config_loads_exclude_documents(tmp_path):
 def test_synthetic_probe_config_rejects_bad_exclude_documents(tmp_path, bad):
     with pytest.raises(ValueError):
         ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(exclude_documents=bad)))
+
+
+@pytest.mark.parametrize("key", ["head_selection_C", "probe_C", "top_k"])
+def test_synthetic_probe_config_rejects_missing_probe_hyperparam(tmp_path, key):
+    cfg = _probe_cfg()
+    del cfg["params"][key]
+    with pytest.raises(ValueError, match="must be exactly"):
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", cfg))
+
+
+@pytest.mark.parametrize("key", ["head_selection_C", "probe_C"])
+@pytest.mark.parametrize("bad", [0, -1.0, "1e-4", True, None])
+def test_synthetic_probe_config_rejects_bad_C(tmp_path, key, bad):
+    with pytest.raises(ValueError, match=f"{key} must be a positive number"):
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(**{key: bad})))
+
+
+@pytest.mark.parametrize("bad", [0, -3, 10.0, "10", True])
+def test_synthetic_probe_config_rejects_bad_top_k(tmp_path, bad):
+    with pytest.raises(ValueError, match="top_k must be a positive int"):
+        ac.load_synthetic_probe_config(_write_probe(tmp_path, "probe-01", _probe_cfg(top_k=bad)))
 
 
 def test_synthetic_probe_config_rejects_id_mismatch(tmp_path):

@@ -1,7 +1,8 @@
 """Train the attention-head validity probe on one synthetic judge run.
 
-Ranks every (layer, head) by grouped-CV F1 and trains a logistic probe on the top
-TOP_K heads. It is saved under analysis/results/synthetic-probe/<config id>/trained_probe/
+Ranks every (layer, head) by grouped-CV F1 (LogisticRegression C =
+``params.head_selection_C``) and trains a logistic probe (C = ``params.probe_C``) on
+the top ``params.top_k`` heads. It is saved under analysis/results/synthetic-probe/<config id>/trained_probe/
 (Platt-wrapped or ``_noplatt``, per ``params.use_platt_scaling``), with heatmaps and
 results.json alongside. Nothing is fit on the judge's NTP p(true): downstream scripts
 use it raw.
@@ -134,7 +135,6 @@ def _load_synthetic_run(run_id: str, dataset: str):
     return judge_model, syn_responses, syn_activations, syn_layer_outputs
 
 
-TOP_K   = 10    # number of attention heads for the final probe
 N_FOLDS = 5
 
 # use_platt_scaling (config) picks Platt-wrapped artifacts (probe_variant: platt) or
@@ -175,7 +175,7 @@ def cv_score(probe, X, y, kfold_cv):
 
 
 def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs, probe_dir, out_dir, seed,
-                    use_platt_scaling, exclude_documents):
+                    use_platt_scaling, exclude_documents, head_selection_C, probe_C, top_k):
     """Train and save the head probe (and optionally the layer probe).
 
     Args:
@@ -190,9 +190,14 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
         use_platt_scaling: Wrap the head probe in CalibratedClassifierCV.
         exclude_documents: ``{document_id, reason}`` entries dropped from training
             (config ``params.exclude_documents``). Each must occur in the synthetic run.
+        head_selection_C: LogisticRegression C of the per-head ranking probes
+            (config ``params.head_selection_C``).
+        probe_C: LogisticRegression C of the final head probe (config ``params.probe_C``).
+        top_k: Number of F1-ranked heads in the final head probe (config ``params.top_k``).
 
     Raises:
-        ValueError: An excluded document_id is absent from the synthetic run.
+        ValueError: An excluded document_id is absent from the synthetic run, or top_k
+            exceeds the number of heads.
     """
     print(f'\n{"="*60}\nDataset: {DATASET}   Judge: {JUDGE_MODEL}\n{"="*60}')
 
@@ -228,6 +233,8 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     # ─────────────────────────────────────────────────────────────────
     _arr0 = np.array(syn_activations[str(syn_measurement_ids[0])], dtype=np.float32)
     n_layers, n_heads, head_dim = _arr0.shape
+    if top_k > n_layers * n_heads:
+        raise ValueError(f"params.top_k={top_k} exceeds the {n_layers}x{n_heads}={n_layers * n_heads} heads")
     _all_syn = {
         str(mid): np.array(syn_activations[str(mid)], dtype=np.float32)
         for mid in syn_measurement_ids
@@ -244,7 +251,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     probe_template = Pipeline([
         ('scaler', StandardScaler()),
         ('clf', LogisticRegression(
-            C=1.0, class_weight='balanced', solver='lbfgs',
+            C=head_selection_C, class_weight='balanced', solver='lbfgs',
             max_iter=1000, random_state=seed,
         ))
     ])
@@ -287,7 +294,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
 
     # ─────────────────────────────────────────────────────────────────
     # Sort to top-k heads (by F1):
-    flat_indices = np.argsort(head_scores_f1.flatten())[-TOP_K:][::-1]
+    flat_indices = np.argsort(head_scores_f1.flatten())[-top_k:][::-1]
     top_k_heads  = [np.unravel_index(idx, head_scores_f1.shape) for idx in flat_indices]
 
     # Train:
@@ -299,7 +306,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     base_probe = Pipeline([
         ('scaler', StandardScaler()),
         ('clf', LogisticRegression(
-            C=1.0, class_weight=None, solver='lbfgs',
+            C=probe_C, class_weight=None, solver='lbfgs',
             max_iter=1000, random_state=seed,
         ))
     ])
@@ -339,6 +346,8 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     probe_data = {
         'probe':            head_probe,
         'top_k_heads':      top_k_heads,
+        'head_selection_C': head_selection_C,
+        'probe_C':          probe_C,
         'train_prevalence': float(y_train.mean()),
         'syn_document_ids': sorted(syn_df['document_id'].unique().tolist()),
         'judge_model':      JUDGE_MODEL,
@@ -350,7 +359,7 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
     joblib.dump(probe_data, probe_path)
 
     print(f'Probe saved  → {probe_path}')
-    print(f'  Top-{TOP_K} heads        : {top_k_heads}')
+    print(f'  Top-{top_k} heads        : {top_k_heads}')
     # ─────────────────────────────────────────────────────────────────
 
     # No NTP model is trained: downstream scripts use the judge's raw judgement_p_true,
@@ -363,7 +372,9 @@ def _train_and_save(DATASET, JUDGE_MODEL, syn_responses, syn_activations, syn_la
             'seed':               seed,
             'n_train':            int(len(syn_train_idx)),
             'n_folds':            N_FOLDS,
-            'top_k':              TOP_K,
+            'top_k':              top_k,
+            'head_selection_C':   head_selection_C,
+            'probe_C':            probe_C,
             'top_k_heads':        [[int(l), int(h)] for l, h in top_k_heads],
             'train_prevalence':   float(y_train.mean()),
             'use_platt_scaling':  use_platt_scaling,
@@ -497,8 +508,12 @@ def main():
     out_dir = RESULTS_ROOT / cfg['id']
     out_dir.mkdir(parents=True, exist_ok=True)
     use_platt_scaling = cfg['params']['use_platt_scaling']
+    head_selection_C = cfg['params']['head_selection_C']
+    probe_C = cfg['params']['probe_C']
+    top_k = cfg['params']['top_k']
     print(f'[synthetic_probe_train] analysis_config={cfg["id"]} dataset={dataset} '
-          f'judge_interp_id={run_id} use_platt_scaling={use_platt_scaling} out_dir={out_dir}')
+          f'judge_interp_id={run_id} use_platt_scaling={use_platt_scaling} '
+          f'head_selection_C={head_selection_C} probe_C={probe_C} top_k={top_k} out_dir={out_dir}')
 
     JUDGE_MODEL, syn_responses, syn_activations, syn_layer_outputs = (
         _load_synthetic_run(run_id, dataset)
@@ -508,7 +523,7 @@ def main():
     JUDGE_MODELS_SEEN = [JUDGE_MODEL]
     _train_and_save(dataset, JUDGE_MODEL, syn_responses, syn_activations,
                     syn_layer_outputs, probe_dir, out_dir, cfg['seed'], use_platt_scaling,
-                    cfg['params']['exclude_documents'])
+                    cfg['params']['exclude_documents'], head_selection_C, probe_C, top_k)
 
     # ─────────────────────────────────────────────────────────────────
     # Create combined plot of F1 scores by layer for all judge models

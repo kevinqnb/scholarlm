@@ -90,9 +90,14 @@ KNOWN_PARAM_SECTIONS = {"recovery_validity", "measeval_evaluation", "deduplicate
 
 # Params of a synthetic-probe config. use_platt_scaling picks the Platt-wrapped or
 # *_noplatt pickles. exclude_documents lists papers dropped from probe training, each
-# {document_id, reason}; [] means none are dropped.
+# {document_id, reason}; [] means none are dropped. head_selection_C and probe_C are
+# LogisticRegression's inverse regularization strength for, respectively, the per-head
+# F1 ranking and the final head probe; top_k is the number of top-ranked heads the final
+# probe uses.
 SYNTHETIC_PROBE_STR_KEYS = ("dataset", "judge_interp_id")
-SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + ("use_platt_scaling", "exclude_documents")
+SYNTHETIC_PROBE_C_KEYS = ("head_selection_C", "probe_C")
+SYNTHETIC_PROBE_PARAM_KEYS = SYNTHETIC_PROBE_STR_KEYS + SYNTHETIC_PROBE_C_KEYS + (
+    "use_platt_scaling", "exclude_documents", "top_k")
 SYNTHETIC_PROBE_EXCLUDE_KEYS = {"document_id", "reason"}
 
 
@@ -249,9 +254,11 @@ def load_synthetic_probe_config(path: Path) -> dict:
     """Load a synthetic-probe config for synthetic_probe_train.py.
 
     params must be exactly ``dataset``, ``judge_interp_id`` (the synthetic-corpus
-    judge run to train on), ``use_platt_scaling`` and ``exclude_documents`` (a list of
-    ``{document_id, reason}`` papers dropped from training; ``[]`` for none).
-    ``seed`` seeds the training splits.
+    judge run to train on), ``use_platt_scaling``, ``exclude_documents`` (a list of
+    ``{document_id, reason}`` papers dropped from training; ``[]`` for none),
+    ``head_selection_C`` / ``probe_C`` (positive numbers, LogisticRegression C for the
+    per-head ranking / the final probe) and ``top_k`` (positive int, heads in the final probe). ``seed`` seeds the
+    training splits.
 
     Args:
         path: Config path.
@@ -291,6 +298,13 @@ def load_synthetic_probe_config(path: Path) -> dict:
     ids = [e["document_id"] for e in excl]
     if len(set(ids)) != len(ids):
         raise ValueError(f"{path}: params.exclude_documents has duplicate document_ids: {ids}")
+    for k in SYNTHETIC_PROBE_C_KEYS:
+        c = cfg["params"][k]
+        if not isinstance(c, (int, float)) or isinstance(c, bool) or not c > 0:
+            raise ValueError(f"{path}: params.{k} must be a positive number, got {c!r}")
+    top_k = cfg["params"]["top_k"]
+    if not isinstance(top_k, int) or isinstance(top_k, bool) or top_k < 1:
+        raise ValueError(f"{path}: params.top_k must be a positive int, got {top_k!r}")
     if not isinstance(cfg["seed"], int) or isinstance(cfg["seed"], bool):
         raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
     return cfg
