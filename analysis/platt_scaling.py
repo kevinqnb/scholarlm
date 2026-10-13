@@ -1,9 +1,9 @@
-"""smECE of recalibrated probe / NTP scores vs. recalibration sample size n.
+"""smECE of recalibrated probe scores vs. recalibration sample size n.
 
 Same inputs, labels, pool and test rows as calibration.py. For each (train probe, test
-dataset, method, n in params.platt_ns):
-Probe scores come from the trained synthetic probe; NTP scores are the judge's raw
-p(true), with no trained model.
+dataset, n in params.platt_ns), probe scores come from the trained synthetic probe.
+NTP (the judge's raw p(true)) is never recalibrated, so it has no dependence on n and is
+not part of this sweep.
   - draw n_train_resamples two-class fit samples of n pool rows (doc_bootstrap.two_class_fit_samples);
   - fit a map on each, apply it to the fixed test rows, and score smECE;
   - report the mean and the 2.5 / 97.5 percentiles.
@@ -70,17 +70,16 @@ palette = sns.color_palette("husl", 10)
 _DS_COLORS = {'pond': palette[7], 'nfix': palette[1], 'supermat': palette[0]}
 _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
-# (display name, key in the scored dict).
+# (display name, key in the scored dict). Only the probe is recalibrated.
 _METHODS = [
     ('Probe', 'probe'),
-    ('NTP',   'ntp'),
 ]
 
 # Recalibration sample sizes drawn in the figures (the CSVs keep every n in params.platt_ns).
 _PLOT_NS = [0, 100, 500]
 
 
-def fit_map(recalibration: str, probs, labels, pi_tr: float | None) -> tuple[float, float]:
+def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, float]:
     """Fit a recalibration map on some rows.
 
     platt_fit calls scholarlm's fit_platt directly, without the separability and
@@ -90,19 +89,16 @@ def fit_map(recalibration: str, probs, labels, pi_tr: float | None) -> tuple[flo
         recalibration: ``"prior_shift"``, ``"intercept_fit"`` or ``"platt_fit"``.
         probs: Fit-row probabilities.
         labels: Fit-row labels.
-        pi_tr: Scorer's training prevalence (prior_shift only); None for raw NTP,
-            which has no training set.
+        pi_tr: The probe's training prevalence (prior_shift only).
 
     Returns:
         ``(coef, intercept)`` for apply_platt.
 
     Raises:
-        ValueError: Unknown method, or prior_shift with ``pi_tr`` None.
+        ValueError: Unknown method.
     """
     labels = np.asarray(labels, dtype=bool)
     if recalibration == 'prior_shift':
-        if pi_tr is None:
-            raise ValueError('prior_shift needs a training prevalence; raw NTP p(true) has none')
         return prior_shift_map(float(labels.mean()), pi_tr)
     if recalibration == 'intercept_fit':
         return intercept_fit_map(probs, labels)
@@ -210,7 +206,6 @@ class SweepInputs:
         block = self.cfg['params']['datasets'][ds]
         with open(ds_inputs['judge_combine_dir'] / 'combined.json') as f:
             real_df = pd.DataFrame(json.load(f))
-        assert f'judgement_p_true_{self.judge_model}' in real_df.columns, (ds, self.judge_model)
         # Scored on the final.json datapoints; combined.json must be row-for-row the same run.
         with open(ds_inputs['extraction_dir'] / 'final.json') as f:
             final_df = pd.DataFrame(json.load(f))
@@ -246,7 +241,7 @@ class SweepInputs:
                 'pool_idx': pool_idx, 'test_idx': test_idx}
 
     def score_rows(self, train_ds, test_ds, idx):
-        """Unrecalibrated probe probabilities and raw NTP p(true) for some real rows.
+        """Unrecalibrated probe probabilities for some real rows.
 
         Args:
             train_ds: Dataset whose probe is applied.
@@ -254,16 +249,13 @@ class SweepInputs:
             idx: Row positions in that dataset's ``real_df``.
 
         Returns:
-            ``{'probe': array, 'ntp': array}``.
+            ``{'probe': array}``.
         """
         real_df = self.data[test_ds]['real_df']
         act_dir = self.inputs['datasets'][test_ds]['judge_interp_dir']
         mids = real_df['measurement_id'].iloc[idx].tolist()
-        raw_ntp = real_df[f'judgement_p_true_{self.judge_model}'].iloc[idx].to_numpy()
         pd_data = self.probe[train_ds]
         top = pd_data['top_layer'] if self.probe_type == 'layer' else pd_data['top_k_heads']
-        ntp_probs = np.asarray(raw_ntp, dtype=float)
-        assert ((ntp_probs >= 0) & (ntp_probs <= 1)).all(), (train_ds, test_ds, 'judge p(true) outside [0, 1]')
         if self.probe_type == 'layer':
             lo = np.load(act_dir / 'layer_outputs.npz')
             X = np.stack([np.array(lo[str(m)], dtype=np.float32)[top] for m in mids], axis=0)
@@ -271,15 +263,15 @@ class SweepInputs:
             X = self.head_acts.features(act_dir, mids, top)
         assert X.shape[0] == len(mids), (X.shape, len(mids))
         probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
-        assert probe_probs.shape == ntp_probs.shape == (len(mids),), (train_ds, test_ds)
-        assert np.isfinite(probe_probs).all() and np.isfinite(ntp_probs).all(), (train_ds, test_ds)
-        return {'probe': probe_probs, 'ntp': ntp_probs}
+        assert probe_probs.shape == (len(mids),), (train_ds, test_ds)
+        assert np.isfinite(probe_probs).all(), (train_ds, test_ds)
+        return {'probe': probe_probs}
 
 
 def run_sweep(inp, platt_ns, recalibration, n_resamples):
     """Compute smECE for every (train_ds, test_ds, method, n, fit sample).
 
-    Fit samples depend only on (test_ds, n), so all probes and methods share them.
+    Fit samples depend only on (test_ds, n), so all probes share them.
 
     Args:
         inp: Loaded ``SweepInputs``.
@@ -291,7 +283,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
         ``(summary, samples_df)``: one row per (cell, n) with mean and interval, and
         one row per fit sample with its map and smECE.
     """
-    # Fit samples depend only on (test_ds, n): shared by every train probe and method.
+    # Fit samples depend only on (test_ds, n): shared by every train probe.
     samples = {}
     for ds in inp.datasets:
         d = inp.data[ds]
@@ -304,8 +296,7 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
 
     rows, sample_rows = [], []
     for train_ds in inp.datasets:
-        # Raw NTP has no training prevalence (prior_shift on it raises in fit_map).
-        pi_tr = {'probe': inp.probe[train_ds]['train_prevalence'], 'ntp': None}
+        pi_tr = {'probe': inp.probe[train_ds]['train_prevalence']}
         for test_ds in inp.datasets:
             d = inp.data[test_ds]
             real_df, pool_idx, test_idx = d['real_df'], d['pool_idx'], d['test_idx']
@@ -374,30 +365,12 @@ def run_sweep(inp, platt_ns, recalibration, n_resamples):
     return summary, samples_df
 
 
-def _assert_ntp_train_independent(df, datasets):
-    """Assert the NTP summary rows are identical for every train dataset.
-
-    NTP is the judge's raw p(true) and fit samples depend only on (test_ds, n), so no
-    NTP number may depend on the train dataset.
-
-    Args:
-        df: Summary from ``run_sweep``.
-        datasets: Dataset names.
-    """
-    cols = ['Test dataset', 'Platt N', 'SmECE', 'SmECE_lo', 'SmECE_hi']
-    ntp = df[df['Type'] == 'NTP']
-    ref = ntp[ntp['Train dataset'] == datasets[0]][cols].sort_values(cols[:2]).reset_index(drop=True)
-    for train_ds in datasets[1:]:
-        other = ntp[ntp['Train dataset'] == train_ds][cols].sort_values(cols[:2]).reset_index(drop=True)
-        assert ref.equals(other), f'NTP smECE differs between train {datasets[0]} and {train_ds}'
-
-
 def _save_bar_panel(df, method, train_ds, datasets, title, ylabel, path):
     """Save one bar chart of smECE vs n, grouped by n and coloured by test dataset.
 
     Args:
         df: Summary from ``run_sweep``.
-        method: ``"Probe"`` or ``"NTP"``.
+        method: ``"Probe"``.
         train_ds: Train dataset whose rows are drawn.
         datasets: Dataset names.
         title: Axes title.
@@ -434,8 +407,7 @@ def _save_bar_panel(df, method, train_ds, datasets, title, ylabel, path):
 def plot_sweep(df, datasets, platt_ns, figures_dir):
     """Save bar charts of smECE vs n and a legend.
 
-    One NTP chart (NTP has no train dataset; asserted train-independent first, and the
-    only chart with a y-axis label) and one probe chart per train dataset. Bars are
+    One probe chart per train dataset (NTP is never recalibrated, so it is not plotted). Bars are
     grouped by n in _PLOT_NS and coloured by test dataset; error bars are the
     fit-sample percentile interval.
 
@@ -447,11 +419,8 @@ def plot_sweep(df, datasets, platt_ns, figures_dir):
     """
     missing = [n for n in _PLOT_NS if n not in platt_ns]
     assert not missing, f'plotted ns {missing} are not in params.platt_ns {platt_ns}'
-    _assert_ntp_train_independent(df, datasets)
-    _save_bar_panel(df, 'NTP', datasets[0], datasets, 'NTP', 'SmECE',
-                    figures_dir / 'smece_vs_n_train_resample_ntp.pdf')
-    for train_ds in datasets:
-        _save_bar_panel(df, 'Probe', train_ds, datasets, f'Probe ({_DS_LABELS[train_ds]})', None,
+    for i, train_ds in enumerate(datasets):
+        _save_bar_panel(df, 'Probe', train_ds, datasets, f'Probe ({_DS_LABELS[train_ds]})', 'SmECE' if i == 0 else None,
                         figures_dir / f'smece_vs_n_train_resample_probe_train-{train_ds}.pdf')
 
     handles = [mpatches.Patch(facecolor=_DS_COLORS[ds], edgecolor='black', linewidth=0.4, label=_DS_LABELS[ds])
@@ -473,9 +442,6 @@ def main(config_path):
     cfg = load_platt_sweep_v2_config(Path(config_path))
     p = cfg['params']
     platt_ns, recalibration, n_resamples = list(p['platt_ns']), p['recalibration'], p['n_train_resamples']
-    if recalibration == 'prior_shift':
-        raise ValueError('prior_shift needs a training prevalence per scorer; raw NTP p(true) was never '
-                         'trained on the synthetic set, so it has none. Use intercept_fit or platt_fit.')
     print(f"[platt sweep v2] config: {cfg['id']} | ns: {platt_ns} | recalibration: {recalibration} | "
           f"train resamples: {n_resamples}")
     out_dir = analysis_results_dir('platt-scaling') / cfg['id']

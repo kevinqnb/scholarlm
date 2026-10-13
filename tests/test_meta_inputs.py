@@ -162,10 +162,22 @@ def cell(final_order=(0, 2)):
     f = final().set_index("measurement_id")
     ids = list(final_order)
     return {"probe_probs": np.array([0.1, 0.2]), "ntp_probs": np.array([0.3, 0.4]),
+            "ntp_raw": np.array([0.3, 0.4]),
             "labels": np.array([True, False]), "measurement_ids": np.array(ids),
             "document_ids": f.loc[ids, "document_id"].tolist(), "attributes": f.loc[ids, "attribute"].tolist(),
             "final_sha256": FINAL_SHA, "combined_sha256": "def", "calibration_config_id": CAL_ID, "seed": 0,
             "platt_measurement_ids": np.array([1]), "excluded_documents": ["t"]}
+
+
+def test_stored_rows_reject_recalibrated_ntp():
+    # NTP is never recalibrated: a cell whose ntp_probs differ from ntp_raw (an old predictions.pkl) is refused.
+    c = cell()
+    c["ntp_probs"] = c["ntp_probs"] + 0.01
+    with pytest.raises(ValueError, match="NTP is never recalibrated"):
+        stored_prediction_rows(final(), {"t"}, c, FINAL_SHA, CAL_ID)
+    del c["ntp_raw"]
+    with pytest.raises(ValueError, match="NTP is never recalibrated"):
+        stored_prediction_rows(final(), {"t"}, c, FINAL_SHA, CAL_ID)
 
 
 def stored(c=None, fin=None, docs=("t",), sha=FINAL_SHA, cal=CAL_ID):

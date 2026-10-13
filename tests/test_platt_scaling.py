@@ -144,7 +144,7 @@ class _FakeInputs:
             "pool_idx": np.arange(n_pool), "test_idx": np.arange(n_pool, n_pool + 4)}}
         self.probe = {"pond": {"train_prevalence": 0.5, "syn_document_ids": list(range(6))}}
         rng = np.random.default_rng(0)
-        self.raw = {"probe": rng.uniform(0.1, 0.9, len(docs)), "ntp": rng.uniform(0.1, 0.9, len(docs))}
+        self.raw = {"probe": rng.uniform(0.1, 0.9, len(docs))}
 
     def score_rows(self, train_ds, test_ds, idx):
         return {k: v[idx] for k, v in self.raw.items()}
@@ -154,7 +154,7 @@ def test_run_sweep_baseline_is_raw_scores():
     inp = _FakeInputs()
     summary, samples_df = ps2.run_sweep(inp, [0, 8], "intercept_fit", 5)
     base = summary[summary["Platt N"] == 0]
-    assert len(base) == 2 and (base["Recalibration"] == "none").all() and (base["Train resamples"] == 0).all()
+    assert len(base) == 1 and set(base["Type"]) == {"Probe"} and (base["Recalibration"] == "none").all() and (base["Train resamples"] == 0).all()
     test = inp.data["pond"]["test_idx"]
     for _, row in base.iterrows():
         key = row["Type"].lower()
@@ -163,7 +163,7 @@ def test_run_sweep_baseline_is_raw_scores():
         assert np.isnan(row["Fit label rate"])
     # n > 0 rows unaffected: 5 resamples each, and the baseline has no per-resample rows.
     assert (summary[summary["Platt N"] == 8]["Train resamples"] == 5).all()
-    assert len(samples_df) == 2 * 5 and (samples_df["Platt N"] == 8).all()
+    assert len(samples_df) == 5 and set(samples_df["Type"]) == {"Probe"} and (samples_df["Platt N"] == 8).all()
 
 
 class _ConstProbe:
@@ -178,68 +178,41 @@ class _FakeHeadActs:
         return np.zeros((len(mids), 2), dtype=np.float32)
 
 
-def test_score_rows_ntp_is_raw_judge_p_true():
-    # Known answer: with no trained NTP model, the NTP score is the judge's p(true) itself,
-    # including the boundary values 0 and 1.
+def test_score_rows_is_probe_only():
+    # NTP is never recalibrated, so the sweep neither scores nor reads it: no p(true) column is needed.
     import pandas as pd
     inp = object.__new__(ps2.SweepInputs)
     inp.judge_model, inp.probe_type = "j", "head"
-    p_true = np.array([0.0, 0.25, 0.5, 0.9, 1.0])
-    inp.data = {"pond": {"real_df": pd.DataFrame({"measurement_id": list("abcde"), "judgement_p_true_j": p_true})}}
+    inp.data = {"pond": {"real_df": pd.DataFrame({"measurement_id": list("abcde")})}}
     inp.inputs = {"datasets": {"pond": {"judge_interp_dir": Path("/nonexistent")}}}
     inp.probe = {"pond": {"probe": _ConstProbe(), "top_k_heads": [(0, 0)]}}
     inp.head_acts = _FakeHeadActs()
-    idx = np.array([4, 0, 2])
-    out = inp.score_rows("pond", "pond", idx)
-    assert np.array_equal(out["ntp"], p_true[idx])
-    assert np.array_equal(out["probe"], np.full(3, 0.7))
+    out = inp.score_rows("pond", "pond", np.array([4, 0, 2]))
+    assert set(out) == {"probe"} and np.array_equal(out["probe"], np.full(3, 0.7))
 
 
-def test_score_rows_rejects_ntp_outside_unit_interval():
-    import pandas as pd
-    inp = object.__new__(ps2.SweepInputs)
-    inp.judge_model, inp.probe_type = "j", "head"
-    inp.data = {"pond": {"real_df": pd.DataFrame({"measurement_id": ["a"], "judgement_p_true_j": [1.2]})}}
-    inp.inputs = {"datasets": {"pond": {"judge_interp_dir": Path("/nonexistent")}}}
-    inp.probe = {"pond": {"probe": _ConstProbe(), "top_k_heads": [(0, 0)]}}
-    inp.head_acts = _FakeHeadActs()
-    with pytest.raises(AssertionError):
-        inp.score_rows("pond", "pond", np.array([0]))
-
-
-def test_fit_map_prior_shift_without_training_prevalence_raises():
-    with pytest.raises(ValueError, match="training prevalence"):
-        ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), None)
-    # The probe (which has a training prevalence) is unaffected.
+def test_fit_map_prior_shift_known_answer():
+    # logit(0.5) - logit(0.5) = 0, so the map is the identity shift.
     assert ps2.fit_map("prior_shift", np.array([0.2, 0.8]), np.array([False, True]), 0.5) == (1.0, 0.0)
 
 
-def _sweep_summary(ntp_offset_for=None):
-    """Hand-built run_sweep summary: 3 datasets, probe smECE varies by train, NTP does not."""
+def _sweep_summary():
+    """Hand-built run_sweep summary: 3 datasets, probe smECE varies by train."""
     import pandas as pd
     ds = ["pond", "nfix", "supermat"]
     rows = []
     for i, tr in enumerate(ds):
         for j, te in enumerate(ds):
             for n in ps2._PLOT_NS:
-                for method in ("Probe", "NTP"):
-                    v = 0.1 + 0.01 * j + 0.001 * n / 100 + (0.02 * i if method == "Probe" else 0.0)
-                    if method == "NTP" and tr == ntp_offset_for:
-                        v += 1e-9
+                for method in ("Probe",):
+                    v = 0.1 + 0.01 * j + 0.001 * n / 100 + 0.02 * i
                     rows.append({"Train dataset": tr, "Test dataset": te, "Type": method, "Platt N": n,
                                  "SmECE": v, "SmECE_lo": v - 0.01, "SmECE_hi": v + 0.01})
     return pd.DataFrame(rows), ds
 
 
-def test_plot_sweep_one_ntp_figure_and_one_probe_figure_per_train(tmp_path):
+def test_plot_sweep_one_probe_figure_per_train_and_no_ntp(tmp_path):
     df, ds = _sweep_summary()
     ps2.plot_sweep(df, ds, ps2._PLOT_NS, tmp_path)
     assert sorted(p.name for p in tmp_path.glob("*.pdf")) == sorted(
-        ["legend_smece_vs_n.pdf", "smece_vs_n_train_resample_ntp.pdf"]
-        + [f"smece_vs_n_train_resample_probe_train-{d}.pdf" for d in ds])
-
-
-def test_plot_sweep_rejects_train_dependent_ntp(tmp_path):
-    df, ds = _sweep_summary(ntp_offset_for="supermat")
-    with pytest.raises(AssertionError, match="NTP smECE differs between train pond and supermat"):
-        ps2.plot_sweep(df, ds, ps2._PLOT_NS, tmp_path)
+        ["legend_smece_vs_n.pdf"] + [f"smece_vs_n_train_resample_probe_train-{d}.pdf" for d in ds])

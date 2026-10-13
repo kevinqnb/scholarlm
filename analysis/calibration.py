@@ -1,9 +1,10 @@
 """Calibration of the head probe and NTP confidences on synthetic and real test sets (v4).
 
 For every (train dataset, test dataset) pair, scores the synthetic test set (never
-recalibrated) and the real held-out rows. Real rows are recalibrated by one map per
-method (intercept_fit or platt_fit), fit once from ``fit_source``. The probe is the
-trained synthetic-probe artifact; NTP is the judge's raw p(true), with no trained model.
+recalibrated) and the real held-out rows. Real probe scores are recalibrated by one map
+(prior_shift, intercept_fit or platt_fit), fit once from ``fit_source``. The probe is the
+trained synthetic-probe artifact. NTP is the judge's raw p(true) and is NEVER recalibrated,
+in any cell: it has no map and no fit rows.
 Calibration errors and Brier (skill) scores get document-bootstrap CIs. Runs at import time from one config.
 
 Outputs in analysis/results/calibration/<config id>/: predictions.pkl (with row
@@ -41,7 +42,7 @@ from analysis.common.prediction_store import real_cell_provenance
 from analysis.common.calibration_plot_utils import draw_reliability_curve
 from analysis.common.head_activations import HeadActivationCache
 from analysis.common.loaders import load_probe_artifact
-from analysis.common.recalibration import intercept_fit_map, platt_fit_map, uniform_fit_sample
+from analysis.common.recalibration import intercept_fit_map, platt_fit_map, prior_shift_map, uniform_fit_sample
 from scholarlm.utils.calibration import apply_platt
 
 mpl.rcParams.update({
@@ -131,10 +132,8 @@ if FIT_SOURCE == 'oracle':
     print('[calibration v4] ORACLE fit: maps are fit on the evaluated rows themselves -- diagnostic only.')
 
 
-# NTP is the judge's raw p(true); only the probe is a trained artifact.
-if RECALIBRATION == 'prior_shift':
-    raise ValueError('prior_shift needs a training prevalence per scorer; raw NTP p(true) was never '
-                     'trained on the synthetic set, so it has none. Use intercept_fit or platt_fit.')
+# NTP is the judge's raw p(true) and is never recalibrated; only the probe is a trained
+# artifact and only the probe gets a recalibration map.
 _probe_filename = (
     'layer_probe.pkl' if PROBE_TYPE == 'layer'
     else ('head_probe.pkl' if _PROBE_VARIANT_KW is None else 'head_probe_noplatt.pkl')
@@ -295,45 +294,42 @@ def compute_predictions():
                     mids   = real_df['measurement_id'].iloc[idx].tolist()
                     labels = td['labels'][idx]
                     probe_raw, ntp_raw = _score_rows(train_ds, test_ds, mids, real_df[col].iloc[idx].to_numpy(), act_dir)
-                    raw = {'probe': probe_raw, 'ntp': ntp_raw}
 
                     fit_idx = td['fit_idx']
                     fit_labels = td['labels'][fit_idx]
-                    if RECALIBRATION in ('intercept_fit', 'platt_fit'):
+                    # Only the probe is recalibrated; NTP is the judge's raw p(true), never mapped.
+                    if RECALIBRATION == 'prior_shift':
+                        coef, icpt = prior_shift_map(td['pi_te'], pd_data['train_prevalence'])
+                    else:
                         if FIT_SOURCE == 'oracle':
                             assert np.array_equal(fit_idx, idx)
-                            fit_raw = raw
+                            fit_probe = probe_raw
                         else:
-                            f_probe, f_ntp = _score_rows(
+                            fit_probe, _ = _score_rows(
                                 train_ds, test_ds, real_df['measurement_id'].iloc[fit_idx].tolist(),
                                 real_df[col].iloc[fit_idx].to_numpy(), act_dir)
-                            fit_raw = {'probe': f_probe, 'ntp': f_ntp}
-
-                    # prior_shift is rejected at load time (raw NTP has no training prevalence).
-                    maps = {}
-                    for meth in ('probe', 'ntp'):
                         if RECALIBRATION == 'intercept_fit':
                             # Asserts its score equation: mapped fit rows average to their label rate.
-                            coef, icpt = intercept_fit_map(fit_raw[meth], fit_labels)
+                            coef, icpt = intercept_fit_map(fit_probe, fit_labels)
                         else:
                             assert RECALIBRATION == 'platt_fit', RECALIBRATION
                             # Asserts both Platt score equations; non-convergence is an error.
-                            coef, icpt = platt_fit_map(fit_raw[meth], fit_labels)
-                        maps[meth] = (coef, icpt)
-                        mapped = apply_platt(raw[meth], coef, icpt)
-                        if FIT_SOURCE == 'oracle':
-                            assert td['pi_te'] == float(labels.mean()), (train_ds, test_ds, td['pi_te'])
-                            if RECALIBRATION == 'intercept_fit':
-                                assert abs(float(mapped.mean()) - float(labels.mean())) < 1e-8, (train_ds, test_ds, meth)
-                        map_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': meth,
-                                         'Recalibration': RECALIBRATION, 'Fit source': FIT_SOURCE,
-                                         'Fit n': len(fit_idx), 'Fit seed': FIT_SEED, 'pi_te': td['pi_te'],
-                                         'coef': coef, 'intercept': icpt,
-                                         'N test': len(idx), 'Test label rate': float(labels.mean()),
-                                         'Raw mean prob': float(raw[meth].mean()),
-                                         'Mapped mean prob': float(mapped.mean())})
-                    probe_probs = apply_platt(probe_raw, *maps['probe'])
-                    ntp_probs   = apply_platt(ntp_raw, *maps['ntp'])
+                            coef, icpt = platt_fit_map(fit_probe, fit_labels)
+                    maps = {'probe': (coef, icpt)}
+                    probe_probs = apply_platt(probe_raw, coef, icpt)
+                    if FIT_SOURCE == 'oracle':
+                        assert td['pi_te'] == float(labels.mean()), (train_ds, test_ds, td['pi_te'])
+                        if RECALIBRATION == 'intercept_fit':
+                            assert abs(float(probe_probs.mean()) - float(labels.mean())) < 1e-8, (train_ds, test_ds)
+                    map_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': 'probe',
+                                     'Recalibration': RECALIBRATION, 'Fit source': FIT_SOURCE,
+                                     'Fit n': len(fit_idx), 'Fit seed': FIT_SEED, 'pi_te': td['pi_te'],
+                                     'pi_tr': pd_data['train_prevalence'] if RECALIBRATION == 'prior_shift' else np.nan,
+                                     'coef': coef, 'intercept': icpt,
+                                     'N test': len(idx), 'Test label rate': float(labels.mean()),
+                                     'Raw mean prob': float(probe_raw.mean()),
+                                     'Mapped mean prob': float(probe_probs.mean())})
+                    ntp_probs = ntp_raw  # never recalibrated
                     cell = {'recal_map': maps,
                             'fit_on_test_rows': FIT_SOURCE == 'oracle'}
                     # Oracle fit rows are the test rows, so none are recorded (see fit_on_test_rows).
@@ -351,7 +347,7 @@ def compute_predictions():
                 setting_results[dataset_type][judge_model][train_ds][test_ds] = cell
 
     maps_df = pd.DataFrame(map_rows)
-    assert len(maps_df) == len(TRAIN_DATASETS) * len(DATASETS) * 2, len(maps_df)
+    assert len(maps_df) == len(TRAIN_DATASETS) * len(DATASETS), len(maps_df)  # probe maps only
     maps_df.to_csv(OUT_DIR / 'recalibration_maps.csv', index=False)
     print(maps_df.to_string(index=False, float_format='{:.4f}'.format))
 
@@ -515,7 +511,10 @@ def compute_metrics(setting_results, boot):
                     t = _threshold_metrics(rdict[f'{key}_probs'], rdict['labels'])
                     b = boot[dtype][JUDGE_MODEL][train_ds][test_ds][key]
                     assert b['n_boot'] == N_BOOT, b['n_boot']
-                    mapped = rdict['recal_map'] is not None
+                    # Only the probe is recalibrated; NTP rows (and all syn rows) carry no recalibration fields.
+                    mapped = rdict['recal_map'] is not None and key in rdict['recal_map']
+                    if key == 'ntp':
+                        assert not mapped and np.array_equal(rdict['ntp_probs'], rdict['ntp_raw']), (train_ds, test_ds)
                     row = {
                         'Dataset type':  dtype,
                         'Judge model':   JUDGE_MODEL,

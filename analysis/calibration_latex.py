@@ -143,7 +143,7 @@ def load_calibration_config(spec: dict) -> dict:
 def _check_recalibration_columns(df: pd.DataFrame, cal_params: dict, csv_path: Path) -> None:
     """Check a metrics CSV's recalibration columns against the config that should have written it.
 
-    Syn rows are never recalibrated, so their columns are empty. Real rows carry the
+    Syn rows and all NTP rows are never recalibrated, so their columns are empty. Real probe rows carry the
     config's method, fit source and fit seed; ``Fit n`` is ``fit_n`` for sample, 0 for
     manual and the evaluated row count for oracle; ``pi_te`` is the config's
     ``pi_te_estimate`` for manual (otherwise it is read from the fit rows, so only finite).
@@ -157,6 +157,13 @@ def _check_recalibration_columns(df: pd.DataFrame, cal_params: dict, csv_path: P
         ValueError: Any column disagrees with the config.
     """
     cols = ["Recalibration", "Fit source", "Fit n", "Fit seed", "pi_te"]
+    if set(df["Type"]) == {"NTP"}:
+        # NTP is the judge's raw p(true), never recalibrated: no recalibration fields on any row.
+        if df[cols].notna().any().any():
+            raise ValueError(f"{csv_path}: NTP rows have recalibration columns {df[cols].notna().any().to_dict()}")
+        if not (df["Doc resamples"] == cal_params["n_boot"]).all():
+            raise ValueError(f"{csv_path}: Doc resamples {sorted(set(df['Doc resamples']))} != config n_boot {cal_params['n_boot']}")
+        return
     syn, real = df[df["Dataset type"] == "syn"], df[df["Dataset type"] == "real"]
     if syn[cols].notna().any().any():
         raise ValueError(f"{csv_path}: syn rows have recalibration columns {syn[cols].notna().any().to_dict()}")
@@ -455,12 +462,12 @@ def _recalibration_text(cal: dict) -> str:
     else:
         how = "a prior-shift correction (slope 1; intercept moved by the log-odds change from the training prevalence)"
     if source == "sample":
-        return (f"Recalibrated by {how} on {n} {auto}-labelled rows drawn once (seed {seed}) "
-                "from the probe's training documents")
+        return (f"Probe scores recalibrated by {how} on {n} {auto}-labelled rows drawn once (seed {seed}) "
+                "from the probe's training documents; NTP is not recalibrated")
     if source == "manual":
-        return f"Recalibrated by {how}, to an assumed valid rate per test dataset"
-    return (f"Recalibrated by {how} on the evaluated rows themselves (oracle fit, a diagnostic that overstates "
-            "calibration)")
+        return f"Probe scores recalibrated by {how}, to an assumed valid rate per test dataset; NTP is not recalibrated"
+    return (f"Probe scores recalibrated by {how} on the evaluated rows themselves (oracle fit, a diagnostic that "
+            "overstates calibration); NTP is not recalibrated")
 
 
 def _caption_tail(spec: dict, frames: dict, setting: str, judge: str, cal: dict, *, with_ci: bool = True) -> str:

@@ -254,10 +254,11 @@ def load_interp_responses(judge_interp_dir: Path, judge: str, extraction_id: str
 
 
 def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, inputs: dict):
-    """Read stored recalibrated NTP / probe confidences for the judged datapoints.
+    """Read stored raw NTP and recalibrated probe confidences for the judged datapoints.
 
     Uses the (probe_train_dataset -> pond) real cell of calibration.py's predictions.pkl:
-    a probe trained on that synthetic set, recalibrated on pond rows. The pond probe's
+    a probe trained on that synthetic set, recalibrated on pond rows (NTP is the judge's
+    raw p(true), never recalibrated; check_real_cell enforces it). The pond probe's
     training documents define the held-out set and the recalibration pool for every
     cell; a cross-domain cell also excludes its own probe's training documents, which
     must not occur in the pond extraction (so the scored rows are the same).
@@ -302,10 +303,10 @@ def _load_stored_scores(final_df: pd.DataFrame, combined_df: pd.DataFrame, input
 
     with open(inputs['predictions_path'], 'rb') as f:
         cell = pickle.load(f)['real'][judge][train][DATASET]
-    # v4 real cells are recalibrated by a map fit once on rows outside the scored set.
+    # v4 real cells' probe scores are recalibrated by a map fit once on rows outside the scored set.
     assert inputs['calibration_version'] == 'v4', inputs['calibration_version']
     assert cell['recal_map'] is not None and cell['fit_on_test_rows'] is False, (
-        'v4 real-cell predictions should be recalibrated on rows outside the test set')
+        'v4 real-cell probe predictions should be recalibrated on rows outside the test set')
     # The recalibration fit rows must come from training documents, not merely be
     # different measurement_ids (check_real_cell checks only the latter).
     fit_docs = set(final_df.set_index('measurement_id').loc[cell['platt_measurement_ids'], 'document_id'])

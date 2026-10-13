@@ -68,11 +68,15 @@ def check_real_cell(cell: dict, final_df: pd.DataFrame, excluded_docs: set, fina
         in the cell's stored order.
 
     Raises:
-        ValueError: Any missing key, hash, id-set, length or finiteness mismatch.
+        ValueError: Any missing key, recalibrated NTP, hash, id-set, length or finiteness mismatch.
     """
     missing = [k for k in ("probe_probs", "ntp_probs", "labels", *PROVENANCE_KEYS) if k not in cell]
     if missing:
         raise ValueError(f"stored cell lacks {missing} -- predictions.pkl predates row provenance; rerun calibration")
+    if "ntp_raw" not in cell or not np.array_equal(np.asarray(cell["ntp_probs"], dtype=float),
+                                                    np.asarray(cell["ntp_raw"], dtype=float)):
+        raise ValueError("stored NTP probabilities differ from the judge's raw p(true): NTP is never recalibrated, "
+                         "so this predictions.pkl predates that rule -- rerun calibration")
     if cell["calibration_config_id"] != calibration_config_id:
         raise ValueError(f"cell was built by {cell['calibration_config_id']!r}, asked for {calibration_config_id!r}")
     if cell["final_sha256"] != final_sha256:

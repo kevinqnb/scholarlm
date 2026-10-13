@@ -35,7 +35,8 @@ CAL = _cal()
 
 def _row(setting, kind, tr, te, smece, cal=None, bss=-0.05, auroc=0.95):
     cal = cal or CAL
-    syn = setting == "syn"
+    # Syn rows and every NTP row (raw judge p(true), never recalibrated) carry no recalibration fields.
+    syn = setting == "syn" or kind == "NTP"
     manual = cal["fit_source"] == "manual"
     r = {"Dataset type": setting, "Judge model": "j", "Train dataset": tr, "Test dataset": te, "Type": kind,
          "N": 1234, "Label rate": 0.5,
@@ -269,9 +270,18 @@ def test_load_metrics_real_rows_must_match_config(staged, col, value):
 
 
 def test_load_metrics_syn_rows_must_not_be_recalibrated(staged):
-    _rewrite(staged / "metrics_ntp.csv", lambda df: df.__setitem__(
+    _rewrite(staged / "metrics_probe.csv", lambda df: df.__setitem__(
         "Fit n", df["Fit n"].where(df["Dataset type"] == "real", 100)))
     with pytest.raises(ValueError, match="syn rows"):
+        cl.load_metrics(SPEC)
+
+
+@pytest.mark.parametrize("setting", ["syn", "real"])
+def test_load_metrics_ntp_rows_must_not_be_recalibrated(staged, setting):
+    # NTP is never recalibrated: a recalibration field on any NTP row, real or syn, is an error.
+    _rewrite(staged / "metrics_ntp.csv", lambda df: df.__setitem__(
+        "Fit n", df["Fit n"].where(df["Dataset type"] != setting, 100)))
+    with pytest.raises(ValueError, match="NTP rows"):
         cl.load_metrics(SPEC)
 
 
@@ -421,11 +431,11 @@ def test_caption_label_source_follows_use_matching_labels():
 def test_load_metrics_oracle_fits_on_all_evaluated_rows(staged):
     cal = _cal("intercept_fit", "oracle")
     frames = _frames(cal)
-    for df in frames.values():
-        df.loc[df["Dataset type"] == "real", "Fit n"] = df.loc[df["Dataset type"] == "real", "N"]
+    df = frames["Probe"]
+    df.loc[df["Dataset type"] == "real", "Fit n"] = df.loc[df["Dataset type"] == "real", "N"]
     _restage(staged, cal, frames)
     cl.load_metrics(SPEC)
-    frames["NTP"].loc[frames["NTP"]["Dataset type"] == "real", "Fit n"] = 100
+    df.loc[df["Dataset type"] == "real", "Fit n"] = 100
     _restage(staged, cal, frames)
     with pytest.raises(ValueError, match="oracle rows"):
         cl.load_metrics(SPEC)
