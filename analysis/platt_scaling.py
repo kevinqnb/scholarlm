@@ -76,7 +76,7 @@ _METHODS = [
 ]
 
 # Recalibration sample sizes drawn in the figures (the CSVs keep every n in params.platt_ns).
-_PLOT_NS = [0, 100, 500]
+_PLOT_NS = [0, 25, 50, 100]
 
 
 def fit_map(recalibration: str, probs, labels, pi_tr: float) -> tuple[float, float]:

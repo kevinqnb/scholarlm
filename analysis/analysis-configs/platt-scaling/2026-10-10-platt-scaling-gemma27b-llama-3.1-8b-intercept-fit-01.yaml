@@ -11,7 +11,7 @@ params:
   probe_type: head
   probe_variant: platt
   syn_split: primary
-  platt_ns: [0, 100, 500]
+  platt_ns: [0, 25, 50, 100]
   recalibration: intercept_fit
   n_train_resamples: 2000
   datasets:
