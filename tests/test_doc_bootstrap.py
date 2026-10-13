@@ -83,6 +83,21 @@ def test_bss_known_answers():
     assert np.isclose(out["point"]["BSS"], 1 - np.mean((f - y) ** 2) / (y.mean() * (1 - y.mean())))
 
 
+def test_auroc_known_answers():
+    f, y, docs = _fixture()
+    res = db.document_resamples(docs, 5, np.random.default_rng(0))
+    # Scores that separate the classes perfectly: every replicate is 1.
+    perfect = db.doc_bootstrap_calibration(np.where(y, 0.9, 0.1), y, res)
+    assert perfect["point"]["AUROC"] == 1.0 and np.all(perfect["replicates"]["AUROC"] == 1.0)
+    # Constant scores are all ties: AUROC 0.5.
+    assert db.doc_bootstrap_calibration(np.full(f.shape, 0.5), y, res)["point"]["AUROC"] == 0.5
+    # Hand-computed: positives {0.8, 0.4}, negatives {0.6, 0.2}; pos>neg pairs = 3 of 4.
+    from sklearn.metrics import roc_auc_score
+    assert roc_auc_score([1, 0, 1, 0], [0.8, 0.6, 0.4, 0.2]) == 0.75
+    out = db.doc_bootstrap_calibration(f, y, res)
+    assert out["point"]["AUROC"] == roc_auc_score(y, f)
+
+
 def test_bss_single_class_raises():
     import pytest
     with pytest.raises(ValueError, match="single-class"):

@@ -5,6 +5,7 @@ smoothed curve and SmECE come from relplot, with its row-level bootstraps turned
 off. Binned ECEs come from scholarlm's compute_ece on the same resamples. The Brier
 score (BS) and Brier skill score (BSS) use the same resamples; BSS's reference is a
 forecaster that always predicts the scored rows' own label rate, recomputed per resample.
+AUROC is sklearn's ``roc_auc_score`` on the same resamples.
 """
 from __future__ import annotations
 
@@ -12,12 +13,13 @@ import zlib
 
 import numpy as np
 import relplot
+from sklearn.metrics import roc_auc_score
 
 from analysis.common.calibration_plot_utils import support_mask
 from scholarlm.utils.calibration import compute_ece
 
 CI_LEVEL = 0.95
-METRICS = ('SmECE', 'ECE', 'ECE_em', 'RMSCE_db', 'BS', 'BSS')
+METRICS = ('SmECE', 'ECE', 'ECE_em', 'RMSCE_db', 'BS', 'BSS', 'AUROC')
 
 
 def resample_rng(seed: int, dtype: str, test_ds: str) -> np.random.Generator:
@@ -173,7 +175,8 @@ def _errors(probs, labels, diagram) -> dict:
         Dict mapping metric name to float.
 
     Raises:
-        ValueError: The rows are single-class, so BSS's reference Brier score is 0.
+        ValueError: The rows are single-class, so BSS's reference Brier score is 0 (and AUROC is
+            undefined); a single-class bootstrap resample therefore aborts the run.
     """
     bs, ref = brier_score(probs, labels)
     return dict(
@@ -183,6 +186,7 @@ def _errors(probs, labels, diagram) -> dict:
         RMSCE_db=compute_ece(probs, labels, binning='equal_mass', p=2, debiased=True),
         BS=bs,
         BSS=1.0 - bs / ref,
+        AUROC=float(roc_auc_score(labels, probs)),
     )
 
 

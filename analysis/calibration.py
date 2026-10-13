@@ -538,6 +538,7 @@ def compute_metrics(setting_results, boot):
                         'F1':            t['f1'],
                         'AUROC':         t['auroc'],
                     }
+                    assert b['point']['AUROC'] == t['auroc'], (b['point']['AUROC'], t['auroc'])
                     for m in db.METRICS:
                         row.update({m: b['point'][m], f'{m}_lo': b['lo'][m], f'{m}_hi': b['hi'][m]})
                     row.update({'Validity': t['validity'], 'relplot sigma': b['sigma']})
