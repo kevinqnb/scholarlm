@@ -4,7 +4,7 @@ For every (train dataset, test dataset) pair, scores the synthetic test set (nev
 recalibrated) and the real held-out rows. Real rows are recalibrated by one map per
 method (intercept_fit or platt_fit), fit once from ``fit_source``. The probe is the
 trained synthetic-probe artifact; NTP is the judge's raw p(true), with no trained model.
-Calibration errors get document-bootstrap CIs. Runs at import time from one config.
+Calibration errors and Brier (skill) scores get document-bootstrap CIs. Runs at import time from one config.
 
 Outputs in analysis/results/calibration/<config id>/: predictions.pkl (with row
 provenance), bootstrap.pkl, recalibration_maps.csv, metrics_{probe,ntp}.csv, figures/.
@@ -497,7 +497,7 @@ def _threshold_metrics(probs, labels, threshold=0.5):
 def compute_metrics(setting_results, boot):
     """Build the metrics table: one row per (dtype, train_ds, test_ds, method).
 
-    Calibration errors carry document-bootstrap intervals; threshold metrics and
+    Calibration errors and Brier (skill) scores carry document-bootstrap intervals; threshold metrics and
     AUROC are on the full evaluation set. Recalibration fields are None/NaN for syn.
 
     Args:

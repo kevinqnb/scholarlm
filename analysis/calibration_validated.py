@@ -5,7 +5,7 @@ Same cells as calibration.py, with the same recalibration: one map per method
 probe-training pool, labelled by LLM + matching (the pool has no human labels). Only
 the real evaluation changes: real cells are scored on the human-validated rows, which
 must all lie outside the probe-training documents (asserted, not filtered). Synthetic
-cells are identical to calibration.py. Calibration errors get document-bootstrap CIs.
+cells are identical to calibration.py. Calibration errors and Brier (skill) scores get document-bootstrap CIs.
 Runs at import time from one config. ``fit_source: oracle`` is rejected by the loader.
 
 Outputs in analysis/results/calibration-validated/<config id>/: predictions.pkl (with
@@ -562,7 +562,7 @@ def _threshold_metrics(probs, labels, threshold=0.5):
 def compute_metrics(setting_results, boot):
     """Build the metrics table: one row per (dtype, train_ds, test_ds, method).
 
-    Calibration errors carry document-bootstrap intervals; threshold metrics and
+    Calibration errors and Brier (skill) scores carry document-bootstrap intervals; threshold metrics and
     AUROC are on the full evaluation set. Recalibration fields are None/NaN for syn.
 
     Args:
