@@ -3,12 +3,14 @@
 Reads metrics_{probe,ntp}.csv written by calibration.py (``labels: llm_matching``) or
 calibration_validated.py (``labels: human_validated``) for a v4 config. Captions state the
 config's recalibration method and fit settings, which the CSVs are checked against.
-For each of syn and real it writes five tables into ``output_dir``:
+For each of syn and real it writes four tables into (five with llm_matching) ``output_dir``:
   - calibration_{setting}_smece.tex: smooth ECE; one NTP row, then one probe row per training
     dataset, x test-dataset columns.
   - calibration_{setting}_summary.tex: same rows; SmECE, Brier skill score and AUROC under each
     test dataset except nfix (``SPLIT_DATASET``, whose columns go to
-    calibration_{setting}_summary_nfix.tex with the same rows), the point with its exact 95% [lo, hi] bootstrap interval beneath it in
+    calibration_{setting}_summary_nfix.tex with the same rows; written only for
+    ``labels: llm_matching``, since human-validated runs have no nfix and keep every dataset in
+    the main summary), the point with its exact 95% [lo, hi] bootstrap interval beneath it in
     \\scriptsize (needs ``\\shortstack``, which is core LaTeX).
 NTP is the judge's raw p(true) and has no training dataset: the CSVs still carry one NTP
 row per (train, test) cell, which must be identical across train datasets, and the
@@ -60,7 +62,8 @@ LABEL_TYPES = {"llm_matching": "calibration", "human_validated": "calibration-va
 # Real-cell label source -> script that writes the metrics CSVs (for error messages).
 LABEL_SCRIPTS = {"llm_matching": "calibration.py", "human_validated": "calibration_validated.py"}
 MISSING_CELL = "--"
-# Test dataset (by name) whose summary columns go in their own table; must be in the spec's datasets.
+# Test dataset (by name) whose summary columns go in their own table. Only for ``labels: llm_matching``
+# (where it must be in the spec's datasets); human-validated results have no such dataset, which is checked.
 SPLIT_DATASET = "nfix"
 SETTINGS = {"syn": "synthetic", "real": "real"}
 METHODS = (("NTP", "ntp"), ("Probe", "probe"))  # (CSV Type value, metrics_<file>.csv suffix)
@@ -560,6 +563,27 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: d
     return _wrap(spec, setting, "smece", body, caption, "l" + "c" * len(labels))
 
 
+def splits_nfix(spec: dict) -> bool:
+    """Whether the summary tables split ``SPLIT_DATASET`` out, decided by ``spec["labels"]``.
+
+    Args:
+        spec: Table spec.
+
+    Returns:
+        True for ``llm_matching`` (``SPLIT_DATASET`` required in the datasets), False for
+        ``human_validated`` (``SPLIT_DATASET`` must be absent).
+
+    Raises:
+        ValueError: The datasets contradict the label source.
+    """
+    present = SPLIT_DATASET in spec["datasets"].values()
+    split = spec["labels"] == "llm_matching"
+    if split != present:
+        raise ValueError(f"labels {spec['labels']!r} {'requires' if split else 'expects no'} dataset "
+                         f"{SPLIT_DATASET!r}, but datasets are {sorted(spec['datasets'].values())}")
+    return split
+
+
 def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict, *,
                         split: bool) -> str:
     """Summary table: SmECE, BSS and AUROC per test dataset with intervals beneath, rows as in the smECE table.
@@ -573,20 +597,22 @@ def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal:
         setting: ``"syn"`` or ``"real"``.
         judge: Judge model name.
         cal: ``params`` of the calibration config.
-        split: False = every test dataset except ``SPLIT_DATASET``; True = only ``SPLIT_DATASET``.
+        split: False = the main table (every test dataset except ``SPLIT_DATASET`` when ``splits_nfix``,
+            else all); True = only ``SPLIT_DATASET`` (requires ``splits_nfix``).
 
     Returns:
         LaTeX source.
 
     Raises:
-        ValueError: A value is non-finite or out of range, or ``SPLIT_DATASET`` is not in the spec.
+        ValueError: A value is non-finite or out of range, or the datasets contradict ``splits_nfix``.
     """
     lk = _lookup(frames, setting)
     ntp = _ntp_lookup(frames, setting, spec)
     labels = spec["datasets"]
-    if SPLIT_DATASET not in labels.values():
-        raise ValueError(f"SPLIT_DATASET {SPLIT_DATASET!r} not in spec datasets {sorted(labels.values())}")
-    tests = {tl: te for tl, te in labels.items() if (te == SPLIT_DATASET) == split}
+    if split and not splits_nfix(spec):
+        raise ValueError(f"split summary requested but labels {spec['labels']!r} does not split {SPLIT_DATASET!r}")
+    # Unsplit: all datasets for human_validated, all but SPLIT_DATASET for llm_matching.
+    tests = {tl: te for tl, te in labels.items() if (te == SPLIT_DATASET) == split or not splits_nfix(spec)}
     assert tests, (split, labels)
     shown = [("NTP", ntp)] + [(f"Probe ({tl})", {te: lk[("Probe", tr, te)] for te in labels.values()})
                               for tl, tr in labels.items()]
@@ -733,7 +759,7 @@ def build_variants_table(spec: dict, frames: dict, setting: str, judge: str, cal
 
 
 def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, str]:
-    """Build all five tables for both settings.
+    """Build all five tables (four for human_validated, which has no nfix split) for both settings.
 
     Args:
         spec: Table spec.
@@ -748,7 +774,8 @@ def build_tables(spec: dict, frames: dict, judge: str, cal: dict) -> dict[str, s
     for setting in SETTINGS:
         for name, fn in (("smece", build_smece_table),
                          ("summary", lambda *a: build_summary_table(*a, split=False)),
-                         ("summary_nfix", lambda *a: build_summary_table(*a, split=True)),
+                         *((("summary_nfix", lambda *a: build_summary_table(*a, split=True)),)
+                           if splits_nfix(spec) else ()),
                          ("classification", build_classification_table),
                          ("ece_variants", build_variants_table)):
             out[f"calibration_{setting}_{name}.tex"] = fn(spec, frames, setting, judge, cal)
