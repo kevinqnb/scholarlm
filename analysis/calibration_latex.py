@@ -6,8 +6,9 @@ config's recalibration method and fit settings, which the CSVs are checked again
 For each of syn and real it writes four tables into ``output_dir``:
   - calibration_{setting}_smece.tex: smooth ECE; one NTP row, then one probe row per training
     dataset, x test-dataset columns.
-  - calibration_{setting}_summary.tex: same rows; SmECE, Brier skill score and AUROC points
-    (no intervals) under each test dataset.
+  - calibration_{setting}_summary.tex: same rows; SmECE, Brier skill score and AUROC under each
+    test dataset, the point with its exact 95% [lo, hi] bootstrap interval beneath it in
+    \\scriptsize (needs ``\\shortstack``, which is core LaTeX).
 NTP is the judge's raw p(true) and has no training dataset: the CSVs still carry one NTP
 row per (train, test) cell, which must be identical across train datasets, and the
 tables print it once per test dataset.
@@ -71,7 +72,8 @@ ECE_VARIANTS = (("ECE", "ECE_lo", "ECE_hi", "ECE"),
                 ("ECE_em", "ECE_em_lo", "ECE_em_hi", "Adaptive ECE"),
                 ("RMSCE_db", "RMSCE_db_lo", "RMSCE_db_hi", "Debiased RMSCE"))
 SMECE = ("SmECE", "SmECE_lo", "SmECE_hi")
-# (CSV column, header, best = min | max) -- points in the summary table.
+# (CSV column, header, best = min | max) -- point (bold if best) with its interval beneath in the
+# summary table; the interval columns are <column>_lo / <column>_hi.
 SUMMARY = (("SmECE", "SmECE$\\downarrow$", min), ("BSS", "BSS$\\uparrow$", max),
            ("AUROC", "AUROC$\\uparrow$", max))
 
@@ -82,6 +84,7 @@ _NEEDED_COLUMNS = (
     + [c for c, _ in CLASSIFICATION]
     + [c for v in ECE_VARIANTS for c in v[:3]]
     + list(SMECE)
+    + [f"{c}{suf}" for c in ("BSS", "AUROC") for suf in ("_lo", "_hi")]
 )
 
 
@@ -322,6 +325,22 @@ def format_skill(v: float, *, decimals: int) -> str:
     return f"{v:.{decimals}f}".replace("-", "$-$")
 
 
+def format_stacked(point: str, lo: str, hi: str, *, bold: bool) -> str:
+    """Stack a formatted point over its exact interval in small type.
+
+    Args:
+        point: Formatted point estimate.
+        lo: Formatted interval lower bound.
+        hi: Formatted interval upper bound.
+        bold: Bold the point only.
+
+    Returns:
+        ``\\shortstack`` LaTeX cell.
+    """
+    p = f"\\textbf{{{point}}}" if bold else point
+    return f"\\shortstack{{{p}\\\\{{\\scriptsize [{lo}, {hi}]}}}}"
+
+
 def _cell(row: pd.Series, cols: tuple, *, spec: dict, bold: bool = False) -> str:
     """Format one interval cell, prefixing errors with the row's identity.
 
@@ -539,7 +558,7 @@ def build_smece_table(spec: dict, frames: dict, setting: str, judge: str, cal: d
 
 
 def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal: dict) -> str:
-    """Summary table: SmECE, BSS and AUROC points per test dataset, rows as in the smECE table.
+    """Summary table: SmECE, BSS and AUROC per test dataset with intervals beneath, rows as in the smECE table.
 
     Args:
         spec: Table spec.
@@ -575,17 +594,24 @@ def build_summary_table(spec: dict, frames: dict, setting: str, judge: str, cal:
             r = rows[te]
             for c, _, _ in SUMMARY:
                 try:
-                    fmt = format_skill if c == "BSS" else format_point
-                    s = fmt(r[c], decimals=spec["decimals"])
+                    d = spec["decimals"]
+                    point = format_skill(r[c], decimals=d) if c == "BSS" else format_point(r[c], decimals=d)
+                    lo, hi = r[f"{c}_lo"], r[f"{c}_hi"]
+                    for bound, v in ((f"{c}_lo", lo), (f"{c}_hi", hi)):
+                        _check_finite(bound, v)
+                    if lo > hi:
+                        raise ValueError(f"interval [{lo}, {hi}] has lo > hi")
+                    # Bounds are exact and unclipped; BSS bounds may be negative, AUROC/SmECE are not clipped to [0, 1].
+                    fb = (lambda v: f"{v:.{d}f}".replace("-", "$-$"))
+                    cells.append(format_stacked(point, fb(lo), fb(hi), bold=r[c] == best[(te, c)]))
                 except ValueError as e:
                     raise ValueError(f"{setting}/{r['Type']} train={r['Train dataset']} test={te} {c}: {e}") from e
-                cells.append(f"\\textbf{{{s}}}" if r[c] == best[(te, c)] else s)
         body.append(f"{name} & " + " & ".join(cells) + " \\\\")
     caption = ("Smooth ECE (lower is better), Brier skill score and AUROC (higher is better); best per column "
                "in bold. BSS $= 1 - \\mathrm{BS}/(r(1-r))$, with $r$ the test rows' label rate: 0 matches always "
-               "predicting $r$, negative is worse. Points only; SmECE intervals in "
-               f"Table~\\ref{{{spec['label_prefix']}-{setting}-smece}}. "
-               + _caption_tail(spec, frames, setting, judge, cal, with_ci=False))
+               "predicting $r$, negative is worse. Small type under each value: exact 95\\% interval "
+               "(bounds not clipped; SmECE intervals can lie above the point). "
+               + _caption_tail(spec, frames, setting, judge, cal))
     return _wrap(spec, setting, "summary", body, caption, "l" + "c" * (k * len(labels)))
 
 
