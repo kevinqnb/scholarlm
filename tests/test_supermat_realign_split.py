@@ -10,6 +10,7 @@ A negative's augment_axis matches its parent (None for a GT parent).
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import random
 from pathlib import Path
@@ -265,11 +266,16 @@ def _gt_records(gt_name, tmp_path):
     return cpd.build_gt_records(gt, tmp_path)
 
 
+V1_TEST_IDS_SHA256 = "9a317a535fb56599004c9c947f0d9872a6f251c938860b2e144fcc9fb29a5aec"
+
+
 def test_committed_split_on_qualifier_gt_gives_v1_test_papers(tmp_path):
     split = json.loads((_REPO_ROOT / "data" / "supermat" / "probe_split_v3s.json").read_text())
     tr, te = cpd.pinned_split(_gt_records("ground_truth_qualifiers.json", tmp_path), split)
-    v1_test = {r["document_id"] for r in json.loads(
-        (_REPO_ROOT / "data" / "supermat" / "probe_dataset_test.json").read_text())}
+    # The v1 test papers (what the live validation sets were drawn from), pinned by
+    # hash of the sorted ids: probe_dataset_test.json was retired to data/supermat/older/.
+    v1_test = {d for d, v in split.items() if v == "test"}
+    assert hashlib.sha256("\n".join(sorted(v1_test)).encode()).hexdigest() == V1_TEST_IDS_SHA256
     assert {r["_paper_code"] for r in te} == v1_test
     assert {r["_paper_code"] for r in tr}.isdisjoint(v1_test)
     assert len({r["_paper_code"] for r in tr}) == 70 and len(v1_test) == 72
