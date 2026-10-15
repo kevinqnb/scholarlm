@@ -81,13 +81,14 @@ N_PER_PAPER = 5
 TARGET_MEASUREMENTS = 100
 # Per-dataset train/test paper split. pond and nfix read their committed id
 # manifest (data/<ds>/split_document_ids.json: the v3 split, identical to the
-# retired v1 probe_dataset{,_test}.json). supermat still reads the v1 probe files
-# its live sets were built from -- its v3 split differs, so do not point it at v3.
+# retired v1 probe_dataset{,_test}.json). supermat reads probe_split_v3s.json, a
+# {document_id: "train"|"test"} map whose test side is exactly the v1 test split
+# its live sets were drawn from (its train side adds the 6 qualifier-only papers).
 # No default: an unlisted dataset is a hard error.
 SPLIT_SOURCES = {
     "pond": ("manifest", "split_document_ids.json"),
     "nfix": ("manifest", "split_document_ids.json"),
-    "supermat": ("probe", "probe_dataset_test.json", "probe_dataset.json"),
+    "supermat": ("split_map", "probe_split_v3s.json"),
 }
 
 # Real OCR page numbers are always >= 0 (verified) -- this sentinel never
@@ -191,9 +192,15 @@ def load_splits(dataset: str, ds_dir: Path) -> tuple[set[str], set[str]]:
         test_ids, train_ids = set(m["test"]), set(m["train"])
         assert test_ids and train_ids, f"empty split in {ds_dir / src[1]}"
         assert len(test_ids) == len(m["test"]) and len(train_ids) == len(m["train"]), "duplicate ids in manifest"
+    elif src[0] == "split_map":
+        with open(ds_dir / src[1]) as f:
+            m = json.load(f)
+        assert set(m.values()) <= {"train", "test"}, f"unexpected split labels in {ds_dir / src[1]}"
+        test_ids = {d for d, v in m.items() if v == "test"}
+        train_ids = {d for d, v in m.items() if v == "train"}
+        assert test_ids and train_ids, f"empty split in {ds_dir / src[1]}"
     else:
-        test_ids = _load_split_doc_ids(ds_dir / src[1])
-        train_ids = _load_split_doc_ids(ds_dir / src[2])
+        raise ValueError(f"unknown split source kind {src[0]!r} for {dataset}")
     return test_ids, train_ids
 
 

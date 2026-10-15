@@ -25,8 +25,8 @@ pilot + main together form a ~500-measurement sample.
 The builders read, relative to the repo root:
 
 - The test/train paper splits, per `SPLIT_SOURCES` in `build_pilot_validation_sets.py`:
-  pond and nfix read the tracked `data/<ds>/split_document_ids.json`; supermat reads
-  `data/supermat/probe_dataset_test.json` and `probe_dataset.json` (tracked). Sampling is
+  pond and nfix read the tracked `data/<ds>/split_document_ids.json`; supermat reads the
+  tracked `data/supermat/probe_split_v3s.json` (paper id -> train/test; test = the v1 test papers). Sampling is
   restricted to the test split.
 - The pinned extraction output, `experiments/results/<ds>/.../final.json`,
   one per set. The exact paths are in `_configs()` / `_configs_other()` in
