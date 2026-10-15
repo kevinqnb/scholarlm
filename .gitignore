@@ -276,3 +276,6 @@ ISSUE-*.md
 # Analysis outputs (match/dedup caches, deduplicated datasets, figures, CSVs): derived from
 # analysis/analysis-configs/, rebuilt on demand, never committed.
 analysis/results/
+
+# retired dataset files, moved out of use (not committed)
+data/*/older/
