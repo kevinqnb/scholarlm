@@ -1,0 +1,13 @@
+id: 2026-05-03-nfix-process-pdfs-01
+project: scholarlm
+description: >-
+  Retroactive config reconstructed after the fact for the stored page images in data/nfix/processed_pdfs/; the original config was not kept. Walltime (24h) is a nominal value, not the original request. Whether resume/paper_subset were set originally is unknown, so neither is pinned.
+  Date is the directory mtime. Renders each page of data/nfix/pdfs/ to a base64 PNG
+  (consumed by table_cleaning). target_longest_dim is the runner default; stored images
+  have a longest side of ~1530 px, consistent with it. Output is written to
+  data/nfix/processed_pdfs/, not experiments/results/.
+seed: 342
+params:
+  dataset: nfix
+  target_longest_dim: 1536
+  walltime: "24:00:00"

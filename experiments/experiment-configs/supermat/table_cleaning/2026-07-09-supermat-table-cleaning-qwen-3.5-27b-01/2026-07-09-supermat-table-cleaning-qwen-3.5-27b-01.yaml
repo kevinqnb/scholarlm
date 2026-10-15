@@ -1,0 +1,13 @@
+id: 2026-07-09-supermat-table-cleaning-qwen-3.5-27b-01
+project: scholarlm
+description: >-
+  Retroactive config reconstructed after the fact for the stored table-cleaned text experiments/results/supermat/table_cleaning/2026-07-09-supermat-table-cleaning-qwen-3.5-27b-01/; the original config was not kept. Walltime (24h) is a nominal value, not the original request. Whether resume/paper_subset were set originally is unknown, so neither is pinned.
+  Input is the OCR text in data/supermat/ocr_output_raw/ (the runner default, identical to
+  the 2026-07-09-supermat-ocr-olmocr-01 output); it is pinned explicitly here. Reads the page
+  images from data/supermat/processed_pdfs/.
+seed: 342
+params:
+  dataset: supermat
+  model: qwen-3.5-27b
+  ocr_dir: data/supermat/ocr_output_raw
+  walltime: "24:00:00"
