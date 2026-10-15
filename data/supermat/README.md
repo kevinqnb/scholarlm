@@ -20,15 +20,13 @@ All commands below run from the repo root, in the `uv sync` environment.
 | `directory.json` | Paper registry (title, author, year; None where unavailable). `DatasetConfig.metadata_file`. |
 | `ground_truth_qualifiers.json` | **The ground truth used everywhere** (`DatasetConfig.ground_truth_file`, all analysis configs): raw, undropped `tcValue` text parsed into qualifier/shape fields. |
 | `ground_truth.json`, `ground_truth_ten.json` | Earlier ground truth (ranges/approximations/bounds dropped, see below) and its ten-paper subset. Not read by current configs. |
-| `probe_split_v3s.json` | `{document_id: "train"\|"test"}` for all 142 papers. Test = exactly the 72 v1 test papers the validation sets were drawn from; train adds the 6 qualifier-only papers. Read by the pilot and main validation-set builders and by `realign_probe_split.py`. |
+| `probe_split_v3s.json` | `{document_id: "train"\|"test"}` for all 142 papers. Test = the 72 papers the validation sets are drawn from. Read by the pilot and main validation-set builders and by `realign_probe_split.py`. |
 | `probe_augment_cache_v3.json` | gpt-oss-120b response cache for the v3 probe dataset (makes the rebuild reproducible; pinned by the v3 probe-augment configs). |
 | `prevalence_validation_set_<id>.json` | Prevalence-estimation sample for extraction run `<id>` (human-validation site). |
 | `matching_validation_set_<id>.json` | 100 GT↔extraction candidate pairs for run `<id>` (human-validation site). |
 | `preprocessing.py`, `build_directory.py`, `create_probe_dataset.py`, `realign_probe_split.py` | Builders, see below. |
 
 Untracked but live (gitignored): `probe_dataset_v3s.json` (train), `probe_dataset_test_v3s.json` (primary test), `probe_dataset_test_v3s_diag.json` (diagnostic test), `probe_dataset_v3s_realign_log.json`, `validation_set_{pilot,main}-gemma27b-full.json`, and the data not shared for licensing: `pdfs/`, `processed_pdfs/`, `ocr_output_raw/`, `ocr_output_cleaned_gemma-3-27b/` (one file, pinned by a smoke config).
-
-`older/` (gitignored) holds retired files, including the **v3 probe files that `realign_probe_split.py` needs as input** (`probe_dataset_v3.json`, `probe_dataset_test_v3.json`, `probe_dataset_test_v3_diag.json`); `older/MANIFEST.txt` lists everything.
 
 ## Document reconciliation note
 
@@ -53,7 +51,7 @@ python data/supermat/preprocessing.py               # ground_truth.json, ground_
 python data/supermat/preprocessing.py --qualifiers  # ground_truth_qualifiers.json only
 ```
 
-**Probe dataset v3** (the source of v3s). Needs a served gpt-oss-120b, so run it as an SGE job. The config pins seed 42, `--qualifiers`, the table-cleaned OCR dir, and the cache above. The outputs (`probe_dataset_v3.json`, `probe_dataset_test_v3.json`, `probe_dataset_test_v3_diag.json`) are what `older/` holds.
+**Probe dataset v3** (the source of v3s). Needs a served gpt-oss-120b, so run it as an SGE job. The config pins seed 42, `--qualifiers`, the cache above, and the table-cleaned OCR dir `experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01` (produced by that experiment, so it must already exist). The outputs are `probe_dataset_v3.json`, `probe_dataset_test_v3.json` and `probe_dataset_test_v3_diag.json`.
 
 ```bash
 bash experiments/submit.sh 2026-09-30-supermat-probe-augmentation-v3-01 [--dry-run]
@@ -61,14 +59,28 @@ bash experiments/submit.sh 2026-09-30-supermat-probe-augmentation-v3-01 [--dry-r
 python experiments/run_probe_augment.py experiments/experiment-configs/supermat/probe_augment/2026-09-30-supermat-probe-augmentation-v3-01/2026-09-30-supermat-probe-augmentation-v3-01.yaml
 ```
 
-**Probe dataset v3s** (use v3s, not v3). The split is a seeded shuffle over the GT's paper list, so v3 (built from the 142-paper qualifiers GT) got a different split from v1/v2 (136 papers): 38 v1-train papers landed in v3 test and 26 v1-test papers in v3 train. The validation sets were drawn from the v1 test split, so v3s rearranges the v3 rows onto `probe_split_v3s.json` with no regeneration. Re-running on the retired v3 files reproduces the live v3s files byte-for-byte (verified 2026-10-15):
+**Probe dataset v3s** (use v3s, not v3). v3s is the v3 rows rearranged onto the fixed paper split in `probe_split_v3s.json`, so the test papers are exactly the papers the validation sets are drawn from. Nothing is regenerated. The script never overwrites, so output paths must be new.
 
-```bash
-python data/supermat/realign_probe_split.py split --gt-file data/supermat/ground_truth_qualifiers.json --out <path>   # recreates probe_split_v3s.json
-python data/supermat/realign_probe_split.py realign --split-file data/supermat/probe_split_v3s.json --seed 342 --in-dir data/supermat/older --out-dir <dir>
-```
+1. Rearrange and trim the v3 rows (seed 342) to get `probe_dataset_v3s.json`, `probe_dataset_test_v3s.json`, `probe_dataset_test_v3s_diag.json` and `probe_dataset_v3s_realign_log.json`. `--in-dir` is where the three v3 files from the step above are:
 
-The matching judge-interp runs are `2026-10-08-supermat-v3s-*-synthetic-judge-*-01`, assembled from the v3 runs by `realign_probe_split.py judge`. A fresh `create_probe_dataset.py --qualifiers --augment --split-file data/supermat/probe_split_v3s.json ...` is a new random draw and does not byte-match the v3s files.
+   ```bash
+   python data/supermat/realign_probe_split.py realign --split-file data/supermat/probe_split_v3s.json --seed 342 --in-dir data/supermat --out-dir <new dir>
+   ```
+
+2. Move the judge outputs the same way, once per judge model `<m>` in `llama-3.1-8b`, `mistral-nemo-12b`, `qwen-2.5-7b`. Needs the three v3 judge_interp runs for `<m>` under `experiments/results/supermat/judge_interp/` (`2026-09-30-supermat-v3-<m>-synthetic-judge-{train,test-primary,test-diag}-01`), and the step-1 files in `data/supermat/`. It writes the `2026-10-08-supermat-v3s-<m>-synthetic-judge-*-01` runs (responses, activations, run_metadata).
+
+   ```bash
+   J=experiments/results/supermat/judge_interp
+   python data/supermat/realign_probe_split.py judge --log data/supermat/probe_dataset_v3s_realign_log.json --data-dir data/supermat \
+     --train-run $J/2026-09-30-supermat-v3-<m>-synthetic-judge-train-01 \
+     --primary-run $J/2026-09-30-supermat-v3-<m>-synthetic-judge-test-primary-01 \
+     --diag-run $J/2026-09-30-supermat-v3-<m>-synthetic-judge-test-diag-01 \
+     --out-train $J/2026-10-08-supermat-v3s-<m>-synthetic-judge-train-01 \
+     --out-primary $J/2026-10-08-supermat-v3s-<m>-synthetic-judge-test-primary-01 \
+     --out-diag $J/2026-10-08-supermat-v3s-<m>-synthetic-judge-test-diag-01
+   ```
+
+A fresh `create_probe_dataset.py --qualifiers --augment --split-file data/supermat/probe_split_v3s.json ...` is a new random draw and does not byte-match the v3s files.
 
 **Validation sets** (`prevalence_*`, `matching_*`, `validation_set_*`). Builders are in `data/validation/`, with inputs, ordering and rebuild checks in `data/validation/README.md`. Live sets must be rebuilt only to verify, never "refreshed".
 

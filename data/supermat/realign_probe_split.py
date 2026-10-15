@@ -40,7 +40,7 @@ the v3 files, is what reproduces them.
 
 Usage (repo root)
 -----------------
-    python data/supermat/realign_probe_split.py split   --out data/supermat/probe_split_v3s.json
+    python data/supermat/realign_probe_split.py split   --gt-file ... --v1-dir data/supermat/older --out data/supermat/probe_split_v3s.json
     python data/supermat/realign_probe_split.py realign --split-file ... --seed 342 --out-dir data/supermat
     python data/supermat/realign_probe_split.py judge   --log ... --train-run ... --primary-run ... \\
         --diag-run ... --out-train ... --out-primary ... --out-diag ...
@@ -255,7 +255,8 @@ def _dump(obj, path: Path) -> None:
 
 def _cmd_split(args) -> None:
     ids = lambda p: {r["document_id"] for r in _load(p)}
-    split = make_split(ids(BASE / "probe_dataset.json"), ids(BASE / "probe_dataset_test.json"),
+    v1_dir = Path(args.v1_dir)
+    split = make_split(ids(v1_dir / "probe_dataset.json"), ids(v1_dir / "probe_dataset_test.json"),
                        {str(r["document_id"]) for r in _load(Path(args.gt_file))})
     n_test = sum(s == "test" for s in split.values())
     print(f"{len(split)} papers: {len(split) - n_test} train / {n_test} test")
@@ -321,6 +322,9 @@ def main(argv: list[str] | None = None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("split")
     s.add_argument("--gt-file", required=True)
+    s.add_argument("--v1-dir", required=True,
+                   help="directory holding the v1 probe_dataset.json / probe_dataset_test.json "
+                        "(retired to data/supermat/older/)")
     s.add_argument("--out", required=True)
     r = sub.add_parser("realign")
     r.add_argument("--split-file", required=True)

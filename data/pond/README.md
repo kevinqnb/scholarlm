@@ -13,15 +13,13 @@ All commands below run from the repo root. `.venv` = `uv sync` environment.
 | `page_review.csv` | Manual corrections and exclusions (hand-edited). Input to `apply_review.py`. |
 | `ground_truth_review.json` | **The ground truth used everywhere** (`DatasetConfig.ground_truth_file`, all analysis configs): `ground_truth.json` + `page_review.csv`. |
 | `ground_truth_ten_review.json` | Same corrections applied to the ten-paper subset. Unused by current configs (`pond_ten.py` points at a nonexistent `data/pond_ten/`). |
-| `split_document_ids.json` | Train (48) / test (66) paper-id split, taken from the v3 probe datasets (identical to the retired v1 split). Read by the pilot and main validation-set builders so they don't depend on the large untracked v3 files. |
+| `split_document_ids.json` | Train (48) / test (66) paper-id split, taken from the v3 probe datasets. Read by the pilot and main validation-set builders so they don't depend on the large untracked v3 files. |
 | `probe_augment_cache_v3.json` | gpt-oss-120b response cache for the v3 probe dataset. It makes the rebuild reproducible; pinned by the v3 probe-augment configs. |
 | `prevalence_validation_set_<id>.json` | Prevalence-estimation sample for extraction run `<id>` (human-validation site). |
 | `matching_validation_set_<id>.json` | 100 GT↔extraction candidate pairs for run `<id>` (human-validation site). |
 | `preprocessing.py`, `create_probe_dataset.py` | Builders, see below. |
 
 Untracked but live (gitignored): `probe_dataset_v3.json` (train), `probe_dataset_test_v3.json` (primary test), `probe_dataset_test_v3_diag.json` (diagnostic test), `validation_set_{pilot,main}-*.json`, and the data not shared for licensing: `pdfs/`, `processed_pdfs/` (base64 page images), `raw_data/` (source CSVs), `ocr_output_raw/`, `ocr_output_cleaned_gemma-3-27b/`.
-
-`older/` (gitignored) holds retired files (v1/v2/rung-3 probe datasets, unused OCR variants); `older/MANIFEST.txt` lists them.
 
 ## Reproducing the files
 

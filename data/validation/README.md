@@ -26,7 +26,7 @@ The builders read, relative to the repo root:
 
 - The test/train paper splits, per `SPLIT_SOURCES` in `build_pilot_validation_sets.py`:
   pond and nfix read the tracked `data/<ds>/split_document_ids.json`; supermat reads the
-  tracked `data/supermat/probe_split_v3s.json` (paper id -> train/test; test = the v1 test papers). Sampling is
+  tracked `data/supermat/probe_split_v3s.json` (paper id -> train/test). Sampling is
   restricted to the test split.
 - The pinned extraction output, `experiments/results/<ds>/.../final.json`,
   one per set. The exact paths are in `_configs()` / `_configs_other()` in
