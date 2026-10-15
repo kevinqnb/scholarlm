@@ -79,8 +79,16 @@ N_PAPERS = 20
 N_PER_PAPER = 5
 # Each pilot is topped up to at least this many measurements (see _top_up).
 TARGET_MEASUREMENTS = 100
-TEST_SPLIT_FILE = "probe_dataset_test.json"
-TRAIN_SPLIT_FILE = "probe_dataset.json"
+# Per-dataset train/test paper split. pond reads its committed id manifest
+# (data/pond/split_document_ids.json: the v3 split, identical to the retired v1
+# probe_dataset{,_test}.json). nfix and supermat still read the v1 probe files
+# their live sets were built from -- supermat's v3 split differs, so do not
+# point it at v3. No default: an unlisted dataset is a hard error.
+SPLIT_SOURCES = {
+    "pond": ("manifest", "split_document_ids.json"),
+    "nfix": ("probe", "probe_dataset_test.json", "probe_dataset.json"),
+    "supermat": ("probe", "probe_dataset_test.json", "probe_dataset.json"),
+}
 
 # Real OCR page numbers are always >= 0 (verified) -- this sentinel never
 # collides.
@@ -174,6 +182,21 @@ def _load_split_doc_ids(path: Path) -> set[str]:
     return ids
 
 
+def load_splits(dataset: str, ds_dir: Path) -> tuple[set[str], set[str]]:
+    """Return ``(test_ids, train_ids)`` paper-id sets for ``dataset`` per SPLIT_SOURCES."""
+    src = SPLIT_SOURCES[dataset]
+    if src[0] == "manifest":
+        with open(ds_dir / src[1]) as f:
+            m = json.load(f)
+        test_ids, train_ids = set(m["test"]), set(m["train"])
+        assert test_ids and train_ids, f"empty split in {ds_dir / src[1]}"
+        assert len(test_ids) == len(m["test"]) and len(train_ids) == len(m["train"]), "duplicate ids in manifest"
+    else:
+        test_ids = _load_split_doc_ids(ds_dir / src[1])
+        train_ids = _load_split_doc_ids(ds_dir / src[2])
+    return test_ids, train_ids
+
+
 def _get_page_text(document_text: str, page_number: int) -> str:
     tag = f'<page number="{page_number}">'
     start = document_text.find(tag)
@@ -186,9 +209,8 @@ def _get_page_text(document_text: str, page_number: int) -> str:
     return document_text[start:end].strip()
 
 
-def sample_papers(ds_dir: Path, *, n_papers: int, seed: int) -> tuple[list[str], set[str], set[str]]:
-    test_ids = _load_split_doc_ids(ds_dir / TEST_SPLIT_FILE)
-    train_ids = _load_split_doc_ids(ds_dir / TRAIN_SPLIT_FILE)
+def sample_papers(dataset: str, ds_dir: Path, *, n_papers: int, seed: int) -> tuple[list[str], set[str], set[str]]:
+    test_ids, train_ids = load_splits(dataset, ds_dir)
     assert test_ids.isdisjoint(train_ids), f"test/train split overlap: {sorted(test_ids & train_ids)}"
     assert len(test_ids) >= n_papers, f"test split has only {len(test_ids)} papers; need {n_papers}"
     rng = random.Random(seed)
@@ -376,7 +398,7 @@ def main() -> None:
         configs = [c for c in all_configs if c.dataset == dataset]
         assert configs, f"no pilot configs for dataset {dataset!r}"
         ds_dir = _REPO_ROOT / "data" / dataset  # split files always come from the repo
-        paper_ids, test_ids, train_ids = sample_papers(ds_dir, n_papers=N_PAPERS, seed=SEED)
+        paper_ids, test_ids, train_ids = sample_papers(dataset, ds_dir, n_papers=N_PAPERS, seed=SEED)
         print(f"[{dataset}] sampled {N_PAPERS} papers (seed={SEED}): {paper_ids}")
 
         for cfg in configs:
