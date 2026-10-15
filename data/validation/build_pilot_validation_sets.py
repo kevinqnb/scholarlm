@@ -79,14 +79,14 @@ N_PAPERS = 20
 N_PER_PAPER = 5
 # Each pilot is topped up to at least this many measurements (see _top_up).
 TARGET_MEASUREMENTS = 100
-# Per-dataset train/test paper split. pond reads its committed id manifest
-# (data/pond/split_document_ids.json: the v3 split, identical to the retired v1
-# probe_dataset{,_test}.json). nfix and supermat still read the v1 probe files
-# their live sets were built from -- supermat's v3 split differs, so do not
-# point it at v3. No default: an unlisted dataset is a hard error.
+# Per-dataset train/test paper split. pond and nfix read their committed id
+# manifest (data/<ds>/split_document_ids.json: the v3 split, identical to the
+# retired v1 probe_dataset{,_test}.json). supermat still reads the v1 probe files
+# its live sets were built from -- its v3 split differs, so do not point it at v3.
+# No default: an unlisted dataset is a hard error.
 SPLIT_SOURCES = {
     "pond": ("manifest", "split_document_ids.json"),
-    "nfix": ("probe", "probe_dataset_test.json", "probe_dataset.json"),
+    "nfix": ("manifest", "split_document_ids.json"),
     "supermat": ("probe", "probe_dataset_test.json", "probe_dataset.json"),
 }
 
