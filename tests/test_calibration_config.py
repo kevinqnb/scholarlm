@@ -69,7 +69,8 @@ def world(tmp_path, monkeypatch):
         (ac_root / "synthetic-probe" / f"{i['probe_cfg']}.yaml").write_text(yaml.safe_dump({
             "id": i["probe_cfg"], "project": "scholarlm", "description": "t", "seed": 1,
             "params": {"dataset": ds, "judge_interp_id": i["train"],
-                       "use_platt_scaling": True, "exclude_documents": []}}))
+                       "use_platt_scaling": True, "exclude_documents": [],
+                       "head_selection_C": 1.0, "probe_C": 1.0, "top_k": 4}}))
         rd = probe_res / i["probe_cfg"]
         rd.mkdir(parents=True)
         probe_dir = rd / "trained_probe"

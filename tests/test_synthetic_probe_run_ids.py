@@ -187,7 +187,7 @@ def run_main(tmp_path, monkeypatch, fixture_roots):
             yaml.safe_dump({
                 "id": PROBE_CFG_ID, "project": "scholarlm", "description": "test", "seed": 7,
                 "params": {"dataset": "pond", "judge_interp_id": EXP_ID,
-                           "use_platt_scaling": use_platt,
+                           "use_platt_scaling": use_platt, "head_selection_C": 1.0, "probe_C": 1.0, "top_k": 4,
                            "exclude_documents": list(exclude_documents)},
             }, f)
         monkeypatch.setattr(sys, "argv", ["synthetic_probe_train.py", str(cfg_path)])

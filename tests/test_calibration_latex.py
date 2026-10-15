@@ -45,7 +45,8 @@ def _row(setting, kind, tr, te, smece, cal=None, bss=-0.05, auroc=0.95):
          "Fit seed": NAN if syn or manual else cal["fit_seed"],
          "pi_te": NAN if syn else (0.4 if manual else 0.55), "Doc resamples": cal["n_boot"],
          "Accuracy": 0.9, "Precision": 0.8, "Recall": 0.7, "F1": 0.75, "AUROC": auroc, "Validity": 0.8,
-         "BSS": bss,
+         "BSS": bss, "BSS_lo": bss - 0.02, "BSS_hi": bss + 0.02,
+         "AUROC_lo": auroc - 0.02, "AUROC_hi": auroc + 0.02,
          "ECE": 0.05, "ECE_lo": 0.04, "ECE_hi": 0.07, "ECE_em": 0.06, "ECE_em_lo": 0.05, "ECE_em_hi": 0.08,
          "RMSCE_db": 0.07, "RMSCE_db_lo": 0.06, "RMSCE_db_hi": 0.09,
          "SmECE": smece, "SmECE_lo": smece - 0.01, "SmECE_hi": smece + 0.03}
@@ -123,27 +124,43 @@ def test_format_skill_allows_negative_rejects_above_one():
         cl.format_skill(float("nan"), decimals=3)
 
 
+def _stack(point, lo, hi, bold=False):
+    p = f"\\textbf{{{point}}}" if bold else point
+    return f"\\shortstack{{{p}\\\\{{\\scriptsize [{lo}, {hi}]}}}}"
+
+
 def test_summary_table_known_answer():
-    tex = cl.build_summary_table(SPEC, _frames(), "real", "j", CAL)
+    # Expected cells are written out from the _row fixture arithmetic (NTP: smECE 0.3 [-0.01,+0.03],
+    # BSS -0.05 +-0.02, AUROC 0.95 +-0.02; Probe train index i: smECE 0.1+0.01i, BSS 0.5-0.1i,
+    # AUROC 0.90+0.01i, same intervals), not copied from the builder's output.
+    tex = cl.build_summary_table(SPEC, _frames(), "real", "j", CAL, split=False)
     lines = tex.splitlines()
     assert sum(l == "\\midrule" for l in lines) == 2
-    assert "\\cmidrule(lr){2-4} \\cmidrule(lr){5-7} \\cmidrule(lr){8-10}" in tex
-    assert lines[lines.index("\\toprule") + 3].count("SmECE$\\downarrow$") == 3
+    # llm_matching spec: nfix is split out, so the main table has exactly the PLW and SM test columns.
+    head = lines.index("\\toprule")
+    assert lines[head + 1] == "& \\multicolumn{3}{c}{PLW} & \\multicolumn{3}{c}{SM} \\\\"
+    assert lines[head + 2] == "\\cmidrule(lr){2-4} \\cmidrule(lr){5-7}"
+    assert lines[head + 3].count("SmECE$\\downarrow$") == 2
     # Per test column: NTP has the best AUROC; Probe (PLW) the best smECE and BSS.
-    ntp = next(l for l in lines if l.startswith("NTP & "))
-    assert ntp == "NTP & " + " & ".join(["0.300 & $-$0.050 & \\textbf{0.950}"] * 3) + " \\\\"
-    plw = next(l for l in lines if l.startswith("Probe (PLW) & "))
-    assert plw == "Probe (PLW) & " + " & ".join(["\\textbf{0.100} & \\textbf{0.500} & 0.900"] * 3) + " \\\\"
-    sm = next(l for l in lines if l.startswith("Probe (SM) & "))
-    assert sm == "Probe (SM) & " + " & ".join(["0.120 & 0.300 & 0.920"] * 3) + " \\\\"
-    assert "Table~\\ref{tab:t-real-smece}" in tex and "\\label{tab:t-real-summary}" in tex
+    ntp_cols = [_stack("0.300", "0.290", "0.330"), _stack("$-$0.050", "$-$0.070", "$-$0.030"),
+                _stack("0.950", "0.930", "0.970", bold=True)]
+    plw_cols = [_stack("0.100", "0.090", "0.130", bold=True), _stack("0.500", "0.480", "0.520", bold=True),
+                _stack("0.900", "0.880", "0.920")]
+    nf_cols = [_stack("0.110", "0.100", "0.140"), _stack("0.400", "0.380", "0.420"),
+               _stack("0.910", "0.890", "0.930")]
+    sm_cols = [_stack("0.120", "0.110", "0.150"), _stack("0.300", "0.280", "0.320"),
+               _stack("0.920", "0.900", "0.940")]
+    for name, cols in (("NTP", ntp_cols), ("Probe (PLW)", plw_cols), ("Probe (NF)", nf_cols),
+                       ("Probe (SM)", sm_cols)):
+        assert f"{name} & " + " & ".join(cols + cols) + " \\\\" in lines
+    assert "\\label{tab:t-real-summary}" in tex
 
 
 def test_summary_table_nan_bss_raises():
     f = _frames()
     _set_ntp(f, "syn", "nfix", "BSS", float("nan"))
     with pytest.raises(ValueError, match="syn/NTP train=pond test=nfix BSS"):
-        cl.build_summary_table(SPEC, f, "syn", "j", CAL)
+        cl.build_summary_table(SPEC, f, "syn", "j", CAL, split=True)
 
 
 def test_classification_rejects_validity_mismatch():
@@ -184,7 +201,8 @@ def test_classification_and_variants_have_one_ntp_row_per_test_set():
         assert lines.count("\\midrule") == 2
 
 
-@pytest.mark.parametrize("fn", [cl.build_smece_table, cl.build_summary_table, cl.build_classification_table,
+@pytest.mark.parametrize("fn", [cl.build_smece_table, lambda *a: cl.build_summary_table(*a, split=False),
+                                cl.build_classification_table,
                                 cl.build_variants_table])
 def test_tables_reject_train_dependent_ntp(fn):
     f = _frames()
