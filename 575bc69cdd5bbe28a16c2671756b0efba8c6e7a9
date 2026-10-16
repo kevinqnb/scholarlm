@@ -1,0 +1,10 @@
+tests: update calibration and synthetic-probe fixtures to current code
+
+Fixtures predated three code changes: synthetic-probe configs now require
+head_selection_C/probe_C/top_k (b6c2abd); metrics CSVs now require
+BSS/AUROC _lo/_hi columns (cfd89a7); build_summary_table takes split
+(32d1b6b, 9748a72). Rewrote test_summary_table_known_answer for the stacked
+interval layout with expected cells derived from the fixture arithmetic.
+Test-only; no analysis code or metric logic changed.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
