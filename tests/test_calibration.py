@@ -272,3 +272,208 @@ def test_matches_uncertainty_calibration_package_if_installed():
     binned = cal.bin(list(zip(probs, labels)), cal.get_equal_bins(probs, num_bins=k))
     assert compute_ece(probs, labels, k, binning="equal_mass", p=2, debiased=True) == \
         pytest.approx(cal.unbiased_l2_ce(binned), abs=1e-9)
+
+
+# ── Platt scaling ────────────────────────────────────────────────────────────
+from scholarlm.utils.calibration import fit_platt, apply_platt  # noqa: E402
+
+
+def test_platt_recovers_known_logistic_map():
+    # Labels drawn exactly from P(y=1) = expit(2*logit(p) - 1) at the sample level:
+    # fit on a large deterministic-quantile sample and check the recovered params.
+    from scipy.special import expit, logit
+    rng = np.random.default_rng(0)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < expit(2.0 * logit(p) - 1.0)
+    coef, icpt = fit_platt(p, y)
+    assert abs(coef - 2.0) < 0.1 and abs(icpt + 1.0) < 0.1
+
+
+def test_platt_identity_when_already_calibrated():
+    rng = np.random.default_rng(1)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < p
+    coef, icpt = fit_platt(p, y)
+    assert abs(coef - 1.0) < 0.07 and abs(icpt) < 0.07
+
+
+def test_platt_apply_hand_computed():
+    out = apply_platt(np.array([0.5]), coef=3.0, intercept=0.0)
+    assert out[0] == pytest.approx(0.5)  # logit(0.5)=0
+    out = apply_platt(np.array([0.5]), coef=3.0, intercept=np.log(3.0))
+    assert out[0] == pytest.approx(0.75)  # odds 3 -> 0.75
+
+
+def test_platt_shuffled_labels_collapse_to_base_rate():
+    rng = np.random.default_rng(2)
+    p = rng.uniform(0.02, 0.98, 5000)
+    y = rng.permutation(rng.uniform(size=p.size) < p)  # labels independent of p
+    coef, _ = fit_platt(p, y)
+    assert abs(coef) < 0.15
+
+
+def test_platt_monotone_for_positive_coef():
+    coef, icpt = fit_platt(np.array([0.1, 0.2, 0.4, 0.6, 0.8, 0.9]), np.array([0, 0, 1, 0, 1, 1]))
+    assert coef > 0
+    out = apply_platt(np.linspace(0.01, 0.99, 50), coef, icpt)
+    assert (np.diff(out) > 0).all()
+
+
+@pytest.mark.parametrize("probs,labels", [
+    (np.array([0.2, 0.8]), np.array([1, 1])),      # one class
+    (np.array([0.2, 0.8]), np.array([0, 0])),
+    (np.array([0.2, 1.2]), np.array([0, 1])),      # out of range
+    (np.array([0.2, np.nan]), np.array([0, 1])),
+    (np.array([0.2]), np.array([0, 1])),           # shape mismatch
+])
+def test_platt_fit_fails_loud(probs, labels):
+    with pytest.raises(ValueError):
+        fit_platt(probs, labels)
+
+
+# ── Intercept-only fit / prior shift / dispatch ──────────────────────────────
+from scholarlm.utils.calibration import (  # noqa: E402
+    fit_intercept, fit_prior_shift, fit_recalibration, intercept_adjustment,
+)
+
+
+def test_intercept_fit_hand_computed():
+    # All p = 0.5 (logit 0), label rate 3/4 -> b = logit(0.75) = log 3, output 0.75.
+    coef, icpt = fit_intercept(np.full(4, 0.5), np.array([1, 1, 1, 0]))
+    assert coef == 1.0
+    assert icpt == pytest.approx(np.log(3.0), abs=1e-10)
+    assert apply_platt(np.array([0.5]), coef, icpt)[0] == pytest.approx(0.75)
+
+
+def test_intercept_fit_satisfies_score_equation():
+    # The MLE intercept makes the mean scaled probability equal the sample label rate.
+    rng = np.random.default_rng(3)
+    p = rng.uniform(0.01, 0.99, 100)
+    y = rng.uniform(size=p.size) < 0.3
+    coef, icpt = fit_intercept(p, y)
+    assert coef == 1.0
+    assert apply_platt(p, coef, icpt).mean() == pytest.approx(y.mean(), abs=1e-10)
+
+
+def test_intercept_fit_recovers_known_shift():
+    from scipy.special import expit, logit
+    rng = np.random.default_rng(4)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < expit(logit(p) - 1.0)
+    _, icpt = fit_intercept(p, y)
+    assert abs(icpt + 1.0) < 0.07
+
+
+def test_intercept_fit_equals_platt_intercept_when_slope_is_one():
+    # Platt with its slope pinned at 1 is the intercept fit: on data whose true slope is 1,
+    # Platt's free slope lands near 1 and the two intercepts agree.
+    from scipy.special import expit, logit
+    rng = np.random.default_rng(5)
+    p = rng.uniform(0.02, 0.98, 20000)
+    y = rng.uniform(size=p.size) < expit(logit(p) + 0.5)
+    pc, pi = fit_platt(p, y)
+    _, ii = fit_intercept(p, y)
+    assert abs(pc - 1.0) < 0.07 and abs(pi - ii) < 0.07
+
+
+def test_prior_shift_hand_computed():
+    # pi_tr = 0.5, sample label rate 0.75: b = logit(0.75) - logit(0.5) = log 3; p = 0.5 -> 0.75.
+    coef, icpt = fit_prior_shift(np.array([1, 1, 1, 0]), pi_tr=0.5)
+    assert coef == 1.0 and icpt == pytest.approx(np.log(3.0))
+    assert apply_platt(np.array([0.5]), coef, icpt)[0] == pytest.approx(0.75)
+
+
+def test_prior_shift_identity_when_prevalences_equal():
+    coef, icpt = fit_prior_shift(np.array([1, 0, 0, 0]), pi_tr=0.25)
+    p = np.linspace(0.01, 0.99, 50)
+    assert coef == 1.0 and icpt == pytest.approx(0.0, abs=1e-12)
+    assert np.allclose(apply_platt(p, coef, icpt), p)
+
+
+def test_prior_shift_matches_intercept_adjustment():
+    # Same map as calibration_updated.py's intercept_adjustment with pi_te = sample label rate
+    # (away from the clipping boundaries, where the two eps values differ).
+    y = np.array([1, 1, 0, 0, 0, 1, 0, 0, 0, 0])
+    p = np.linspace(0.001, 0.999, 200)
+    out = apply_platt(p, *fit_prior_shift(y, pi_tr=0.62))
+    assert np.allclose(out, intercept_adjustment(p, pi_tr=0.62, pi_te=y.mean()), atol=1e-12)
+
+
+def test_prior_shift_ignores_probs_intercept_fit_does_not():
+    y = np.array([1, 0, 0, 1, 0])
+    a = fit_recalibration('prior_shift', np.full(5, 0.2), y, pi_tr=0.5)
+    b = fit_recalibration('prior_shift', np.full(5, 0.9), y, pi_tr=0.5)
+    assert a == b
+    assert fit_recalibration('intercept_fit', np.full(5, 0.2), y, pi_tr=0.5) != \
+        fit_recalibration('intercept_fit', np.full(5, 0.9), y, pi_tr=0.5)
+
+
+def test_dispatch_platt_fit_is_fit_platt():
+    p = np.array([0.1, 0.2, 0.4, 0.6, 0.8, 0.9])
+    y = np.array([0, 0, 1, 0, 1, 1])
+    assert fit_recalibration('platt_fit', p, y, pi_tr=0.5) == fit_platt(p, y)
+
+
+@pytest.mark.parametrize("method", ["prior_shift", "intercept_fit", "platt_fit"])
+@pytest.mark.parametrize("probs,labels", [
+    (np.array([0.2, 0.8]), np.array([1, 1])),      # one class
+    (np.array([0.2, 0.8]), np.array([0, 0])),
+    (np.array([0.2, 1.2]), np.array([0, 1])),      # out of range
+    (np.array([0.2, np.nan]), np.array([0, 1])),
+    (np.array([0.2]), np.array([0, 1])),           # shape mismatch
+])
+def test_recalibration_fit_fails_loud(method, probs, labels):
+    with pytest.raises(ValueError):
+        fit_recalibration(method, probs, labels, pi_tr=0.5)
+
+
+@pytest.mark.parametrize("pi_tr", [0.0, 1.0, -0.1, 1.5, True])
+def test_prior_shift_rejects_degenerate_pi_tr(pi_tr):
+    with pytest.raises(ValueError):
+        fit_prior_shift(np.array([1, 0]), pi_tr=pi_tr)
+
+
+def test_dispatch_rejects_unknown_method():
+    with pytest.raises(ValueError):
+        fit_recalibration('platt', np.array([0.2, 0.8]), np.array([0, 1]), pi_tr=0.5)
+
+
+# ── Logit clipping (LOGIT_CLIP_EPS) ───────────────────────────────────────────
+from scipy.special import logit as _logit  # noqa: E402
+from scholarlm.utils.calibration import LOGIT_CLIP_EPS, fit_intercept  # noqa: E402
+
+
+def test_logit_clip_eps_is_1e_10():
+    assert LOGIT_CLIP_EPS == 1e-10
+
+
+def test_identity_map_does_not_clip_small_raw_judge_probs():
+    # Known answer: qwen-2.5-7b's smallest raw p(true) (4.9e-9) passes through the identity
+    # map unchanged; under the old 1e-6 clip it came back as 1e-6.
+    p = np.array([4.94e-9, 1e-7, 1e-6, 0.5])
+    assert np.allclose(apply_platt(p, 1.0, 0.0), p, rtol=1e-9, atol=0)
+
+
+def test_exact_zero_and_one_land_on_the_clip_boundary():
+    out = apply_platt(np.array([0.0, 1.0]), 1.0, 0.0)
+    assert np.isfinite(_logit(out)).all()
+    assert out[0] == pytest.approx(LOGIT_CLIP_EPS, rel=1e-6) and out[1] == pytest.approx(1 - LOGIT_CLIP_EPS, rel=1e-12)
+
+
+def test_small_probs_stay_distinct_after_intercept_fit():
+    # Rows below the old 1e-6 clip keep their order (no tie) after fitting and applying an intercept.
+    p = np.array([5e-9, 5e-8, 5e-7, 0.2, 0.6, 0.9])
+    y = np.array([False, False, True, False, True, True])
+    coef, icpt = fit_intercept(p, y)
+    out = apply_platt(p, coef, icpt)
+    assert len(np.unique(out[:3])) == 3 and np.all(np.diff(out) > 0)
+    assert out.mean() == pytest.approx(y.mean(), abs=1e-10)
+
+
+def test_platt_fit_map_default_eps_matches_library():
+    import inspect
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from analysis.common import recalibration
+    assert inspect.signature(recalibration.platt_fit_map).parameters["eps"].default == LOGIT_CLIP_EPS

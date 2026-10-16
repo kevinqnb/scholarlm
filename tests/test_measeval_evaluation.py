@@ -17,11 +17,14 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+import analysis.measeval_evaluation as measeval_evaluation
 from analysis.measeval_evaluation import (
     Coverage,
     _correct_for_calibration,
     build_submission_tsv,
     load_doc_text,
+    pick_entity,
+    pick_unit,
     resolve_entity_span,
     resolve_quantity_span,
 )
@@ -173,3 +176,140 @@ def test_coverage_as_dict_reports_all_fields():
     assert d["total_records"] == 5
     assert d["quantity_located"] == 3
     assert d["entity_located"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Span merging: one Quantity row per distinct span
+# ---------------------------------------------------------------------------
+
+def test_pick_entity_fuzzy_variants_outvote_exact_majority():
+    # "water" is the exact-string majority (2 votes), but the three "soil sample"
+    # variants support each other. Summed fuzz.ratio/100 to the other four texts:
+    #   water 1.685, soil sample 2.303, soil samples 2.242, the soil sample 2.061.
+    texts = ["water", "water", "soil sample", "soil samples", "the soil sample"]
+    idx, tied = pick_entity(texts)
+    assert texts[idx] == "soil sample"
+    assert not tied
+
+
+def test_pick_entity_exact_majority_wins_without_variants():
+    texts = ["STC", "graphene oxide", "graphene oxide"]
+    idx, tied = pick_entity(texts)
+    assert idx == 1  # first of the two identical winners
+    assert not tied
+
+
+def test_pick_entity_tie_goes_to_earliest_and_is_flagged():
+    # Two distinct texts score the same similarity to each other.
+    idx, tied = pick_entity(["alpha", "omega"])
+    assert idx == 0
+    assert tied
+
+
+def test_pick_entity_identical_texts_are_not_a_tie():
+    assert pick_entity(["STC", "STC"]) == (0, False)
+    assert pick_entity(["STC"]) == (0, False)
+
+
+def test_pick_unit_majority_then_earliest():
+    assert pick_unit(["g", "kg", "kg"]) == ("kg", False)
+    assert pick_unit([None, "g"]) == (None, True)      # null is a vote for "no unit"
+    assert pick_unit(["g", None, None]) == (None, False)
+
+
+_MERGE_TEXT = "The water held 5 g. The soil sample held 5 g, the soil samples held 7 g."
+
+
+def _merge_df(records):
+    return pd.DataFrame([{"document_id": "doc", **r} for r in records])
+
+
+def test_build_submission_tsv_merges_records_on_one_span(tmp_path, monkeypatch):
+    monkeypatch.setattr(measeval_evaluation, "load_doc_text", lambda _id: _MERGE_TEXT)
+    df = _merge_df([
+        # All three "5 g" records land on the leftmost "5 g" (offsets 15-18).
+        {"name": "water", "value": "5", "units": "g"},
+        {"name": "soil sample", "value": "5", "units": "g"},
+        {"name": "soil sample", "value": "5", "units": "g"},
+        # A different value is a different span and keeps its own annotSet.
+        {"name": "soil samples", "value": "7", "units": "g"},
+    ])
+    cov = build_submission_tsv(df, tmp_path)
+    t = pd.read_csv(tmp_path / "doc.tsv", sep="\t", keep_default_na=False)
+
+    quantities = t[t.annotType == "Quantity"]
+    assert list(quantities.text) == ["5 g", "7 g"]
+    assert list(quantities.startOffset) == [15, _MERGE_TEXT.index("7 g")]
+    assert list(quantities.annotSet) == [1, 2]
+
+    entities = t[t.annotType == "MeasuredEntity"].set_index("annotSet")
+    # Summed fuzz.ratio/100 to the other two: water 0.25 + 0.25 = 0.50;
+    # each "soil sample" 0.25 + 1.00 = 1.25 -> "soil sample".
+    assert entities.loc[1, "text"] == "soil sample"
+    assert entities.loc[1, "startOffset"] == _MERGE_TEXT.index("soil sample")
+    assert json.loads(entities.loc[1, "other"]) == {"HasQuantity": "T1-1"}
+    assert entities.loc[2, "text"] == "soil samples"
+
+    assert cov.quantity_located == 4
+    assert cov.quantity_rows_written == 2
+    assert cov.quantity_records_merged == 2
+    assert cov.entity_conflict_spans == 1
+    assert cov.entity_tie_spans == 0
+
+
+def test_build_submission_tsv_merges_by_exact_offsets_only(tmp_path, monkeypatch):
+    # The "g" record matches "5 g" (15-18); the "kg" records find no "5 kg"/"5kg" and
+    # fall back to bare "5" (15-16). Overlapping but unequal spans are not merged.
+    monkeypatch.setattr(measeval_evaluation, "load_doc_text", lambda _id: _MERGE_TEXT)
+    df = _merge_df([
+        {"name": "water", "value": "5", "units": "g"},
+        {"name": "water", "value": "5", "units": "kg"},
+        {"name": "water", "value": "5", "units": "kg"},
+    ])
+    cov = build_submission_tsv(df, tmp_path)
+    t = pd.read_csv(tmp_path / "doc.tsv", sep="\t", keep_default_na=False)
+    q = t[t.annotType == "Quantity"]
+    assert list(zip(q.startOffset, q.endOffset)) == [(15, 18), (15, 16)]
+    assert [json.loads(o) for o in q.other] == [{"unit": "g"}, {"unit": "kg"}]
+    assert cov.quantity_rows_written == 2
+    assert cov.quantity_records_merged == 1
+    assert cov.unit_conflict_spans == 0
+
+
+def test_build_submission_tsv_unit_conflict_on_one_span(tmp_path, monkeypatch):
+    # Bare-value fallback for both: "5 mg" and "5 kg" don't occur, so both land on "5".
+    monkeypatch.setattr(measeval_evaluation, "load_doc_text", lambda _id: "Sample A weighed 5.")
+    df = _merge_df([
+        {"name": "Sample A", "value": "5", "units": "mg"},
+        {"name": "Sample A", "value": "5", "units": "kg"},
+        {"name": "Sample A", "value": "5", "units": "kg"},
+    ])
+    cov = build_submission_tsv(df, tmp_path)
+    t = pd.read_csv(tmp_path / "doc.tsv", sep="\t", keep_default_na=False)
+    q = t[t.annotType == "Quantity"]
+    assert len(q) == 1
+    assert json.loads(q.iloc[0]["other"]) == {"unit": "kg"}
+    assert cov.unit_conflict_spans == 1
+    assert cov.unit_tie_spans == 0
+
+
+def test_build_submission_tsv_unlocated_entities_do_not_vote(tmp_path, monkeypatch):
+    monkeypatch.setattr(measeval_evaluation, "load_doc_text", lambda _id: _MERGE_TEXT)
+    df = _merge_df([
+        {"name": "not in the text", "value": "5", "units": "g"},
+        {"name": "not in the text", "value": "5", "units": "g"},
+        {"name": None, "value": "5", "units": "g"},
+        {"name": "water", "value": "5", "units": "g"},
+        # A span whose only record has no located entity gets a Quantity row only.
+        {"name": "also not in the text", "value": "7", "units": "g"},
+    ])
+    cov = build_submission_tsv(df, tmp_path)
+    t = pd.read_csv(tmp_path / "doc.tsv", sep="\t", keep_default_na=False)
+    entities = t[t.annotType == "MeasuredEntity"]
+    assert list(entities.text) == ["water"]
+    assert list(entities.annotSet) == [1]
+    assert (t.annotType == "Quantity").sum() == 2
+    assert cov.entity_dropped_unlocatable == 3
+    assert cov.entity_dropped_no_name == 1
+    assert cov.entity_located == 1
+    assert cov.entity_none_spans == 1

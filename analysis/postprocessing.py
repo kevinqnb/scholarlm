@@ -1,60 +1,22 @@
-"""Postprocess extraction/baseline `final.json` output before matching:
-best-effort qualifier-field fill for rows a model never attempted (baselines
-struggle with this -- see src/scholarlm/utils/parsing.parse_quantity_shape),
-and unit-string standardization against this dataset's own ground-truth unit
-vocabulary (see src/scholarlm/utils/parsing.standardize_units).
+"""Clean an extraction's final.json into postprocessed.json before matching.
 
-Writes `postprocessed.json` next to each experiment id's `final.json` --
-analysis/match_cache.py and analysis/recovery_validity.py prefer it over
-final.json when present, falling back (with a warning) to final.json
-otherwise. Deduplication is a separate, later development session -- not
-handled here.
+Four steps per record, none of which invents a value:
+1. Qualifier fill: parse ``value`` into point_value/lower/upper/... only if the
+   model left every shape field blank. Partial attempts are left untouched.
+2. Unit standardization: rewrite a unit only to a variant that appears in the
+   ground truth's own units for that attribute.
+3. Provenance: wrap the six PROVENANCE_FIELDS as lists so deduplication can merge them.
+4. List expansion: split a row with ``list_values`` into one row per entry, so each
+   value can match on its own. Children keep the parent's measurement_id and
+   inherit its judge label.
 
-A third step, list-value expansion (see expand_list_values), turns any row
-whose `list_values` ends up non-empty (whether the model wrote it directly,
-or this script's own qualifier fill produced it from a comma-separated
-`value`) into one row per list entry, point_value set to that entry,
-list_values set to None on the expanded row, and every other field copied
-verbatim -- so each reported value gets its own
-shot at matching a ground-truth row, instead of the whole list being
-unmatchable as a single row. This is the one step that changes row count:
-match_cache.py's matching is purely positional within postprocessed.json and
-is unaffected (more extraction rows only ever means more match candidates),
-but analysis/recovery_validity.py's validity/judge_combine path joins by
-`measurement_id`, which list-expanded rows duplicate -- for an id with any
-list rows, that join's own row-count/measurement_id checks
-(load_validity_labels) will correctly refuse rather than silently
-misattribute a judgement to the wrong expanded row. Recovery is unaffected;
-validity for such an id needs the judge re-run against the expanded rows.
-
-Both postprocessing steps are best-effort and NEVER invent a value they
-aren't confident about:
-- Qualifier fields (point_value/lower/upper/list_values/tolerance/
-  standard_deviation/qualifiers) are filled only when a row's six shape
-  fields are ALL null/absent AND qualifiers is null/[] -- i.e. the model
-  never attempted them at all (chatextract, old nuextract/gliner baselines).
-  A row where the model wrote something -- even something wrong, like
-  GLiNER's stray non-null `upper` on an otherwise-unfilled row -- is left
-  completely untouched; arbitrating a partial/garbled model attempt is not
-  this script's job.
-- Units are only ever replaced with a string that is a genuine member of
-  this attribute's own ground-truth unit vocabulary -- built from the
-  ground truth file itself (not attribute_info_dict, which can name a unit
-  the ground truth never actually uses, or omit one it does -- see
-  canonical_units_by_attribute). A unit string this script doesn't
-  recognize as a notational variant of something already in the ground
-  truth is left exactly as extracted.
-
-This changes which rows survive analysis/match_cache.py's strict
-"units"/"point_value" match -- any recovery/validity number computed
-against final.json (from before this script existed) is not comparable to
-one computed against postprocessed.json for the same experiment id.
+match_cache.py and recovery_validity.py read postprocessed.json when it exists.
+Numbers from postprocessed.json are not comparable to ones from final.json.
 
 Usage
 -----
-    python analysis/postprocessing.py <experiment_id> [<experiment_id> ...] \\
-        --ground-truth-file <path>
-    python analysis/postprocessing.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/postprocessing.py <experiment_id> [...] --ground-truth-file <path>
+    python analysis/postprocessing.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 """
 from __future__ import annotations
 
@@ -71,16 +33,26 @@ sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
 from scholarlm.utils import parsing
-from analysis.analysis_config import get_ground_truth_path, load_analysis_config
-from analysis.loaders import load_ground_truth_file
+from analysis.common.config import get_ground_truth_path, load_analysis_config
+from analysis.common.loaders import load_ground_truth_file
 import utils as paths
 
-# A row's six shape fields -- `_qualifiers_unfilled` requires every one of
-# these null/absent before this script will touch qualifier fields at all.
+# Shape fields that must all be blank before qualifiers are filled.
 _SHAPE_FIELDS = ("point_value", "lower", "upper", "list_values", "tolerance", "standard_deviation")
+
+# Where in the paper a record came from; one list entry per merged source.
+PROVENANCE_FIELDS = ("page_number", "table_number", "row_index", "column_index", "source", "context")
 
 
 def _is_numeric_string(u: str) -> bool:
+    """Whether a string parses as a float.
+
+    Args:
+        u: String to test.
+
+    Returns:
+        True if ``float(u)`` succeeds.
+    """
     try:
         float(u)
     except ValueError:
@@ -89,21 +61,17 @@ def _is_numeric_string(u: str) -> bool:
 
 
 def canonical_units_by_attribute(ground_truth_df: pd.DataFrame) -> dict:
-    """{attribute: frozenset of every distinct non-null `units` value this
-    attribute has in the ground truth} -- what analysis/match_cache.py's
-    strict "units" match actually compares against, so this is the only
-    safe standardization target. Deliberately NOT each dataset's own
-    attribute_info_dict: that dict can drift from the ground truth it
-    describes (e.g. pond's `attribute_info_dict` lists "x10^-6 km^2" for
-    surface_area, but the ground truth itself uses "x10^-6 m^2") -- reading
-    the ground truth directly can't have that mismatch.
+    """Units each attribute actually uses in the ground truth: the standardization targets.
 
-    A numeric-looking `units` string (e.g. pond's surface_area has ~50 rows
-    whose `units` is a bare number like "0.75") is a pre-existing ground-truth
-    data-quality artifact, not a real unit -- included in the canonical set,
-    split_value_and_unit_suffix's suffix search could "recover" a second
-    number out of a value like "7.0 8.00" as if it were this attribute's
-    unit. Filtered out here, printed so a real occurrence isn't silently lost.
+    Read from the ground truth (not attribute_info_dict, which can drift) because
+    that is what strict matching compares against. Numeric-looking unit strings are
+    ground-truth noise; they are dropped and printed.
+
+    Args:
+        ground_truth_df: Ground-truth rows with ``attribute`` and ``units``.
+
+    Returns:
+        ``{attribute: frozenset of unit strings}``.
     """
     out: dict = {}
     for attribute, group in ground_truth_df.groupby("attribute"):
@@ -125,17 +93,28 @@ def canonical_units_by_attribute(ground_truth_df: pd.DataFrame) -> dict:
 
 
 def _is_blank(value) -> bool:
-    """None, [] (langextract's empty list_values), or "" (whitespace-only
-    string -- observed across several baselines' point_value/lower/upper/
-    tolerance/standard_deviation, hundreds of rows repo-wide) all mean "the
-    model never actually populated this field", not "the model wrote an
-    empty value on purpose"."""
+    """Whether a field was left unpopulated by the model.
+
+    Args:
+        value: Field value.
+
+    Returns:
+        True for None, ``[]`` or a whitespace-only string.
+    """
     if value is None or value == []:
         return True
     return isinstance(value, str) and value.strip() == ""
 
 
 def _qualifiers_unfilled(record: dict) -> bool:
+    """Whether the model left every shape field and ``qualifiers`` blank.
+
+    Args:
+        record: Extraction record.
+
+    Returns:
+        True if all ``_SHAPE_FIELDS`` are blank and ``qualifiers`` is None or [].
+    """
     if any(not _is_blank(record.get(field)) for field in _SHAPE_FIELDS):
         return False
     qualifiers = record.get("qualifiers")
@@ -143,8 +122,15 @@ def _qualifiers_unfilled(record: dict) -> bool:
 
 
 def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
-    """Postprocess one extraction record. Returns (new record, list of field
-    names it changed -- "qualifiers" and/or "units")."""
+    """Fill unattempted qualifier fields and standardize units for one record.
+
+    Args:
+        record: Extraction record (not modified).
+        canonical_units: Output of ``canonical_units_by_attribute``.
+
+    Returns:
+        ``(new_record, changed)``; ``changed`` lists ``"qualifiers"`` and/or ``"units"``.
+    """
     record = dict(record)
     changed: list = []
 
@@ -156,17 +142,13 @@ def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
         text, detected_units = parsing.split_value_and_unit_suffix(
             str(value), record.get("units"), canonical,
         )
-        # point_value/lower/upper as float, not str: matches pond/nfix ground
-        # truth's own point_value convention, and means match_cache.py's
-        # numeric_coerce (originally patched on to coerce the real pipeline's
-        # own str-typed point_value output at match time) has nothing left to
-        # do for rows postprocessing fills -- they're already numeric.
+        # Numeric (not str) shape fields, matching the ground truth's convention.
         shape = parsing.parse_quantity_shape_numeric(text)
         if shape["qualifiers"] is not None:
             for field in parsing.QUALIFIER_FIELDS:
                 record[field] = shape[field]
             changed.append("qualifiers")
-            if detected_units is not None and record.get("units") is None:
+            if detected_units is not None and _is_blank(record.get("units")):
                 record["units"] = detected_units
                 changed.append("units")
 
@@ -179,20 +161,49 @@ def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
     return record, changed
 
 
-def expand_list_values(record: dict) -> list:
-    """If record["list_values"] is a non-empty list, return one copy of
-    record per entry -- each with point_value set to that entry, converted
-    to float (parsing.to_float; matching postprocess_record's own
-    point_value-as-float convention) where that entry is a plain float or
-    sci-notation string. An entry that isn't (e.g. a list containing the
-    rare compact "value(uncertainty)" notation, "2.05(5)") is kept as its
-    raw string rather than dropped or raising -- match_cache.py's own
-    numeric_coerce will correctly leave it unmatched rather than this
-    function guessing at it. list_values itself is set to None on every
-    expanded row (each row now reports a single point_value, not a list);
-    every other field, qualifiers included, is copied unchanged.
+def normalize_provenance(record: dict) -> tuple:
+    """Wrap each non-list PROVENANCE_FIELDS value in a list (absent -> ``[None]``).
 
-    Otherwise returns [record] unchanged -- the overwhelmingly common case.
+    Args:
+        record: Extraction record (not modified).
+
+    Returns:
+        ``(new_record, wrapped)``; ``wrapped`` names the fields that were wrapped.
+    """
+    record = dict(record)
+    wrapped = []
+    for field in PROVENANCE_FIELDS:
+        value = record.get(field)
+        if isinstance(value, list):
+            continue
+        record[field] = [value]
+        wrapped.append(field)
+    return record, wrapped
+
+
+def provenance_lengths_equal(record: dict) -> bool:
+    """Whether all provenance lists have equal length (required to merge the row).
+
+    Args:
+        record: Record after ``normalize_provenance``.
+
+    Returns:
+        True if every PROVENANCE_FIELDS list has the same length.
+    """
+    return len({len(record[field]) for field in PROVENANCE_FIELDS}) == 1
+
+
+def expand_list_values(record: dict) -> list:
+    """Split a record with non-empty ``list_values`` into one record per entry.
+
+    Each child gets ``point_value`` = the entry (as float if parseable, else the raw
+    string) and ``list_values`` = None; all other fields are copied.
+
+    Args:
+        record: Extraction record.
+
+    Returns:
+        List of child records, or ``[record]`` if there is nothing to expand.
     """
     list_values = record.get("list_values")
     if not isinstance(list_values, list) or not list_values:
@@ -210,16 +221,19 @@ def expand_list_values(record: dict) -> list:
 
 
 def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
-    """Build postprocessed.json for one experiment id. Returns its path.
+    """Write postprocessed.json for one experiment.
+
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground truth defining each attribute's canonical units.
+
+    Returns:
+        Path of the written postprocessed.json.
 
     Raises:
-        FileNotFoundError: no final.json for this id.
-        AssertionError: postprocess_record or expand_list_values changed a
-            row's document_id/attribute, or expand_list_values changed a
-            row's measurement_id -- neither should ever happen (see their
-            own docstrings); checked here rather than trusted, since a
-            match_cache.pkl's cached edges are positions into this same row
-            order/identity (see match_cache.py's module docstring).
+        FileNotFoundError: No final.json.
+        AssertionError: A step changed a row's document_id, attribute or
+            measurement_id, or rows were lost.
     """
     result_dir = paths.find_result_dir(experiment_id)
     final_path = result_dir / "final.json"
@@ -234,6 +248,8 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
 
     n_qualifiers_filled = 0
     n_units_changed = 0
+    n_wrapped_by_field = dict.fromkeys(PROVENANCE_FIELDS, 0)
+    n_unequal_provenance = 0
     n_rows_list_expanded = 0
     n_extra_rows_from_expansion = 0
     new_records = []
@@ -245,6 +261,10 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
                     f"{experiment_id}: postprocess_record changed {key!r} -- "
                     f"it must only ever touch qualifier/units fields"
                 )
+        new_record, wrapped = normalize_provenance(new_record)
+        for field in wrapped:
+            n_wrapped_by_field[field] += 1
+        n_unequal_provenance += not provenance_lengths_equal(new_record)
 
         expanded = expand_list_values(new_record)
         if len(expanded) > 1:
@@ -277,15 +297,21 @@ def postprocess_experiment(experiment_id: str, ground_truth_path: Path) -> Path:
         f"{n_units_changed}, {n_rows_list_expanded} list-value row(s) expanded "
         f"into {n_extra_rows_from_expansion} extra row(s) -> {out_path}"
     )
+    print(
+        f"{experiment_id}: provenance fields wrapped into lists (rows per field, of {len(records)}): "
+        f"{n_wrapped_by_field}; {n_unequal_provenance} row(s) with unequal provenance list lengths "
+        f"(deduplication cannot merge those)"
+    )
     return out_path
 
 
 def main() -> None:
+    """CLI: postprocess ids given directly or via ``--config`` (exactly one)."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("experiment_ids", nargs="*", help="Experiment ids to postprocess.")
     parser.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids and "
+        help="analysis-configs/recovery-validity/<id>.yaml providing params.experiment_ids and "
              "params.ground_truth_file -- mutually exclusive with passing "
              "experiment_ids/--ground-truth-file directly.",
     )
@@ -309,7 +335,7 @@ def main() -> None:
         parser.error("--ground-truth-file is required when passing experiment_ids directly")
 
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
     else:

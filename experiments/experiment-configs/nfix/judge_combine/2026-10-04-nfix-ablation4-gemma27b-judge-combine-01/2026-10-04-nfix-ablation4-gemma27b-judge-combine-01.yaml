@@ -1,0 +1,17 @@
+id: 2026-10-04-nfix-ablation4-gemma27b-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over nfix ablation 4 extraction
+  (2026-10-02-nfix-ablation4-gemma27b-full-01; extraction model gemma27b): 3
+  voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) only -- no interp
+  judges. voting_threshold pinned explicitly (this repo avoids inferred
+  defaults).
+seed: 342
+params:
+  dataset: nfix
+  judge_ids:
+    - 2026-10-04-nfix-ablation4-gemma27b-gptoss120b-judge-local-01
+    - 2026-10-04-nfix-ablation4-gemma27b-qwen72b-judge-local-01
+    - 2026-10-04-nfix-ablation4-gemma27b-llama70b-judge-local-01
+  voting_threshold: 2
+  walltime: "00:30:00"

@@ -1,0 +1,13 @@
+id: 2026-05-03-nfix-table-cleaning-qwen-3.5-27b-01
+project: scholarlm
+description: >-
+  Retroactive config reconstructed after the fact for the stored table-cleaned text experiments/results/nfix/table_cleaning/2026-05-03-nfix-table-cleaning-qwen-3.5-27b-01/; the original config was not kept. Walltime (24h) is a nominal value, not the original request. Whether resume/paper_subset were set originally is unknown, so neither is pinned.
+  Input is the OCR text in data/nfix/ocr_output_raw/ (the runner default, identical to
+  the 2026-05-03-nfix-ocr-olmocr-01 output); it is pinned explicitly here. Reads the page
+  images from data/nfix/processed_pdfs/.
+seed: 342
+params:
+  dataset: nfix
+  model: qwen-3.5-27b
+  ocr_dir: data/nfix/ocr_output_raw
+  walltime: "24:00:00"

@@ -11,7 +11,9 @@ Usage
     python experiments/run_ablation.py experiments/experiment-configs/pond/ablation/<id>/<id>.yaml
 
 Required params: dataset, model, ablation (one of ABLATION_REGISTRY's keys, "1"-"7").
-Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers, max_items
+Optional params: ocr_dir, paper_subset (list), api_base, api_key, include_qualifiers, max_items,
+parse_quantities_context / standardize_context ("full" default | "value_only" -- see
+MeasurementLM.__init__; ablations 2-6 only, raises for 1 and 7 which don't run those steps)
 (bool, default true -- ablation "1" only; false asks the dataset config's
 *_no_qualifiers direct-extraction schema/prompt/instructions instead, dropping the
 qualifier/shape fields from the model's own output so a later parsing step can be
@@ -136,6 +138,8 @@ def run_ablation(
     api_key: str = "EMPTY",
     include_qualifiers: bool = True,
     max_items: int | None = None,
+    parse_quantities_context: str = "full",
+    standardize_context: str = "full",
 ) -> None:
     """Run a single ablation experiment for a dataset / model pair.
 
@@ -181,6 +185,15 @@ def run_ablation(
 
     if max_items is not None and ablation != "1":
         raise ValueError(f"max_items only applies to ablation '1' -- got ablation {ablation!r}.")
+    if ablation in ("1", "7") and (
+        parse_quantities_context != "full" or standardize_context != "full"
+    ):
+        raise ValueError(
+            f"parse_quantities_context/standardize_context only apply to ablations that "
+            f"run _standardize()/_parse_quantities() (2-6) -- got ablation {ablation!r} "
+            f"with parse_quantities_context={parse_quantities_context!r}, "
+            f"standardize_context={standardize_context!r}."
+        )
     ablation_class, ablation_desc = ABLATION_REGISTRY[ablation]
     data_dir = Path(dataset_config.data_dir)
     is_frontier = model_config.api_base is not None
@@ -254,6 +267,8 @@ def run_ablation(
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=not is_frontier,
         collect_attribute_terms=dataset_config.collect_attribute_terms,
+        parse_quantities_context=parse_quantities_context,
+        standardize_context=standardize_context,
     )
     if ablation == "1":
         if include_qualifiers:
@@ -313,6 +328,8 @@ def run_ablation(
         hf_revision=model_config.hf_revision,
         ablation=ablation,
         include_qualifiers=include_qualifiers,
+        parse_quantities_context=parse_quantities_context,
+        standardize_context=standardize_context,
         **(
             {
                 "max_items": max_items,
@@ -387,6 +404,8 @@ def main(argv: list[str] | None = None) -> None:
         api_key=params.get("api_key", "EMPTY"),
         include_qualifiers=params.get("include_qualifiers", True),
         max_items=params.get("max_items"),
+        parse_quantities_context=params.get("parse_quantities_context", "full"),
+        standardize_context=params.get("standardize_context", "full"),
     )
 
 

@@ -1,0 +1,53 @@
+id: 2026-10-10-calibration-gemma27b-qwen-2.5-7b-intercept-fit-smoke-01
+project: scholarlm
+description: >
+  Rung-2 smoke run of analysis/calibration.py (v4) after commits cc3036f / c8c702a (NTP = the judge's raw
+  p(true), no synthetic-trained calibrator; one NTP figure / table entry). Same cells as
+  2026-10-09-calibration-gemma27b-qwen-2.5-7b-intercept-fit-01 (gemma27b full-pipeline extractions, qwen-2.5-7b judge, intercept_fit on fit_n=100 rows by
+  fit_seed=0) but on the 2026-10-10 re-trained head probes and with n_boot=20, so its intervals are not
+  reportable. Purpose: confirm the plumbing end to end and inspect the qwen NTP logit-clip saturation (1e-6)
+  in the recalibrated real cells.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  n_boot: 20
+  recalibration: intercept_fit
+  fit_source: sample
+  fit_n: 100
+  fit_seed: 0
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-10-pond-synthetic-probe-qwen-2.5-7b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-pond-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-10-nfix-synthetic-probe-qwen-2.5-7b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-09-30-nfix-v3-qwen-2.5-7b-synthetic-judge-test-diag-01
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-qwen7b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-10-supermat-synthetic-probe-qwen-2.5-7b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      syn_test_ids:
+        primary: 2026-10-08-supermat-v3s-qwen-2.5-7b-synthetic-judge-test-primary-01
+        diag: 2026-10-08-supermat-v3s-qwen-2.5-7b-synthetic-judge-test-diag-01

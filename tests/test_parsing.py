@@ -274,3 +274,62 @@ def test_split_unrecognized_suffix_leaves_value_and_units_unchanged():
     canonical = frozenset({"K", "mK"})
     text, units = parsing.split_value_and_unit_suffix("48 furlongs", None, canonical)
     assert text == "48 furlongs" and units is None
+
+
+# --- glued (no-space) unit suffix, units blank -------------------------------
+
+
+def test_split_recovers_glued_letter_unit_when_units_blank():
+    text, units = parsing.split_value_and_unit_suffix("48K", None, frozenset({"K", "mK"}))
+    assert text == "48" and units == "K"
+
+
+def test_split_recovers_glued_multichar_unit_with_slash():
+    text, units = parsing.split_value_and_unit_suffix("5mg/L", None, frozenset({"mg/L", "µg/L"}))
+    assert text == "5" and units == "mg/L"
+
+
+def test_split_glued_variant_spelling_maps_to_canonical():
+    text, units = parsing.split_value_and_unit_suffix("5ug/L", None, frozenset({"µg/L"}))
+    assert text == "5" and units == "µg/L"
+
+
+def test_split_glued_multiword_unit_tail():
+    canonical = frozenset({"mg N m⁻² d⁻¹"})
+    text, units = parsing.split_value_and_unit_suffix("5mg N m-2 d-1", None, canonical)
+    assert text == "5" and units == "mg N m⁻² d⁻¹"
+
+
+def test_split_glued_after_range_and_compact_uncertainty():
+    canonical = frozenset({"K"})
+    assert parsing.split_value_and_unit_suffix("10 to 20K", None, canonical) == ("10 to 20", "K")
+    assert parsing.split_value_and_unit_suffix("2.05(5)K", None, canonical) == ("2.05(5)", "K")
+
+
+def test_split_glued_per_mille():
+    text, units = parsing.split_value_and_unit_suffix("12‰", None, frozenset({"‰"}))
+    assert text == "12" and units == "‰"
+
+
+def test_split_glued_never_cuts_inside_alphabetic_run():
+    # "5mK" must NOT resolve to 5 K (a 1000x error): the only cut is before 'm'.
+    for value, canonical in [("5mK", {"K"}), ("5mg/L", {"g/L"})]:
+        text, units = parsing.split_value_and_unit_suffix(value, None, frozenset(canonical))
+        assert text == value and units is None
+
+
+def test_split_glued_scientific_notation_untouched():
+    canonical = frozenset({"K", "mK"})
+    for value in ("1.5e-3", "1.5x10^8", "1.5 × 10^8"):
+        assert parsing.split_value_and_unit_suffix(value, None, canonical) == (value, None)
+
+
+def test_split_glued_footnote_markers_untouched():
+    canonical = frozenset({"K"})
+    for value in ("48]", "48f", "48*"):
+        assert parsing.split_value_and_unit_suffix(value, None, canonical) == (value, None)
+
+
+def test_split_blank_string_units_treated_as_blank():
+    text, units = parsing.split_value_and_unit_suffix("48K", "", frozenset({"K"}))
+    assert text == "48" and units == "K"

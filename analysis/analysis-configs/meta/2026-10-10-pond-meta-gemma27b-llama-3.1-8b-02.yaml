@@ -1,0 +1,31 @@
+id: 2026-10-10-pond-meta-gemma27b-llama-3.1-8b-02
+project: scholarlm
+description: >
+  Pond meta-analysis (analysis/pond_meta_analysis.py) run (llama-3.1-8b probe and NTP) of 2026-10-10-pond-meta-gemma27b-qwen-2.5-7b-01's settings under
+  the robust outlier factor: confidences multiplied by exp(-z^2/2), z = (x - median) / (1.4826 MAD) per
+  (ecosystem, attribute). Deduplicated gemma27b rows
+  (deduplication of 2026-10-09-pond-main-recovery-01, cluster-center confidence), pond->pond intercept_fit
+  confidences of 2026-10-10-calibration-gemma27b-llama-3.1-8b-intercept-fit-01. Percentile thresholding, t = 0, 0.1,
+  ..., 0.9; a Q-Q line / W1 needs >= 5 rows. W1-vs-threshold curves plot unnormalized W1 on each attribute's
+  native scale (log10 values for surface_area and max_depth, raw for pH), against a random-subset baseline, the
+  valid extracted rows' W1, and confidence-only curves. W1 intervals: 2000 bootstrap resamples; random baseline: 2000 draws.
+  Derived from 2026-10-10-pond-meta-gemma27b-llama-3.1-8b-01; same settings. Re-run on the 2026-10-10 calibration (NTP = the judge's raw p(true) recalibrated by intercept_fit, no synthetic-trained calibrator, commit cc3036f; logit clip 1e-10, commit b8b5949; 2026-10-10 re-trained head probes).
+seed: 0
+params:
+  meta_v2:
+    calibration_config_id: 2026-10-10-calibration-gemma27b-llama-3.1-8b-intercept-fit-01
+    calibration_version: v4
+    rows: deduplicated
+    deduplication_config_id: 2026-10-09-pond-main-recovery-01
+    confidence: center
+    n_boot: 2000
+    reference: ground_truth
+    ecosystems: [pond, lake]
+    attributes: [surface_area, max_depth, ph]
+    qq_attributes: [surface_area, max_depth, ph]
+    thresholds: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    min_n: 5
+    n_shuffle_samples: 2000
+    outlier_adjust: true
+    threshold_mode: percentile
+    w1_curve_scale: native

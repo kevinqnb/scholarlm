@@ -363,7 +363,7 @@ def run_attribution(
     )
 
     if method_name == "probe":
-        from analysis.loaders import load_trained_probe
+        from analysis.common.loaders import load_trained_probe
         # Fails loud (FileNotFoundError) if head_probe_noplatt.pkl is absent for
         # this (dataset, judge) pair.
         probe_data = load_trained_probe(

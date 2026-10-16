@@ -1,0 +1,11 @@
+id: 2026-05-03-nfix-ocr-olmocr-01
+project: scholarlm
+description: >-
+  Retroactive config reconstructed after the fact for the stored OCR output experiments/results/nfix/ocr/2026-05-03-nfix-ocr-olmocr-01/; the original config was not kept. Walltime (24h) is a nominal value, not the original request. Whether resume/paper_subset were set originally is unknown, so neither is pinned.
+  Output is byte-identical to data/nfix/ocr_output_raw/. Model: olmocr
+  (allenai/olmOCR-2-7B-1025).
+seed: 342
+params:
+  dataset: nfix
+  model: olmocr
+  walltime: "24:00:00"

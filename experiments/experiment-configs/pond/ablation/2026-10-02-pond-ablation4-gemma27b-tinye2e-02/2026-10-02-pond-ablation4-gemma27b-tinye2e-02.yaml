@@ -1,0 +1,25 @@
+id: 2026-10-02-pond-ablation4-gemma27b-tinye2e-02
+project: scholarlm
+description: >
+  Re-run of 2026-10-02-pond-ablation4-gemma27b-tinye2e-01 (job 7859254),
+  identical params, after commit dc54d32 added [api-diag] failure logging to
+  _acall. Purpose: diagnose the client-side 'Connection error' failures seen in
+  that run (7 calls that never reached the vLLM server, 5 table value-
+  extractions lost). Not a new test of the ablation. PREDICTION: connection
+  errors may or may not recur (3 of 4 siblings had them, one did not, so a clean
+  run is a real possibility -- if clean, nothing is learned about the cause). If
+  they recur, the [api-diag] lines name the underlying exception (chain) and
+  when it happened. Otherwise the original run's predictions apply: clean exit,
+  value_only recorded in run_metadata.json, qualifier keys on every record, a ph
+  record with value 8.4; record count may differ from the 11 of run 01 if fewer
+  table calls are lost.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "4"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  paper_subset: ["trophic_status_and_threats"]
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "01:00:00"

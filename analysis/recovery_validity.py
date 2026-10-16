@@ -1,92 +1,31 @@
-"""Compute recovery and validity for a list of experiment ids, from pre-built
-match caches (``analysis/match_cache.py``) and judge_combine judgements, with
-paper-clustered bootstrap confidence intervals.
+"""Recovery and validity per experiment id, with paper-clustered bootstrap CIs.
 
-This is the centralized replacement for the recovery/validity halves of
-``analysis/ablation.py`` and ``analysis/baselines.py`` -- same underlying
-``analysis.metrics.recovery_rate``/``validity_rate`` semantics, but:
+- recovery: fraction of ground-truth rows with any match-cache edge of weight >=
+  the dataset's fuzzy_threshold. ``recovery_max_weight_matching`` is the stricter
+  1-1 matching version, always <= recovery.
+- validity: fraction of extracted rows that are matched OR judged valid by their
+  judge_combine run, found through the judges' committed configs.
 
-  - reads matching *rules* (``strict_matching``/``fuzzy_matching``/
-    ``fuzzy_threshold``/``numeric_coerce``) off each dataset's own
-    ``DatasetConfig`` in ``experiments/dataset-configs/{dataset}.py`` -- the
-    same source ``analysis/match_cache.py`` reads via
-    ``get_matching_config`` -- rather than keeping a second copy of those
-    rules here, but reads the ground truth *rows* themselves from an
-    explicit ``ground_truth_path`` (an analysis config's own
-    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
-    mode) rather than the dataset's own ``DatasetConfig.ground_truth_file``
-    -- see analysis/analysis_config.py's module docstring for why;
-  - reads a match cache instead of computing one (never recomputes -- run
-    ``python analysis/match_cache.py <id>`` first for any id that doesn't
-    have one yet, and refuses a cache that predates its own extraction file
-    (postprocessed.json, or final.json on fallback -- see
-    ``match_cache.extraction_path``) or the ground truth file rather than
-    silently matching against row positions that have since shifted
-    underneath it, or that was built against a *different* ground truth or
-    extraction file than the ones given now, per its match_cache.meta.json
-    sidecar -- see ``_assert_ground_truth_matches_cache``/
-    ``_assert_extraction_matches_cache``).
-    Every cache is built at ``fuzzy_threshold=0.0`` regardless of the
-    dataset's configured threshold (see ``analysis/match_cache.py``'s module
-    docstring), so this script always loads it back via
-    ``match_cache.load_match_cache(id, fuzzy_threshold=<the dataset's own
-    threshold>)`` -- never the raw 0.0 cache -- so the edges it works with
-    are already the ones that threshold selects, not a second manual filter
-    reimplementing the same cutoff;
-  - resolves judgements by tracing each judge_combine experiment's own
-    ``judge_ids`` back to the extraction/ablation id they judged (via each
-    judge_id's own committed config), rather than a legacy
-    ``(dataset, model, date)`` "most recent" lookup -- experiment ids for an
-    extraction and its judge runs are minted independently and share no
-    literal naming convention, so this is a real data join, not string
-    matching. Optional: pass ``compute_validity=False``
-    (``--skip-validity`` on the CLI) to report recovery only, for an id that
-    has no judge_combine coverage yet;
-  - reports a percentile bootstrap CI resampled over whole papers
-    (document_id clusters), not the analytic Wilson interval
-    ``recovery_rate``/``validity_rate`` return -- rows from the same paper
-    are correlated, so a row-level interval understates uncertainty. The
-    Wilson point estimate is still cross-checked against this script's own
-    recovered/matched masks on every call (see ``_verify_recovery``/
-    ``_verify_validity``) as a guard against the two silently diverging.
+Reads existing match caches (never builds them) and refuses stale or mismatched
+ones. CIs resample whole papers because rows within a paper are correlated. Point
+estimates are cross-checked against analysis/common/metrics.py on every call.
 
-Only datasets whose ``DatasetConfig`` sets ``strict_matching``/
-``fuzzy_matching``/``fuzzy_threshold`` are supported (pond, as of this
-writing) -- the same restriction match_cache.py itself has.
+An optional ``fuzzy_threshold_curve`` config block sweeps the threshold for chosen
+ids and writes a CSV and figure per id under analysis/results/recovery-validity/<config>/.
 
 Usage
 -----
-    python analysis/recovery_validity.py <id> [<id> ...] \\
-        --n-resamples 2000 --seed 0 --ground-truth-file <path> \\
-        [--alpha 0.05] [--skip-validity] [--output PATH]
-    python analysis/recovery_validity.py --config analysis/analysis-configs/<id>.yaml
+    python analysis/recovery_validity.py <id> [...] --n-resamples N --seed S \\
+        --ground-truth-file <path> [--alpha 0.05] [--skip-validity] [--output PATH]
+    python analysis/recovery_validity.py --config analysis/analysis-configs/recovery-validity/<id>.yaml
 
-``--n-resamples``, ``--seed`` and ``--ground-truth-file`` are required, not
-defaulted (CLAUDE.md: no inferred defaults for a value that changes the
-reported numbers) -- pass the repo's own ``experiments/config.yaml``
-``defaults.seed`` for ``--seed`` to keep it consistent with the rest of the
-repo's seeding. ``--ground-truth-file`` must be the exact file the
-corresponding ``match_cache.py`` run used (its match_cache.meta.json sidecar
-is checked against it -- see ``_assert_ground_truth_matches_cache``).
-
-``--config`` reads ``params.experiment_ids``, ``params.ground_truth_file``,
-and a ``params.recovery_validity`` section (``n_resamples``/``alpha``/
-``compute_validity``/``output``, all required with no defaults, plus an
-optional ``judge_combine_ids`` id-to-id override map) from an
-analysis-configs/<id>.yaml -- see analysis/analysis_config.py. Mutually
-exclusive with ``experiment_ids`` and every flag above. A declared
-``judge_combine_ids`` entry is still verified against its extraction id (see
-``verify_judge_combine_id``) before use, the same way automatic resolution
-(``find_judge_combine_id``) verifies a candidate it finds by scanning -- it
-only skips the scan, never the check. Every output row also carries the
-analysis config's own ``id`` (``None`` in ad-hoc CLI mode) and the
-repo-relative ``ground_truth_file`` it was scored against, so a number can be
-traced back to exactly what produced it.
+--config is mutually exclusive with ids and every flag; its params.recovery_validity
+section requires n_resamples, alpha, compute_validity and output, plus an optional
+judge_combine_ids map (still verified) and fuzzy_threshold_curve.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -98,578 +37,131 @@ sys.path.insert(0, str(_REPO_ROOT / "src"))
 sys.path.insert(0, str(_REPO_ROOT / "experiments"))
 sys.path.insert(0, str(_REPO_ROOT))
 
-from analysis import match_cache
-from analysis.analysis_config import get_ground_truth_path, get_section, load_analysis_config
-from analysis.loaders import load_ground_truth_file
-from analysis.metrics import recovery_rate as _recovery_rate, validity_rate as _validity_rate
-from experiments.run_extraction import load_dataset_config
-import utils as paths
+from analysis.common import matching, provenance
+from analysis.common.config import analysis_results_dir, get_ground_truth_path, get_section, load_analysis_config
+from analysis.common.recovery import (
+    ext_matched_mask, filter_edges_by_threshold, gt_recovered_mask, load_checked_inputs, resolve_judged_labels,
+    verify_recovery, verify_validity,
+)
 
+def count_split_rows(extraction_df: pd.DataFrame) -> int:
+    """Count rows that inherited their judge label from a split parent row.
 
-# ---------------------------------------------------------------------------
-# Loading + cache-freshness guard
-# ---------------------------------------------------------------------------
-
-
-def load_frames(experiment_id: str, ground_truth_path: Path):
-    """Load an experiment's ground truth + extraction frames exactly as
-    ``match_cache.build_match_cache`` did when it built this id's cache
-    (reset_index, no unit conversion, no row filtering) -- the cached
-    (gt_idx, ex_idx) edges are positions into frames loaded this same way,
-    so loading them any other way would silently misalign the cache. The
-    extraction file itself is resolved via ``match_cache.extraction_path``,
-    the same postprocessed.json-else-final.json preference
-    ``build_match_cache`` used.
-
-    ``ground_truth_path`` has no default -- see module docstring for why the
-    ground truth file is always given explicitly rather than read off the
-    dataset's own DatasetConfig.
+    Args:
+        extraction_df: Extraction rows.
 
     Returns:
-        (dataset, dataset_config, ground_truth_df, extraction_df,
-        extraction_file_path, ground_truth_path).
-
-    Raises:
-        FileNotFoundError: no results directory, or no postprocessed.json/
-            final.json, for this id.
-        ValueError: run_metadata.json's own dataset field disagrees with the
-            dataset the id's own results-directory path resolves to.
+        Number of rows sharing (document_id, measurement_id) with another row.
     """
-    result_dir = paths.find_result_dir(experiment_id)
-    dataset = result_dir.parts[-3]
-
-    meta = paths.load_run_metadata(result_dir)
-    if meta is not None and meta.get("dataset") not in (None, dataset):
-        raise ValueError(
-            f"{experiment_id}: run_metadata.json dataset={meta.get('dataset')!r} "
-            f"disagrees with the dataset its own path resolves to ({dataset!r})"
-        )
-
-    extraction_file_path, _used_fallback = match_cache.extraction_path(experiment_id)
-    with open(extraction_file_path) as f:
-        extraction_df = pd.DataFrame(json.load(f)).reset_index(drop=True)
-
-    dataset_config = load_dataset_config(dataset)
-    ground_truth_df = load_ground_truth_file(ground_truth_path).reset_index(drop=True)
-
-    return dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path
-
-
-def _assert_cache_fresh(cache_path: Path, *source_paths: Path) -> None:
-    """Raise if cache_path is older than any of source_paths.
-
-    A match cache's (gt_idx, ex_idx) edges are only meaningful against the
-    exact frames that were loaded when it was built -- if the ground truth
-    or the extraction file (postprocessed.json/final.json) has changed
-    since, those indices may now point at different rows. Refuse rather than
-    guess.
-    """
-    cache_mtime = cache_path.stat().st_mtime
-    stale = [p for p in source_paths if p.stat().st_mtime > cache_mtime]
-    if stale:
-        raise RuntimeError(
-            f"{cache_path} is older than {[str(p) for p in stale]} -- its cached "
-            f"match indices may no longer line up with the current rows. Rerun "
-            f"`python analysis/match_cache.py <experiment_id>` before using it."
-        )
-
-
-def _assert_ground_truth_matches_cache(
-    experiment_id: str, cache_path: Path, ground_truth_path: Path, ground_truth_df: pd.DataFrame,
-) -> None:
-    """Raise unless match_cache.py's own match_cache.meta.json sidecar
-    confirms cache_path was built against this exact ground_truth_path.
-
-    The mtime check in _assert_cache_fresh only catches a cache older than
-    its sources -- it says nothing about WHICH ground truth file a cache was
-    built against, now that the file is an explicit, selectable parameter
-    rather than always the one true value on the run's DatasetConfig. A cache
-    built against ground truth A and then scored here against ground truth B
-    would otherwise pass every existing guard (both older than the cache,
-    edges in-range for n_gt/n_ext) while silently misaligning every cached
-    (gt_idx, ex_idx) pair -- exactly the "runs cleanly, produces a wrong
-    number" failure mode this repo is built to avoid. Checked by content hash,
-    not just path string, so an edited-in-place ground truth file is also
-    caught.
-
-    Raises:
-        FileNotFoundError: no match_cache.meta.json sidecar (a cache built
-            before this check existed) -- rebuild it rather than trust it.
-        RuntimeError: the sidecar's ground_truth_file/sha256/n_gt disagree
-            with ground_truth_path/ground_truth_df.
-    """
-    meta_path = cache_path.with_name("match_cache.meta.json")
-    if not meta_path.exists():
-        raise FileNotFoundError(
-            f"{experiment_id}: no {meta_path} sidecar for this match cache -- it "
-            f"predates explicit ground-truth-file tracking and cannot be trusted "
-            f"to have been built against {ground_truth_path}. Rerun "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file {ground_truth_path}` (or --config) to rebuild it."
-        )
-    with open(meta_path) as f:
-        cache_meta = json.load(f)
-
-    actual = {
-        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
-        "ground_truth_sha256": match_cache.sha256_file(ground_truth_path),
-        "n_gt": len(ground_truth_df),
-    }
-    mismatches = [
-        f"{key}: cache={cache_meta.get(key)!r} vs current={actual[key]!r}"
-        for key in actual if cache_meta.get(key) != actual[key]
-    ]
-    if mismatches:
-        raise RuntimeError(
-            f"{experiment_id}: {cache_path} was built against a different ground "
-            f"truth than {ground_truth_path} ({'; '.join(mismatches)}). Rerun "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file {ground_truth_path}` (or --config) against the "
-            f"ground truth this analysis actually wants."
-        )
-
-
-def _assert_extraction_matches_cache(
-    experiment_id: str, cache_path: Path, extraction_file_path: Path,
-) -> None:
-    """Raise unless match_cache.py's own match_cache.meta.json sidecar
-    confirms cache_path was built against this exact extraction_file_path
-    (postprocessed.json, or final.json on fallback -- see
-    match_cache.extraction_path).
-
-    Mirrors _assert_ground_truth_matches_cache, for the other file a cache's
-    (gt_idx, ex_idx) edges are positions into. Without this, a cache built
-    from final.json (before analysis/postprocessing.py had ever run for this
-    id) would look perfectly valid by every other guard -- same row count,
-    fresher mtime -- if later scored against a postprocessed.json with
-    different point_value/units values for the same rows: the cached edges
-    would silently no longer reflect what ext_matched_mask/validity actually
-    read, exactly the "runs clean, wrong number" failure this repo is built
-    to avoid. Checked by content hash, not just which filename was used, so
-    an edited-in-place postprocessed.json (e.g. after widening
-    parsing.py's unit-variant table and rerunning analysis/postprocessing.py)
-    is also caught.
-
-    Raises:
-        FileNotFoundError: no match_cache.meta.json sidecar, or one that
-            predates extraction-file tracking (built before this check
-            existed).
-        RuntimeError: the sidecar's extraction_file/sha256 disagree with
-            extraction_file_path.
-    """
-    meta_path = cache_path.with_name("match_cache.meta.json")
-    if not meta_path.exists():
-        raise FileNotFoundError(
-            f"{experiment_id}: no {meta_path} sidecar for this match cache. Rerun "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file <path>` (or --config) to rebuild it."
-        )
-    with open(meta_path) as f:
-        cache_meta = json.load(f)
-
-    if "extraction_file" not in cache_meta:
-        raise FileNotFoundError(
-            f"{experiment_id}: {meta_path} predates extraction-file tracking "
-            f"(postprocessed.json-vs-final.json fallback) and cannot be trusted to "
-            f"have been built against {extraction_file_path}. Rerun "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file <path>` (or --config) to rebuild it."
-        )
-
-    actual = {
-        "extraction_file": match_cache.repo_relative(extraction_file_path),
-        "extraction_sha256": match_cache.sha256_file(extraction_file_path),
-    }
-    mismatches = [
-        f"{key}: cache={cache_meta.get(key)!r} vs current={actual[key]!r}"
-        for key in actual if cache_meta.get(key) != actual[key]
-    ]
-    if mismatches:
-        raise RuntimeError(
-            f"{experiment_id}: {cache_path} was built against a different extraction "
-            f"file than {extraction_file_path} ({'; '.join(mismatches)}). Rerun "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file <path>` (or --config) to rebuild it against the "
-            f"extraction file this analysis actually wants."
-        )
-
-
-def _assert_matching_columns_present(
-    ground_truth_df: pd.DataFrame, extraction_df: pd.DataFrame, cfg: dict,
-) -> None:
-    """Raise if a column the dataset's matching config names isn't in the
-    current frames.
-
-    The mtime check above only catches a cache that predates its OWN source
-    files -- it says nothing about whether that cache was ever built under
-    the CURRENT matching config in the first place. A match_cache.pkl left
-    over from a different matching-rules era (different strict/fuzzy column
-    names, e.g. a legacy ``value``/``converted_value`` cache sitting where a
-    ``point_value``-keyed one is now expected) can still look "fresh" by
-    mtime alone. This is a cheap, independent guard: match_datasets can't
-    have produced today's cache from a frame that doesn't even have the
-    columns today's config asks it to match on.
-    """
-    missing_gt = sorted({
-        col for col in list(cfg["strict"]) + list(cfg.get("fuzzy") or {})
-        if col not in ground_truth_df.columns
-    })
-    missing_ext = sorted({
-        col for col in list(cfg["strict"].values()) + list((cfg.get("fuzzy") or {}).values())
-        if col not in extraction_df.columns
-    })
-    if missing_gt or missing_ext:
-        raise KeyError(
-            f"matching config column(s) missing from the current data -- "
-            f"ground truth missing {missing_gt}, extraction missing "
-            f"{missing_ext}. A match_cache.pkl built under different matching "
-            f"rules (or against an extraction/ground-truth schema from before "
-            f"a later column rename) cannot be trusted here even if its mtime "
-            f"looks fresh -- rerun `python analysis/match_cache.py <experiment_id>` "
-            f"only after confirming these columns exist in the current data."
-        )
+    return int(extraction_df.duplicated(["document_id", "measurement_id"], keep=False).sum())
 
 
 # ---------------------------------------------------------------------------
-# Judgement resolution: extraction id -> judge_combine id -> per-row labels
+# Maximum-weight 1-1 matching recovery (over threshold-filtered edges)
 # ---------------------------------------------------------------------------
 
 
-def _resolve_judged_extraction_ids(judge_ids: list[str]) -> tuple[set[str], str | None]:
-    """The set of extraction_id(s) that judge_ids' own committed configs
-    (``params.extraction_id``) resolve to -- the per-candidate check shared
-    by find_judge_combine_id's scan and verify_judge_combine_id's single-
-    candidate check, factored out so the two never drift apart.
+# Integer edge weight = round(w * 1e6) * (max matching size + 1) + 1, so total weight
+# decides first and cardinality only breaks exact ties.
+_WEIGHT_SCALE = 10**6
+
+
+def max_weight_matching_recovered(
+    n_gt: int, n_ext: int, edges: list[tuple[int, int]], edge_weights: list[float],
+) -> tuple[np.ndarray, list[tuple[int, int]]]:
+    """Recover ground-truth rows through a maximum-weight 1-1 matching of surviving edges.
+
+    Solved fresh on the filtered edges (the cache's own matching used all
+    threshold-0 edges). Weight comes first; cardinality only breaks ties.
+
+    Args:
+        n_gt: Number of ground-truth rows.
+        n_ext: Number of extraction rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs.
+        edge_weights: Weight per edge, in [0, 1].
 
     Returns:
-        (judged_extraction_ids, skip_reason). skip_reason is None on full
-        success; otherwise judged_extraction_ids is incomplete and the
-        caller decides whether that's a skip (scanning) or a hard error
-        (a config-declared id, which has no other candidate to fall back to).
-    """
-    judged_extraction_ids: set[str] = set()
-    for judge_id in judge_ids:
-        try:
-            judge_config_path = paths.find_experiment_config(judge_id)
-        except FileNotFoundError:
-            return judged_extraction_ids, f"judge_id {judge_id!r} has no committed experiment-config"
-        judge_extraction_id = paths.load_experiment_config(judge_config_path)["params"].get("extraction_id")
-        if judge_extraction_id is None:
-            return judged_extraction_ids, f"judge_id {judge_id!r} has no params.extraction_id (synthetic judge?)"
-        judged_extraction_ids.add(judge_extraction_id)
-    return judged_extraction_ids, None
-
-
-def _cross_check_judge_run_metadata(combine_id: str, judge_ids: list[str], extraction_id: str) -> None:
-    """Raise if a judge_id has actually run (has a run_metadata.json) and its
-    recorded extraction_id disagrees with its own committed config -- shared
-    tail check for find_judge_combine_id and verify_judge_combine_id.
+        ``(recovered, matching)``: boolean mask over ground-truth rows, and the
+        matching as sorted (gt_idx, ex_idx) pairs.
 
     Raises:
-        ValueError: a judge_id's run_metadata.json disagrees with its config.
+        ValueError: Length mismatch, duplicate edge, weight outside [0, 1], or an
+            index out of range.
     """
-    for judge_id in judge_ids:
-        try:
-            judge_dir = paths.find_result_dir(judge_id)
-        except FileNotFoundError:
-            continue
-        run_meta = paths.load_run_metadata(judge_dir)
-        if run_meta is not None and run_meta.get("extraction_id") not in (None, extraction_id):
-            raise ValueError(
-                f"{combine_id}: judge_id {judge_id!r}'s committed config points at "
-                f"extraction_id={extraction_id!r}, but its own run_metadata.json "
-                f"recorded extraction_id={run_meta.get('extraction_id')!r} -- it was "
-                f"not run against the config it currently has"
-            )
+    import networkx as nx
+
+    if len(edges) != len(edge_weights):
+        raise ValueError(f"{len(edges)} edges vs {len(edge_weights)} weights")
+    if len(set(edges)) != len(edges):
+        raise ValueError("duplicate (gt_idx, ex_idx) edges -- the graph would silently keep only one weight")
+    multiplier = min(n_gt, n_ext) + 1
+
+    G = nx.Graph()
+    for (gt_idx, ex_idx), w in zip(edges, edge_weights):
+        if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
+            raise ValueError(f"edge ({gt_idx}, {ex_idx}) out of range for n_gt={n_gt}, n_ext={n_ext}")
+        if not (0.0 <= w <= 1.0):
+            raise ValueError(f"edge ({gt_idx}, {ex_idx}) has weight {w!r} outside [0, 1]")
+        # Namespaced nodes: bare ints would merge gt row 0 with extraction row 0.
+        G.add_edge(f"L_{gt_idx}", f"R_{ex_idx}", weight=round(w * _WEIGHT_SCALE) * multiplier + 1)
+
+    matching: list[tuple[int, int]] = []
+    for u, v in nx.max_weight_matching(G, maxcardinality=False):
+        left, right = (u, v) if u.startswith("L_") else (v, u)
+        matching.append((int(left[2:]), int(right[2:])))
+    matching.sort()
+
+    recovered = np.zeros(n_gt, dtype=bool)
+    for gt_idx, _ex_idx in matching:
+        recovered[gt_idx] = True
+    return recovered, matching
 
 
-def verify_judge_combine_id(dataset: str, judge_combine_id: str, extraction_id: str) -> list[str]:
-    """Validate a config-DECLARED judge_combine_id against extraction_id, for
-    an analysis config's optional ``params.recovery_validity.judge_combine_ids``
-    override (see analysis/analysis_config.py) -- so a wrong declared id
-    still fails loud rather than being trusted blindly.
-
-    Runs the exact same per-candidate check find_judge_combine_id applies to
-    every candidate it finds by scanning, just against this one id instead of
-    all of experiment-configs/{dataset}/judge_combine/*/*.yaml -- it never
-    replaces or loosens that check, only skips the scan. This also means it
-    can disambiguate a case where more than one judge_combine run judges the
-    same extraction, which find_judge_combine_id itself would refuse
-    (ValueError: ambiguous).
-
-    Returns:
-        judge_ids -- same shape as find_judge_combine_id's second return value.
-
-    Raises:
-        FileNotFoundError: no committed config for judge_combine_id, or one
-            of its own judge_ids has no committed config.
-        ValueError: judge_combine_id isn't under
-            experiment-configs/{dataset}/judge_combine/, its judge_ids
-            disagree with each other or don't resolve to extraction_id, or a
-            judge_id's run_metadata.json disagrees with its committed config.
-    """
-    config_path = paths.find_experiment_config(judge_combine_id)
-    if config_path.parts[-4] != dataset or config_path.parts[-3] != "judge_combine":
-        raise ValueError(
-            f"judge_combine_id={judge_combine_id!r} resolves to {config_path}, "
-            f"not under experiment-configs/{dataset}/judge_combine/"
-        )
-    cfg = paths.load_experiment_config(config_path)
-    judge_ids = cfg["params"]["judge_ids"]
-
-    judged_extraction_ids, skip_reason = _resolve_judged_extraction_ids(judge_ids)
-    if skip_reason is not None:
-        raise FileNotFoundError(f"{config_path}: {skip_reason}")
-    if judged_extraction_ids != {extraction_id}:
-        raise ValueError(
-            f"{config_path}: its own judge_ids {judge_ids} resolve to "
-            f"extraction_id(s) {sorted(judged_extraction_ids)}, not the "
-            f"declared extraction_id={extraction_id!r}"
-        )
-
-    _cross_check_judge_run_metadata(judge_combine_id, judge_ids, extraction_id)
-    return judge_ids
-
-
-def find_judge_combine_id(dataset: str, extraction_id: str) -> tuple[str, list[str]]:
-    """Find the judge_combine experiment whose judge_ids all judged extraction_id.
-
-    Scans ``experiments/experiment-configs/{dataset}/judge_combine/*/*.yaml``
-    and, for each one, resolves its ``params.judge_ids`` back to the
-    extraction/ablation id each judge run judges, by reading each judge_id's
-    own COMMITTED config (``params.extraction_id``) -- not that judge run's
-    ``run_metadata.json``, which only exists after the run has finished and
-    would otherwise force an unrelated, not-yet-run candidate to be treated
-    as unresolvable. Never inferred from the id strings themselves -- an
-    extraction id and the judge/combine ids that judge it are minted
-    independently and share no literal substring convention (e.g.
-    ``2026-05-05-pond-gemma-3-27b-extraction-01`` is judged by
-    ``2026-09-13-pond-gemma3-27b-extraction-judge-combine-01``).
-
-    Once exactly one combine matches, its judge_ids' own run_metadata.json
-    (where a run has actually completed) is cross-checked against their
-    committed extraction_id, so a judge run executed against a since-edited
-    config still gets caught rather than silently trusted.
-
-    A candidate combine whose own judge_ids can't all be resolved this way
-    (missing config, or a judge config with no ``params.extraction_id`` --
-    e.g. a synthetic-probe judge) is not a hard error by itself, since it can
-    never be the id being searched for either way, but it is never silent:
-    every skip is collected and named in the eventual no-match error, and
-    printed even when a match is found.
-
-    Returns:
-        (judge_combine_id, judge_ids).
-
-    Raises:
-        FileNotFoundError: no judge_combine config's judge_ids all resolve to
-            extraction_id.
-        ValueError: more than one does (ambiguous which ground truth to use),
-            a single combine's own judge_ids disagree with each other about
-            which extraction they judged (a malformed combine config), or
-            the winning combine's judge_ids' run_metadata.json disagrees with
-            their own committed config.
-    """
-    combine_dir = paths.EXPERIMENT_CONFIGS_ROOT / dataset / "judge_combine"
-    matches: list[tuple[str, list[str]]] = []
-    skipped: list[tuple[str, str]] = []
-
-    for config_path in sorted(combine_dir.glob("*/*.yaml")):
-        cfg = paths.load_experiment_config(config_path)
-        judge_ids = cfg["params"]["judge_ids"]
-
-        judged_extraction_ids, skip_reason = _resolve_judged_extraction_ids(judge_ids)
-        if skip_reason is not None:
-            skipped.append((cfg["id"], skip_reason))
-            continue
-
-        if len(judged_extraction_ids) != 1:
-            raise ValueError(
-                f"{config_path}: its own judge_ids {judge_ids} disagree about "
-                f"which extraction they judged: {sorted(judged_extraction_ids)}"
-            )
-        if judged_extraction_ids == {extraction_id}:
-            matches.append((cfg["id"], judge_ids))
-
-    if not matches:
-        skip_note = f" Skipped candidates: {skipped}." if skipped else ""
-        raise FileNotFoundError(
-            f"No judge_combine experiment under "
-            f"experiment-configs/{dataset}/judge_combine/ has judge_ids that all "
-            f"trace back to extraction_id={extraction_id!r}.{skip_note} Run "
-            f"run_judge_local.py/run_judge_interp.py + run_judge_combine.py for "
-            f"it first."
-        )
-    if len(matches) > 1:
-        raise ValueError(
-            f"extraction_id={extraction_id!r} is judged by more than one "
-            f"judge_combine experiment (ambiguous which ground truth to use): "
-            f"{sorted(m[0] for m in matches)}"
-        )
-    if skipped:
-        print(f"  find_judge_combine_id: skipped {len(skipped)} unrelated candidate(s): {skipped}")
-
-    winning_id, winning_judge_ids = matches[0]
-    _cross_check_judge_run_metadata(winning_id, winning_judge_ids, extraction_id)
-    return winning_id, winning_judge_ids
-
-
-def load_validity_labels(judge_combine_id: str, extraction_df: pd.DataFrame) -> np.ndarray:
-    """Load combined.json for judge_combine_id, joined by measurement_id and
-    aligned positionally to extraction_df.
-
-    Never assumes combined.json's row order matches extraction_df's -- joins
-    explicitly by measurement_id and asserts the join is exact (a permutation
-    of range(n), both sides agreeing on document_id/attribute at each id) so
-    an extraction re-run after judging is caught rather than silently
-    mislabeling rows.
-
-    Raises:
-        FileNotFoundError: no combined.json for judge_combine_id.
-        ValueError: row-count mismatch, a non-permutation measurement_id set
-            on either side, a document_id/attribute disagreement at some
-            shared measurement_id, or a non-bool judgement_combined value.
-    """
-    combined_path = paths.find_result_dir(judge_combine_id) / "combined.json"
-    if not combined_path.exists():
-        raise FileNotFoundError(f"No combined.json for {judge_combine_id!r} at {combined_path}")
-    with open(combined_path) as f:
-        combined = json.load(f)
-
-    n_ext = len(extraction_df)
-    if len(combined) != n_ext:
-        raise ValueError(
-            f"{judge_combine_id}: combined.json has {len(combined)} record(s), "
-            f"extraction has {n_ext} row(s) -- not the same run"
-        )
-
-    combined_mids = sorted(r["measurement_id"] for r in combined)
-    if combined_mids != list(range(n_ext)):
-        raise ValueError(
-            f"{judge_combine_id}: combined.json measurement_id set is not "
-            f"exactly range({n_ext}) ({len(set(combined_mids))} distinct of "
-            f"{len(combined_mids)} records) -- cannot align positionally"
-        )
-
-    if "measurement_id" not in extraction_df.columns:
-        raise ValueError(f"{judge_combine_id}: extraction data has no measurement_id column")
-    ext_mids = extraction_df["measurement_id"].tolist()
-    if ext_mids != list(range(n_ext)):
-        raise ValueError(
-            f"{judge_combine_id}: extraction's own measurement_id is not "
-            f"range({n_ext}) in row order -- cannot align positionally"
-        )
-
-    by_mid = {r["measurement_id"]: r for r in combined}
-    ordered = [by_mid[i] for i in range(n_ext)]
-
-    mismatched = [
-        i for i, (ext_row, judge_row) in enumerate(zip(extraction_df.itertuples(), ordered))
-        if ext_row.document_id != judge_row["document_id"] or ext_row.attribute != judge_row["attribute"]
-    ]
-    if mismatched:
-        raise ValueError(
-            f"{judge_combine_id}: {len(mismatched)} row(s) disagree with the "
-            f"extraction's own data on document_id/attribute at the same "
-            f"measurement_id (extraction likely re-run after judging) -- first "
-            f"mismatch at measurement_id={mismatched[0]}"
-        )
-
-    non_bool = [r["measurement_id"] for r in ordered if not isinstance(r["judgement_combined"], bool)]
-    if non_bool:
-        raise ValueError(
-            f"{judge_combine_id}: judgement_combined is not a bool for "
-            f"measurement_id(s) {non_bool[:10]}"
-        )
-
-    return np.array([r["judgement_combined"] for r in ordered], dtype=bool)
-
-
-# ---------------------------------------------------------------------------
-# Recovered / matched masks, from an ALREADY-threshold-filtered edge list
-# (i.e. match_cache.load_match_cache(id, fuzzy_threshold=...) -- see module
-# docstring) + a cross-check against analysis.metrics' own rates
-# ---------------------------------------------------------------------------
-
-
-def gt_recovered_mask(n_gt: int, edges: list[tuple[int, int]]) -> np.ndarray:
-    mask = np.zeros(n_gt, dtype=bool)
-    for gt_idx, _ex_idx in edges:
-        mask[gt_idx] = True
-    return mask
-
-
-def ext_matched_mask(n_ext: int, edges: list[tuple[int, int]]) -> np.ndarray:
-    mask = np.zeros(n_ext, dtype=bool)
-    for _gt_idx, ex_idx in edges:
-        mask[ex_idx] = True
-    return mask
-
-
-def _verify_recovery(
-    ground_truth_df: pd.DataFrame,
-    extraction_df: pd.DataFrame,
-    cfg: dict,
-    threshold: float,
-    cache_path: Path,
+def _verify_matching(
+    matching: list[tuple[int, int]],
+    edges: list[tuple[int, int]],
     recovered: np.ndarray,
-) -> None:
-    """Assert this script's recovered mask agrees with
-    ``analysis.metrics.recovery_rate`` computed against the exact same cache.
-
-    ``gt_recovered_mask``/``ext_matched_mask`` above are a near-duplicate of
-    metrics.py's own internal edge-filtering loop (kept separate only
-    because metrics.py doesn't expose the boolean arrays) -- this guards
-    against that duplication silently diverging from the reviewed eval code
-    it mirrors, per CLAUDE.md's rule against re-deriving evaluation logic
-    unchecked.
-
-    Raises:
-        AssertionError: the two recovery computations disagree.
-    """
-    ref_recovery = _recovery_rate(
-        ground_truth_df, extraction_df,
-        strict_matching=cfg["strict"], fuzzy_matching=cfg["fuzzy"],
-        fuzzy_threshold=threshold, cache_path=cache_path,
-    )
-    if not np.isclose(ref_recovery, recovered.mean()):
-        raise AssertionError(
-            f"recovery mismatch: {recovered.mean()} (this script) vs "
-            f"{ref_recovery} (analysis.metrics.recovery_rate) -- the two "
-            f"recovered-row computations have diverged"
-        )
-
-
-def _verify_validity(
+    any_edge_recovered: np.ndarray,
     ground_truth_df: pd.DataFrame,
     extraction_df: pd.DataFrame,
-    cfg: dict,
-    threshold: float,
-    cache_path: Path,
-    matched: np.ndarray,
-    judged_labels: np.ndarray,
-) -> np.ndarray:
-    """Assert this script's matched/judged masks agree with
-    ``analysis.metrics.validity_rate`` computed against the exact same
-    cache, then return the OR'd validity-label array. See ``_verify_recovery``.
+) -> None:
+    """Check the matching is 1-1, drawn from ``edges``, and never crosses papers.
+
+    No cross-paper edges is what makes resampling papers after one global matching valid.
+
+    Args:
+        matching: (gt_idx, ex_idx) pairs from ``max_weight_matching_recovered``.
+        edges: Threshold-filtered edges.
+        recovered: Matching-based recovered mask.
+        any_edge_recovered: Any-edge recovered mask (must be a superset).
+        ground_truth_df: Ground-truth frame.
+        extraction_df: Extraction frame.
 
     Raises:
-        AssertionError: the two validity computations disagree.
+        AssertionError: Any check fails.
     """
-    judged_df = pd.DataFrame({"judgement_combined": judged_labels})
-    ref_validity = _validity_rate(
-        ground_truth_df, extraction_df,
-        strict_matching=cfg["strict"], fuzzy_matching=cfg["fuzzy"],
-        fuzzy_threshold=threshold, judged_df=judged_df, cache_path=cache_path,
-    )
-    validity_labels = judged_labels | matched
-    if not np.isclose(ref_validity, validity_labels.mean()):
+    gts = [g for g, _ in matching]
+    exs = [e for _, e in matching]
+    if len(set(gts)) != len(gts) or len(set(exs)) != len(exs):
+        raise AssertionError("matching uses a ground truth or extraction row more than once")
+    edge_set = set(edges)
+    not_edges = [m for m in matching if m not in edge_set]
+    if not_edges:
+        raise AssertionError(f"matching contains pair(s) not among the filtered edges: {not_edges[:5]}")
+    if int(recovered.sum()) != len(matching):
+        raise AssertionError(f"recovered count {int(recovered.sum())} != matching size {len(matching)}")
+    if (recovered & ~any_edge_recovered).any():
+        raise AssertionError("matching recovers a ground truth row with no surviving edge")
+
+    gt_docs = ground_truth_df["document_id"].astype(str).to_numpy()
+    ex_docs = extraction_df["document_id"].astype(str).to_numpy()
+    cross = [(g, e) for g, e in edges if gt_docs[g] != ex_docs[e]]
+    if cross:
         raise AssertionError(
-            f"validity mismatch: {validity_labels.mean()} (this script) vs "
-            f"{ref_validity} (analysis.metrics.validity_rate) -- the two "
-            f"matched/judged-row computations have diverged"
+            f"{len(cross)} edge(s) join different document_ids (first: {cross[0]}) -- "
+            f"the matching no longer decomposes per paper, so the paper-clustered "
+            f"bootstrap over it is not valid"
         )
-    return validity_labels
 
 
 # ---------------------------------------------------------------------------
@@ -685,29 +177,20 @@ def bootstrap_cluster_rate(
     seed: int,
     alpha: float = 0.05,
 ) -> tuple[float, float, float]:
-    """Percentile bootstrap of a proportion, resampling whole clusters.
-
-    Rows sharing a cluster id (a paper's document_id) are not independent, so
-    resampling individual rows understates uncertainty -- this resamples the
-    set of clusters with replacement (each draw takes ALL of that cluster's
-    rows), which is the standard case-resampling cluster bootstrap.
+    """Percentile bootstrap CI of a proportion, resampling whole clusters (papers).
 
     Args:
-        labels: Boolean array, one entry per row.
-        clusters: Parallel array of cluster ids, same length as labels.
-        n_resamples: Number of bootstrap resamples. No default (CLAUDE.md: a
-            value like this that trades off precision for runtime doesn't
-            get an inferred default).
-        seed: RNG seed. No default, for the same reason.
-        alpha: CI significance level; returns the (alpha/2, 1-alpha/2)
-            percentiles of the bootstrap distribution.
+        labels: Boolean per row.
+        clusters: Cluster id per row.
+        n_resamples: Number of resamples.
+        seed: RNG seed.
+        alpha: CI level; returns the alpha/2 and 1 - alpha/2 percentiles.
 
     Returns:
-        (point_estimate, ci_lo, ci_hi). point_estimate is the plain
-        (unresampled) rate over all rows.
+        ``(point, ci_lo, ci_hi)``; ``point`` is the plain rate over all rows.
 
     Raises:
-        ValueError: labels/clusters length mismatch, or zero rows.
+        ValueError: Length mismatch or zero rows.
     """
     labels = np.asarray(labels, dtype=bool)
     clusters = np.asarray(clusters)
@@ -754,94 +237,81 @@ def compute_metrics_for_id(
     compute_validity: bool = True,
     judge_combine_id: str | None = None,
 ) -> dict:
-    """Compute recovery (+ validity, unless ``compute_validity=False``) with
-    paper-clustered bootstrap CIs for one experiment id.
+    """Recovery and (optionally) validity with paper-clustered CIs for one experiment.
 
-    ``ground_truth_path`` has no default -- see module docstring: the ground
-    truth file is always given explicitly (an analysis config's
-    ``params.ground_truth_file``, or ``--ground-truth-file`` in ad-hoc CLI
-    mode), never inferred from the experiment's dataset's own DatasetConfig.
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file (must match the cache's sidecar).
+        n_resamples: Bootstrap resamples.
+        seed: Bootstrap seed (shared by all three metrics).
+        alpha: CI level.
+        compute_validity: If False, skip judge resolution; validity fields are None.
+        judge_combine_id: Declared combine id (verified), or None to search.
 
-    ``compute_validity=False`` skips judge_combine resolution entirely --
-    for an id that has no judge coverage yet, not a way to suppress a real
-    resolution failure. The returned row's validity-related fields are then
-    ``None``, not 0.0 or some other placeholder (CLAUDE.md: no silent
-    fallback in place of a value that was never computed).
+    Returns:
+        Output row dict: ids, input files, counts, threshold, ``recovery``,
+        ``recovery_max_weight_matching`` and ``validity`` with ``_ci_lo`` / ``_ci_hi``,
+        judge ids, and ``n_split_rows_inheriting_judgement``.
 
-    ``judge_combine_id``, if given, is used instead of scanning for one via
-    ``find_judge_combine_id`` -- verified against ``experiment_id`` first
-    (``verify_judge_combine_id``) so a wrong caller-supplied id still fails
-    loud. Default ``None`` preserves the original scan-only behavior exactly.
-
-    Raises loud on any of: unsupported dataset, missing/stale/schema-mismatched
-    match cache, a match cache built against a different ground truth file or
-    a different extraction file (missing or mismatched match_cache.meta.json
-    sidecar -- see ``_assert_ground_truth_matches_cache``/
-    ``_assert_extraction_matches_cache``), an out-of-range cached edge, no
-    (or an ambiguous) judge_combine match, a combined.json/extraction
-    row-alignment problem, or the recovered/matched masks disagreeing with
-    analysis.metrics' own rates. No fallback path for any of these -- see
-    module docstring.
+    Raises:
+        FileNotFoundError, KeyError, RuntimeError, ValueError, AssertionError: A
+            missing or mismatched cache, judge resolution failure, or disagreement
+            with analysis/common/metrics.py.
     """
-    dataset, dataset_config, ground_truth_df, extraction_df, extraction_file_path, ground_truth_path = load_frames(
-        experiment_id, ground_truth_path,
-    )
-
-    cfg = match_cache.get_matching_config(dataset_config)
+    inputs = load_checked_inputs(experiment_id, ground_truth_path)
+    dataset = inputs["dataset"]
+    ground_truth_df, extraction_df = inputs["ground_truth_df"], inputs["extraction_df"]
+    extraction_file_path, ground_truth_path = inputs["extraction_file_path"], inputs["ground_truth_path"]
+    cfg, cache_path = inputs["cfg"], inputs["cache_path"]
+    raw_edges, raw_weights = inputs["raw_edges"], inputs["raw_weights"]
     threshold = cfg["fuzzy_threshold"]
-    _assert_matching_columns_present(ground_truth_df, extraction_df, cfg)
-
-    cache_path = match_cache.match_cache_path(experiment_id)
-    if not cache_path.exists():
-        raise FileNotFoundError(
-            f"{experiment_id}: no match_cache.pkl at {cache_path}. Run "
-            f"`python analysis/match_cache.py {experiment_id} "
-            f"--ground-truth-file {ground_truth_path}` first."
-        )
-    _assert_cache_fresh(cache_path, extraction_file_path, ground_truth_path)
-    _assert_ground_truth_matches_cache(experiment_id, cache_path, ground_truth_path, ground_truth_df)
-    _assert_extraction_matches_cache(experiment_id, cache_path, extraction_file_path)
-
     n_gt, n_ext = len(ground_truth_df), len(extraction_df)
-    # Cache is always built at fuzzy_threshold=0.0 (see match_cache.py's
-    # module docstring) -- passing the dataset's own threshold here returns
-    # the already-selected edges directly, rather than a second manual
-    # weight-filter reimplementing that same cutoff.
-    selected_edges = match_cache.load_match_cache(experiment_id, fuzzy_threshold=threshold)
-    for gt_idx, ex_idx in selected_edges:
-        if not (0 <= gt_idx < n_gt and 0 <= ex_idx < n_ext):
-            raise RuntimeError(
-                f"{experiment_id}: cached edge (gt_idx={gt_idx}, ex_idx={ex_idx}) out "
-                f"of range for n_gt={n_gt}, n_ext={n_ext} -- the cache no longer "
-                f"matches the current ground truth/extraction rows. Rerun "
-                f"`python analysis/match_cache.py {experiment_id}`."
-            )
 
-    recovered = gt_recovered_mask(n_gt, selected_edges)
-    matched = ext_matched_mask(n_ext, selected_edges)
-    _verify_recovery(ground_truth_df, extraction_df, cfg, threshold, cache_path, recovered)
+    # Dataset-threshold edges: the only edges recovery and validity ever use.
+    threshold_edges, threshold_weights = filter_edges_by_threshold(raw_edges, raw_weights, threshold)
+    matched = ext_matched_mask(n_ext, threshold_edges)
+    recovered = gt_recovered_mask(n_gt, threshold_edges)
+    verify_recovery(ground_truth_df, extraction_df, cfg, threshold, cache_path, recovered)
 
+    recovered_mwm, matching = max_weight_matching_recovered(n_gt, n_ext, threshold_edges, threshold_weights)
+    _verify_matching(matching, threshold_edges, recovered_mwm, recovered, ground_truth_df, extraction_df)
+
+    judge_ids = None
+    judged_labels = None
+    if compute_validity:
+        judge_combine_id, judge_ids, judged_labels = resolve_judged_labels(
+            dataset, experiment_id, judge_combine_id, extraction_df,
+        )
+
+    gt_docs = ground_truth_df["document_id"].to_numpy()
     recovery_point, recovery_lo, recovery_hi = bootstrap_cluster_rate(
-        recovered, ground_truth_df["document_id"].to_numpy(),
-        n_resamples=n_resamples, seed=seed, alpha=alpha,
+        recovered, gt_docs, n_resamples=n_resamples, seed=seed, alpha=alpha,
+    )
+    mwm_point, mwm_lo, mwm_hi = bootstrap_cluster_rate(
+        recovered_mwm, gt_docs, n_resamples=n_resamples, seed=seed, alpha=alpha,
     )
 
     row = {
         "experiment_id": experiment_id,
         "dataset": dataset,
-        "ground_truth_file": match_cache.repo_relative(ground_truth_path),
-        "extraction_file": match_cache.repo_relative(extraction_file_path),
+        "ground_truth_file": provenance.repo_relative(ground_truth_path),
+        "extraction_file": provenance.repo_relative(extraction_file_path),
         "n_gt": n_gt,
         "n_ext": n_ext,
         "fuzzy_threshold": threshold,
+        "n_surviving_edges": len(threshold_edges),
         "n_resamples": n_resamples,
         "seed": seed,
         "bootstrap_unit": "paper",
         "recovery": recovery_point,
         "recovery_ci_lo": recovery_lo,
         "recovery_ci_hi": recovery_hi,
+        "recovery_max_weight_matching": mwm_point,
+        "recovery_max_weight_matching_ci_lo": mwm_lo,
+        "recovery_max_weight_matching_ci_hi": mwm_hi,
         "judge_combine_id": None,
         "judge_ids": None,
+        "n_split_rows_inheriting_judgement": None,
         "validity": None,
         "validity_ci_lo": None,
         "validity_ci_hi": None,
@@ -850,12 +320,7 @@ def compute_metrics_for_id(
     if not compute_validity:
         return row
 
-    if judge_combine_id is not None:
-        judge_ids = verify_judge_combine_id(dataset, judge_combine_id, experiment_id)
-    else:
-        judge_combine_id, judge_ids = find_judge_combine_id(dataset, experiment_id)
-    judged_labels = load_validity_labels(judge_combine_id, extraction_df)
-    validity_labels = _verify_validity(
+    validity_labels = verify_validity(
         ground_truth_df, extraction_df, cfg, threshold, cache_path, matched, judged_labels,
     )
 
@@ -867,6 +332,7 @@ def compute_metrics_for_id(
     row.update({
         "judge_combine_id": judge_combine_id,
         "judge_ids": ";".join(judge_ids),
+        "n_split_rows_inheriting_judgement": count_split_rows(extraction_df),
         "validity": validity_point,
         "validity_ci_lo": validity_lo,
         "validity_ci_hi": validity_hi,
@@ -875,18 +341,407 @@ def compute_metrics_for_id(
 
 
 # ---------------------------------------------------------------------------
+# Validity/recovery operating curves for score thresholds (used by other scripts).
+# Callers must pass threshold-filtered edges indexed like ``probs``; not checked here.
+# ---------------------------------------------------------------------------
+
+
+def validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds):
+    """Validity and recovery of the rows kept by ``probs > t``, for each threshold t.
+
+    Args:
+        probs: Score per extraction row.
+        labels: Boolean validity label per extraction row.
+        n_ground_truth: Number of ground-truth rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs, ex_idx indexing ``probs``.
+        thresholds: Score thresholds.
+
+    Returns:
+        ``(validity, recovery, thresholds)`` arrays, skipping thresholds that keep no rows.
+    """
+    from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels
+
+    probs = np.asarray(probs)
+    labels = np.asarray(labels, dtype=bool)
+    v, r, ts = [], [], []
+    for t in thresholds:
+        preds = probs > t
+        if preds.sum() == 0:
+            continue
+        v.append(validity_rate_from_labels(labels, preds))
+        r.append(recovery_rate_from_labels(n_ground_truth, edges, preds))
+        ts.append(t)
+    return np.array(v), np.array(r), np.array(ts)
+
+
+def plot_validity_recovery(curves, labels, n_ground_truth, edges, out_path, *, thresholds, n_random, seed):
+    """Plot validity (y) vs recovery (x) curves plus a random-score baseline.
+
+    Points are coloured by threshold and the point nearest 0.5 is ringed. The dotted
+    baseline averages ``n_random`` uniform random score draws.
+
+    Args:
+        curves: List of (probs, linestyle), drawn in order (later on top).
+        labels: Boolean validity label per extraction row.
+        n_ground_truth: Number of ground-truth rows.
+        edges: Threshold-filtered (gt_idx, ex_idx) pairs.
+        out_path: Figure path.
+        thresholds: Score thresholds.
+        n_random: Number of random baseline draws.
+        seed: Seed for the baseline.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+    from analysis.common.metrics import recovery_rate_from_labels, validity_rate_from_labels
+
+    cmap = plt.cm.coolwarm
+    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
+    labels = np.asarray(labels, dtype=bool)
+    thresholds = np.asarray(thresholds)
+
+    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+
+    def plot_vr_curve(probs, linestyle, zorder_base):
+        """Draw one curve: grey line, ~10 threshold-coloured points, ring at t=0.5."""
+        v, r, ts = validity_recovery_curve(probs, labels, n_ground_truth, edges, thresholds)
+        if len(ts) == 0:
+            return
+        ax.plot(r, v, linestyle, color='grey', lw=3.0, zorder=zorder_base)
+        n = len(ts)
+        stride = max(1, n // 10)
+        idx = sorted({0, n - 1} | set(range(0, n, stride)))
+        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=45, zorder=zorder_base + 1)
+        idx0 = int(np.argmin(np.abs(ts - 0.5)))
+        ax.scatter([r[idx0]], [v[idx0]], s=60, c='none',
+                   edgecolors='k', linewidths=1.1, zorder=zorder_base + 2, marker='o')
+
+    # Each curve sits 3 above the previous, so the last-listed is on top.
+    for i, (probs, linestyle) in enumerate(curves):
+        plot_vr_curve(np.asarray(probs), linestyle, zorder_base=3 + 3 * i)
+
+    # Random baseline: average validity/recovery over repeated uniform draws.
+    rng = np.random.default_rng(seed)
+    n_items = len(labels)
+    rand_v = np.full((n_random, len(thresholds)), np.nan)
+    rand_r = np.full((n_random, len(thresholds)), np.nan)
+    for i in range(n_random):
+        rand_probs_i = rng.uniform(0, 1, n_items)
+        for j, t in enumerate(thresholds):
+            preds = rand_probs_i > t
+            if preds.sum() > 0:
+                rand_v[i, j] = validity_rate_from_labels(labels, preds)
+                rand_r[i, j] = recovery_rate_from_labels(n_ground_truth, edges, preds)
+    avg_v = np.nanmean(rand_v, axis=0)
+    avg_r = np.nanmean(rand_r, axis=0)
+    valid_rand = ~(np.isnan(avg_v) | np.isnan(avg_r))
+    if valid_rand.any():
+        ax.plot(avg_r[valid_rand], avg_v[valid_rand], ':', color='grey', lw=2.0, zorder=2)
+
+    ax.set_xlim(left=-0.02)
+    ax.set_ylim(top=1.02)
+    ax.set_xlabel('Recovery')
+    ax.set_ylabel('Validity')
+    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+def save_validity_recovery_colorbar(out_path):
+    """Save the shared 0..1 threshold colorbar for ``plot_validity_recovery`` figures.
+
+    Args:
+        out_path: Figure path.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm, norm=mcolors.Normalize(vmin=0.0, vmax=1.0))
+    sm.set_array([])
+    fig, ax = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax, label='Threshold')
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+def save_validity_recovery_legend(out_path):
+    """Save the standalone Probe (solid) / NTP (dashed) / Random (dotted) legend.
+
+    Args:
+        out_path: Figure path.
+    """
+    import matplotlib.lines as mlines
+    import matplotlib.pyplot as plt
+
+    handles = [
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='-', label='Probe'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle='--', label='NTP'),
+        mlines.Line2D([], [], color='grey', lw=2, linestyle=':', label='Random'),
+    ]
+    fig, ax = plt.subplots(figsize=(4.0, 0.35))
+    ax.axis('off')
+    ax.legend(handles=handles, loc='center', ncol=3, fontsize=13, frameon=False, handlelength=2.0)
+    fig.savefig(out_path, bbox_inches='tight', dpi=200)
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Fuzzy-threshold sweep: recovery/validity as the matching threshold varies
+# ---------------------------------------------------------------------------
+
+
+def _validate_threshold_grid(thresholds, dataset_threshold: float) -> list[float]:
+    """Validate a fuzzy-threshold sweep grid.
+
+    Must include the dataset threshold exactly, so the sweep can be checked against
+    the headline row. Write values as explicit decimals: a generated 0.7000000000000001
+    would drop edges scoring exactly 0.7.
+
+    Args:
+        thresholds: Candidate grid.
+        dataset_threshold: The dataset's fuzzy_threshold.
+
+    Returns:
+        The grid as floats.
+
+    Raises:
+        ValueError: Empty, non-numeric, outside [0, 1], not strictly increasing, or
+            missing the dataset threshold.
+    """
+    if not isinstance(thresholds, list) or not thresholds or not all(
+        isinstance(t, (int, float)) and not isinstance(t, bool) for t in thresholds
+    ):
+        raise ValueError(f"thresholds must be a non-empty list of numbers, got {thresholds!r}")
+    thresholds = [float(t) for t in thresholds]
+    if any(not (0.0 <= t <= 1.0) for t in thresholds):
+        raise ValueError(f"thresholds must all lie in [0, 1], got {thresholds}")
+    if any(b <= a for a, b in zip(thresholds, thresholds[1:])):
+        raise ValueError(f"thresholds must be strictly increasing, got {thresholds}")
+    if dataset_threshold not in thresholds:
+        raise ValueError(
+            f"thresholds must include the dataset's own fuzzy_threshold "
+            f"{dataset_threshold!r} exactly (the known-answer point checked against "
+            f"compute_metrics_for_id), got {thresholds}"
+        )
+    return thresholds
+
+
+def fuzzy_threshold_curve(
+    experiment_id: str,
+    *,
+    ground_truth_path: Path,
+    thresholds: list[float],
+    judge_combine_id: str | None = None,
+) -> pd.DataFrame:
+    """Recovery and validity point estimates at each fuzzy threshold (no CIs).
+
+    Same guards, judge resolution and metrics.py cross-checks as
+    ``compute_metrics_for_id``.
+
+    Args:
+        experiment_id: Extraction experiment id.
+        ground_truth_path: Ground-truth file.
+        thresholds: Grid accepted by ``_validate_threshold_grid``.
+        judge_combine_id: Declared combine id, or None to search.
+
+    Returns:
+        One row per threshold: ids, ``fuzzy_threshold``, ``is_dataset_threshold``,
+        counts, ``recovery``, ``validity``.
+
+    Raises:
+        AssertionError: A metric increases with the threshold (impossible).
+    """
+    inputs = load_checked_inputs(experiment_id, ground_truth_path)
+    dataset = inputs["dataset"]
+    ground_truth_df, extraction_df = inputs["ground_truth_df"], inputs["extraction_df"]
+    cfg, cache_path = inputs["cfg"], inputs["cache_path"]
+    raw_edges, raw_weights = inputs["raw_edges"], inputs["raw_weights"]
+    n_gt, n_ext = len(ground_truth_df), len(extraction_df)
+
+    thresholds = _validate_threshold_grid(thresholds, cfg["fuzzy_threshold"])
+    judge_combine_id, _judge_ids, judged_labels = resolve_judged_labels(
+        dataset, experiment_id, judge_combine_id, extraction_df,
+    )
+
+    rows = []
+    for t in thresholds:
+        edges, _weights = filter_edges_by_threshold(raw_edges, raw_weights, t)
+        recovered = gt_recovered_mask(n_gt, edges)
+        verify_recovery(ground_truth_df, extraction_df, cfg, t, cache_path, recovered)
+        matched = ext_matched_mask(n_ext, edges)
+        validity_labels = verify_validity(
+            ground_truth_df, extraction_df, cfg, t, cache_path, matched, judged_labels,
+        )
+        rows.append({
+            "experiment_id": experiment_id,
+            "dataset": dataset,
+            "judge_combine_id": judge_combine_id,
+            "fuzzy_threshold": t,
+            "is_dataset_threshold": t == cfg["fuzzy_threshold"],
+            "n_gt": n_gt,
+            "n_ext": n_ext,
+            "n_surviving_edges": len(edges),
+            "recovery": float(recovered.mean()),
+            "validity": float(validity_labels.mean()),
+        })
+    df = pd.DataFrame(rows)
+
+    for col in ("recovery", "validity"):
+        if (np.diff(df[col].to_numpy()) > 0).any():
+            raise AssertionError(
+                f"{experiment_id}: {col} increases with fuzzy threshold -- impossible, "
+                f"raising the threshold only removes edges: {df[col].tolist()}"
+            )
+    return df
+
+
+def _assert_curve_matches_row(curve: pd.DataFrame, row: dict) -> None:
+    """Known-answer check: the sweep at the dataset threshold equals the headline row.
+
+    Args:
+        curve: Output of ``fuzzy_threshold_curve``.
+        row: Output of ``compute_metrics_for_id`` for the same id.
+
+    Raises:
+        AssertionError: The two disagree, or there isn't exactly one dataset-threshold point.
+    """
+    at = curve[curve["is_dataset_threshold"]]
+    if len(at) != 1:
+        raise AssertionError(f"{row['experiment_id']}: {len(at)} curve rows at the dataset threshold, expected 1")
+    at = at.iloc[0]
+    for col in ("recovery", "validity", "n_surviving_edges", "fuzzy_threshold", "judge_combine_id"):
+        if at[col] != row[col]:
+            raise AssertionError(
+                f"{row['experiment_id']}: fuzzy-threshold curve {col}={at[col]!r} at the "
+                f"dataset threshold disagrees with compute_metrics_for_id's {row[col]!r}"
+            )
+
+
+_FUZZY_THRESHOLD_NORM = (0.0, 1.0)
+
+
+def plot_fuzzy_threshold_curve(curve: pd.DataFrame, out_path: Path) -> None:
+    """Plot validity (y) vs recovery (x) across the sweep, coloured by threshold.
+
+    The dataset threshold is a diamond; others are circles.
+
+    Args:
+        curve: Output of ``fuzzy_threshold_curve``.
+        out_path: Figure path.
+
+    Raises:
+        ValueError: Not exactly one dataset-threshold row.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    is_selected = curve["is_dataset_threshold"].to_numpy(dtype=bool)
+    if is_selected.sum() != 1:
+        raise ValueError(f"expected exactly one is_dataset_threshold row, got {int(is_selected.sum())}")
+
+    norm = mcolors.Normalize(*_FUZZY_THRESHOLD_NORM)
+    fig, ax = plt.subplots(figsize=(4.0, 3.8))
+    ax.plot(curve["recovery"], curve["validity"], "-", color="grey", lw=3.0, zorder=2)
+    ax.scatter(
+        curve["recovery"][~is_selected], curve["validity"][~is_selected], c=curve["fuzzy_threshold"][~is_selected],
+        cmap=plt.cm.coolwarm, norm=norm, marker="o", s=45, zorder=3,
+    )
+    # Dark edge: dataset thresholds sit near coolwarm's white midpoint.
+    ax.scatter(
+        curve["recovery"][is_selected], curve["validity"][is_selected], c=curve["fuzzy_threshold"][is_selected],
+        cmap=plt.cm.coolwarm, norm=norm, marker="D", s=60, zorder=4, edgecolors="k", linewidths=0.9,
+    )
+    ax.set_xlabel("Recovery")
+    ax.set_ylabel("Validity")
+    ax.grid(alpha=0.25, linestyle="-", linewidth=0.4)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    fig.savefig(out_path, bbox_inches="tight", dpi=200)
+    plt.close(fig)
+
+
+def save_fuzzy_threshold_colorbar(out_path: Path) -> None:
+    """Save the 0..1 "Fuzzy Threshold" colorbar for ``plot_fuzzy_threshold_curve`` figures.
+
+    Args:
+        out_path: Figure path.
+    """
+    import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
+
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.coolwarm, norm=mcolors.Normalize(*_FUZZY_THRESHOLD_NORM))
+    sm.set_array([])
+    fig, ax = plt.subplots(figsize=(0.35, 3.2))
+    plt.colorbar(sm, cax=ax, label="Fuzzy Threshold")
+    fig.savefig(out_path, bbox_inches="tight", dpi=200)
+    plt.close(fig)
+
+
+def fuzzy_threshold_figures_dir(analysis_config_id: str) -> Path:
+    """Figure directory for a recovery-validity config.
+
+    Args:
+        analysis_config_id: Config id.
+
+    Returns:
+        ``analysis/results/recovery-validity/<config id>/figures``.
+    """
+    return analysis_results_dir("recovery-validity") / analysis_config_id / "figures"
+
+
+def _parse_fuzzy_threshold_curve_section(section, experiment_ids: list[str], compute_validity: bool, where: str) -> dict:
+    """Validate the ``fuzzy_threshold_curve`` config block.
+
+    Args:
+        section: The block: exactly ``experiment_ids`` and ``thresholds``.
+        experiment_ids: The config's experiment ids (curve ids must be a subset).
+        compute_validity: Must be True, since the curve plots validity.
+        where: Config path (for error messages).
+
+    Returns:
+        ``{"experiment_ids", "thresholds"}``; thresholds are checked later per dataset.
+
+    Raises:
+        ValueError: Any check fails.
+    """
+    if not isinstance(section, dict) or set(section) != {"experiment_ids", "thresholds"}:
+        raise ValueError(
+            f"{where}: params.recovery_validity.fuzzy_threshold_curve must be a mapping with "
+            f"exactly the keys experiment_ids and thresholds, got {section!r}"
+        )
+    if not compute_validity:
+        raise ValueError(
+            f"{where}: params.recovery_validity.fuzzy_threshold_curve is set but compute_validity "
+            f"is false -- the curve plots validity, which needs judge_combine coverage"
+        )
+    curve_ids = section["experiment_ids"]
+    if not isinstance(curve_ids, list) or not curve_ids or not all(isinstance(x, str) for x in curve_ids):
+        raise ValueError(f"{where}: fuzzy_threshold_curve.experiment_ids must be a non-empty list of strings")
+    if len(set(curve_ids)) != len(curve_ids):
+        raise ValueError(f"{where}: fuzzy_threshold_curve.experiment_ids has duplicates: {curve_ids}")
+    unknown = set(curve_ids) - set(experiment_ids)
+    if unknown:
+        raise ValueError(
+            f"{where}: fuzzy_threshold_curve.experiment_ids not in params.experiment_ids: {sorted(unknown)}"
+        )
+    return {"experiment_ids": curve_ids, "thresholds": section["thresholds"]}
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """CLI argument parser (``--help`` shows the module docstring)."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("experiment_ids", nargs="*", help="Extraction/ablation/baseline experiment ids to score.")
     p.add_argument(
         "--config", type=Path, default=None,
-        help="analysis-configs/<id>.yaml providing params.experiment_ids, "
+        help="analysis-configs/recovery-validity/<id>.yaml providing params.experiment_ids, "
              "params.ground_truth_file, and params.recovery_validity -- mutually "
              "exclusive with experiment_ids and every flag below.",
     )
@@ -917,7 +772,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--output", type=Path, default=None,
-        help="CSV path to write (default: results/recovery_validity.csv, matching "
+        help="CSV path to write (default: analysis/results/recovery-validity/recovery_validity.csv, matching "
              "analysis/ablation.py's/baselines.py's own results/ output convention; "
              "ignored with --config, which requires params.recovery_validity.output explicit).",
     )
@@ -925,6 +780,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """CLI: score every id, write the CSV, and run any configured threshold sweeps.
+
+    Args:
+        argv: Arguments (None = sys.argv).
+    """
     parser = _build_parser()
     args = parser.parse_args(argv)
 
@@ -946,13 +806,14 @@ def main(argv: list[str] | None = None) -> None:
 
     judge_combine_overrides: dict[str, str] = {}
     if args.config:
-        cfg = load_analysis_config(args.config)
+        cfg = load_analysis_config(args.config, "recovery-validity")
         experiment_ids = cfg["params"]["experiment_ids"]
         ground_truth_path = get_ground_truth_path(cfg)
+        # Unknown keys (e.g. the removed edge_filter) fail here.
         section = get_section(
             cfg, "recovery_validity",
             required_keys=("n_resamples", "alpha", "compute_validity", "output"),
-            optional_keys=("judge_combine_ids",),
+            optional_keys=("judge_combine_ids", "fuzzy_threshold_curve"),
         )
         n_resamples = section["n_resamples"]
         seed = cfg["seed"]
@@ -986,8 +847,14 @@ def main(argv: list[str] | None = None) -> None:
                 f"{args.config}: params.recovery_validity.judge_combine_ids has key(s) "
                 f"not in params.experiment_ids: {sorted(unknown_overrides)}"
             )
+        curve_section = None
+        if "fuzzy_threshold_curve" in section:
+            curve_section = _parse_fuzzy_threshold_curve_section(
+                section["fuzzy_threshold_curve"], experiment_ids, compute_validity, str(args.config),
+            )
         analysis_config_id = cfg["id"]
     else:
+        curve_section = None
         experiment_ids = args.experiment_ids
         ground_truth_path = args.ground_truth_file
         if not ground_truth_path.is_absolute():
@@ -998,7 +865,7 @@ def main(argv: list[str] | None = None) -> None:
         seed = args.seed
         alpha = args.alpha if args.alpha is not None else 0.05
         compute_validity = not args.skip_validity
-        output = args.output if args.output is not None else Path("results/recovery_validity.csv")
+        output = args.output if args.output is not None else analysis_results_dir("recovery-validity") / "recovery_validity.csv"
         analysis_config_id = None
 
     rows = []
@@ -1019,13 +886,34 @@ def main(argv: list[str] | None = None) -> None:
         )
         print(
             f"  recovery={row['recovery']:.3f} "
-            f"[{row['recovery_ci_lo']:.3f}, {row['recovery_ci_hi']:.3f}]  {validity_str}"
+            f"[{row['recovery_ci_lo']:.3f}, {row['recovery_ci_hi']:.3f}]  "
+            f"recovery_max_weight_matching={row['recovery_max_weight_matching']:.3f}  {validity_str}"
         )
 
     df = pd.DataFrame(rows)
     output.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output, index=False)
     print(f"\nWrote {len(df)} row(s) to {output}")
+
+    if curve_section is None:
+        return
+    figures_dir = fuzzy_threshold_figures_dir(analysis_config_id)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    rows_by_id = {row["experiment_id"]: row for row in rows}
+    for experiment_id in curve_section["experiment_ids"]:
+        print(f"Fuzzy-threshold curve for {experiment_id} ...")
+        curve = fuzzy_threshold_curve(
+            experiment_id, ground_truth_path=ground_truth_path,
+            thresholds=curve_section["thresholds"],
+            judge_combine_id=judge_combine_overrides.get(experiment_id),
+        )
+        _assert_curve_matches_row(curve, rows_by_id[experiment_id])
+        curve["analysis_config_id"] = analysis_config_id
+        curve.to_csv(figures_dir.parent / f"{experiment_id}-fuzzy-threshold-curve.csv", index=False)
+        plot_fuzzy_threshold_curve(curve, figures_dir / f"{experiment_id}.pdf")
+        print(f"  wrote {figures_dir / f'{experiment_id}.pdf'}")
+    save_fuzzy_threshold_colorbar(figures_dir / "fuzzy_threshold_colorbar.pdf")
+    print(f"  wrote {figures_dir / 'fuzzy_threshold_colorbar.pdf'}")
 
 
 if __name__ == "__main__":

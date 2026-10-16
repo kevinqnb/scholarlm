@@ -1,0 +1,15 @@
+id: 2026-10-10-calibration-validated-gemma27b-qwen-2.5-7b-latex-01
+project: scholarlm
+description: >
+  LaTeX tables (synthetic and real) for 2026-10-10-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01. Formatting only; seed unused. One NTP row per test set. Label prefix carries the judge so the qwen and llama tables do not collide.
+seed: 0
+params:
+  calibration_latex:
+    calibration_config: 2026-10-10-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01
+    labels: human_validated
+    datasets:
+      PLW: pond
+      SM: supermat
+    decimals: 3
+    output_dir: analysis/results/calibration-validated/2026-10-10-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01/latex
+    label_prefix: tab:calibration-validated-gemma27b-qwen-2.5-7b

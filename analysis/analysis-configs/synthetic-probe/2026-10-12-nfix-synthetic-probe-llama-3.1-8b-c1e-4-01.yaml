@@ -1,0 +1,21 @@
+id: 2026-10-12-nfix-synthetic-probe-llama-3.1-8b-c1e-4-01
+project: scholarlm
+description: >
+  Head probe for llama-3.1-8b on the nfix v3 synthetic corpus, from judge_interp run 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-train-01.
+  Same as 2026-10-10-nfix-synthetic-probe-llama-3.1-8b-01 (same judge run, seed, top_k, Platt wrapping and exclusions) except head_selection_C and
+  probe_C are 1.0e-4 instead of 1.0, testing whether stronger L2 regularization fixes the over-fit head probe's
+  poor real-data transfer (2026-10-12 probe investigation: C=1 fits synthetic-specific low-variance directions).
+  use_platt_scaling: true wraps the head probe in CalibratedClassifierCV (sigmoid, k-fold); calibration configs
+  must use probe_variant: platt. The probe's syn_document_ids define the real-data train/test split every
+  calibration-family analysis uses.
+seed: 0
+params:
+  dataset: nfix
+  judge_interp_id: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-train-01
+  use_platt_scaling: true
+  head_selection_C: 1.0e-4
+  probe_C: 1.0e-4
+  top_k: 10
+  exclude_documents:
+    - document_id: R164
+      reason: 'Very large tables in this paper distort the attention-head activations (Kevin, original 2026-05 analysis; the claim is trusted, not re-measured).'

@@ -25,6 +25,127 @@ import numpy as np
 
 from scipy.special import logit, expit
 
+# Logit clipping for the Platt-family recalibration maps (fit_platt / fit_intercept /
+# apply_platt, and analysis/common/recalibration.platt_fit_map): probs are clipped to
+# [LOGIT_CLIP_EPS, 1 - LOGIT_CLIP_EPS] before the logit so exact 0 / 1 stay finite
+# (|logit| <= ~23). Was 1e-6 until 2026-10-10: raw qwen-2.5-7b judge p(true) reaches
+# 4.9e-9, and at 1e-6 up to ~45% of real supermat rows collapsed onto one clipped
+# logit (-13.8), visibly moving SmECE / AUROC. 1e-10 sits below every observed raw
+# p(true) on the low side, so the clip only catches values that are exactly 0 / 1 to
+# within float64 resolution near 1.
+LOGIT_CLIP_EPS = 1e-10
+
+
+def fit_platt(probs: np.ndarray, labels: np.ndarray, eps: float = LOGIT_CLIP_EPS):
+    """Fit a Platt scaler (1-D logistic regression on logit(probs)), unregularized.
+
+    Args:
+        probs: Raw predicted P(valid), shape ``(n,)``, each in ``[0, 1]``.
+        labels: Binary labels, shape ``(n,)``. Both classes must be present.
+        eps: probs are clipped to ``[eps, 1 - eps]`` before the logit (a probe/NTP
+            output of exactly 0 or 1 would otherwise be +-inf).
+    Returns:
+        ``(coef, intercept)`` such that the scaled probability is
+        ``expit(coef * logit(clip(p)) + intercept)``.
+    """
+    from sklearn.linear_model import LogisticRegression
+
+    probs = np.asarray(probs, dtype=float)
+    labels = np.asarray(labels, dtype=bool)
+    if probs.ndim != 1 or probs.shape != labels.shape or len(probs) == 0:
+        raise ValueError(f"probs/labels must be equal-length 1-D, got {probs.shape} / {labels.shape}")
+    if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
+        raise ValueError("probs must be finite and in [0, 1]")
+    if labels.all() or not labels.any():
+        raise ValueError(f"Platt fit needs both classes; got {int(labels.sum())}/{len(labels)} positive")
+    x = logit(np.clip(probs, eps, 1 - eps)).reshape(-1, 1)
+    lr = LogisticRegression(C=np.inf, max_iter=1000).fit(x, labels.astype(int))
+    return float(lr.coef_[0, 0]), float(lr.intercept_[0])
+
+
+def _check_fit_inputs(probs: np.ndarray, labels: np.ndarray):
+    probs = np.asarray(probs, dtype=float)
+    labels = np.asarray(labels, dtype=bool)
+    if probs.ndim != 1 or probs.shape != labels.shape or len(probs) == 0:
+        raise ValueError(f"probs/labels must be equal-length 1-D, got {probs.shape} / {labels.shape}")
+    if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
+        raise ValueError("probs must be finite and in [0, 1]")
+    if labels.all() or not labels.any():
+        raise ValueError(f"recalibration fit needs both classes; got {int(labels.sum())}/{len(labels)} positive")
+    return probs, labels
+
+
+def fit_intercept(probs: np.ndarray, labels: np.ndarray, eps: float = LOGIT_CLIP_EPS):
+    """Fit an intercept-only Platt scaler: slope fixed at 1, intercept by maximum likelihood.
+
+    The MLE intercept ``b`` of ``expit(logit(clip(p)) + b)`` solves the score equation
+    ``sum(expit(logit(clip(p_i)) + b)) == sum(labels)``: the scaled probabilities average
+    to this sample's label rate. Unlike ``fit_prior_shift`` it uses the sample's
+    probabilities, not only its labels, and assumes nothing about label shift.
+
+    Returns:
+        ``(1.0, intercept)``, in ``fit_platt``'s format, for ``apply_platt``.
+    """
+    from scipy.optimize import brentq
+
+    probs, labels = _check_fit_inputs(probs, labels)
+    z = logit(np.clip(probs, eps, 1 - eps))
+    n_pos = float(labels.sum())
+    # The left side is strictly increasing in b, from 0 to n. The root lies in
+    # [logit(pi) - max z, logit(pi) - min z] (pi = n_pos / n), so this bracket holds it.
+    lo = logit(n_pos / len(z)) - z.max() - 1.0
+    hi = logit(n_pos / len(z)) - z.min() + 1.0
+    b = brentq(lambda b: expit(z + b).sum() - n_pos, lo, hi, xtol=1e-12, rtol=1e-12, maxiter=500)
+    return 1.0, float(b)
+
+
+def fit_prior_shift(labels: np.ndarray, pi_tr: float):
+    """Label-shift (prior-shift) correction with the test prevalence estimated from a sample.
+
+    Bayes' rule under label shift (P(x|y) fixed): ``logit p_te = logit p_tr + logit pi_te
+    - logit pi_tr``. ``pi_te`` is the label rate of ``labels``; ``pi_tr`` is the scorer's
+    training prevalence. Same map as ``intercept_adjustment`` (up to clipping); the
+    sample's probabilities are not used.
+
+    Returns:
+        ``(1.0, logit(pi_te) - logit(pi_tr))``, in ``fit_platt``'s format, for ``apply_platt``.
+    """
+    labels = np.asarray(labels, dtype=bool)
+    if labels.ndim != 1 or len(labels) == 0:
+        raise ValueError(f"labels must be non-empty 1-D, got {labels.shape}")
+    if labels.all() or not labels.any():
+        raise ValueError(f"prior shift needs both classes; got {int(labels.sum())}/{len(labels)} positive")
+    if isinstance(pi_tr, bool) or not 0 < pi_tr < 1:
+        raise ValueError(f"pi_tr must be in (0, 1), got {pi_tr!r}")
+    return 1.0, float(logit(labels.mean()) - logit(pi_tr))
+
+
+RECALIBRATION_METHODS = ("prior_shift", "intercept_fit", "platt_fit")
+
+
+def fit_recalibration(method: str, probs: np.ndarray, labels: np.ndarray, pi_tr: float):
+    """Dispatch to one of RECALIBRATION_METHODS; returns ``(coef, intercept)`` for ``apply_platt``.
+
+    ``pi_tr`` (the scorer's training prevalence) is used only by ``prior_shift``; ``probs``
+    are validated for every method but not used by ``prior_shift``.
+    """
+    if method == "platt_fit":
+        return fit_platt(probs, labels)
+    if method == "intercept_fit":
+        return fit_intercept(probs, labels)
+    if method == "prior_shift":
+        _check_fit_inputs(probs, labels)
+        return fit_prior_shift(labels, pi_tr)
+    raise ValueError(f"unknown recalibration method {method!r}; expected one of {RECALIBRATION_METHODS}")
+
+
+def apply_platt(probs: np.ndarray, coef: float, intercept: float, eps: float = LOGIT_CLIP_EPS):
+    """Apply a scaler from ``fit_platt``; same clipping as the fit."""
+    probs = np.asarray(probs, dtype=float)
+    if not np.isfinite(probs).all() or probs.min() < 0 or probs.max() > 1:
+        raise ValueError("probs must be finite and in [0, 1]")
+    return expit(coef * logit(np.clip(probs, eps, 1 - eps)) + intercept)
+
 
 def intercept_adjustment(
     probs: np.ndarray,

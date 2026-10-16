@@ -1,0 +1,63 @@
+id: 2026-10-12-supermat-runtime-latex-01
+project: scholarlm
+description: >
+  LaTeX table of runtime and compute (time, input/output tokens, model weight size, GPU) for the supermat runs in
+  2026-10-09-supermat-main-recovery-01. Built as an alternative to 2026-10-12-nfix-runtime-latex-01 because
+  ChatExtract has a recovery number in the main table only on supermat. Two pipeline runs had their final step
+  rerun with --step final after the full 7-step run (run_metadata replaces that step's timing but sums its tokens),
+  so their token counts include the discarded final runs (amount not recoverable; footnoted):
+  2026-09-21-supermat-extraction-gemma27b-full-01 once, 2026-09-21-supermat-extraction-gptoss120b-full-01 twice.
+  All other rows were checked against their SGE logs on 2026-10-12 to be a single invocation, so their
+  runtime_seconds is complete. Ablation 1 llama-3.1-8b here is the uncapped run (pond and nfix use the cap100 rerun):
+  its 76,740 s is dominated by 40 600-s client timeouts on documents whose JSON array never closes, and 8 documents
+  still failed after 4 retry rounds -- not representative compute. The gemma-3-27b methods ran on three GPU types
+  (L40S, RTX 6000 Ada, RTX PRO 6000), so their times are not directly comparable. Formatting only; seed unused.
+seed: 0
+params:
+  runtime:
+    analysis_config: 2026-10-09-supermat-main-recovery-01
+    dataset: supermat
+    decimals:
+      seconds: 0
+      tokens_millions: 1
+      size_gb: 1
+    gpu_labels:
+      NVIDIA L40S: L40S
+      NVIDIA RTX PRO 6000 Blackwell Server Edition: RTX PRO 6000
+      NVIDIA RTX 6000 Ada Generation: RTX 6000 Ada
+      NVIDIA H200 NVL: H200 NVL
+    footnotes:
+      2026-09-21-supermat-extraction-gemma27b-full-01: Includes the tokens of one discarded run of the final
+        (standardization and deduplication) step, which was rerun after the full pipeline.
+      2026-09-21-supermat-extraction-gptoss120b-full-01: Includes the tokens of two discarded runs of the final
+        (standardization and deduplication) step, which was rerun twice after the full pipeline.
+    output: analysis/results/recovery-validity/2026-10-12-supermat-runtime.tex
+    caption: 'Runtime and compute on SM (supermat). Time is the sum of the seven pipeline step timings for the full
+      pipeline, and runner wall-clock time otherwise; neither includes model loading or model-server startup. Tokens
+      are summed over all LLM calls, in millions; -- means the method records none (GLiNER makes no LLM calls;
+      LangExtract does not expose its token counts). Size is the on-disk checkpoint weight size (1 GB = $10^9$
+      bytes). One GPU per run.'
+    label: tab:runtime-supermat
+    blocks:
+    - rows:
+      - label: GLiNER-large
+        id: 2026-09-25-supermat-gliner-large-noqualifiers-full-01
+      - label: LangExtract
+        id: 2026-09-25-supermat-langextract-gemma27b-noqualifiers-full-01
+      - label: NuExtract3
+        id: 2026-09-25-supermat-nuextract3-noqualifiers-full-01
+      - label: ChatExtract
+        id: 2026-09-26-supermat-chatextract-gemma27b-full-01
+      - label: Ablation 1, \texttt{llama-3.1-8b}
+        id: 2026-09-26-supermat-ablation1-llama8b-reppen-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gemma-3-27b}
+        id: 2026-09-25-supermat-ablation1-gemma27b-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gpt-oss-120b}
+        id: 2026-09-26-supermat-ablation1-gptoss120b-noqualifiers-full-01
+    - rows:
+      - label: Pipeline (\texttt{llama-3.1-8b})
+        id: 2026-09-26-supermat-extraction-llama8b-reppen-full-01
+      - label: Pipeline (\texttt{gemma-3-27b})
+        id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      - label: Pipeline (\texttt{gpt-oss-120b})
+        id: 2026-09-21-supermat-extraction-gptoss120b-full-01

@@ -224,7 +224,7 @@ def check_gpu_model_compatibility(model_id: str) -> list[str]:
         ``None``) purely for call-site compatibility: every runner does
         ``gpu_warnings = check_gpu_model_compatibility(...)`` and forwards it
         to ``write_run_metadata(gpu_compatibility_warnings=gpu_warnings)``,
-        and ``analysis/loaders.py``'s reader does
+        and ``analysis/common/loaders.py``'s reader does
         ``meta.get("gpu_compatibility_warnings", [])`` then iterates it --
         returning ``None`` on success would write ``null`` into future
         run_metadata.json files and crash that (out-of-scope, unchanged)
@@ -346,7 +346,7 @@ def write_run_metadata(
 
 
 # ---------------------------------------------------------------------------
-# Run metadata loading (used by analysis/loaders.py)
+# Run metadata loading (used by analysis/common/loaders.py)
 # ---------------------------------------------------------------------------
 
 

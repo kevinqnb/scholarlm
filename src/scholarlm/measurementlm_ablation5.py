@@ -171,7 +171,7 @@ class MeasurementLMAblation5(MeasurementLM):
             messages,
             response_format=response_format,
             max_retries=2,
-            max_tokens=512,
+            max_tokens=2048,
             max_concurrent=32,
             timeout=120,
             validator=lambda r: response_validator(TextValueExtractionResponse, r),

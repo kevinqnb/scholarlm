@@ -1,0 +1,7307 @@
+{
+  "dataset": "pond__matching-gemma27b",
+  "experiment_id": "2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01",
+  "extraction_file": "experiments/results/pond/extraction/2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01/postprocessed.json",
+  "extraction_sha256": "72ff12674e1d9c38a161f711b7895fc0f7f31415d32da8e4bc9080cec08c073e",
+  "fuzzy_fields": [
+    {
+      "extraction": "name",
+      "gt": "name"
+    },
+    {
+      "extraction": "ecosystem",
+      "gt": "ecosystem"
+    }
+  ],
+  "fuzzy_threshold": 0.25,
+  "ground_truth_file": "data/pond/ground_truth_review.json",
+  "ground_truth_sha256": "d8f65bfb269803db6c5b60298dc85d566402001309758d5d9e3fca08a0063872",
+  "match_cache": "analysis/results/match_cache/2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01/match_cache.pkl",
+  "match_cache_sha256": "8614314ba1d860981dabb9e16742974bddfe9683f091be8b071c32b487028b3b",
+  "method_key": "matching-gemma27b",
+  "method_label": "Matching: gemma27b full pipeline",
+  "n_edges": 7551,
+  "n_edges_above_threshold": 6241,
+  "n_sample": 100,
+  "pairs": [
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_1",
+        "event_details": "Pond number 1",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3041,
+        "name": "Dutovlje",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.7",
+        "qualifiers": [],
+        "row_index": [
+          "1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.7
+      },
+      "extraction_index": 3053,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst1",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9088,
+        "point_value": 0.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.7
+      },
+      "gt_index": 132,
+      "in_matching": false,
+      "pair_id": 1,
+      "weight": 0.35714285714285715
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_24",
+        "event_details": "Pond number 1",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3953,
+        "name": "Matavun",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.7",
+        "qualifiers": [],
+        "row_index": [
+          "1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.7
+      },
+      "extraction_index": 3965,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst1",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9088,
+        "point_value": 0.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.7
+      },
+      "gt_index": 132,
+      "in_matching": false,
+      "pair_id": 2,
+      "weight": 0.43956043956043955
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_24",
+        "event_details": "Pond number 11",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3963,
+        "name": "Matavun",
+        "page_number": [
+          2
+        ],
+        "point_value": "3.0",
+        "qualifiers": [],
+        "row_index": [
+          "11"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.0
+      },
+      "extraction_index": 3975,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst11",
+        "page_confidence": "manual",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 3.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.0
+      },
+      "gt_index": 134,
+      "in_matching": false,
+      "pair_id": 3,
+      "weight": 0.42857142857142855
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_6",
+        "event_details": "Pond number 16",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3319,
+        "name": "Pliskovica",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.6",
+        "qualifiers": [],
+        "row_index": [
+          "16"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.6
+      },
+      "extraction_index": 3331,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst16",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.6
+      },
+      "gt_index": 139,
+      "in_matching": false,
+      "pair_id": 4,
+      "weight": 0.40336134453781514
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_18",
+        "event_details": "Pond number 16",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3792,
+        "name": "Komen",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.6",
+        "qualifiers": [],
+        "row_index": [
+          "16"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.6
+      },
+      "extraction_index": 3804,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst16",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.6
+      },
+      "gt_index": 139,
+      "in_matching": false,
+      "pair_id": 5,
+      "weight": 0.369047619047619
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_14",
+        "event_details": "Pond number 27",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3628,
+        "name": "Komen",
+        "page_number": [
+          2
+        ],
+        "point_value": "1.0",
+        "qualifiers": [],
+        "row_index": [
+          "27"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.0
+      },
+      "extraction_index": 3640,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst17",
+        "page_confidence": "manual",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 1.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.0
+      },
+      "gt_index": 140,
+      "in_matching": false,
+      "pair_id": 6,
+      "weight": 0.369047619047619
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_14",
+        "event_details": "Pond number 28",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3629,
+        "name": "Komen",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "28"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3641,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst19",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 142,
+      "in_matching": false,
+      "pair_id": 7,
+      "weight": 0.369047619047619
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_8",
+        "event_details": "Pond number 19",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3384,
+        "name": "Dobravlje",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "19"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3396,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst21",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 145,
+      "in_matching": false,
+      "pair_id": 8,
+      "weight": 0.3482142857142857
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_10",
+        "event_details": "Pond number 24",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3447,
+        "name": "Gorjansko",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.9",
+        "qualifiers": [],
+        "row_index": [
+          "24"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.9
+      },
+      "extraction_index": 3459,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst26",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.9,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.9
+      },
+      "gt_index": 150,
+      "in_matching": false,
+      "pair_id": 9,
+      "weight": 0.4107142857142857
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_13",
+        "event_details": "Pond number 19",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3562,
+        "name": "Lukovec",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "19"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3574,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst27",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 151,
+      "in_matching": false,
+      "pair_id": 10,
+      "weight": 0.35714285714285715
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_13",
+        "event_details": "Pond number 23",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3566,
+        "name": "Lukovec",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "23"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3578,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst27",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 151,
+      "in_matching": false,
+      "pair_id": 11,
+      "weight": 0.35714285714285715
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_24",
+        "event_details": "Pond number 28",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3980,
+        "name": "Matavun",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "28"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3992,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst27",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8844,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 151,
+      "in_matching": false,
+      "pair_id": 12,
+      "weight": 0.42857142857142855
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_17",
+        "event_details": "Pond number 28",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3746,
+        "name": "Škrbina",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "28"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 3758,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst3",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9088,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 153,
+      "in_matching": false,
+      "pair_id": 13,
+      "weight": 0.43956043956043955
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_26",
+        "event_details": "Pond number 19",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 4060,
+        "name": "Škrbina",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.3",
+        "qualifiers": [],
+        "row_index": [
+          "19"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "extraction_index": 4072,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst3",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9088,
+        "point_value": 0.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.3
+      },
+      "gt_index": 153,
+      "in_matching": false,
+      "pair_id": 14,
+      "weight": 0.43956043956043955
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "depth"
+        ],
+        "column_index": [
+          "depth_m"
+        ],
+        "date": "August 2009",
+        "document_id": "environmental_conditions",
+        "ecosystem": "pond",
+        "entity_id": "doc_28_entity_2",
+        "event_details": "Pond number 6",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 3104,
+        "name": "Gorjansko",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.4",
+        "qualifiers": [],
+        "row_index": [
+          "6"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.4
+      },
+      "extraction_index": 3116,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "environmental_conditions",
+        "ecosystem": "karst pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwest slovenia",
+        "lower": null,
+        "name": "karst6",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9088,
+        "point_value": 0.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.4
+      },
+      "gt_index": 156,
+      "in_matching": false,
+      "pair_id": 15,
+      "weight": 0.41904761904761906
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "maximum depth",
+          "m"
+        ],
+        "column_index": [
+          "value"
+        ],
+        "date": "yyyy",
+        "document_id": "habitat_characteristics",
+        "ecosystem": "other",
+        "entity_id": "doc_41_entity_4",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 5761,
+        "name": "CAG",
+        "page_number": [
+          5
+        ],
+        "point_value": "0.9",
+        "qualifiers": [],
+        "row_index": [
+          "('CAG', 'Maximum_depth_m')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.9
+      },
+      "extraction_index": 5773,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "habitat_characteristics",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "the apennines; italy",
+        "lower": null,
+        "name": "aqg",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8718,
+        "point_value": 0.9,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.9
+      },
+      "gt_index": 172,
+      "in_matching": false,
+      "pair_id": 16,
+      "weight": 0.4444444444444445
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "md_m"
+        ],
+        "column_index": [
+          "md_m"
+        ],
+        "date": "2009",
+        "document_id": "identification_of_total",
+        "ecosystem": "pond",
+        "entity_id": "doc_44_entity_5",
+        "event_details": "None",
+        "identifiers": "NrPd1",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 5847,
+        "name": "Grote Neerpedevijver 1*",
+        "page_number": [
+          2
+        ],
+        "point_value": "0.8",
+        "qualifiers": [],
+        "row_index": [
+          "Grote Neerpedevijver 1*"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.8
+      },
+      "extraction_index": 5859,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "identification_of_total",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "brussels capital region (belgium)",
+        "lower": null,
+        "name": "grote neerpedevijver 1",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9409,
+        "point_value": 0.8,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 0.8
+      },
+      "gt_index": 218,
+      "in_matching": true,
+      "pair_id": 17,
+      "weight": 0.9888888888888889
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax",
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_7",
+        "event_details": "lake code/name 1111",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6305,
+        "name": "1111",
+        "page_number": [
+          3,
+          3
+        ],
+        "point_value": "6.7",
+        "qualifiers": [],
+        "row_index": [
+          "1111",
+          "1111"
+        ],
+        "source": [
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 6.7
+      },
+      "extraction_index": 6317,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1111",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 6.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 6.7
+      },
+      "gt_index": 253,
+      "in_matching": true,
+      "pair_id": 18,
+      "weight": 0.6111111111111112
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_5",
+        "event_details": "lake code/name: 1119",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6265,
+        "name": "1101",
+        "page_number": [
+          3
+        ],
+        "point_value": "5.5",
+        "qualifiers": [],
+        "row_index": [
+          "1119"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 5.5
+      },
+      "extraction_index": 6277,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1119",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 5.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 5.5
+      },
+      "gt_index": 255,
+      "in_matching": false,
+      "pair_id": 19,
+      "weight": 0.4861111111111111
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax",
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_11",
+        "event_details": "lake 1204",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6333,
+        "name": "1204",
+        "page_number": [
+          3,
+          3
+        ],
+        "point_value": "6.4",
+        "qualifiers": [],
+        "row_index": [
+          "1204",
+          "1204"
+        ],
+        "source": [
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 6.4
+      },
+      "extraction_index": 6345,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1204",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 6.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 6.4
+      },
+      "gt_index": 257,
+      "in_matching": true,
+      "pair_id": 20,
+      "weight": 0.6111111111111112
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_5",
+        "event_details": "lake code/name: 1508",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6284,
+        "name": "1101",
+        "page_number": [
+          3
+        ],
+        "point_value": "2.7",
+        "qualifiers": [],
+        "row_index": [
+          "1508"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 2.7
+      },
+      "extraction_index": 6296,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1508",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 2.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 2.7
+      },
+      "gt_index": 273,
+      "in_matching": false,
+      "pair_id": 21,
+      "weight": 0.3611111111111111
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_5",
+        "event_details": "lake code/name: 1511",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6285,
+        "name": "1101",
+        "page_number": [
+          3
+        ],
+        "point_value": "3.7",
+        "qualifiers": [],
+        "row_index": [
+          "1511"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.7
+      },
+      "extraction_index": 6297,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1511",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 3.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.7
+      },
+      "gt_index": 274,
+      "in_matching": false,
+      "pair_id": 22,
+      "weight": 0.4861111111111111
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "Zmax",
+          "m"
+        ],
+        "column_index": [
+          "sampling_depth_m_zmax"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_5",
+        "event_details": "lake code/name: 1524",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6288,
+        "name": "1101",
+        "page_number": [
+          3
+        ],
+        "point_value": "3.7",
+        "qualifiers": [],
+        "row_index": [
+          "1524"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.7
+      },
+      "extraction_index": 6300,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1524",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9442,
+        "point_value": 3.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 3.7
+      },
+      "gt_index": 277,
+      "in_matching": false,
+      "pair_id": 23,
+      "weight": 0.2361111111111111
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "1.5 m",
+          "2.40 m",
+          "m"
+        ],
+        "column_index": [
+          null,
+          null
+        ],
+        "date": "None",
+        "document_id": "methane_emissions_in_two",
+        "ecosystem": "lake",
+        "entity_id": "doc_56_entity_1",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 493,
+        "name": "Biguás Lake",
+        "page_number": [
+          1,
+          1
+        ],
+        "point_value": "2.40",
+        "qualifiers": [],
+        "row_index": [
+          null,
+          null
+        ],
+        "source": [
+          "text",
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null,
+          null
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": "2.40"
+      },
+      "extraction_index": 496,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "methane_emissions_in_two",
+        "ecosystem": "shallow subtropical lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southern brazil",
+        "lower": null,
+        "name": "bigus lake",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.9214,
+        "point_value": 2.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 2.4
+      },
+      "gt_index": 309,
+      "in_matching": true,
+      "pair_id": 24,
+      "weight": 0.619047619047619
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "m"
+        ],
+        "column_index": [
+          "max_depth_m"
+        ],
+        "date": "2011",
+        "document_id": "physical_responses",
+        "ecosystem": "bog",
+        "entity_id": "doc_70_entity_2",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8380,
+        "name": "Mouser Bog",
+        "page_number": [
+          1
+        ],
+        "point_value": "4.0",
+        "qualifiers": [],
+        "row_index": [
+          "Mouser Bog"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 4.0
+      },
+      "extraction_index": 8392,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "physical_responses",
+        "ecosystem": "small humic lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin/michigan usa",
+        "lower": null,
+        "name": "mouser bog",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8955,
+        "point_value": 4.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 4.0
+      },
+      "gt_index": 371,
+      "in_matching": false,
+      "pair_id": 25,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "m"
+        ],
+        "column_index": [
+          "depth_m_max",
+          "depth_m_max"
+        ],
+        "date": "08-2011",
+        "document_id": "prairie_wetland",
+        "ecosystem": "wetland",
+        "entity_id": "doc_73_entity_7",
+        "event_details": "Grazed land use, sampling period between May and August 2011",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8557,
+        "name": "Sorrell",
+        "page_number": [
+          3,
+          3
+        ],
+        "point_value": "1.0",
+        "qualifiers": [],
+        "row_index": [
+          "('Recently restored', '8', 'Sorrell')",
+          "('Recently restored', '8', 'Sorrell')"
+        ],
+        "source": [
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.0
+      },
+      "extraction_index": 8569,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "prairie_wetland",
+        "ecosystem": "pothole",
+        "identifiers": null,
+        "list_values": null,
+        "location": "saskatchewan",
+        "lower": null,
+        "name": "reinson",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8889,
+        "point_value": 1.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.0
+      },
+      "gt_index": 392,
+      "in_matching": false,
+      "pair_id": 26,
+      "weight": 0.2857142857142857
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "maximum depth",
+          "m"
+        ],
+        "column_index": [
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m"
+        ],
+        "date": "None",
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "entity_id": "doc_98_entity_14",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 10143,
+        "name": "H",
+        "page_number": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "point_value": "7.0",
+        "qualifiers": [],
+        "row_index": [
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H",
+          "H"
+        ],
+        "source": [
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 7.0
+      },
+      "extraction_index": 10155,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "isle of purbeck; dorset; uk",
+        "lower": null,
+        "name": "h",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.9245,
+        "point_value": 7.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 7.0
+      },
+      "gt_index": 464,
+      "in_matching": false,
+      "pair_id": 27,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "maximum depth",
+          "m"
+        ],
+        "column_index": [
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m",
+          "maximum_depth_m"
+        ],
+        "date": "April",
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "entity_id": "doc_98_entity_12",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 10116,
+        "name": "L",
+        "page_number": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "point_value": "4.5",
+        "qualifiers": [],
+        "row_index": [
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L",
+          "L"
+        ],
+        "source": [
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 4.5
+      },
+      "extraction_index": 10128,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "isle of purbeck; dorset; uk",
+        "lower": null,
+        "name": "l",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.9245,
+        "point_value": 4.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 4.5
+      },
+      "gt_index": 467,
+      "in_matching": true,
+      "pair_id": 28,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "max_depth",
+        "attribute_terms": [
+          "m"
+        ],
+        "column_index": [
+          "maximum_depth_m"
+        ],
+        "date": "None",
+        "document_id": "the_legacy_of_large",
+        "ecosystem": "lake",
+        "entity_id": "doc_102_entity_2",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 10416,
+        "name": "Grandokken Lake",
+        "page_number": [
+          3
+        ],
+        "point_value": "1.6",
+        "qualifiers": [],
+        "row_index": [
+          "Grandokken"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.6
+      },
+      "extraction_index": 10428,
+      "gt": {
+        "additional_details": null,
+        "attribute": "max_depth",
+        "date": null,
+        "document_id": "the_legacy_of_large",
+        "ecosystem": "shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "prairie pothole region; minnesota; usa",
+        "lower": null,
+        "name": "grandokken",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8969,
+        "point_value": 1.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m",
+        "upper": null,
+        "value": 1.6
+      },
+      "gt_index": 486,
+      "in_matching": true,
+      "pair_id": 29,
+      "weight": 0.65
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "m2"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "None",
+        "document_id": "assessment_of_methane",
+        "ecosystem": "lake",
+        "entity_id": "doc_3_entity_2",
+        "event_details": "NE",
+        "identifiers": "NE",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1401,
+        "name": "north-east basin",
+        "page_number": [
+          3
+        ],
+        "point_value": "3360",
+        "qualifiers": [],
+        "row_index": [
+          "('Area', 'NE')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 3360
+      },
+      "extraction_index": 1411,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "assessment_of_methane",
+        "ecosystem": "small acidic bog lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "mecklenburg-brandenburg lake district",
+        "lower": null,
+        "name": "grosse fuchskuhle ne",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7911,
+        "point_value": 3360.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 3360.0
+      },
+      "gt_index": 536,
+      "in_matching": false,
+      "pair_id": 30,
+      "weight": 0.29888888888888887
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "a₀",
+          "pond surface area"
+        ],
+        "column_index": [
+          "a0_m2"
+        ],
+        "date": "2001",
+        "document_id": "distinct_optical",
+        "ecosystem": "pond",
+        "entity_id": "doc_22_entity_17",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2652,
+        "name": "19-9",
+        "page_number": [
+          2
+        ],
+        "point_value": "2098.0",
+        "qualifiers": [],
+        "row_index": [
+          "('19-9', 'Richmond Hill')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 2098.0
+      },
+      "extraction_index": 2664,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "distinct_optical",
+        "ecosystem": "urban ponds",
+        "identifiers": null,
+        "list_values": null,
+        "location": "s ontario; canada",
+        "lower": null,
+        "name": "19 9",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8648,
+        "point_value": 2098.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 2098.0
+      },
+      "gt_index": 660,
+      "in_matching": false,
+      "pair_id": 31,
+      "weight": 0.6416666666666666
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "a₀",
+          "pond surface area"
+        ],
+        "column_index": [
+          "a0_m2"
+        ],
+        "date": "None",
+        "document_id": "distinct_optical",
+        "ecosystem": "pond",
+        "entity_id": "doc_22_entity_44",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2678,
+        "name": "SWF-1930",
+        "page_number": [
+          2
+        ],
+        "point_value": "33000.0",
+        "qualifiers": [],
+        "row_index": [
+          "('SWF-1930', 'Ottawa')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 33000.0
+      },
+      "extraction_index": 2690,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "distinct_optical",
+        "ecosystem": "urban ponds",
+        "identifiers": null,
+        "list_values": null,
+        "location": "s ontario; canada",
+        "lower": null,
+        "name": "swf-1930",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8391,
+        "point_value": 33000.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 33000.0
+      },
+      "gt_index": 687,
+      "in_matching": true,
+      "pair_id": 32,
+      "weight": 0.7666666666666666
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "pond surface area",
+          "SA"
+        ],
+        "column_index": [
+          "pond_sa_m2"
+        ],
+        "date": "March-1994",
+        "document_id": "drivers_of_sediment",
+        "ecosystem": "pond",
+        "entity_id": "doc_25_entity_5",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2892,
+        "name": "Pond 6",
+        "page_number": [
+          3
+        ],
+        "point_value": "1020",
+        "qualifiers": [],
+        "row_index": [
+          "6"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 1020
+      },
+      "extraction_index": 2904,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "drivers_of_sediment",
+        "ecosystem": "stormwater pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "south carolina",
+        "lower": null,
+        "name": "6",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7915,
+        "point_value": 1020.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 1020.0
+      },
+      "gt_index": 708,
+      "in_matching": true,
+      "pair_id": 33,
+      "weight": 0.3533834586466165
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "pond surface area",
+          "SA"
+        ],
+        "column_index": [
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2",
+          "pond_sa_m2"
+        ],
+        "date": "March",
+        "document_id": "drivers_of_sediment",
+        "ecosystem": "pond",
+        "entity_id": "doc_25_entity_10",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2899,
+        "name": "Pond 11",
+        "page_number": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "point_value": "1690",
+        "qualifiers": [],
+        "row_index": [
+          "11",
+          "11",
+          "11",
+          "11",
+          "11",
+          "11",
+          "11",
+          "11"
+        ],
+        "source": [
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 1690
+      },
+      "extraction_index": 2911,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "drivers_of_sediment",
+        "ecosystem": "stormwater pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "south carolina",
+        "lower": null,
+        "name": "11",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7915,
+        "point_value": 1690.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 1690.0
+      },
+      "gt_index": 717,
+      "in_matching": false,
+      "pair_id": 34,
+      "weight": 0.4327485380116959
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "surface area",
+          "m2"
+        ],
+        "column_index": [
+          "surface_area_m2"
+        ],
+        "date": "March–June 2015",
+        "document_id": "high_rates_and_close",
+        "ecosystem": "lake",
+        "entity_id": "doc_43_entity_2",
+        "event_details": "site A",
+        "identifiers": "A; B; C; D",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 5805,
+        "name": "Lake 4",
+        "page_number": [
+          3
+        ],
+        "point_value": "855.0",
+        "qualifiers": [],
+        "row_index": [
+          "('Lake 4', 'A', 'March–June 2015')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 855.0
+      },
+      "extraction_index": 5817,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "high_rates_and_close",
+        "ecosystem": "lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "rapplinge alvar; oland; sweden",
+        "lower": null,
+        "name": "lake 4; site a (march-june 2015)",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8132,
+        "point_value": 855.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 855.0
+      },
+      "gt_index": 866,
+      "in_matching": false,
+      "pair_id": 35,
+      "weight": 0.6578947368421053
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "surface area",
+          "m2"
+        ],
+        "column_index": [
+          "surface_area_m2"
+        ],
+        "date": "March–June 2015",
+        "document_id": "high_rates_and_close",
+        "ecosystem": "lake",
+        "entity_id": "doc_43_entity_2",
+        "event_details": "site A",
+        "identifiers": "A; B; C; D",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 5805,
+        "name": "Lake 4",
+        "page_number": [
+          3
+        ],
+        "point_value": "855.0",
+        "qualifiers": [],
+        "row_index": [
+          "('Lake 4', 'A', 'March–June 2015')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 855.0
+      },
+      "extraction_index": 5817,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "high_rates_and_close",
+        "ecosystem": "lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "rapplinge alvar; oland; sweden",
+        "lower": null,
+        "name": "lake 4; site d (may 2015)",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7945,
+        "point_value": 855.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 855.0
+      },
+      "gt_index": 869,
+      "in_matching": true,
+      "pair_id": 36,
+      "weight": 0.6935483870967742
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "ha"
+        ],
+        "column_index": [
+          "surface_area_ha"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "lake",
+        "entity_id": "doc_51_entity_2",
+        "event_details": "latitude_deg=45.1846, longitude_deg=-78.8142",
+        "identifiers": "X1",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6139,
+        "name": "Lake Example",
+        "page_number": [
+          3
+        ],
+        "point_value": "1.8",
+        "qualifiers": [],
+        "row_index": [
+          "1215"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 1.8
+      },
+      "extraction_index": 6151,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1217",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9698,
+        "point_value": 1.8,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 1.8
+      },
+      "gt_index": 955,
+      "in_matching": false,
+      "pair_id": 37,
+      "weight": 0.2352941176470588
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "ha"
+        ],
+        "column_index": [
+          "surface_area_ha"
+        ],
+        "date": "None",
+        "document_id": "long-term_stability",
+        "ecosystem": "other",
+        "entity_id": "doc_51_entity_23",
+        "event_details": "lake code/name: 1434",
+        "identifiers": null,
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6398,
+        "name": "1434",
+        "page_number": [
+          3
+        ],
+        "point_value": "8.6",
+        "qualifiers": [],
+        "row_index": [
+          "1434"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 8.6
+      },
+      "extraction_index": 6410,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "long-term_stability",
+        "ecosystem": "shallow lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "muskoka-haliburton region of ontario; canada",
+        "lower": null,
+        "name": "1434",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9698,
+        "point_value": 8.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 8.6
+      },
+      "gt_index": 965,
+      "in_matching": false,
+      "pair_id": 38,
+      "weight": 0.6111111111111112
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "1984",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_25",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6970,
+        "name": "Hallein",
+        "page_number": [
+          3
+        ],
+        "point_value": "300",
+        "qualifiers": [],
+        "row_index": [
+          "Achleiten"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 300
+      },
+      "extraction_index": 6982,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "achleiten",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8345,
+        "point_value": 300.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 300.0
+      },
+      "gt_index": 1014,
+      "in_matching": false,
+      "pair_id": 39,
+      "weight": 0.8125
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "None",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_7",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6851,
+        "name": "Freimoos2",
+        "page_number": [
+          3
+        ],
+        "point_value": "400",
+        "qualifiers": [],
+        "row_index": [
+          "Freimoos2"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 400
+      },
+      "extraction_index": 6863,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "gaglham",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.828,
+        "point_value": 400.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 400.0
+      },
+      "gt_index": 1023,
+      "in_matching": false,
+      "pair_id": 40,
+      "weight": 0.5625
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "1981",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_25",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6973,
+        "name": "Hallein",
+        "page_number": [
+          3
+        ],
+        "point_value": "100",
+        "qualifiers": [],
+        "row_index": [
+          "Hallein"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 100
+      },
+      "extraction_index": 6985,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "hallein",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.828,
+        "point_value": 100.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 100.0
+      },
+      "gt_index": 1026,
+      "in_matching": false,
+      "pair_id": 41,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "1996",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_5",
+        "event_details": "occupied pond",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6835,
+        "name": "Guggenthal",
+        "page_number": [
+          3
+        ],
+        "point_value": "500",
+        "qualifiers": [],
+        "row_index": [
+          "Guggenthal"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 500
+      },
+      "extraction_index": 6847,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "hallwang berg",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8258,
+        "point_value": 500.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 500.0
+      },
+      "gt_index": 1027,
+      "in_matching": false,
+      "pair_id": 42,
+      "weight": 0.6304347826086957
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "1977",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_34",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7042,
+        "name": "Koppl Winkl",
+        "page_number": [
+          3
+        ],
+        "point_value": "300",
+        "qualifiers": [],
+        "row_index": [
+          "Koppl"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 300
+      },
+      "extraction_index": 7054,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "unterkoppl",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8368,
+        "point_value": 300.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 300.0
+      },
+      "gt_index": 1044,
+      "in_matching": false,
+      "pair_id": 43,
+      "weight": 0.738095238095238
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "pond area"
+        ],
+        "column_index": [
+          "area_m2"
+        ],
+        "date": "1999",
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "entity_id": "doc_58_entity_26",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6980,
+        "name": "Gaglham",
+        "page_number": [
+          3
+        ],
+        "point_value": "400",
+        "qualifiers": [],
+        "row_index": [
+          "Gaglham"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 400
+      },
+      "extraction_index": 6992,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "monitoring_status",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northern salzburg; austria",
+        "lower": null,
+        "name": "weitworthm1",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8014,
+        "point_value": 400.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 400.0
+      },
+      "gt_index": 1046,
+      "in_matching": false,
+      "pair_id": 44,
+      "weight": 0.6111111111111112
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "size_m2"
+        ],
+        "column_index": [
+          "size_m2"
+        ],
+        "date": "None",
+        "document_id": "net_heterotrophy",
+        "ecosystem": "lake",
+        "entity_id": "doc_62_entity_17",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7239,
+        "name": "Teglgårdssø",
+        "page_number": [
+          2
+        ],
+        "point_value": 53177.0,
+        "qualifiers": [],
+        "row_index": [
+          "Teglgårdssø"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 53177
+      },
+      "extraction_index": 7251,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "net_heterotrophy",
+        "ecosystem": "lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "north zealand; denmark",
+        "lower": null,
+        "name": "teglgardsso",
+        "page_confidence": "manual",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.6063,
+        "point_value": 53177.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "m^2",
+        "upper": null,
+        "value": 53177.0
+      },
+      "gt_index": 1074,
+      "in_matching": true,
+      "pair_id": 45,
+      "weight": 0.8535353535353535
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "km^2"
+        ],
+        "column_index": [
+          "surface_area_x10-2_km2",
+          "surface_area_x10-2_km2"
+        ],
+        "date": "None",
+        "document_id": "physical_responses",
+        "ecosystem": "bog",
+        "entity_id": "doc_70_entity_0",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8373,
+        "name": "Crystal Bog",
+        "page_number": [
+          1,
+          1
+        ],
+        "point_value": "0.55",
+        "qualifiers": [],
+        "row_index": [
+          "Crystal Bog",
+          "Crystal Bog"
+        ],
+        "source": [
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "x10^-2 km^2",
+        "upper": null,
+        "value": 0.55
+      },
+      "extraction_index": 8385,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical_responses",
+        "ecosystem": "small humic lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "michigan usa",
+        "lower": null,
+        "name": "crystal bog",
+        "page_confidence": "high",
+        "page_number": [
+          1
+        ],
+        "page_score": 0.8645,
+        "point_value": 0.55,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "x10^-2 km^2",
+        "upper": null,
+        "value": 0.55
+      },
+      "gt_index": 1090,
+      "in_matching": true,
+      "pair_id": 46,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "yyyy",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_18",
+        "event_details": "disturbed urban pond in marsh",
+        "identifiers": "33",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7555,
+        "name": "K-Mart Pond",
+        "page_number": [
+          7
+        ],
+        "point_value": "0.162",
+        "qualifiers": [],
+        "row_index": [
+          "K-Mart Pond"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "extraction_index": 7567,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "emmon's ck. kettle",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.9209,
+        "point_value": 0.162,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "gt_index": 1101,
+      "in_matching": false,
+      "pair_id": 47,
+      "weight": 0.20344827586206893
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "yyyy",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_12",
+        "event_details": "woodland, slight disturbed",
+        "identifiers": "21",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7521,
+        "name": "Hwy 70 N",
+        "page_number": [
+          7
+        ],
+        "point_value": "0.243",
+        "qualifiers": [],
+        "row_index": [
+          "Hwy 70 N"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.243
+      },
+      "extraction_index": 7533,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "hwy 70 n",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.9152,
+        "point_value": 0.243,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.243
+      },
+      "gt_index": 1110,
+      "in_matching": false,
+      "pair_id": 48,
+      "weight": 0.6
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_22",
+        "event_details": "index Old Hwy 54 Pd",
+        "identifiers": "10",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7661,
+        "name": "Kostka B",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.162",
+        "qualifiers": [],
+        "row_index": [
+          "Old Hwy 54 Pd"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "extraction_index": 7673,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "jameison pond",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.935,
+        "point_value": 0.162,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "gt_index": 1114,
+      "in_matching": false,
+      "pair_id": 49,
+      "weight": 0.1952380952380952
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_23",
+        "event_details": "Virgin Lake",
+        "identifiers": "11",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7750,
+        "name": "Kostka C",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.162",
+        "qualifiers": [],
+        "row_index": [
+          "Virgin Lake"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "extraction_index": 7762,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "jameison pond",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.935,
+        "point_value": 0.162,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "gt_index": 1114,
+      "in_matching": false,
+      "pair_id": 50,
+      "weight": 0.1952380952380952
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "1996",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_29",
+        "event_details": "woodland basin with trees",
+        "identifiers": "49",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7829,
+        "name": "Noranda 22-12NE",
+        "page_number": [
+          7
+        ],
+        "point_value": "0.567",
+        "qualifiers": [],
+        "row_index": [
+          "Noranda 22–12NE"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.567
+      },
+      "extraction_index": 7841,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "kotska 4; moss'",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.8981,
+        "point_value": 0.567,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.567
+      },
+      "gt_index": 1116,
+      "in_matching": false,
+      "pair_id": 51,
+      "weight": 0.19999999999999996
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_23",
+        "event_details": "Noranda 22–15",
+        "identifiers": "11",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7732,
+        "name": "Kostka C",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.081",
+        "qualifiers": [],
+        "row_index": [
+          "Noranda 22–15"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.081
+      },
+      "extraction_index": 7744,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "noranda 22-9b",
+        "page_confidence": "manual",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.9034,
+        "point_value": 0.081,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.081
+      },
+      "gt_index": 1132,
+      "in_matching": false,
+      "pair_id": 52,
+      "weight": 0.24285714285714283
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_50",
+        "event_details": "None",
+        "identifiers": "19",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8030,
+        "name": "Virgin Lake",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.162",
+        "qualifiers": [],
+        "row_index": [
+          "Virgin Lake"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "extraction_index": 8042,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "old hwy 54 pd",
+        "page_confidence": "manual",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.8561,
+        "point_value": 0.162,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "gt_index": 1134,
+      "in_matching": false,
+      "pair_id": 53,
+      "weight": 0.14166666666666666
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_21",
+        "event_details": "index Noranda Lake I",
+        "identifiers": "9",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7591,
+        "name": "Kostka A",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.081",
+        "qualifiers": [],
+        "row_index": [
+          "Noranda Lake I"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.081
+      },
+      "extraction_index": 7603,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "rinelander #3",
+        "page_confidence": "manual",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.8718,
+        "point_value": 0.081,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.081
+      },
+      "gt_index": 1140,
+      "in_matching": false,
+      "pair_id": 54,
+      "weight": 0.1952380952380952
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "area",
+          "ha"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_22",
+        "event_details": "index Noranda 22–8",
+        "identifiers": "10",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7657,
+        "name": "Kostka B",
+        "page_number": [
+          8
+        ],
+        "point_value": "0.162",
+        "qualifiers": [],
+        "row_index": [
+          "Noranda 22–8"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "extraction_index": 7669,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "white river #2 s",
+        "page_confidence": "manual",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.864,
+        "point_value": 0.162,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.162
+      },
+      "gt_index": 1150,
+      "in_matching": false,
+      "pair_id": 55,
+      "weight": 0.1833333333333333
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "hectares",
+          "ha",
+          "lake area"
+        ],
+        "column_index": [
+          "area_ha"
+        ],
+        "date": "None",
+        "document_id": "relationships_between_species",
+        "ecosystem": "lake",
+        "entity_id": "doc_79_entity_14",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9256,
+        "name": "Vähä-Vehkajärvi",
+        "page_number": [
+          10
+        ],
+        "point_value": 6.0,
+        "qualifiers": [],
+        "row_index": [
+          "('Häme', 'Vähä-Vehkajärvi')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          10
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 6
+      },
+      "extraction_index": 9268,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "relationships_between_species",
+        "ecosystem": "lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "finland",
+        "lower": null,
+        "name": "vaha-vehkajarvi",
+        "page_confidence": "manual",
+        "page_number": [
+          10
+        ],
+        "page_score": 0.8657,
+        "point_value": 6.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 6.0
+      },
+      "gt_index": 1268,
+      "in_matching": true,
+      "pair_id": 56,
+      "weight": 0.9
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "pond area",
+          "ha"
+        ],
+        "column_index": [
+          "pond_area_ha"
+        ],
+        "date": "None",
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "entity_id": "doc_98_entity_2",
+        "event_details": "pond area = 0.449 ha",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9912,
+        "name": "R",
+        "page_number": [
+          5
+        ],
+        "point_value": "0.063",
+        "qualifiers": [],
+        "row_index": [
+          "R"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.063
+      },
+      "extraction_index": 9924,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "isle of purbeck; dorset; uk",
+        "lower": null,
+        "name": "r",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.9074,
+        "point_value": 0.063,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.063
+      },
+      "gt_index": 1369,
+      "in_matching": false,
+      "pair_id": 57,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "surface_area",
+        "attribute_terms": [
+          "ha"
+        ],
+        "column_index": [
+          "area_ha_mean"
+        ],
+        "date": "None",
+        "document_id": "zooplankton_body",
+        "ecosystem": "other",
+        "entity_id": "doc_114_entity_0",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 10983,
+        "name": "Castillo",
+        "page_number": [
+          4
+        ],
+        "point_value": "0.5",
+        "qualifiers": [],
+        "row_index": [
+          "Row 1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.5
+      },
+      "extraction_index": 11032,
+      "gt": {
+        "additional_details": null,
+        "attribute": "surface_area",
+        "date": null,
+        "document_id": "zooplankton_body",
+        "ecosystem": "mediterranean wetland",
+        "identifiers": null,
+        "list_values": null,
+        "location": "alto guadalquivir region of spain",
+        "lower": null,
+        "name": "castillo",
+        "page_confidence": "high",
+        "page_number": [
+          4
+        ],
+        "page_score": 0.8566,
+        "point_value": 0.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "ha",
+        "upper": null,
+        "value": 0.5
+      },
+      "gt_index": 1485,
+      "in_matching": true,
+      "pair_id": 58,
+      "weight": 0.6153846153846154
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "vegetated area",
+          "km²",
+          "%"
+        ],
+        "column_index": [
+          "vegetated_area_percent_total_lake_area"
+        ],
+        "date": "None",
+        "document_id": "carbon_pools_and_fluxes",
+        "ecosystem": "lake",
+        "entity_id": "doc_8_entity_3",
+        "event_details": "Total vegetated area",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1641,
+        "name": "Kuohijärvi",
+        "page_number": [
+          5
+        ],
+        "point_value": "22.3",
+        "qualifiers": [],
+        "row_index": [
+          "Total vegetated area"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          5
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 22.3
+      },
+      "extraction_index": 1651,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "carbon_pools_and_fluxes",
+        "ecosystem": "lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "boreal zone; finland",
+        "lower": null,
+        "name": "valkea-kotinen",
+        "page_confidence": "manual",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9027,
+        "point_value": 22.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 22.3
+      },
+      "gt_index": 1490,
+      "in_matching": false,
+      "pair_id": 59,
+      "weight": 0.625
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "M_cover",
+          "M. cover"
+        ],
+        "column_index": [
+          "m_cover"
+        ],
+        "date": "None",
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "entity_id": "doc_53_entity_4",
+        "event_details": "M. cover = 25",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6528,
+        "name": "CP-CONT",
+        "page_number": [
+          2
+        ],
+        "point_value": "25",
+        "qualifiers": [],
+        "row_index": [
+          "CP-CONT"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 25
+      },
+      "extraction_index": 6540,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "tyrrhenian coast; central italy",
+        "lower": null,
+        "name": "cp-cont",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8263,
+        "point_value": 25.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 25.0
+      },
+      "gt_index": 1568,
+      "in_matching": true,
+      "pair_id": 60,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "M_cover",
+          "M. cover"
+        ],
+        "column_index": [
+          "m_cover"
+        ],
+        "date": "None",
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "entity_id": "doc_53_entity_0",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6500,
+        "name": "CG-M1",
+        "page_number": [
+          2
+        ],
+        "point_value": "100",
+        "qualifiers": [],
+        "row_index": [
+          "CG-M1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 100
+      },
+      "extraction_index": 6512,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "tyrrhenian coast; central italy",
+        "lower": null,
+        "name": "cp-vo",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.7911,
+        "point_value": 100.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 100.0
+      },
+      "gt_index": 1576,
+      "in_matching": false,
+      "pair_id": 61,
+      "weight": 0.7
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "SAV"
+        ],
+        "column_index": [
+          "sav_percent_cover"
+        ],
+        "date": "May-August 2011",
+        "document_id": "prairie_wetland",
+        "ecosystem": "wetland",
+        "entity_id": "doc_73_entity_19",
+        "event_details": "Wetland Reinson, % cover of submersed aquatic vegetation (SAV)",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8754,
+        "name": "Reinson",
+        "page_number": [
+          3
+        ],
+        "point_value": "75.0",
+        "qualifiers": [],
+        "row_index": [
+          "('Recently restored', '5', 'Reinson')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 75.0
+      },
+      "extraction_index": 8766,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "prairie_wetland",
+        "ecosystem": "pothole",
+        "identifiers": null,
+        "list_values": null,
+        "location": "saskatchewan",
+        "lower": null,
+        "name": "penner",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8578,
+        "point_value": 75.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 75.0
+      },
+      "gt_index": 1593,
+      "in_matching": false,
+      "pair_id": 62,
+      "weight": 0.37362637362637363
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "SAV"
+        ],
+        "column_index": [
+          "sav_percent_cover"
+        ],
+        "date": "May-August 2011",
+        "document_id": "prairie_wetland",
+        "ecosystem": "wetland",
+        "entity_id": "doc_73_entity_15",
+        "event_details": "Wetland Wilk, Older restored state",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8678,
+        "name": "Wilk",
+        "page_number": [
+          3
+        ],
+        "point_value": "75.0",
+        "qualifiers": [],
+        "row_index": [
+          "('Older restored', '16', 'Wilk')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 75.0
+      },
+      "extraction_index": 8690,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "prairie_wetland",
+        "ecosystem": "pothole",
+        "identifiers": null,
+        "list_values": null,
+        "location": "saskatchewan",
+        "lower": null,
+        "name": "toderian",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8663,
+        "point_value": 75.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 75.0
+      },
+      "gt_index": 1607,
+      "in_matching": false,
+      "pair_id": 63,
+      "weight": 0.22619047619047616
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "PVI",
+          "percentage volume infested"
+        ],
+        "column_index": [
+          "pvi_aug_pct"
+        ],
+        "date": "August",
+        "document_id": "relationships_between_fish",
+        "ecosystem": "lake",
+        "entity_id": "doc_78_entity_16",
+        "event_details": "PVI_aug_pct = 2.1",
+        "identifiers": "LI",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9179,
+        "name": "LILY",
+        "page_number": [
+          5
+        ],
+        "point_value": 0.0,
+        "qualifiers": [],
+        "row_index": [
+          "17"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 0.0
+      },
+      "extraction_index": 9191,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "relationships_between_fish",
+        "ecosystem": "shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "norfolk; eastern england",
+        "lower": null,
+        "name": "lily",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8056,
+        "point_value": 0.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 0.0
+      },
+      "gt_index": 1635,
+      "in_matching": false,
+      "pair_id": 64,
+      "weight": 0.75
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "vegetation_cover",
+        "attribute_terms": [
+          "PVI",
+          "percentage volume infested"
+        ],
+        "column_index": [
+          "pvi_june_pct"
+        ],
+        "date": "mm-yyyy",
+        "document_id": "relationships_between_fish",
+        "ecosystem": "lake",
+        "entity_id": "doc_78_entity_24",
+        "event_details": "June PVI",
+        "identifiers": "SB",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9220,
+        "name": "SELBRIGG",
+        "page_number": [
+          5
+        ],
+        "point_value": "37.3",
+        "qualifiers": [],
+        "row_index": [
+          "25"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 37.3
+      },
+      "extraction_index": 9232,
+      "gt": {
+        "additional_details": null,
+        "attribute": "vegetation_cover",
+        "date": null,
+        "document_id": "relationships_between_fish",
+        "ecosystem": "shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "norfolk; eastern england",
+        "lower": null,
+        "name": "selbrigg",
+        "page_confidence": "manual",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8536,
+        "point_value": 37.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "percent",
+        "upper": null,
+        "value": 37.3
+      },
+      "gt_index": 1642,
+      "in_matching": true,
+      "pair_id": 65,
+      "weight": 0.75
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "ph"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "01-2004",
+        "document_id": "aquatic_insect_assemblages",
+        "ecosystem": "pond",
+        "entity_id": "doc_2_entity_2",
+        "event_details": "P3",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1365,
+        "name": "P3",
+        "page_number": [
+          3
+        ],
+        "point_value": "7.4",
+        "qualifiers": [],
+        "row_index": [
+          "P3"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.4
+      },
+      "extraction_index": 1375,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "aquatic_insect_assemblages",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": null,
+        "lower": null,
+        "name": "p3",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8333,
+        "point_value": 7.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.4
+      },
+      "gt_index": 1678,
+      "in_matching": true,
+      "pair_id": 66,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          null
+        ],
+        "date": "None",
+        "document_id": "assessment_of_methane",
+        "ecosystem": "lake",
+        "entity_id": "doc_3_entity_0",
+        "event_details": "pH at 4.4 in two western basins receiving allochthonous DOC inputs from an adjacent peat bog.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 30,
+        "name": "Lake Grosse Fuchskuhle",
+        "page_number": [
+          1
+        ],
+        "point_value": "4.4",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": "4.4"
+      },
+      "extraction_index": 31,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "assessment_of_methane",
+        "ecosystem": "small acidic bog lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "mecklenburg-brandenburg lake district",
+        "lower": null,
+        "name": "grosse fuchskuhle sw",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.9203,
+        "point_value": 4.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 4.4
+      },
+      "gt_index": 1682,
+      "in_matching": false,
+      "pair_id": 67,
+      "weight": 0.5647619047619048
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "Silx",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1742,
+        "name": "ponds from the Brussels Capital Region",
+        "page_number": [
+          4
+        ],
+        "point_value": "8.4",
+        "qualifiers": [],
+        "row_index": [
+          "Silx"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.4
+      },
+      "extraction_index": 1752,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "belgium",
+        "lower": null,
+        "name": "leyb-b",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8541,
+        "point_value": 8.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.4
+      },
+      "gt_index": 1712,
+      "in_matching": false,
+      "pair_id": 68,
+      "weight": 0.5454545454545454
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "pond index Malu",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1724,
+        "name": "ponds from the Brussels Capital Region",
+        "page_number": [
+          3
+        ],
+        "point_value": "8.1",
+        "qualifiers": [],
+        "row_index": [
+          "Malu"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.1
+      },
+      "extraction_index": 1734,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "belgium",
+        "lower": null,
+        "name": "mlgr",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7857,
+        "point_value": 8.1,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.1
+      },
+      "gt_index": 1714,
+      "in_matching": false,
+      "pair_id": 69,
+      "weight": 0.5714285714285714
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "pond index NrPd2",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1729,
+        "name": "ponds from the Brussels Capital Region",
+        "page_number": [
+          3
+        ],
+        "point_value": "8.6",
+        "qualifiers": [],
+        "row_index": [
+          "NrPd2"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.6
+      },
+      "extraction_index": 1739,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "belgium",
+        "lower": null,
+        "name": "nrpd4",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8062,
+        "point_value": 8.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.6
+      },
+      "gt_index": 1719,
+      "in_matching": false,
+      "pair_id": 70,
+      "weight": 0.5697674418604651
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "ph"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "diversity_of_macroinvertebrates",
+        "ecosystem": "pond",
+        "entity_id": "doc_23_entity_8",
+        "event_details": "None",
+        "identifiers": "KR1",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2734,
+        "name": "KR1",
+        "page_number": [
+          3
+        ],
+        "point_value": "7.2",
+        "qualifiers": [],
+        "row_index": [
+          "('KR', 1)"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.2
+      },
+      "extraction_index": 2746,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "diversity_of_macroinvertebrates",
+        "ecosystem": "karst ponds",
+        "identifiers": null,
+        "list_values": null,
+        "location": "Krvavec",
+        "lower": null,
+        "name": "KR1",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8712,
+        "point_value": 7.2,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.2
+      },
+      "gt_index": 1770,
+      "in_matching": true,
+      "pair_id": 71,
+      "weight": 0.7666666666666666
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "ph"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "diversity_of_macroinvertebrates",
+        "ecosystem": "pond",
+        "entity_id": "doc_23_entity_11",
+        "event_details": "sample 1",
+        "identifiers": "RAT1",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2751,
+        "name": "RAT1",
+        "page_number": [
+          3
+        ],
+        "point_value": "7.8",
+        "qualifiers": [],
+        "row_index": [
+          "('RAT', 1)"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.8
+      },
+      "extraction_index": 2763,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "diversity_of_macroinvertebrates",
+        "ecosystem": "karst ponds",
+        "identifiers": null,
+        "list_values": null,
+        "location": "Menina",
+        "lower": null,
+        "name": "MEN1",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8846,
+        "point_value": 7.8,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.8
+      },
+      "gt_index": 1773,
+      "in_matching": false,
+      "pair_id": 72,
+      "weight": 0.39166666666666666
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "ph"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "entity_id": "doc_53_entity_14",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6594,
+        "name": "DM-DL1",
+        "page_number": [
+          2
+        ],
+        "point_value": "8.9",
+        "qualifiers": [],
+        "row_index": [
+          "DM-DL1"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.9
+      },
+      "extraction_index": 6606,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "tyrrhenian coast; central italy",
+        "lower": null,
+        "name": "cp-ort2",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8455,
+        "point_value": 8.9,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.9
+      },
+      "gt_index": 1903,
+      "in_matching": false,
+      "pair_id": 73,
+      "weight": 0.5769230769230769
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "ph_mean"
+        ],
+        "column_index": [
+          "ph_mean"
+        ],
+        "date": "None",
+        "document_id": "net_heterotrophy",
+        "ecosystem": "lake",
+        "entity_id": "doc_62_entity_17",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7241,
+        "name": "Teglgårdssø",
+        "page_number": [
+          2
+        ],
+        "point_value": "7.5",
+        "qualifiers": [],
+        "row_index": [
+          "Teglgårdssø"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.5
+      },
+      "extraction_index": 7253,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "net_heterotrophy",
+        "ecosystem": "lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "north zealand; denmark",
+        "lower": null,
+        "name": "brededam",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8977,
+        "point_value": 7.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.5
+      },
+      "gt_index": 1931,
+      "in_matching": false,
+      "pair_id": 74,
+      "weight": 0.5497076023391813
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "entity_id": "doc_69_entity_37",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8370,
+        "name": "BAN",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.5",
+        "qualifiers": [],
+        "row_index": [
+          "BAN"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.5
+      },
+      "extraction_index": 8382,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bal",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8647,
+        "point_value": 8.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.5
+      },
+      "gt_index": 1967,
+      "in_matching": false,
+      "pair_id": 75,
+      "weight": 0.8333333333333334
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "entity_id": "doc_69_entity_37",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8370,
+        "name": "BAN",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.5",
+        "qualifiers": [],
+        "row_index": [
+          "BAN"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.5
+      },
+      "extraction_index": 8382,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "ban",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8647,
+        "point_value": 8.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.5
+      },
+      "gt_index": 1969,
+      "in_matching": true,
+      "pair_id": 76,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "entity_id": "doc_69_entity_1",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8059,
+        "name": "BD",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.4",
+        "qualifiers": [],
+        "row_index": [
+          "BD"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.4
+      },
+      "extraction_index": 8071,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bd",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8305,
+        "point_value": 8.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.4
+      },
+      "gt_index": 1971,
+      "in_matching": true,
+      "pair_id": 77,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "entity_id": "doc_69_entity_26",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8278,
+        "name": "BAC",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.3",
+        "qualifiers": [],
+        "row_index": [
+          "BAC"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.3
+      },
+      "extraction_index": 8290,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bf",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.7531,
+        "point_value": 8.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.3
+      },
+      "gt_index": 1973,
+      "in_matching": false,
+      "pair_id": 78,
+      "weight": 0.7
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "lake",
+        "entity_id": "doc_69_entity_22",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8248,
+        "name": "BY",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.3",
+        "qualifiers": [],
+        "row_index": [
+          "BY"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.3
+      },
+      "extraction_index": 8260,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bp",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.7531,
+        "point_value": 8.3,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.3
+      },
+      "gt_index": 1983,
+      "in_matching": false,
+      "pair_id": 79,
+      "weight": 0.25
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "lake",
+        "entity_id": "doc_69_entity_23",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8255,
+        "name": "BZ",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.2",
+        "qualifiers": [],
+        "row_index": [
+          "BZ"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.2
+      },
+      "extraction_index": 8267,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bt",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8305,
+        "point_value": 8.2,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.2
+      },
+      "gt_index": 1987,
+      "in_matching": false,
+      "pair_id": 80,
+      "weight": 0.25
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "lake",
+        "entity_id": "doc_69_entity_10",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8121,
+        "name": "BM",
+        "page_number": [
+          6
+        ],
+        "point_value": "8.2",
+        "qualifiers": [],
+        "row_index": [
+          "BM"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.2
+      },
+      "extraction_index": 8133,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bv",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8305,
+        "point_value": 8.2,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 8.2
+      },
+      "gt_index": 1989,
+      "in_matching": false,
+      "pair_id": 81,
+      "weight": 0.25
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "1996",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_41",
+        "event_details": "site code 21, region M",
+        "identifiers": "23",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7928,
+        "name": "Rinelander #1",
+        "page_number": [
+          7
+        ],
+        "point_value": "6.19",
+        "qualifiers": [],
+        "row_index": [
+          "Hwy 70 N"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 6.19
+      },
+      "extraction_index": 7940,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "hwy 70 n",
+        "page_confidence": "high",
+        "page_number": [
+          7
+        ],
+        "page_score": 0.8853,
+        "point_value": 6.19,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 6.19
+      },
+      "gt_index": 2007,
+      "in_matching": false,
+      "pair_id": 82,
+      "weight": 0.1476190476190476
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "None",
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "pond",
+        "entity_id": "doc_68_entity_23",
+        "event_details": "Rineland #2",
+        "identifiers": "11",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 7767,
+        "name": "Kostka C",
+        "page_number": [
+          8
+        ],
+        "point_value": "6.22",
+        "qualifiers": [],
+        "row_index": [
+          "Rineland #2"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 6.22
+      },
+      "extraction_index": 7779,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "physical-chemical_influences",
+        "ecosystem": "wetland vs. lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "wisconsin",
+        "lower": null,
+        "name": "rinelander #2",
+        "page_confidence": "high",
+        "page_number": [
+          8
+        ],
+        "page_score": 0.8088,
+        "point_value": 6.22,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 6.22
+      },
+      "gt_index": 2036,
+      "in_matching": false,
+      "pair_id": 83,
+      "weight": 0.1952380952380952
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "lsmeans_val"
+        ],
+        "date": "None",
+        "document_id": "prairie_wetland",
+        "ecosystem": "wetland",
+        "entity_id": "doc_73_entity_12",
+        "event_details": "Natural",
+        "identifiers": "Tataryn",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8631,
+        "name": "Tataryn-1",
+        "page_number": [
+          8
+        ],
+        "point_value": "7.38",
+        "qualifiers": [],
+        "row_index": [
+          "pH"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.38
+      },
+      "extraction_index": 8643,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "prairie_wetland",
+        "ecosystem": "pothole",
+        "identifiers": null,
+        "list_values": null,
+        "location": "saskatchewan",
+        "lower": null,
+        "name": "johanson",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8926,
+        "point_value": 7.38,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 7.38
+      },
+      "gt_index": 2058,
+      "in_matching": false,
+      "pair_id": 84,
+      "weight": 0.2605042016806723
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "ph",
+        "attribute_terms": [
+          "pH"
+        ],
+        "column_index": [
+          "ph"
+        ],
+        "date": "April",
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "entity_id": "doc_98_entity_0",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9894,
+        "name": "Q",
+        "page_number": [
+          5
+        ],
+        "point_value": "3.8",
+        "qualifiers": [],
+        "row_index": [
+          "Q"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 3.8
+      },
+      "extraction_index": 9906,
+      "gt": {
+        "additional_details": null,
+        "attribute": "ph",
+        "date": null,
+        "document_id": "the_diversity_of_macroinvertebrate",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "isle of purbeck; dorset; uk",
+        "lower": null,
+        "name": "q",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.7151,
+        "point_value": 3.8,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": null,
+        "upper": null,
+        "value": 3.8
+      },
+      "gt_index": 2142,
+      "in_matching": true,
+      "pair_id": 85,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tn",
+        "attribute_terms": [
+          "total nitrogen",
+          "TN",
+          "mg/L"
+        ],
+        "column_index": [
+          "tn_mg_l"
+        ],
+        "date": "None",
+        "document_id": "biodiversity_of_constructed",
+        "ecosystem": "wetland",
+        "entity_id": "doc_5_entity_1",
+        "event_details": "Open-water pond DN2",
+        "identifiers": "DN",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1484,
+        "name": "Daniaopi Constructed Wetland",
+        "page_number": [
+          3
+        ],
+        "point_value": "14.44",
+        "qualifiers": [],
+        "row_index": [
+          "('Damaopi Constructed Wetland', 'Open-water pond')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 14.44
+      },
+      "extraction_index": 1494,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tn",
+        "date": null,
+        "document_id": "biodiversity_of_constructed",
+        "ecosystem": "treatment cells in constructed wetlands",
+        "identifiers": null,
+        "list_values": null,
+        "location": "da-han river; taipei county; taiwan",
+        "lower": null,
+        "name": "dn2",
+        "page_confidence": "manual",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8229,
+        "point_value": 14.44,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 14.44
+      },
+      "gt_index": 2222,
+      "in_matching": true,
+      "pair_id": 86,
+      "weight": 0.21669004207573633
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tn",
+        "attribute_terms": [
+          "ntot_mg_l",
+          "total nitrogen"
+        ],
+        "column_index": [
+          "ntot_mg_l"
+        ],
+        "date": "None",
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "entity_id": "doc_53_entity_6",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6542,
+        "name": "CP-GDP",
+        "page_number": [
+          2
+        ],
+        "point_value": "3.32",
+        "qualifiers": [],
+        "row_index": [
+          "CP-GDP"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 3.32
+      },
+      "extraction_index": 6554,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tn",
+        "date": null,
+        "document_id": "macroinvertebrate_size",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "tyrrhenian coast; central italy",
+        "lower": null,
+        "name": "cp-gdp",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.7646,
+        "point_value": 3.32,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 3.32
+      },
+      "gt_index": 2295,
+      "in_matching": true,
+      "pair_id": 87,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tn",
+        "attribute_terms": [
+          "total nitrogen",
+          "TN",
+          "mg/L"
+        ],
+        "column_index": [
+          "tn_mg_l-1"
+        ],
+        "date": "mm-yyyy",
+        "document_id": "measuring_the_trophic",
+        "ecosystem": "pond",
+        "entity_id": "doc_55_entity_3",
+        "event_details": "Mean measurement from site P4",
+        "identifiers": "P4",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 6722,
+        "name": "Gouille-Marion",
+        "page_number": [
+          6
+        ],
+        "point_value": "2.01",
+        "qualifiers": [],
+        "row_index": [
+          "('P4', 'Mean')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          4
+        ],
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 2.01
+      },
+      "extraction_index": 6734,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tn",
+        "date": null,
+        "document_id": "measuring_the_trophic",
+        "ecosystem": "permenant pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "swiss plateau; switzerland",
+        "lower": null,
+        "name": "p4",
+        "page_confidence": "manual",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.8286,
+        "point_value": 2.01,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 2.01
+      },
+      "gt_index": 2313,
+      "in_matching": true,
+      "pair_id": 88,
+      "weight": 0.2222222222222222
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "total phosphorus",
+          "mg m⁻³"
+        ],
+        "column_index": [
+          "total_p_mean_mg_m3"
+        ],
+        "date": "1990–2009",
+        "document_id": "carbon_pools_and_fluxes",
+        "ecosystem": "pond",
+        "entity_id": "doc_8_entity_0",
+        "event_details": "Mean ± standard deviation, at 1 m depth; all the data are results from laboratory analyses.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1584,
+        "name": "Valkea-Kotinen",
+        "page_number": [
+          2
+        ],
+        "point_value": "17.7",
+        "qualifiers": [],
+        "row_index": [
+          "Valkea-Kotinen"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "mg/m^3",
+        "upper": null,
+        "value": 17.7
+      },
+      "extraction_index": 1594,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "carbon_pools_and_fluxes",
+        "ecosystem": "lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "boreal zone; finland",
+        "lower": null,
+        "name": "valkea-kotinen",
+        "page_confidence": "manual",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.9194,
+        "point_value": 17.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/m^3",
+        "upper": null,
+        "value": 17.7
+      },
+      "gt_index": 2464,
+      "in_matching": true,
+      "pair_id": 89,
+      "weight": 0.5
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP",
+          "μgP l⁻¹",
+          "mgP l⁻¹"
+        ],
+        "column_index": [
+          "tp_mg_per_l"
+        ],
+        "date": "None",
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "pond index MlKl",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1792,
+        "name": "ponds from the Brussels Capital Region",
+        "page_number": [
+          3
+        ],
+        "point_value": "0.377",
+        "qualifiers": [],
+        "row_index": [
+          "MlKl"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 0.377
+      },
+      "extraction_index": 1802,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "belgium",
+        "lower": null,
+        "name": "mlkl",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.7857,
+        "point_value": 0.377,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 0.377
+      },
+      "gt_index": 2483,
+      "in_matching": true,
+      "pair_id": 90,
+      "weight": 0.5714285714285714
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP",
+          "μgP l⁻¹",
+          "mgP l⁻¹"
+        ],
+        "column_index": [
+          "tp_mg_per_l"
+        ],
+        "date": "None",
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "entity_id": "doc_10_entity_0",
+        "event_details": "pond index Prm2",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1801,
+        "name": "ponds from the Brussels Capital Region",
+        "page_number": [
+          3
+        ],
+        "point_value": "0.712",
+        "qualifiers": [],
+        "row_index": [
+          "Prm2"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 0.712
+      },
+      "extraction_index": 1811,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "classification_trees",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "belgium",
+        "lower": null,
+        "name": "prm2",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.837,
+        "point_value": 0.712,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/L",
+        "upper": null,
+        "value": 0.712
+      },
+      "gt_index": 2492,
+      "in_matching": true,
+      "pair_id": 91,
+      "weight": 0.5714285714285714
+    },
+    {
+      "above_threshold": false,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP",
+          "µg l⁻¹"
+        ],
+        "column_index": [
+          "tp_ug_l"
+        ],
+        "date": "2004-2006",
+        "document_id": "conservation_of_pond",
+        "ecosystem": "wetland",
+        "entity_id": "doc_13_entity_0",
+        "event_details": "Pool 4, TP = 101.7 µg/l",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 1996,
+        "name": "Brown Moss",
+        "page_number": [
+          5
+        ],
+        "point_value": "101.7",
+        "qualifiers": [],
+        "row_index": [
+          "4"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 101.7
+      },
+      "extraction_index": 2008,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "conservation_of_pond",
+        "ecosystem": "pool",
+        "identifiers": null,
+        "list_values": null,
+        "location": "northwest england",
+        "lower": null,
+        "name": "pool4",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8289,
+        "point_value": 101.7,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 101.7
+      },
+      "gt_index": 2521,
+      "in_matching": false,
+      "pair_id": 92,
+      "weight": 0.22424242424242424
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP"
+        ],
+        "column_index": [
+          "tp_mean_mg_m_inv3",
+          "tp_mean_mg_m_inv3"
+        ],
+        "date": "None",
+        "document_id": "lake_metabolism",
+        "ecosystem": "pond",
+        "entity_id": "doc_46_entity_1",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 5910,
+        "name": "Agersø",
+        "page_number": [
+          3,
+          3
+        ],
+        "point_value": "24.5",
+        "qualifiers": [],
+        "row_index": [
+          "Agersø",
+          "Agersø"
+        ],
+        "source": [
+          "table",
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1,
+          1
+        ],
+        "tolerance": null,
+        "units": "mg/m^3",
+        "upper": null,
+        "value": 24.5
+      },
+      "extraction_index": 5922,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "lake_metabolism",
+        "ecosystem": "lakes",
+        "identifiers": null,
+        "list_values": null,
+        "location": "denmark",
+        "lower": null,
+        "name": "agerso",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8126,
+        "point_value": 24.5,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "mg/m^3",
+        "upper": null,
+        "value": 24.5
+      },
+      "gt_index": 2604,
+      "in_matching": true,
+      "pair_id": 93,
+      "weight": 0.41666666666666674
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TPU"
+        ],
+        "column_index": [
+          null
+        ],
+        "date": "None",
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "entity_id": "doc_69_entity_6",
+        "event_details": "sites BC, BG, BL, BM, BN, BS, BAB, BAC, BAI, BAK, BAL, BAM, BAN",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 670,
+        "name": "BI",
+        "page_number": [
+          12
+        ],
+        "point_value": "9.6",
+        "qualifiers": [],
+        "row_index": [
+          null
+        ],
+        "source": [
+          "text"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          null
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": "9.6"
+      },
+      "extraction_index": 678,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "physical_and_chemical_limnological",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "bathurst island; canada",
+        "lower": null,
+        "name": "bal",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8065,
+        "point_value": 9.6,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 9.6
+      },
+      "gt_index": 2694,
+      "in_matching": false,
+      "pair_id": 94,
+      "weight": 0.7
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP"
+        ],
+        "column_index": [
+          "tp_ug_l"
+        ],
+        "date": "None",
+        "document_id": "prairie_wetland",
+        "ecosystem": "wetland",
+        "entity_id": "doc_73_entity_17",
+        "event_details": "NAT",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 8724,
+        "name": "Johanson",
+        "page_number": [
+          6
+        ],
+        "point_value": "71",
+        "qualifiers": [],
+        "row_index": [
+          "('Johanson', 'NAT')"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          3
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 71
+      },
+      "extraction_index": 8736,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "prairie_wetland",
+        "ecosystem": "pothole",
+        "identifiers": null,
+        "list_values": null,
+        "location": "saskatchewan",
+        "lower": null,
+        "name": "johanson",
+        "page_confidence": "high",
+        "page_number": [
+          6
+        ],
+        "page_score": 0.837,
+        "point_value": 71.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 71.0
+      },
+      "gt_index": 2781,
+      "in_matching": true,
+      "pair_id": 95,
+      "weight": 0.6428571428571428
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "tp",
+        "attribute_terms": [
+          "TP",
+          "total phosphorus",
+          "µg/L"
+        ],
+        "column_index": [
+          "pt_ug_l"
+        ],
+        "date": "None",
+        "document_id": "relative_contribution",
+        "ecosystem": "pond",
+        "entity_id": "doc_81_entity_6",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 9305,
+        "name": "Camposagrado I",
+        "page_number": [
+          3
+        ],
+        "point_value": "39",
+        "qualifiers": [],
+        "row_index": [
+          "Camposagrado I"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          1
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 39
+      },
+      "extraction_index": 9317,
+      "gt": {
+        "additional_details": null,
+        "attribute": "tp",
+        "date": null,
+        "document_id": "relative_contribution",
+        "ecosystem": "pond",
+        "identifiers": null,
+        "list_values": null,
+        "location": "spain",
+        "lower": null,
+        "name": "camposagrado i",
+        "page_confidence": "high",
+        "page_number": [
+          3
+        ],
+        "page_score": 0.8604,
+        "point_value": 39.0,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 39.0
+      },
+      "gt_index": 2849,
+      "in_matching": true,
+      "pair_id": 96,
+      "weight": 1.0
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "chla",
+        "attribute_terms": [
+          "chlorophyll_ug_L"
+        ],
+        "column_index": [
+          "chlorophyll_ug_L"
+        ],
+        "date": "May 2002",
+        "document_id": "cryptic_trophic_cascade",
+        "ecosystem": "lake",
+        "entity_id": "doc_17_entity_9",
+        "event_details": "Mean summer value for the mixing zone (4–5 m depth)",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2411,
+        "name": "Lake Head",
+        "page_number": [
+          2
+        ],
+        "point_value": "4.4",
+        "qualifiers": [],
+        "row_index": [
+          "Head"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 4.4
+      },
+      "extraction_index": 2423,
+      "gt": {
+        "additional_details": null,
+        "attribute": "chla",
+        "date": null,
+        "document_id": "cryptic_trophic_cascade",
+        "ecosystem": "shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwestern michigan; usa",
+        "lower": null,
+        "name": "head",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.8762,
+        "point_value": 4.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 4.4
+      },
+      "gt_index": 3001,
+      "in_matching": true,
+      "pair_id": 97,
+      "weight": 0.5576923076923077
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "chla",
+        "attribute_terms": [
+          "chlorophyll_ug_L"
+        ],
+        "column_index": [
+          "chlorophyll_ug_L"
+        ],
+        "date": "May 2002",
+        "document_id": "cryptic_trophic_cascade",
+        "ecosystem": "lake",
+        "entity_id": "doc_17_entity_3",
+        "event_details": "Mean summer value for the mixing zone, which is 10 m depth in deep-refuge lakes.",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2393,
+        "name": "Lake Pine",
+        "page_number": [
+          2
+        ],
+        "point_value": "3.4",
+        "qualifiers": [],
+        "row_index": [
+          "Pine"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 3.4
+      },
+      "extraction_index": 2405,
+      "gt": {
+        "additional_details": null,
+        "attribute": "chla",
+        "date": null,
+        "document_id": "cryptic_trophic_cascade",
+        "ecosystem": "shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "southwestern michigan; usa",
+        "lower": null,
+        "name": "three lakes 3",
+        "page_confidence": "high",
+        "page_number": [
+          2
+        ],
+        "page_score": 0.896,
+        "point_value": 3.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 3.4
+      },
+      "gt_index": 3009,
+      "in_matching": false,
+      "pair_id": 98,
+      "weight": 0.4772727272727273
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "chla",
+        "attribute_terms": [
+          "Chl-a",
+          "chlorophyll-a",
+          "μg L<sup>−1</sup>"
+        ],
+        "column_index": [
+          "chl_a_ug_l"
+        ],
+        "date": "None",
+        "document_id": "determinants_of_biodiversity",
+        "ecosystem": "lake",
+        "entity_id": "doc_19_entity_17",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2600,
+        "name": "Pajarera",
+        "page_number": [
+          5
+        ],
+        "point_value": "13.8",
+        "qualifiers": [],
+        "row_index": [
+          "Pajarera"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 13.8
+      },
+      "extraction_index": 2612,
+      "gt": {
+        "additional_details": null,
+        "attribute": "chla",
+        "date": null,
+        "document_id": "determinants_of_biodiversity",
+        "ecosystem": "subtropical shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "atlatic coast; uruguay",
+        "lower": null,
+        "name": "pajarera",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8782,
+        "point_value": 13.8,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 13.8
+      },
+      "gt_index": 3021,
+      "in_matching": true,
+      "pair_id": 99,
+      "weight": 0.6428571428571428
+    },
+    {
+      "above_threshold": true,
+      "extraction": {
+        "attribute": "chla",
+        "attribute_terms": [
+          "Chl-a",
+          "chlorophyll-a",
+          "μg L<sup>−1</sup>"
+        ],
+        "column_index": [
+          "chl_a_ug_l"
+        ],
+        "date": "None",
+        "document_id": "determinants_of_biodiversity",
+        "ecosystem": "lake",
+        "entity_id": "doc_19_entity_11",
+        "event_details": "None",
+        "identifiers": "None",
+        "list_values": null,
+        "lower": null,
+        "measurement_id": 2553,
+        "name": "Ponderosa",
+        "page_number": [
+          5
+        ],
+        "point_value": "9.4",
+        "qualifiers": [],
+        "row_index": [
+          "Ponderosa"
+        ],
+        "source": [
+          "table"
+        ],
+        "standard_deviation": null,
+        "table_number": [
+          2
+        ],
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 9.4
+      },
+      "extraction_index": 2565,
+      "gt": {
+        "additional_details": null,
+        "attribute": "chla",
+        "date": null,
+        "document_id": "determinants_of_biodiversity",
+        "ecosystem": "subtropical shallow lake",
+        "identifiers": null,
+        "list_values": null,
+        "location": "atlatic coast; uruguay",
+        "lower": null,
+        "name": "ponderosa",
+        "page_confidence": "high",
+        "page_number": [
+          5
+        ],
+        "page_score": 0.8811,
+        "point_value": 9.4,
+        "qualifiers": null,
+        "standard_deviation": null,
+        "tolerance": null,
+        "units": "µg/L",
+        "upper": null,
+        "value": 9.4
+      },
+      "gt_index": 3022,
+      "in_matching": true,
+      "pair_id": 100,
+      "weight": 0.6428571428571428
+    }
+  ],
+  "probe_dataset": "pond",
+  "seed": 20261004,
+  "strict_fields": [
+    {
+      "extraction": "document_id",
+      "gt": "document_id"
+    },
+    {
+      "extraction": "attribute",
+      "gt": "attribute"
+    },
+    {
+      "extraction": "point_value",
+      "gt": "point_value"
+    },
+    {
+      "extraction": "units",
+      "gt": "units"
+    }
+  ]
+}

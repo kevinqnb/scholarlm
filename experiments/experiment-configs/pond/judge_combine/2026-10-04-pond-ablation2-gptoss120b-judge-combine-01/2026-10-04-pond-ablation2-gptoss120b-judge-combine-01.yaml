@@ -1,0 +1,17 @@
+id: 2026-10-04-pond-ablation2-gptoss120b-judge-combine-01
+project: scholarlm
+description: >-
+  Majority-vote combine over pond ablation 2 extraction
+  (2026-10-02-pond-ablation2-gptoss120b-full-01; extraction model gptoss120b): 3
+  voting judges (gpt-oss-120b, qwen-2.5-72b, llama-3.3-70b) only -- no interp
+  judges. voting_threshold pinned explicitly (this repo avoids inferred
+  defaults).
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+    - 2026-10-04-pond-ablation2-gptoss120b-gptoss120b-judge-local-01
+    - 2026-10-04-pond-ablation2-gptoss120b-qwen72b-judge-local-01
+    - 2026-10-04-pond-ablation2-gptoss120b-llama70b-judge-local-01
+  voting_threshold: 2
+  walltime: "00:30:00"

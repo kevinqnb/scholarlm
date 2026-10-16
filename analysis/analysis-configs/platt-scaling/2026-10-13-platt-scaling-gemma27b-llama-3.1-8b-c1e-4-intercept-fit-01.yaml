@@ -1,0 +1,44 @@
+id: 2026-10-13-platt-scaling-gemma27b-llama-3.1-8b-c1e-4-intercept-fit-01
+project: scholarlm
+description: >
+  SmECE vs recalibration sample size (analysis/platt_scaling.py) for the llama-3.1-8b head probe (C=1e-4) on the gemma27b
+  extractions of pond, nfix and supermat (supermat probe on the v3s split). n = 0 is the no-recalibration baseline
+  (raw scores, one value); n = 25, 50 and 100 are intercept_fit maps, each fit on 2000 training-pool resamples (pool
+  documents resampled, then n rows drawn) and scored on the fixed real test rows; point = mean, interval = 2.5/97.5
+  percentiles over those resamples (training-resample variability only). NTP is the judge's raw p(true) and is never
+  recalibrated (commit 7c182ac). Same as 2026-10-10-platt-scaling-gemma27b-llama-3.1-8b-intercept-fit-01 except the head probes
+  are the 2026-10-12 C=1e-4 synthetic probes (head_selection_C = probe_C = 1.0e-4) and platt_ns is [0, 25, 50, 100];
+  sibling of 2026-10-12-calibration-gemma27b-llama-3.1-8b-c1e-4-intercept-fit-01.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  platt_ns: [0, 25, 50, 100]
+  recalibration: intercept_fit
+  n_train_resamples: 2000
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-12-pond-synthetic-probe-llama-3.1-8b-c1e-4-01
+      use_matching_labels: true
+      syn_test_ids: {primary: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-primary-01, diag: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-diag-01}
+    nfix:
+      extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-nfix-extraction-gemma27b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-nfix-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/nfix/ground_truth_review.json
+      synthetic_probe_config: 2026-10-12-nfix-synthetic-probe-llama-3.1-8b-c1e-4-01
+      use_matching_labels: true
+      syn_test_ids: {primary: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-test-primary-01, diag: 2026-09-30-nfix-v3-llama-3.1-8b-synthetic-judge-test-diag-01}
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-12-supermat-synthetic-probe-llama-3.1-8b-c1e-4-01
+      use_matching_labels: true
+      syn_test_ids: {primary: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-primary-01, diag: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-diag-01}

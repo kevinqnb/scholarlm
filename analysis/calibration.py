@@ -1,38 +1,49 @@
+"""Calibration of the head probe and NTP confidences on synthetic and real test sets (v4).
+
+For every (train dataset, test dataset) pair, scores the synthetic test set (never
+recalibrated) and the real held-out rows. Real probe scores are recalibrated by one map
+(prior_shift, intercept_fit or platt_fit), fit once from ``fit_source``. The probe is the
+trained synthetic-probe artifact. NTP is the judge's raw p(true) and is NEVER recalibrated,
+in any cell: it has no map and no fit rows.
+Calibration errors and Brier (skill) scores get document-bootstrap CIs. Runs at import time from one config.
+
+Outputs in analysis/results/calibration/<config id>/: predictions.pkl (with row
+provenance), bootstrap.pkl, recalibration_maps.csv, metrics_{probe,ntp}.csv, figures/.
+
+Usage
+-----
+    python analysis/calibration.py analysis/analysis-configs/calibration/<id>.yaml
+"""
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path.cwd()
+REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / 'src'))
 sys.path.insert(0, str(REPO_ROOT / 'experiments'))
 sys.path.insert(0, str(REPO_ROOT))
 
-import os
-import re
+import json
 import pickle
 import argparse
-import itertools
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import seaborn as sns
-from sklearn.metrics import precision_recall_curve, roc_auc_score, brier_score_loss
+from sklearn.metrics import roc_auc_score
 
-from analysis.loaders import (
-    load_activations, load_layer_outputs, load_combined_judgements,
-    load_extraction, load_ground_truth, load_trained_probe, load_trained_ntp_calibrator,
-    cached_match, load_synthetic_activations, load_synthetic_layer_outputs,
-    load_synthetic_responses,
-)
-from analysis.metrics import recovery_rate_from_labels, validity_rate_from_labels
-from scholarlm.utils.calibration import (
-    reliability_diagram_data, rescale_probabilities_em, bootstrap_ece, intercept_adjustment,
-)
-from scholarlm.utils.unit_conversion import apply_unit_conversion
-from experiments.run_extraction import load_dataset_config
-import utils as paths
+from analysis.common.config import analysis_results_dir, load_calibration_v4_config
+from analysis.common import calibration_ids as cids
+from analysis.common import matching
+from analysis.common import doc_bootstrap as db
+from analysis.common.metrics import validity_rate_from_labels
+from analysis.common.prediction_store import real_cell_provenance
+from analysis.common.calibration_plot_utils import draw_reliability_curve
+from analysis.common.head_activations import HeadActivationCache
+from analysis.common.loaders import load_probe_artifact
+from analysis.common.recalibration import intercept_fit_map, platt_fit_map, prior_shift_map, uniform_fit_sample
+from scholarlm.utils.calibration import apply_platt
 
 mpl.rcParams.update({
     "font.family": "serif",
@@ -54,922 +65,514 @@ mpl.rcParams.update({
     "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 
-FIGURES_DIR = REPO_ROOT / "figures/calibration/"
-Path(FIGURES_DIR).mkdir(parents=True, exist_ok=True)
-
-RESULTS_DIR = REPO_ROOT / "results/"
-Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
-
 # blue: 7, orange: 1, red: 0, green: 4
 palette = sns.color_palette("husl", 10)
 
-# One consistent color per dataset, reused across every plot (synthetic/real,
-# within/cross) so a dataset is always the same color regardless of role.
+# One fixed color per dataset across every plot.
 _DS_COLORS = {
     'pond':     palette[7],
     'nfix':     palette[1],
-    'supermat': palette[4],
+    'supermat': palette[0],
 }
 
 _DS_LABELS = {'pond': 'PLW', 'nfix': 'NF', 'supermat': 'SM'}
 
 
 # ── Parameters ───────────────────────────────────────────────────────────────
-# Everything that varies with the extraction model lives in EXTRACTION_SETTINGS,
-# one entry per model. Select one with `--extraction-model`, the
-# CALIBRATION_EXTRACTION_MODEL env var, or by editing DEFAULT_EXTRACTION_MODEL;
-# the module-level globals below are then derived from the selected entry, so the
-# rest of this file (and the notebooks that import it) is unchanged.
-#
-# Per-entry keys:
-#   datasets        — datasets this extraction model was run on
-#   judge_models    — judges with interpretable results for this extraction run
-#   judge_datasets  — datasets each judge has activations for. A cross-domain
-#                     (train_ds → test_ds) pair is only valid for a judge when
-#                     BOTH datasets appear here, since the probe lives in that
-#                     judge's activation space.
-#   extraction_dates / judge_dates_syn / judge_dates_real — pinned run dates
-#                     (a None judge date means "auto-detect latest")
-#   pi_te_estimate  — assumed test prevalence for the label-shift intercept
-#                     adjustment on real data; None disables the adjustment.
-EXTRACTION_SETTINGS = {
-    'gemma-3-27b': {
-        'datasets': ['pond', 'nfix', 'supermat'],
-        'judge_models': ['llama-3.1-8b', 'mistral-7b', 'qwen-2.5-7b', 'qwen-2.5-7b-base'],
-        # qwen covers all three datasets → full 3×3; llama/mistral cover pond+nfix → 2×2.
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'mistral-7b':   ['pond', 'nfix'],
-            'qwen-2.5-7b':  ['pond', 'nfix', 'supermat'],
-            'qwen-2.5-7b-base': ['pond', 'nfix', 'supermat'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_05',
-            'nfix': '2026_05_06',
-            'supermat': '2026_07_09',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'mistral-7b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'mistral-7b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-            'supermat': {
-                'qwen-2.5-7b': '2026_07_10',   # TODO: pin the supermat synthetic-probe date if not the latest
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_06',
-                'mistral-7b': '2026_05_06',
-                'qwen-2.5-7b': '2026_05_06',
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_05',
-                'mistral-7b': '2026_05_05',
-                'qwen-2.5-7b': '2026_05_05',
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-            'supermat': {
-                'qwen-2.5-7b': '2026_07_09',   # TODO: pin the supermat real (extracted) judge date if not the latest
-                'qwen-2.5-7b-base': '2026_08_05',
-            },
-        },
-        'pi_te_estimate': None,
-    },
-
-    # Previously analysis/calibration_llama.py
-    'llama-3.1-8b': {
-        'datasets': ['pond', 'nfix'],
-        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'qwen-2.5-7b':  ['pond', 'nfix'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_04',
-            'nfix': '2026_05_05',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-        },
-        'pi_te_estimate': None,
-    },
-
-    # Previously analysis/calibration_gpt.py
-    'gpt-oss-120b': {
-        'datasets': ['pond', 'nfix'],
-        'judge_models': ['llama-3.1-8b', 'qwen-2.5-7b'],
-        'judge_datasets': {
-            'llama-3.1-8b': ['pond', 'nfix'],
-            'qwen-2.5-7b':  ['pond', 'nfix'],
-        },
-        'extraction_dates': {
-            'pond': '2026_05_02',
-            'nfix': '2026_05_03',
-        },
-        'judge_dates_syn': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_04',
-                'qwen-2.5-7b': '2026_05_04',
-            },
-        },
-        'judge_dates_real': {
-            'pond': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-            'nfix': {
-                'llama-3.1-8b': '2026_05_13',
-                'qwen-2.5-7b': '2026_05_05',
-            },
-        },
-        'pi_te_estimate': 0.85,
-    },
-}
-
-DEFAULT_EXTRACTION_MODEL = 'gemma-3-27b'
-DEFAULT_PROBE_TYPE = 'head'
+# Fit rows are drawn once (no fit resampling); the only resampling is the
+# document bootstrap of each evaluation set (see common/doc_bootstrap.py).
+def _parse_args():
+    """Parse the single positional calibration config path."""
+    parser = argparse.ArgumentParser(
+        description="Probe/NTP calibration analysis (v4: one prior-shift or intercept-fit recalibration per cell, fit once, document-bootstrap CIs)."
+    )
+    parser.add_argument('config', type=Path,
+                        help="analysis/analysis-configs/calibration/<id>.yaml (see load_calibration_v4_config)")
+    return parser.parse_args()
 
 
-def _env_list(name):
-    """Parse a comma- or space-separated env var into a list; None when unset/empty."""
-    raw = os.environ.get(name, '').replace(',', ' ').split()
-    return raw or None
+_CFG = load_calibration_v4_config(_parse_args().config)
+CONFIG_ID = _CFG['id']
+SEED = _CFG['seed']
+_PARAMS = _CFG['params']
+
+PROBE_TYPE    = _PARAMS['probe_type']
+PROBE_VARIANT = _PARAMS['probe_variant']
+SYN_SPLIT     = _PARAMS['syn_split']
+# Test-document resamples per cell (real and synthetic).
+N_BOOT = _PARAMS['n_boot']
+# Real-cell map expit(slope * logit(p) + intercept); methods in common/recalibration.py.
+# fit_source: sample (fit_n pool rows by fit_seed), manual (pi_te_estimate, prior_shift
+# only) or oracle (the test rows themselves; diagnostic only).
+RECALIBRATION = _PARAMS['recalibration']
+FIT_SOURCE    = _PARAMS['fit_source']
+FIT_N         = _PARAMS['fit_n']
+FIT_SEED      = _PARAMS['fit_seed']
+DATASETS = list(_PARAMS['datasets'])
+TRAIN_DATASETS = list(_PARAMS['datasets'])  # every dataset has its own synthetic-probe config
+
+_INPUTS = cids.resolve_calibration_inputs(_CFG)
+JUDGE_MODEL = _INPUTS['judge_model']
+
+OUT_DIR = analysis_results_dir("calibration") / CONFIG_ID
+FIGURES_DIR = OUT_DIR / "figures"
+FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+
+# None selects the Platt-scaled filenames; 'noplatt' the suffixed ones.
+_PROBE_VARIANT_KW = None if PROBE_VARIANT == 'platt' else PROBE_VARIANT
+
+_DTYPES = ['syn', 'real']
+
+print(f'[calibration v4] config: {CONFIG_ID} | probe type: {PROBE_TYPE} | probe variant: {PROBE_VARIANT} '
+      f'| syn split: {SYN_SPLIT} | datasets: {DATASETS} | recalibration: {RECALIBRATION} '
+      f'| fit source: {FIT_SOURCE} | fit n: {FIT_N} | fit seed: {FIT_SEED} | doc resamples: {N_BOOT} '
+      f'| judge: {JUDGE_MODEL} '
+      f'| out dir: {OUT_DIR}')
+if FIT_SOURCE == 'oracle':
+    print('[calibration v4] ORACLE fit: maps are fit on the evaluated rows themselves -- diagnostic only.')
 
 
-def _select_settings():
-    """Resolve the active extraction model from CLI flag → env var → default.
-
-    parse_known_args keeps this safe under import from a notebook or another
-    script, where sys.argv holds flags meant for something else.
-
-    ``--datasets`` / ``--judge-models`` (or CALIBRATION_DATASETS /
-    CALIBRATION_JUDGE_MODELS) narrow the selected entry to a subset.  Both the
-    probe cache and test_data are built eagerly at import over every dataset in
-    the entry, so narrowing is what lets this module import when only part of the
-    run data is present locally.  Omitting them leaves the entry unchanged.
-    """
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--extraction-model', default=None, choices=list(EXTRACTION_SETTINGS))
-    parser.add_argument('--probe-type', default=None, choices=['head', 'layer'])
-    parser.add_argument('--datasets', nargs='+', default=None)
-    parser.add_argument('--judge-models', nargs='+', default=None)
-    args, _ = parser.parse_known_args()
-
-    model = (args.extraction_model
-             or os.environ.get('CALIBRATION_EXTRACTION_MODEL')
-             or DEFAULT_EXTRACTION_MODEL)
-    if model not in EXTRACTION_SETTINGS:
-        raise ValueError(
-            f'Unknown extraction model {model!r}; '
-            f'known: {sorted(EXTRACTION_SETTINGS)}'
-        )
-    probe_type = (args.probe_type
-                  or os.environ.get('CALIBRATION_PROBE_TYPE')
-                  or DEFAULT_PROBE_TYPE)
-
-    def _subset(selected, available, what):
-        unknown = [x for x in selected if x not in available]
-        if unknown:
-            raise ValueError(
-                f'Unknown {what} {unknown} for extraction model {model!r}; '
-                f'available: {available}'
-            )
-        return [x for x in available if x in selected]
-
-    settings = dict(EXTRACTION_SETTINGS[model])  # copy: never mutate the registry
-
-    datasets = args.datasets or _env_list('CALIBRATION_DATASETS')
-    if datasets:
-        settings['datasets'] = _subset(datasets, settings['datasets'], 'dataset')
-
-    judges = args.judge_models or _env_list('CALIBRATION_JUDGE_MODELS')
-    if judges:
-        settings['judge_models'] = _subset(judges, settings['judge_models'], 'judge model')
-
-    # judge_datasets drives the probe cache, so it has to be narrowed to match or the
-    # eager loading below still reaches for probes we just excluded.
-    settings['judge_datasets'] = {
-        jm: [ds for ds in dss if ds in settings['datasets']]
-        for jm, dss in settings['judge_datasets'].items()
-        if jm in settings['judge_models']
-    }
-    return model, probe_type, settings
-
-
-EXTRACTION_MODEL, PROBE_TYPE, _SETTINGS = _select_settings()
-
-DATASETS         = _SETTINGS['datasets']
-JUDGE_MODELS     = _SETTINGS['judge_models']
-JUDGE_DATASETS   = _SETTINGS['judge_datasets']
-EXTRACTION_DATES = _SETTINGS['extraction_dates']
-JUDGE_DATES_SYN  = _SETTINGS['judge_dates_syn']
-JUDGE_DATES_REAL = _SETTINGS['judge_dates_real']
-PI_TE_ESTIMATE   = _SETTINGS['pi_te_estimate']  # test prevalence for label-shift rescaling; None → off
-
-# All unordered dataset pairs, in a fixed canonical order — each pair gets its
-# own output subfolder so within/cross-domain plots stay readable as the
-# number of datasets grows.
-DATASET_PAIRS = list(itertools.combinations(DATASETS, 2))
-
-print(f'[calibration] extraction model: {EXTRACTION_MODEL} | probe type: {PROBE_TYPE} '
-      f'| datasets: {DATASETS} | judges: {JUDGE_MODELS}')
-
-THRESHOLD_SWEEP = np.linspace(0.0, 0.95, 20)  # thresholds for operating-curve plot
-EDGE_THRESHOLDS  = {'pond': 1/3, 'nfix': 1/6, 'supermat': 1/3}  # minimum fuzzy weight to count as a match
-
-
-def get_matching_config(dataset):
-    if dataset == 'pond':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
-    elif dataset == 'nfix':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'site_type': 'site_type'}
-    elif dataset == 'supermat':
-        # tc is the only attribute; entity is the material name/formula.
-        # Many ground-truth `name` values are null → those rows fall back to
-        # strict-only matching on document_id + attribute + value + units.
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name'}
-    else:
-        raise ValueError(f'Unknown dataset: {dataset}')
-    return strict, fuzzy
-
-
-# Pre-load all probes and NTP calibrators to avoid redundant loading within the loop.
-# Only load (dataset, judge) pairs that actually have a trained probe.
-ntp_cal_cache = {}
-for ds in DATASETS:
-    ntp_cal_cache[ds] = {}
-    for jm in JUDGE_MODELS:
-        if ds not in JUDGE_DATASETS[jm]:
-            continue
-        ntp_cal_cache[ds][jm] = load_trained_ntp_calibrator(ds, jm)
-
-
+# NTP is the judge's raw p(true) and is never recalibrated; only the probe is a trained
+# artifact and only the probe gets a recalibration map.
+_probe_filename = (
+    'layer_probe.pkl' if PROBE_TYPE == 'layer'
+    else ('head_probe.pkl' if _PROBE_VARIANT_KW is None else 'head_probe_noplatt.pkl')
+)
 probe_cache = {}
-for ds in DATASETS:
-    probe_cache[ds] = {}
-    for jm in JUDGE_MODELS:
-        if ds not in JUDGE_DATASETS[jm]:
-            continue
-        probe_cache[ds][jm] = load_trained_probe(ds, jm, ptype=PROBE_TYPE)
+for _train_ds in TRAIN_DATASETS:
+    print(f'Loading trained probe ({_train_ds}, {JUDGE_MODEL}) '
+          f'from {_INPUTS["datasets"][_train_ds]["syn_train_id"]}...')
+    probe_cache[_train_ds] = load_probe_artifact(_INPUTS['datasets'][_train_ds]['probe_dir'], _probe_filename, _train_ds, JUDGE_MODEL)
+
+# Decompress each activation row once, keeping the union of all probes' top heads.
+_HEAD_ACTS = (HeadActivationCache([lh for _tr in TRAIN_DATASETS for lh in probe_cache[_tr]['top_k_heads']])
+              if PROBE_TYPE == 'head' else None)
 
 
-def get_matching_config(dataset):
-    if dataset == 'pond':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'location': 'location', 'ecosystem': 'ecosystem'}
-    elif dataset == 'nfix':
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name', 'site_type': 'site_type'}
-    elif dataset == 'supermat':
-        # tc is the only attribute; entity is the material name/formula.
-        # Many ground-truth `name` values are null → those rows fall back to
-        # strict-only matching on document_id + attribute + value + units.
-        strict = {'document_id': 'document_id', 'attribute': 'attribute',
-                'value': 'converted_value', 'units': 'units'}
-        fuzzy  = {'name': 'name'}
-    else:
-        raise ValueError(f'Unknown dataset: {dataset}')
-    return strict, fuzzy
-
-# Pre-load all test data, including matching results, to avoid redundant loading and matching within the loop
+# ── Real data, test rows and fit rows, per test dataset ──────────────────────
 test_data = {}
 for ds in DATASETS:
-    EDGE_THRESHOLD = EDGE_THRESHOLDS[ds]
     print(f'Loading test data for {ds}...')
-    config  = load_dataset_config(ds)
-    records = load_extraction(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds])
-    ext_df  = pd.DataFrame(records)
-    ext_df  = apply_unit_conversion(ext_df, {})
+    ds_inputs = _INPUTS['datasets'][ds]
 
-    if ds == 'nfix':
-        ext_df['attribute'] = ext_df['attribute'].map({
-            'nfix_rate_areal': 'nfix_rate', 'nfix_rate_volumetric': 'nfix_rate',
-            'nfix_rate_mass':  'nfix_rate', 'nfix_rate': 'nfix_rate',
-        })
+    with open(ds_inputs['judge_combine_dir'] / 'combined.json') as f:
+        real_df = pd.DataFrame(json.load(f))
+    assert f'judgement_p_true_{JUDGE_MODEL}' in real_df.columns, (ds, JUDGE_MODEL)
 
-    real_df = pd.DataFrame(load_combined_judgements(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds]))
-    gt_df   = load_ground_truth(config)
+    # Scored on the final.json datapoints; combined.json must be row-for-row the same run.
+    with open(ds_inputs['extraction_dir'] / 'final.json') as f:
+        final_df = pd.DataFrame(json.load(f))
+    for col in ('measurement_id', 'document_id', 'attribute'):
+        assert final_df[col].tolist() == real_df[col].tolist(), (
+            f'{ds}: final.json and combined.json disagree on {col}')
 
-    strict, fuzzy = get_matching_config(ds)
-    cache_path = paths.extraction(ds, EXTRACTION_MODEL, EXTRACTION_DATES[ds]) / 'match_cache.pkl'
-    matching, edges, edge_weights = cached_match(
-        gt_df, ext_df,
-        strict_matching=strict,
-        fuzzy_matching=fuzzy,
-        fuzzy_threshold=0.0,
-        cache_path=cache_path,
-    )
+    # Label = judgement_combined, OR ground-truth match if use_matching_labels.
+    jlabels = real_df['judgement_combined'].to_numpy(dtype=bool)
+    if _PARAMS['datasets'][ds]['use_matching_labels']:
+        _gt_df, ext_df, cached_edges = matching.load_cached_matching(
+            _PARAMS['datasets'][ds]['extraction_id'], ds_inputs['ground_truth_path'])
+        judged_edges = matching.edges_to_judged_rows(cached_edges, ext_df, real_df)
+        ex_edge_exists = np.zeros(len(real_df), dtype=bool)
+        for _gt_idx, ex_idx in judged_edges:
+            ex_edge_exists[ex_idx] = True
+        print(f'  {ds}: matching labels on -- {int(ex_edge_exists.sum())}/{len(real_df)} judged rows matched')
+        labels = jlabels | ex_edge_exists
+    else:
+        print(f'  {ds}: matching labels off -- labels are judgement_combined alone')
+        labels = jlabels.copy()
 
-    ex_edge_exists = np.zeros(len(ext_df), dtype=bool)
-    filtered_edges = []
-    for (gt_idx, ex_idx), w in zip(edges, edge_weights):
-        if w > EDGE_THRESHOLD:
-            ex_edge_exists[int(ex_idx)] = True
-            filtered_edges.append((int(gt_idx), int(ex_idx)))
-    jlabels     = real_df['judgement_combined'].to_numpy(dtype=bool)
-    combined_labels = jlabels | ex_edge_exists
+    # Fit pool = real rows from the probe's training documents. Always excluded from
+    # the test rows, so every config scores the same test rows.
+    pool_docs = set(probe_cache[ds]['syn_document_ids'])
+    in_pool = real_df['document_id'].isin(pool_docs).to_numpy()
+    pool_idx = np.where(in_pool)[0]
+    test_idx = np.where(~in_pool)[0]
+    assert len(test_idx) > 0, f'{ds}: no real test rows outside the fit pool'
+
+    # Rows the maps are fit on (and pi_te read from); empty for manual.
+    if FIT_SOURCE == 'sample':
+        assert FIT_N <= len(pool_idx), f'{ds}: fit_n={FIT_N} > {len(pool_idx)} pool rows'
+        fit_idx = pool_idx[uniform_fit_sample(len(pool_idx), FIT_N, FIT_SEED)]
+        assert not set(fit_idx.tolist()) & set(test_idx.tolist()), ds
+    elif FIT_SOURCE == 'oracle':
+        fit_idx = test_idx
+    else:
+        assert FIT_SOURCE == 'manual' and RECALIBRATION == 'prior_shift', (FIT_SOURCE, RECALIBRATION)
+        fit_idx = np.array([], dtype=np.int64)
+    pi_te = (float(_PARAMS['datasets'][ds]['pi_te_estimate']) if FIT_SOURCE == 'manual'
+             else float(labels[fit_idx].mean()))
+    if not 0 < pi_te < 1:
+        raise ValueError(f'{ds}: fit rows are single-class (label rate {pi_te}); pick another fit_seed or fit_n')
+    print(f'  {ds}: fit rows {len(fit_idx)} ({FIT_SOURCE}), pi_te / fit label rate = {pi_te:.4f} '
+          f'| test rows {len(test_idx)}/{len(real_df)} (label rate {labels[test_idx].mean():.4f}) '
+          f'| pool rows {len(pool_idx)} (label rate {labels[pool_idx].mean():.4f})')
 
     test_data[ds] = {
         'real_df': real_df,
-        'gt_df': gt_df,
-        'labels': combined_labels,
-        'matching_labels': ex_edge_exists,
-        'judge_labels': jlabels,
-        'filtered_edges': filtered_edges,
+        'labels': labels,
+        'pool_docs': pool_docs,
+        'test_idx': test_idx,
+        'fit_idx': fit_idx,
+        'pi_te': pi_te,
     }
 
 
+def _score_rows(train_ds, test_ds, mids, raw_ntp_probs, act_dir):
+    """Unrecalibrated probe probabilities and raw NTP p(true) for some rows.
 
-def compute_predictions(judge_models, datasets, probe_type, load_from_precomputed=False):
-    # ── Collect data for each test setting ────────────────────────────────
-    # Result format: {dataset_type: {judge_model: {train_ds: {test_ds: {probe_probs: x, ntp_probs: y, labels: z}}}}}
-    
-    # Define cache file path
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}.pkl'
-    
-    # Try to load from precomputed cache if requested
-    if load_from_precomputed and cache_file.exists():
-        print(f'Loading precomputed predictions from {cache_file}...')
-        with open(cache_file, 'rb') as f:
-            return pickle.load(f)
-    
-    setting_results = {}
+    Args:
+        train_ds: Dataset whose probe is applied.
+        test_ds: Dataset being scored (for error messages).
+        mids: Measurement ids (activation keys).
+        raw_ntp_probs: Judge p(true) per row, returned unchanged as the NTP score.
+        act_dir: Judge run directory holding the activations.
 
-    for dataset_type in ['syn', 'real']:
-        setting_results[dataset_type] = {}
-        for judge_model in judge_models:
-            setting_results[dataset_type][judge_model] = {}
-            for train_ds in datasets:
-                if train_ds not in JUDGE_DATASETS[judge_model]:
-                    continue
-                setting_results[dataset_type][judge_model][train_ds] = {}
-                pd_data = probe_cache[train_ds][judge_model]
-                ntp_cal_data = ntp_cal_cache[train_ds][judge_model]
-                if probe_type == "layer":
-                    top = pd_data['top_layer']
-                else:
-                    top = pd_data['top_k_heads']
+    Returns:
+        ``(probe_probs, ntp_probs)``, one per row.
+    """
+    pd_data = probe_cache[train_ds]
+    top = pd_data['top_layer'] if PROBE_TYPE == 'layer' else pd_data['top_k_heads']
+    ntp_probs = np.asarray(raw_ntp_probs, dtype=float)
+    assert ((ntp_probs >= 0) & (ntp_probs <= 1)).all(), (train_ds, test_ds, 'judge p(true) outside [0, 1]')
+    if PROBE_TYPE == "layer":
+        lo = np.load(act_dir / 'layer_outputs.npz')
+        X = np.stack([np.array(lo[str(mid)], dtype=np.float32)[top] for mid in mids], axis=0)
+    else:
+        X = _HEAD_ACTS.features(act_dir, mids, top)
+    assert X.shape[0] == len(mids), (X.shape, len(mids))
+    probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+    assert probe_probs.shape == ntp_probs.shape == (len(mids),), (train_ds, test_ds)
+    assert np.isfinite(probe_probs).all() and np.isfinite(ntp_probs).all(), (train_ds, test_ds)
+    return probe_probs, ntp_probs
 
-                for test_ds in datasets:
-                    if test_ds not in JUDGE_DATASETS[judge_model]:
-                        continue
-                    if dataset_type == 'syn':
-                        jdate    = JUDGE_DATES_SYN[test_ds][judge_model]
-                        syn_resp = load_synthetic_responses(test_ds, judge_model, jdate, split='test')
-                        syn_df_s = pd.DataFrame(syn_resp)
-                        mids     = syn_df_s['measurement_id'].tolist()
-                        labels   = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
-                        raw_ntp_probs = syn_df_s['judgement_p_true'].to_numpy()
-                        ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                            raw_ntp_probs.reshape(-1, 1)
-                        )[:, 1]
 
-                        if probe_type == "layer":
-                            syn_lo  = load_synthetic_layer_outputs(test_ds, judge_model, jdate, split='test')
-                            X = np.stack([
-                                np.array(syn_lo[str(mid)], dtype=np.float32)[top]
-                                for mid in mids
-                            ], axis=0)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+def compute_predictions():
+    """Score every (dataset type, train, test) cell, fit real-cell maps, and save them.
 
+    Writes predictions.pkl and recalibration_maps.csv.
+
+    Returns:
+        ``{dtype: {judge: {train_ds: {test_ds: cell}}}}``. Each cell holds
+        ``probe_probs`` / ``ntp_probs`` (evaluated), ``probe_raw`` / ``ntp_raw``,
+        ``labels``, ``recal_map`` (None for syn), ids, and row provenance for real cells.
+    """
+    judge_model = JUDGE_MODEL
+    setting_results = {dtype: {judge_model: {}} for dtype in _DTYPES}
+    map_rows = []
+
+    for train_ds in TRAIN_DATASETS:
+        pd_data = probe_cache[train_ds]
+        for dataset_type in _DTYPES:
+            setting_results[dataset_type][judge_model][train_ds] = {}
+            for test_ds in DATASETS:
+                if dataset_type == 'syn':
+                    syn_dir = _INPUTS['datasets'][test_ds]['syn_test_dir']
+                    with open(syn_dir / 'responses.json') as f:
+                        syn_df_s = pd.DataFrame(json.load(f))
+                    mids    = syn_df_s['measurement_id'].tolist()
+                    labels  = (syn_df_s['label'] == 'valid').to_numpy(dtype=bool)
+                    doc_ids = syn_df_s['document_id'].to_numpy()
+                    assert pd.notna(doc_ids).all(), f'{test_ds}: synthetic rows without document_id'
+                    probe_raw, ntp_raw = _score_rows(
+                        train_ds, test_ds, mids, syn_df_s['judgement_p_true'].to_numpy(), syn_dir)
+                    probe_probs, ntp_probs = probe_raw, ntp_raw
+                    cell = {'recal_map': None,
+                            'measurement_ids': np.asarray(mids), 'document_ids': doc_ids}
+                else:  # real
+                    td      = test_data[test_ds]
+                    real_df = td['real_df']
+                    col     = f'judgement_p_true_{judge_model}'
+                    act_dir = _INPUTS['datasets'][test_ds]['judge_interp_dir']
+
+                    # Also exclude train_ds's training documents; asserted to remove nothing
+                    # extra, so test rows depend only on test_ds.
+                    exclude = td['pool_docs'] | set(pd_data['syn_document_ids'])
+                    idx = np.where(~real_df['document_id'].isin(exclude).to_numpy())[0]
+                    assert np.array_equal(idx, td['test_idx']), (
+                        f'{train_ds} probe -> {test_ds}: excluding the probe\'s training documents '
+                        f'changed the test rows ({len(idx)} vs {len(td["test_idx"])})')
+                    mids   = real_df['measurement_id'].iloc[idx].tolist()
+                    labels = td['labels'][idx]
+                    probe_raw, ntp_raw = _score_rows(train_ds, test_ds, mids, real_df[col].iloc[idx].to_numpy(), act_dir)
+
+                    fit_idx = td['fit_idx']
+                    fit_labels = td['labels'][fit_idx]
+                    # Only the probe is recalibrated; NTP is the judge's raw p(true), never mapped.
+                    if RECALIBRATION == 'prior_shift':
+                        coef, icpt = prior_shift_map(td['pi_te'], pd_data['train_prevalence'])
+                    else:
+                        if FIT_SOURCE == 'oracle':
+                            assert np.array_equal(fit_idx, idx)
+                            fit_probe = probe_raw
                         else:
-                            syn_act  = load_synthetic_activations(test_ds, judge_model, jdate, split='test')
-                            X = np.concatenate([
-                                np.stack([
-                                    np.array(syn_act[str(mid)], dtype=np.float32)[l, h, :]
-                                    for mid in mids
-                                ], axis=0)
-                                for l, h in top
-                            ], axis=1)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
-
-                        # Each GT-positive item maps to itself: GT slot k → full-array position pos_idx[k].
-                        # gt_idx is the sequential slot index (0..n_gt-1); ex_idx is the original position
-                        # in predicted_labels (length = len(labels)), so pos_idx[k] is always a valid index.
-                        pos_idx = np.where(labels)[0]
-                        test_edges = list(enumerate(pos_idx.tolist()))
-                        n_ground_truth = len(pos_idx)
-
-                    else:  # real
-                        td       = test_data[test_ds]
-                        real_df  = td['real_df']
-                        gt_df    = td['gt_df']
-                        syn_docs = set(pd_data['syn_document_ids'])
-
-                        # Filter extractions to test documents (those not used in probe training).
-                        # idx: positional indices into real_df/ext_df for the test split.
-                        mask     = ~real_df['document_id'].isin(syn_docs)
-                        idx      = np.where(mask.to_numpy())[0]
-                        idx_set  = set(idx.tolist())
-
-                        # Filter GT to test documents and build reindex maps so that
-                        # both gt_idx and ex_idx in test_edges live in [0, their respective test-set sizes).
-                        gt_mask    = ~gt_df['document_id'].isin(syn_docs)
-                        gt_idx_arr = np.where(gt_mask.to_numpy())[0]
-                        gt_idx_set = set(gt_idx_arr.tolist())
-                        old_to_new_ex = {int(v): k for k, v in enumerate(idx)}
-                        old_to_new_gt = {int(v): k for k, v in enumerate(gt_idx_arr)}
-                        test_edges = [
-                            (old_to_new_gt[gt_i], old_to_new_ex[ex_i])
-                            for gt_i, ex_i in td['filtered_edges']
-                            if ex_i in idx_set and gt_i in gt_idx_set
-                        ]
-                        n_ground_truth = len(gt_idx_arr)
-
-                        mids     = real_df['measurement_id'].iloc[idx].tolist()
-                        labels   = td['labels'][idx]
-                        jdate    = JUDGE_DATES_REAL[test_ds][judge_model]
-
-                        raw_ntp_probs = real_df[f'judgement_p_true_{judge_model}'].iloc[idx].to_numpy()
-                        ntp_probs = ntp_cal_data['calibrator'].predict_proba(
-                            raw_ntp_probs.reshape(-1, 1)
-                        )[:, 1]
-
-                        if probe_type == "layer":
-                            real_lo  = load_layer_outputs(test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate)
-                            X = np.stack([
-                                np.array(real_lo[str(mid)], dtype=np.float32)[top]
-                                for mid in mids
-                            ], axis=0)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                            fit_probe, _ = _score_rows(
+                                train_ds, test_ds, real_df['measurement_id'].iloc[fit_idx].tolist(),
+                                real_df[col].iloc[fit_idx].to_numpy(), act_dir)
+                        if RECALIBRATION == 'intercept_fit':
+                            # Asserts its score equation: mapped fit rows average to their label rate.
+                            coef, icpt = intercept_fit_map(fit_probe, fit_labels)
                         else:
-                            real_act = load_activations(
-                                test_ds, EXTRACTION_MODEL, EXTRACTION_DATES[test_ds], judge_model, jdate
-                            )
-                            X = np.concatenate([
-                                np.stack([
-                                    np.array(real_act[str(mid)], dtype=np.float32)[l, h, :]
-                                    for mid in mids
-                                ], axis=0)
-                                for l, h in top
-                            ], axis=1)
-                            probe_probs = pd_data['probe'].predict_proba(X)[:, 1]
+                            assert RECALIBRATION == 'platt_fit', RECALIBRATION
+                            # Asserts both Platt score equations; non-convergence is an error.
+                            coef, icpt = platt_fit_map(fit_probe, fit_labels)
+                    maps = {'probe': (coef, icpt)}
+                    probe_probs = apply_platt(probe_raw, coef, icpt)
+                    if FIT_SOURCE == 'oracle':
+                        assert td['pi_te'] == float(labels.mean()), (train_ds, test_ds, td['pi_te'])
+                        if RECALIBRATION == 'intercept_fit':
+                            assert abs(float(probe_probs.mean()) - float(labels.mean())) < 1e-8, (train_ds, test_ds)
+                    map_rows.append({'Train dataset': train_ds, 'Test dataset': test_ds, 'Method': 'probe',
+                                     'Recalibration': RECALIBRATION, 'Fit source': FIT_SOURCE,
+                                     'Fit n': len(fit_idx), 'Fit seed': FIT_SEED, 'pi_te': td['pi_te'],
+                                     'pi_tr': pd_data['train_prevalence'] if RECALIBRATION == 'prior_shift' else np.nan,
+                                     'coef': coef, 'intercept': icpt,
+                                     'N test': len(idx), 'Test label rate': float(labels.mean()),
+                                     'Raw mean prob': float(probe_raw.mean()),
+                                     'Mapped mean prob': float(probe_probs.mean())})
+                    ntp_probs = ntp_raw  # never recalibrated
+                    cell = {'recal_map': maps,
+                            'fit_on_test_rows': FIT_SOURCE == 'oracle'}
+                    # Oracle fit rows are the test rows, so none are recorded (see fit_on_test_rows).
+                    cell.update(real_cell_provenance(
+                        real_df, idx, fit_idx if FIT_SOURCE == 'sample' else np.array([], dtype=np.int64), exclude,
+                        _INPUTS['datasets'][test_ds]['extraction_dir'] / 'final.json',
+                        _INPUTS['datasets'][test_ds]['judge_combine_dir'] / 'combined.json', CONFIG_ID, SEED))
 
-                    # Real extractions have a different positive rate than the synthetic
-                    # training set; rescale to the assumed test prevalence when one is set.
-                    if dataset_type == 'real' and PI_TE_ESTIMATE is not None:
-                        probe_probs = intercept_adjustment(
-                            probe_probs, pi_tr=pd_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                        )
-                        ntp_probs = intercept_adjustment(
-                            ntp_probs, pi_tr=ntp_cal_data['train_prevalence'], pi_te=PI_TE_ESTIMATE
-                        )
+                assert len(mids) == len(labels) > 0, (dataset_type, train_ds, test_ds, len(mids), len(labels))
+                assert probe_probs.shape == ntp_probs.shape == labels.shape, (
+                    probe_probs.shape, ntp_probs.shape, labels.shape)
+                assert np.isfinite(probe_probs).all() and np.isfinite(ntp_probs).all(), (train_ds, test_ds)
+                cell.update(probe_probs=probe_probs, ntp_probs=ntp_probs, labels=labels,
+                            probe_raw=probe_raw, ntp_raw=ntp_raw)
+                setting_results[dataset_type][judge_model][train_ds][test_ds] = cell
 
-                    setting_results[dataset_type][judge_model][train_ds][test_ds] = {
-                        'probe_probs': probe_probs, 'ntp_probs': ntp_probs, 'labels': labels,
-                        'edges': test_edges, 'n_ground_truth': n_ground_truth,
-                    }
+    maps_df = pd.DataFrame(map_rows)
+    assert len(maps_df) == len(TRAIN_DATASETS) * len(DATASETS), len(maps_df)  # probe maps only
+    maps_df.to_csv(OUT_DIR / 'recalibration_maps.csv', index=False)
+    print(maps_df.to_string(index=False, float_format='{:.4f}'.format))
 
-    # Save to cache for future use
-    cache_file = Path(RESULTS_DIR) / f'predictions_{EXTRACTION_MODEL}_{probe_type}.pkl'
-    print(f'Saving predictions to {cache_file}...')
-    with open(cache_file, 'wb') as f:
+    with open(OUT_DIR / 'predictions.pkl', 'wb') as f:
         pickle.dump(setting_results, f)
-    
     return setting_results
 
 
-def plot_calibration_curves(
-    setting_results, dtype
-):
-    # One (within, cross) pair of plots per judge x dataset-pair, each written to
-    # its own subfolder, so a cross-domain plot never has to overlay more than
-    # the two datasets in that pair (avoids the 6-line cross-domain clutter that
-    # shows up once a third dataset is added).
-    for judge_model in JUDGE_MODELS:
-        for pair in DATASET_PAIRS:
-            ds_a, ds_b = pair
-            if ds_a not in JUDGE_DATASETS[judge_model] or ds_b not in JUDGE_DATASETS[judge_model]:
-                continue
-            pair_datasets = [ds_a, ds_b]
-            pair_name = f"{ds_a}_{ds_b}"
-
-            subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
-            Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
-
-            subresults_dir = RESULTS_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/{pair_name}/"
-            Path(subresults_dir).mkdir(parents=True, exist_ok=True)
-
-            for ctype in ['in-domain', 'cross-domain']:
-                # Base figure
-                fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
-                ax_cal.plot([0, 1], [0, 1], 'k--', lw=1.0, alpha=0.5, zorder=1)
-
-                for train_ds in pair_datasets:
-                    for test_ds in pair_datasets:
-                        if (train_ds == test_ds and ctype == 'cross-domain') or (train_ds != test_ds and ctype == 'in-domain'):
-                            continue
-
-                        color = _DS_COLORS[train_ds]
-                        rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-
-                        # Probe — solid line with markers scaled by per-bin count
-                        d_prb = reliability_diagram_data(rdict['probe_probs'], rdict['labels'])
-                        v_prb = d_prb['bin_counts'] > 0
-                        _c_prb = d_prb['bin_counts'][v_prb].astype(float)
-                        _f_prb = _c_prb / _c_prb.max() if _c_prb.max() > 0 else np.ones_like(_c_prb)
-                        _s_prb = 12 + 68 * _f_prb  # area in pts²: min≈ms3.5, max≈ms9
-                        ax_cal.plot(
-                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                            '-', color=color, lw=2.5, zorder=3,
-                        )
-                        ax_cal.scatter(
-                            d_prb['bin_confidence'][v_prb], d_prb['bin_accuracy'][v_prb],
-                            s=_s_prb, color=color, zorder=4,
-                        )
-
-                        # Add error bands: SEM of accuracy within each bin (very subtle)
-                        bin_sems = d_prb['bin_accuracy_sem'][v_prb]
-                        conf_valid = d_prb['bin_confidence'][v_prb]
-                        acc_valid = d_prb['bin_accuracy'][v_prb]
-
-                        ax_cal.fill_between(
-                            conf_valid,
-                            acc_valid - bin_sems,
-                            acc_valid + bin_sems,
-                            color=color, alpha=0.20, linewidth=0, zorder=2
-                        )
-
-                        # NTP baseline — dashed, markers scaled by per-bin count
-                        d_ntp = reliability_diagram_data(rdict['ntp_probs'], rdict['labels'])
-                        v_ntp = d_ntp['bin_counts'] > 0
-                        _c_ntp = d_ntp['bin_counts'][v_ntp].astype(float)
-                        _f_ntp = _c_ntp / _c_ntp.max() if _c_ntp.max() > 0 else np.ones_like(_c_ntp)
-                        _s_ntp = 12 + 68 * _f_ntp
-                        ax_cal.plot(
-                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                            '--', color=color, lw=2.0, alpha=1.0, zorder=1,
-                        )
-                        ax_cal.scatter(
-                            d_ntp['bin_confidence'][v_ntp], d_ntp['bin_accuracy'][v_ntp],
-                            s=_s_ntp, color=color, alpha=1.0, zorder=2,
-                        )
-
-                        # Add error bands: SEM of accuracy within each bin (very subtle)
-                        bin_sems = d_ntp['bin_accuracy_sem'][v_ntp]
-                        conf_valid = d_ntp['bin_confidence'][v_ntp]
-                        acc_valid = d_ntp['bin_accuracy'][v_ntp]
-
-                        ax_cal.fill_between(
-                            conf_valid,
-                            acc_valid - bin_sems,
-                            acc_valid + bin_sems,
-                            color=color, alpha=0.20, linewidth=0, zorder=2
-                        )
-
-                ax_cal.set_xlim(-0.02, 1.02)
-                ax_cal.set_ylim(-0.02, 1.02)
-                ax_cal.set_xlabel('Predicted Probability')
-
-                if ctype == 'in-domain':
-                    ax_cal.set_ylabel('Observed Frequency')
-                    ax_cal.set_title(f'Within', fontsize=15, style='italic')
-                else:
-                    ax_cal.set_ylabel('')
-                    ax_cal.set_title(f'Cross', fontsize=15, style='italic')
-
-                ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-                ax_cal.set_axisbelow(True)
-                fig_cal.tight_layout()
-                fig_cal.savefig(
-                    subfigure_dir / f'cal_{dtype}_{ctype}.pdf', bbox_inches='tight', dpi = 200
-                )
-                plt.show()
+# (display name, method key). Probe and NTP are tabled separately.
+_METHODS = [
+    ('Probe', 'probe'),
+    ('NTP',   'ntp'),
+]
 
 
-# Bootstrap settings for ECE confidence intervals.
-ECE_N_BOOT = 2000
-ECE_CI     = 0.95
-ECE_SEED   = 0
+def _assert_ntp_train_independent(by_train, dtype):
+    """Assert the NTP bootstrap summaries are identical for every train dataset.
 
+    NTP is the judge's raw p(true) and real-cell fit rows depend only on the test
+    dataset, so nothing in an NTP cell may depend on the train dataset.
 
-def _probe_metrics(probs, y_true, threshold=0.5, *, edges=None, n_ground_truth=None):
-    """Compute metrics at a fixed threshold. Returns dict.
-
-    Calibration error is reported in three variants, each with a bootstrap
-    confidence interval (percentile, ``ECE_N_BOOT`` resamples):
-      - ``ece``      — L1 ECE, equal-width bins, plug-in (matches the
-                       reliability-diagram ECE used in the calibration plots).
-      - ``ece_em``   — L1 ECE, adaptive equal-mass (quantile) bins, plug-in.
-      - ``rmsce_db`` — debiased L2 RMS calibration error on equal-mass bins
-                       (Kumar, Liang & Ma, NeurIPS 2019).  Distinct metric /
-                       scale from the L1 columns; the only provably-unbiased one.
-    Each variant ``X`` carries ``X_lo`` / ``X_hi`` interval bounds.
+    Args:
+        by_train: ``boot[dtype][JUDGE_MODEL]``.
+        dtype: ``"syn"`` or ``"real"`` (for error messages).
     """
-    probs   = np.asarray(probs)
-    y_true  = np.asarray(y_true, dtype=bool)
-    preds   = probs > threshold
-    tp  = int(( preds &  y_true).sum())
-    tn  = int((~preds & ~y_true).sum())
-    fp  = int(( preds & ~y_true).sum())
-    fn  = int((~preds &  y_true).sum())
-    n   = len(y_true)
-    acc   = (tp + tn) / n
-    prec  = tp / (tp + fp) if (tp + fp) > 0 else float('nan')
-    rec   = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
-    f1    = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else float('nan')
-    auroc = roc_auc_score(y_true, probs) if y_true.sum() > 0 and (~y_true).sum() > 0 else float('nan')
-
-    # ── Calibration-error variants with bootstrap CIs ────────────────────
-    ece_ew = bootstrap_ece(probs, y_true, binning='equal_width', p=1,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-    ece_em = bootstrap_ece(probs, y_true, binning='equal_mass', p=1,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-    rmsce  = bootstrap_ece(probs, y_true, binning='equal_mass', p=2, debiased=True,
-                           n_boot=ECE_N_BOOT, ci=ECE_CI, seed=ECE_SEED)
-
-    bs    = float(brier_score_loss(y_true, probs))
-    p_pos = float(y_true.mean())
-    bss   = 1.0 - bs / (p_pos * (1 - p_pos)) if p_pos not in (0.0, 1.0) else float('nan')
-    recovery = recovery_rate_from_labels(n_ground_truth, edges, preds) if edges is not None else float('nan')
-    validity = validity_rate_from_labels(y_true, preds)
-    return dict(acc=acc, prec=prec, rec=rec, f1=f1, auroc=auroc,
-                ece=ece_ew['ece'],         ece_lo=ece_ew['ci_low'],    ece_hi=ece_ew['ci_high'],
-                ece_em=ece_em['ece'],      ece_em_lo=ece_em['ci_low'], ece_em_hi=ece_em['ci_high'],
-                rmsce_db=rmsce['ece'],     rmsce_db_lo=rmsce['ci_low'], rmsce_db_hi=rmsce['ci_high'],
-                bs=bs, bss=bss, n=n, recovery=recovery, validity=validity)
+    ref = by_train[DATASETS[0]]
+    for train_ds in DATASETS[1:]:
+        for test_ds in DATASETS:
+            a, b = ref[test_ds]['ntp'], by_train[train_ds][test_ds]['ntp']
+            same = all(np.array_equal(a[k], b[k], equal_nan=True) for k in ('line', 'lower', 'upper'))
+            same &= all(np.array_equal(a[s][m], b[s][m], equal_nan=True)
+                        for s in ('point', 'lo', 'hi') for m in a[s])
+            assert same, f'{dtype} NTP -> {test_ds}: differs between train {DATASETS[0]} and {train_ds}'
 
 
-def compute_metrics(setting_results):
+def _save_reliability_panel(by_test, key, title, ylabel, path):
+    """Save one reliability diagram with one solid curve per test dataset.
+
+    Args:
+        by_test: ``{test_ds: {method: doc_bootstrap_calibration summary}}``.
+        key: Method key (``"probe"`` or ``"ntp"``).
+        title: Axes title.
+        ylabel: y-axis label, or None for none.
+        path: Output PDF.
+    """
+    assert set(by_test) == set(DATASETS), (path, sorted(by_test))
+    fig_cal, ax_cal = plt.subplots(figsize=(4.0, 3.8))
+    ax_cal.plot([0, 1], [0, 1], 'k:', lw=1.0, alpha=0.5, zorder=1)
+    for test_ds in DATASETS:
+        draw_reliability_curve(
+            ax_cal, by_test[test_ds][key], _DS_COLORS[test_ds],
+            linestyle='-', lw=2.5, line_zorder=3, band_zorder=1,
+        )
+    ax_cal.set_xlim(-0.02, 1.02)
+    ax_cal.set_ylim(-0.02, 1.02)
+    ax_cal.set_xlabel('Predicted Probability')
+    if ylabel is not None:
+        ax_cal.set_ylabel(ylabel)
+    ax_cal.set_title(title, fontsize=15, style='italic')
+    ax_cal.grid(alpha=0.25, linestyle='-', linewidth=0.4)
+    ax_cal.set_axisbelow(True)
+    fig_cal.tight_layout()
+    fig_cal.savefig(path, bbox_inches='tight', dpi=200)
+    plt.close(fig_cal)
+
+
+def plot_calibration_curves(boot, dtype):
+    """Save one NTP reliability diagram and one probe diagram per train dataset.
+
+    NTP has no train dataset, so it gets a single figure (asserted train-independent
+    first); only it carries the y-axis label. Curves are colored by test dataset.
+
+    Args:
+        boot: Output of ``bootstrap_calibration``.
+        dtype: ``"syn"`` or ``"real"``.
+    """
+    by_train = boot[dtype][JUDGE_MODEL]
+    assert set(by_train) == set(DATASETS), (dtype, sorted(by_train))
+    _assert_ntp_train_independent(by_train, dtype)
+    _save_reliability_panel(by_train[DATASETS[0]], 'ntp', 'NTP', 'Observed Frequency',
+                            FIGURES_DIR / f'cal_{dtype}_ntp.pdf')
+    for train_ds in DATASETS:
+        _save_reliability_panel(by_train[train_ds], 'probe', f'Probe ({_DS_LABELS[train_ds]})', None,
+                                FIGURES_DIR / f'cal_{dtype}_probe_train-{train_ds}.pdf')
+
+
+def bootstrap_calibration(setting_results):
+    """Document-bootstrap calibration summaries for every cell and method.
+
+    Resamples depend only on (dtype, test_ds), so cells on the same evaluation set are paired.
+
+    Args:
+        setting_results: Output of ``compute_predictions``.
+
+    Returns:
+        ``{dtype: {judge: {train_ds: {test_ds: {method: doc_bootstrap_calibration summary}}}}}``.
+    """
+    out, resamples = {}, {}
+    for dtype, by_judge in setting_results.items():
+        out[dtype] = {JUDGE_MODEL: {}}
+        for train_ds, by_test in by_judge[JUDGE_MODEL].items():
+            out[dtype][JUDGE_MODEL][train_ds] = {}
+            for test_ds, cell in by_test.items():
+                mids = np.asarray(cell['measurement_ids'])
+                if (dtype, test_ds) not in resamples:
+                    resamples[dtype, test_ds] = (mids, db.document_resamples(
+                        cell['document_ids'], N_BOOT, db.resample_rng(SEED, dtype, test_ds)))
+                # Resamples index rows, so every cell on this evaluation set must have the same rows.
+                assert np.array_equal(resamples[dtype, test_ds][0], mids), (dtype, train_ds, test_ds)
+                print(f'  document bootstrap {dtype} {train_ds} -> {test_ds}: {N_BOOT} resamples')
+                out[dtype][JUDGE_MODEL][train_ds][test_ds] = {
+                    key: db.doc_bootstrap_calibration(cell[f'{key}_probs'], cell['labels'], resamples[dtype, test_ds][1])
+                    for _, key in _METHODS
+                }
+    return out
+
+
+def _threshold_metrics(probs, labels, threshold=0.5):
+    """Classification metrics at a threshold, plus AUROC.
+
+    Undefined metrics are NaN; ``validity`` is 0.0 when nothing is predicted positive.
+
+    Args:
+        probs: Predicted probabilities.
+        labels: Binary labels.
+        threshold: Predicted positive if prob > threshold.
+
+    Returns:
+        Dict with ``acc``, ``prec``, ``rec``, ``f1``, ``auroc``, ``validity``.
+    """
+    y = np.asarray(labels, dtype=bool)
+    pred = np.asarray(probs) > threshold
+    tp, fp = int((pred & y).sum()), int((pred & ~y).sum())
+    fn, tn = int((~pred & y).sum()), int((~pred & ~y).sum())
+    prec = tp / (tp + fp) if tp + fp else float('nan')
+    rec = tp / (tp + fn) if tp + fn else float('nan')
+    return dict(acc=(tp + tn) / len(y), prec=prec, rec=rec,
+                f1=2 * prec * rec / (prec + rec) if prec + rec > 0 else float('nan'),
+                auroc=roc_auc_score(y, probs) if 0 < y.sum() < len(y) else float('nan'),
+                validity=validity_rate_from_labels(y, pred))
+
+
+def compute_metrics(setting_results, boot):
+    """Build the metrics table: one row per (dtype, train_ds, test_ds, method).
+
+    Calibration errors and Brier (skill) scores carry document-bootstrap intervals; threshold metrics and
+    AUROC are on the full evaluation set. Recalibration fields are None/NaN for syn.
+
+    Args:
+        setting_results: Output of ``compute_predictions``.
+        boot: Output of ``bootstrap_calibration``.
+
+    Returns:
+        Metrics DataFrame.
+    """
     rows = []
     for dtype in setting_results:
-        for judge_model in setting_results[dtype]:
-            for train_ds in setting_results[dtype][judge_model]:
-                for test_ds in setting_results[dtype][judge_model][train_ds]:
-                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-                    for probs, kind in [(rdict['ntp_probs'], 'NTP'), (rdict['probe_probs'], 'Probe')]:
-                        m = _probe_metrics(
-                            probs, rdict['labels'],
-                            edges=rdict['edges'], n_ground_truth=rdict['n_ground_truth'],
-                        )
-                        rows.append({
-                            'Dataset type':   dtype,
-                            'Judge model':   judge_model,
-                            'Train dataset': train_ds,
-                            'Test dataset':  test_ds,
-                            'Type':          kind,
-                            'Accuracy':      m['acc'],
-                            'Precision':     m['prec'],
-                            'Recall':        m['rec'],
-                            'F1':            m['f1'],
-                            'AUROC':         m['auroc'],
-                            # L1 ECE, equal-width plug-in + bootstrap CI
-                            'ECE':           m['ece'],
-                            'ECE_lo':        m['ece_lo'],
-                            'ECE_hi':        m['ece_hi'],
-                            # L1 ECE, adaptive equal-mass plug-in + bootstrap CI
-                            'ECE_em':        m['ece_em'],
-                            'ECE_em_lo':     m['ece_em_lo'],
-                            'ECE_em_hi':     m['ece_em_hi'],
-                            # Debiased L2 RMS calibration error (Kumar 2019), equal-mass + CI
-                            'RMSCE_db':      m['rmsce_db'],
-                            'RMSCE_db_lo':   m['rmsce_db_lo'],
-                            'RMSCE_db_hi':   m['rmsce_db_hi'],
-                            'Recovery':      m['recovery'],
-                            'Validity':      m['validity'],
-                        })
+        for train_ds, by_test in setting_results[dtype][JUDGE_MODEL].items():
+            for test_ds, rdict in by_test.items():
+                for kind, key in _METHODS:
+                    t = _threshold_metrics(rdict[f'{key}_probs'], rdict['labels'])
+                    b = boot[dtype][JUDGE_MODEL][train_ds][test_ds][key]
+                    assert b['n_boot'] == N_BOOT, b['n_boot']
+                    # Only the probe is recalibrated; NTP rows (and all syn rows) carry no recalibration fields.
+                    mapped = rdict['recal_map'] is not None and key in rdict['recal_map']
+                    if key == 'ntp':
+                        assert not mapped and np.array_equal(rdict['ntp_probs'], rdict['ntp_raw']), (train_ds, test_ds)
+                    row = {
+                        'Dataset type':  dtype,
+                        'Judge model':   JUDGE_MODEL,
+                        'Train dataset': train_ds,
+                        'Test dataset':  test_ds,
+                        'Type':          kind,
+                        'N':             len(rdict['labels']),
+                        'N docs':        len(np.unique(rdict['document_ids'])),
+                        'Label rate':    float(np.mean(rdict['labels'])),
+                        'Recalibration': RECALIBRATION if mapped else None,
+                        'Fit source':    FIT_SOURCE if mapped else None,
+                        'Fit n':         len(test_data[test_ds]['fit_idx']) if mapped else np.nan,
+                        'Fit seed':      FIT_SEED if mapped else None,
+                        'pi_te':         test_data[test_ds]['pi_te'] if mapped else np.nan,
+                        'Intercept':     rdict['recal_map'][key][1] if mapped else np.nan,
+                        'Mean prob':     float(np.mean(rdict[f'{key}_probs'])),
+                        'Doc resamples': b['n_boot'],
+                        'Accuracy':      t['acc'],
+                        'Precision':     t['prec'],
+                        'Recall':        t['rec'],
+                        'F1':            t['f1'],
+                        'AUROC':         t['auroc'],
+                    }
+                    assert b['point']['AUROC'] == t['auroc'], (b['point']['AUROC'], t['auroc'])
+                    for m in db.METRICS:
+                        row.update({m: b['point'][m], f'{m}_lo': b['lo'][m], f'{m}_hi': b['hi'][m]})
+                    row.update({'Validity': t['validity'], 'relplot sigma': b['sigma']})
+                    rows.append(row)
     df = pd.DataFrame(rows)
+    n_expected = len(_DTYPES) * len(TRAIN_DATASETS) * len(DATASETS) * len(_METHODS)
+    assert len(df) == n_expected, (len(df), n_expected)
+    assert not df.duplicated(['Dataset type', 'Train dataset', 'Test dataset', 'Type']).any()
     return df
-    
-
-
-def plot_pr_curves(setting_results, dtype):
-    cmap = plt.cm.coolwarm
-    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
-    sm   = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-
-    for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
-
-        for train_ds in DATASETS:
-            for ctype in ['in-domain', 'cross-domain']:
-                for test_ds in DATASETS:
-                    if (train_ds == test_ds) != (ctype == 'in-domain'):
-                        continue
-                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
-                        continue
-
-                    fig_pr, ax_pr = plt.subplots(figsize=(4.0, 3.8))
-
-                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-
-                    # NTP — faint dashed gray line
-                    prec_ntp, rec_ntp, _ = precision_recall_curve(rdict['labels'], rdict['ntp_probs'])
-                    #ax_pr.plot(rec_ntp, prec_ntp, '--', color='#888888',
-                    #           lw=1.5, alpha=0.75, zorder=2, label='NTP')
-
-                    # Probe — solid gray line with scatter points colored by threshold
-                    prec_prb, rec_prb, thresh_prb = precision_recall_curve(rdict['labels'], rdict['probe_probs'])
-                    # precision_recall_curve returns one extra point (recall=0, prec=1) with no threshold
-                    ax_pr.plot(rec_prb, prec_prb, '-', color='grey', lw=2.0, zorder=3, label='Probe')
-                    # Sample every other point to reduce clutter (or adjust stride as needed)
-                    stride = max(1, len(thresh_prb) // 10)  # Show ~10 scatter points
-                    ax_pr.scatter(rec_prb[:-1:stride], prec_prb[:-1:stride],
-                                  c=thresh_prb[::stride], cmap=cmap, norm=norm, s=35, zorder=4)
-
-                    # Mark threshold ≈ 0.5
-                    idx0 = np.argmin(np.abs(thresh_prb - 0.5))
-                    ax_pr.scatter([rec_prb[idx0]], [prec_prb[idx0]], s=60, c='none',
-                                  edgecolors='k', linewidths=1.1, zorder=5, marker='o')
-
-                    ax_pr.set_xlim(-0.02, 1.02)
-                    ax_pr.set_ylim(-0.02, 1.02)
-                    ax_pr.set_xlabel('Recovery')
-                    ax_pr.set_ylabel('Validity' if ctype == 'in-domain' else '')
-                    ax_pr.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-                    ax_pr.set_axisbelow(True)
-                    fig_pr.tight_layout()
-                    fig_pr.savefig(
-                        subfigure_dir / f'pr_{dtype}_{train_ds}_{test_ds}.pdf',
-                        bbox_inches='tight', dpi=200,
-                    )
-                    plt.show()
-
-    # Save colorbar once, shared across all PR plots
-    fig_cb, ax_cb = plt.subplots(figsize=(0.35, 3.2))
-    plt.colorbar(sm, cax=ax_cb, label='Threshold')
-    fig_cb.savefig(FIGURES_DIR / f'pr_colorbar_{dtype}.pdf', bbox_inches='tight', dpi=200)
-    plt.show()
-
-
-def plot_validity_recovery(setting_results, dtype):
-    N_RANDOM = 50
-    cmap = plt.cm.coolwarm
-    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
-    sm   = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-
-    for judge_model in JUDGE_MODELS:
-        subfigure_dir = FIGURES_DIR / f"{judge_model}/{EXTRACTION_MODEL}/{PROBE_TYPE}/"
-        Path(subfigure_dir).mkdir(parents=True, exist_ok=True)
-
-        for train_ds in DATASETS:
-            for ctype in ['in-domain', 'cross-domain']:
-                for test_ds in DATASETS:
-                    if (train_ds == test_ds) != (ctype == 'in-domain'):
-                        continue
-                    if train_ds not in JUDGE_DATASETS[judge_model] or test_ds not in JUDGE_DATASETS[judge_model]:
-                        continue
-
-                    fig, ax = plt.subplots(figsize=(4.0, 3.8))
-                    rdict = setting_results[dtype][judge_model][train_ds][test_ds]
-                    labels = rdict['labels']
-                    n_gt   = rdict['n_ground_truth']
-                    edges  = rdict['edges']
-
-                    def compute_vr_curve(probs):
-                        """Return (validity, recovery, thresholds) skipping thresholds with no predicted positives."""
-                        v, r, ts = [], [], []
-                        for t in THRESHOLD_SWEEP:
-                            preds = probs > t
-                            if preds.sum() == 0:
-                                continue
-                            v.append(validity_rate_from_labels(labels, preds))
-                            r.append(recovery_rate_from_labels(n_gt, edges, preds))
-                            ts.append(t)
-                        return np.array(v), np.array(r), np.array(ts)
-
-                    def plot_vr_curve(probs, linestyle, zorder_base):
-                        v, r, ts = compute_vr_curve(probs)
-                        if len(ts) == 0:
-                            return
-                        ax.plot(r, v, linestyle, color='grey', lw=3.0, zorder=zorder_base)
-                        n = len(ts)
-                        stride = max(1, n // 10)
-                        idx = sorted({0, n - 1} | set(range(0, n, stride)))
-                        ax.scatter(r[idx], v[idx], c=ts[idx], cmap=cmap, norm=norm, s=45, zorder=zorder_base + 1)
-                        idx0 = int(np.argmin(np.abs(ts - 0.5)))
-                        ax.scatter([r[idx0]], [v[idx0]], s=60, c='none',
-                                   edgecolors='k', linewidths=1.1, zorder=zorder_base + 2, marker='o')
-
-                    # NTP — dashed (drawn first so probe sits on top)
-                    plot_vr_curve(np.asarray(rdict['ntp_probs']), '--', zorder_base=3)
-                    # Probe — solid
-                    plot_vr_curve(np.asarray(rdict['probe_probs']), '-', zorder_base=6)
-
-                    # Random baseline — average validity/recovery over repeated uniform draws
-                    n_items = len(labels)
-                    rand_v = np.full((N_RANDOM, len(THRESHOLD_SWEEP)), np.nan)
-                    rand_r = np.full((N_RANDOM, len(THRESHOLD_SWEEP)), np.nan)
-                    for i in range(N_RANDOM):
-                        rand_probs_i = np.random.uniform(0, 1, n_items)
-                        for j, t in enumerate(THRESHOLD_SWEEP):
-                            preds = rand_probs_i > t
-                            if preds.sum() > 0:
-                                rand_v[i, j] = validity_rate_from_labels(labels, preds)
-                                rand_r[i, j] = recovery_rate_from_labels(n_gt, edges, preds)
-                    avg_v = np.nanmean(rand_v, axis=0)
-                    avg_r = np.nanmean(rand_r, axis=0)
-                    valid_rand = ~(np.isnan(avg_v) | np.isnan(avg_r))
-                    if valid_rand.any():
-                        ax.plot(avg_r[valid_rand], avg_v[valid_rand], ':', color='grey', lw=2.0, zorder=2)
-
-                    #ax.set_xlim(-0.02, 1.02)
-                    #ax.set_ylim(-0.02, 1.02)
-                    ax.set_xlim(left=-0.02)
-                    ax.set_ylim(top=1.02)
-                    ax.set_xlabel('Recovery')
-                    ax.set_ylabel('Validity') # if ctype == 'in-domain' else '')
-                    ax.grid(alpha=0.25, linestyle='-', linewidth=0.4)
-                    ax.set_axisbelow(True)
-                    fig.tight_layout()
-                    fig.savefig(
-                        subfigure_dir / f'vr_{dtype}_{train_ds}_{test_ds}.pdf',
-                        bbox_inches='tight', dpi=200,
-                    )
-                    plt.show()
-
-    fig_cb, ax_cb = plt.subplots(figsize=(0.35, 3.2))
-    plt.colorbar(sm, cax=ax_cb, label='Threshold')
-    fig_cb.savefig(FIGURES_DIR / f'vr_colorbar_{dtype}.pdf', bbox_inches='tight', dpi=200)
-    plt.show()
-
-    _vr_legend_handles = [
-        mlines.Line2D([], [], color='grey', lw=2, linestyle='-',  label='Probe'),
-        mlines.Line2D([], [], color='grey', lw=2, linestyle='--', label='NTP'),
-        mlines.Line2D([], [], color='grey', lw=2, linestyle=':',  label='Random'),
-    ]
-    fig_vr_leg, ax_vr_leg = plt.subplots(figsize=(4.0, 0.35))
-    ax_vr_leg.axis('off')
-    ax_vr_leg.legend(handles=_vr_legend_handles, loc='center', ncol=3, fontsize=13,
-                     frameon=False, handlelength=2.0)
-    fig_vr_leg.savefig(FIGURES_DIR / f'vr_legend_{dtype}.pdf', bbox_inches='tight', dpi=200)
-    plt.show()
 
 
 if __name__ == "__main__":
-    # Set to True to load precomputed results if available, False to recompute from scratch.
-    # NOTE: the cache is keyed only by (extraction_model, probe_type), so a cache built
-    # before supermat was added is stale — run once with False to regenerate, then flip back.
-    load_from_precomputed = False
-    
-    setting_results = compute_predictions(judge_models=JUDGE_MODELS, datasets=DATASETS, probe_type=PROBE_TYPE, load_from_precomputed=load_from_precomputed)
-    plot_calibration_curves(setting_results, dtype='syn')
-    plot_calibration_curves(setting_results, dtype='real')
-    metrics_df = compute_metrics(setting_results)
-    print(metrics_df.to_string(index=False, float_format='{:.3f}'.format))
-    metrics_df.to_csv(RESULTS_DIR / f'metrics_{EXTRACTION_MODEL}_{PROBE_TYPE}.csv', index=False)
+    setting_results = compute_predictions()
+    print('Document bootstrap...')
+    boot = bootstrap_calibration(setting_results)
+    with open(OUT_DIR / 'bootstrap.pkl', 'wb') as f:
+        pickle.dump(boot, f)
+    for _dt in _DTYPES:
+        plot_calibration_curves(boot, dtype=_dt)
+    metrics_df = compute_metrics(setting_results, boot)
+    for _kind, _ in _METHODS:
+        _sub = metrics_df[metrics_df['Type'] == _kind]
+        print(f'\n=== {_kind} ===')
+        print(_sub.to_string(index=False, float_format='{:.3f}'.format))
+        _sub.to_csv(OUT_DIR / f'metrics_{_kind.lower()}.csv', index=False)
 
-    #plot_pr_curves(setting_results, dtype='syn')
-    #plot_pr_curves(setting_results, dtype='real')
-
-    plot_validity_recovery(setting_results, dtype='syn')
-    plot_validity_recovery(setting_results, dtype='real')
-
-    # ── Standalone calibration legend ─────────────────────────────────────────────
+    # ── Standalone legend: curve color = TEST dataset ─────────────────────────
     _legend_handles = [
         mlines.Line2D([], [], color=_DS_COLORS[ds], lw=2, marker='o', ms=3.5, label=_DS_LABELS[ds])
         for ds in DATASETS
-    ] + [
-        mlines.Line2D([], [], color='#444444', lw=2, linestyle='-',  label='Probe'),
-        mlines.Line2D([], [], color='#444444', lw=2, linestyle='--', label='NTP'),
     ]
-    _fig_leg, _ax_leg = plt.subplots(figsize=(10.0, 0.45))
+    _fig_leg, _ax_leg = plt.subplots(figsize=(6.0, 0.45))
     _ax_leg.axis('off')
-    _ax_leg.legend(handles=_legend_handles, loc='center', ncol=6, fontsize=13,
-                frameon=False, handlelength=2.0)
+    _ax_leg.legend(handles=_legend_handles, loc='center', ncol=len(DATASETS), fontsize=13,
+                   frameon=False, handlelength=2.0, title='Test set', title_fontsize=13)
     _fig_leg.savefig(FIGURES_DIR / 'legend_calibration.pdf', bbox_inches='tight', dpi=200)
-    plt.show()
-
+    plt.close(_fig_leg)

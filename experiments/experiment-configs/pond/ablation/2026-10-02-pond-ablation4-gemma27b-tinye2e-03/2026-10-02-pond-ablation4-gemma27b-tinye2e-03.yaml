@@ -1,0 +1,23 @@
+id: 2026-10-02-pond-ablation4-gemma27b-tinye2e-03
+project: scholarlm
+description: >
+  Re-run of the ablation 4 tiny e2e (-01, -02) after the per-batch AsyncOpenAI
+  client fix in _call_batch. Verification of the fix: -01 and -02 both lost
+  exactly 7 calls to 'RuntimeError: Event loop is closed' (APIConnectionError)
+  and 5 table value-extractions, giving 11 records. PREDICTION: zero 'Connection
+  error' / [api-diag] lines; run_metadata.json token_usage.failed_calls == 0; no
+  'Error extracting value from table' lines; more than 11 records, with chla
+  records present (-01/-02 had none because the table call was lost);
+  parse_quantities_context/standardize_context = value_only recorded; qualifier
+  keys on every record. If connection errors persist, the per-batch client was
+  not the (whole) cause: stop and report.
+seed: 342
+params:
+  dataset: pond
+  model: gemma-3-27b
+  ablation: "4"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  paper_subset: ["trophic_status_and_threats"]
+  parse_quantities_context: value_only
+  standardize_context: value_only
+  walltime: "01:00:00"

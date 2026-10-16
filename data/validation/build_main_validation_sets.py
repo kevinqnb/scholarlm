@@ -30,8 +30,7 @@ from pathlib import Path
 from build_pilot_validation_sets import (
     NO_PROVENANCE_PAGE,
     SEED,
-    TEST_SPLIT_FILE,
-    TRAIN_SPLIT_FILE,
+    load_splits,
     _REPO_ROOT,
     _configs,
     _configs_other,
@@ -57,8 +56,7 @@ def build(dataset: str, data_dir: Path = _REPO_ROOT / "data") -> None:
     )
     per_pilot, per_new = PER_PAPER[dataset]
 
-    test_ids = _load_split_doc_ids(ds_dir / TEST_SPLIT_FILE)
-    train_ids = _load_split_doc_ids(ds_dir / TRAIN_SPLIT_FILE)
+    test_ids, train_ids = load_splits(dataset, ds_dir)
     pilot_docs = set(pilot["sampled_document_ids"])
     pilot_mids = {m["measurement_id"] for m in pilot["measurements"]}
     assert pilot_docs <= test_ids

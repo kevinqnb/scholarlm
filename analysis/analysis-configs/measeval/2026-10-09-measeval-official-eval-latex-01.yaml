@@ -1,0 +1,42 @@
+id: 2026-10-09-measeval-official-eval-latex-01
+project: scholarlm
+description: >
+  LaTeX table of the official MeasEval scorer's F-measure per annotation type (Quantity, Unit, MeasuredEntity) on the
+  eval split, from the 2026-10-09-measeval-official-eval-01 CSV (one Quantity row per distinct span, commit 1f10ad8).
+  Rows and labels follow 2026-10-09-main-recovery-validity-latex-01 (baselines + Ablation 1, then the full pipeline).
+  ChatExtract is labelled adapted: on measeval its single target property is the generic phrase "directly reported
+  numerical measurement" and "material" is reworded "subject" (experiments/dataset-configs/measeval.py). Formatting
+  only; seed unused.
+seed: 0
+params:
+  measeval_latex:
+    analysis_config: 2026-10-09-measeval-official-eval-01
+    decimals: 1
+    output: analysis/results/measeval/2026-10-09-measeval-official-eval.tex
+    caption: 'Official MeasEval (SemEval-2021 Task 8) scorer F-measure (\%) per annotation type on the evaluation
+      split. Only Quantity, Unit and MeasuredEntity are predicted; repeated identical Quantity spans are merged into
+      one annotation before scoring.'
+    label: tab:measeval-official
+    blocks:
+    - rows:
+      - label: GLiNER-large
+        id: 2026-09-25-measeval-gliner-large-noqualifiers-full-01
+      - label: LangExtract
+        id: 2026-09-25-measeval-langextract-gemma27b-noqualifiers-full-01
+      - label: NuExtract3
+        id: 2026-09-25-measeval-nuextract3-noqualifiers-full-01
+      - label: ChatExtract (adapted)
+        id: 2026-09-26-measeval-chatextract-gemma27b-full-01
+      - label: Ablation 1, \texttt{llama-3.1-8b}
+        id: 2026-09-26-measeval-ablation1-llama8b-reppen-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gemma-3-27b}
+        id: 2026-09-25-measeval-ablation1-gemma27b-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gpt-oss-120b}
+        id: 2026-09-26-measeval-ablation1-gptoss120b-noqualifiers-full-01
+    - rows:
+      - label: Pipeline (\texttt{llama-3.1-8b})
+        id: 2026-09-26-measeval-extraction-llama8b-reppen-full-01
+      - label: Pipeline (\texttt{gemma-3-27b})
+        id: 2026-09-21-measeval-extraction-gemma27b-full-01
+      - label: Pipeline (\texttt{gpt-oss-120b})
+        id: 2026-09-21-measeval-extraction-gptoss120b-full-01

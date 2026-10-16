@@ -1,0 +1,41 @@
+id: 2026-10-10-calibration-validated-gemma27b-llama-3.1-8b-intercept-fit-01
+project: scholarlm
+description: >
+  Calibration scored on human validations (analysis/calibration_validated.py, v4) for the llama-3.1-8b probe / NTP on
+  the gemma27b pond and supermat extractions (supermat probe on the v3s split, matching the validation sets' split).
+  Same recalibration as the sibling calibration.py config: one intercept_fit map fit once on fit_n=100 rows drawn by
+  fit_seed=0 from the test dataset's probe-training pool, labelled by LLM + matching (the training split has no human
+  labels). Real test cells are scored only on the human-validated rows, all of which must lie outside the probe-training
+  documents (asserted). Intervals: 2000 test-document bootstrap resamples. Validation files pinned by sha256.
+  llama-3.1-8b counterpart of 2026-10-09-calibration-validated-gemma27b-qwen-2.5-7b-intercept-fit-01 (judge fields from 2026-10-09-calibration-gemma27b-llama-3.1-8b-intercept-fit-01): NTP is the judge's raw p(true), recalibrated only here (no synthetic-trained calibrator, commit cc3036f); Platt-family logit clip 1e-10 (commit b8b5949); head probes from the 2026-10-10 synthetic-probe re-runs.
+seed: 0
+params:
+  probe_type: head
+  probe_variant: platt
+  syn_split: primary
+  n_boot: 2000
+  recalibration: intercept_fit
+  fit_source: sample
+  fit_n: 100
+  fit_seed: 0
+  datasets:
+    pond:
+      extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+      judge_interp_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01
+      ground_truth_file: data/pond/ground_truth_review.json
+      synthetic_probe_config: 2026-10-10-pond-synthetic-probe-llama-3.1-8b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      validation_sha256: 2e9c1843ec7dea1ba1178e1d2a6e07f129e3a167577f3a2c1fcc0afde4c6a0c1
+      syn_test_ids: {primary: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-primary-01, diag: 2026-09-30-pond-v3-llama-3.1-8b-synthetic-judge-test-diag-01}
+    supermat:
+      extraction_id: 2026-09-21-supermat-extraction-gemma27b-full-01
+      judge_interp_id: 2026-09-27-supermat-extraction-gemma27b-llama8b-judge-interp-01
+      judge_combine_id: 2026-09-27-supermat-extraction-gemma27b-judge-combine-01
+      ground_truth_file: data/supermat/ground_truth_qualifiers.json
+      synthetic_probe_config: 2026-10-10-supermat-synthetic-probe-llama-3.1-8b-01
+      use_matching_labels: true
+      pi_te_estimate: null
+      validation_sha256: 7880e5099f7286b906ebc0272a23a30688c198abe59f67b712912aa7111044e5
+      syn_test_ids: {primary: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-primary-01, diag: 2026-10-08-supermat-v3s-llama-3.1-8b-synthetic-judge-test-diag-01}

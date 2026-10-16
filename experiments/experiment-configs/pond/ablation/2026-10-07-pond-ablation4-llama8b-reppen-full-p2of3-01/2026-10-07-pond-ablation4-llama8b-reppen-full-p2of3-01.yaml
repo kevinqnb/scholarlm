@@ -1,0 +1,64 @@
+id: 2026-10-07-pond-ablation4-llama8b-reppen-full-p2of3-01
+project: scholarlm
+description: >
+  Part 2 of 3 of 2026-10-02-pond-ablation4-llama8b-reppen-full-01, which hit its 72h walltime unfinished (2026-10-06:
+  llama-3.1-8b-reppen loops inside the events step, see the combined config).
+  Identical to the parent config except params.paper_subset, which restricts this
+  job to 38 of the corpus's 115 papers. Split: largest-first greedy by OCR
+  character count into the lightest part with room, capped at 39 papers per part
+  (-> 38/38/39 papers, 33.3% of characters each); papers listed in sorted-filename
+  order, which is the order run_ablation processes them. The three parts are
+  disjoint and exhaustive; experiments/combine_ablation_parts.py checks that and
+  merges them back under the parent id. Includes the 2026-10-07 ablation 4 events
+  change (max_retries 4->2, max_concurrent 2->4, commit f7cd4ea). STAGED-GATES: rung 3
+  (one-paper e2e, the longest paper) was run 2026-10-07 and did NOT fully match its
+  prediction (a second prompt also looped, so some looping prompts are expected to
+  end as empty events); submitted anyway on 2026-10-07 on the user's explicit decision.
+seed: 342
+params:
+  dataset: pond
+  model: llama-3.1-8b-reppen
+  ablation: "4"
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  # PROVISIONAL, not measured: kept at the parent's ceiling. Each part is ~1/3 of the
+  # parent's work, but the parent never finished, so there is no measured basis yet.
+  walltime: "72:00:00"
+  paper_subset:
+    - aquatic_insect_assemblages
+    - bacterial_processes
+    - classification_trees
+    - conservation_of_pond
+    - constructed_treatment_wetlands
+    - determinants_of_biodiversity
+    - drivers_of_carbon_dioxide
+    - dry_habitats_sustain
+    - environmental_conditions
+    - fish_assemblages
+    - fish_production_correlated
+    - fish_production_in_lakes
+    - gas_transfer
+    - greenhouse_gas_emission
+    - high_primary
+    - large_fractionations
+    - methane_emissions_in_two
+    - monitoring_status
+    - natural_variability
+    - patterns_in_the_species
+    - physical-chemical_influences
+    - physical_responses
+    - pond_hydrology
+    - prairie_wetland
+    - re-establishment_of_zooplankton
+    - relationships_between_fish
+    - relationships_between_species
+    - seasonal_succession_of_epipelic
+    - sediment_organic_carbon_distribution
+    - some_observations_on_internal
+    - the_distribution_of_microcrustacea
+    - the_impact_of_three
+    - the_legacy_of_large
+    - trophic_status_and_threats
+    - vegetation-environmental
+    - water_circulation
+    - water_temperature_dynamics
+    - wetlands_-_as_significant

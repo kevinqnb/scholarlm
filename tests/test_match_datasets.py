@@ -1,11 +1,13 @@
 """Unit tests for ``scholarlm.utils.data.match_datasets``.
 
 Fixtures are hand-built so expected edges/weights can be verified by inspection.
-Null semantics (strict AND fuzzy): null == null agrees (fuzzy score 1.0); null vs
-non-null never matches (edge rejected outright, not averaged away). Empty/whitespace
-strings are null, same as None/NaN. Supersedes the 2026-09-26 behavior (commit
-150aba2) where one-sided fuzzy nulls were excluded from the mean and an all-null
-pair got weight == fuzzy_threshold.
+Null semantics (2026-10-03). Strict fields: null == null agrees, null vs non-null never
+matches. Fuzzy fields: null on both sides abstains (the field is left out of the mean);
+null on exactly one side scores 0.0 and stays in the mean (the threshold, not an outright
+rejection, decides); if every fuzzy field abstains the edge weight is 1.0. Empty/whitespace
+strings are null, same as None/NaN. Threshold compare is inclusive (score >= threshold
+keeps the edge). Supersedes the 2026-09-30 behavior (both-null scored 1.0 in the mean,
+one-sided null rejected the edge outright).
 """
 import numpy as np
 import pandas as pd
@@ -32,8 +34,8 @@ def test_strict_one_sided_null_does_not_match():
     assert edges == []
 
 
-def test_fuzzy_null_equals_null_scores_one():
-    # Both sides null on every fuzzy field -> agreement (1.0), at any threshold.
+def test_fuzzy_all_fields_null_on_both_sides_weight_one():
+    # Every fuzzy field abstains -> nothing to average -> weight 1.0 at any threshold.
     left = pd.DataFrame([{"id": "a", "name": None, "prop": None}])
     right = pd.DataFrame([{"id": "a", "name": np.nan, "prop": ""}])
     for threshold in (0.0, 0.5, 1.0):
@@ -48,37 +50,45 @@ def test_fuzzy_null_equals_null_scores_one():
         assert matching == [(0, 0)]
 
 
-def test_fuzzy_one_sided_null_never_matches():
-    # null vs non-null on a fuzzy field rejects the edge, in either direction,
-    # even at threshold 0.0.
+def test_fuzzy_one_sided_null_scores_zero_not_rejected():
+    # null vs non-null on the only fuzzy field scores 0.0, either direction: the edge
+    # exists at threshold 0.0 (weight 0.0) and is dropped by any threshold > 0.
     named = pd.DataFrame([{"id": "a", "name": "widget"}])
     unnamed = pd.DataFrame([{"id": "a", "name": None}])
     for left, right in ((named, unnamed), (unnamed, named)):
-        matching, edges, weights = match_datasets(
+        _, edges, weights = match_datasets(
             left, right,
             strict_matching={"id": "id"},
             fuzzy_matching={"name": "name"},
             fuzzy_threshold=0.0,
         )
-        assert matching == [] and edges == [] and weights == []
+        assert edges == [(0, 0)] and weights == [0.0]
+        _, edges, weights = match_datasets(
+            left, right,
+            strict_matching={"id": "id"},
+            fuzzy_matching={"name": "name"},
+            fuzzy_threshold=0.1,
+        )
+        assert edges == [] and weights == []
 
 
-def test_fuzzy_one_sided_null_not_rescued_by_other_fuzzy_field():
-    # name agrees perfectly but prop is null on one side only: edge rejected,
-    # not averaged down to 0.5 and kept.
+def test_fuzzy_one_sided_null_is_averaged_in_as_zero():
+    # name agrees perfectly (1.0), prop null on one side only (0.0): mean 0.5.
     left = pd.DataFrame([{"id": "a", "name": "widget", "prop": None}])
     right = pd.DataFrame([{"id": "a", "name": "widget", "prop": "gadget"}])
-    matching, edges, _ = match_datasets(
+    _, edges, weights = match_datasets(
         left, right,
         strict_matching={"id": "id"},
         fuzzy_matching={"name": "name", "prop": "prop"},
         fuzzy_threshold=0.0,
     )
-    assert edges == []
+    assert edges == [(0, 0)]
+    assert weights == [0.5]
 
 
-def test_fuzzy_null_null_field_counts_as_one_in_the_mean():
-    # prop null on both sides scores 1.0; name "abcd" vs "abxd" = ratio 0.75.
+def test_fuzzy_both_null_field_is_left_out_of_the_mean():
+    # prop null on both sides abstains; name "abcd" vs "abxd" = ratio 0.75 alone.
+    # (Under the pre-2026-10-03 rule this was (0.75 + 1.0) / 2 = 0.875.)
     left = pd.DataFrame([{"id": "a", "name": "abcd", "prop": None}])
     right = pd.DataFrame([{"id": "a", "name": "abxd", "prop": np.nan}])
     _, edges, weights = match_datasets(
@@ -88,24 +98,49 @@ def test_fuzzy_null_null_field_counts_as_one_in_the_mean():
         fuzzy_threshold=0.0,
     )
     assert edges == [(0, 0)]
-    assert weights == [0.875]
+    assert weights == [0.75]
 
 
-def test_null_null_edge_ties_with_exact_named_edge_but_never_beats_it():
-    # L0 (named) matches R0 only if R0 is also named; null R1 is rejected.
+def test_fuzzy_mixed_abstain_zero_and_scored_fields():
+    # a: both null (abstains), b: one-sided null (0.0), c: "abcd" vs "abxd" (0.75).
+    # mean over the two scored fields = 0.375.
+    left = pd.DataFrame([{"id": "a", "fa": None, "fb": None, "fc": "abcd"}])
+    right = pd.DataFrame([{"id": "a", "fa": "", "fb": "x", "fc": "abxd"}])
+    _, _, weights = match_datasets(
+        left, right,
+        strict_matching={"id": "id"},
+        fuzzy_matching={"fa": "fa", "fb": "fb", "fc": "fc"},
+        fuzzy_threshold=0.0,
+    )
+    assert weights == [0.375]
+
+
+def test_fuzzy_threshold_is_inclusive():
+    # weight is exactly 0.75; threshold 0.75 keeps the edge, 0.76 drops it.
+    left = pd.DataFrame([{"id": "a", "name": "abcd"}])
+    right = pd.DataFrame([{"id": "a", "name": "abxd"}])
+    kw = dict(strict_matching={"id": "id"}, fuzzy_matching={"name": "name"})
+    _, edges, weights = match_datasets(left, right, fuzzy_threshold=0.75, **kw)
+    assert edges == [(0, 0)] and weights == [0.75]
+    _, edges, _ = match_datasets(left, right, fuzzy_threshold=0.76, **kw)
+    assert edges == []
+
+
+def test_fuzzy_null_named_edge_loses_to_exact_named_edge():
+    # L0 (named) vs R0 (null name): weight 0.0; vs R1 (same name): weight 1.0.
     left = pd.DataFrame([{"id": "a", "name": "widget"}])
     right = pd.DataFrame([
-        {"id": "a", "name": None},       # one-sided null -> no edge
+        {"id": "a", "name": None},
         {"id": "a", "name": "widget"},
     ])
     matching, edges, weights = match_datasets(
         left, right,
         strict_matching={"id": "id"},
         fuzzy_matching={"name": "name"},
-        fuzzy_threshold=0.3,
+        fuzzy_threshold=0.0,
     )
-    assert edges == [(0, 1)]
-    assert weights == [1.0]
+    assert edges == [(0, 0), (0, 1)]
+    assert weights == [0.0, 1.0]
     assert matching == [(0, 1)]
 
 
@@ -125,13 +160,39 @@ def test_empty_string_vs_real_value_does_not_strict_match():
 
 
 def test_empty_string_fuzzy_field_is_null_not_scored_as_string():
-    # "" is null; "" vs "gadget" is one-sided null -> edge rejected.
+    # "" is null; "" vs "gadget" is one-sided null -> 0.0, averaged with name's 1.0.
     left = pd.DataFrame([{"id": "a", "name": "widget", "prop": ""}])
     right = pd.DataFrame([{"id": "a", "name": "widget", "prop": "gadget"}])
-    _, edges, _ = match_datasets(
+    _, edges, weights = match_datasets(
         left, right,
         strict_matching={"id": "id"},
         fuzzy_matching={"name": "name", "prop": "prop"},
         fuzzy_threshold=0.0,
     )
-    assert edges == []
+    assert edges == [(0, 0)] and weights == [0.5]
+
+
+def test_normalizer_that_empties_a_string_makes_it_null():
+    # Nulls are judged after the normalizer. "!!!" -> "" is null: empty on both sides
+    # abstains (weight 1.0 with a single field); empty on one side only scores 0.0.
+    strip_punct = lambda s: "".join(ch for ch in s if ch.isalnum())
+    kw = dict(strict_matching={"id": "id"}, fuzzy_matching={"name": "name"},
+              fuzzy_normalizers={"name": strip_punct}, fuzzy_threshold=0.0)
+    _, _, weights = match_datasets(
+        pd.DataFrame([{"id": "a", "name": "!!!"}]), pd.DataFrame([{"id": "a", "name": "??"}]), **kw)
+    assert weights == [1.0]
+    _, _, weights = match_datasets(
+        pd.DataFrame([{"id": "a", "name": "!!!"}]), pd.DataFrame([{"id": "a", "name": "abc"}]), **kw)
+    assert weights == [0.0]
+
+
+def test_strict_nan_from_coercion_matches_null_on_other_side():
+    # Documents match_cache.py's numeric_coerce caveat: an unparseable value coerced to
+    # NaN strict-matches a null (but never a real value) on the other side.
+    kw = dict(strict_matching={"id": "id", "v": "v"})
+    m, _, _ = match_datasets(pd.DataFrame([{"id": "a", "v": np.nan}]),
+                             pd.DataFrame([{"id": "a", "v": np.nan}]), **kw)
+    assert m == [(0, 0)]
+    m, e, _ = match_datasets(pd.DataFrame([{"id": "a", "v": 1.0}]),
+                             pd.DataFrame([{"id": "a", "v": np.nan}]), **kw)
+    assert m == [] and e == []

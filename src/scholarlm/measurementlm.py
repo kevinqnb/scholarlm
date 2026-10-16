@@ -219,6 +219,8 @@ class BatchLLMBase:
         self.max_concurrent = max_concurrent
         self.use_extra_body = use_extra_body
         self.max_prompt_tokens: int = 0
+        # Calls currently inside _acall's request, for the failure diagnostics below.
+        self._in_flight_calls = 0
         self.token_usage: dict[str, int] = {
             "prompt_tokens": 0,
             "completion_tokens": 0,
@@ -228,7 +230,12 @@ class BatchLLMBase:
         self.step_seconds: dict[str, float] = {}
         self.context_length_exceeded_docs: set[int] = set()
         self.client = OpenAI(api_key=api_key, base_url=api_base)
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=2400.0)
+        self._api_key = api_key
+        self._api_base = api_base
+        self.async_client = self._new_async_client()
+
+    def _new_async_client(self) -> AsyncOpenAI:
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._api_base, timeout=2400.0)
 
     # -----------------------------------------------------------------------
     # Core API call helpers
@@ -307,6 +314,8 @@ class BatchLLMBase:
                         extra[key] = value
             if extra:
                 kwargs["extra_body"] = extra
+        call_start = time.monotonic()
+        self._in_flight_calls += 1
         try:
             response = await self.async_client.chat.completions.create(
                 **kwargs, timeout=timeout
@@ -329,9 +338,27 @@ class BatchLLMBase:
             self.token_usage["failed_calls"] += 1
             return ""
         except Exception as e:
+            # Diagnostics only -- behavior is unchanged (still returns "").
+            # openai wraps the real transport error (httpx ConnectError /
+            # ReadError / RemoteProtocolError / timeout ...) as __cause__, which
+            # str(e) ("Connection error.") hides.
+            chain = []
+            exc = e
+            while exc is not None and len(chain) < 5:
+                chain.append(f"{type(exc).__name__}: {exc!r}")
+                exc = exc.__cause__ or exc.__context__
             print(f"API call failed: {e}")
+            print(
+                f"  [api-diag] at={time.strftime('%H:%M:%S')} "
+                f"elapsed={time.monotonic() - call_start:.2f}s timeout={timeout} "
+                f"in_flight={self._in_flight_calls} "
+                f"prompt_chars={sum(len(str(m.get('content', ''))) for m in messages)} "
+                f"max_tokens={token_value} chain={' <- '.join(chain)}"
+            )
             self.token_usage["failed_calls"] += 1
             return ""
+        finally:
+            self._in_flight_calls -= 1
 
     def _call_batch(
         self,
@@ -361,6 +388,20 @@ class BatchLLMBase:
         still propagates and crashes loudly.
         """
         async def _run():
+            # Fresh client per batch: each _call_batch runs in its own asyncio.run()
+            # event loop, and an AsyncOpenAI client's keep-alive pool holds
+            # connections bound to the loop that opened them. Reusing one client
+            # across batches let a later batch pick a connection from an already
+            # closed loop and fail with "RuntimeError: Event loop is closed" ->
+            # APIConnectionError, without the request ever reaching the server
+            # (2026-10-02-pond-ablation4-gemma27b-tinye2e-01/-02).
+            self.async_client = self._new_async_client()
+            try:
+                return await _batch()
+            finally:
+                await self.async_client.close()
+
+        async def _batch():
             sem = asyncio.Semaphore(max_concurrent if max_concurrent is not None else self.max_concurrent)
 
             async def _limited(msgs):
