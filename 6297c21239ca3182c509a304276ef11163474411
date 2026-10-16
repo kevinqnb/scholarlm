@@ -1,0 +1,26 @@
+[SIGNOFF 6297c21]: human comprehension and risk attestation
+
+Signoff-Spec-Version: 1.0
+Signoff-Status: VERIFIED_BY_HUMAN
+Signoff-Timestamp: 2026-10-16T01:45:16Z
+Signoff-Base-SHA: a3bd0573eb231e736fbf9851f6c72f1169657eaf
+Signoff-Reviewed-Commit-SHA: 6297c21239ca3182c509a304276ef11163474411
+Signoff-Reviewed-Tree-SHA: 575bc69cdd5bbe28a16c2671756b0efba8c6e7a9
+Signoff-Harness-ID: claude-code
+Signoff-Conversation-ID: be45d7e5-daec-4797-8119-e06b9c0a95fb
+Signoff-Transcript-Digest: sha256:c8bbe5e3c74a12dae35699e1d2fb911226e82798fa7a7c71da3951dd26821a77
+Signoff-Transcript-Bytes: 816720
+Signoff-Tradeoff: intercept_fit fixes the mean with slope fixed at 1 and does not fix overconfidence; platt_fit is unused by committed configs
+Signoff-Tradeoff: failed API calls are counted in run metadata and inspected by hand; the _acall swallow-and-return-empty is kept as-is
+Signoff-Tradeoff: vLLM judge is not bit-reproducible (about 1.28 percent flip rate after majority vote); reported CIs exclude judge noise
+Signoff-Tradeoff: attestation commit is unsigned because ssh-keygen on this host lacks -Y sign support
+Signoff-Risk: fit_platt has no divergence or convergence guard
+Signoff-Risk: no shuffled-label permutation control run for headline numbers
+Signoff-Risk: no assertion that probe-train/calibration/test document sets are disjoint or that test equals validation set
+Signoff-Risk: no failed_calls gate; drops likely biased toward long papers silently lower recovery
+Signoff-Risk: apply_unit_conversion passes units missing from the table through at factor 1.0 and coerces non-numeric values to NaN
+Signoff-Risk: judge numerical nondeterminism across vLLM reruns
+Signoff-Verified-By: quinnk@bu.edu
+Signoff-Agent: harness=claude-code/N/A model=claude-sonnet-5-5 reasoning=medium interview=skeptical/domain-science/sha256:f8508fa3740f
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
