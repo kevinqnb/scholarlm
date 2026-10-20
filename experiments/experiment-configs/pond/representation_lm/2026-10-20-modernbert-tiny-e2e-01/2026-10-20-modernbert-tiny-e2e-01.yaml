@@ -1,0 +1,25 @@
+id: 2026-10-20-modernbert-tiny-e2e-01
+project: scholarlm
+description: >-
+  Rung-3 tiny end-to-end of the bidirectional RepresentationLM backend:
+  ModernBERT-large on the first 5 pond papers, key terms [pond, lake, wetland],
+  +/-1-paragraph windows, mean pooling, full cleaning. Result predicted in
+  advance from an independent regex/cleaning script (not the module):
+  253 rows = pond 123 + lake 128 + wetland 2; no window over 8192 tokens
+  (longest ~1178); n_truncated 0; every doc has a references heading.
+seed: 342
+params:
+  dataset: pond
+  model: modernbert-large
+  key_terms: [pond, lake, wetland]
+  layers: [0, 14, 28]
+  remove_references: true
+  remove_tables: true
+  remove_page_tags: true
+  pooling: mean
+  context_radius: 1
+  overflow_policy: error
+  device: cuda:0
+  limit: 5
+  verify_read_point: true
+  walltime: "00:45:00"

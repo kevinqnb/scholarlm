@@ -1,0 +1,32 @@
+id: 2026-10-20-modernbert-tiny-e2e-02
+project: scholarlm
+description: >-
+  Rung-3 tiny end-to-end of the bidirectional RepresentationLM backend:
+  ModernBERT-large on the first 5 pond papers, key terms [pond, lake, wetland],
+  +/-1-paragraph windows, mean pooling, full cleaning. Replaces
+  2026-10-20-modernbert-tiny-e2e-01, which aborted in cleaning: the reference
+  cutter matched bacterial_processes' <th>References</th> table header and kept
+  32% of the paper (3 JSTOR cover-page papers later in the corpus are cut to ~1%).
+  Cleaning now removes tables before the reference cut and raises if a cut keeps
+  < min_kept_fraction_after_references. Result predicted in advance from an
+  independent regex/cleaning script (not the module), tables-first order:
+  261 rows = pond 125 + lake 132 + wetland 4; no window over 8192 tokens
+  (longest ~1178); n_truncated 0; every doc has a references heading; every
+  kept fraction >= 0.66 (guard is 0.5).
+seed: 342
+params:
+  dataset: pond
+  model: modernbert-large
+  key_terms: [pond, lake, wetland]
+  layers: [0, 14, 28]
+  remove_references: true
+  remove_tables: true
+  remove_page_tags: true
+  min_kept_fraction_after_references: 0.5   # proposed; user to confirm
+  pooling: mean
+  context_radius: 1
+  overflow_policy: error
+  device: cuda:0
+  limit: 5
+  verify_read_point: true
+  walltime: "00:45:00"

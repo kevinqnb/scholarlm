@@ -35,8 +35,18 @@ Usage
 
 Required params: dataset, model, key_terms (list), layers (list of int; no
 default -- CLAUDE.md's no-magic-numbers rule; the module's own default is
-[0, 8, 16, 24, 32]).
-Optional params: limit, verify_read_point (bool).
+[0, 8, 16, 24, 32]), remove_references / remove_tables / remove_page_tags
+(bool each), min_kept_fraction_after_references (float in (0, 1], or null only
+when remove_references is false: a reference cut keeping less raises), pooling ("mean"|"last"), context_radius (int >= 0, or null for the
+whole document), overflow_policy ("error"|"tail_drop"; tail_drop is causal
+only), limit (int or null), verify_read_point (bool), and -- only for a
+bidirectional model -- device (e.g. "cuda:0"; "cpu" for a smoke run).
+The module's own defaults (mean pooling, clean everything) are NOT applied here:
+every key must be written out. To reproduce the pre-2026-10-20 artifacts use
+pooling "last", all three remove_* false, context_radius null.
+
+``char_starts`` / ``char_ends`` index the CLEANED document text; per-document
+cleaning diagnostics and cleaned-text sha256 are in run_metadata.json.
 
 Available models: the YAML files in experiments/model-configs/representation_lm/.
 """
@@ -59,7 +69,7 @@ load_dotenv()
 import numpy as np
 
 from scholarlm import RepresentationLM
-from scholarlm.representationlm import find_key_term_occurrences
+from scholarlm.representationlm import CleaningConfig, find_key_term_occurrences
 
 import utils as paths
 from run_extraction import load_dataset_config, load_papers
@@ -100,35 +110,59 @@ def run_representation_lm(
     layers: list[int],
     output_dir: Path,
     seed: int,
-    limit: int | None = None,
-    verify_read_point: bool = False,
+    cleaning: CleaningConfig,
+    pooling: str,
+    context_radius: int | None,
+    overflow_policy: str,
+    device: str | None,
+    limit: int | None,
+    verify_read_point: bool,
 ) -> None:
     model_cfg = paths.load_model_config("representation_lm", model_key)
+    architecture = model_cfg["architecture"]
 
     dataset_config = load_dataset_config(dataset)
     documents = _load_documents(dataset_config, limit)
     print(f"Documents        : {len(documents)}")
     print(f"Key terms        : {key_terms}")
     print(f"Layers           : {layers}")
+    print(f"Architecture     : {architecture}")
+    print(f"Cleaning         : {cleaning}")
+    print(f"Pooling          : {pooling}")
+    print(f"Context radius   : {context_radius}")
+
+    llm = RepresentationLM(
+        model_name=model_cfg["model_id"],
+        architecture=architecture,
+        layers=layers,
+        nnsight_kwargs=model_cfg["nnsight_kwargs"] if architecture == "causal" else None,
+        hf_kwargs=model_cfg["hf_kwargs"] if architecture == "bidirectional" else None,
+        hf_cache_dir=os.environ["HF_CACHE"],
+        device=device,
+        pooling=pooling,
+        cleaning=cleaning,
+        context_radius=context_radius,
+        overflow_policy=overflow_policy,
+        verbose=True,
+    )
 
     # Independent known-answer prediction: total row count and per-term counts
-    # from a fresh regex pass. (The module uses the same regex helper, so this
-    # is a consistency check, not full independence — the regex behaviour
-    # itself is covered by tests/test_representationlm.py.)
+    # from a fresh regex pass over the CLEANED text (the same text collect()
+    # sees). The module uses the same regex helper, so this is a consistency
+    # check, not full independence -- the regex behaviour itself is covered by
+    # tests/test_representationlm.py.
+    cleaned_docs, doc_info = llm.prepare_documents(documents)
+    n_no_ref = sum(1 for i in doc_info.values() if i["reference_heading_found"] is False)
+    if cleaning.remove_references:
+        print(f"Docs with NO references heading found (refs still present): {n_no_ref}"
+              f" {sorted(d for d, i in doc_info.items() if i['reference_heading_found'] is False)}")
     predicted_per_term: dict[str, int] = {t: 0 for t in key_terms}
-    for text in documents.values():
+    for text in cleaned_docs.values():
         for term, _, _ in find_key_term_occurrences(text, key_terms):
             predicted_per_term[term] += 1
     predicted_total = sum(predicted_per_term.values())
     print(f"Predicted rows   : {predicted_total}  {predicted_per_term}")
 
-    llm = RepresentationLM(
-        model_name=model_cfg["model_id"],
-        layers=layers,
-        nnsight_kwargs=model_cfg["nnsight_kwargs"],
-        hf_cache_dir=os.environ.get("HF_CACHE"),
-        verbose=True,
-    )
     # RepresentationLM validated/sorted/deduped the list against the model.
     resolved_layers = list(llm.layers)
     print(f"Resolved layers  : {resolved_layers}")
@@ -187,6 +221,17 @@ def run_representation_lm(
         char_starts=out["char_starts"],
         char_ends=out["char_ends"],
         token_indices=out["token_indices"],
+        token_first_indices=out["token_first_indices"],
+        n_pooled_tokens=out["n_pooled_tokens"],
+        paragraph_indices=out["paragraph_indices"],
+        window_starts=out["window_starts"],
+        window_ends=out["window_ends"],
+        remove_references=np.asarray(cleaning.remove_references),
+        remove_tables=np.asarray(cleaning.remove_tables),
+        remove_page_tags=np.asarray(cleaning.remove_page_tags),
+        pooling=np.asarray(pooling),
+        context_radius=np.asarray(-1 if context_radius is None else context_radius),
+        architecture=np.asarray(architecture),
         key_terms=np.asarray(key_terms, dtype=object).astype("U"),
         model_name=np.asarray(model_cfg["model_id"]),
         hidden_size=np.asarray(llm.hidden_size),
@@ -214,6 +259,17 @@ def run_representation_lm(
         n_truncated=llm.n_truncated,
         truncated_docs=llm.truncated_docs,
         hidden_size=llm.hidden_size,
+        architecture=architecture,
+        remove_references=cleaning.remove_references,
+        remove_tables=cleaning.remove_tables,
+        remove_page_tags=cleaning.remove_page_tags,
+        min_kept_fraction_after_references=cleaning.min_kept_fraction_after_references,
+        pooling=pooling,
+        context_radius=context_radius,
+        overflow_policy=overflow_policy,
+        device=device,
+        n_docs_no_reference_heading=n_no_ref,
+        cleaning_info_by_doc=llm.doc_info,
     )
 
 
@@ -232,10 +288,27 @@ def main(argv: list[str] | None = None) -> None:
     config_path = Path(args.config)
     cfg = paths.load_experiment_config(config_path)
     params = cfg["params"]
-    paths.require_params(params, "dataset", "model", "key_terms", "layers", config_path=config_path)
+    paths.require_params(
+        params, "dataset", "model", "key_terms", "layers",
+        "remove_references", "remove_tables", "remove_page_tags",
+        "min_kept_fraction_after_references", "pooling", "context_radius", "overflow_policy", "limit", "verify_read_point",
+        config_path=config_path,
+    )
 
     model_key = params["model"]
-    paths.load_model_config("representation_lm", model_key)  # fail loud on an unknown model before any work starts
+    model_cfg = paths.load_model_config("representation_lm", model_key)  # fail loud on an unknown model before any work starts
+    if model_cfg["architecture"] == "bidirectional":
+        paths.require_params(params, "device", config_path=config_path)
+    elif "device" in params:
+        raise ValueError(f"{config_path}: `device` applies to bidirectional models only")
+    if (params["min_kept_fraction_after_references"] is None) == params["remove_references"]:
+        raise ValueError(
+            f"{config_path}: params.min_kept_fraction_after_references must be a number "
+            "iff remove_references is true (null otherwise)"
+        )
+    for k in ("remove_references", "remove_tables", "remove_page_tags", "verify_read_point"):
+        if not isinstance(params[k], bool):
+            raise ValueError(f"{config_path}: params.{k} must be a bool, got {params[k]!r}")
 
     # DatasetConfig paths (metadata_file, data_dir, ...) are repo-root-relative.
     os.chdir(_REPO_ROOT)
@@ -265,8 +338,18 @@ def main(argv: list[str] | None = None) -> None:
         layers=params["layers"],
         output_dir=output_dir,
         seed=seed,
-        limit=params.get("limit"),
-        verify_read_point=params.get("verify_read_point", False),
+        cleaning=CleaningConfig(
+            remove_references=params["remove_references"],
+            remove_tables=params["remove_tables"],
+            remove_page_tags=params["remove_page_tags"],
+            min_kept_fraction_after_references=params["min_kept_fraction_after_references"],
+        ),
+        pooling=params["pooling"],
+        context_radius=params["context_radius"],
+        overflow_policy=params["overflow_policy"],
+        device=params["device"] if model_cfg["architecture"] == "bidirectional" else None,
+        limit=params["limit"],
+        verify_read_point=params["verify_read_point"],
     )
 
 

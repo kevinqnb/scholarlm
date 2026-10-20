@@ -1,3 +1,4 @@
+architecture: causal
 model_id: meta-llama/Llama-3.1-8B
 nnsight_kwargs:
   torch_dtype: bfloat16
