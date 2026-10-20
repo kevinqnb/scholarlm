@@ -1,0 +1,24 @@
+id: 2026-10-20-modernbert-smoke-01
+project: scholarlm
+description: >-
+  Rung-2 smoke of the bidirectional RepresentationLM backend: ModernBERT-large
+  on ONE pond paper (limit 1), key term "pond" only, +/-1-paragraph context
+  windows, mean pooling, references/tables/page tags removed. Confirms plumbing
+  (HF load, layer map, verify_read_point incl. the future-dependence check,
+  row-count known answer), not results.
+seed: 342
+params:
+  dataset: pond
+  model: modernbert-large
+  key_terms: [pond]
+  layers: [0, 14, 28]            # embeddings, mid, post-final-norm (28 blocks)
+  remove_references: true
+  remove_tables: true
+  remove_page_tags: true
+  pooling: mean
+  context_radius: 1
+  overflow_policy: error
+  device: cuda:0
+  limit: 1
+  verify_read_point: true
+  walltime: "00:30:00"

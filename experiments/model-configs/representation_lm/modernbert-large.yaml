@@ -1,0 +1,23 @@
+architecture: bidirectional
+model_id: answerdotai/ModernBERT-large
+hf_kwargs:
+  torch_dtype: bfloat16
+# 28 blocks, hidden 1024, 8192-token context, ModernBERT only (see
+# representationlm.BIDIRECTIONAL_MODEL_TYPES).
+resources:
+  # ModernBERT-large is a 395M-param encoder loaded in-process via HF
+  # AutoModel (no vLLM server) -- ~0.8 GB of bf16 weights, far below the
+  # smallest model class already using this tier in this repo
+  # (baseline/gliner-*-v1.yaml at ~205M-ish, nuextract3 at 4B,
+  # representation_lm/llama-3.1-8b-base.yaml at 8B). Reusing that established
+  # floor is headroom, not a measurement: no ModernBERT run exists yet, so
+  # peak memory is unmeasured (CLAUDE.md: no invented resource numbers) --
+  # re-check against the smoke run's actual usage.
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  # Pinned per env_blackwell_torch_cu126: a gpu_capability floor does not
+  # exclude SCC's Blackwell nodes (sm_120), which crash the installed
+  # torch 2.7.1+cu126. L40S (sm_89) clears the floor and is what the
+  # llama-3.1-8b-base / gliner configs already land on.
+  gpu_type: L40S
+  omp: 8
