@@ -1,0 +1,16 @@
+id: 2026-11-03-nfix-extractionv2-gptoss120b-judge-combine-01
+project: scholarlm
+description: 'judge_combine for 2026-11-03-nfix-extractionv2-gptoss120b-full-01: same 6 judges and voting_threshold
+  as v1 combine 2026-09-27-nfix-extraction-gptoss120b-judge-combine-01.'
+seed: 342
+params:
+  dataset: nfix
+  judge_ids:
+  - 2026-11-03-nfix-extractionv2-gptoss120b-gptoss120b-judge-local-01
+  - 2026-11-03-nfix-extractionv2-gptoss120b-qwen72b-judge-local-01
+  - 2026-11-03-nfix-extractionv2-gptoss120b-llama70b-judge-local-01
+  - 2026-11-03-nfix-extractionv2-gptoss120b-llama8b-judge-interp-01
+  - 2026-11-03-nfix-extractionv2-gptoss120b-qwen7b-judge-interp-01
+  - 2026-11-03-nfix-extractionv2-gptoss120b-mistralnemo12b-judge-interp-01
+  voting_threshold: 2
+  walltime: 00:30:00

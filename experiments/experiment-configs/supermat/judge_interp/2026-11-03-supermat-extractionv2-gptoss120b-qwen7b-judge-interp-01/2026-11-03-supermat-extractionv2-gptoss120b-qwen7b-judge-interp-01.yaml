@@ -1,0 +1,12 @@
+id: 2026-11-03-supermat-extractionv2-gptoss120b-qwen7b-judge-interp-01
+project: scholarlm
+description: judge_interp of 2026-11-03-supermat-extractionv2-gptoss120b-full-01 with qwen-2.5-7b; params
+  (ocr_dir, walltime) mirror the v1 comparator's judge 2026-09-27-supermat-extraction-gptoss120b-qwen7b-judge-interp-01
+  exactly. Walltime is unvalidated for v2's record count.
+seed: 342
+params:
+  dataset: supermat
+  judge: qwen-2.5-7b
+  extraction_id: 2026-11-03-supermat-extractionv2-gptoss120b-full-01
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  walltime: '24:00:00'

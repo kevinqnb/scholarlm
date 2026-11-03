@@ -1,0 +1,16 @@
+id: 2026-11-03-pond-extractionv2-gemma27b-judge-combine-01
+project: scholarlm
+description: 'judge_combine for 2026-11-03-pond-extractionv2-gemma27b-full-01: same 6 judges and voting_threshold
+  as v1 combine 2026-09-27-pond-extraction-gemma27b-parseqty-standardization-valueonly-judge-combine-01.'
+seed: 342
+params:
+  dataset: pond
+  judge_ids:
+  - 2026-11-03-pond-extractionv2-gemma27b-gptoss120b-judge-local-01
+  - 2026-11-03-pond-extractionv2-gemma27b-qwen72b-judge-local-01
+  - 2026-11-03-pond-extractionv2-gemma27b-llama70b-judge-local-01
+  - 2026-11-03-pond-extractionv2-gemma27b-llama8b-judge-interp-01
+  - 2026-11-03-pond-extractionv2-gemma27b-qwen7b-judge-interp-01
+  - 2026-11-03-pond-extractionv2-gemma27b-mistralnemo12b-judge-interp-01
+  voting_threshold: 2
+  walltime: 00:30:00
