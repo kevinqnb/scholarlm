@@ -370,6 +370,28 @@ def test_normalize_provenance_mixed_shapes_do_not_raise_but_lengths_can_differ()
     assert not pp.provenance_lengths_equal(out)
 
 
+def test_normalize_provenance_pads_absent_fields_to_shared_present_length():
+    # MeasurementLMv2 shape: page/table lists of length 3, the other four fields absent.
+    out, wrapped = pp.normalize_provenance({"page_number": [1, 2, 3], "table_number": [None, 4, None]})
+    for f in ("row_index", "column_index", "source", "context"):
+        assert out[f] == [None, None, None]
+        assert f in wrapped
+    assert out["page_number"] == [1, 2, 3] and out["table_number"] == [None, 4, None]
+    assert pp.provenance_lengths_equal(out)
+
+
+def test_normalize_provenance_does_not_pad_when_present_lengths_disagree():
+    out, _ = pp.normalize_provenance({"page_number": [1, 2, 3], "table_number": [None]})
+    assert out["row_index"] == [None]                      # not padded: misalignment stays visible
+    assert not pp.provenance_lengths_equal(out)
+
+
+def test_normalize_provenance_all_absent_is_single_none():
+    out, wrapped = pp.normalize_provenance({})
+    assert all(out[f] == [None] for f in pp.PROVENANCE_FIELDS)
+    assert sorted(wrapped) == sorted(pp.PROVENANCE_FIELDS)
+
+
 def test_postprocess_experiment_normalizes_provenance_and_survives_expansion(tmp_path, monkeypatch):
     results_root = tmp_path / "results"
     monkeypatch.setattr(paths, "RESULTS_ROOT", results_root)

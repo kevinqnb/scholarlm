@@ -5,7 +5,8 @@ Four steps per record, none of which invents a value:
    model left every shape field blank. Partial attempts are left untouched.
 2. Unit standardization: rewrite a unit only to a variant that appears in the
    ground truth's own units for that attribute.
-3. Provenance: wrap the six PROVENANCE_FIELDS as lists so deduplication can merge them.
+3. Provenance: wrap the six PROVENANCE_FIELDS as lists (absent ones padded with None to the
+   present fields' shared length) so deduplication can merge them.
 4. List expansion: split a row with ``list_values`` into one row per entry, so each
    value can match on its own. Children keep the parent's measurement_id and
    inherit its judge label.
@@ -162,21 +163,41 @@ def postprocess_record(record: dict, *, canonical_units: dict) -> tuple:
 
 
 def normalize_provenance(record: dict) -> tuple:
-    """Wrap each non-list PROVENANCE_FIELDS value in a list (absent -> ``[None]``).
+    """Wrap each non-list PROVENANCE_FIELDS value in a list, padding absent fields.
+
+    A scalar becomes a one-element list. A field absent from the record is padded
+    with ``None`` to the length k shared by every field that IS present (k = 1
+    when nothing is present, which gives ``[None]``). MeasurementLMv2 records
+    carry index-aligned ``page_number`` / ``table_number`` lists of length k but
+    never emit the other four fields; without the padding those rows would have
+    unequal lengths and deduplication would refuse to merge them. Padding only
+    fires when the present fields agree on one length: if they disagree the
+    absent fields get ``[None]`` and the row stays unequal, so a genuinely
+    misaligned row still fails loudly at deduplication instead of being masked.
 
     Args:
         record: Extraction record (not modified).
 
     Returns:
-        ``(new_record, wrapped)``; ``wrapped`` names the fields that were wrapped.
+        ``(new_record, wrapped)``; ``wrapped`` names the fields that were wrapped
+        or padded.
     """
     record = dict(record)
     wrapped = []
+    absent = []
     for field in PROVENANCE_FIELDS:
-        value = record.get(field)
+        if field not in record:
+            absent.append(field)
+            continue
+        value = record[field]
         if isinstance(value, list):
             continue
         record[field] = [value]
+        wrapped.append(field)
+    present_lengths = {len(record[f]) for f in PROVENANCE_FIELDS if f in record}
+    pad_length = present_lengths.pop() if len(present_lengths) == 1 else 1
+    for field in absent:
+        record[field] = [None] * pad_length
         wrapped.append(field)
     return record, wrapped
 
