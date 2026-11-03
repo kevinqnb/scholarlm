@@ -89,6 +89,37 @@ def _finalize_records(records: list[dict], text_info: list[dict]) -> list[dict]:
     return dataset
 
 
+def _context_length_exceeded_record(
+    output_dir: Path, exceeded_this_invocation: set[int], text_info: list[dict],
+) -> dict:
+    """Metadata fields recording which documents lost calls to a context-length overflow.
+
+    MeasurementLMv2 skips a call that overflows the model's context (collection,
+    standardization, or contextualization -- the last sends the whole paper, so it
+    is the likeliest) and leaves no trace in the records, so a document can lose
+    quantities silently. Positions are indices into this run's paper list.
+
+    Unioned with what an earlier invocation of the same ``output_dir`` already
+    recorded: a resumed run builds a fresh MeasurementLMv2 that only knows its own
+    drops, so an unmerged write would erase the earlier steps' record (the same
+    resume hazard write_run_metadata guards for step_seconds/token_usage). The
+    union is conservative -- re-running one step does not clear its earlier drops.
+    """
+    path = output_dir / "run_metadata.json"
+    earlier: set[int] = set()
+    if path.exists():
+        with open(path) as f:
+            earlier = set(json.load(f).get("context_length_exceeded_docs", []))
+    exceeded = sorted(earlier | set(exceeded_this_invocation))
+    assert all(0 <= i < len(text_info) for i in exceeded), (
+        f"context_length_exceeded_docs {exceeded} not all valid indices into {len(text_info)} papers"
+    )
+    return {
+        "context_length_exceeded_docs": exceeded,
+        "context_length_exceeded_document_ids": [text_info[i]["document_id"] for i in exceeded],
+    }
+
+
 def run_pipeline(
     dataset_config: DatasetConfig,
     model_config: ModelConfig,
@@ -136,7 +167,13 @@ def run_pipeline(
             model_id=model_config.model_id, hf_revision=model_config.hf_revision, ocr_dir=ocr_dir,
             gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
             token_usage=mlm.token_usage, hostname=urlparse(effective_api_base).hostname, step=current_step,
+            **_context_length_exceeded_record(output_dir, mlm.context_length_exceeded_docs, text_info),
         )
+        if mlm.context_length_exceeded_docs:
+            print(
+                f"WARNING: {len(mlm.context_length_exceeded_docs)} document(s) lost calls to a "
+                f"context-length overflow this invocation: {sorted(mlm.context_length_exceeded_docs)}"
+            )
 
     if step in (None, "quantities"):
         if not (resume and f_quantities.exists()):
