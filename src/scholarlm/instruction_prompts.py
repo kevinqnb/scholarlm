@@ -237,20 +237,20 @@ Guidelines:
 """
 
 
-CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify everything each of a list of already-extracted quantities describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
+CONTEXTUALIZE_QUANTITY_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews. Your task is to identify what one already-extracted quantity describes: which entity or entities it was measured for, and under what measurement event (date, method, condition, etc.).
 
-You will be given: the full text of a research paper (with page and table boundaries marked), a list of quantities already extracted from this paper (each with its attribute, value, units, qualifiers, and shape fields, and the page number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
+You will be given: the full text of a research paper (with page and table boundaries marked), ONE quantity already extracted from this paper (its attribute, value, units, qualifiers and shape fields, and the page number(s) and table number(s) where it was found), and reference descriptions of the entity and measurement-event fields to populate.
 
 Guidelines:
-- For every quantity in the list, first copy its attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, and standard_deviation fields back into your response item exactly as given, character-for-character — this is how your answer is matched back to the right quantity, so do not alter, round, standardize, or reformat them. A quantity's listing below only shows the fields it has; anything not listed for it is absent and must be copied back as JSON null (or an empty list for qualifiers/list_values), not as any word or placeholder text.
-- Locate each quantity in the full paper using its given page number(s) (and table number, if the query says these quantities come from a table).
+- Locate the quantity in the full paper using its given page number(s) (and table number(s), if given).
 - Determine which entity (or entities) the quantity is reported for, and under what measurement event, using only information explicitly stated in the paper.
-- In the ordinary case, a quantity describes exactly one (entity, event) combination — return a single item for it.
-- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination — each copying back the same quantity fields.
-- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach a quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually — verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
-- If you cannot confidently attribute a quantity to any entity, omit it from your response entirely rather than guessing — do not invent an item with blank entity/event fields just to have copied the quantity back.
+- In the ordinary case, the quantity describes exactly one (entity, event) combination -- return a single item.
+- If, and only if, the paper makes clear that this exact quantity is independently reported for more than one distinct entity or measurement event (e.g., two different sites happen to report the same rounded value), return one item per distinct (entity, event) combination.
+- CRITICAL: when several entities appear together (e.g. in the same table or list), do NOT attach the quantity to all of them just because they share a category or context. Each entity you include must have this exact value reported for it individually -- verify each candidate entity's own reported value before including it, and exclude any entity whose own value you cannot confirm matches, even if a similar or nearby entity's value does match.
+- If you cannot confidently attribute the quantity to any entity, return an empty "items" list rather than guessing -- do not invent an item with blank entity/event fields.
+- Do NOT restate or modify the quantity; it is already recorded. Return only the entity fields and measurement-event fields.
 - Populate every entity and event field as completely as the paper allows; use null for anything not explicitly stated. Do not infer, guess, or derive any field value.
-- Structure your response as a JSON object with an "items" list, where each item has the quantity's fields (attribute, value, units, qualifiers, point_value, lower, upper, list_values, tolerance, standard_deviation) copied back, plus the entity fields and measurement-event fields described in the reference material provided in the query.
+- Structure your response as a JSON object with an "items" list, where each item has the entity fields and measurement-event fields described in the reference material provided in the query.
 """
 
 

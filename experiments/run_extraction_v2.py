@@ -126,6 +126,22 @@ def _context_length_exceeded_record(
     }
 
 
+def _carried_forward(output_dir: Path, key: str, this_invocation):
+    """``this_invocation`` if this invocation produced it, else whatever an earlier
+    invocation of the same output_dir wrote for ``key`` (None if neither did).
+
+    write_run_metadata builds the file from scratch, so a resumed run that skips
+    the step producing ``key`` would otherwise erase the earlier value.
+    """
+    if this_invocation is not None:
+        return this_invocation
+    path = output_dir / "run_metadata.json"
+    if path.exists():
+        with open(path) as f:
+            return json.load(f).get(key)
+    return None
+
+
 def run_pipeline(
     dataset_config: DatasetConfig,
     model_config: ModelConfig,
@@ -175,6 +191,7 @@ def run_pipeline(
             gpu_compatibility_warnings=gpu_warnings, max_prompt_tokens=mlm.max_prompt_tokens,
             token_usage=mlm.token_usage, hostname=urlparse(effective_api_base).hostname, step=current_step,
             **_context_length_exceeded_record(output_dir, mlm.context_length_exceeded_docs, text_info),
+            contextualization_stats=_carried_forward(output_dir, "contextualization_stats", mlm.contextualization_stats),
         )
         if mlm.context_length_exceeded_docs:
             print(

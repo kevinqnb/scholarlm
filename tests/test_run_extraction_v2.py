@@ -63,3 +63,20 @@ def test_runner_rejects_inert_parse_quantities_context(tmp_path):
                                 "standardize_context": "value_only", "parse_quantities_context": "value_only"})
     with pytest.raises(ValueError, match="parse_quantities_context"):
         r.main([str(cfg)])
+
+
+def test_carried_forward_prefers_this_invocation(tmp_path):
+    from run_extraction_v2 import _carried_forward
+    (tmp_path / "run_metadata.json").write_text(json.dumps({"contextualization_stats": {"sent": 1}}))
+    assert _carried_forward(tmp_path, "contextualization_stats", {"sent": 9}) == {"sent": 9}
+
+
+def test_carried_forward_keeps_earlier_value_when_step_skipped_on_resume(tmp_path):
+    from run_extraction_v2 import _carried_forward
+    (tmp_path / "run_metadata.json").write_text(json.dumps({"contextualization_stats": {"sent": 1}}))
+    assert _carried_forward(tmp_path, "contextualization_stats", None) == {"sent": 1}
+
+
+def test_carried_forward_is_none_when_nothing_ever_ran(tmp_path):
+    from run_extraction_v2 import _carried_forward
+    assert _carried_forward(tmp_path, "contextualization_stats", None) is None
