@@ -22,6 +22,7 @@ from pydantic import BaseModel, create_model
 from .instruction_prompts import (
     QUANTITY_COLLECTION_INSTRUCTIONS,
     STANDARDIZE_QUANTITY_INSTRUCTIONS,
+    STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS,
     CONTEXTUALIZE_QUANTITIES_INSTRUCTIONS,
 )
 from .measurementlm import (
@@ -347,18 +348,34 @@ class MeasurementLMv2(MeasurementLM):
         messages = []
         for q in quantities:
             attr_info = self.attribute_info_dict[q["attribute"]]
-            query = (
-                f"Attribute description: {attr_info.get('description', '')}\n"
-                f"Available units for the attribute: {attr_info.get('units', [])}\n\n"
-                f"Extracted value: {q['value']}\n"
-                f"Extracted units: {q.get('units')}\n\n"
-                f"Standardize the units for this quantity.\n"
-            )
-            page_text = self._get_page_text(self.data[q["document_id"]]["context"], q["page_number"])
-            prompt = (
-                f"## INSTRUCTIONS:\n{STANDARDIZE_QUANTITY_INSTRUCTIONS}\n\n"
-                f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
-            )
+            if self.standardize_context == "value_only":
+                # Same prompt, byte for byte, as MeasurementLM._standardize() in
+                # value_only mode, so v2 and the v1 comparators standardize units
+                # under the identical hypothesis: the model sees only the available
+                # units and the extracted value/units -- no page, no attribute text.
+                query = (
+                    f"Available units for the attribute: {attr_info.get('units', [])}\n\n"
+                    f"Extracted measurement: {q['value']}\n"
+                    f"Extracted units: {q.get('units')}\n"
+                    f"Standardize the units for the extracted data point. "
+                )
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_MEASUREMENTS_VALUE_ONLY_INSTRUCTIONS}\n\n## QUERY:\n{query}"
+                )
+            else:
+                assert self.standardize_context == "full", self.standardize_context
+                query = (
+                    f"Attribute description: {attr_info.get('description', '')}\n"
+                    f"Available units for the attribute: {attr_info.get('units', [])}\n\n"
+                    f"Extracted value: {q['value']}\n"
+                    f"Extracted units: {q.get('units')}\n\n"
+                    f"Standardize the units for this quantity.\n"
+                )
+                page_text = self._get_page_text(self.data[q["document_id"]]["context"], q["page_number"])
+                prompt = (
+                    f"## INSTRUCTIONS:\n{STANDARDIZE_QUANTITY_INSTRUCTIONS}\n\n"
+                    f"## CONTEXT:\n{page_text}\n\n## QUERY:\n{query}"
+                )
             messages.append([{"role": "user", "content": prompt}])
 
         response_format = {

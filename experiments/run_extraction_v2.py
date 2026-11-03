@@ -14,7 +14,9 @@ Usage
 -----
     python experiments/run_extraction_v2.py experiments/experiment-configs/{dataset}/extraction_v2/<id>/<id>.yaml
 
-Required params: dataset, model, ocr_dir.
+Required params: dataset, model, ocr_dir, standardize_context ('full' | 'value_only', see
+MeasurementLM.__init__; v2 honors it in _standardize_quantities). params.parse_quantities_context
+is rejected: v2 has no parse step (qualifiers are collected with the quantity).
 Optional params: paper_subset (list), resume (bool), step (one of STEP_NAMES),
 api_base, api_key.
 """
@@ -60,7 +62,10 @@ def _resolve_api(model_config: ModelConfig, api_base: str, api_key: str) -> tupl
     return effective_api_base, api_key
 
 
-def _build_mlm(dataset_config: DatasetConfig, model_config: ModelConfig, api_base: str, api_key: str) -> MeasurementLMv2:
+def _build_mlm(
+    dataset_config: DatasetConfig, model_config: ModelConfig, api_base: str, api_key: str,
+    standardize_context: str,
+) -> MeasurementLMv2:
     return MeasurementLMv2(
         model_name=model_config.model_id,
         entity_identification_prompt=dataset_config.entity_identification_prompt,
@@ -72,6 +77,7 @@ def _build_mlm(dataset_config: DatasetConfig, model_config: ModelConfig, api_bas
         measurement_event_schema=dataset_config.measurement_event_schema,
         measurement_event_prompt=dataset_config.measurement_event_prompt,
         use_extra_body=model_config.api_base is None,
+        standardize_context=standardize_context,
     )
 
 
@@ -125,6 +131,7 @@ def run_pipeline(
     model_config: ModelConfig,
     output_dir: Path,
     ocr_dir: str,
+    standardize_context: str,
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     step: str | None = None,
@@ -148,7 +155,7 @@ def run_pipeline(
     text, text_info = load_papers(dataset_config, ocr_dir, paper_subset_override)
     print(f"Loaded {len(text)} papers.\n")
 
-    mlm = _build_mlm(dataset_config, model_config, effective_api_base, api_key)
+    mlm = _build_mlm(dataset_config, model_config, effective_api_base, api_key, standardize_context)
     mlm.data = [{"document_id": i, "context": p} for i, p in enumerate(text)]
     gpu_warnings = check_gpu_model_compatibility(model_config.model_id)
 
@@ -246,7 +253,12 @@ def main(argv: list[str] | None = None) -> None:
     config_path = Path(args.config)
     cfg = paths.load_experiment_config(config_path)
     params = cfg["params"]
-    paths.require_params(params, "dataset", "model", "ocr_dir", config_path=config_path)
+    paths.require_params(params, "dataset", "model", "ocr_dir", "standardize_context", config_path=config_path)
+    if "parse_quantities_context" in params:
+        raise ValueError(
+            f"{config_path}: params.parse_quantities_context is not used by MeasurementLMv2 "
+            "(it has no parse step); remove it rather than leave an inert param."
+        )
 
     step = params.get("step")
     if step is not None and step not in STEP_NAMES:
@@ -274,6 +286,7 @@ def main(argv: list[str] | None = None) -> None:
         output_dir=output_dir,
         ocr_dir=params["ocr_dir"],
         paper_subset_override=params.get("paper_subset"),
+        standardize_context=params["standardize_context"],
         resume=params.get("resume", False),
         step=step,
         api_base=api_base,

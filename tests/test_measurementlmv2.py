@@ -476,3 +476,59 @@ def test_fit_raises_if_event_schema_set_without_event_prompt():
     mlm = _make_mlm(measurement_event_prompt=None)
     with pytest.raises(ValueError, match="measurement_event_prompt"):
         mlm.fit([_DOC])
+
+
+# ---------------------------------------------------------------------------
+# standardize_context: v2 honors the constructor argument MeasurementLM already has
+# ---------------------------------------------------------------------------
+
+
+def _capture_standardize_prompts(monkeypatch, mlm_cls, mlm, call):
+    """Run ``call(mlm)`` with _call_batch stubbed; return the prompt strings it sent."""
+    sent = []
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        sent.extend(m[0]["content"] for m in message_sets)
+        return ['{"explanation": "ok", "units": "m"}'] * len(message_sets)
+
+    monkeypatch.setattr(mlm_cls, "_call_batch", fake_call_batch)
+    call(mlm)
+    return sent
+
+
+def test_value_only_standardization_prompt_matches_v1_byte_for_byte(monkeypatch):
+    from scholarlm.measurementlm import MeasurementLM
+
+    v1 = MeasurementLM(
+        model_name="test-model", entity_identification_prompt="x", entity_identification_schema=_EntitySchema,
+        attribute_info_dict=_ATTRIBUTE_INFO, api_base="http://localhost:0/v1", use_extra_body=False,
+        standardize_context="value_only",
+    )
+    v1.data = [{"document_id": 0, "attribute": "depth", "value": "3.2", "units": "meters", "context": "PAGE TEXT"}]
+    v1_prompts = _capture_standardize_prompts(monkeypatch, MeasurementLM, v1, lambda m: m._standardize())
+
+    v2 = _make_mlm(standardize_context="value_only")
+    v2.data = [{"document_id": 0, "context": _DOC}]
+    quantity = {"document_id": 0, "page_number": 1, "attribute": "depth", "value": "3.2", "units": "meters"}
+    v2_prompts = _capture_standardize_prompts(
+        monkeypatch, MeasurementLMv2, v2, lambda m: m._standardize_quantities([quantity])
+    )
+
+    assert len(v1_prompts) == len(v2_prompts) == 1
+    assert v2_prompts == v1_prompts
+    assert "PAGE TEXT" not in v2_prompts[0] and "Lake A" not in v2_prompts[0]   # no page context
+
+
+def test_full_standardization_prompt_still_carries_the_page_text(monkeypatch):
+    v2 = _make_mlm(standardize_context="full")
+    v2.data = [{"document_id": 0, "context": _DOC}]
+    quantity = {"document_id": 0, "page_number": 1, "attribute": "depth", "value": "3.2", "units": "meters"}
+    (prompt,) = _capture_standardize_prompts(
+        monkeypatch, MeasurementLMv2, v2, lambda m: m._standardize_quantities([quantity])
+    )
+    assert "Lake A maximum depth is 3.2 m." in prompt
+
+
+def test_standardize_context_rejects_unknown_value():
+    with pytest.raises(ValueError):
+        _make_mlm(standardize_context="page_only")

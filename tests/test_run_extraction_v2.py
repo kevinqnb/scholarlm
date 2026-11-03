@@ -39,3 +39,27 @@ def test_resumed_invocation_with_no_new_overflow_keeps_earlier_record(tmp_path):
 def test_index_outside_paper_list_is_a_hard_error(tmp_path):
     with pytest.raises(AssertionError):
         _context_length_exceeded_record(tmp_path, {5}, TEXT_INFO)
+
+
+def _write_cfg(tmp_path, params):
+    import yaml
+    path = tmp_path / "2026-01-01-testset-extractionv2-model-full-01.yaml"
+    path.write_text(yaml.safe_dump({
+        "id": path.stem, "project": "scholarlm", "description": "t", "seed": 342, "params": params,
+    }))
+    return path
+
+
+def test_runner_requires_standardize_context(tmp_path):
+    import run_extraction_v2 as r
+    cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x"})
+    with pytest.raises(ValueError, match="standardize_context"):
+        r.main([str(cfg)])
+
+
+def test_runner_rejects_inert_parse_quantities_context(tmp_path):
+    import run_extraction_v2 as r
+    cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x",
+                                "standardize_context": "value_only", "parse_quantities_context": "value_only"})
+    with pytest.raises(ValueError, match="parse_quantities_context"):
+        r.main([str(cfg)])
