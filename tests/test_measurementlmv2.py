@@ -271,9 +271,10 @@ def test_group_quantities_prefers_table_over_prose_and_keeps_docs_separate():
 # ---------------------------------------------------------------------------
 
 
-def _attributed_item(value="3.2", name="Lake A", location="WI", date="2020"):
+def _attributed_item(value="3.2", name="Lake A", location="WI", date="2020", units="m"):
+    units_json = "null" if units is None else f'"{units}"'
     return (
-        f'{{"attribute": "depth", "value": "{value}", "units": "m", "qualifiers": [], '
+        f'{{"attribute": "depth", "value": "{value}", "units": {units_json}, "qualifiers": [], '
         f'"point_value": "{value}", "lower": null, "upper": null, "list_values": null, '
         f'"tolerance": null, "standard_deviation": null, '
         f'"name": "{name}", "location": "{location}", "date": "{date}"}}'
@@ -532,3 +533,52 @@ def test_full_standardization_prompt_still_carries_the_page_text(monkeypatch):
 def test_standardize_context_rejects_unknown_value():
     with pytest.raises(ValueError):
         _make_mlm(standardize_context="page_only")
+
+
+# ---------------------------------------------------------------------------
+# _quantity_match_key excludes units (2026-09-20 pond tiny e2e: 23/41 dropped)
+# ---------------------------------------------------------------------------
+
+
+def _run_contextualize(monkeypatch, quantities, response_items):
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    mlm.context_length_exceeded_docs = set()
+    monkeypatch.setattr(
+        MeasurementLMv2, "_call_batch",
+        lambda self, message_sets, response_format=None, **kw: ["{\"items\": [" + ", ".join(response_items) + "]}"],
+    )
+    return mlm._contextualize_quantities(quantities)
+
+
+def test_match_key_ignores_echoed_units_and_output_keeps_source_units(monkeypatch):
+    # The regression: source sent with units "m", model echoes units null.
+    q = _quantity(value="3.2", units="m")
+    records = _run_contextualize(monkeypatch, [q], [_attributed_item(value="3.2", name="Lake A", units=None)])
+    assert len(records) == 1
+    assert records[0]["units"] == "m"          # the source quantity's units, not the echo
+    assert records[0]["name"] == "Lake A"
+
+
+def test_match_key_ignores_a_differently_spelled_echoed_unit(monkeypatch):
+    q = _quantity(value="3.2", units="m")
+    records = _run_contextualize(monkeypatch, [q], [_attributed_item(value="3.2", name="Lake A", units="meters")])
+    assert [r["units"] for r in records] == ["m"]
+
+
+def test_same_value_in_two_units_is_resolved_by_the_full_key_when_the_echo_is_faithful(monkeypatch):
+    q_m = _quantity(value="3.2", units="m")
+    q_ft = _quantity(value="3.2", units="ft")
+    records = _run_contextualize(
+        monkeypatch, [q_m, q_ft],
+        [_attributed_item(value="3.2", name="Lake A", units="m"), _attributed_item(value="3.2", name="Lake B", units="ft")],
+    )
+    assert {r["name"]: r["units"] for r in records} == {"Lake A": "m", "Lake B": "ft"}
+
+
+def test_same_value_in_two_units_with_an_unfaithful_echo_is_still_dropped_not_guessed(monkeypatch):
+    # Known residual: ambiguous AND unfaithful -> no match -> dropped (and printed), never matched by position.
+    q_m = _quantity(value="3.2", units="m")
+    q_ft = _quantity(value="3.2", units="ft")
+    records = _run_contextualize(monkeypatch, [q_m, q_ft], [_attributed_item(value="3.2", name="Lake A", units=None)])
+    assert records == []

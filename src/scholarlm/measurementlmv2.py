@@ -156,26 +156,35 @@ def _quantity_dedup_key(q: dict) -> tuple:
 
 def _quantity_match_key(q: dict) -> tuple:
     """Looser identity key for matching a contextualization response's
-    echoed quantity back to its source: (document_id, attribute, value,
-    units) only -- qualifiers/shape fields excluded.
+    echoed quantity back to its source: (document_id, attribute, value) only --
+    units and the qualifier/shape fields are excluded.
 
-    A 2026-09-19 smoke test (gemma-3-27b, pond, pre-qualifier-rework type/
-    quantifier/CI scheme) showed the model reliably echoes value/units/
-    attribute verbatim, but not the shape fields: it added a spurious
-    inequality quantifier to a plain point quantity (apparently re-derived
-    from a symbol near the value in the source table, rather than copied),
-    and echoed an absent field as the literal string "None" (a symptom of
-    our own prompt text rendering `None` as that word -- see the
-    query-building code below, fixed the same day). The same caution applies
-    to the current qualifiers/point_value/lower/upper/list_values/tolerance/
-    standard_deviation fields: the model's echoed versions are never
-    trusted, only the matched original quantity's own fields reach the
-    output record. When more than one quantity in a group shares this
-    reduced key (e.g. a point value that coincidentally equals a separately-
-    reported range bound), the full _quantity_dedup_key is used to
-    disambiguate among just those candidates.
+    The model's copy-back is only a lookup handle: the output record is built
+    from the matched source quantity, so no echoed field ever reaches it. The
+    handle must therefore survive the model echoing sloppily. A 2026-09-19 smoke
+    test (gemma-3-27b, pond, pre-qualifier-rework type/quantifier/CI scheme)
+    showed the model reliably echoes value/attribute verbatim, but not the shape
+    fields: it added a spurious inequality quantifier to a plain point quantity,
+    and echoed an absent field as the literal string "None" (a symptom of our own
+    prompt text rendering `None` as that word -- see _describe_quantity, fixed
+    the same day).
+
+    units was part of this key until 2026-11-03 and had the same problem: a
+    2026-09-20 pond tiny end-to-end (gemma-3-27b) echoed `units: null` for table
+    quantities sent with `µg/L`, so 23 of 41 quantities -- including the
+    ground-truth chla value 27.4±22.5 µg/L -- failed to match and were dropped
+    (see that run's log: "don't match any quantity sent in this batch"). The
+    units in the output record are the source quantity's standardized units, so
+    nothing is lost by not matching on them.
+
+    When more than one quantity in a group shares this reduced key (e.g. a point
+    value that coincidentally equals a separately-reported range bound, or the
+    same number reported in two units), the full _quantity_dedup_key is used to
+    disambiguate among just those candidates. That tie-break does compare the
+    echoed units and shape fields, so an ambiguous item whose echo is unfaithful
+    can still fail to match and be dropped (and is counted in the drop message).
     """
-    return (q["document_id"], q["attribute"], _quantity_value_key(q), _norm_units(q.get("units")))
+    return (q["document_id"], q["attribute"], _quantity_value_key(q))
 
 
 def _describe_quantity(q: dict, attribute_info_dict: dict) -> str:
