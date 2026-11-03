@@ -1,0 +1,29 @@
+id: 2026-11-03-supermat-extractionv2-gemma27b-tinye2e-01
+project: scholarlm
+description: 'RUNG 3 (tiny end-to-end), one paper. MeasurementLMv2 (quantity-first) run for recovery/validity
+  comparison against the v1 MeasurementLM id 2026-09-21-supermat-extraction-gemma27b-full-01 (same dataset,
+  model=gemma-3-27b, ocr_dir, seed 342). ocr_dir is the table-cleaned, references-dropped corpus the v1
+  comparator read. standardize_context=value_only, matching the v1 comparator: v2''s _standardize_quantities
+  uses the same value-only prompt as MeasurementLM._standardize() (pinned byte-identical by a unit test).
+  parse_quantities_context is deliberately absent: v2 has no parse step (qualifiers are collected with
+  the quantity) and the runner rejects the key. Paper JPS0730819-CC was chosen because both v1 comparators
+  (gemma-3-27b and gpt-oss-120b) extracted a moderate number of records from it (11 from this model''s
+  own v1 comparator) and the ground truth has rows for it; the earlier dev paper for this dataset had
+  0 v1 records and made a poor baseline. PREDICTIONS, written 2026-11-03 before any rung-3 run (stop and
+  do not scale up if ANY fails): (1) zero ''Validation error'' lines in the job log; (2) run_metadata.json
+  context_length_exceeded_docs == []; (3) the log''s ''N quantity/quantities could not be attributed ...
+  dropped'' line (N = source quantities left unmatched) has N < 10% of the number of quantities in standardized.json,
+  and no whole-group ''Validation error in contextualization response'' line; (4) final.json record count
+  within [6, 22] (0.5x-2x of this model''s v1 count of 11 on this paper -- a guess at ''same order'',
+  not derived); (5) analysis/postprocessing.py on the output reports 0 rows with unequal provenance list
+  lengths.'
+seed: 342
+params:
+  dataset: supermat
+  model: gemma-3-27b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  standardize_context: value_only
+  paper_subset:
+  - JPS0730819-CC
+  resume: false
+  walltime: 01:00:00

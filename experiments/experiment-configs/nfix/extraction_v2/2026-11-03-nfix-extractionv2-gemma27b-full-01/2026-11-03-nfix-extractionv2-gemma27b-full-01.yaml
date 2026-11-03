@@ -1,0 +1,30 @@
+id: 2026-11-03-nfix-extractionv2-gemma27b-full-01
+project: scholarlm
+description: 'RUNG 4 full run. MeasurementLMv2 (quantity-first) run for recovery/validity comparison against
+  the v1 MeasurementLM id 2026-09-21-nfix-extraction-gemma27b-full-01 (same dataset, model=gemma-3-27b,
+  ocr_dir, seed 342). ocr_dir is the table-cleaned, references-dropped corpus the v1 comparator read.
+  standardize_context=value_only, matching the v1 comparator: v2''s _standardize_quantities uses the same
+  value-only prompt as MeasurementLM._standardize() (pinned byte-identical by a unit test). parse_quantities_context
+  is deliberately absent: v2 has no parse step (qualifiers are collected with the quantity) and the runner
+  rejects the key. Walltime 30:00:00: length-aware estimate of 14.7h from the gemma-3-27b rung-3 tiny
+  run (step_seconds quantities+standardized scaled by corpus characters / tiny-paper characters, final
+  step scaled by the square of that ratio because per-quantity contextualization cost is quantities x
+  paper length), then x2 per the graduated multiplier policy, rounded up to the next whole hour. The estimate
+  rests on one small paper per dataset and assumes no prefix-cache or cross-paper speedup; the final step
+  is ~80% of the estimate and is checkpointed only when it completes, so a walltime kill loses it entirely.
+  resume=true, matching the v1 comparators. RUNG-3 GATE NOT MET, RUN BY EXPLICIT DECISION: the 2026-11-03
+  gemma tiny run passed predictions 1-3 and 5 but failed prediction 4 (record counts far above range)
+  from two causes seen in the tiny outputs -- the collection step invents quantities on pages with no
+  data (pond page 0, a cover page: 22 fabricated quantities, none of whose numbers appear in the paper)
+  and contextualization attaches quantities to every entity (supermat: each of the 3.3/9.6/6.3 K Tc values
+  attached to all three compounds). The user decided to run the full gemma runs and judge the method from
+  recovery/validity, not from the tiny runs. Expect inflated record counts and low validity for these
+  two reasons; do not read them as a code defect without checking those two causes first.'
+seed: 342
+params:
+  dataset: nfix
+  model: gemma-3-27b
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  standardize_context: value_only
+  resume: true
+  walltime: '30:00:00'

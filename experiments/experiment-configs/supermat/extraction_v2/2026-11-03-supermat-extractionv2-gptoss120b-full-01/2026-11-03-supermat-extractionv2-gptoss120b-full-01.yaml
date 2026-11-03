@@ -1,0 +1,28 @@
+id: 2026-11-03-supermat-extractionv2-gptoss120b-full-01
+project: scholarlm
+description: 'RUNG 4 full run. MeasurementLMv2 (quantity-first) run for recovery/validity comparison against
+  the v1 MeasurementLM id 2026-09-21-supermat-extraction-gptoss120b-full-01 (same dataset, model=gpt-oss-120b,
+  ocr_dir, seed 342). ocr_dir is the table-cleaned, references-dropped corpus the v1 comparator read.
+  standardize_context=value_only, matching the v1 comparator: v2''s _standardize_quantities uses the same
+  value-only prompt as MeasurementLM._standardize() (pinned byte-identical by a unit test). parse_quantities_context
+  is deliberately absent: v2 has no parse step (qualifiers are collected with the quantity) and the runner
+  rejects the key. Walltime 24:00:00: length-aware estimate of 11.9h from the gpt-oss-120b rung-3 tiny
+  run (step_seconds quantities+standardized scaled by corpus characters / tiny-paper characters, final
+  step scaled by the square of that ratio because per-quantity contextualization cost is quantities x
+  paper length), then x2 per the graduated multiplier policy, rounded up to the next whole hour. The estimate
+  rests on one small paper per dataset and assumes no prefix-cache or cross-paper speedup; the supermat
+  tiny paper (6 KB) is far smaller than the corpus median, so its scale factor is large and the estimate
+  may be high; the final step is checkpointed only when it completes, so a walltime kill loses it entirely.
+  resume=true, matching the v1 comparators. RUNG-3 GATE MET: the 2026-11-03 gpt-oss-120b tiny run on this
+  dataset passed all five predictions (zero validation errors; no context overflow; contextualization
+  drops under 10%; 7 records from 7 quantities, within the 0.5x-2x range of v1; 0 unequal provenance rows)
+  with 0 ungrounded collected quantities and exactly one record per source quantity. That is structural
+  evidence only on one paper; attribution correctness and recall are not yet checked.'
+seed: 342
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  standardize_context: value_only
+  resume: true
+  walltime: '24:00:00'
