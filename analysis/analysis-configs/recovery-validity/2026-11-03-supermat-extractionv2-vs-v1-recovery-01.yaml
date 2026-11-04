@@ -2,7 +2,9 @@ id: 2026-11-03-supermat-extractionv2-vs-v1-recovery-01
 project: scholarlm
 description: 'supermat: MeasurementLMv2 vs MeasurementLM (gemma-3-27b, gpt-oss-120b). Every setting copied
   from 2026-10-09-supermat-main-recovery-01 so the two v1 rows must reproduce that CSV exactly (known-answer
-  check; stop if not). compute_validity=False -- recovery-only gate run before spending the judge jobs.'
+  check; stop if not). compute_validity=False -- recovery-only gate run before spending the judge jobs.
+  (fuzzy_threshold_curve removed 2026-11-04: it plots validity, so recovery_validity.py rejects it when
+  compute_validity is false.)'
 seed: 0
 params:
   deduplicate_cache:
@@ -49,31 +51,5 @@ params:
   recovery_validity:
     alpha: 0.05
     compute_validity: false
-    fuzzy_threshold_curve:
-      experiment_ids:
-      - 2026-09-21-supermat-extraction-gemma27b-full-01
-      thresholds:
-      - 0.0
-      - 0.05
-      - 0.1
-      - 0.15
-      - 0.2
-      - 0.25
-      - 0.3
-      - 0.35
-      - 0.4
-      - 0.45
-      - 0.5
-      - 0.547
-      - 0.55
-      - 0.6
-      - 0.65
-      - 0.7
-      - 0.75
-      - 0.8
-      - 0.85
-      - 0.9
-      - 0.95
-      - 1.0
     n_resamples: 2000
     output: analysis/results/recovery-validity/2026-11-03-supermat-extractionv2-vs-v1-recovery-01.csv
