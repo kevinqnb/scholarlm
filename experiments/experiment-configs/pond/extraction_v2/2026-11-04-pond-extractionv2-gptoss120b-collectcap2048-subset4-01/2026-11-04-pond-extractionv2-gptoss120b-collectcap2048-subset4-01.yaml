@@ -1,0 +1,31 @@
+id: 2026-11-04-pond-extractionv2-gptoss120b-collectcap2048-subset4-01
+project: scholarlm
+description: 'Collection-cap experiment on pond, gpt-oss-120b, four papers that lost the most ground-truth
+  rows in the 2026-11-03 full run (physical_and_chemical_limnological, prairie_wetland, classification_trees,
+  physical-chemical_influences: 650 ground-truth rows; v1 gpt-oss 2026-09-21-pond-extraction-gptoss120b-full-01
+  recovers 523 of them, the v2 full run 2026-11-03-pond-extractionv2-gptoss120b-full-01 recovers 141).
+  Hypothesis: the v2 collection step''s 2048-token output cap truncates responses for table-heavy pages
+  (all 98+67+60 collection validation failures in the 2026-11-03 full runs were truncated JSON or null
+  content, none a wrong shape; no successful call returned more than 19 items), losing whole pages and
+  most of v2''s recovery gap. Everything except params.collection_max_tokens is identical between the
+  two experiment ids and to the full run (same ocr_dir, seed 342, standardize_context=value_only, no resume).
+  Baseline from the full run on these four papers: 21 failed collection calls, 187 collected quantities,
+  max 17 items from any call. CONTROL (cap 2048, as in the full run). PREDICTIONS, written 2026-11-04
+  before any run: C1 collected quantities for the four papers within 140-234 (+-25% of 187); C2 between
+  15 and 27 ''Validation error in quantity collection'' log lines (21 +-30%); C3 no collection call returns
+  more than 19 items. If C1-C3 fail, the baseline does not reproduce and the treatment cannot be read
+  against it.'
+seed: 342
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  standardize_context: value_only
+  collection_max_tokens: 2048
+  paper_subset:
+  - physical_and_chemical_limnological
+  - prairie_wetland
+  - classification_trees
+  - physical-chemical_influences
+  resume: false
+  walltime: 02:00:00

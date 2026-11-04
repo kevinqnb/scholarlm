@@ -16,13 +16,15 @@ description: 'RUNG 3 (tiny end-to-end), one paper. MeasurementLMv2 (quantity-fir
   of quantities in standardized.json, and no whole-group ''Validation error in contextualization response''
   line; (4) final.json record count within [8, 32] (0.5x-2x of this model''s v1 count of 16 on this paper
   -- a guess at ''same order'', not derived); (5) analysis/postprocessing.py on the output reports 0 rows
-  with unequal provenance list lengths.'
+  with unequal provenance list lengths. collection_max_tokens=2048 records the output cap this run used
+  (it was a hardcoded constant when the run was made; made an explicit param 2026-11-04).'
 seed: 342
 params:
   dataset: pond
   model: gemma-3-27b
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
   standardize_context: value_only
+  collection_max_tokens: 2048
   paper_subset:
   - sediment_organic_carbon_distribution
   resume: false

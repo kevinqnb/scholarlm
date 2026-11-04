@@ -15,13 +15,16 @@ description: 'RUNG 3 (tiny end-to-end), one paper. MeasurementLMv2 (quantity-fir
   quantities left unmatched) has N < 10% of the number of quantities in standardized.json, and no whole-group
   ''Validation error in contextualization response'' line; (4) final.json record count within [8, 30]
   (0.5x-2x of this model''s v1 count of 15 on this paper -- a guess at ''same order'', not derived); (5)
-  analysis/postprocessing.py on the output reports 0 rows with unequal provenance list lengths.'
+  analysis/postprocessing.py on the output reports 0 rows with unequal provenance list lengths. collection_max_tokens=2048
+  records the output cap this run used (it was a hardcoded constant when the run was made; made an explicit
+  param 2026-11-04).'
 seed: 342
 params:
   dataset: nfix
   model: gemma-3-27b
   ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
   standardize_context: value_only
+  collection_max_tokens: 2048
   paper_subset:
   - R76
   resume: false

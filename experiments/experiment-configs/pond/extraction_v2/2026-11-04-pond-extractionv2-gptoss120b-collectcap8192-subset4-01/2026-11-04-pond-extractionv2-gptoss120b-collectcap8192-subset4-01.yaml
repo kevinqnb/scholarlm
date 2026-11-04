@@ -1,0 +1,34 @@
+id: 2026-11-04-pond-extractionv2-gptoss120b-collectcap8192-subset4-01
+project: scholarlm
+description: 'Collection-cap experiment on pond, gpt-oss-120b, four papers that lost the most ground-truth
+  rows in the 2026-11-03 full run (physical_and_chemical_limnological, prairie_wetland, classification_trees,
+  physical-chemical_influences: 650 ground-truth rows; v1 gpt-oss 2026-09-21-pond-extraction-gptoss120b-full-01
+  recovers 523 of them, the v2 full run 2026-11-03-pond-extractionv2-gptoss120b-full-01 recovers 141).
+  Hypothesis: the v2 collection step''s 2048-token output cap truncates responses for table-heavy pages
+  (all 98+67+60 collection validation failures in the 2026-11-03 full runs were truncated JSON or null
+  content, none a wrong shape; no successful call returned more than 19 items), losing whole pages and
+  most of v2''s recovery gap. Everything except params.collection_max_tokens is identical between the
+  two experiment ids and to the full run (same ocr_dir, seed 342, standardize_context=value_only, no resume).
+  Baseline from the full run on these four papers: 21 failed collection calls, 187 collected quantities,
+  max 17 items from any call. TREATMENT (cap 8192, the model-config default). PREDICTIONS, written 2026-11-04
+  before any run: T1 zero ''Validation error in quantity collection'' lines; T2 at least one collection
+  call returns 20 or more items; T3 collected quantities at least 1.5x the control''s; T4 recovery on
+  the 650 ground-truth rows (any-edge, repo threshold) greater than the control''s and at least 250, expected
+  to rise toward v1''s 523 but not reach it (quantity-first dedup multiplicity loss and matcher formatting
+  mismatches are not addressed) -- the 250-450 range is a guess, not derived; T5 contextualization drops
+  stay under 10%. Calls for tables of 100+ rows may still exceed even 8192 tokens; T1 failing on a single
+  large table would show that, not refute the hypothesis.'
+seed: 342
+params:
+  dataset: pond
+  model: gpt-oss-120b
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  standardize_context: value_only
+  collection_max_tokens: 8192
+  paper_subset:
+  - physical_and_chemical_limnological
+  - prairie_wetland
+  - classification_trees
+  - physical-chemical_influences
+  resume: false
+  walltime: 02:00:00

@@ -19,12 +19,15 @@ description: 'RUNG 4 full run. MeasurementLMv2 (quantity-first) run for recovery
   in the paper) and contextualization attaches quantities to every entity (supermat: each of the 3.3/9.6/6.3
   K Tc values attached to all three compounds). The user decided to run the full gemma runs and judge
   the method from recovery/validity, not from the tiny runs. Expect inflated record counts and low validity
-  for these two reasons; do not read them as a code defect without checking those two causes first.'
+  for these two reasons; do not read them as a code defect without checking those two causes first. collection_max_tokens=2048
+  records the output cap this run used (it was a hardcoded constant when the run was made; made an explicit
+  param 2026-11-04).'
 seed: 342
 params:
   dataset: pond
   model: gemma-3-27b
   ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
   standardize_context: value_only
+  collection_max_tokens: 2048
   resume: true
   walltime: '25:00:00'
