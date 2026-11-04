@@ -14,7 +14,8 @@ Usage
 -----
     python experiments/run_extraction_v2.py experiments/experiment-configs/{dataset}/extraction_v2/<id>/<id>.yaml
 
-Required params: dataset, model, ocr_dir, standardize_context ('full' | 'value_only', see
+Required params: dataset, model, ocr_dir, collection_max_tokens (positive int: output cap per
+quantity-collection call), standardize_context ('full' | 'value_only', see
 MeasurementLM.__init__; v2 honors it in _standardize_quantities). params.parse_quantities_context
 is rejected: v2 has no parse step (qualifiers are collected with the quantity).
 Optional params: paper_subset (list), resume (bool), step (one of STEP_NAMES),
@@ -148,6 +149,7 @@ def run_pipeline(
     output_dir: Path,
     ocr_dir: str,
     standardize_context: str,
+    collection_max_tokens: int,
     paper_subset_override: list[str] | None = None,
     resume: bool = False,
     step: str | None = None,
@@ -203,7 +205,7 @@ def run_pipeline(
         if not (resume and f_quantities.exists()):
             print("Step 1 — Collecting quantities...")
             t0 = time.time()
-            quantities = mlm._collect_quantities()
+            quantities = mlm._collect_quantities(max_tokens=collection_max_tokens)
             step_seconds["quantities"] = {"ran": True, "seconds": round(time.time() - t0, 1)}
             with open(f_quantities, "w") as f:
                 json.dump(quantities, f, indent=4, ensure_ascii=False, cls=NumpyEncoder)
@@ -270,7 +272,7 @@ def main(argv: list[str] | None = None) -> None:
     config_path = Path(args.config)
     cfg = paths.load_experiment_config(config_path)
     params = cfg["params"]
-    paths.require_params(params, "dataset", "model", "ocr_dir", "standardize_context", config_path=config_path)
+    paths.require_params(params, "dataset", "model", "ocr_dir", "standardize_context", "collection_max_tokens", config_path=config_path)
     if "parse_quantities_context" in params:
         raise ValueError(
             f"{config_path}: params.parse_quantities_context is not used by MeasurementLMv2 "
@@ -304,6 +306,7 @@ def main(argv: list[str] | None = None) -> None:
         ocr_dir=params["ocr_dir"],
         paper_subset_override=params.get("paper_subset"),
         standardize_context=params["standardize_context"],
+        collection_max_tokens=params["collection_max_tokens"],
         resume=params.get("resume", False),
         step=step,
         api_base=api_base,

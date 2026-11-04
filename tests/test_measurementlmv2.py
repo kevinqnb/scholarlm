@@ -191,7 +191,7 @@ def test_collect_quantities_logs_but_keeps_inconsistent_item(monkeypatch, capsys
 
     monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
 
-    quantities = mlm._collect_quantities()
+    quantities = mlm._collect_quantities(max_tokens=2048)
 
     assert len(quantities) == 2  # 2 pages in _DOC x 1 attribute
     assert quantities[0]["qualifiers"] == ["IsRange"]
@@ -315,7 +315,7 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
 
     monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
 
-    records = mlm.fit([_DOC])
+    records = mlm.fit([_DOC], collection_max_tokens=2048)
 
     assert [c[0] for c in calls] == ["quantity_list", "standardize_quantity", "entity_event_list"]
     assert len(records) == 2  # one deduplicated quantity -> two distinct measurements
@@ -334,7 +334,7 @@ def test_fit_collects_standardizes_dedupes_and_contextualizes(monkeypatch):
 def test_fit_raises_if_event_schema_set_without_event_prompt():
     mlm = _make_mlm(measurement_event_prompt=None)
     with pytest.raises(ValueError, match="measurement_event_prompt"):
-        mlm.fit([_DOC])
+        mlm.fit([_DOC], collection_max_tokens=2048)
 
 
 # ---------------------------------------------------------------------------
@@ -480,3 +480,38 @@ def test_contextualize_no_quantities_sends_nothing_and_records_zero_stats(monkey
     mlm, seen = _ctx_mlm(monkeypatch, lambda ms: pytest.fail("no call expected"))
     assert mlm._contextualize_quantities([]) == [] and seen == {}
     assert mlm.contextualization_stats["sent"] == 0
+
+
+# ---------------------------------------------------------------------------
+# collection max_tokens: explicit, validated, and actually sent
+# ---------------------------------------------------------------------------
+
+
+def test_collect_quantities_sends_the_given_max_tokens_to_every_call(monkeypatch):
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    seen = {}
+
+    def fake_call_batch(self, message_sets, response_format=None, **kwargs):
+        seen["max_tokens"] = kwargs["max_tokens"]
+        return ['{"items": []}'] * len(message_sets)
+
+    monkeypatch.setattr(MeasurementLMv2, "_call_batch", fake_call_batch)
+    mlm._collect_quantities(max_tokens=8192)
+    assert seen["max_tokens"] == 8192
+    mlm._collect_quantities(max_tokens=2048)
+    assert seen["max_tokens"] == 2048
+
+
+@pytest.mark.parametrize("bad", [0, -1, 2048.0, "2048", None, True])
+def test_collect_quantities_rejects_a_bad_max_tokens(bad):
+    mlm = _make_mlm()
+    mlm.data = [{"document_id": 0, "context": _DOC}]
+    with pytest.raises(ValueError, match="max_tokens"):
+        mlm._collect_quantities(max_tokens=bad)
+
+
+def test_collect_quantities_and_fit_have_no_default_cap():
+    import inspect
+    assert inspect.signature(MeasurementLMv2._collect_quantities).parameters["max_tokens"].default is inspect.Parameter.empty
+    assert inspect.signature(MeasurementLMv2.fit).parameters["collection_max_tokens"].default is inspect.Parameter.empty

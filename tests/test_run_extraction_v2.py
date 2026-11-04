@@ -52,7 +52,7 @@ def _write_cfg(tmp_path, params):
 
 def test_runner_requires_standardize_context(tmp_path):
     import run_extraction_v2 as r
-    cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x"})
+    cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x", "collection_max_tokens": 2048})
     with pytest.raises(ValueError, match="standardize_context"):
         r.main([str(cfg)])
 
@@ -60,7 +60,8 @@ def test_runner_requires_standardize_context(tmp_path):
 def test_runner_rejects_inert_parse_quantities_context(tmp_path):
     import run_extraction_v2 as r
     cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x",
-                                "standardize_context": "value_only", "parse_quantities_context": "value_only"})
+                                "standardize_context": "value_only", "collection_max_tokens": 2048,
+                                "parse_quantities_context": "value_only"})
     with pytest.raises(ValueError, match="parse_quantities_context"):
         r.main([str(cfg)])
 
@@ -80,3 +81,10 @@ def test_carried_forward_keeps_earlier_value_when_step_skipped_on_resume(tmp_pat
 def test_carried_forward_is_none_when_nothing_ever_ran(tmp_path):
     from run_extraction_v2 import _carried_forward
     assert _carried_forward(tmp_path, "contextualization_stats", None) is None
+
+
+def test_runner_requires_collection_max_tokens(tmp_path):
+    import run_extraction_v2 as r
+    cfg = _write_cfg(tmp_path, {"dataset": "pond", "model": "gemma-3-27b", "ocr_dir": "x", "standardize_context": "value_only"})
+    with pytest.raises(ValueError, match="collection_max_tokens"):
+        r.main([str(cfg)])

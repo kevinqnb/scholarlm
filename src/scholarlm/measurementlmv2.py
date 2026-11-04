@@ -227,13 +227,23 @@ class MeasurementLMv2(MeasurementLM):
     # Step 1: Quantity collection, per (page, attribute)
     # -----------------------------------------------------------------------
 
-    def _collect_quantities(self, max_tokens: int = 2048) -> list[dict]:
+    def _collect_quantities(self, max_tokens: int) -> list[dict]:
         """One call per (document, page, attribute); returns a flat list of
         quantity records with 'document_id', 'page_number', 'attribute', and
         the QuantityItem fields. Page text itself is not stored on the
         record -- later steps that need it (standardization) re-fetch it from
         self.data by (document_id, page_number).
+
+        ``max_tokens`` caps each call's output and has no default: one call lists
+        every quantity on a page, so a table-heavy page needs a long JSON list.
+        A response cut off by the cap is invalid JSON (and a reasoning model can
+        spend the whole budget before emitting any), which fails validation and
+        loses that page's quantities -- the 2026-11-03 full runs lost 98 / 67 / 60
+        calls (pond gpt-oss / nfix gpt-oss / pond gemma) at max_tokens=2048, and no
+        successful call returned more than 19 items.
         """
+        if not isinstance(max_tokens, int) or isinstance(max_tokens, bool) or max_tokens <= 0:
+            raise ValueError(f"max_tokens must be a positive int, got {max_tokens!r}")
         messages = []
         message_ids = []  # (doc_id, page_number, attr_name)
 
@@ -542,7 +552,7 @@ class MeasurementLMv2(MeasurementLM):
     # Full pipeline
     # -----------------------------------------------------------------------
 
-    def fit(self, documents: list[str]) -> list[dict]:
+    def fit(self, documents: list[str], collection_max_tokens: int) -> list[dict]:
         """Runs the quantity-first extraction pipeline on the provided documents.
 
         Table cleaning is not run here: it's a separate, explicit step
@@ -551,6 +561,8 @@ class MeasurementLMv2(MeasurementLM):
 
         Args:
             documents: OCR text strings, one per document, already cleaned.
+            collection_max_tokens: Output cap per quantity-collection call (see
+                ``_collect_quantities``).
         Returns:
             Measurement records extracted from the documents.
         """
@@ -560,7 +572,7 @@ class MeasurementLMv2(MeasurementLM):
 
         self.data = [{"document_id": i, "context": doc} for i, doc in enumerate(documents)]
 
-        quantities = self._collect_quantities()
+        quantities = self._collect_quantities(max_tokens=collection_max_tokens)
         quantities = self._standardize_quantities(quantities)
         quantities = self._deduplicate_quantities(quantities)
         self.data = self._contextualize_quantities(quantities)
