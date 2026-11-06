@@ -1,0 +1,28 @@
+id: 2026-11-06-supermat-extractionv2-gptoss120b-cap8192-full-01
+project: scholarlm
+description: 'Rung-4 full run of MeasurementLMv2 on supermat, gpt-oss-120b, with the quantity-collection
+  output cap raised from 2048 to 8192 tokens (params.collection_max_tokens); otherwise identical to 2026-11-03-supermat-extractionv2-gptoss120b-full-01
+  (same ocr_dir, seed 342, standardize_context=value_only). Why: the 2026-11-04 collection-cap experiment
+  (pond, four high-loss papers) took recovery from 100/650 to 416/650 ground-truth rows by removing truncated
+  and null collection responses; this run is the full-corpus test and the v2 side of the v1-vs-v2 comparison
+  against 2026-09-21-supermat-extraction-gptoss120b-full-01 (any-edge recovery 0.395; the 2048-cap v2
+  run was 0.460). Walltime 13:00:00: projection assumes the number of quantities sent to contextualization
+  is up to 6x the 2048-cap run''s 882 (the experiment''s worst-case papers rose 5.6x, so 6x is a deliberate
+  upper bound), at the measured per-quantity cost x1.3, giving about 4.3 h, x the graduated multiplier;
+  the final step is checkpointed only when it completes, so a kill loses it entirely. PREDICTIONS, written
+  2026-11-06 before any run: (1) fewer ''Validation error in quantity collection'' log lines than 20%
+  of the 2048-cap run''s 8; (2) context_length_exceeded_docs == []; (3) contextualization dropped under
+  30% of quantities sent (the 2048-cap run dropped 3.6%; the worst-case papers dropped 25-31%); (4) quantities
+  sent to contextualization at least the 2048-cap run''s 882; (5) any-edge recovery at least 0.43 (only
+  8 collection calls failed there, so little change is expected); (6) the job finishes inside its walltime.
+  Not controlled here: run-to-run variation (a 2048-cap rerun on four papers recovered 100 rows against
+  the full run''s 141), so small differences between v2 runs should not be over-read.'
+seed: 342
+params:
+  dataset: supermat
+  model: gpt-oss-120b
+  ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
+  standardize_context: value_only
+  collection_max_tokens: 8192
+  resume: true
+  walltime: '13:00:00'
