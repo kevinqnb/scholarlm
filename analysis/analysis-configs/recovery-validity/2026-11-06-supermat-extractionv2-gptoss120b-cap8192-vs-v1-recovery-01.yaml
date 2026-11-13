@@ -1,0 +1,52 @@
+id: 2026-11-06-supermat-extractionv2-gptoss120b-cap8192-vs-v1-recovery-01
+project: scholarlm
+description: 'supermat: recovery-only gate for gpt-oss-120b -- the v1 comparator 2026-09-21-supermat-extraction-gptoss120b-full-01
+  and the MeasurementLMv2 run, with no judge/validity. Every setting is copied from 2026-10-09-supermat-main-recovery-01,
+  so the v1 row must reproduce that CSV''s row for the same id (known-answer check; stop if not). gpt-oss
+  only because the gemma v2 runs are not all finished (nfix gemma was cancelled).'
+seed: 0
+params:
+  deduplicate_cache:
+    extraction_file: postprocessed.json
+    fuzzy_fields:
+    - name
+    join_list_fields:
+    - qualifiers
+    numeric_coerce:
+    - point_value
+    - lower
+    - upper
+    - tolerance
+    - standard_deviation
+    strict_fields:
+    - document_id
+    - attribute
+    - point_value
+    - lower
+    - upper
+    - tolerance
+    - standard_deviation
+    - units
+    - qualifiers
+    summary_thresholds:
+    - 1.0
+    - 0.9
+    - 0.8
+  deduplication:
+    provenance_fields:
+    - page_number
+    - table_number
+    - row_index
+    - column_index
+    - source
+    - context
+    solver_time_limit_s: 600
+  experiment_ids:
+  - 2026-09-21-supermat-extraction-gptoss120b-full-01
+  - 2026-11-06-supermat-extractionv2-gptoss120b-cap8192-full-01
+  ground_truth_file: data/supermat/ground_truth_qualifiers.json
+  recovery_validity:
+    alpha: 0.05
+    compute_validity: false
+    n_resamples: 2000
+    output: analysis/results/recovery-validity/2026-11-06-supermat-extractionv2-gptoss120b-cap8192-vs-v1-recovery-01.csv
