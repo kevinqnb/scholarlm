@@ -1,87 +1,142 @@
 id: 2026-10-09-ablations-recovery-validity-latex-01
 project: scholarlm
 description: >
-  LaTeX table of recovery / validity with 95% paper-clustered bootstrap intervals for ablations 2-5 and 7, one column
-  per dataset (pond, nfix), from the 2026-10-09-<dataset>-ablations-recovery-01 CSVs. Formatting only; seed unused.
+  LaTeX table of recovery / validity with 95% paper-clustered bootstrap intervals for the full pipeline and ablations 1-5, one
+  column per dataset (pond, nfix). Ablations 2-5 come from the 2026-10-09-<dataset>-ablations-recovery-01 CSVs; the pipeline and
+  ablation 1 rows from the 2026-10-09-<dataset>-main-recovery-01 CSVs (same ground truth, checked). Ablation 7 is not shown
+  (its rows remain in the ablations CSVs). Formatting only; seed unused.
 seed: 0
 params:
   recovery_validity_latex:
     datasets:
       PLW:
         dataset: pond
-        analysis_config: 2026-10-09-pond-ablations-recovery-01
+        analysis_config: [2026-10-09-pond-ablations-recovery-01, 2026-10-09-pond-main-recovery-01]
       NF:
         dataset: nfix
-        analysis_config: 2026-10-09-nfix-ablations-recovery-01
+        analysis_config: [2026-10-09-nfix-ablations-recovery-01, 2026-10-09-nfix-main-recovery-01]
     decimals: 1
     ci_format: pm
     output: analysis/results/recovery-validity/2026-10-09-ablations-recovery-validity.tex
-    caption: '(Recovery, validity) in \% with 95\% paper-clustered bootstrap intervals ($\pm$ half-width) for ablations
-      2--5 and 7. PLW, NF: pond, nfix.'
+    caption: '(Recovery, validity) in \% with 95\% paper-clustered bootstrap intervals ($\pm$ half-width) for the full pipeline
+      and ablations 1--5. PLW, NF: pond, nfix.'
     label: tab:ablations-recovery-validity
+    figure:
+      output_dir: analysis/results/recovery-validity/2026-10-09-ablations-recovery-validity-figures
+      group_font: mono
+      label_font: serif
     blocks:
     - rows:
+      - label: Pipeline, \texttt{llama-3.1-8b}
+        short_label: Pipeline
+        groups: [llama-3.1-8b]
+        ids:
+          PLW: 2026-09-26-pond-extraction-llama8b-reppen-full-01
+          NF: 2026-09-26-nfix-extraction-llama8b-reppen-full-01
+      - label: Pipeline, \texttt{gemma-3-27b}
+        short_label: Pipeline
+        groups: [gemma-3-27b]
+        ids:
+          PLW: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+          NF: 2026-09-21-nfix-extraction-gemma27b-full-01
+      - label: Pipeline, \texttt{gpt-oss-120b}
+        short_label: Pipeline
+        groups: [gpt-oss-120b]
+        ids:
+          PLW: 2026-09-21-pond-extraction-gptoss120b-full-01
+          NF: 2026-09-25-nfix-extraction-gptoss120b-full-02
+    - rows:
+      - label: Ablation 1, \texttt{llama-3.1-8b}
+        short_label: Abl 1
+        groups: [llama-3.1-8b]
+        ids:
+          PLW: 2026-09-29-pond-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
+          NF: 2026-09-29-nfix-ablation1-llama8b-reppen-cap100-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gemma-3-27b}
+        short_label: Abl 1
+        groups: [gemma-3-27b]
+        ids:
+          PLW: 2026-09-25-pond-ablation1-gemma27b-noqualifiers-full-01
+          NF: 2026-09-25-nfix-ablation1-gemma27b-noqualifiers-full-01
+      - label: Ablation 1, \texttt{gpt-oss-120b}
+        short_label: Abl 1
+        groups: [gpt-oss-120b]
+        ids:
+          PLW: 2026-09-26-pond-ablation1-gptoss120b-noqualifiers-full-01
+          NF: 2026-09-26-nfix-ablation1-gptoss120b-noqualifiers-full-01
+    - rows:
       - label: Ablation 2, \texttt{llama-3.1-8b}
+        short_label: Abl 2
+        groups: [llama-3.1-8b]
         ids:
           PLW: 2026-10-02-pond-ablation2-llama8b-reppen-full-01
           NF: 2026-10-02-nfix-ablation2-llama8b-reppen-full-01
       - label: Ablation 2, \texttt{gemma-3-27b}
+        short_label: Abl 2
+        groups: [gemma-3-27b]
         ids:
           PLW: 2026-10-02-pond-ablation2-gemma27b-full-01
           NF: 2026-10-02-nfix-ablation2-gemma27b-full-01
       - label: Ablation 2, \texttt{gpt-oss-120b}
+        short_label: Abl 2
+        groups: [gpt-oss-120b]
         ids:
           PLW: 2026-10-02-pond-ablation2-gptoss120b-full-01
           NF: 2026-10-02-nfix-ablation2-gptoss120b-full-01
     - rows:
       - label: Ablation 3, \texttt{llama-3.1-8b}
+        short_label: Abl 3
+        groups: [llama-3.1-8b]
         ids:
           PLW: 2026-10-02-pond-ablation3-llama8b-reppen-full-01
           NF: 2026-10-02-nfix-ablation3-llama8b-reppen-full-01
       - label: Ablation 3, \texttt{gemma-3-27b}
+        short_label: Abl 3
+        groups: [gemma-3-27b]
         ids:
           PLW: 2026-10-02-pond-ablation3-gemma27b-full-01
           NF: 2026-10-02-nfix-ablation3-gemma27b-full-01
       - label: Ablation 3, \texttt{gpt-oss-120b}
+        short_label: Abl 3
+        groups: [gpt-oss-120b]
         ids:
           PLW: 2026-10-02-pond-ablation3-gptoss120b-full-01
           NF: 2026-10-02-nfix-ablation3-gptoss120b-full-01
     - rows:
       - label: Ablation 4, \texttt{llama-3.1-8b}
+        short_label: Abl 4
+        groups: [llama-3.1-8b]
         ids:
           PLW: 2026-10-02-pond-ablation4-llama8b-reppen-full-01
           NF: 2026-10-02-nfix-ablation4-llama8b-reppen-full-01
       - label: Ablation 4, \texttt{gemma-3-27b}
+        short_label: Abl 4
+        groups: [gemma-3-27b]
         ids:
           PLW: 2026-10-02-pond-ablation4-gemma27b-full-01
           NF: 2026-10-02-nfix-ablation4-gemma27b-full-01
       - label: Ablation 4, \texttt{gpt-oss-120b}
+        short_label: Abl 4
+        groups: [gpt-oss-120b]
         ids:
           PLW: 2026-10-02-pond-ablation4-gptoss120b-full-01
           NF: 2026-10-02-nfix-ablation4-gptoss120b-full-01
     - rows:
       - label: Ablation 5, \texttt{llama-3.1-8b}
+        short_label: Abl 5
+        groups: [llama-3.1-8b]
         ids:
           PLW: 2026-10-02-pond-ablation5-llama8b-reppen-full-01
           NF: 2026-10-02-nfix-ablation5-llama8b-reppen-full-01
       - label: Ablation 5, \texttt{gemma-3-27b}
+        short_label: Abl 5
+        groups: [gemma-3-27b]
         ids:
           PLW: 2026-10-02-pond-ablation5-gemma27b-full-01
           NF: 2026-10-02-nfix-ablation5-gemma27b-full-01
       - label: Ablation 5, \texttt{gpt-oss-120b}
+        short_label: Abl 5
+        groups: [gpt-oss-120b]
         ids:
           PLW: 2026-10-02-pond-ablation5-gptoss120b-full-01
           NF: 2026-10-02-nfix-ablation5-gptoss120b-full-01
-    - rows:
-      - label: Ablation 7, \texttt{llama-3.1-8b}
-        ids:
-          PLW: 2026-09-26-pond-ablation7-llama8b-reppen-full-01
-          NF: 2026-09-26-nfix-ablation7-llama8b-reppen-full-01
-      - label: Ablation 7, \texttt{gemma-3-27b}
-        ids:
-          PLW: 2026-09-26-pond-ablation7-gemma27b-full-01
-          NF: 2026-09-26-nfix-ablation7-gemma27b-full-01
-      - label: Ablation 7, \texttt{gpt-oss-120b}
-        ids:
-          PLW: 2026-09-26-pond-ablation7-gptoss120b-full-01
-          NF: 2026-09-26-nfix-ablation7-gptoss120b-full-01

@@ -45,6 +45,7 @@ from analysis.common.config import (  # noqa: E402
 
 SECTION = "recovery_validity_latex"
 SECTION_KEYS = ("datasets", "decimals", "ci_format", "output", "caption", "label", "blocks")
+OPTIONAL_KEYS = ("figure",)
 CI_FORMATS = ("pm", "interval")
 MISSING_CELL = "--"
 
@@ -78,7 +79,15 @@ def load_spec(path: Path) -> dict:
     cfg = _load_envelope(path, "recovery-validity")
     if set(cfg["params"]) != {SECTION}:
         raise ValueError(f"{path}: params keys {sorted(cfg['params'])} must be exactly [{SECTION!r}]")
-    spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS)
+    spec = get_section(cfg, SECTION, required_keys=SECTION_KEYS, optional_keys=OPTIONAL_KEYS)
+    has_figure = "figure" in spec
+    if has_figure and (not isinstance(spec["figure"], dict) or set(spec["figure"]) != {"output_dir", "group_font", "label_font"}
+                       or not isinstance(spec["figure"]["output_dir"], str) or not spec["figure"]["output_dir"]
+                       or spec["figure"]["group_font"] not in ("mono", "italic")
+                       or spec["figure"]["label_font"] not in ("mono", "serif")):
+        raise ValueError(
+            f"{path}: figure must be a mapping with exactly output_dir (non-empty string) and "
+            f"group_font ('mono' for model names, 'italic' otherwise) and label_font ('mono' for model/method names, 'serif')")
 
     if spec["ci_format"] not in CI_FORMATS:
         raise ValueError(f"{path}: ci_format must be one of {CI_FORMATS}, got {spec['ci_format']!r}")
@@ -95,6 +104,12 @@ def load_spec(path: Path) -> dict:
     for col, block in datasets.items():
         if not isinstance(block, dict) or set(block) != {"dataset", "analysis_config"}:
             raise ValueError(f"{path}: datasets.{col} keys must be exactly ['analysis_config', 'dataset']")
+        ac = block["analysis_config"]
+        ac_list = [ac] if isinstance(ac, str) else ac
+        if not isinstance(ac_list, list) or not ac_list or not all(isinstance(a, str) and a for a in ac_list) \
+                or len(set(ac_list)) != len(ac_list):
+            raise ValueError(
+                f"{path}: datasets.{col}.analysis_config must be a config id or a non-empty list of distinct ids, got {ac!r}")
 
     blocks = spec["blocks"]
     if not isinstance(blocks, list) or not blocks:
@@ -106,8 +121,16 @@ def load_spec(path: Path) -> dict:
         if not isinstance(block["rows"], list) or not block["rows"]:
             raise ValueError(f"{path}: a block has no rows")
         for row in block["rows"]:
-            if not isinstance(row, dict) or set(row) != {"label", "ids"}:
-                raise ValueError(f"{path}: each row needs exactly keys ['ids', 'label'], got {row!r}")
+            expected_keys = {"label", "ids", "short_label", "groups"} if has_figure else {"label", "ids"}
+            if not isinstance(row, dict) or set(row) != expected_keys:
+                raise ValueError(f"{path}: each row needs exactly keys {sorted(expected_keys)}, got {row!r}")
+            if has_figure and not (
+                isinstance(row["short_label"], str) and row["short_label"]
+                and isinstance(row["groups"], list) and row["groups"] and len(set(row["groups"])) == len(row["groups"])
+                and all(isinstance(g, str) and g for g in row["groups"])
+            ):
+                raise ValueError(
+                    f"{path}: row {row['label']!r} needs a non-empty short_label and a non-empty list of distinct groups")
             if set(row["ids"]) != set(datasets):
                 raise ValueError(
                     f"{path}: row {row['label']!r} ids keys {sorted(row['ids'])} must be exactly "
@@ -118,6 +141,14 @@ def load_spec(path: Path) -> dict:
                     if not isinstance(exp_id, str) or not exp_id:
                         raise ValueError(f"{path}: row {row['label']!r} ids.{col} must be a string or null")
                     used[col].append(exp_id)
+    if has_figure:
+        groups_of: dict[str, list[str]] = {}
+        for b in blocks:
+            for r in b["rows"]:
+                for g in r["groups"]:
+                    groups_of.setdefault(g, []).append(r["short_label"])
+        if any(len(v) != len(set(v)) for v in groups_of.values()):
+            raise ValueError(f"{path}: short_label repeated within a group: {groups_of}")
     for col, ids in used.items():
         dupes = sorted({i for i in ids if ids.count(i) > 1})
         if dupes:
@@ -125,7 +156,7 @@ def load_spec(path: Path) -> dict:
     return spec
 
 
-def load_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFrame:
+def _load_one_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFrame:
     """Load the results CSV a recovery-validity config wrote, after checking it is current.
 
     Args:
@@ -175,6 +206,34 @@ def load_results(col: str, dataset: str, analysis_config_id: str) -> pd.DataFram
             f"({absent}). Rerun `python analysis/recovery_validity.py --config {config_path}`."
         )
     return df.set_index("experiment_id")
+
+
+def load_results(col: str, dataset: str, analysis_config) -> pd.DataFrame:
+    """Load and merge the results of one or several recovery-validity configs for a column.
+
+    Args:
+        col: Table column key (for error messages).
+        dataset: Expected dataset.
+        analysis_config: One config id or a list of ids; each is validated by
+            ``_load_one_results``.
+
+    Returns:
+        Results indexed by experiment_id.
+
+    Raises:
+        ValueError: An experiment id appears in more than one config, or the configs
+            scored against different ground-truth files (numbers not comparable),
+            plus anything ``_load_one_results`` raises.
+    """
+    ids = [analysis_config] if isinstance(analysis_config, str) else list(analysis_config)
+    frames = [_load_one_results(col, dataset, a) for a in ids]
+    merged = pd.concat(frames)
+    if merged.index.duplicated().any():
+        raise ValueError(f"{col}: experiment id(s) in more than one of {ids}: {sorted(set(merged.index[merged.index.duplicated()]))}")
+    gts = set(merged["ground_truth_file"])
+    if len(gts) != 1:
+        raise ValueError(f"{col}: configs {ids} scored against different ground-truth files: {sorted(gts)}")
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +356,56 @@ def build_table(spec: dict, results: dict[str, pd.DataFrame]) -> str:
     return "\n".join(lines)
 
 
+def build_figures(spec: dict, results: dict[str, pd.DataFrame]) -> list[Path]:
+    """Write one recovery/validity interval figure per dataset column.
+
+    Rows whose id is null for a column are omitted from that column's figure (as the
+    table shows ``--``). A row listing several groups appears in each of them. Colours are keyed on ``short_label`` in config order, so a
+    method keeps its colour across groups and datasets.
+
+    Args:
+        spec: Output of ``load_spec`` (must carry ``figure``).
+        results: Column key -> results frame from ``load_results``.
+
+    Returns:
+        Written figure paths.
+
+    Raises:
+        KeyError: A spec id is missing from its column's CSV.
+    """
+    from analysis.common.recovery_validity_plot import plot_recovery_validity
+
+    out_dir = Path(spec["figure"]["output_dir"])
+    out_dir = out_dir if out_dir.is_absolute() else _REPO_ROOT / out_dir
+    rows = [r for b in spec["blocks"] for r in b["rows"]]
+    # A method missing from some column (null id) takes the last colours, so every figure uses an
+    # unbroken prefix of tab10 (no skipped hue) while each method keeps its colour across datasets.
+    missing_somewhere = {r["short_label"] for r in rows if any(i is None for i in r["ids"].values())}
+    ordered = list(dict.fromkeys(r["short_label"] for r in rows))
+    color_keys = [k for k in ordered if k not in missing_somewhere] + [k for k in ordered if k in missing_somewhere]
+    written = []
+    for col in spec["datasets"]:
+        entries = []
+        for row in rows:
+            exp_id = row["ids"][col]
+            if exp_id is None:
+                continue
+            if exp_id not in results[col].index:
+                raise KeyError(f"row {row['label']!r}, column {col}: {exp_id!r} not in that column's results CSV")
+            res = results[col].loc[exp_id]
+            for group in row["groups"]:
+                entries.append({
+                    "label": row["short_label"], "group": group, "color_key": row["short_label"],
+                    "recovery": (res["recovery"], res["recovery_ci_lo"], res["recovery_ci_hi"]),
+                    "validity": (res["validity"], res["validity_ci_lo"], res["validity_ci_hi"]),
+                })
+        path = out_dir / f"{col}.pdf"
+        plot_recovery_validity(entries, color_keys, path, group_font=spec["figure"]["group_font"],
+                               label_font=spec["figure"]["label_font"])
+        written.append(path)
+    return written
+
+
 def main(argv: list[str] | None = None) -> None:
     """CLI: build the table from ``--config``, write it, and print it.
 
@@ -319,6 +428,9 @@ def main(argv: list[str] | None = None) -> None:
     output.write_text(text)
     print(text)
     print(f"Wrote {output}")
+    if "figure" in spec:
+        for path in build_figures(spec, results):
+            print(f"Wrote {path}")
 
 
 if __name__ == "__main__":
