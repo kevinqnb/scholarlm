@@ -141,3 +141,19 @@ def test_run_combine_raises_with_no_voting_judge(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="Cannot compute ground truth"):
         rjc.run_combine(list(fake_dirs.keys()), tmp_path / "out")
+
+
+def test_judgement_failed_is_namespaced_per_judge(tmp_path):
+    """Two judges fail on different rows; each keeps its own flag after combining."""
+    judge_files = {}
+    for judge_key, failed_row in (("a-ntp", 0), ("b-ntp", 1)):
+        rows = [{"measurement_id": i, "judgement_p_true": None if i == failed_row else 0.5,
+                 "judgement_failed": i == failed_row} for i in (0, 1)]
+        judge_files[judge_key] = tmp_path / f"{judge_key}.json"
+        _write_responses(judge_files[judge_key], rows)
+
+    by_id = {r["measurement_id"]: r for r in rjc.combine_judge_results(judge_files, set(), 1)}
+    for i in (0, 1):
+        assert by_id[i]["judgement_failed_a-ntp"] is (i == 0)
+        assert by_id[i]["judgement_failed_b-ntp"] is (i == 1)
+        assert "judgement_failed" not in by_id[i]

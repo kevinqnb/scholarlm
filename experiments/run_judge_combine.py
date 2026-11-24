@@ -104,6 +104,7 @@ def combine_judge_results(
         "judgement_logit_p_true",
         "judgement_logit_p_false",
         "judgement_raw_text",
+        "judgement_failed",
     }
 
     combined: dict[int, dict] = {}
