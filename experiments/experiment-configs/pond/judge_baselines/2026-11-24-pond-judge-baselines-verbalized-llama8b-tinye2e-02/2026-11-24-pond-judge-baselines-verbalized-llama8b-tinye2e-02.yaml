@@ -1,0 +1,75 @@
+id: 2026-11-24-pond-judge-baselines-verbalized-llama8b-tinye2e-02
+project: scholarlm
+description: 'Verbalized baseline plumbing; same params as 2026-11-24-pond-judge-baselines-verbalized-llama8b-tinye2e-01,
+  with answers scored by the integer on their first line. Predicted: no failed rows and no
+  rejected answers; every row that 2026-11-24-pond-judge-baselines-verbalized-llama8b-tinye2e-01
+  scored without a retry keeps its score; its 9 other rows score the integer their first answer
+  began with (row 1537: 85; rows 159, 2087, 2285, 3838, 5817, 7493, 7516, 7644: 80).'
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.1-8b
+  extraction_id: 2026-09-22-pond-extraction-gemma27b-parseqty-standardization-valueonly-01
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  baseline: verbalized
+  max_tokens: 16
+  max_retries: 2
+  sampling_params:
+    temperature: 0.0
+    top_p: 1.0
+    top_k: 0
+    min_p: 0.0
+    repetition_penalty: 1.0
+  retry_temperature: 1.0
+  row_indices:
+  - 11
+  - 159
+  - 214
+  - 349
+  - 650
+  - 817
+  - 963
+  - 1537
+  - 2087
+  - 2089
+  - 2285
+  - 2466
+  - 2573
+  - 2718
+  - 2779
+  - 2888
+  - 2918
+  - 3275
+  - 3838
+  - 4026
+  - 4850
+  - 5224
+  - 5272
+  - 5543
+  - 5637
+  - 5644
+  - 5677
+  - 5817
+  - 5928
+  - 5932
+  - 6154
+  - 6543
+  - 6689
+  - 7239
+  - 7374
+  - 7493
+  - 7516
+  - 7644
+  - 8472
+  - 8909
+  - 9469
+  - 9598
+  - 9702
+  - 9946
+  - 10348
+  - 10673
+  - 10683
+  - 10844
+  - 10849
+  - 10860
+  walltime: 01:00:00

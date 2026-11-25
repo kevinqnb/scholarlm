@@ -1,7 +1,7 @@
 id: 2026-11-24-supermat-extraction-gemma27b-llama8b-judge-baselines-sampling-01
 project: scholarlm
 description: sampling confidence baseline (llama-3.1-8b) over supermat extraction 2026-09-21-supermat-extraction-gemma27b-full-01,
-  full-paper context. Walltime is an unmeasured estimate.
+  full-paper context. Walltime is sized from the 50-row pond tiny run, scaled by row count.
 seed: 342
 params:
   dataset: supermat
@@ -18,4 +18,4 @@ params:
     top_k: 0
     min_p: 0.0
     repetition_penalty: 1.0
-  walltime: '48:00:00'
+  walltime: '12:00:00'
