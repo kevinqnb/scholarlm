@@ -1,0 +1,25 @@
+id: 2026-11-25-calibration-baseline-gemma27b-01
+project: scholarlm
+description: >
+  Calibration, Brier skill score and AUROC (analysis/calibration_baseline.py) of three judge confidence baselines on
+  the gemma27b full-pipeline extractions of pond, nfix and supermat: verbalized and sampling (llama-3.1-8b) and ntp
+  (llama-3.3-70b). Real test rows and labels (judge_combine OR ground-truth match) come from
+  calibration_config_id, as do the document resamples. Scores are not recalibrated. llama-3.3-70b is one of the three judges voting
+  on the labels, so the ntp baseline is not independent of them. Intervals: 2000 test-document bootstrap resamples.
+seed: 0
+params:
+  calibration_config_id: 2026-10-12-calibration-gemma27b-llama-3.1-8b-c1e-4-intercept-fit-01
+  n_boot: 2000
+  datasets:
+    pond:
+      verbalized: 2026-11-24-pond-extraction-gemma27b-parseqty-standardization-valueonly-llama8b-judge-baselines-verbalized-01
+      sampling: 2026-11-24-pond-extraction-gemma27b-parseqty-standardization-valueonly-llama8b-judge-baselines-sampling-01
+      ntp: 2026-11-24-pond-extraction-gemma27b-parseqty-standardization-valueonly-llama70b-judge-baselines-ntp-01
+    nfix:
+      verbalized: 2026-11-24-nfix-extraction-gemma27b-llama8b-judge-baselines-verbalized-01
+      sampling: 2026-11-24-nfix-extraction-gemma27b-llama8b-judge-baselines-sampling-01
+      ntp: 2026-11-24-nfix-extraction-gemma27b-llama70b-judge-baselines-ntp-01
+    supermat:
+      verbalized: 2026-11-24-supermat-extraction-gemma27b-llama8b-judge-baselines-verbalized-01
+      sampling: 2026-11-24-supermat-extraction-gemma27b-llama8b-judge-baselines-sampling-01
+      ntp: 2026-11-24-supermat-extraction-gemma27b-llama70b-judge-baselines-ntp-01

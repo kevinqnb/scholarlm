@@ -1,6 +1,6 @@
 """Resolve and cross-check the run ids a calibration config names.
 
-Used by calibration.py, calibration_validated.py, platt_scaling.py,
+Used by calibration.py, calibration_baseline.py, calibration_validated.py, platt_scaling.py,
 decision_threshold.py and meta_inputs.py. Side-effect free so it can be unit tested.
 """
 from __future__ import annotations
@@ -21,7 +21,8 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from analysis.common.config import (  # noqa: E402
-    _resolve_ground_truth_path, analysis_config_path, analysis_results_dir, load_synthetic_probe_config,
+    _resolve_ground_truth_path, analysis_config_path, analysis_results_dir, load_calibration_v4_config,
+    load_synthetic_probe_config,
 )
 
 
@@ -224,3 +225,80 @@ def resolve_calibration_inputs(cfg: dict) -> dict:
     return {"judge_model": next(iter(judge_models.values())), "datasets": out}
 
 
+def resolve_calibration_baseline_inputs(cfg: dict) -> dict:
+    """Resolve the runs a calibration-baseline config names and check they belong together.
+
+    Checks:
+      - the calibration config is valid, has the same seed (so document resamples are
+        shared with it), covers the same datasets and has a predictions.pkl;
+      - each baseline run is a judge_baselines run of its dataset and method, over the
+        calibration config's extraction;
+      - a method's judge is the same for every dataset;
+      - each run's metadata agrees with its config and covers every row with none failed.
+
+    Args:
+        cfg: Loaded calibration-baseline analysis config.
+
+    Returns:
+        Dict with:
+            - ``calibration``: ``id``, ``cfg``, ``predictions_path`` and ``inputs`` (from
+              ``resolve_calibration_inputs``)
+            - ``judges``: method -> judge model-config name
+            - ``runs``: dataset -> method -> run directory
+
+    Raises:
+        FileNotFoundError: A config, predictions.pkl or run output is missing.
+        ValueError: Any of the checks above fails.
+    """
+    params = cfg["params"]
+    cal_id = params["calibration_config_id"]
+    cal_path = analysis_config_path("calibration", cal_id)
+    if not cal_path.exists():
+        raise FileNotFoundError(f"calibration config {cal_path} does not exist")
+    cal_cfg = load_calibration_v4_config(cal_path)
+    if cal_cfg["seed"] != cfg["seed"]:
+        raise ValueError(f"seed {cfg['seed']} != seed {cal_cfg['seed']} of {cal_id}: resamples would not be paired")
+    cal_datasets = cal_cfg["params"]["datasets"]
+    if set(cal_datasets) != set(params["datasets"]):
+        raise ValueError(f"{cal_id} covers {sorted(cal_datasets)}, config lists {sorted(params['datasets'])}")
+    predictions_path = analysis_results_dir("calibration") / cal_id / "predictions.pkl"
+    if not predictions_path.exists():
+        raise FileNotFoundError(f"{predictions_path} missing -- run analysis/calibration.py first")
+
+    judges: dict[str, dict[str, str]] = {}
+    runs: dict[str, dict[str, Path]] = {}
+    for ds, block in params["datasets"].items():
+        extraction_id = cal_datasets[ds]["extraction_id"]
+        runs[ds] = {}
+        for method, run_id in block.items():
+            run_dir, run_cfg = _run_config(run_id, ds, "judge_baselines")
+            run_params = run_cfg["params"]
+            expected = {"dataset": ds, "baseline": method, "extraction_id": extraction_id}
+            for key, want in expected.items():
+                if run_params.get(key) != want:
+                    raise ValueError(f"{run_id}: params.{key}={run_params.get(key)!r} != {want!r}")
+            for name in ("responses.json", "run_metadata.json"):
+                if not (run_dir / name).exists():
+                    raise FileNotFoundError(f"{run_dir / name} missing")
+            meta = json.loads((run_dir / "run_metadata.json").read_text())
+            expected_meta = expected | {
+                "judge_key": run_params["judge"], "ocr_dir": run_params["ocr_dir"], "seed": run_cfg["seed"],
+                "row_indices": None, "n_failed_rows": 0,
+            }
+            for key, want in expected_meta.items():
+                if meta[key] != want:
+                    raise ValueError(f"{run_id}: run_metadata {key}={meta[key]!r} != {want!r}")
+            judges.setdefault(method, {})[ds] = run_params["judge"]
+            runs[ds][method] = run_dir
+    mixed = {m: by_ds for m, by_ds in judges.items() if len(set(by_ds.values())) != 1}
+    if mixed:
+        raise ValueError(f"judge differs across datasets: {mixed}")
+
+    return {
+        "calibration": {
+            "id": cal_id, "cfg": cal_cfg, "predictions_path": predictions_path,
+            "inputs": resolve_calibration_inputs(cal_cfg),
+        },
+        "judges": {m: next(iter(by_ds.values())) for m, by_ds in judges.items()},
+        "runs": runs,
+    }

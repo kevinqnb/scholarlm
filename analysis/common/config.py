@@ -25,6 +25,7 @@ ANALYSIS_RESULTS_ROOT = _REPO_ROOT / "analysis" / "results"
 # the setup steps (postprocessing, match_cache, deduplicate_cache, deduplication).
 ANALYSIS_TYPES = (
     "recovery-validity", "measeval", "synthetic-probe", "calibration", "calibration-validated",
+    "calibration-baseline",
     "platt-scaling", "decision-threshold", "meta", "clustering",
 )
 # Types with a results dir only (keyed by experiment id, or config id + experiment id).
@@ -674,4 +675,64 @@ def load_calibration_validated_config(path: Path) -> dict:
                 f"{path}: {validations_path(ds)} sha256 {actual} != pinned {pin} -- the validations were "
                 f"rebuilt; re-pin validation_sha256 deliberately (this changes every number)"
             )
+    return cfg
+
+
+# calibration_baseline.py: judge confidence baselines scored on the real test rows and labels
+# of a finished calibration run. Each dataset names one judge_baselines run per method.
+# Consistency of the ids is checked by calibration_ids.resolve_calibration_baseline_inputs.
+CALIBRATION_BASELINE_METHODS = ("verbalized", "sampling", "ntp")
+CALIBRATION_BASELINE_TOP_KEYS = ("calibration_config_id", "n_boot", "datasets")
+
+
+def load_calibration_baseline_config(path: Path) -> dict:
+    """Load a calibration-baseline config for calibration_baseline.py.
+
+    params must be exactly ``calibration_config_id``, ``n_boot`` (positive int) and
+    ``datasets``: ``{dataset: {method: judge_baselines run id}}`` for every dataset in
+    CALIBRATION_DATASETS and method in CALIBRATION_BASELINE_METHODS.
+
+    Args:
+        path: Config path.
+
+    Returns:
+        The config dict.
+
+    Raises:
+        ValueError: Bad envelope, keys or values, or a run id listed twice.
+    """
+    cfg = _load_envelope(path, "calibration-baseline")
+    params = cfg["params"]
+    if set(params) != set(CALIBRATION_BASELINE_TOP_KEYS):
+        raise ValueError(
+            f"{path}: params keys {sorted(params)} must be exactly {sorted(CALIBRATION_BASELINE_TOP_KEYS)}"
+        )
+    if not is_int(cfg["seed"]):
+        raise ValueError(f"{path}: seed must be an int, got {cfg['seed']!r}")
+    if not is_int(params["n_boot"]) or params["n_boot"] <= 0:
+        raise ValueError(f"{path}: params.n_boot must be a positive int, got {params['n_boot']!r}")
+    cal_id = params["calibration_config_id"]
+    if not isinstance(cal_id, str) or not cal_id:
+        raise ValueError(f"{path}: params.calibration_config_id must be a non-empty string, got {cal_id!r}")
+    datasets = params["datasets"]
+    if not isinstance(datasets, dict) or set(datasets) != set(CALIBRATION_DATASETS):
+        raise ValueError(
+            f"{path}: params.datasets must have exactly the keys {list(CALIBRATION_DATASETS)}, "
+            f"got {sorted(datasets) if isinstance(datasets, dict) else datasets!r}"
+        )
+    run_ids = []
+    for ds, block in datasets.items():
+        if not isinstance(block, dict) or set(block) != set(CALIBRATION_BASELINE_METHODS):
+            raise ValueError(
+                f"{path}: params.datasets.{ds} must have exactly the keys {list(CALIBRATION_BASELINE_METHODS)}, "
+                f"got {sorted(block) if isinstance(block, dict) else block!r}"
+            )
+        for method, run_id in block.items():
+            if not isinstance(run_id, str) or not run_id:
+                raise ValueError(
+                    f"{path}: params.datasets.{ds}.{method} must be a non-empty string, got {run_id!r}")
+            run_ids.append(run_id)
+    dupes = sorted({r for r in run_ids if run_ids.count(r) > 1})
+    if dupes:
+        raise ValueError(f"{path}: judge_baselines run id(s) listed more than once: {dupes}")
     return cfg

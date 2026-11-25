@@ -28,6 +28,7 @@ Config type = directory under `analysis-configs/` and `results/`. Flag = how the
 | `synthetic_probe_train.py` | synthetic-probe | positional | Train the validity probe on a synthetic judge run |
 | `calibration.py` | calibration | positional | Probe / NTP calibration on synthetic + real test sets (LLM+matching labels) |
 | `calibration_validated.py` | calibration-validated | positional | Same cells, real rows scored on human-validated labels |
+| `calibration_baseline.py` | calibration-baseline | positional | Calibration / BSS / AUROC of judge confidence baselines (verbalized, sampling, ntp) on a calibration run's real test rows |
 | `calibration_latex.py` | calibration, calibration-validated | `--config` | LaTeX tables from either calibration CSV (`labels: llm_matching \| human_validated`) |
 | `platt_scaling.py` | platt-scaling | positional | smECE vs recalibration sample size n |
 | `decision_threshold.py` | decision-threshold | positional | Recovery / validity vs confidence threshold |
@@ -43,7 +44,7 @@ Config type = directory under `analysis-configs/` and `results/`. Flag = how the
   `recovery_validity_latex`. The config's `deduplicate_cache` / `deduplication` sections build the
   dedup artefacts that meta and clustering configs name via `deduplication_config_id`.
 - **Calibration:** `synthetic_probe_train` → `calibration` (and/or `calibration_validated`) →
-  `calibration_latex`. `platt_scaling`, `decision_threshold`, `pond_meta_analysis` and
+  `calibration_latex`. `calibration_baseline`, `platt_scaling`, `decision_threshold`, `pond_meta_analysis` and
   `pond_clustering` read a finished calibration run (its stored predictions) named in their config.
 - **MeasEval:** `measeval_evaluation` → `measeval_latex`.
 
@@ -70,7 +71,7 @@ analysis/
 | `loaders.py` | ground-truth file, trained probe / NTP artifacts, legacy `load_extraction` |
 | `calibration_ids.py` | cross-checks every run a calibration config names |
 | `recalibration.py` | `prior_shift` / `intercept_fit` / `platt_fit` maps |
-| `doc_bootstrap.py` | document-level bootstrap (calibration, calibration_validated, platt_scaling) |
+| `doc_bootstrap.py` | document-level bootstrap (calibration, calibration_baseline, calibration_validated, platt_scaling) |
 | `nested_bootstrap.py` | legacy fit-sample × document bootstrap; only tests import it now |
 | `prediction_store.py` | row identity/provenance of stored real-cell predictions (`predictions.pkl`) |
 | `head_activations.py` | cached head-activation loading for probe scoring |
