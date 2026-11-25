@@ -1176,6 +1176,8 @@ EXPERIMENT_TYPES: dict[str, dict[str, Any]] = {
                               "model_param": "judge"},
     "judge_local":           {"runner": "run_judge_local.py",          "model_kind": "vllm_judge",
                               "model_param": "judge"},
+    "judge_baselines":       {"runner": "run_judge_baselines.py",      "model_kind": "vllm_judge",
+                              "model_param": "judge"},
     "jacobian_lens":         {"runner": "run_jacobian_lens.py",        "model_kind": "jacobian_lens"},
     "representation_lm":     {"runner": "run_representation_lm.py",    "model_kind": "representation_lm"},
     "ocr":                   {"runner": "run_ocr.py",                  "model_kind": "ocr",

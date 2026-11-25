@@ -118,6 +118,7 @@ python experiments/run_ablation.py <config>            # ablation 1-6
 python experiments/run_table_cleaning.py <config>
 python experiments/run_judge_local.py <config>          # vLLM judge, local
 python experiments/run_judge_interp.py <config>         # NNsight judge, collects activations
+python experiments/run_judge_baselines.py <config>      # vLLM confidence baselines (verbalized / sampling / ntp)
 python experiments/run_judge_combine.py <config>        # explicit extraction_id/judge_ids, not directory-scanning
 python experiments/run_jacobian_lens.py <config>         # NNsight, Jacobian-lens j-scores (JacobianLensLM)
 python experiments/run_representation_lm.py <config>

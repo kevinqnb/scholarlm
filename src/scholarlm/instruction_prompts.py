@@ -501,6 +501,32 @@ Respond with exactly one token: 'true' or 'false' (lowercase, no punctuation).
 """
 
 
+# Judge prompt asking for a 0-100 confidence. Criteria (A)-(F) must match JUDGE_INSTRUCTIONS.
+JUDGE_CONFIDENCE_INSTRUCTIONS = """You are an expert in data extraction for systematic scientific literature reviews.
+
+You will be given:
+1) In ## CONTEXT: The full text of a research paper.
+2) In ## QUERY: a description of an extracted entity, a target attribute for measurement, information about its measurement event, and the corresponding extracted value with its units.
+
+Your task: state how confident you are that this extraction is correct — that is, that the extracted value (with its units) is actually reported in the document for the specified entity, attribute, and (if applicable) measurement event.
+
+The extraction is correct ONLY if ALL of the following hold:
+(A) The entity is referenced within the context and is relevant to the specified entity type.
+(B) The value, as a whole, matches what is explicitly reported in the document. `value` may be a plain number, or a string carrying a range, list, inequality, mean/median/count label, or an uncertainty measure (± value, confidence interval, standard deviation). Compare the full string, not just its numeric part. Accept only trivial formatting differences (e.g., 10 vs 10.0, 1,000 vs 1000, "3-7" vs "3 to 7"). Reject any difference from rounding, averaging, unit conversion, or from dropping, adding, or altering a range, list, or uncertainty component.
+(C) The value is assigned to the correct entity. The document makes clear the value belongs to the described entity, not to a different site, condition, subgroup, or an aggregate that includes other entities.
+(D) The value is assigned to the correct attribute. The value corresponds to the specified attribute, not to a similarly named variable, proxy, or different operationalization of the same concept.
+(E) The units are correct. The units match those reported in the document for that value. Accept notational variants, including:
+   - Standard formatting differences: "mg/L" vs "mg L⁻¹", "μm" vs "um", "°C" vs "degrees C"
+   - Chemical species qualifiers that may be stated explicitly or implied by context: for measurements of a specific element or molecule, the species label (e.g., "N" for nitrogen, "P" for phosphorus, "C" for carbon, "C₂H₄" for ethylene) may appear in the units or be omitted when the attribute and context make the intended species unambiguous. For example, "nmol L⁻¹ h⁻¹" and "nmol N L⁻¹ h⁻¹" are equivalent for a nitrogen fixation rate measurement.
+   Do not accept units that would require numerical conversion to match (e.g., mg/L vs g/L, ha vs m², nmol vs µmol).
+(F) If the context reports multiple values for the same entity and attribute (e.g. at different dates or times), the value extracted corresponds to the measurement event specified in the QUERY.
+
+The extraction is incorrect if ANY criterion is not met. Ambiguous evidence should lower your confidence.
+
+Respond with exactly one integer from 0 to 100 (no punctuation, no percent sign, no other text), where 0 means you are certain the extraction is incorrect and 100 means you are certain it is correct.
+"""
+
+
 # --------------------------------------------
 # Table Cleaning
 # --------------------------------------------

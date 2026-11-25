@@ -1,0 +1,19 @@
+model_id: meta-llama/Llama-3.1-8B-Instruct
+# Same values as the other vllm_judge model-configs; not measured for this model.
+max_concurrent: 32
+request_timeout: 600
+max_retries: 0
+drop_ceiling: 0
+# serve and resources: same as extraction/llama-3.1-8b.yaml. Served full-paper prompts
+# of up to 58810 tokens on an L40S in 2026-09-26-pond-extraction-llama8b-reppen-full-01.
+serve:
+  port: 8081
+  max_model_len: 90000
+  gpu_memory_utilization: 0.9
+  dtype: bfloat16
+  sif_image: vllm-openai_v0.24.0.sif
+resources:
+  gpu_memory: 32G
+  gpu_capability: 7.0
+  gpu_type: L40S
+  omp: 8

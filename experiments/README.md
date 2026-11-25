@@ -28,6 +28,7 @@ Each takes one positional argument, the experiment config path, and no override 
 | `ocr` | `run_ocr.py` | OCR PDFs (needs `tesseract` on `PATH`; see `CLAUDE.local.md`) |
 | `process_pdfs` | `process_pdfs.py` | Render PDF pages to `.b64` images (separate env) |
 | `judge_local` | `run_judge_local.py` | LLM judge via vLLM |
+| `judge_baselines` | `run_judge_baselines.py` | Baseline confidence scores via vLLM: `verbalized`, `sampling`, `ntp` |
 | `judge_interp` | `run_judge_interp.py` | NNsight judge; collects activations for the probe |
 | `judge_combine` | `run_judge_combine.py` | Majority vote over listed `params.judge_ids` → `combined.json` |
 | `attribution` | `run_attribution.py` | Attribution (NNsight) |
