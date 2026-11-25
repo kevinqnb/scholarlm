@@ -28,3 +28,23 @@ kind: build
 - `6f7a39a` run_judge_combine: namespace judgement_failed per judge
 - `d85605e` Add run_judge_baselines: verbalized, sampling and next-token confidence baselines
 - `58434c6` Add judge_baselines configs: 9 full runs and 6 pond tiny end-to-end runs
+
+## Session 2026-11-24 (tiny and full runs)
+
+### Prompts
+
+> Commit and /devlog. Once done submit the tiny configs.
+
+> Make the verbalized parser fix and rerun its tiny test; lower the full-run walltimes.
+
+> Submit the six llama-8b full runs. Then commit the 70B walltimes and submit the three 70B full runs.
+
+### Implemented
+
+The first verbalized tiny run had failed rows because answers such as an integer followed by an explanation were rejected; `parse_confidence` now reads an integer from the answer's first line, and the rerun config `2026-11-24-pond-judge-baselines-verbalized-llama8b-tinye2e-02` matched its row-level predictions. The remaining pond tiny runs matched their predictions: ntp against existing interp scores, sampling against ntp, seed determinism, 70B ntp against an existing true/false judge, and a wrong-paper control. The six llama-8b full runs completed and passed row-count, id and failed-row checks. Full-run walltimes were lowered to 12 h in all nine configs, and the three llama-3.3-70b ntp full runs were submitted.
+
+### Commits
+
+- `b3dfc83` run_judge_baselines: read a verbalized confidence from the answer's first line
+- `6bf9d32` judge_baselines configs: rerun the verbalized tiny run; 12 h walltime for llama-8b full runs
+- `0b4e6e1` judge_baselines configs: 12 h walltime for llama-3.3-70b ntp full runs
