@@ -133,10 +133,10 @@ def parse_confidence(text: str) -> float | None:
         text: The judge's answer, stripped of surrounding whitespace.
 
     Returns:
-        The stated value / 100, in [0, 1]. None unless the whole answer is one integer
-        from 0 to 100 (a trailing "%" or "." is allowed).
+        The stated value / 100, in [0, 1]. None unless the answer's first line is one
+        integer from 0 to 100 (a trailing "%" or "." is allowed).
     """
-    m = re.fullmatch(r"(\d{1,3})\s*%?\.?", text)
+    m = re.match(r"(\d{1,3})[ \t]*%?\.?[ \t]*(?:\n|$)", text)
     if m is None:
         return None
     value = int(m.group(1))

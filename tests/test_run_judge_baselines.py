@@ -88,6 +88,9 @@ def chat_server(texts):
 
 @pytest.mark.parametrize("text,expected", [
     ("0", 0.0), ("100", 1.0), ("85", 0.85), ("85%", 0.85), ("85.", 0.85), ("1", 0.01),
+    ("80\n\nThe extracted value of 1.2 m", 0.8), ("34 \n\nThe value", 0.34), ("85%\nBecause", 0.85),
+    ("80.5\nBecause", None), ("80 because", None), ("80\tbecause", None), ("150\n\nThe", None),
+    ("1000\n", None), ("Confidence\n80", None),
     ("0.85", None), ("0.5", None), ("72.5", None), ("1.0", None),
     ("101", None), ("-5", None), ("", None), ("85 or 90", None), ("Confidence: 85", None),
     ("true", None), ("0.85.1", None),
