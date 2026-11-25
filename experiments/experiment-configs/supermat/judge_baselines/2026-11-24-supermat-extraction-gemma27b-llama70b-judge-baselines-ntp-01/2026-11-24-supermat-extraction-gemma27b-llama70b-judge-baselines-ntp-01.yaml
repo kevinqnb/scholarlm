@@ -2,7 +2,8 @@ id: 2026-11-24-supermat-extraction-gemma27b-llama70b-judge-baselines-ntp-01
 project: scholarlm
 description: ntp confidence baseline (llama-3.3-70b) over supermat extraction 2026-09-21-supermat-extraction-gemma27b-full-01,
   full-paper context. The single request per row uses temperature 0; the score does not depend
-  on it. Walltime is an unmeasured estimate.
+  on it. Walltime is sized from the true/false llama-3.3-70b judge runs over the same rows
+  (26 minutes on pond), allowing for label lookups.
 seed: 342
 params:
   dataset: supermat
@@ -11,4 +12,4 @@ params:
   ocr_dir: experiments/results/supermat/drop_references/2026-09-18-supermat-table-cleaning-drop-references-01
   baseline: ntp
   top_logprobs: 20
-  walltime: '48:00:00'
+  walltime: '12:00:00'
