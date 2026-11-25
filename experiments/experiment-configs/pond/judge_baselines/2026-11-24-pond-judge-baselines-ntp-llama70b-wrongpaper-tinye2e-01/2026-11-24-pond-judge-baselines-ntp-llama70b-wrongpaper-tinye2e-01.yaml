@@ -1,0 +1,15 @@
+id: 2026-11-24-pond-judge-baselines-ntp-llama70b-wrongpaper-tinye2e-01
+project: scholarlm
+description: 'Wrong-paper control: the rows of 2026-11-24-pond-judge-baselines-ntp-llama70b-tinye2e-01,
+  each judged against a different row''s paper (document_id rotated by 4 positions). Predicted:
+  p_true lower than in 2026-11-24-pond-judge-baselines-ntp-llama70b-tinye2e-01 on >= 75% of
+  rows, and mean p_true lower by >= 0.2.'
+seed: 342
+params:
+  dataset: pond
+  judge: llama-3.3-70b
+  synthetic_file: experiments/experiment-configs/pond/judge_baselines/2026-11-24-pond-judge-baselines-ntp-llama70b-wrongpaper-tinye2e-01/wrong_paper_rows.json
+  ocr_dir: experiments/results/pond/drop_references/2026-09-18-pond-table-cleaning-drop-references-01
+  baseline: ntp
+  top_logprobs: 20
+  walltime: 02:00:00

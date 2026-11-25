@@ -1,0 +1,2129 @@
+[
+ {
+  "name": "Rosu",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_1_entity_1",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "km²",
+   "surface area"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": "13.65",
+  "units": "km^2",
+  "qualifiers": [],
+  "point_value": "13.65",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   1,
+   1
+  ],
+  "table_number": [
+   null,
+   null
+  ],
+  "row_index": [
+   null,
+   null
+  ],
+  "column_index": [
+   null,
+   null
+  ],
+  "source": [
+   "text",
+   "text"
+  ],
+  "document_id": "phosphorus_removal",
+  "measurement_id": 11,
+  "original_document_id": "analysis_of_biological"
+ },
+ {
+  "name": "Quarry Pond",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_24_entity_4",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "zmax",
+   "depth"
+  ],
+  "date": "June 2013",
+  "event_details": "First 2 weeks of June, rainfall of 21.7 cm",
+  "value": "doubled",
+  "units": null,
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   10
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "regulation_of_zooplankton",
+  "measurement_id": 159,
+  "original_document_id": "drivers_of_carbon_dioxide"
+ },
+ {
+  "name": "Dalnee",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_35_entity_5",
+  "attribute": "tp",
+  "attribute_terms": [
+   "TP"
+  ],
+  "date": null,
+  "event_details": null,
+  "value": "0.332",
+  "units": null,
+  "qualifiers": [],
+  "point_value": "0.332",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   4
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "seasonal_and_diurnal",
+  "measurement_id": 214,
+  "original_document_id": "fish_production_correlated"
+ },
+ {
+  "name": "Lake metabolism",
+  "identifiers": "None",
+  "ecosystem": "other",
+  "entity_id": "doc_46_entity_0",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "mean_depth_m"
+  ],
+  "date": "yyyy",
+  "event_details": "1–730 m",
+  "value": "1–730",
+  "units": "m",
+  "qualifiers": [
+   "IsRange"
+  ],
+  "point_value": null,
+  "lower": "1",
+  "upper": "730",
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   11
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "carbon_dioxide_efflux",
+  "measurement_id": 349,
+  "original_document_id": "lake_metabolism"
+ },
+ {
+  "name": "Olentangy River",
+  "identifiers": "None",
+  "ecosystem": "other",
+  "entity_id": "doc_67_entity_2",
+  "attribute": "tp",
+  "attribute_terms": [
+   "TP"
+  ],
+  "date": "1995",
+  "event_details": "replacement wetland in central Ohio",
+  "value": "2.9",
+  "units": "g P m⁻² year⁻¹",
+  "qualifiers": [],
+  "point_value": "2.9",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   16
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "conservation_of_pond",
+  "measurement_id": 650,
+  "original_document_id": "phosphorus_removal"
+ },
+ {
+  "name": "Swan Lake",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_77_entity_0",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "Swan Lake",
+   "8.8 m"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": "8.8",
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "8.8",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "conservation_of_pond",
+  "measurement_id": 817,
+  "original_document_id": "regulation_of_zooplankton"
+ },
+ {
+  "name": "pond",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_82_entity_0",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface area",
+   "m²"
+  ],
+  "date": "None",
+  "event_details": "surface area of ~5400 m^2",
+  "value": "~5400",
+  "units": "m^2",
+  "qualifiers": [
+   "IsApproximate"
+  ],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   1
+  ],
+  "table_number": [
+   null
+  ],
+  "row_index": [
+   null
+  ],
+  "column_index": [
+   null
+  ],
+  "source": [
+   "text"
+  ],
+  "document_id": "constructed_treatment_wetlands",
+  "measurement_id": 963,
+  "original_document_id": "seasonal_and_diurnal"
+ },
+ {
+  "name": "Torrellafuda",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_7_entity_4",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "cm",
+   "depth"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 165,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "165",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Torrellafuda"
+  ],
+  "column_index": [
+   "max_depth_cm"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "daphnia_diversity",
+  "measurement_id": 1537,
+  "original_document_id": "carbon_dioxide_efflux"
+ },
+ {
+  "name": "Pool 6",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_13_entity_5",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "m2",
+   "ha"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 29700,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "6"
+  ],
+  "column_index": [
+   "estimated_area_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "determinants_of_biodiversity",
+  "measurement_id": 2087,
+  "original_document_id": "conservation_of_pond"
+ },
+ {
+  "name": "Pool 6",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_13_entity_5",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "cm"
+  ],
+  "date": "Sep-2005",
+  "event_details": "None",
+  "value": 31.0,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "31.0",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "6"
+  ],
+  "column_index": [
+   "depth_cm"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "diversity_of_macroinvertebrates",
+  "measurement_id": 2089,
+  "original_document_id": "conservation_of_pond"
+ },
+ {
+  "name": "Serpentine North",
+  "identifiers": "SN1",
+  "ecosystem": "lake",
+  "entity_id": "doc_14_entity_4",
+  "attribute": "ph",
+  "attribute_terms": [
+   "pH",
+   "-"
+  ],
+  "date": "None",
+  "event_details": "Lake",
+  "value": "6.84a",
+  "units": null,
+  "qualifiers": [],
+  "point_value": "6.84",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   8
+  ],
+  "table_number": [
+   4
+  ],
+  "row_index": [
+   "('Physicochemical', 'pH')"
+  ],
+  "column_index": [
+   "mean"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "diversity_of_macroinvertebrates",
+  "measurement_id": 2285,
+  "original_document_id": "constructed_treatment_wetlands"
+ },
+ {
+  "name": "Vecchio",
+  "identifiers": "Vecchio",
+  "ecosystem": "pond",
+  "entity_id": "doc_18_entity_15",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "m²",
+   "m^2"
+  ],
+  "date": "yyyy",
+  "event_details": "None",
+  "value": 7070.0,
+  "units": "m^2",
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Vecchio"
+  ],
+  "column_index": [
+   "area_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "drivers_of_sediment",
+  "measurement_id": 2466,
+  "original_document_id": "daphnia_diversity"
+ },
+ {
+  "name": "Clotilde",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_19_entity_12",
+  "attribute": "chla",
+  "attribute_terms": [
+   "Chl-a",
+   "chlorophyll-a",
+   "μg L<sup>−1</sup>"
+  ],
+  "date": "None",
+  "event_details": "phytoplankton biomass (measured as Chl-a concentration) decreased with increasing size of the catchment",
+  "value": "-0.645*",
+  "units": null,
+  "qualifiers": [],
+  "point_value": "-0.645",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   6
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "('SRSi', 'Chl-a')"
+  ],
+  "column_index": [
+   "correlation_coefficient"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "dry_habitats_sustain",
+  "measurement_id": 2573,
+  "original_document_id": "determinants_of_biodiversity"
+ },
+ {
+  "name": "POK2",
+  "identifiers": "POK2",
+  "ecosystem": "pond",
+  "entity_id": "doc_23_entity_5",
+  "attribute": "tn",
+  "attribute_terms": [
+   "TN",
+   "total nitrogen",
+   "mg/l"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 0.81,
+  "units": "mg/L",
+  "qualifiers": [],
+  "point_value": "0.81",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "('POK', 2)"
+  ],
+  "column_index": [
+   "tn_mg_l"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "environmental_conditions",
+  "measurement_id": 2718,
+  "original_document_id": "diversity_of_macroinvertebrates"
+ },
+ {
+  "name": "VP3",
+  "identifiers": "VP3",
+  "ecosystem": "pond",
+  "entity_id": "doc_23_entity_15",
+  "attribute": "tn",
+  "attribute_terms": [
+   "TN",
+   "total nitrogen",
+   "mg/l"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 0.71,
+  "units": "mg/L",
+  "qualifiers": [],
+  "point_value": "0.71",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "('VP', 3)"
+  ],
+  "column_index": [
+   "tn_mg_l"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "environmental_conditions",
+  "measurement_id": 2779,
+  "original_document_id": "diversity_of_macroinvertebrates"
+ },
+ {
+  "name": "Pond 3",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_25_entity_2",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "pond surface area",
+   "SA"
+  ],
+  "date": "March-yyyy",
+  "event_details": "None",
+  "value": 40560,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "3"
+  ],
+  "column_index": [
+   "pond_sa_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "environmental_conditions",
+  "measurement_id": 2888,
+  "original_document_id": "drivers_of_sediment"
+ },
+ {
+  "name": "Verda d’Algairens",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_26_entity_2",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "max_depth"
+  ],
+  "date": "None",
+  "event_details": "Ephemeral (days-weeks)",
+  "value": 140,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "140",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   1
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Verda d’Algairens"
+  ],
+  "column_index": [
+   "max_depth"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "fish_production_in_lakes",
+  "measurement_id": 2918,
+  "original_document_id": "dry_habitats_sustain"
+ },
+ {
+  "name": "Lukovec",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_28_entity_5",
+  "attribute": "chla",
+  "attribute_terms": [
+   "chlorophyll-a",
+   "chl-a"
+  ],
+  "date": "August 2009",
+  "event_details": "Measured spectrophotometrically in laboratory on same day as other water quality parameters.",
+  "value": 0.86,
+  "units": "mg/L",
+  "qualifiers": [],
+  "point_value": "0.86",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "table_number": [
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "row_index": [
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1",
+   "1"
+  ],
+  "column_index": [
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l",
+   "chl_a_mg_l"
+  ],
+  "source": [
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table",
+   "table"
+  ],
+  "document_id": "fish_production_in_lakes",
+  "measurement_id": 3275,
+  "original_document_id": "environmental_conditions"
+ },
+ {
+  "name": "Tomaj",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_28_entity_21",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "depth"
+  ],
+  "date": "August 2009",
+  "event_details": "Pond number 4",
+  "value": 1.2,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "1.2",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   2
+  ],
+  "row_index": [
+   "4"
+  ],
+  "column_index": [
+   "depth_m"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "fish_production_in_lakes",
+  "measurement_id": 3838,
+  "original_document_id": "environmental_conditions"
+ },
+ {
+  "name": "Škrbina",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_28_entity_26",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface"
+  ],
+  "date": "August 2009",
+  "event_details": "Pond number 13",
+  "value": 52,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   2
+  ],
+  "row_index": [
+   "13"
+  ],
+  "column_index": [
+   "surface_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "fish_production_in_lakes",
+  "measurement_id": 4026,
+  "original_document_id": "environmental_conditions"
+ },
+ {
+  "name": "Shoe",
+  "identifiers": "Ricker (1942a)",
+  "ecosystem": "lake",
+  "entity_id": "doc_36_entity_52",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_acres"
+  ],
+  "date": "2,000",
+  "event_details": "Total population",
+  "value": 3.86,
+  "units": "pounds",
+  "qualifiers": [],
+  "point_value": "3.86",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "2000"
+  ],
+  "column_index": [
+   "average_pounds"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "gas_transfer",
+  "measurement_id": 4850,
+  "original_document_id": "fish_production_in_lakes"
+ },
+ {
+  "name": "Portage",
+  "identifiers": "Hazzard & Eschmeyer (1938)",
+  "ecosystem": "lake",
+  "entity_id": "doc_36_entity_75",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_acres"
+  ],
+  "date": "None",
+  "event_details": "Total population, average_pounds = 81.1",
+  "value": 81.1,
+  "units": "pounds",
+  "qualifiers": [],
+  "point_value": "81.1",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "20"
+  ],
+  "column_index": [
+   "average_pounds"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "global_importance",
+  "measurement_id": 5224,
+  "original_document_id": "fish_production_in_lakes"
+ },
+ {
+  "name": "Fife",
+  "identifiers": "Eschmeyer (1936, 1937a, 1939a)",
+  "ecosystem": "lake",
+  "entity_id": "doc_36_entity_77",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_acres"
+  ],
+  "date": "None",
+  "event_details": "Annual yield Sport, 30.3 pounds per acre",
+  "value": 106.9,
+  "units": "pounds per acre",
+  "qualifiers": [],
+  "point_value": "106.9",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "10"
+  ],
+  "column_index": [
+   "average_pounds"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "global_importance",
+  "measurement_id": 5272,
+  "original_document_id": "fish_production_in_lakes"
+ },
+ {
+  "name": "Michigan",
+  "identifiers": "International Board of Inquiry (1943)",
+  "ecosystem": "lake",
+  "entity_id": "doc_36_entity_97",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_acres"
+  ],
+  "date": "None",
+  "event_details": "Annual yield Sport, area = 200 index (corresponding to area = 200 acres)",
+  "value": 32.3,
+  "units": "pounds",
+  "qualifiers": [],
+  "point_value": "32.3",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "200"
+  ],
+  "column_index": [
+   "average_pounds"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "identification_of_total",
+  "measurement_id": 5543,
+  "original_document_id": "fish_production_in_lakes"
+ },
+ {
+  "name": "RH",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_38_entity_2",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface area",
+   "m²"
+  ],
+  "date": "mm-yyyy",
+  "event_details": "None",
+  "value": 197,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": "197",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "RH"
+  ],
+  "column_index": [
+   "surface_area_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "lake_metabolism",
+  "measurement_id": 5637,
+  "original_document_id": "gas_transfer"
+ },
+ {
+  "name": "Vanern",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_39_entity_1",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "mean_z_m"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 27.0,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "27.0",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   1
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Vanern"
+  ],
+  "column_index": [
+   "mean_z_m"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "lake_metabolism",
+  "measurement_id": 5644,
+  "original_document_id": "global_importance"
+ },
+ {
+  "name": "Far",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_39_entity_8",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface_area_km2"
+  ],
+  "date": "yyyy",
+  "event_details": "Surface area <50 km^2",
+  "value": 15,
+  "units": "samples",
+  "qualifiers": [],
+  "point_value": "15",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   4
+  ],
+  "table_number": [
+   2
+  ],
+  "row_index": [
+   "('Surface Area', '<50 km2')"
+  ],
+  "column_index": [
+   "n"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "long-term_stability",
+  "measurement_id": 5677,
+  "original_document_id": "global_importance"
+ },
+ {
+  "name": "Denis",
+  "identifiers": "Dens",
+  "ecosystem": "pond",
+  "entity_id": "doc_44_entity_1",
+  "attribute": "vegetation_cover",
+  "attribute_terms": [
+   "%SVmax"
+  ],
+  "date": "None",
+  "event_details": "TP <= 0.300 mg P L$^{-1}$, LCL > 0.87 mm",
+  "value": 0.0,
+  "units": "fraction",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   11
+  ],
+  "table_number": [
+   4
+  ],
+  "row_index": [
+   "('TP <= 0.300', 'Phyto vs. SV_max (LCL > 0.87)')"
+  ],
+  "column_index": [
+   "r_squared"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "macroinvertebrate_size",
+  "measurement_id": 5817,
+  "original_document_id": "identification_of_total"
+ },
+ {
+  "name": "Bøllemose",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_46_entity_6",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_ha"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 0.5,
+  "units": "ha",
+  "qualifiers": [],
+  "point_value": "0.5",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Bøllemose"
+  ],
+  "column_index": [
+   "area_ha"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "measuring_the_trophic",
+  "measurement_id": 5928,
+  "original_document_id": "lake_metabolism"
+ },
+ {
+  "name": "Esrum Sø",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_46_entity_7",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "area_ha"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 1729.0,
+  "units": "ha",
+  "qualifiers": [],
+  "point_value": "1729.0",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Esrum Sø"
+  ],
+  "column_index": [
+   "area_ha"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "net_heterotrophy",
+  "measurement_id": 5932,
+  "original_document_id": "lake_metabolism"
+ },
+ {
+  "name": "Lake Example",
+  "identifiers": "X1",
+  "ecosystem": "lake",
+  "entity_id": "doc_51_entity_2",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "ha"
+  ],
+  "date": "None",
+  "event_details": "latitude_deg=45.2756, longitude_deg=-78.5612",
+  "value": 0.6,
+  "units": "ha",
+  "qualifiers": [],
+  "point_value": "0.6",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "1506"
+  ],
+  "column_index": [
+   "surface_area_ha"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "organic_carbon_burial",
+  "measurement_id": 6154,
+  "original_document_id": "long-term_stability"
+ },
+ {
+  "name": "CP-GDP",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_53_entity_6",
+  "attribute": "tp",
+  "attribute_terms": [
+   "ptot_mg_l",
+   "total phosphorus"
+  ],
+  "date": "60",
+  "event_details": "None",
+  "value": 0.59,
+  "units": "mg/L",
+  "qualifiers": [],
+  "point_value": "0.59",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2,
+   2
+  ],
+  "table_number": [
+   1,
+   1
+  ],
+  "row_index": [
+   "CP-GDP",
+   "CP-GDP"
+  ],
+  "column_index": [
+   "ptot_mg_l",
+   "ptot_mg_l"
+  ],
+  "source": [
+   "table",
+   "table"
+  ],
+  "document_id": "physical-chemical_influences",
+  "measurement_id": 6543,
+  "original_document_id": "macroinvertebrate_size"
+ },
+ {
+  "name": "Vigny-nord",
+  "identifiers": "P1",
+  "ecosystem": "pond",
+  "entity_id": "doc_55_entity_0",
+  "attribute": "tn",
+  "attribute_terms": [
+   "total nitrogen",
+   "TN",
+   "mg/L"
+  ],
+  "date": "mm-yyyy",
+  "event_details": "Mean measurement from site P4",
+  "value": "SW2 TN + Transp",
+  "units": "mg/L",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   6
+  ],
+  "table_number": [
+   5
+  ],
+  "row_index": [
+   "3"
+  ],
+  "column_index": [
+   "predictors"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "physical-chemical_influences",
+  "measurement_id": 6689,
+  "original_document_id": "measuring_the_trophic"
+ },
+ {
+  "name": "Teglgårdssø",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_62_entity_17",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "size_m2"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 53177,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Teglgårdssø"
+  ],
+  "column_index": [
+   "size_m2"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "physical-chemical_influences",
+  "measurement_id": 7239,
+  "original_document_id": "net_heterotrophy"
+ },
+ {
+  "name": "Lake Baikal",
+  "identifiers": "BA-NB; BA-AK; BA-PO; BA-VY; BA-SB",
+  "ecosystem": "lake",
+  "entity_id": "doc_65_entity_3",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "m"
+  ],
+  "date": "yyyy",
+  "event_details": "Akademisky",
+  "value": 400,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "400",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   2
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "('Baikal', 'Akademisky')"
+  ],
+  "column_index": [
+   "depth_m"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "prairie_wetland",
+  "measurement_id": 7374,
+  "original_document_id": "organic_carbon_burial"
+ },
+ {
+  "name": "Green Bush",
+  "identifiers": "4",
+  "ecosystem": "pond",
+  "entity_id": "doc_68_entity_7",
+  "attribute": "ph",
+  "attribute_terms": [
+   "pH"
+  ],
+  "date": "1996",
+  "event_details": "site code 4, southern cluster (S)",
+  "value": 6.97,
+  "units": null,
+  "qualifiers": [],
+  "point_value": "6.97",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   7
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "Green Bush Kettle"
+  ],
+  "column_index": [
+   "ph"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "production_of_fish",
+  "measurement_id": 7493,
+  "original_document_id": "physical-chemical_influences"
+ },
+ {
+  "name": "Hwy 63 West",
+  "identifiers": "48",
+  "ecosystem": "pond",
+  "entity_id": "doc_68_entity_11",
+  "attribute": "ph",
+  "attribute_terms": [
+   "pH"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 6.21,
+  "units": null,
+  "qualifiers": [],
+  "point_value": "6.21",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   7
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "Hwy 63 West"
+  ],
+  "column_index": [
+   "ph"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "sediment_organic_carbon_distribution",
+  "measurement_id": 7516,
+  "original_document_id": "physical-chemical_influences"
+ },
+ {
+  "name": "Kostka A",
+  "identifiers": "9",
+  "ecosystem": "pond",
+  "entity_id": "doc_68_entity_21",
+  "attribute": "tp",
+  "attribute_terms": [
+   "TP",
+   "total phosphorus"
+  ],
+  "date": "None",
+  "event_details": "Schneider #3",
+  "value": 0.044,
+  "units": "µg/L",
+  "qualifiers": [],
+  "point_value": "0.044",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   8
+  ],
+  "table_number": [
+   4
+  ],
+  "row_index": [
+   "Schneider #3"
+  ],
+  "column_index": [
+   "tp"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "specificity_of_zooplankton",
+  "measurement_id": 7644,
+  "original_document_id": "physical-chemical_influences"
+ },
+ {
+  "name": "Hood-1",
+  "identifiers": "Hood",
+  "ecosystem": "wetland",
+  "entity_id": "doc_73_entity_1",
+  "attribute": "tn",
+  "attribute_terms": [
+   "TDN"
+  ],
+  "date": "mm-yyyy",
+  "event_details": "recently restored",
+  "value": 1099,
+  "units": "µg/L",
+  "qualifiers": [],
+  "point_value": "1099",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5,
+   5,
+   5
+  ],
+  "table_number": [
+   2,
+   2,
+   2
+  ],
+  "row_index": [
+   "('Hood-1', 'RR')",
+   "('Hood-1', 'RR')",
+   "('Hood-1', 'RR')"
+  ],
+  "column_index": [
+   "tdn_u_g_l",
+   "tdn_u_g_l",
+   "tdn_u_g_l"
+  ],
+  "source": [
+   "table",
+   "table",
+   "table"
+  ],
+  "document_id": "strength_of_phytoplankton",
+  "measurement_id": 8472,
+  "original_document_id": "prairie_wetland"
+ },
+ {
+  "name": "Dalnee",
+  "identifiers": "None",
+  "ecosystem": "lake",
+  "entity_id": "doc_74_entity_8",
+  "attribute": "tn",
+  "attribute_terms": [
+   "total nitrogen",
+   "TN",
+   "µg/L"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": "—",
+  "units": "µg/L",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "Dalnee"
+  ],
+  "column_index": [
+   "tn_ug_l"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "the_diversity_of_macroinvertebrate",
+  "measurement_id": 8909,
+  "original_document_id": "production_of_fish"
+ },
+ {
+  "name": "Fayette",
+  "identifiers": "None",
+  "ecosystem": "impoundment",
+  "entity_id": "doc_88_entity_0",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface area",
+   "ha"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 24.3,
+  "units": "ha",
+  "qualifiers": [],
+  "point_value": "24.3",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3,
+   3
+  ],
+  "table_number": [
+   1,
+   1
+  ],
+  "row_index": [
+   "1",
+   "1"
+  ],
+  "column_index": [
+   "surface_area_ha",
+   "surface_area_ha"
+  ],
+  "source": [
+   "table",
+   "table"
+  ],
+  "document_id": "the_impact_of_three",
+  "measurement_id": 9469,
+  "original_document_id": "sediment_organic_carbon_distribution"
+ },
+ {
+  "name": "pond IV",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_93_entity_3",
+  "attribute": "chla",
+  "attribute_terms": [
+   "chlorophyll a",
+   "Chl-a",
+   "mg/m³"
+  ],
+  "date": "summer",
+  "event_details": "pond IV",
+  "value": 44.37,
+  "units": "mg/m^3",
+  "qualifiers": [],
+  "point_value": "44.37",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   4
+  ],
+  "table_number": [
+   2
+  ],
+  "row_index": [
+   "('IV', 'summer')"
+  ],
+  "column_index": [
+   "chlorophyll_a_mg_per_m3"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "variations_in_sediment",
+  "measurement_id": 9598,
+  "original_document_id": "specificity_of_zooplankton"
+ },
+ {
+  "name": "NrPd1",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_94_entity_5",
+  "attribute": "vegetation_cover",
+  "attribute_terms": [
+   "%"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 17,
+  "units": "percent",
+  "qualifiers": [],
+  "point_value": "17",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   4
+  ],
+  "table_number": [
+   3
+  ],
+  "row_index": [
+   "6"
+  ],
+  "column_index": [
+   "sv_cover_mean"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "vegetation-environmental",
+  "measurement_id": 9702,
+  "original_document_id": "strength_of_phytoplankton"
+ },
+ {
+  "name": "J",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_98_entity_3",
+  "attribute": "ph",
+  "attribute_terms": [
+   "pH"
+  ],
+  "date": null,
+  "event_details": null,
+  "value": 5,
+  "units": "cover abundance score",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   13
+  ],
+  "table_number": [
+   5
+  ],
+  "row_index": [
+   "('Juncus bulbosus v. fluitans L.', 'Q')"
+  ],
+  "column_index": [
+   "cover_abundance_score"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "water_circulation",
+  "measurement_id": 9946,
+  "original_document_id": "the_diversity_of_macroinvertebrate"
+ },
+ {
+  "name": "Relongues N",
+  "identifiers": "None",
+  "ecosystem": "marsh",
+  "entity_id": "doc_101_entity_2",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "2.8 ha"
+  ],
+  "date": "1987-88",
+  "event_details": "Fish leaving",
+  "value": 16.0,
+  "units": "ha",
+  "qualifiers": [],
+  "point_value": "16.0",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   4
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "('1987-88', 'Fish leaving', 'Relongues N')"
+  ],
+  "column_index": [
+   "location_area_ha"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "water_circulation",
+  "measurement_id": 10348,
+  "original_document_id": "the_impact_of_three"
+ },
+ {
+  "name": "H1",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_108_entity_7",
+  "attribute": "vegetation_cover",
+  "attribute_terms": [
+   "vegetation",
+   "macrophytes"
+  ],
+  "date": "None",
+  "event_details": "Small ponds at Hauxley have been monitored intensively (Jeffries 2002), vegetation similar to naturally vegetated ponds at Blakemoor, although Hauxley ponds dry most years.",
+  "value": "Shallow (<30 cm) permanent and temporary ponds in sheep or cattle pasture fields. Soil substrate, extensive vegetation (>90%), mostly seeded fodder (e.g., perennial ryegrass [Lolium perenne]) or amphibious grasses (e.g., flote grass [Glyceria fluitans]).",
+  "units": "percent",
+  "qualifiers": [],
+  "point_value": null,
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Grazing pasture ponds"
+  ],
+  "column_index": [
+   "characteristics"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "water_circulation",
+  "measurement_id": 10673,
+  "original_document_id": "variations_in_sediment"
+ },
+ {
+  "name": "natural ponds",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_109_entity_0",
+  "attribute": "ph",
+  "attribute_terms": [
+   "water pH"
+  ],
+  "date": "None",
+  "event_details": "Ľubica",
+  "value": "8.30",
+  "units": null,
+  "qualifiers": [],
+  "point_value": "8.30",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   3
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "Ľubica"
+  ],
+  "column_index": [
+   "water_ph"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "analysis_of_biological",
+  "measurement_id": 10683,
+  "original_document_id": "vegetation-environmental"
+ },
+ {
+  "name": "ponds",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_110_entity_0",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "maximum depth",
+   "m"
+  ],
+  "date": "None",
+  "event_details": "Pond 12",
+  "value": 0.67,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "0.67",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "12"
+  ],
+  "column_index": [
+   "maximum_depth_m"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "drivers_of_carbon_dioxide",
+  "measurement_id": 10844,
+  "original_document_id": "water_circulation"
+ },
+ {
+  "name": "Pond 2",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_110_entity_4",
+  "attribute": "surface_area",
+  "attribute_terms": [
+   "surface area",
+   "m^2"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 4152,
+  "units": "m^2",
+  "qualifiers": [],
+  "point_value": "4152",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5,
+   5
+  ],
+  "table_number": [
+   1,
+   1
+  ],
+  "row_index": [
+   "2",
+   "2"
+  ],
+  "column_index": [
+   "pond_area_m2",
+   "pond_area_m2"
+  ],
+  "source": [
+   "table",
+   "table"
+  ],
+  "document_id": "fish_production_correlated",
+  "measurement_id": 10849,
+  "original_document_id": "water_circulation"
+ },
+ {
+  "name": "Pond 7",
+  "identifiers": "None",
+  "ecosystem": "pond",
+  "entity_id": "doc_110_entity_9",
+  "attribute": "max_depth",
+  "attribute_terms": [
+   "maximum depth",
+   "m"
+  ],
+  "date": "None",
+  "event_details": "None",
+  "value": 0.96,
+  "units": "m",
+  "qualifiers": [],
+  "point_value": "0.96",
+  "lower": null,
+  "upper": null,
+  "list_values": null,
+  "tolerance": null,
+  "standard_deviation": null,
+  "page_number": [
+   5
+  ],
+  "table_number": [
+   1
+  ],
+  "row_index": [
+   "7"
+  ],
+  "column_index": [
+   "maximum_depth_m"
+  ],
+  "source": [
+   "table"
+  ],
+  "document_id": "lake_metabolism",
+  "measurement_id": 10860,
+  "original_document_id": "water_circulation"
+ }
+]

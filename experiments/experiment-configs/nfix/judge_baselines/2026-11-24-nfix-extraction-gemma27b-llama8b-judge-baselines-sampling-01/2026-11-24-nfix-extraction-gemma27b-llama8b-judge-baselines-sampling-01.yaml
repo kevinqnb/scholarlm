@@ -1,0 +1,21 @@
+id: 2026-11-24-nfix-extraction-gemma27b-llama8b-judge-baselines-sampling-01
+project: scholarlm
+description: sampling confidence baseline (llama-3.1-8b) over nfix extraction 2026-09-21-nfix-extraction-gemma27b-full-01,
+  full-paper context. Walltime is an unmeasured estimate.
+seed: 342
+params:
+  dataset: nfix
+  judge: llama-3.1-8b
+  extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  baseline: sampling
+  n_samples: 10
+  max_tokens: 16
+  max_retries: 2
+  sampling_params:
+    temperature: 1.0
+    top_p: 1.0
+    top_k: 0
+    min_p: 0.0
+    repetition_penalty: 1.0
+  walltime: '48:00:00'

@@ -1,0 +1,14 @@
+id: 2026-11-24-nfix-extraction-gemma27b-llama70b-judge-baselines-ntp-01
+project: scholarlm
+description: ntp confidence baseline (llama-3.3-70b) over nfix extraction 2026-09-21-nfix-extraction-gemma27b-full-01,
+  full-paper context. The single request per row uses temperature 0; the score does not depend
+  on it. Walltime is an unmeasured estimate.
+seed: 342
+params:
+  dataset: nfix
+  judge: llama-3.3-70b
+  extraction_id: 2026-09-21-nfix-extraction-gemma27b-full-01
+  ocr_dir: experiments/results/nfix/drop_references/2026-09-18-nfix-table-cleaning-drop-references-01
+  baseline: ntp
+  top_logprobs: 20
+  walltime: '48:00:00'
